@@ -30,7 +30,7 @@ use crate::store::{InstalledModule, KvSetError, ModuleStamp, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 9] = [
+pub(crate) const HOST_CAPABILITIES: [&str; 10] = [
     "kv.store",
     "message.post",
     "net.fetch",
@@ -40,10 +40,17 @@ pub(crate) const HOST_CAPABILITIES: [&str; 9] = [
     "log.read",
     "interceptors",
     "permission.hook",
+    "call.audio",
 ];
 
 /// Approved like the others, but a permission to be run, not a host call.
-const NOT_HOST_CALLS: [&str; 4] = ["schedule", "events", "interceptors", "permission.hook"];
+const NOT_HOST_CALLS: [&str; 5] = [
+    "schedule",
+    "events",
+    "interceptors",
+    "permission.hook",
+    "call.audio",
+];
 
 /// Most keys a `list` returns; equal to the entry cap, so it is never truncated.
 const LIST_LIMIT: i64 = MAX_ENTRIES as i64;
@@ -67,6 +74,13 @@ pub(crate) fn schedule_approved(module: &InstalledModule) -> bool {
     effective_capabilities(module)
         .iter()
         .any(|c| c == "schedule")
+}
+
+/// Whether an admin approved `module` to hear voice calls as text (decision 0104).
+pub(crate) fn call_audio_approved(module: &InstalledModule) -> bool {
+    effective_capabilities(module)
+        .iter()
+        .any(|c| c == "call.audio")
 }
 
 /// Whether an admin approved `module` to read the durable logs, which it does as its own principal.

@@ -236,6 +236,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
     ),
     route(
         Method::PUT,
+        "/space/dock/modules/{id}/call-audio-channels",
+        "module.call_audio_channels",
+        MODULE,
+    ),
+    route(
+        Method::PUT,
         "/space/dock/modules/{id}/settings",
         "module.settings",
         MODULE,

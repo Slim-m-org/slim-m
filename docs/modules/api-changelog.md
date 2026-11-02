@@ -3,6 +3,14 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 4
+
+- Adds the `call.audio` capability (decision [0104](../decisions/0104-module-call-audio.md)): a module hears a voice call as text, only in channels an admin chose and only while everyone in the call agrees.
+- Adds the `call_audio` manifest block: `purpose` and `keeps` (20 to 240 characters each, shown word for word to everyone in a call) and an optional `permission`, one of the module's own, that a member needs to start a session. It is required with the capability, together with `"addon_api": 4`.
+- Adds four events in the `event/1` envelope: `call.audio.started`, `call.audio.participant`, `call.audio.segment` and `call.audio.stopped`. They need no `subscriptions` entry.
+- Adds no host call. A module only listens.
+- Nothing is removed or changed in meaning. A module that declares `addon_api_max` of 3 must be updated to run on a level 4 server, as at every level.
+
 ## Level 3 additions (no level bump, nothing to declare)
 
 - The run request gains an optional `context` object: `channel_id` (the channel a command ran in, a surface lives in, or a timer was set from) and `voice_channel_id` (only when the host confirmed the member is in that call).

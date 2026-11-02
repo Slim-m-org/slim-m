@@ -359,6 +359,21 @@ slim-addons: `modules/transcript` 0.1.0, below.
 - Its `purpose` and `keeps` are the example above.
 - Speech-to-text does not run in the module: the listener on the server's host runs whisper.cpp, and the module only receives text.
 
+## Phase 1 as built
+
+Where the build differs from, or adds to, the design above.
+
+- The `voice.call_audio` frame is carried by the hub's durable channel, not the ephemeral one.
+  It has no `seq` and is never stored, but a missed `null` would leave a banner on for a session that ended, which the ephemeral channel's drop-on-lag would allow.
+  A client also reads the route again after a reconnect.
+- The frame carries an `ended` word beside a `null` state (`declined`, `lapsed`, `stopped`, ...), so people see whether an ask was refused or lapsed.
+  A module is still told `declined` for both, and never who.
+- Hidden-presence members are left out of `included` and `pending` for every viewer but themselves, as the call roster does.
+- The server pings the listener every 2 s, and the listener treats 5 quiet seconds as a lost connection.
+- The listener's token comes from the server's `VoiceService`, with a `hidden` grant added.
+- Measured on the owner's machine (Ryzen 9 9950X3D, release build, base model, 4 workers): four speakers in turn, 7 s of speech each, text arrived 2.6 s after the speaker stopped at the 95th percentile (600 ms of that is the endpointer waiting for silence), and the process peaked at 582 MB resident.
+- The transcript module also asks for `message.post`, since posting as itself needs it, and runs its timer every 15 minutes so a silent call is posted soon.
+
 ## Open questions for the owner
 
 Each has the default this record takes until he says otherwise.

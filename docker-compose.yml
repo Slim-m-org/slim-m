@@ -66,6 +66,10 @@ services:
       # Off by default: unfurling makes the server fetch member-supplied URLs
       # (behind the SSRF guard, decision 0019). Set true to show link previews.
       SLIMM_LINK_PREVIEWS: ${SLIMM_LINK_PREVIEWS:-false}
+      # Call audio (decision 0104): blank leaves it off. The listener profile below runs the service.
+      SLIMM_LISTENER_URL: ${SLIMM_LISTENER_URL:-}
+      SLIMM_LISTENER_SECRET: ${SLIMM_LISTENER_SECRET:-}
+      SLIMM_LISTENER_LIVEKIT_URL: ${SLIMM_LISTENER_LIVEKIT_URL:-}
       # No SLIMM_LIVEKIT_* here on purpose, and absent rather than empty: the
       # server reads an unset trio as "no SFU" and answers 501 for every voice
       # request, which is a supported way to run this rather than a broken one.
@@ -101,6 +105,30 @@ services:
           memory: 512M
         reservations:
           memory: 128M
+
+  # Optional call-audio listener, off unless COMPOSE_PROFILES=listener; deploy/README.md, Call audio.
+  listener:
+    <<: *hardened
+    profiles: ["listener"]
+    image: ghcr.io/slim-m-org/slim-m-listener:${SLIMM_LISTENER_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      # The listener refuses to start with fewer than 32 characters. Not `:?`, which compose would check even with the profile off.
+      LISTENER_SECRET: ${SLIMM_LISTENER_SECRET:-}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-auto}
+      LISTENER_THREADS: ${LISTENER_THREADS:-4}
+      LISTENER_MAX_SESSIONS: ${LISTENER_MAX_SESSIONS:-2}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    volumes:
+      - listener_models:/models
+    expose:
+      - "9400"
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 1G
 
   caddy:
     <<: *hardened
@@ -184,3 +212,4 @@ volumes:
   slimm_data:   # the embedded SQLite database
   caddy_data:   # Caddy's ACME account and issued certificates
   caddy_config: # Caddy's runtime config cache
+  listener_models: # the speech model the listener downloads once (listener profile)

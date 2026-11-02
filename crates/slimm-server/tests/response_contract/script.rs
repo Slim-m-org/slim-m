@@ -356,6 +356,18 @@ pub async fn run(c: &mut Contract) {
         root,
     )
     .await;
+    let call_audio_channel = c
+        .state
+        .store
+        .create_channel("call-audio", "voice")
+        .await
+        .unwrap();
+    c.get(
+        "getVoiceCallAudio",
+        &format!("/channels/{}/voice/call-audio", call_audio_channel.id),
+        root,
+    )
+    .await;
     c.bare(
         "mintVoiceToken",
         "POST",

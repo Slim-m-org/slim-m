@@ -113,6 +113,9 @@ pub fn room_for_channel(channel_id: ChannelId) -> String {
     format!("channel-{channel_id}")
 }
 
+/// The identity prefix of a call-audio listener; no user id ever starts with it.
+pub const LISTENER_IDENTITY_PREFIX: &str = "listener-";
+
 /// The participant attribute carrying a deafened listener, read by every client.
 pub const DEAFENED_ATTRIBUTE: &str = "deafened";
 const DEAFENED_ATTRIBUTE_ON: &str = "true";
@@ -278,6 +281,7 @@ impl VoiceService {
             can_publish_data,
             // The display name is set below; no reason to let a client rewrite it mid-call.
             can_update_own_metadata: false,
+            hidden: false,
             room_admin: false,
             room_create: false,
         };
@@ -300,6 +304,52 @@ impl VoiceService {
             token,
             expires_at: (expires as i64) * 1000,
             can_publish,
+        })
+    }
+
+    /// Mints the call-audio listener's token: room-scoped, hidden, able to
+    /// subscribe and nothing else, for `session` (decision 0104). Its identity
+    /// never parses as a user id, so the webhook and roster paths skip it.
+    pub fn mint_listener(
+        &self,
+        channel_id: ChannelId,
+        session: uuid::Uuid,
+        livekit_url: Option<&str>,
+    ) -> Result<RoomToken, VoiceError> {
+        let Some(enabled) = self.inner.as_ref() else {
+            return Err(VoiceError::Unavailable);
+        };
+        let room = room_for_channel(channel_id);
+        let now = unix_secs();
+        let expires = now + TOKEN_TTL_SECS;
+        let identity = format!("{LISTENER_IDENTITY_PREFIX}{session}");
+        let token = self.sign(
+            enabled,
+            Claims {
+                iss: &enabled.api_key,
+                sub: &identity,
+                name: None,
+                nbf: now,
+                exp: expires,
+                video: VideoGrant {
+                    room: room.clone(),
+                    room_join: true,
+                    room_admin: false,
+                    room_create: false,
+                    can_subscribe: true,
+                    can_publish: false,
+                    can_publish_data: false,
+                    can_update_own_metadata: false,
+                    hidden: true,
+                },
+            },
+        )?;
+        Ok(RoomToken {
+            url: livekit_url.unwrap_or(&enabled.url).to_owned(),
+            room,
+            token,
+            expires_at: (expires as i64) * 1000,
+            can_publish: false,
         })
     }
 

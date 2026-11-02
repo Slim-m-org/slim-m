@@ -56,7 +56,9 @@ async fn receive(
     };
 
     track_session(&state, &event).await;
-    apply(&state, event);
+    let room_finished = room_finished_channel(&event);
+    let presence = apply(&state, event);
+    track_call_audio(&state, room_finished, presence).await;
     StatusCode::NO_CONTENT
 }
 
@@ -102,36 +104,78 @@ async fn track_session(state: &AppState, event: &WebhookEvent) {
     }
 }
 
-/// Turns a verified webhook event into a hub publish, or nothing for an
-/// event this server does not act on (`room_started`, egress events, a track
-/// that is not screen-share sourced, and so on).
-fn apply(state: &AppState, event: WebhookEvent) {
-    let Some(channel_id) = event
+fn room_finished_channel(event: &WebhookEvent) -> Option<ChannelId> {
+    if event.event != "room_finished" {
+        return None;
+    }
+    event
         .room
         .as_ref()
         .and_then(|room| voice::channel_for_room(&room.name))
-    else {
+}
+
+/// A real join or leave `apply` saw: the channel, the member, and whether they joined.
+type Presence = (ChannelId, UserId, bool);
+
+/// Tells call audio who came and went (decision 0104). Bots are never asked or heard.
+async fn track_call_audio(
+    state: &AppState,
+    room_finished: Option<ChannelId>,
+    presence: Option<Presence>,
+) {
+    if !state.call_audio.is_enabled() {
+        return;
+    }
+    let now = crate::store::now_ms();
+    let outcome = if let Some(channel) = room_finished {
+        state.call_audio.end(
+            channel,
+            crate::call_audio::session::EndReason::CallEnded,
+            now,
+        )
+    } else if let Some((channel, user, joined)) = presence {
+        if state.store.is_bot(user).await.unwrap_or(true) {
+            return;
+        }
+        if joined {
+            state.call_audio.joined(channel, user, now)
+        } else {
+            state.call_audio.left(channel, user, now)
+        }
+    } else {
         return;
     };
+    if let Some(outcome) = outcome {
+        crate::call_audio::runtime::apply(state, outcome).await;
+    }
+}
+
+/// Turns a verified webhook event into a hub publish, or nothing for an
+/// event this server does not act on (`room_started`, egress events, a track
+/// that is not screen-share sourced, and so on). Returns a real join or leave.
+fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
+    let channel_id = event
+        .room
+        .as_ref()
+        .and_then(|room| voice::channel_for_room(&room.name))?;
     state.voice.roster_cache().invalidate(channel_id);
     let live_state = state.voice.live_state();
     if event.event == "room_finished" {
         live_state.forget_room(channel_id);
-        return;
+        return None;
     }
-    let Some((user_id, sid)) = event
+    let (user_id, sid) = event
         .participant
         .as_ref()
-        .and_then(|p| Some((p.identity.parse().ok().map(UserId)?, p.sid.as_str())))
-    else {
-        return;
-    };
+        .and_then(|p| Some((p.identity.parse().ok().map(UserId)?, p.sid.as_str())))?;
+    let mut presence = None;
 
     match event.event.as_str() {
         "participant_joined" => {
             // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
             record(state, channel_id, user_id, VoiceEventKind::Joined);
             if live_state.mark_joined(channel_id, user_id, sid) {
+                presence = Some((channel_id, user_id, true));
                 state.hub.publish(Event::VoiceParticipantJoined {
                     channel_id,
                     user_id,
@@ -141,6 +185,7 @@ fn apply(state: &AppState, event: WebhookEvent) {
         "participant_left" => {
             record(state, channel_id, user_id, VoiceEventKind::Left);
             if live_state.mark_left(channel_id, user_id, sid) {
+                presence = Some((channel_id, user_id, false));
                 state.hub.publish(Event::VoiceParticipantLeft {
                     channel_id,
                     user_id,
@@ -166,6 +211,7 @@ fn apply(state: &AppState, event: WebhookEvent) {
         }
         _ => {}
     }
+    presence
 }
 
 /// The shared half of the `track_published`/`track_unpublished` arms: only a

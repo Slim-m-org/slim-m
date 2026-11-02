@@ -238,6 +238,15 @@ pub enum Event {
         user_id: UserId,
         is_sharing_screen: bool,
     },
+    /// A call-audio session started, changed or ended (decision 0104), for
+    /// everyone who can view the channel. `state` is `None` once it ends, and
+    /// `ended` then says how: `declined`, `lapsed`, `stopped` and so on, never
+    /// who. Never persisted and unnumbered; the REST route is the catch-up.
+    CallAudioChanged {
+        channel_id: ChannelId,
+        state: Option<Box<crate::call_audio::CallAudioView>>,
+        ended: Option<&'static str>,
+    },
     /// Ringing was started for a DM call: `caller_id` is calling whoever the
     /// other side of the `channel_id` DM is. `ring_id` names this specific
     /// attempt so a receiving client can tell it apart from an immediate

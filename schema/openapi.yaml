@@ -7275,6 +7275,140 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/voice/call-audio:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: getVoiceCallAudio
+      tags: [voice]
+      summary: Whether a module is hearing this call, and which modules the caller may start.
+      description: >
+        Needs `VIEW_CHANNEL` and `CONNECT` (decision 0104). `session` is null
+        when no module is asking or listening. `startable` lists the modules
+        this caller may turn on here: enabled, approved for call audio, armed
+        for this channel by an admin, the caller holding the permission the
+        module names, and the listener connected; it is empty while a session
+        exists. Someone whose presence is hidden is left out of `included`
+        and `pending` for every viewer but themselves.
+      responses:
+        "200":
+          description: The session and the modules the caller may start.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: requestVoiceCallAudio
+      tags: [voice]
+      summary: Ask everyone in the call to let a module hear it.
+      description: >
+        The caller must be in the call (by LiveKit's own account), the channel
+        armed for the module, the module enabled with call audio approved, the
+        caller must hold the permission the manifest names if it names one,
+        and the listener must be connected and under its session limit (409
+        "busy" otherwise). Their request counts as their own yes; everyone
+        else in the call is asked and has 60 seconds. After a decline, a
+        lapse or a stop the channel answers 429 with `Retry-After` for 60
+        seconds. 501 without a listener configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [module_id]
+              properties:
+                module_id:
+                  type: string
+      responses:
+        "200":
+          description: The session as it stands.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: stopVoiceCallAudio
+      tags: [voice]
+      summary: Stop a module hearing this call, for everyone.
+      description: >
+        Anyone in the call may stop it. A stop starts the same 60 second wait
+        before the channel can be asked again.
+      responses:
+        "204":
+          description: Stopped.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/voice/call-audio/consent:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    put:
+      operationId: answerVoiceCallAudio
+      tags: [voice]
+      summary: Say yes or not now to a module hearing this call.
+      description: >
+        Only someone in the call may answer. A yes includes the caller once
+        everyone has said yes (or at once when it is already on). A no stops
+        it for everyone and never says who. 404 when nothing is being asked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [allow]
+              properties:
+                allow:
+                  type: boolean
+      responses:
+        "200":
+          description: The session as it stands; session is null when the answer ended it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/voice/heartbeat:
     post:
       operationId: sendVoiceHeartbeat
@@ -10169,6 +10303,68 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/call-audio-channels:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getDockModuleCallAudioChannels
+      tags: [space]
+      summary: The voice channels a module may hear.
+      description: Gated on MANAGE_SERVER. The list starts empty.
+      responses:
+        "200":
+          description: The channels.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallAudioChannels"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: setDockModuleCallAudioChannels
+      tags: [space]
+      summary: Choose the voice channels a module may hear.
+      description: >
+        Gated on MANAGE_SERVER. Replaces the list. Voice channels only, never
+        a direct message call; the module's principal must be able to view
+        each one; a non-empty list needs the module's call audio approved
+        (409 otherwise). Every change writes an audit row, and a channel taken
+        off the list stops a session the module has there.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CallAudioChannels"
+      responses:
+        "200":
+          description: The list after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallAudioChannels"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/installed:
     get:
       operationId: listInstalledDockModules
@@ -12714,6 +12910,21 @@ components:
             optional changelog; empty when the module publishes none.
           items:
             $ref: "#/components/schemas/DockChangelogEntry"
+        call_audio:
+          type: object
+          description: >
+            The module's own words about what it does with a call it hears
+            (decision 0104), shown word for word at consent and to everyone in
+            a call; present with the call.audio capability.
+          required: [purpose, keeps]
+          properties:
+            purpose:
+              type: string
+            keeps:
+              type: string
+            permission:
+              type: string
+              description: One of the module's own permission keys a member needs to start a session.
         addon_api:
           type: integer
           description: The add-on API version it declares; absent when it uses none.
@@ -17967,6 +18178,7 @@ components:
         - $ref: "#/components/schemas/VoiceParticipantJoined"
         - $ref: "#/components/schemas/VoiceParticipantLeft"
         - $ref: "#/components/schemas/VoiceScreenShareChanged"
+        - $ref: "#/components/schemas/VoiceCallAudioChanged"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -19435,6 +19647,98 @@ components:
           type: string
         is_sharing_screen:
           type: boolean
+
+    CallAudioChannels:
+      type: object
+      required: [channel_ids]
+      properties:
+        channel_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CallAudioSession:
+      type: object
+      nullable: true
+      description: >
+        A module hearing (or asking to hear) a call as text (decision 0104),
+        or null where there is none.
+        `purpose` and `keeps` are the module's own words, shown word for word.
+      required: [module_id, module_name, purpose, keeps, status, asked_by, included, pending, expires_at_ms, full]
+      properties:
+        module_id:
+          type: string
+        module_name:
+          type: string
+        purpose:
+          type: string
+        keeps:
+          type: string
+        status:
+          type: string
+          enum: [asking, "on"]
+        asked_by:
+          type: string
+        included:
+          type: array
+          description: Everyone who said yes, the only people the module hears.
+          items:
+            type: string
+        pending:
+          type: array
+          description: Everyone who has not answered; a joiner stays here, left out, until they say yes.
+          items:
+            type: string
+        expires_at_ms:
+          type: integer
+          format: int64
+          description: When the ask lapses, or the session reaches its four hour limit.
+        full:
+          type: boolean
+          description: The call holds more people than a session can ask; later joiners stay out.
+
+    VoiceCallAudio:
+      type: object
+      required: [session, startable]
+      properties:
+        session:
+          $ref: "#/components/schemas/CallAudioSession"
+        startable:
+          type: array
+          items:
+            type: object
+            required: [module_id, module_name, purpose, keeps]
+            properties:
+              module_id:
+                type: string
+              module_name:
+                type: string
+              purpose:
+                type: string
+              keeps:
+                type: string
+
+    VoiceCallAudioChanged:
+      type: object
+      required: [type, channel_id, state]
+      description: >
+        A call-audio session started, changed or ended (decision 0104).
+        `state` is null once it ends, and `ended` then says how: `declined`,
+        `lapsed`, `stopped`, `call_ended`, `time_limit`, `overload`,
+        `module_disabled`, `channel_removed` or `listener_unavailable`. Never
+        says who declined. Sent to everyone who can view the channel.
+      properties:
+        type:
+          type: string
+          enum: [voice.call_audio]
+        channel_id:
+          type: string
+          format: uuid
+        state:
+          $ref: "#/components/schemas/CallAudioSession"
+        ended:
+          type: string
 
     WatchSession:
       type: object

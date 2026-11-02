@@ -500,3 +500,11 @@ fn literal_at(source: &str, from: usize) -> Option<String> {
     }
     None
 }
+
+/// A WebSocket server standing in for the call-audio listener.
+#[allow(dead_code)]
+pub mod fake_listener;
+
+/// A deployment with a fake listener, a voice channel and a module that may hear it.
+#[allow(dead_code)]
+pub mod call_audio_world;

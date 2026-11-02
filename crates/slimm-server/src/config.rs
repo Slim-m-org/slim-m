@@ -188,6 +188,17 @@ pub struct Config {
     #[serde(default, deserialize_with = "blank_as_none")]
     pub code_runner_url: Option<String>,
 
+    /// The `ws://` or `wss://` address of the optional call-audio listener
+    /// (decision 0104). Unset leaves call audio off, like the other sidecars.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub listener_url: Option<String>,
+    /// The bearer secret the server presents to the listener; required with the URL.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub listener_secret: Option<String>,
+    /// The LiveKit address the listener dials, when it differs from the one clients use.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub listener_livekit_url: Option<String>,
+
     /// The Discord application members link their accounts through
     /// (`/me/links/discord/start`). All three set turns linking on; blank
     /// reads as unset, and a deployment without them simply has no Discord
@@ -264,6 +275,9 @@ impl Default for Config {
             addons_repo: default_addons_repo(),
             dev_module_dir: None,
             code_runner_url: None,
+            listener_url: None,
+            listener_secret: None,
+            listener_livekit_url: None,
             discord_client_id: None,
             discord_client_secret: None,
             discord_redirect_uri: None,
@@ -304,6 +318,18 @@ where
         .filter(|value| !value.is_empty()))
 }
 
+/// The shortest listener secret accepted.
+pub const MIN_LISTENER_SECRET_CHARS: usize = 32;
+
+/// Where the call-audio listener is and how to authenticate to it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListenerSettings {
+    pub url: String,
+    pub secret: String,
+    /// The LiveKit address the listener dials; `None` only when voice is not configured either.
+    pub livekit_url: Option<String>,
+}
+
 impl Config {
     /// The LiveKit URL, key and secret, but only when all three carry a value.
     ///
@@ -328,6 +354,35 @@ impl Config {
             present(&self.livekit_api_key)?,
             present(&self.livekit_api_secret)?,
         ))
+    }
+
+    /// The call-audio listener's address, secret and LiveKit address, or `None` when the URL is unset.
+    ///
+    /// The URL passes the sidecar rules, a secret is required with it, and the
+    /// LiveKit address falls back to the one clients use.
+    pub fn listener_settings(&self) -> anyhow::Result<Option<ListenerSettings>> {
+        let Some(url) = self.listener_url.as_deref() else {
+            return Ok(None);
+        };
+        if !(url.starts_with("ws://") || url.starts_with("wss://")) {
+            anyhow::bail!("SLIMM_LISTENER_URL ({url}) must start with ws:// or wss://");
+        }
+        crate::sidecar_url::validate(url, "SLIMM_LISTENER_URL")?;
+        let secret = self.listener_secret.clone().unwrap_or_default();
+        if secret.chars().count() < MIN_LISTENER_SECRET_CHARS {
+            anyhow::bail!(
+                "SLIMM_LISTENER_SECRET must be set to at least {MIN_LISTENER_SECRET_CHARS} characters when SLIMM_LISTENER_URL is set"
+            );
+        }
+        let livekit_url = match self.listener_livekit_url.as_deref() {
+            Some(own) => Some(own.to_owned()),
+            None => self.livekit_settings().map(|(url, _, _)| url),
+        };
+        Ok(Some(ListenerSettings {
+            url: url.to_owned(),
+            secret,
+            livekit_url,
+        }))
     }
 
     /// The room service address override, blank read as absent like the trio.

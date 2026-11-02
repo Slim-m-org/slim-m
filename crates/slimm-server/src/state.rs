@@ -2,6 +2,7 @@
 //! The handles every handler and background sweep shares.
 
 use crate::auth::Auth;
+use crate::call_audio::CallAudio;
 use crate::code_runner::CodeRunner;
 use crate::http::{dock, gifs, link_preview};
 use crate::hub::Hub;
@@ -26,4 +27,5 @@ pub struct AppState {
     pub link_previews: link_preview::LinkPreviews,
     pub dock: dock::Dock,
     pub code_runner: CodeRunner,
+    pub call_audio: CallAudio,
 }

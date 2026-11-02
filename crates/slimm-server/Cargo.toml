@@ -42,6 +42,8 @@ tokio-util.workspace = true
 crypto_box.workspace = true
 crypto_secretbox.workspace = true
 reqwest.workspace = true
+# The client side of the call-audio listener link (decision 0104). Renamed because the integration tests still use the 0.24 client below.
+ws-client = { package = "tokio-tungstenite", version = "0.29", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 url.workspace = true
 ed25519-dalek.workspace = true
 wasmi.workspace = true

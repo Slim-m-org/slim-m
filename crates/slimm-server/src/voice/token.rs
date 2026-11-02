@@ -36,6 +36,9 @@ pub(super) struct VideoGrant {
     pub(super) can_publish_data: bool,
     #[serde(rename = "canUpdateOwnMetadata")]
     pub(super) can_update_own_metadata: bool,
+    /// Keeps the participant out of every other participant's list; only the listener sets it.
+    #[serde(skip_serializing_if = "is_false")]
+    pub(super) hidden: bool,
 }
 
 fn is_false(value: &bool) -> bool {
