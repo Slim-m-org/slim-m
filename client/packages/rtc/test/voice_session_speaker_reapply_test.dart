@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show ProcessResult;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -23,6 +24,9 @@ class _Mic implements MicPort {
   bool get open => published && !muted;
   @override
   Future<double?> senderLevelDb() async => null;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     if (enabled) enables++;
@@ -52,12 +56,13 @@ class _Mic implements MicPort {
 }
 
 const _speaker = AudioDevice(id: 'spk-1', label: 'Speaker');
+const _serverSpeaker = AudioDevice(id: 'pulse:sink_b', label: 'B');
 
 class _Devices implements AudioDevices {
   @override
   Future<List<AudioDevice>> inputs() async => const [];
   @override
-  Future<List<AudioDevice>> outputs() async => const [_speaker];
+  Future<List<AudioDevice>> outputs() async => const [_speaker, _serverSpeaker];
   @override
   Future<AudioDevice?> systemDefaultInput() async => null;
   @override
@@ -107,5 +112,41 @@ void main() {
     await _until(() => applied.length > afterJoin);
 
     expect(applied.toSet(), {'spk-1'});
+  });
+
+  test('a playback stream that starts mid-call lands on the chosen speaker',
+      () async {
+    final moves = <List<String>>[];
+    final starts = StreamController<String>();
+    final session = VoiceSession(
+      roomFactory: ConnectlessRoom.new,
+      micPort: _Mic(),
+      audioDevices: _Devices(),
+      pulse: PulseAudio(
+        processId: 4242,
+        run: (args) async {
+          if (args.first.startsWith('move-')) moves.add(args);
+          final listed = args.contains('sink-inputs')
+              ? '[{"index":7,"properties":{"application.process.id":"4242"}}]'
+              : '';
+          return ProcessResult(0, 0, listed, '');
+        },
+        subscribe: () => starts.stream,
+      ),
+      inputGate: InputGateMonitor.disabled(),
+    );
+    addTearDown(session.dispose);
+    await session.selectAudioOutputDevice(_serverSpeaker);
+    await session.join(
+      url: 'wss://a.invalid',
+      token: 't',
+      microphoneEnabled: false,
+    );
+    moves.clear();
+
+    starts.add("Event 'new' on sink-input #7");
+    await _until(() => moves.isNotEmpty);
+
+    expect(moves.first, ['move-sink-input', '7', 'sink_b']);
   });
 }

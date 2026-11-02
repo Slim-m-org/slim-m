@@ -58,6 +58,12 @@ class PulseAudio {
         _pid = processId ?? pid,
         _enabled = run != null || supported;
 
+  /// A sound server that has no devices and never speaks, for tests.
+  factory PulseAudio.inert() => PulseAudio(
+        run: (_) async => ProcessResult(0, 1, '', ''),
+        subscribe: () => const Stream.empty(),
+      );
+
   final PactlRunner _run;
   final PactlSubscriber _subscribe;
   final int _pid;
@@ -70,6 +76,29 @@ class PulseAudio {
   Stream<void> get deviceChanges => _enabled
       ? _subscribe().where(isDeviceEvent).map((_) {})
       : const Stream.empty();
+
+  /// Fires when a playback stream of this process starts. libwebrtc opens a new
+  /// one when the room empties and refills, and it starts on the server default.
+  Stream<void> get ownPlaybackStarts => _enabled
+      ? _subscribe()
+          .map(newSinkInputIndex)
+          .where((index) => index != null)
+          .asyncMap((index) => _isOwnSinkInput(index!))
+          .where((own) => own)
+          .map((_) {})
+      : const Stream.empty();
+
+  Future<bool> _isOwnSinkInput(int index) async {
+    try {
+      final listed = await _run(['-f', 'json', 'list', 'sink-inputs']);
+      return listed.exitCode == 0 &&
+          ownStreamIds(listed.stdout as String, _pid).contains(index);
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.voice,
+          'Could not tell whose playback stream started', error, stack);
+      return false;
+    }
+  }
 
   /// Recording sources, or null when `pactl` is missing or fails.
   Future<List<AudioDevice>?> sources() async => _list('sources', parseSources);

@@ -67,3 +67,11 @@ List<int> ownStreamIds(String json, int processId) => [
 bool isDeviceEvent(String line) => RegExp(
       r"^Event '(new|remove)' on (source|sink) #\d+$|^Event 'change' on server$",
     ).hasMatch(line.trim());
+
+/// The index of the playback stream a `pactl subscribe` line announces, or null
+/// for any other event; every app's sounds produce these, so ownership is checked after.
+int? newSinkInputIndex(String line) {
+  final match =
+      RegExp(r"^Event 'new' on sink-input #(\d+)$").firstMatch(line.trim());
+  return match == null ? null : int.parse(match.group(1)!);
+}

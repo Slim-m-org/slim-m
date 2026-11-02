@@ -41,6 +41,7 @@ import 'mic_port.dart';
 import 'mic_recovery.dart';
 import 'mic_release.dart';
 import 'noise_floor_estimator.dart';
+import 'pulse_audio.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
@@ -102,6 +103,7 @@ class VoiceSession
     AudioDevices? audioDevices,
     LiveOutputSwitch? liveOutput,
     LiveInputSwitch? liveInput,
+    PulseAudio? pulse,
     OsMicBlockProbe? osMicBlocked,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
@@ -126,6 +128,7 @@ class VoiceSession
       liveOutput,
       osMicBlocked,
       liveInput,
+      pulse,
     );
     _initMicRelease(
       grace: micReleaseGrace,

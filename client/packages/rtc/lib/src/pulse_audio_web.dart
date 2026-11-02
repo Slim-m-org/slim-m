@@ -10,9 +10,13 @@ typedef PactlSubscriber = Stream<String> Function();
 class PulseAudio {
   PulseAudio({PactlRunner? run, PactlSubscriber? subscribe, int? processId});
 
+  factory PulseAudio.inert() => PulseAudio();
+
   static bool get supported => false;
 
   Stream<void> get deviceChanges => const Stream.empty();
+
+  Stream<void> get ownPlaybackStarts => const Stream.empty();
 
   Future<List<AudioDevice>?> sources() async => null;
 

@@ -32,6 +32,7 @@ mixin VoiceSessionMicRecovery {
   StreamSubscription<void>? _micLost;
   StreamSubscription<InputGateReading>? _micLevels;
   StreamSubscription<void>? _deviceChanges;
+  StreamSubscription<void>? _playbackFollow;
   Timer? _deviceDebounce;
   bool _followingDeviceChange = false;
   bool _deviceChangedMeanwhile = false;
@@ -203,6 +204,7 @@ mixin VoiceSessionMicRecovery {
     await _micLost?.cancel();
     await _micLevels?.cancel();
     await _deviceChanges?.cancel();
+    await _playbackFollow?.cancel();
     await _micStatuses.close();
     await _micFailures.close();
     await _fallback.dispose();
@@ -232,6 +234,7 @@ mixin VoiceSessionMicRecovery {
       unawaited(_logInputList());
       if (_watchDevices) {
         _deviceChanges ??= _audioSwitching.onChange.listen(_onDeviceChange);
+        _playbackFollow ??= _audioSwitching.followPlaybackStarts();
         unawaited(_rememberInputs());
       }
       if (!_gate.supported) {
@@ -262,6 +265,8 @@ mixin VoiceSessionMicRecovery {
     _fallback.reset();
     unawaited(_deviceChanges?.cancel());
     _deviceChanges = null;
+    unawaited(_playbackFollow?.cancel());
+    _playbackFollow = null;
     _micRecovery.reset();
     _micWatchdog.reset();
     _setMicFailure(null);
