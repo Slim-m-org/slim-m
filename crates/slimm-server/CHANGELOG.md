@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.105.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.104.0...server-v0.105.0) (2026-11-02)
+
+
+### Features
+
+* v121 - call quality batch: strong fix, leveler, reconnect visibility, lounge, diagnostics ([#2329](https://github.com/Slim-m-org/slim-m/issues/2329)) ([ad7254a](https://github.com/Slim-m-org/slim-m/commit/ad7254addcc2e677bbf32c69516f45f885652c31))
+
 ## [0.104.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.103.0...server-v0.104.0) (2026-11-01)
 
 
