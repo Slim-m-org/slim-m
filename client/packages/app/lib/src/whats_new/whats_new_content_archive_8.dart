@@ -362,4 +362,46 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.121.0',
+    headline: 'Strong that stays on, a mic that is left alone, sharper shares',
+    points: [
+      WhatsNewPoint(
+        'A saved Strong or Strongest noise suppression now applies every time '
+        'the app starts, and on Linux and Windows it levels your voice itself, '
+        'so chewing and mouth sounds in a pause no longer come through louder '
+        'than you.',
+      ),
+      WhatsNewPoint(
+        'A quiet microphone is left alone: the app no longer restarts or '
+        'switches your mic because you stopped talking.',
+      ),
+      WhatsNewPoint(
+        'When a call reconnects on its own you see it, and everyone keeps '
+        'their place while it does.',
+      ),
+      WhatsNewPoint(
+        'On Linux, sharing a 4K or ultrawide screen now encodes at the quality '
+        'you picked instead of the full screen size, and your own share shows '
+        'as a small preview.',
+      ),
+      WhatsNewPoint(
+        'A shared screen has a strip with its volume, a live quality chip and '
+        'full screen, and Stop watching has a way back.',
+      ),
+      WhatsNewPoint(
+        'The call dock has camera options, a speaker list, a cue when you '
+        'talk while muted, and remappable shortcuts for camera, share and '
+        'leave.',
+      ),
+      WhatsNewPoint(
+        'Changing camera quality during a call now applies, and a camera that '
+        'was unplugged is named instead of swapped for another.',
+      ),
+      WhatsNewPoint(
+        'Settings > Troubleshooting has Copy call diagnostics for a report '
+        'after a bad call.',
+      ),
+    ],
+  ),
 ];

@@ -89,9 +89,9 @@ class _Devices implements AudioDevices {
 
 const _timing = MicRecoveryTiming(
   retryBase: Duration(milliseconds: 10),
-  silence: Duration(seconds: 30),
-  silentCooldown: Duration(milliseconds: 30),
-  maxSilentRestarts: 2,
+  quietNote: Duration(seconds: 30),
+  restartCooldown: Duration(milliseconds: 30),
+  maxRestarts: 2,
   recoveredAfter: Duration(seconds: 30),
   deviceDebounce: Duration(milliseconds: 20),
   captureProbe: Duration(milliseconds: 5),

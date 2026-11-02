@@ -23,7 +23,7 @@ mixin VoiceSessionMicRecovery {
   MicStatus _micStatus = MicStatus.ok;
   late final MicRecoveryTiming _micTiming;
   late final MicRecovery _micRecovery;
-  late final SilentMicWatchdog _micWatchdog;
+  late final MicStallWatchdog _micWatchdog;
   final _micStatuses = StreamController<MicStatus>.broadcast();
   final _micFailures = StreamController<MicFailureReason?>.broadcast();
   MicFailureReason? _micFailure;
@@ -40,7 +40,6 @@ mixin VoiceSessionMicRecovery {
   Timer? _senderPoll;
   Timer? _captureProbe;
   final _captureProgress = CaptureProgress();
-  bool _captureStalled = false;
   String? _inputSignature;
 
   /// Whether the mic is healthy, being brought back, or given up on.
@@ -82,27 +81,34 @@ mixin VoiceSessionMicRecovery {
         _forgetCaptureProgress();
         return await enable() && _mic.open;
       },
-      onStatus: _setMicStatus,
+      onStatus: _onRecoveryStatus,
       log: _logMic,
     );
-    _micWatchdog = SilentMicWatchdog(
+    _micWatchdog = MicStallWatchdog(
       timing: timing,
-      onSilent: () {
-        unawaited(_onGateSilent());
+      onStalled: () {
+        _logMic(
+          'The microphone capture stopped moving; restarting it',
+          level: LogLevel.warning,
+        );
+        unawaited(_restartMicCapture('capture stalled'));
       },
       onGaveUp: () {
         _logMic(
-          'The microphone is still silent after every restart; asking the user to retry',
+          'The microphone capture is still stalled after every restart; asking the user to retry',
           level: LogLevel.warning,
         );
         unawaited(_logAudioDevices('gave up'));
         _setMicStatus(MicStatus.unavailable);
         unawaited(_noteMicFailure(MicFailureReason.silent));
-        if (_fallback.enabled) unawaited(_fallback.run());
       },
       onRecovered: () {
         if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
       },
+      onQuiet: () => _logMic(
+        'The microphone has read digital silence for a while but its capture '
+        'is running; leaving it alone',
+      ),
     );
     _micLost = _mic.lost.listen(
       (_) => _micRecovery.onLost('track ended or unpublished'),
@@ -110,42 +116,9 @@ mixin VoiceSessionMicRecovery {
     _micLevels = _gate.readings.listen(_observeGateReading);
   }
 
-  bool _gateStallLogged = false;
-
-  /// The gate read the floor; the sender's own level decides whether that is
-  /// a dead capture or a gate that is not processing, which a restart cannot cure.
-  Future<void> _onGateSilent() async {
-    double? sent;
-    try {
-      sent = await _mic.senderLevelDb();
-    } on Object {
-      sent = null;
-    }
-    if (!_captureStalled && sent != null && sent > kInputFloorDb + 1) {
-      if (!_gateStallLogged) {
-        _gateStallLogged = true;
-        _logMic(
-          'The input gate reads silence but the microphone is sending; '
-          'reinstalling the gate instead of restarting the capture',
-          level: LogLevel.warning,
-        );
-      }
-      _micWatchdog.refundRestart();
-      unawaited(_applyInputGate());
-      return;
-    }
-    _logMic(
-      'Microphone is sending silence; restarting the capture',
-      level: LogLevel.warning,
-    );
-    unawaited(_restartMicCapture('silent'));
-  }
-
-  /// Strong suppression turns a quiet room into near-silence, which read as a
-  /// dead mic and restarted the capture every 30-60 s; it proves nothing either way.
+  /// Strong suppression turns a quiet room into near-silence, so its readings say nothing about the mic.
   void _observeGateReading(InputGateReading reading) {
-    if (reading.strongActive) return _micWatchdog.pause();
-    _observeMicLevel(reading.levelDb);
+    if (!reading.strongActive) _observeMicLevel(reading.levelDb);
   }
 
   void _observeMicLevel(double levelDb) => _micWatchdog.observe(
@@ -154,7 +127,7 @@ mixin VoiceSessionMicRecovery {
             _micWanted && _mic.open && _state == VoiceSessionState.connected,
       );
 
-  /// Hosts without the input gate read the sender's own stats instead.
+  /// Hosts without the input gate read the sender's own stats for the quiet note.
   Future<void> _pollSenderLevel() async {
     if (_state != VoiceSessionState.connected || !_micWanted || !_mic.open) {
       return _micWatchdog.reset();
@@ -170,11 +143,10 @@ mixin VoiceSessionMicRecovery {
   /// A new capture counts from its own first reading, and gets a grace to start.
   void _forgetCaptureProgress() {
     _captureProgress.reset();
-    _captureStalled = false;
   }
 
-  /// Reads the media source's sample counter on its own clock, because Strong
-  /// pauses the level watchdog and a stale sender level cannot tell a stall.
+  /// Reads the media source's sample counter on its own clock: the only sign
+  /// of life, whatever the level says. A host that reports none is never restarted.
   Future<void> _probeCapture() async {
     final active =
         _state == VoiceSessionState.connected && _micWanted && _mic.open;
@@ -191,9 +163,10 @@ mixin VoiceSessionMicRecovery {
     if (_state != VoiceSessionState.connected || !_micWanted || !_mic.open) {
       return;
     }
-    final advanced = _captureProgress.advanced(seconds);
-    _captureStalled = advanced == false;
-    _micWatchdog.observeProgress(advancing: advanced, active: true);
+    _micWatchdog.observeProgress(
+      advancing: _captureProgress.advanced(seconds),
+      active: true,
+    );
   }
 
   Future<void> _disposeMicRecovery() async {
@@ -219,6 +192,25 @@ mixin VoiceSessionMicRecovery {
 
   static void _appLogVoice(String line, {LogLevel level = LogLevel.info}) =>
       AppLog.at(level, LogTag.voice, line);
+
+  /// Recovery that cannot reopen the mic hands over to the device fallback only
+  /// when the device in use is gone from the list, never because it is quiet.
+  void _onRecoveryStatus(MicStatus next) {
+    _setMicStatus(next);
+    if (next == MicStatus.unavailable && _fallback.enabled) {
+      unawaited(_fallbackIfDeviceGone());
+    }
+  }
+
+  Future<void> _fallbackIfDeviceGone() async {
+    try {
+      if (!await _audioSwitching.chosenInputMissing()) return;
+    } on Object {
+      return;
+    }
+    _logMic('The microphone in use is gone; trying another one');
+    await _fallback.run();
+  }
 
   void _setMicStatus(MicStatus next) {
     if (next == _micStatus) return;

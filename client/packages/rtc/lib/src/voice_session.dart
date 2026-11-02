@@ -35,6 +35,7 @@ import 'camera_devices.dart';
 import 'camera_join.dart';
 import 'camera_switching.dart';
 import 'desktop_sources.dart';
+import 'endpoint_effects.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
 import 'livekit_setup_log.dart';

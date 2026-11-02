@@ -15,7 +15,7 @@ Opening takes a 5 ms fade.
 The audio leaves the gate two frames (20 ms) behind the decision, so the gate is already open when the frame that opened it comes out and a soft start of a word is kept: a synthetic fricative at -45 dBFS leading into a vowel keeps about 83% of its last 20 ms, against none without the delay.
 That costs 20 ms of capture latency, with the gate on or off, so the delay never changes when the gate is toggled.
 Once open, frames up to 5 dB under the threshold still keep it open, so a word fading out does not flutter the gate at the line.
-Silence is cheap on the wire: with Opus DTX a closed gate measured about 8 to 112 bytes a second against about 2 KB a second open.
+Silence is not cheap on the wire now that DTX is off: a closed gate sends about 5.7 KB a second of payload (66 kbps with headers), and DTX would cut that to about 140 bytes a second but brings back clipping on tones, so it stays off (docs/research/voice-idle-bandwidth-2026-11-02.md).
 
 It also tracks voice detection (above the threshold within the hold) whether or not it is silencing, and keeps a meter.
 The meter is the loudest 10 ms frame since the app last asked, so it is the same per-frame level the threshold is compared with: after the platform's noise suppression and rnnoise, before the gate.
@@ -149,9 +149,15 @@ This path has been unit and widget tested against fakes; it has not been run on 
 ## Dead-mic recovery
 
 There is no Reset microphone row.
-A lost track, an unplugged chosen microphone, a new system default (when the capture follows the default) and a capture that reads digital silence for 10 s while unmuted each reopen the capture with a backoff (`MicRecovery`, `SilentMicWatchdog`).
-Hosts without the gate read the sender's own level once a second for the silence check, counting only exact zero as silence.
-Only when recovery gives up does the mic button say "Microphone unavailable, tap to retry", through the existing inline call surface.
+A lost track, an unplugged chosen microphone, a new system default (when the capture follows the default) and a capture whose sample counter stands still for 5 s while unmuted each reopen the capture with a backoff (`MicRecovery`, `MicStallWatchdog`).
+Silence is never evidence of a dead microphone: a gated or virtual source sends exact zeros whenever its owner says nothing, so the level restarts nothing and switches nothing.
+The only sign of life is the capture counter (`totalSamplesDuration` of the media source), read every 1.5 s on any host that reports it.
+A host that reports none gets no automatic restart for a stall, rather than a wrong one from the level.
+When the level reads the floor for 2 minutes while the counter advances, one log line says so and nothing else happens.
+Only when recovery gives up does the mic button say "Microphone unavailable, tap to retry", through the existing inline call surface; the mic menu lists the other devices, and nothing switches by itself.
+The fallback to another device (`MicFallback`, on by default) runs only when recovery cannot reopen the mic and the chosen device is gone from the device list.
+It is never started by silence or by a stalled counter on a device that is still listed.
+A candidate is kept when its capture counter moves after a short settle, whatever level it sends.
 
 ## Resource use
 
@@ -165,11 +171,11 @@ It must not go through a derived `Provider`: those refresh on a frame, and frame
 | --- | --- | --- | --- |
 | Out-of-call preview capture, loopback peers and `getInputGate` poll (`MicPreview`) | a screen holds it, its route is shown, no call is connecting or connected, app resumed | 50 ms; also kept running under a covered route and, minimised, until the next frame | 50 ms; closed (OS mic indicator off) on blur, minimise, background, a covered route, a call, or leaving the screen |
 | In-call gate poll, a meter mounted and shown | dock level bar (mic on), Voice settings meter, setup meter, app resumed | 50 ms always | 50 ms |
-| In-call gate poll, nothing displayed, mic open | a call is connected, unmuted | 50 ms always | 2 s (dead-mic watchdog needs 10 s of silence) |
+| In-call gate poll, nothing displayed, mic open | a call is connected, unmuted | 50 ms always | 2 s (only feeds the quiet log line) |
 | In-call gate poll, nothing displayed, Strong on | same | 50 ms | 1 s (the inactive note needs 2 s of polls) |
 | In-call gate poll, nothing displayed, automatic sensitivity on | same | 50 ms | 200 ms (the estimator weights each reading by the time it covers) |
-| In-call gate poll, nothing displayed, mic muted or closed | a call is connected | 50 ms always | none: no reading has a consumer (the watchdog and the Strong note only watch an open mic) |
-| Sender level poll for the watchdog (hosts without the gate) | a call is connected | 1 s | 2 s |
+| In-call gate poll, nothing displayed, mic muted or closed | a call is connected | 50 ms always | none: no reading has a consumer (the quiet note and the Strong note only watch an open mic) |
+| Sender level poll for the quiet log line (hosts without the gate) | a call is connected | 1 s | 2 s |
 | Local speaking ring from the gate | the gate is read at the display rate | always during a call | only then; otherwise the SFU's flag, which lags about half a second |
 | Speaking ring pulse (`UserAvatar`) | the avatar is speaking and the app is resumed | ran while the window was unfocused | frozen on blur |
 

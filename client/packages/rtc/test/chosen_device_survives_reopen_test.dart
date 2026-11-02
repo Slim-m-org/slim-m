@@ -27,8 +27,12 @@ class _Mic implements MicPort {
   @override
   Future<double?> senderLevelDb() async => null;
 
+  /// The capture's sample counter stops moving while this is set.
+  bool frozen = false;
+  double _counter = 0;
+
   @override
-  Future<double?> capturedSeconds() async => null;
+  Future<double?> capturedSeconds() async => frozen ? _counter : _counter += 1;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     if (enabled) opened.add(options?.deviceId);
@@ -86,10 +90,12 @@ class _Devices implements AudioDevices {
 const _timing = MicRecoveryTiming(
   retryBase: Duration(milliseconds: 10),
   maxRetryDelay: Duration(milliseconds: 20),
-  silence: Duration(milliseconds: 60),
-  silentCooldown: Duration(milliseconds: 30),
+  quietNote: Duration(milliseconds: 60),
+  restartCooldown: Duration(milliseconds: 30),
   deviceDebounce: Duration(milliseconds: 20),
   senderPoll: Duration(milliseconds: 5),
+  captureProbe: Duration(milliseconds: 5),
+  captureStall: Duration(milliseconds: 40),
 );
 
 const _chosen = AudioDevice(id: 'mic-1', label: 'Headset');
@@ -173,8 +179,9 @@ void main() {
     rig.expectAllChosen();
   });
 
-  test('the silent-capture restart uses the chosen microphone', () async {
-    await start(levelDb: kInputFloorDb);
+  test('the stalled-capture restart uses the chosen microphone', () async {
+    await start();
+    rig.mic.frozen = true;
     await _until(() => rig.mic.opened.length >= 2);
     rig.expectAllChosen();
   });

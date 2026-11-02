@@ -31,8 +31,14 @@ class _FakeMic implements MicPort {
   @override
   Future<double?> senderLevelDb() async => senderLevel;
 
+  /// Whether the capture reports its sample counter, and whether that has stopped.
+  bool counterReadable = false;
+  bool frozen = false;
+  double _counter = 0;
+
   @override
-  Future<double?> capturedSeconds() async => null;
+  Future<double?> capturedSeconds() async =>
+      !counterReadable ? null : (frozen ? _counter : _counter += 1);
 
   @override
   bool get open => published && !muted;
@@ -107,12 +113,14 @@ const _timing = MicRecoveryTiming(
   retryBase: Duration(milliseconds: 10),
   maxRetryDelay: Duration(milliseconds: 20),
   maxRetries: 3,
-  silence: Duration(milliseconds: 60),
-  silentCooldown: Duration(milliseconds: 30),
-  maxSilentRestarts: 2,
+  quietNote: Duration(milliseconds: 60),
+  restartCooldown: Duration(milliseconds: 30),
+  maxRestarts: 2,
   recoveredAfter: Duration(milliseconds: 50),
   deviceDebounce: Duration(milliseconds: 20),
   senderPoll: Duration(milliseconds: 5),
+  captureProbe: Duration(milliseconds: 5),
+  captureStall: Duration(milliseconds: 40),
 );
 
 class _Rig {
@@ -332,37 +340,27 @@ void main() {
     await _until(() => rig.mic.enables == 2);
   });
 
-  test('a mic reading digital silence is restarted, up to the cap', () async {
+  test('a mic reading digital silence is left alone and noted once', () async {
     final rig = _Rig(levelDb: kInputFloorDb);
     addTearDown(rig.session.dispose);
+    rig.mic.counterReadable = true;
     await rig.join();
 
-    await _until(() => rig.mic.restarts.length == 2);
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-
-    expect(rig.mic.restarts, hasLength(2));
-    expect(rig.session.micStatus, MicStatus.unavailable);
-    expect(rig.session.micFailure, MicFailureReason.silent);
-  });
-
-  test('a gate reading the floor while the sender is live restarts nothing',
-      () async {
-    final rig = _Rig(levelDb: kInputFloorDb);
-    addTearDown(rig.session.dispose);
-    rig.mic.senderLevel = -30;
-    await rig.join();
-
+    await _until(() => rig.logs.any((l) => l.contains('read digital silence')));
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
     expect(rig.mic.restarts, isEmpty);
     expect(rig.session.micStatus, MicStatus.ok);
+    expect(
+      rig.logs.where((l) => l.contains('read digital silence')),
+      hasLength(1),
+    );
   });
 
   test('a restart reinstalls the gate on the new capture', () async {
     final rig = _Rig(levelDb: kInputFloorDb);
     addTearDown(rig.session.dispose);
     await rig.join();
-    await _until(() => rig.mic.restarts.isNotEmpty);
     final before = rig.gateConfigures;
 
     rig.mic.end();
@@ -423,17 +421,17 @@ void main() {
     expect(rig.mic.open, isTrue);
   });
 
-  test('a host without the gate restarts a capture the sender reports silent',
+  test('a host without the gate leaves a capture the sender reports silent',
       () async {
     final rig = _Rig(gate: false);
     addTearDown(rig.session.dispose);
     await rig.join();
     rig.mic.senderLevel = kInputFloorDb;
 
-    await _until(() => rig.mic.restarts.length == 2);
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
-    expect(rig.mic.restarts, hasLength(2));
+    expect(rig.mic.restarts, isEmpty);
+    expect(rig.session.micStatus, MicStatus.ok);
   });
 
   test('a host without the gate leaves a live or quiet capture alone',
@@ -448,26 +446,30 @@ void main() {
     expect(rig.mic.restarts, isEmpty);
   });
 
-  test('silence that outlasts every restart is reported, then clears',
+  test('a frozen counter that outlasts every restart is reported, then clears',
       () async {
     final rig = _Rig(gate: false);
     addTearDown(rig.session.dispose);
+    rig.mic.counterReadable = true;
     await rig.join();
-    rig.mic.senderLevel = kInputFloorDb;
+    rig.mic.frozen = true;
 
     await _until(() => rig.session.micStatus == MicStatus.unavailable);
     expect(rig.mic.restarts, hasLength(2));
+    expect(rig.session.micFailure, MicFailureReason.silent);
 
-    rig.mic.senderLevel = -30;
+    rig.mic.frozen = false;
     await _until(() => rig.session.micStatus == MicStatus.ok);
   });
 
   test('retrying after giving up restores the status and the budget', () async {
     final rig = _Rig(gate: false);
     addTearDown(rig.session.dispose);
+    rig.mic.counterReadable = true;
     await rig.join();
-    rig.mic.senderLevel = kInputFloorDb;
+    rig.mic.frozen = true;
     await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    rig.mic.frozen = false;
 
     expect(await rig.session.resetMicrophone(), isTrue);
 

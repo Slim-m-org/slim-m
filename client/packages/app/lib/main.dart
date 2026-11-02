@@ -14,7 +14,7 @@ import 'package:slimm_api/api.dart' show TokenPair;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart'
-    show MirrorSelfViewScope, applyCallMediaRole;
+    show GuardedConnectivity, MirrorSelfViewScope, applyCallMediaRole;
 
 export 'src/desktop/startup_state.dart';
 
@@ -99,6 +99,8 @@ Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
   // Before any audio stack opens: libpulse reads the role once per context.
   applyCallMediaRole();
+  // livekit_client awaits this probe on every join; see the class doc.
+  GuardedConnectivity.install();
   // First, so a launch that dies in any later step still counts toward a rollback.
   await countLaunch();
   // The browser's own menu otherwise lands on top of every in-app one.
@@ -133,6 +135,7 @@ Future<void> main([List<String> args = const []]) async {
         () => host.active!.container,
         harnessTarget,
         volumeFile: harnessVolumeFile(args),
+        args: args,
       ),
     );
   }

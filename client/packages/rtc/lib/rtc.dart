@@ -10,6 +10,7 @@ library;
 export 'src/android_capture_permission.dart';
 export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
+export 'src/guarded_connectivity.dart';
 export 'src/pulse_audio.dart';
 export 'src/audio_event_scope.dart';
 export 'src/call_media_role.dart'
@@ -54,6 +55,8 @@ export 'src/media_capabilities.dart';
 export 'src/mirror_self_view.dart';
 export 'src/mic_failure.dart';
 export 'src/mic_fallback.dart' show fallbackCandidates;
+export 'src/endpoint_effects.dart'
+    show windowsMicEffectsLine, EndpointEffects, endpointEffectsLine;
 export 'src/os_mic_block.dart' show osBlocksMicrophone;
 export 'src/mic_port.dart';
 export 'src/mic_preview.dart';

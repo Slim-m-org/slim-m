@@ -16,7 +16,7 @@ import time
 SINK = "slimm_vq_sink"
 MIC = "slimm_vq_mic"
 OUT = "slimm_vq_out"
-SOCKET = "wayland-test"
+SOCKET = os.environ.get("E2E_KWIN_SOCKET", "wayland-test")
 APP_ID = "top.npcserver.slimm"
 
 
@@ -130,10 +130,11 @@ def kwin_env(base, private):
     return env
 
 
-def kwin_command():
+def kwin_command(width=1280, height=800, xwayland=False):
     """kwin on a session bus of its own, so it cannot claim org.kde.KWin on the owner's."""
     return ["dbus-run-session", "--", "kwin_wayland", "--virtual", "--socket", SOCKET,
-            "--no-lockscreen", "--width", "1280", "--height", "800"]
+            "--no-lockscreen", "--width", str(width), "--height", str(height),
+            *(["--xwayland"] if xwayland else [])]
 
 
 def _socket_answers(path):
@@ -166,7 +167,7 @@ def _await_socket(proc, log, timeout=30):
 
 
 @contextlib.contextmanager
-def nested_compositor(log):
+def nested_compositor(log, width=1280, height=800, xwayland=False):
     """The `wayland-test` socket, started here unless something already answers on it."""
     proc, private = None, None
     if not _socket_answers(_socket_path()):
@@ -175,7 +176,7 @@ def nested_compositor(log):
         private = tempfile.mkdtemp(prefix="slimm-kwin-")
         with open(log, "wb") as out:
             proc = subprocess.Popen(
-                kwin_command(), env=kwin_env(os.environ, private), stdout=out, stderr=out,
+                kwin_command(width, height, xwayland), env=kwin_env(os.environ, private), stdout=out, stderr=out,
                 stdin=subprocess.DEVNULL, start_new_session=True)
     try:
         if proc is not None:
@@ -271,10 +272,14 @@ class Desktop:
         self.proc = None
         self.out = None
 
-    def start(self, compositor):
+    def start(self, compositor, x11_display=None):
         env = {k: v for k, v in os.environ.items() if k not in ("DISPLAY",)}
-        env.update(WAYLAND_DISPLAY=os.path.basename(compositor), GDK_BACKEND="wayland",
-                   XDG_DATA_HOME=os.path.join(self.root, "data"),
+        if x11_display:
+            env = {k: v for k, v in env.items() if k not in ("WAYLAND_DISPLAY", "XDG_SESSION_TYPE")}
+            env.update(DISPLAY=x11_display, GDK_BACKEND="x11")
+        else:
+            env.update(WAYLAND_DISPLAY=os.path.basename(compositor), GDK_BACKEND="wayland")
+        env.update(XDG_DATA_HOME=os.path.join(self.root, "data"),
                    XDG_CONFIG_HOME=os.path.join(self.root, "config"),
                    XDG_CACHE_HOME=os.path.join(self.root, "cache"),
                    XDG_STATE_HOME=os.path.join(self.root, "state"),

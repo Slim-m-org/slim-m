@@ -11,6 +11,7 @@ import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../features/voice/providers/voice_controller.dart';
 import '../providers/providers.dart';
+import 'voice_harness_media.dart';
 
 const bool kVoiceHarness = bool.fromEnvironment('SLIMM_VOICE_HARNESS');
 
@@ -47,6 +48,7 @@ Future<void> joinHarnessChannel(
   ProviderContainer Function() container,
   String channel, {
   String? volumeFile,
+  List<String> args = const [],
 }) async {
   final deadline = DateTime.now().add(_signInWait);
   while (!container().read(sessionProvider).isSignedIn) {
@@ -65,6 +67,7 @@ Future<void> joinHarnessChannel(
   }
   debugPrint('SLIMM_HARNESS joined $channel');
   _logGate(voice, container);
+  if (args.isNotEmpty) unawaited(startHarnessMedia(container, args));
   if (volumeFile != null) _followVolumeFile(voice, container, volumeFile);
 }
 

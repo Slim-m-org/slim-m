@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// What a microphone fallback run does when the call ends under it, when the
-/// host cannot pick a microphone, and when the new level cannot be read.
+/// host cannot pick a microphone, and when the new capture counter cannot be read.
 library;
 
 import 'package:fake_async/fake_async.dart';
@@ -33,12 +33,16 @@ class _Switching extends AudioDeviceSwitching {
 }
 
 class _Mic extends Fake implements MicPort {
-  double? level = -30;
-  @override
-  Future<double?> senderLevelDb() async => level;
+  /// Whether the capture counter can be read at all.
+  bool readable = true;
+
+  /// Whether the capture counter advances between reads.
+  bool moving = true;
+  double _counter = 0;
 
   @override
-  Future<double?> capturedSeconds() async => null;
+  Future<double?> capturedSeconds() async =>
+      !readable ? null : (moving ? _counter += 1 : _counter);
 }
 
 class _Rig {
@@ -52,9 +56,9 @@ class _Rig {
         timing: () => const MicRecoveryTiming(
           fallbackSettle: Duration(seconds: 1),
         ),
-        watchdog: () => SilentMicWatchdog(
+        watchdog: () => MicStallWatchdog(
           timing: const MicRecoveryTiming(),
-          onSilent: () {},
+          onStalled: () {},
         ),
         log: (m, {level = LogLevel.info}) => logs.add(m),
         setStatus: statuses.add,
@@ -97,7 +101,7 @@ void main() {
 
   test('a call that ends mid-run gets no status, notice or further switch', () {
     fakeAsync((clock) {
-      final rig = _Rig()..mic.level = -30;
+      final rig = _Rig();
 
       rig.fallback.run();
       clock.elapse(const Duration(milliseconds: 500));
@@ -156,9 +160,9 @@ void main() {
     });
   });
 
-  test('a level that cannot be read is kept but not called a success', () {
+  test('a counter that cannot be read is kept but not called a success', () {
     fakeAsync((clock) {
-      final rig = _Rig()..mic.level = null;
+      final rig = _Rig()..mic.readable = false;
 
       rig.fallback.run();
       clock.elapse(const Duration(seconds: 10));
@@ -171,15 +175,28 @@ void main() {
     });
   });
 
-  test('a silent candidate moves on to the next', () {
+  test('a candidate whose capture stands still moves on to the next', () {
     fakeAsync((clock) {
-      final rig = _Rig()..mic.level = kInputFloorDb;
+      final rig = _Rig()..mic.moving = false;
 
       rig.fallback.run();
       clock.elapse(const Duration(seconds: 10));
 
       expect(rig.picks.toSet(), {'usb', 'desk'});
       expect(rig.statuses, [MicStatus.unavailable]);
+    });
+  });
+
+  test('a candidate that captures is kept whatever level it sends', () {
+    fakeAsync((clock) {
+      final rig = _Rig();
+
+      rig.fallback.run();
+      clock.elapse(const Duration(seconds: 10));
+
+      expect(rig.picks, hasLength(1));
+      expect(rig.statuses, [MicStatus.ok]);
+      expect(rig.logs, contains(startsWith('Microphone fallback worked')));
     });
   });
 }

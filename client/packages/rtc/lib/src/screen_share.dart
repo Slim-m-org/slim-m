@@ -122,27 +122,36 @@ class ScreenShareFit {
 ///
 /// A 1080p screen with the 2160p tier picked would otherwise hand the encoder
 /// a 3840x2160 layout and a 12 Mbps top layer it can never fill.
+///
+/// The source is the size capture delivered, which the platform has already
+/// scaled down to fit the tier's box. A source as wide as the tier is
+/// therefore as big as the tier, however short: an ultrawide scaled to
+/// 1920x804 keeps the 1080p tier instead of falling to 720p.
 ScreenShareFit fitScreenShare(
   ScreenShareQuality chosen, {
   required int sourceWidth,
   required int sourceHeight,
   int? maxHeight,
 }) {
-  final limit =
-      [chosen.height, sourceHeight, if (maxHeight != null) maxHeight].reduce(
+  final capped = [chosen.height, if (maxHeight != null) maxHeight].reduce(
     (a, b) => a < b ? a : b,
   );
-  final tier = ScreenShareResolution.values.lastWhere(
-    (r) => r.height <= limit,
-    orElse: () => ScreenShareResolution.values.first,
-  );
-  final quality = ScreenShareQuality(tier, chosen.frameRate);
+  final cappedTier = _tierWithin(capped);
+  final shorter = sourceHeight < capped ? sourceHeight : capped;
+  final limit = sourceWidth >= cappedTier.width ? capped : shorter;
+  final quality = ScreenShareQuality(_tierWithin(limit), chosen.frameRate);
   return ScreenShareFit(
     quality: quality,
     width: quality.width < sourceWidth ? quality.width : sourceWidth,
     height: quality.height < sourceHeight ? quality.height : sourceHeight,
   );
 }
+
+ScreenShareResolution _tierWithin(int height) =>
+    ScreenShareResolution.values.lastWhere(
+      (r) => r.height <= height,
+      orElse: () => ScreenShareResolution.values.first,
+    );
 
 /// [fitScreenShare] for a measured [size], or for the chosen tier itself when no first frame arrived.
 ///
