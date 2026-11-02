@@ -15,7 +15,7 @@ Opening takes a 5 ms fade.
 The audio leaves the gate two frames (20 ms) behind the decision, so the gate is already open when the frame that opened it comes out and a soft start of a word is kept: a synthetic fricative at -45 dBFS leading into a vowel keeps about 83% of its last 20 ms, against none without the delay.
 That costs 20 ms of capture latency, with the gate on or off, so the delay never changes when the gate is toggled.
 Once open, frames up to 5 dB under the threshold still keep it open, so a word fading out does not flutter the gate at the line.
-Silence is cheap on the wire: with Opus DTX a closed gate measured about 8 to 112 bytes a second against about 2 KB a second open.
+Silence is not cheap on the wire now that DTX is off: a closed gate sends about 5.7 KB a second of payload (66 kbps with headers), and DTX would cut that to about 140 bytes a second but brings back clipping on tones, so it stays off (docs/research/voice-idle-bandwidth-2026-11-02.md).
 
 It also tracks voice detection (above the threshold within the hold) whether or not it is silencing, and keeps a meter.
 The meter is the loudest 10 ms frame since the app last asked, so it is the same per-frame level the threshold is compared with: after the platform's noise suppression and rnnoise, before the gate.
