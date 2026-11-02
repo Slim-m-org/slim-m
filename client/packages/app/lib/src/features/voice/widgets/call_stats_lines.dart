@@ -33,6 +33,33 @@ List<String> callStatsStreamLines(VideoStreamStats s, {required bool local}) {
   return [head, if (codec.isNotEmpty) codec, if (trouble.isNotEmpty) trouble];
 }
 
+/// The heading of one person's audio card.
+String callStatsAudioTitle(NamedWindow w) =>
+    w.local ? 'You, sending audio' : '${w.name}, audio';
+
+/// What the last minute of one person's audio looked like.
+String callStatsAudioLine(NamedWindow w) {
+  final win = w.window;
+  return (w.local
+          ? [
+              if (win.kbps != null) 'sending ${win.kbps!.round()} kbps',
+              if (win.lossShare != null) 'loss ${_pct(win.lossShare!)}',
+            ]
+          : [
+              if (win.concealShare != null)
+                'breaking up ${_pct(win.concealShare!)}',
+              if (win.jitterMs != null) 'jitter ${win.jitterMs!.round()} ms',
+              if (win.bufferMs != null) 'buffer ${win.bufferMs!.round()} ms',
+              if (win.lossShare != null) 'loss ${_pct(win.lossShare!)}',
+            ])
+      .followedBy([
+        if (win.rttMs != null) 'round trip ${win.rttMs!.round()} ms',
+      ])
+      .join('  ');
+}
+
+String _pct(double share) => '${(share * 100).toStringAsFixed(1)}%';
+
 /// The network path line, or null when the report had none.
 String? callStatsTransportLine(TransportStats? t) {
   if (t == null) return null;

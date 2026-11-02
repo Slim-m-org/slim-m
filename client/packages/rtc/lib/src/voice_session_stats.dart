@@ -16,6 +16,55 @@ extension VoiceSessionStats on VoiceSession {
     ];
   }
 
+  void _onStatsSample(VideoStatsSample sample) {
+    diagnostics.noteStats(sample);
+    _trackSummaries.observe(sample);
+  }
+
+  void _recordTrackSummary(String line) {
+    diagnostics.noteTrackSummary(line);
+    _diag(line);
+  }
+
+  /// Keeps the sampler on while we publish video, and closes the summary of any track that is gone.
+  void _syncStatsHold() {
+    final room = _room;
+    if (room == null || _disposed) return;
+    final local = _trackKeys(room.localParticipant, local: true);
+    callStats.setHeld(local.isNotEmpty);
+    local.forEach(_trackSummaries.started);
+    final remote = {
+      for (final peer in room.remoteParticipants.values)
+        ..._trackKeys(peer, local: false),
+    };
+    _trackSummaries.endExcept({...local, ...remote});
+  }
+
+  /// Stops holding the sampler and reports every open summary, for the end of a call.
+  void _releaseStats() {
+    callStats.setHeld(false);
+    _trackSummaries.endAll();
+  }
+
+  Set<String> _trackKeys(lk.Participant? who, {required bool local}) => {
+        if (who != null)
+          for (final pub in who.videoTrackPublications)
+            if (_statsSource(pub.source) case final source?)
+              statsTrackKey(
+                  local: local, identity: who.identity, source: source),
+      };
+
+  /// Opens or closes the diagnostics record with the call.
+  void _syncCallDiagnostics(VoiceSessionState state) {
+    switch (state) {
+      case VoiceSessionState.connecting || VoiceSessionState.connected:
+        diagnostics.begin();
+      case VoiceSessionState.idle || VoiceSessionState.failed:
+        diagnostics.end();
+        _releaseStats();
+    }
+  }
+
   Iterable<CallStatsTarget> _localStatsTargets(
     lk.LocalParticipant? local,
   ) sync* {

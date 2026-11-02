@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Live numbers for the video in the current call: what is actually sent and
-/// received, as opposed to what the quality settings ask for.
+/// Live numbers for the current call: the audio of the last minute and the
+/// video actually sent and received, as opposed to what the settings ask for.
 ///
-/// Sampling runs only while this screen is open or console logging is on.
+/// Video sampling runs while this screen is open, while we publish video, or
+/// while logging every sample is on.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +22,9 @@ import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../../settings/screens/settings_screen_scaffold.dart';
 
+/// The audio is sampled every 5 s, so a faster repaint shows nothing new.
+const _audioRefresh = Duration(seconds: 5);
+
 class CallStatsScreen extends ConsumerWidget {
   const CallStatsScreen({super.key});
 
@@ -32,22 +38,40 @@ class CallStatsScreen extends ConsumerWidget {
       backTooltip: 'Back to settings',
       backFallback: Routes.personalSettings,
       child: inCall
-          ? _Stats(sampler: sampler)
-          : const _StatsEmpty('Join a call to see its video stats.'),
+          ? _Stats(
+              sampler: sampler,
+              health: ref.read(voiceControllerProvider.notifier).health,
+            )
+          : const _StatsEmpty('Join a call to see its stats.'),
     );
   }
 }
 
 class _Stats extends StatefulWidget {
-  const _Stats({required this.sampler});
+  const _Stats({required this.sampler, required this.health});
 
   final CallStatsSampler sampler;
+  final VoiceHealth health;
 
   @override
   State<_Stats> createState() => _StatsState();
 }
 
 class _StatsState extends State<_Stats> {
+  Timer? _audioTick;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioTick = Timer.periodic(_audioRefresh, (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _audioTick?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final sampler = widget.sampler;
@@ -57,14 +81,15 @@ class _StatsState extends State<_Stats> {
         SettingsSectionCard(
           children: [
             SettingsToggleRow(
-              label: 'Log to console',
-              description: 'Print one line per sample.',
+              label: 'Log every sample',
+              description: 'Write each sample to the debug log.',
               value: sampler.logging,
-              semanticLabel: 'Log call stats to the console',
+              semanticLabel: 'Log every call stats sample to the debug log',
               onChanged: (on) => setState(() => sampler.setLogging(on)),
             ),
           ],
         ),
+        _AudioCard(windows: widget.health.recentWindows()),
         StreamBuilder<CallStatsSnapshot>(
           stream: sampler.snapshots,
           initialData: sampler.latest.isEmpty ? null : sampler.latest,
@@ -87,6 +112,30 @@ class _StatsState extends State<_Stats> {
       ],
     );
   }
+}
+
+class _AudioCard extends StatelessWidget {
+  const _AudioCard({required this.windows});
+
+  final List<NamedWindow> windows;
+
+  @override
+  Widget build(BuildContext context) => SettingsSectionCard(
+    title: 'Audio, last minute',
+    children: [
+      for (final w in windows)
+        SettingsDetailRow(
+          title: callStatsAudioTitle(w),
+          detail: callStatsAudioLine(w),
+          monoDetail: true,
+        ),
+      if (windows.isEmpty)
+        const SettingsEmptyState(
+          icon: AppIcons.mic,
+          title: 'Waiting for audio numbers.',
+        ),
+    ],
+  );
 }
 
 class _StatsEmpty extends StatelessWidget {

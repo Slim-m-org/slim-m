@@ -209,6 +209,9 @@ class VoiceHealth {
     _publish();
   }
 
+  /// Each person's last minute so far, for a screen that shows it live.
+  List<NamedWindow> recentWindows() => _windows();
+
   /// The once-a-minute line, or null when none is due or there is nothing to say.
   String? takeMinuteLine() {
     final now = _clock();

@@ -18,6 +18,7 @@ import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_filter.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
+import 'call_diagnostics_row.dart';
 import 'call_health_row.dart';
 import 'connection_test_row.dart';
 import 'debug_log_page.dart';
@@ -48,6 +49,7 @@ class TroubleshootingPane extends ConsumerWidget {
             extraRows: [
               ConnectionTestRow(),
               CallHealthRow(),
+              CallDiagnosticsRow(),
               _DebugLogRow(),
               CallStatsRow(),
               RunSetupAgainRow(),

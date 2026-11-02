@@ -51,11 +51,26 @@ There is no user-facing motion mode yet.
 
 ## Call stats
 
-Voice settings has a Call stats row.
-Open during a call, it samples `getStats` for every camera and screen share track: remote tiles every 2 s, our own published tracks every 5 s.
+Troubleshooting has a Call stats row.
+Open during a call, it shows the last minute of each person's audio, then every camera and screen share track.
+Video is sampled with `getStats`: remote tiles every 2 s, our own published tracks every 5 s.
 It shows size, frame rate, measured and target bitrate, codec and implementation, the quality limitation reason, freezes, dropped frames, loss, jitter and the network path.
-Sampling runs only while the panel is open or "Log to console" is on, and each sample is also printed as one `[call-stats]` line.
+Sampling runs while the panel is open, while a viewer watches remote video, while we publish a camera or share, or while "Log every sample" is on.
 Nothing is uploaded.
+
+The debug log gets one `[call-stats]` line per track every 30 s, so the 200-entry ring keeps the rest of the call.
+"Log every sample" writes each sample instead, which is for a short capture.
+When a track ends, one `[call-stats] summary` line is logged at info level: seconds per quality limitation reason, mean sent frame rate and bitrate per layer, the encoder, keyframe requests, freezes for a received track, and the time to the first frame.
+The time to the first frame is read from samples, so it is only as precise as the sample interval (5 s for our own tracks).
+
+## Copy call diagnostics
+
+Troubleshooting also has a Copy call diagnostics row.
+It copies one block of text: the app version and platform, the selected microphone and speaker, the join timings, the network path, the latest `[voice-health]` lines and the latest `[call-stats]` line per track plus any share summaries.
+The numbers are kept apart from the debug log, so a busy log cannot push them out.
+They stay until the next call starts, and the block says whether a call is active or it shows the last one.
+It holds no tokens, addresses or message content, and it is run through the same redaction as the debug log.
+A person's display name appears in the per-person audio lines.
 
 ## Migration
 

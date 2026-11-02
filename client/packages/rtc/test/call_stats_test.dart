@@ -248,6 +248,7 @@ void main() {
         final sampler = CallStatsSampler(
           targets: () => [target(false, fetched), target(true, fetched)],
           log: lines.add,
+          logEvery: Duration.zero,
         );
         final sub = sampler.snapshots.listen((_) {});
         async.elapse(const Duration(seconds: 10, milliseconds: 100));

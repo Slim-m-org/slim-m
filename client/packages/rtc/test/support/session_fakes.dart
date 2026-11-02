@@ -7,12 +7,15 @@ import 'dart:collection';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_rtc/src/voice_log.dart';
 
 class _Me extends Fake implements lk.LocalParticipant {
-  _Me(this.identity);
+  _Me(this.identity, this.videos);
 
   @override
   final String identity;
+
+  final List<lk.LocalTrackPublication<lk.LocalVideoTrack>> videos;
 
   @override
   String get name => '';
@@ -28,7 +31,7 @@ class _Me extends Fake implements lk.LocalParticipant {
 
   @override
   List<lk.LocalTrackPublication<lk.LocalVideoTrack>>
-      get videoTrackPublications => const [];
+      get videoTrackPublications => videos;
 
   @override
   List<lk.LocalTrackPublication<lk.LocalAudioTrack>>
@@ -63,12 +66,18 @@ class ConnectlessRoom extends lk.Room {
 
 /// A room whose connect returns at once and whose local identity is [me].
 class InstantRoom extends ConnectlessRoom {
-  InstantRoom({this.me = 'me'});
+  InstantRoom({
+    this.me = 'me',
+    List<lk.LocalTrackPublication<lk.LocalVideoTrack>>? videos,
+  }) : videos = videos ?? [];
 
   final String me;
 
+  /// The video the local participant publishes; a test mutates it between events.
+  final List<lk.LocalTrackPublication<lk.LocalVideoTrack>> videos;
+
   @override
-  lk.LocalParticipant? get localParticipant => _Me(me);
+  lk.LocalParticipant? get localParticipant => _Me(me, videos);
 }
 
 /// A microphone that counts how often the capture is opened muted.
@@ -124,9 +133,12 @@ VoiceSession instantSession({
   required CountingMic mic,
   JoinTimings? timings,
   String me = 'me',
+  InstantRoom? room,
+  VoiceLog? audioLog,
 }) =>
     VoiceSession(
-      roomFactory: () => InstantRoom(me: me),
+      roomFactory: () => room ?? InstantRoom(me: me),
+      audioLog: audioLog,
       micPort: mic,
       audioDevices: NoDevices(),
       liveOutput: (room, device) async {},
