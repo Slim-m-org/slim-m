@@ -205,7 +205,9 @@ class _CallFilmstripState extends State<CallFilmstrip> {
         ),
       );
 
+  /// Stored with the page, so the offset survives the stage being swapped for the canvas.
   Widget _strip() => ListView.separated(
+    key: const PageStorageKey<String>('call-filmstrip-scroll'),
     controller: _controller,
     scrollDirection: Axis.horizontal,
     shrinkWrap: true,

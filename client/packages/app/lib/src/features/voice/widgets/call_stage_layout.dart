@@ -286,6 +286,7 @@ class _StageWithFilmstrip extends StatelessWidget {
     if (shares.length > 1 && focusedIdentity == null) {
       return LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
+          key: const PageStorageKey<String>('call-share-grid-scroll'),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Column(
@@ -363,6 +364,7 @@ class _ParticipantGrid extends StatelessWidget {
         participants.length,
       );
       return SingleChildScrollView(
+        key: const PageStorageKey<String>('call-roster-scroll'),
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: Center(
