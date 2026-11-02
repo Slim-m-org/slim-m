@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The reusable chip every in-call control draws, split out of
-/// `voice_call_controls.dart` to keep that file under the review budget once
-/// the keyboard-shortcuts and speaker-switch additions pushed it over.
+/// `voice_call_controls.dart` to keep that file under the review budget.
 ///
 /// Public since before this split: `voice_call_dock.dart`'s canvas toggle and
 /// `incoming_call_overlay.dart`'s ring/decline pair already draw the
@@ -19,6 +18,7 @@ class CallDockButton extends StatelessWidget {
     required this.active,
     required this.onPressed,
     this.destructive = false,
+    this.heavyOutline = false,
     this.holdOpensOptions = false,
     this.pending = false,
     this.unavailable = false,
@@ -29,6 +29,10 @@ class CallDockButton extends StatelessWidget {
   final String tooltip;
   final bool active;
   final bool destructive;
+
+  /// A 2px danger outline and a hover fill, so the control that ends the call
+  /// never reads like a muted mic, whose outline is a state and not a warning.
+  final bool heavyOutline;
 
   /// A held press opens options here, so it must not also show the tooltip.
   final bool holdOpensOptions;
@@ -91,6 +95,9 @@ class CallDockButton extends StatelessWidget {
               onTap: onTap,
               // The ring is drawn by the chip itself; see AppInsetFocus and AppFocusRing.
               focusColor: Colors.transparent,
+              hoverColor: heavyOutline
+                  ? tokens.dangerBorder.withValues(alpha: 0.14)
+                  : null,
               onFocusChange: onFocusChange,
               borderRadius: radius,
               child: SizedBox(
@@ -136,7 +143,7 @@ class CallDockButton extends StatelessWidget {
       decoration: BoxDecoration(
         color: _background(tokens),
         borderRadius: radius,
-        border: _border(border, joined: joined),
+        border: _border(border, joined: joined, width: heavyOutline ? 2 : 1),
       ),
       child: pending
           ? _spinner(tokens)
@@ -159,12 +166,16 @@ class CallDockButton extends StatelessWidget {
   }
 
   // The caret's left border is the seam, so the joined half has no right border.
-  static Border _border(Color color, {required bool joined}) {
-    if (!joined) return Border.all(color: color);
+  static Border _border(
+    Color color, {
+    required bool joined,
+    required double width,
+  }) {
+    if (!joined) return Border.all(color: color, width: width);
     return Border(
-      top: BorderSide(color: color),
-      left: BorderSide(color: color),
-      bottom: BorderSide(color: color),
+      top: BorderSide(color: color, width: width),
+      left: BorderSide(color: color, width: width),
+      bottom: BorderSide(color: color, width: width),
     );
   }
 

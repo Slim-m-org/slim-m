@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Voice settings "Shortcuts": the push-to-talk key and the mute and deafen
-/// chords, each remappable, with a reset to the defaults. Desktop only.
+/// Voice settings "Shortcuts": the push-to-talk key and the call chords
+/// (mute, deafen, camera, share, leave), each remappable, with a reset to
+/// the defaults. Desktop only.
 library;
 
 import 'package:flutter/material.dart';
@@ -80,6 +81,15 @@ class VoiceShortcutsSection extends ConsumerWidget {
   }
 }
 
+String _shortName(AppAction action) => switch (action) {
+  AppAction.toggleMuteCall => 'Mute',
+  AppAction.toggleDeafenCall => 'Deafen',
+  AppAction.toggleCameraCall => 'Camera',
+  AppAction.toggleShareCall => 'Share',
+  AppAction.leaveCall => 'Leave',
+  _ => action.label,
+};
+
 class _ChordRow extends StatelessWidget {
   const _ChordRow({
     required this.action,
@@ -94,7 +104,7 @@ class _ChordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = activatorFor(action);
-    final name = action == AppAction.toggleMuteCall ? 'Mute' : 'Deafen';
+    final name = _shortName(action);
     return KeyCaptureRow(
       title: '$name shortcut',
       keyCap: current is SingleActivator ? chordLabel(current) : 'None',
