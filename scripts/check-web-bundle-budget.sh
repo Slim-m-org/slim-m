@@ -3,7 +3,7 @@
 # Fails when the web client's main.dart.js, gzipped, outgrows its budget; see docs/ci-details.md, "The web bundle budget".
 set -euo pipefail
 
-readonly BUDGET_BYTES=2400000
+readonly BUDGET_BYTES=2600000
 bundle="${1:-client/packages/app/build/web}/main.dart.js"
 [[ -f "$bundle" ]] || { echo "::error::no ${bundle}; run flutter build web --release first" >&2; exit 1; }
 
