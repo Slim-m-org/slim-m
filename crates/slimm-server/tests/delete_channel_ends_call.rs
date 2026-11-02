@@ -16,9 +16,11 @@ use std::sync::{Arc, Mutex};
 
 use axum::Router as SfuRouter;
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::Value;
 use slimm_server::store::Store;
 use slimm_server::voice::{VoiceService, room_for_channel};
@@ -34,12 +36,16 @@ use support::app::request_bearer as request;
 #[derive(Clone, Default)]
 struct RecordingRoomService {
     deleted: Arc<Mutex<Vec<Value>>>,
+    bearers: Arc<Mutex<Vec<String>>>,
 }
 
 async fn delete_room(
     State(recorder): State<RecordingRoomService>,
+    headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> StatusCode {
+    let bearer = headers["authorization"].to_str().unwrap().to_owned();
+    recorder.bearers.lock().unwrap().push(bearer);
     recorder.deleted.lock().unwrap().push(body);
     StatusCode::OK
 }
@@ -109,6 +115,39 @@ async fn deleting_a_voice_channel_ends_its_room() {
         Some(room_for_channel(channel.id).as_str()),
         "the room ended must be the deleted channel's own"
     );
+}
+
+/// LiveKit refuses `DeleteRoom` without `roomCreate`, which left the call running while the
+/// handler only logged a 401. The token that reaches the SFU must therefore carry it.
+#[tokio::test]
+async fn the_delete_room_call_is_signed_with_room_create() {
+    let recorder = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(recorder.clone()).await;
+    let (store, _guard) = support::new_store("slimm-delete-channel-ends-call-test").await;
+    let app = app(
+        store.clone(),
+        VoiceService::for_test(&sfu_url, "key", "a-secret-at-least-32-chars-long!"),
+    );
+    let admin_token = admin(&store).await;
+
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
+    let response = app
+        .oneshot(request(
+            "DELETE",
+            &format!("/channels/{}", channel.id),
+            &admin_token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    let bearers = recorder.bearers.lock().unwrap();
+    assert_eq!(bearers.len(), 1);
+    let jwt = bearers[0].strip_prefix("Bearer ").expect("a bearer token");
+    let payload = jwt.split('.').nth(1).unwrap();
+    let claims: Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload).unwrap()).unwrap();
+    assert_eq!(claims["video"]["roomCreate"], true);
+    assert_eq!(claims["video"]["roomAdmin"], true);
 }
 
 /// Deliberately not gated on `kind == "voice"`. That filter is the shape this

@@ -174,6 +174,48 @@ fn a_join_token_is_never_a_room_admin_token() {
 }
 
 #[test]
+fn a_join_token_never_carries_room_create() {
+    let token = service()
+        .mint(
+            ChannelId::generate(),
+            UserId::generate(),
+            Permissions::ALL,
+            "admin",
+        )
+        .expect("minted");
+    let claims = decode_payload(&token.token);
+    assert!(
+        claims["video"].get("roomCreate").is_none(),
+        "roomCreate lets a holder create rooms, which no participant may"
+    );
+}
+
+#[test]
+fn the_regular_admin_token_never_carries_room_create() {
+    let voice = service();
+    let enabled = voice.inner.as_ref().expect("enabled");
+    let claims = decode_payload(&voice.admin_token(enabled, "room").expect("minted"));
+    assert_eq!(claims["video"]["roomAdmin"], true);
+    assert!(
+        claims["video"].get("roomCreate").is_none(),
+        "the shared admin token is used for kicks and updates and must not be able to create rooms"
+    );
+}
+
+#[test]
+fn the_delete_room_token_carries_room_create_for_thirty_seconds() {
+    let voice = service();
+    let enabled = voice.inner.as_ref().expect("enabled");
+    let claims = decode_payload(&voice.delete_room_token(enabled, "room").expect("minted"));
+    assert_eq!(claims["video"]["roomCreate"], true);
+    assert_eq!(claims["video"]["roomAdmin"], true);
+    assert_eq!(claims["video"]["room"], "room");
+    let exp = claims["exp"].as_u64().unwrap();
+    let nbf = claims["nbf"].as_u64().unwrap();
+    assert_eq!(exp - nbf, 30);
+}
+
+#[test]
 fn the_token_identifies_the_user_and_expires_soon() {
     let user = UserId::generate();
     let token = service()

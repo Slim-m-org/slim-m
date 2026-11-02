@@ -25,6 +25,9 @@ pub(super) struct VideoGrant {
     pub(super) room_join: bool,
     #[serde(rename = "roomAdmin")]
     pub(super) room_admin: bool,
+    /// LiveKit demands this for `DeleteRoom` and nothing else here; it stays off the wire unless set.
+    #[serde(rename = "roomCreate", skip_serializing_if = "is_false")]
+    pub(super) room_create: bool,
     #[serde(rename = "canSubscribe")]
     pub(super) can_subscribe: bool,
     #[serde(rename = "canPublish")]
@@ -33,6 +36,10 @@ pub(super) struct VideoGrant {
     pub(super) can_publish_data: bool,
     #[serde(rename = "canUpdateOwnMetadata")]
     pub(super) can_update_own_metadata: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 pub(super) fn unix_secs() -> u64 {
