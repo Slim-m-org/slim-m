@@ -18,6 +18,12 @@ class HealthInterval {
     this.audioLevel,
     this.rttMs,
     this.kbps,
+    this.discardedPackets,
+    this.acceleratedSamples,
+    this.deceleratedSamples,
+    this.silentConcealedSamples,
+    this.echoReturnLossDb,
+    this.echoEnhancementDb,
   });
 
   final double seconds;
@@ -33,6 +39,17 @@ class HealthInterval {
   final double? audioLevel;
   final double? rttMs;
   final double? kbps;
+
+  /// What the jitter buffer did besides conceal: late packets dropped, and
+  /// samples removed or added to catch up or slow down. Null where the platform reports none.
+  final double? discardedPackets;
+  final double? acceleratedSamples;
+  final double? deceleratedSamples;
+  final double? silentConcealedSamples;
+
+  /// The echo canceller's own readings, on a stream we send.
+  final double? echoReturnLossDb;
+  final double? echoEnhancementDb;
 
   double? get concealShare => samples > 0 ? concealedSamples / samples : null;
 
@@ -80,10 +97,20 @@ class HealthWindow {
   double get concealmentEvents =>
       _entries.fold(0.0, (s, e) => s + e.concealmentEvents);
 
+  double? get discardedPackets => _sum((e) => e.discardedPackets);
+  double? get acceleratedSamples => _sum((e) => e.acceleratedSamples);
+  double? get deceleratedSamples => _sum((e) => e.deceleratedSamples);
+  double? get silentConcealedSamples => _sum((e) => e.silentConcealedSamples);
+
+  double? _sum(double? Function(HealthInterval) pick) =>
+      sumOrNull(_entries.map(pick));
+
   double? get jitterMs => _mean((e) => e.jitterMs);
   double? get bufferMs => _mean((e) => e.bufferMs);
   double? get rttMs => _mean((e) => e.rttMs);
   double? get kbps => _mean((e) => e.kbps);
+  double? get echoReturnLossDb => _mean((e) => e.echoReturnLossDb);
+  double? get echoEnhancementDb => _mean((e) => e.echoEnhancementDb);
   double? get peakLevel => _entries
       .map((e) => e.audioLevel)
       .whereType<double>()
@@ -100,6 +127,12 @@ class HealthWindow {
     }
     return weight > 0 ? total / weight : null;
   }
+}
+
+/// The total of the values present, or null when none is.
+double? sumOrNull(Iterable<double?> values) {
+  final present = values.whereType<double>();
+  return present.isEmpty ? null : present.fold<double>(0, (s, v) => s + v);
 }
 
 /// The value at [fraction] (0 to 1) of [values], by nearest rank; null when empty.

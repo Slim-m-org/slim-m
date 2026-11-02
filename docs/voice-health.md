@@ -32,5 +32,13 @@ The glyph has a tooltip and a screen reader label.
 The log gets one `[voice-health]` line about every 60 seconds, with each person's last minute of concealment, events, jitter, buffer, loss, level and round trip.
 When the call ends it gets a summary: p50 and p95 of concealment, jitter buffer, jitter, round trip and loss, for everyone pooled and for each person.
 
+The jitter buffer's other work is logged when the platform reports it: late packets discarded, playout sped up (accel) or slowed down (decel), and concealed samples that were silence.
+The summary pools them for everyone, with zeros shown, and lists a person only when theirs is above zero.
+The minute line does the same per person.
+A person's screen-share audio is sampled every fourth read under its own `Name (share)` entry and never flags a poor connection.
+Our own line adds `erl` and `erle`, the echo canceller's return loss and its enhancement in dB, only when the platform reports them.
+The first call also logs the raw media-source stats entry at debug level, to show which of those fields a platform has.
+There is no "use headphones" hint: echo return loss reads near zero with headphones and is capped low, so no threshold on it would be right.
+
 Settings, Troubleshooting, "Last call audio" shows the pooled summary of the last call that ended in this session.
 It is kept in memory only, so it is empty after a restart; the log line is the durable record.

@@ -14,6 +14,7 @@ mixin VoiceSessionHealth {
     sources: _remoteVoiceStats,
     nameOf: _nameOf,
     local: _localVoiceStats,
+    shareSources: _remoteShareStats,
     localIdOf: () => _room?.localParticipant?.identity ?? 'local',
     health: health,
     log: _diag,
@@ -24,14 +25,19 @@ mixin VoiceSessionHealth {
     return peer == null || peer.name.isEmpty ? identity : peer.name;
   }
 
-  Map<String, AudioStatsSource> _remoteVoiceStats() {
+  Map<String, AudioStatsSource> _remoteVoiceStats() =>
+      _remoteAudioStats(lk.TrackSource.microphone);
+
+  Map<String, AudioStatsSource> _remoteShareStats() =>
+      _remoteAudioStats(lk.TrackSource.screenShareAudio);
+
+  Map<String, AudioStatsSource> _remoteAudioStats(lk.TrackSource source) {
     final out = <String, AudioStatsSource>{};
     final remotes = _room?.remoteParticipants.values.toList() ?? const [];
     for (final p in remotes) {
       for (final pub in p.audioTrackPublications) {
         final track = pub.track;
-        if (track is lk.RemoteAudioTrack &&
-            pub.source == lk.TrackSource.microphone) {
+        if (track is lk.RemoteAudioTrack && pub.source == source) {
           out[p.identity] = _receiveStats(pub, track);
         }
       }
@@ -56,8 +62,13 @@ mixin VoiceSessionHealth {
     final track = pub?.track;
     if (track is! lk.LocalAudioTrack) return null;
     final reports = await track.sender?.getStats();
-    return reports == null ? null : parseAudioSend(_entries(reports));
+    if (reports == null) return null;
+    final entries = _entries(reports);
+    _mediaSource.note(entries, _diag);
+    return parseAudioSend(entries);
   }
+
+  final _mediaSource = MediaSourceNote();
 
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>
       [for (final r in reports) StatsEntry.fromReport(r)];
