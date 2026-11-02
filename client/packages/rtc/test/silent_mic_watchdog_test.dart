@@ -35,6 +35,31 @@ class _Rig {
   }
 }
 
+class _StallRig {
+  _StallRig() {
+    dog = SilentMicWatchdog(
+      timing: _timing,
+      now: () => clock,
+      onSilent: () => restarts++,
+      onGaveUp: () => gaveUp++,
+      onRecovered: () => recovered++,
+    );
+  }
+
+  late final SilentMicWatchdog dog;
+  var clock = DateTime(2026);
+  var restarts = 0;
+  var gaveUp = 0;
+  var recovered = 0;
+
+  void feed(bool? advancing, int seconds) {
+    for (var i = 0; i < seconds; i++) {
+      clock = clock.add(const Duration(seconds: 1));
+      dog.observeProgress(advancing: advancing, active: true);
+    }
+  }
+}
+
 void main() {
   test('a long run of exact silence restarts, then backs off and gives up', () {
     final rig = _Rig()..feed(kInputFloorDb, 600);
@@ -146,5 +171,92 @@ void main() {
     expect(captureRestarts, 3,
         reason: 'the first real restart was not refilled');
     expect(gaveUp, 1);
+  });
+
+  group('a capture counter that stands still', () {
+    test('restarts after the stall span, then backs off and gives up', () {
+      final rig = _StallRig()..feed(false, 600);
+
+      expect(rig.restarts, 3);
+      expect(rig.gaveUp, 1);
+    });
+
+    test('waits for the whole stall span', () {
+      final rig = _StallRig()..feed(false, 4);
+
+      expect(rig.restarts, 0);
+    });
+
+    test('a counter that moves, or no verdict, never restarts', () {
+      final rig = _StallRig()
+        ..feed(true, 600)
+        ..feed(null, 600);
+
+      expect(rig.restarts, 0);
+    });
+
+    test('a reading in between restarts the stall clock', () {
+      final rig = _StallRig();
+      for (var i = 0; i < 100; i++) {
+        rig.feed(false, 4);
+        rig.feed(true, 1);
+      }
+
+      expect(rig.restarts, 0);
+    });
+
+    test('shares the budget with the level watchdog', () {
+      final rig = _StallRig();
+      for (var i = 0; i < 11; i++) {
+        rig.clock = rig.clock.add(const Duration(seconds: 1));
+        rig.dog.observe(kInputFloorDb, active: true);
+      }
+      expect(rig.restarts, 1);
+      rig.feed(false, 600);
+
+      expect(rig.restarts, 3);
+      expect(rig.gaveUp, 1);
+    });
+
+    test('a pause from Strong does not hide the stall', () {
+      final rig = _StallRig();
+      for (var i = 0; i < 20; i++) {
+        rig.dog.pause();
+        rig.feed(false, 1);
+      }
+
+      expect(rig.restarts, 1);
+    });
+
+    test('a counter that moves for long enough clears a give-up', () {
+      final rig = _StallRig()
+        ..feed(false, 600)
+        ..feed(true, 130);
+
+      expect(rig.recovered, 1);
+    });
+
+    test('a muted mic forgets the stall so far', () {
+      final rig = _StallRig()..feed(false, 4);
+      rig.dog.observeProgress(advancing: null, active: false);
+      rig.feed(false, 4);
+
+      expect(rig.restarts, 0);
+    });
+  });
+
+  test('capture progress reads any change as movement, and a reset as unknown',
+      () {
+    final progress = CaptureProgress();
+
+    expect(progress.advanced(null), isNull);
+    expect(progress.advanced(1.5), isNull);
+    expect(progress.advanced(3.0), isTrue);
+    expect(progress.advanced(3.0), isFalse);
+    expect(progress.advanced(0.1), isTrue);
+    expect(progress.advanced(null), isNull);
+    expect(progress.advanced(0.1), isNull);
+    progress.reset();
+    expect(progress.advanced(0.1), isNull);
   });
 }

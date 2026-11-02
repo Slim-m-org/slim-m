@@ -34,6 +34,8 @@ class MicRecoveryTiming {
     this.deviceDebounce = const Duration(seconds: 1),
     this.senderPoll = const Duration(seconds: 2),
     this.fallbackSettle = const Duration(seconds: 3),
+    this.captureProbe = const Duration(milliseconds: 1500),
+    this.captureStall = const Duration(seconds: 5),
   });
 
   final Duration retryBase;
@@ -57,6 +59,29 @@ class MicRecoveryTiming {
 
   /// How long a replacement microphone runs before its level is judged.
   final Duration fallbackSettle;
+
+  /// How often the capture's sample counter is read, whatever the level says.
+  final Duration captureProbe;
+
+  /// How long that counter may stand still before the capture counts as dead.
+  final Duration captureStall;
+}
+
+/// Tells whether the capture's running sample total moved between two reads.
+/// Any change counts, so a counter that restarts from zero is not a stall.
+class CaptureProgress {
+  double? _last;
+
+  /// Null when there is no earlier reading to compare, or no reading at all.
+  bool? advanced(double? seconds) {
+    final before = _last;
+    _last = seconds;
+    if (seconds == null || before == null) return null;
+    return seconds != before;
+  }
+
+  /// A new capture counts from its own first reading.
+  void reset() => _last = null;
 }
 
 /// Re-enables a lost microphone with a growing delay, for as long as the user
@@ -188,6 +213,8 @@ class SilentMicWatchdog {
 
   DateTime? _silentSince;
   DateTime? _liveSince;
+  DateTime? _stalledSince;
+  DateTime? _movingSince;
   DateTime? _nextAllowed;
   int _restarts = 0;
 
@@ -210,19 +237,57 @@ class SilentMicWatchdog {
     _liveSince = null;
     final since = _silentSince ??= now;
     if (now.difference(since) < timing.silence) return;
+    if (_spendRestart(now)) _silentSince = null;
+  }
+
+  /// Whether the capture's sample counter moved, which a level cannot say under
+  /// Strong. A stall past [MicRecoveryTiming.captureStall] spends the same
+  /// restart budget; null means no verdict this time.
+  void observeProgress({required bool? advancing, required bool active}) {
+    if (!active) {
+      _stalledSince = null;
+      _movingSince = null;
+      return;
+    }
+    final now = _now();
+    if (advancing != false) {
+      _stalledSince = null;
+      if (advancing == true) return _refillAfterMoving(now);
+      _movingSince = null;
+      return;
+    }
+    _movingSince = null;
+    final since = _stalledSince ??= now;
+    if (now.difference(since) < timing.captureStall) return;
+    if (_spendRestart(now)) _stalledSince = null;
+  }
+
+  void _refillAfterMoving(DateTime now) {
+    final since = _movingSince ??= now;
+    if (now.difference(since) < timing.recoveredAfter) return;
+    _restarts = 0;
+    _nextAllowed = null;
+    if (_gaveUp) {
+      _gaveUp = false;
+      onRecovered?.call();
+    }
+  }
+
+  /// True when a restart was asked for.
+  bool _spendRestart(DateTime now) {
     final allowed = _nextAllowed;
     if (_restarts >= timing.maxSilentRestarts) {
       if (!_gaveUp) {
         _gaveUp = true;
         onGaveUp?.call();
       }
-      return;
+      return false;
     }
-    if (allowed != null && now.isBefore(allowed)) return;
+    if (allowed != null && now.isBefore(allowed)) return false;
     _restarts++;
-    _silentSince = null;
     _nextAllowed = now.add(timing.silentCooldown * _restarts);
     onSilent();
+    return true;
   }
 
   /// A reading that proves nothing (Strong zeroes a quiet room): forgets the
@@ -242,6 +307,8 @@ class SilentMicWatchdog {
   void reset() {
     _silentSince = null;
     _liveSince = null;
+    _stalledSince = null;
+    _movingSince = null;
     _nextAllowed = null;
     _restarts = 0;
     _gaveUp = false;

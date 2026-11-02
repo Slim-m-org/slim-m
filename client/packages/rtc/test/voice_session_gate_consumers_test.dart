@@ -23,6 +23,9 @@ class _FakeMic implements MicPort {
   Future<double?> senderLevelDb() async => null;
 
   @override
+  Future<double?> capturedSeconds() async => null;
+
+  @override
   bool get open => published && !muted;
 
   @override

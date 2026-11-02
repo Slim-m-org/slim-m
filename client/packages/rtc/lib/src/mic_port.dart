@@ -25,6 +25,10 @@ abstract interface class MicPort {
   /// platform reports none; only exact digital silence reads as the floor.
   Future<double?> senderLevelDb();
 
+  /// Seconds of audio the capture has produced so far, from the media source's
+  /// own counter; it stops moving when frames stop, whatever the level says.
+  Future<double?> capturedSeconds();
+
   /// Stops the capture of the muted track, keeping it published so an unmute
   /// can reopen it.
   Future<void> release();
@@ -163,6 +167,12 @@ class LiveKitMicPort implements MicPort {
     final stats = await _publication?.track?.getSenderStats();
     final level = stats?.audioSourceStats?.audioLevel;
     return level == null ? null : senderLevelToDb(level.toDouble());
+  }
+
+  @override
+  Future<double?> capturedSeconds() async {
+    final stats = await _publication?.track?.getSenderStats();
+    return stats?.audioSourceStats?.totalSamplesDuration?.toDouble();
   }
 
   @override

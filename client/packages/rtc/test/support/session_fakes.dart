@@ -82,6 +82,9 @@ class CountingMic implements MicPort {
   bool get open => hasTrackNow;
   @override
   Future<double?> senderLevelDb() async => null;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     hasTrackNow = enabled;
