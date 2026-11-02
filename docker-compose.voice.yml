@@ -57,7 +57,7 @@ services:
   livekit:
     <<: *hardened
     # Pinned to an exact release and its digest; check github.com/livekit/livekit/releases for newer patches.
-    image: livekit/livekit-server:v1.10.1@sha256:698a13999b4b2285866a32903724884b1e10c03259526391d9b3a72d9b73bbb4
+    image: livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
     restart: unless-stopped
     healthcheck:
       # Alpine's busybox wget against LiveKit's own unauthenticated "OK" liveness route; see deploy/README.md.
@@ -100,6 +100,10 @@ services:
           port_range_start: ${LIVEKIT_UDP_PORT_START:-50000}
           port_range_end: ${LIVEKIT_UDP_PORT_END:-50100}
           use_external_ip: true
+          # Explicit so a changed server default cannot silently start pausing tracks.
+          congestion_control:
+            enabled: true
+            allow_pause: false
         keys:
           ${LIVEKIT_API_KEY:?LIVEKIT_API_KEY must be set in .env, see deploy/README.md}: ${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET must be set in .env to a random value of at least 32 characters}
         # Speaker updates every 100ms, active on a fifth of loud packets: measured 50-120ms to light, 150-210ms to clear.

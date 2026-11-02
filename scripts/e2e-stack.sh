@@ -35,7 +35,7 @@ API_PORT="${E2E_API_PORT:-8095}"
 LK_PORT="${E2E_LK_PORT:-7880}"
 LK_CONTAINER="${E2E_LK_CONTAINER:-slimm-e2e-lk}"
 # The version prod runs, so the run tests what ships rather than whatever is latest.
-LIVEKIT_VERSION="${LIVEKIT_VERSION:-v1.10.1}"
+LIVEKIT_VERSION="${LIVEKIT_VERSION:-v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20}"
 # Below the kernel's ephemeral range (32768-60999), where an outgoing socket can already hold a port.
 RTC_UDP_START="${E2E_RTC_UDP_START:-21000}"
 RTC_UDP_END="${E2E_RTC_UDP_END:-21050}"
