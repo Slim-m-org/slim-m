@@ -59,6 +59,7 @@ import 'voice_processing_control.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'voice_session_camera.dart';
+import 'voice_reconnect_tracker.dart';
 import 'voice_session_mic_fallback.dart';
 import 'voice_session_screen_share.dart';
 
@@ -157,6 +158,9 @@ class VoiceSession
       _receiveDensity,
     );
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
+    health.reconnect
+      ..log = _diag
+      ..active.addListener(_onReconnectingChanged);
   }
 
   /// The room a fresh call publishes into: only what is on screen is

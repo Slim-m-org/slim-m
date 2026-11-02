@@ -33,6 +33,7 @@ import 'voice_participant_volumes.dart';
 import 'voice_rejoin.dart';
 import 'voice_screen_share.dart';
 import 'voice_settings_controller.dart' show loadCameraOnJoinPreference;
+import 'voice_reconnect_display.dart';
 import 'voice_session_sync.dart';
 import 'voice_sfu_connect.dart';
 import 'voice_state.dart';
@@ -110,6 +111,10 @@ class VoiceController extends StateNotifier<VoiceState> {
       unawaited(leave());
     });
     listenLevelDisplayed(_ref, _session.setLevelDisplayed);
+    _reconnectDisplay = VoiceReconnectDisplay(
+      _session.health.reconnect.active,
+      access,
+    );
     _states = _session.states.listen(_sync.onSessionState);
     _shareSourceLost = _session.screenShareSourceLost.listen(
       (_) => share.reportShareSourceLost(),
@@ -156,6 +161,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   late final VoiceRejoin _rejoin;
   late final VoiceSfuConnect _sfu;
   late final VoiceSessionSync _sync;
+  late final VoiceReconnectDisplay _reconnectDisplay;
 
   final CallLifecycleChannel _callLifecycle;
   final CallForegroundKeeper _foreground;
@@ -365,6 +371,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _heartbeat.stop();
     input.stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
+    _reconnectDisplay.dispose();
     unawaited(_states.cancel());
     unawaited(_participants.cancel());
     unawaited(_shareSourceLost.cancel());

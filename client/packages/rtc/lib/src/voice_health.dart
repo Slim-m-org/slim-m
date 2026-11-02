@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import 'audio_stats.dart';
+import 'voice_reconnect_tracker.dart';
 import 'voice_health_summary.dart';
 import 'voice_health_window.dart';
 
@@ -122,6 +123,9 @@ class VoiceHealth {
   /// first sample and once the call ends.
   final ValueNotifier<int?> pingMs = ValueNotifier(null);
 
+  /// The SDK's own transport repair, watched; see [ReconnectTracker].
+  final ReconnectTracker reconnect = ReconnectTracker();
+
   double? _localPing;
   double? _remotePing;
 
@@ -217,14 +221,18 @@ class VoiceHealth {
   /// Ends the call: the summary lines for the log, and the summary kept for
   /// the Troubleshooting page. Empty when nothing was sampled.
   List<String> finish() {
+    // An episode still open when the call ends is a blip of this call, not the next.
+    reconnect.ended('call ended');
+    final blips = reconnect.stats;
     if (!hasData) {
       reset();
-      return const [];
+      return [if (blips.line case final line?) line];
     }
     final summary = CallHealthSummary.of(
       endedAt: _clock(),
       remote: _historiesByLabel(),
       local: _local?.history,
+      reconnects: blips,
     );
     // Sitting alone must not erase the numbers of the call before.
     if (summary.peers.isNotEmpty || lastCall.value == null) {
@@ -249,6 +257,7 @@ class VoiceHealth {
   }
 
   void reset() {
+    reconnect.resetStats();
     _remote.clear();
     _local = null;
     _localId = null;
@@ -260,6 +269,7 @@ class VoiceHealth {
   }
 
   void dispose() {
+    reconnect.dispose();
     poorConnections.dispose();
     pingMs.dispose();
     lastCall.dispose();

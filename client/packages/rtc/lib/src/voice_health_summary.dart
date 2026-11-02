@@ -4,6 +4,7 @@ library;
 
 import 'mic_recovery.dart' show senderLevelToDb;
 import 'voice_health_window.dart';
+import 'voice_reconnect_tracker.dart' show ReconnectStats;
 
 /// Median and tail of each measure over a run of intervals.
 class HealthStats {
@@ -65,18 +66,21 @@ class CallHealthSummary {
     required this.remote,
     required this.peers,
     this.local,
+    this.reconnects = ReconnectStats.none,
   });
 
   factory CallHealthSummary.of({
     required DateTime endedAt,
     required Map<String, List<HealthInterval>> remote,
     List<HealthInterval>? local,
+    ReconnectStats reconnects = ReconnectStats.none,
   }) =>
       CallHealthSummary(
         endedAt: endedAt,
         remote: HealthStats.of([for (final h in remote.values) ...h]),
         peers: {for (final e in remote.entries) e.key: HealthStats.of(e.value)},
         local: local == null || local.isEmpty ? null : HealthStats.of(local),
+        reconnects: reconnects,
       );
 
   final DateTime endedAt;
@@ -85,6 +89,9 @@ class CallHealthSummary {
   final HealthStats remote;
   final Map<String, HealthStats> peers;
   final HealthStats? local;
+
+  /// How often the SDK had to repair the transport during the call.
+  final ReconnectStats reconnects;
 }
 
 /// A named stream's recent window, for the once-a-minute line.
@@ -129,6 +136,7 @@ List<String> summaryLines(CallHealthSummary summary) => [
         '[voice-health] call summary ${e.key}: ${_stats(e.value)}',
       if (summary.local case final local?)
         '[voice-health] call summary you: ${_statsLocal(local)}',
+      if (summary.reconnects.line case final line?) line,
     ];
 
 String _stats(HealthStats s) => 'over ${s.seconds.round()}s '

@@ -154,8 +154,12 @@ class VideoStallWatchdog {
   final ValueNotifier<Map<String, VideoTileHealth>> health =
       ValueNotifier(const {});
 
+  bool _disposed = false;
+
   /// Folds one round of readings in; tiles missing from it are forgotten.
   void observe(Iterable<VideoStallReading> readings) {
+    // A teardown that outlives the session's own dispose still clears its tiles.
+    if (_disposed) return;
     final now = _clock();
     final next = <String, VideoTileHealth>{};
     final seen = <String>{};
@@ -246,5 +250,8 @@ class VideoStallWatchdog {
     return VideoTileHealth.stalled;
   }
 
-  void dispose() => health.dispose();
+  void dispose() {
+    _disposed = true;
+    health.dispose();
+  }
 }

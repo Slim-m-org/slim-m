@@ -32,8 +32,21 @@ Before, a server that sent any of these ended the call as `unknown`, which is no
 ## Reconnects are not handled twice
 
 Our rejoin (`VoiceControllerRejoinMixin`) runs only after `RoomDisconnectedEvent`, that is after livekit has given up.
-The session ignores `RoomReconnecting`, `RoomReconnected` and `RoomRestarted` beyond refreshing the roster, so livekit's resume and full reconnect run unobserved by our code.
-Nothing new subscribes to those events, and none should: a second layer reacting to the same blip is what the resume fix removes the need for.
+livekit's resume and full reconnect run unchanged: no code of ours repairs, retries or restarts anything while the SDK is at it, and none should.
+A second layer reacting to the same blip is what the resume fix removes the need for.
+
+Display-only observers are allowed (amended for v121, where the audit found a reconnect invisible for up to about 44 s).
+The session listens to `RoomReconnecting`, `RoomResuming`, `RoomAttemptReconnect` and `RoomReconnected` (there is no `RoomRestarted` class in 2.13.1) and to nothing that acts on them.
+What they may do is limited to:
+
+- set a reconnecting flag next to `VoiceSessionState`, never a new state, because many gates key on `state == connected`;
+- show that flag in the call stage's banner slot after a 2 s debounce;
+- hold the roster emit while it is set and rebuild it from the live room afterwards, because a full restart empties the SDK's remote list;
+- pause the stall watchdog's recovery and the audio sampling, and clear the ping readout;
+- log each transition and count blips into the call summary.
+
+`serverShutdown` and `stateMismatch` now map to `connectionLost` like the other drops, so the automatic rejoin covers them.
+`mapDisconnectReason` has a test row for every `DisconnectReason` value, so a value an upgrade adds is decided there.
 
 ## The fork stays
 
