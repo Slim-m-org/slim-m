@@ -99,6 +99,13 @@ void main() {
       );
     });
 
+    test('a size capture scaled down still picks the same monitor', () {
+      expect(
+        pickSharedMonitor(monitors, capturedSize: const Size(2304, 1440)),
+        1,
+      );
+    });
+
     test('with nothing to go on the primary monitor is used', () {
       expect(
         pickSharedMonitor([
