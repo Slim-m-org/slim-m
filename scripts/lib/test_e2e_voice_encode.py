@@ -8,12 +8,16 @@ class ParseCaseTest(unittest.TestCase):
     def test_a_share_names_its_screen_and_tier(self):
         case = enc.parse_case("share:3840x2160:1080p30")
         self.assertEqual(case["size"], (3840, 2160))
-        self.assertEqual(case["flag"], "--voice-harness-share=1080p30")
+        self.assertEqual(case["flags"], ["--voice-harness-share=1080p30"])
         self.assertEqual(case["source"], "screenShare")
+
+    def test_a_restart_suffix_adds_the_restart_flag(self):
+        case = enc.parse_case("share:1920x1080:1080p30:restart")
+        self.assertEqual(case["flags"], ["--voice-harness-share=1080p30", "--voice-harness-share-restart"])
 
     def test_a_camera_names_its_quality(self):
         case = enc.parse_case("camera:high")
-        self.assertEqual(case["flag"], "--voice-harness-camera=high")
+        self.assertEqual(case["flags"], ["--voice-harness-camera=high"])
         self.assertEqual(case["source"], "camera")
 
 

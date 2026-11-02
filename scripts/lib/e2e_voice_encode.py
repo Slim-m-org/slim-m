@@ -3,7 +3,7 @@
 
 The release client built with `--dart-define=SLIMM_VOICE_HARNESS=true` joins a call, starts a share or the camera from launch flags and prints one line per simulcast layer per sample.
 A share runs on Xwayland inside a nested compositor of a known size, so the captured screen has a size the run chose; the camera is the box's own webcam.
-Opt in with E2E_ONLY="encode readback"; E2E_DESKTOP_BUNDLE points at the build and E2E_ENCODE_CASES lists cases such as `share:3840x2160:1080p30` or `camera:high`.
+Opt in with E2E_ONLY="encode readback"; E2E_DESKTOP_BUNDLE points at the build and E2E_ENCODE_CASES lists cases such as `share:3840x2160:1080p30` or `camera:high`; `share:1920x1080:1080p30:restart` also stops the share and starts it again.
 """
 import glob
 import json
@@ -27,10 +27,12 @@ def parse_case(text):
     """`share:WxH:tier` or `camera:quality` as the screen size, the launch flag and a label."""
     kind, _, rest = text.partition(":")
     if kind == "camera":
-        return {"label": text, "size": (1280, 800), "flag": f"--voice-harness-camera={rest}", "source": "camera"}
+        return {"label": text, "size": (1280, 800), "flags": [f"--voice-harness-camera={rest}"], "source": "camera"}
     size, _, tier = rest.partition(":")
+    tier, _, mode = tier.partition(":")
     width, height = (int(v) for v in size.split("x"))
-    return {"label": text, "size": (width, height), "flag": f"--voice-harness-share={tier}", "source": "screenShare"}
+    flags = [f"--voice-harness-share={tier}"] + (["--voice-harness-share-restart"] if mode == "restart" else [])
+    return {"label": text, "size": (width, height), "flags": flags, "source": "screenShare"}
 
 
 def layers(lines, source):
@@ -75,7 +77,7 @@ def _run_case(case, ctx):
         display = _display_after(started, log)
         root = da.seed_profile(os.path.join(ctx["directory"], "xdg-encode"), ctx["server"], tokens, {})
         app_log = os.path.join(ctx["directory"], f"app-{slug}.log")
-        app = da.Desktop(ctx["bundle"], root, ctx["channel"], app_log, extra_args=[case["flag"]])
+        app = da.Desktop(ctx["bundle"], root, ctx["channel"], app_log, extra_args=case["flags"])
         try:
             app.start(compositor, x11_display=display)
             app.wait_for("SLIMM_HARNESS joined", 150, fail_on=vd.JOIN_FAILED)
@@ -86,7 +88,8 @@ def _run_case(case, ctx):
         finally:
             app.stop()
     _await_displays_gone(ctx["displays"])
-    return {"case": case["label"], "screen": f"{width}x{height}", "layers": layers(lines, case["source"])}
+    restarted = any("SLIMM_HARNESS share restarted" in ln for ln in lines)
+    return {"case": case["label"], "screen": f"{width}x{height}", "layers": layers(lines, case["source"]), "restarted": restarted}
 
 
 def an_encode_matches_what_was_asked(server, secret, admin_api, sign_in):

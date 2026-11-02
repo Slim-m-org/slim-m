@@ -15,6 +15,7 @@ import 'debug_log.dart';
 const _shareFlag = '--voice-harness-share=';
 const _cameraFlag = '--voice-harness-camera=';
 const _ceilingFlag = '--voice-harness-share-ceiling=';
+const _restartFlag = '--voice-harness-share-restart';
 
 String? _flag(List<String> args, String prefix) {
   for (final arg in args) {
@@ -74,6 +75,18 @@ Future<void> startHarnessMedia(
       maxHeight: harnessShareCeiling(args),
     );
     debugPrint('SLIMM_HARNESS share started ${share.id}');
+    if (args.contains(_restartFlag)) {
+      await Future<void>.delayed(const Duration(seconds: 8));
+      await voice.share.setScreenShare(false);
+      debugPrint('SLIMM_HARNESS share stopped');
+      await Future<void>.delayed(const Duration(seconds: 3));
+      await voice.share.setScreenShare(
+        true,
+        quality: share,
+        maxHeight: harnessShareCeiling(args),
+      );
+      debugPrint('SLIMM_HARNESS share restarted ${share.id}');
+    }
   }
   final camera = harnessCameraQuality(args);
   if (camera != null) {
