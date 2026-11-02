@@ -38,8 +38,41 @@ That was built and read back on the 3840x2160 screen at the 1080p30 tier, with a
 
 So on the pinned fork (`flutter_webrtc` 5697ace) a post-publish scale is accepted and remembered but never reaches the encoder, and a Dart-side change cannot fix S1.
 LiveKit's own encodings always give the top layer scale 1 against the declared dimensions, so the scale cannot be set at publish either.
-The change that would work is in the fork's native capture (honour the requested width and height in `GetDisplayMedia`, or adapt the output format), which is outside this repository.
 The Dart change that was tried was therefore removed rather than shipped as a no-op.
+
+## After: the fork scales the capture (2026-11-02)
+
+The fix went into the fork's native capture instead (`Slim-m-org/flutter-webrtc`, branch `v122/honour-share-size`, commit e70a980).
+`getDisplayMedia` now reads the width and height of the video constraint.
+When either is set, the published track does not read the capturer directly; it reads it through a limiter that scales each frame down to fit the request.
+The aspect ratio is kept, both sides stay even for I420, a frame is never upscaled, and a frame that already fits goes on untouched.
+The limiter feeds a custom video source, so libwebrtc's own adaptation still works on top of it.
+The cost is one extra I420 copy per frame, and a scale measured at about 10 ms per 4K frame on the capture thread.
+Stopping a share removes the limiter's renderer first, which returns once the capture thread has left the callback, so no frame is in flight when the capturer is released.
+
+The same readback (release bundle against the fork, 25 second settle, `share:WxH:tier` cases) now gives:
+
+| Screen | Tier | Declared top / low | Delivered top / low | fps | Quality limit |
+| --- | --- | --- | --- | --- | --- |
+| 1920x1080 | 1080p30 | 1920x1080 / 960x540 | 1920x1080 / 960x540 | 30 | none |
+| 3840x2160 | 1080p30 | 1920x1080 / 960x540 | 1920x1080 / 960x540 | 20 | none |
+| 3440x1440 | 1080p30 | 1920x804 / 960x402 | 1920x804 / 960x402 | 21 | none |
+| 2560x1600 | 1440p30 | 2304x1440 / 1152x720 | 2304x1440 / 1152x720 | 21 | none |
+| 5120x1080 | 1080p30 | 1920x406 / 960x203 | 1920x406 / 960x203 | 24 | none |
+
+The 2560x1600 row is 2304x1440 rather than 2560x1440 because the 16:10 screen keeps its aspect ratio inside the 2560x1440 box.
+The two `cpu` rows of the table above are gone: the software encoder no longer has to shrink the frames itself.
+The frame rate on the larger screens is below 30 on this box because the capture and the software VP8 encode share its cores with the rest of the e2e stack, and was not tuned here.
+
+The 3840x2160 case also stopped the share after 8 seconds, waited 3, and started it again (`:restart` suffix on the case).
+Both transitions logged, the second share reported its layers, and the app ran on to the end of the case with no crash.
+
+`fitScreenShare` now trusts the capture to deliver the tier's box.
+A source as wide as the tier keeps the tier, so the 3440x1440 screen declares 1920x804 instead of dropping to 720p, and the own-share preview reads the same scaled size from `localShareCapturedSize`.
+The screen overlay picks its monitor by aspect ratio, which scaling preserves.
+
+Windows and elinux compile the same common code, with the same CMake entries, but were not built here.
+macOS has its own ScreenCaptureKit capturer and is untouched.
 
 ## Camera (C2)
 
@@ -55,5 +88,7 @@ That case is still open, and the Windows VM has no webcam to stand in for one ei
 
 ## Still open
 
-- Honour the requested capture size in the fork, then re-run `E2E_ENCODE_CASES=share:3840x2160:1080p30` and expect a 1920x1080 top layer.
 - Read the per-rid `frameWidth` on a 720p-only webcam at the high camera setting.
+- Build the fork on Windows and elinux; only Linux was compiled and run here.
+- Read the Windows share back the same way, once the Windows VM can run the harness.
+- Look at why the 4K case settles at 20 fps on this box, and whether the extra copy and scale matter on a slower CPU.
