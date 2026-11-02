@@ -28,6 +28,7 @@ final _debugPrint = RegExp(r'\bdebugPrint\s*\(');
 const _debugPrintAllowed = {
   'client/packages/app/lib/src/diagnostics/debug_log.dart',
   'client/packages/app/lib/src/diagnostics/voice_harness.dart',
+  'client/packages/app/lib/src/diagnostics/voice_harness_media.dart',
 };
 
 void main() {
