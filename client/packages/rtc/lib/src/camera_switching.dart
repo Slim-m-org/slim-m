@@ -148,7 +148,12 @@ class CameraSwitching {
       );
     }
     try {
-      if (enabled) await _dropStaleCamera(local, options);
+      // Only a real republish awaits here, so an ordinary enable keeps its timing.
+      final stale = enabled ? _staleCamera(local, options) : null;
+      if (stale != null) {
+        await local.removePublishedTrack(stale.sid);
+        resetFacing();
+      }
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
     } catch (e, stack) {
@@ -168,18 +173,17 @@ class CameraSwitching {
     }
   }
 
-  /// Unpublishes a camera published at another quality than [wanted].
+  /// The camera publication to drop because it was published at another
+  /// quality than [wanted], or null.
   ///
   /// A muted camera unmutes with its original capture options and simulcast
   /// encodings, so only a fresh publish applies a changed quality.
-  Future<void> _dropStaleCamera(
+  lk.LocalTrackPublication? _staleCamera(
     lk.LocalParticipant local,
     lk.CameraCaptureOptions? wanted,
-  ) async {
+  ) {
     final pub = local.getTrackPublicationBySource(lk.TrackSource.camera);
-    if (!cameraNeedsRepublish(pub?.track, wanted)) return;
-    await local.removePublishedTrack(pub!.sid);
-    resetFacing();
+    return cameraNeedsRepublish(pub?.track, wanted) ? pub : null;
   }
 
   /// Whether [chosenId] names a camera the platform no longer lists.
