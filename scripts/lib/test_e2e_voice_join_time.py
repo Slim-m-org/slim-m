@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """The join-time scenario's own arithmetic."""
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -39,6 +40,24 @@ class SummaryTest(unittest.TestCase):
         summary = jt.summarize([{"ice": 400.0}, {"ice": 600.0}])
         self.assertEqual(summary, {"ice": (400.0, 600.0, 2)})
         self.assertIn("ice", jt.format_table(summary))
+
+
+class JoinProfileTest(unittest.TestCase):
+    def setUp(self):
+        self.addCleanup(os.environ.pop, "JOIN_NETEM", None)
+        os.environ.pop("JOIN_NETEM", None)
+
+    def test_a_join_is_measured_over_a_wan_by_default(self):
+        self.assertEqual(jt.join_profile(), "wan70")
+        self.assertIn("wan70", jt.WAN_PROFILES)
+
+    def test_clean_turns_the_impairment_off(self):
+        os.environ["JOIN_NETEM"] = "clean"
+        self.assertEqual(jt.join_profile(), "clean")
+
+    def test_an_empty_value_falls_back_to_the_default(self):
+        os.environ["JOIN_NETEM"] = ""
+        self.assertEqual(jt.join_profile(), "wan70")
 
 
 if __name__ == "__main__":

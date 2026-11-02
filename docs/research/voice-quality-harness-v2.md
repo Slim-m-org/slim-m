@@ -10,6 +10,8 @@ The two client builds differ, the server does not.
 - Objective quality score per received recording: ViSQOL and DNSMOS, reported next to the anomaly counts.
 - Mouth-to-ear latency from timed chirps, separated from the jitter buffer delay that `getStats` reports.
 - Experience timings: click-to-join, speaking-ring lag, and recovery after a 10 s network cut.
+- Every quality `results.json` side records the Chrome version and the libwebrtc milestone it ran on (Chrome N carries libwebrtc mN).
+  The Chrome arm runs with browser voice processing off and is the network-impairment control, not a model of the native capture chain.
 - A desktop path: the real Linux client, fed by a virtual PipeWire microphone playing speech with fan hum, typing and a dog bark, judged by a browser listener.
 
 ## How each part works
@@ -39,8 +41,15 @@ The two client builds differ, the server does not.
 
 - Click to join: the page logs the click, then the first remote RTP packet, the first audible energy and the "in call" label, while the other person is already talking.
   The first join of a run is cold, the rest are warm (leave and rejoin).
+  The join taps the channel row by its name as a prefix, so the Manage kebab is never hit, and the run fails if the "in call" label never shows.
+- Join target: `e2e_voice_join_time.py` holds a p50 of 1.5 s from click to first remote audio.
+  On loopback that passes trivially, so the scenario defaults to `JOIN_NETEM=wan70` (70 ms of delay with 5 ms of jitter on the SFU's egress).
+  Set `JOIN_NETEM=clean` for the unimpaired figure, which is the one the results below used.
 - Speaking ring: the sender talks after at least 2.5 s of quiet (taken from its own microphone tap), and the listener's semantics tree is watched for "Vqa, speaking".
-- Cut: netem `loss 100%` on the SFU's egress for 10 s, then cleared.
+- Cut: netem `loss 100%` on the SFU's egress, then cleared.
+  It runs in its own call, apart from the repeat-join loop, for each length in `E2E_XP_CUTS` (default 3, 10, 30 and 60 s), `E2E_XP_CUT_REPEATS` times each (default 3).
+  A 3 s cut may never reach ICE disconnected, and a 60 s cut outlasts the ladder, so a full rejoin is the expected result there.
+  `experience.json` keeps every row under `cuts` and the longest cut of 10 s or less under `cut`.
   This cuts the downlink only, the uplink keeps flowing.
   The listener's tap, its peer-connection events and the call label say whether audio came back and whether the call had to rejoin.
   The cut and restore instants are taken around the `docker run` that applies them, so they are good to roughly 0.3 s.

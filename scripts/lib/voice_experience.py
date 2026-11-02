@@ -95,3 +95,13 @@ def speaking_row(samples, start, events):
             missed += 1
     return {"onsets": len(onsets), "lit": len(delays), "missed": missed,
             "delay_ms": lat.summary(delays)}
+
+
+def cut_plan(raw_lengths, repeats):
+    """The outage lengths in seconds, each repeated `repeats` times, as (length, repeat) pairs in run order."""
+    lengths = [int(part) for part in raw_lengths.split(",") if part.strip()]
+    if not lengths or any(n <= 0 for n in lengths):
+        raise ValueError(f"cut lengths must be positive whole seconds, got {raw_lengths!r}")
+    if repeats < 1:
+        raise ValueError(f"cut repeats must be at least 1, got {repeats}")
+    return [(n, i) for n in lengths for i in range(repeats)]

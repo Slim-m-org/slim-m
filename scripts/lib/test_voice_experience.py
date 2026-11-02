@@ -101,5 +101,18 @@ class CutRowAfterARejoin(unittest.TestCase):
         self.assertIsNotNone(got["time_to_audio_ms"])
 
 
+class CutPlan(unittest.TestCase):
+    def test_each_length_repeats_in_order(self):
+        self.assertEqual(ex.cut_plan("3,10", 2), [(3, 0), (3, 1), (10, 0), (10, 1)])
+
+    def test_the_default_ladder_has_twelve_cuts(self):
+        self.assertEqual(len(ex.cut_plan("3,10,30,60", 3)), 12)
+
+    def test_a_bad_length_or_repeat_count_is_refused(self):
+        for raw, repeats in (("", 1), ("0", 1), ("-5", 1), ("3", 0)):
+            with self.assertRaises(ValueError):
+                ex.cut_plan(raw, repeats)
+
+
 if __name__ == "__main__":
     unittest.main()

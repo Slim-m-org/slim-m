@@ -12,7 +12,7 @@ import e2e_browsers
 import e2e_labels as L
 import e2e_voice_quality_js as vqjs
 import e2e_xp_js
-from e2e_voice import _tap_label
+from e2e_voice import _tap_label, channel_row_point
 
 CHUNK = 1_500_000
 
@@ -77,23 +77,33 @@ def join(client):
     client.wait_for(L.IN_CALL)
 
 
-def timed_join(client):
-    """Clicks the voice channel and returns the page's event log from the click on."""
+def timed_join(client, timeout=30):
+    """Taps the voice channel row and returns the page's event log from the tap on.
+
+    Raises when the "in call" label never shows, so a missed tap is a failure and not an empty row.
+    """
     mark = client.ev("window.__xp.events.length")
     client.ev("window.__xp.seen = {};")
     client.wait_for(L.VOICE_CHANNEL)
-    import e2e_js
-    client.ev("window.__xp.log('click');" + e2e_js.click(json.dumps(L.VOICE_CHANNEL.lower())))
-    deadline = time.time() + 30
+    point = channel_row_point(client, L.VOICE_CHANNEL)
+    client.ev("window.__xp.log('click');")
+    client.tap(*point)
+    deadline = time.time() + timeout
+    events = []
     while time.time() < deadline:
         events = ev_json(client, f"window.__xp.events.slice({mark})")
         names = {e["n"] for e in events}
-        labelled = any(e["n"] == "label" and e["on"] and e["text"] == L.IN_CALL
-                       for e in events)
-        if {"first-packet", "first-energy"} <= names and labelled:
+        if _in_call_shown(events) and {"first-packet", "first-energy"} <= names:
             return events
         time.sleep(0.2)
-    return ev_json(client, f"window.__xp.events.slice({mark})")
+    if not _in_call_shown(events):
+        raise AssertionError(f"{client.name}: {L.IN_CALL!r} never showed after tapping "
+                             f"{L.VOICE_CHANNEL!r}: {events}")
+    return events
+
+
+def _in_call_shown(events):
+    return any(e["n"] == "label" and e["on"] and e["text"] == L.IN_CALL for e in events)
 
 
 def wait_remote_audio(client, timeout=60):

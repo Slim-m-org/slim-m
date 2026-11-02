@@ -94,13 +94,17 @@ def _click_channel_row(client, channel, timeout=90):
     because the roster was still empty then, and this is that same click
     repeated once the roster is not.
     """
+    client.tap(*channel_row_point(client, channel, timeout))
+    client.settle(1.5)
+
+
+def channel_row_point(client, channel, timeout=90):
+    """Where the channel row's own text sits, found by prefix so the Manage kebab is never picked."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         for n in client.nodes():
             if n["t"].lower().startswith(channel.lower()):
-                client.tap(n["x"], n["y"])
-                client.settle(1.5)
-                return
+                return n["x"], n["y"]
         time.sleep(0.25)
     raise AssertionError(f"{client.name}: no row named {channel!r} found")
 

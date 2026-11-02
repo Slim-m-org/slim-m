@@ -35,6 +35,17 @@ class ExperienceProblems(unittest.TestCase):
                 "speaking": {"clean": {"onsets": 5, "lit": 4, "missed": 1}}}
         self.assertEqual(xp.problems(good), [])
 
+    def test_a_run_without_repeat_joins_or_a_short_cut_is_not_a_problem_by_itself(self):
+        import e2e_voice_experience as xp
+        results = {"joins": [], "speaking": {"clean": {"onsets": 5, "lit": 4, "missed": 1}}}
+        self.assertEqual(xp.problems(results), [])
+
+    def test_the_cut_row_is_the_longest_one_the_ladder_should_survive(self):
+        import e2e_voice_experience as xp
+        rows = {"3s": [{"n": 3}], "10s": [{"n": 10}, {"n": 11}], "60s": [{"n": 60}]}
+        self.assertEqual(xp._representative_cut(rows), {"n": 10})
+        self.assertIsNone(xp._representative_cut({"30s": [{"n": 30}]}))
+
 
 if __name__ == "__main__":
     unittest.main()
