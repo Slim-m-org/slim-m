@@ -314,6 +314,16 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
         userId: decoded['user_id'] as String,
         isSharingScreen: decoded['is_sharing_screen'] as bool,
       ),
+    'voice.call_audio'
+        when decoded['channel_id'] is String &&
+            (decoded['state'] == null || decoded['state'] is Map) =>
+      VoiceCallAudioChanged(
+        channelId: decoded['channel_id'] as String,
+        state: decoded['state'] == null
+            ? null
+            : CallAudioState.fromJson(decoded['state'] as Map<String, dynamic>),
+        ended: decoded['ended'] as String?,
+      ),
     'watch.tick'
         when decoded['channel_id'] is String &&
             decoded['bot_user_id'] is String &&

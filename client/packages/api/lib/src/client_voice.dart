@@ -134,4 +134,52 @@ extension SlimmApiVoice on SlimmApi {
         '/channels/$channelId/voice/ring/decline',
         expectNoContent: true,
       );
+
+  CallAudioStatus _callAudioStatus(Object? json) {
+    if (json is! Map<String, dynamic>) {
+      throw const TransportException('The call audio answer was unreadable.');
+    }
+    return CallAudioStatus.fromJson(json);
+  }
+
+  /// Whether a module is hearing this call, and which modules the caller may
+  /// turn on (decision 0104).
+  Future<CallAudioStatus> callAudio(String channelId) async {
+    final json = await send('GET', '/channels/$channelId/voice/call-audio');
+    return _callAudioStatus(json);
+  }
+
+  /// Asks everyone in the call to let [moduleId] hear it. The caller's press
+  /// is their own yes. 409 when busy, 429 with a wait after a decline.
+  Future<CallAudioStatus> requestCallAudio(
+    String channelId,
+    String moduleId,
+  ) async {
+    final json = await send(
+      'POST',
+      '/channels/$channelId/voice/call-audio',
+      body: {'module_id': moduleId},
+    );
+    return _callAudioStatus(json);
+  }
+
+  /// Answers the ask: a no stops it for everyone and never says who.
+  Future<CallAudioStatus> answerCallAudio(
+    String channelId, {
+    required bool allow,
+  }) async {
+    final json = await send(
+      'PUT',
+      '/channels/$channelId/voice/call-audio/consent',
+      body: {'allow': allow},
+    );
+    return _callAudioStatus(json);
+  }
+
+  /// Stops a module hearing this call, for everyone.
+  Future<void> stopCallAudio(String channelId) => send(
+        'DELETE',
+        '/channels/$channelId/voice/call-audio',
+        expectNoContent: true,
+      );
 }

@@ -85,6 +85,35 @@ extension SlimmApiDock on SlimmApi {
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
   }
 
+  /// The voice channels [moduleId] may hear; empty until an admin picks some.
+  Future<List<String>> callAudioChannels(String moduleId) async {
+    final json = await send(
+      'GET',
+      '/space/dock/modules/$moduleId/call-audio-channels',
+    );
+    return _channelIds(json);
+  }
+
+  /// Replaces the list of voice channels [moduleId] may hear. Refused with
+  /// 409 while its call audio is not approved.
+  Future<List<String>> setCallAudioChannels(
+    String moduleId,
+    List<String> channelIds,
+  ) async {
+    final json = await send(
+      'PUT',
+      '/space/dock/modules/$moduleId/call-audio-channels',
+      body: {'channel_ids': channelIds},
+    );
+    return _channelIds(json);
+  }
+
+  static List<String> _channelIds(Object? json) => [
+        for (final id
+            in (json as Map<String, dynamic>)['channel_ids'] as List<dynamic>)
+          id as String,
+      ];
+
   /// Uninstalls a module: removes the install, its registered permissions,
   /// and every role grant of them.
   Future<void> uninstallDockModule(String moduleId) => send(

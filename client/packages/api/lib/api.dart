@@ -153,6 +153,7 @@ export 'src/events.dart'
         TypingStarted,
         TypingStopped,
         VoiceActivityChanged,
+        VoiceCallAudioChanged,
         VoiceMoved,
         VoiceParticipantJoined,
         VoiceParticipantLeft,

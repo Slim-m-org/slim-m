@@ -209,6 +209,9 @@ abstract final class AppIcons {
   static const IconData switchCamera = LucideIcons.switchCamera300;
   static const IconData screenShare = LucideIcons.monitorUp300;
   static const IconData screenShareStop = LucideIcons.monitorOff300;
+
+  /// A module hearing the call as text (decision 0104).
+  static const IconData callAudio = LucideIcons.audioLines300;
   static const IconData screenShareSwitch = LucideIcons.monitorCog300;
   static const IconData leaveCall = LucideIcons.phoneOff300;
 

@@ -33,6 +33,7 @@ import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_health.dart';
+import 'call_audio_banner.dart';
 import 'call_filmstrip.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
@@ -154,6 +155,8 @@ class CallStageLayout extends ConsumerWidget {
               child: LocalScreenSharePendingBanner(),
             ),
           const ScreenOverlayBanner(),
+          if (!isDm && voice.channelId != null)
+            CallAudioBanner(channelId: voice.channelId!),
           if (voice.error != null && !voice.rejoining && !voice.reconnecting)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s12),
