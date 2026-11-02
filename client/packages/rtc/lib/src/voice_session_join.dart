@@ -52,6 +52,7 @@ extension VoiceSessionJoinWork on VoiceSession {
     final room = _roomFactory();
     _room = room;
     _listen(room);
+    _setupLog.start();
     try {
       _joinTimings.mark(JoinStage.connectStarted);
       await room.connect(url, token);

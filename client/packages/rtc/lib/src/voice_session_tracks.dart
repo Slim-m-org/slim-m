@@ -97,6 +97,7 @@ extension VoiceSessionTracks on VoiceSession {
     _stopStallWatch();
     _stopMicWatch();
     _stopHealthWatch();
+    _setupLog.stop();
     _strong.reset();
     _stopArrivalWatch?.call();
     _stopArrivalWatch = null;
