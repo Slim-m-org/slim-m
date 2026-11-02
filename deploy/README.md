@@ -121,7 +121,7 @@ COMPOSE_FILE=docker-compose.yml:docker-compose.voice.yml
 Before that line does anything useful you also need to uncomment `LIVEKIT_DOMAIN` in `.env`, point a second A/AAAA record at this host for it, and generate a key pair:
 
 ```bash
-docker run --rm livekit/livekit-server:v1.10.1 generate-keys
+docker run --rm livekit/livekit-server:v1.13.11 generate-keys
 ```
 
 Then `docker compose up -d` as usual, and `docker compose ps` shows `livekit` alongside the rest.
