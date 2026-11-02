@@ -20,6 +20,7 @@ class CallDiagnostics {
   DateTime? _startedAt;
   DateTime? _endedAt;
   String? _minuteLine;
+  String? _effectsLine;
   TransportStats? _transport;
   final _healthSummary = <String>[];
   final _statsLines = <String, String>{};
@@ -37,6 +38,7 @@ class CallDiagnostics {
     _startedAt = _clock();
     _endedAt = null;
     _minuteLine = null;
+    _effectsLine = null;
     _transport = null;
     _healthSummary.clear();
     _statsLines.clear();
@@ -57,6 +59,9 @@ class CallDiagnostics {
       _healthSummary.add(line);
     }
   }
+
+  /// The Windows effects line read at call start; see [windowsMicEffectsLine].
+  void noteEffectsLine(String line) => _effectsLine = line;
 
   void noteStats(VideoStatsSample sample) {
     _statsLines[sample.key] = statsLogLine(sample);
@@ -88,6 +93,7 @@ class CallDiagnostics {
       if (joinLine != null) joinLine,
       '',
       'Audio',
+      if (_effectsLine != null) _effectsLine!,
       _minuteLine ?? 'No once-a-minute audio line yet.',
       ..._healthSummary,
       '',

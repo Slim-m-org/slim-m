@@ -217,4 +217,24 @@ void main() {
     expect(find.text('Reset microphone'), findsNothing);
     await _leave(tester);
   });
+
+  testWidgets('the Windows enhancements help shows on Windows only', (
+    tester,
+  ) async {
+    for (final windows in [true, false]) {
+      await tester.pumpWidget(
+        wrap(
+          AudioDeviceSection(windows: windows),
+          overrides: _overrides(FakeMicSource()),
+        ),
+      );
+      await _settle(tester);
+
+      expect(
+        find.byKey(windowsMicHelpKey),
+        windows ? findsOneWidget : findsNothing,
+      );
+    }
+    await _leave(tester);
+  });
 }

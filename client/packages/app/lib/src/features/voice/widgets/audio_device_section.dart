@@ -16,6 +16,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show isWindowsHost;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/sound_output_router.dart';
@@ -35,9 +36,13 @@ import '../../settings/widgets/settings_toggle_row.dart';
 const _systemDefaultId = '';
 
 const speakerTestRowKey = ValueKey('speaker-test-row');
+const windowsMicHelpKey = ValueKey('windows-mic-enhancements-help');
 
 class AudioDeviceSection extends ConsumerStatefulWidget {
-  const AudioDeviceSection({super.key, this.embedded = false});
+  const AudioDeviceSection({super.key, this.embedded = false, this.windows});
+
+  /// Whether to show the Windows-only help; null reads the host, tests pass it.
+  final bool? windows;
 
   /// Rows only, for a card another section already owns.
   final bool embedded;
@@ -107,6 +112,16 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         selectedId: settings.audioInputDeviceId,
         onChanged: settingsNotifier.setAudioInputDevice,
       ),
+      // By platform, not width: it describes an OS setting, not a layout.
+      if (widget.windows ?? isWindowsHost)
+        const AppListRow(
+          key: windowsMicHelpKey,
+          label: 'Windows enhancements',
+          subtitle:
+              'Windows audio enhancements on the microphone can double-process '
+              'your voice; turn them off in Sound settings, under the '
+              "microphone's properties.",
+        ),
       if (notifier.devices.supportsAudioInputSelection)
         SettingsToggleRow(
           label: 'Switch if mic stops working',
