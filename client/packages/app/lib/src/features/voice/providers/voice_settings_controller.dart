@@ -16,6 +16,7 @@ import '../../../audio/lounge_tracks.dart';
 import '../../../providers/providers.dart';
 import 'shortcut_overrides.dart' show kDefaultPushToTalkKey;
 import 'voice_controller.dart';
+import 'speaker_route_provider.dart';
 import 'voice_settings_state.dart';
 
 export 'voice_settings_state.dart';
@@ -37,6 +38,7 @@ const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 // Key kept from when this paused on focus loss, so saved values carry over.
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _micFallbackKey = 'slimm.voice.mic_fallback_enabled';
+const _speakerPreferredKey = 'slimm.voice.speaker_preferred';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
 const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
@@ -145,6 +147,20 @@ Future<bool> loadMicFallbackEnabled(Ref ref) async {
   return prefs.getBool(_micFallbackKey) ?? true;
 }
 
+Future<bool> loadSpeakerPreferred(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getBool(_speakerPreferredKey) ?? true;
+}
+
+/// A refused route change leaves the choice saved and the call as it was.
+Future<void> applySpeakerPreference(SpeakerRoute route, bool preferred) async {
+  try {
+    await route.set(preferred);
+  } on Object catch (e, stack) {
+    AppLog.swallowed(LogTag.voice, 'Could not route the call audio', e, stack);
+  }
+}
+
 class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   VoiceSettingsController(this._ref) : super(const VoiceSettingsState()) {
     _load();
@@ -198,6 +214,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       screenShareAllowAnnotations: prefs.getBool(_shareAnnotationsKey) ?? false,
       pauseVideoWhenMinimised: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
       micFallbackEnabled: prefs.getBool(_micFallbackKey) ?? true,
+      speakerPreferred: prefs.getBool(_speakerPreferredKey) ?? true,
       audioInputDeviceId: prefs.getString(_audioInputDeviceIdKey),
       audioOutputDeviceId: prefs.getString(_audioOutputDeviceIdKey),
     );
@@ -301,6 +318,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
         .setMicFallbackEnabled(enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_micFallbackKey, enabled);
+  }
+
+  Future<void> setSpeakerPreferred(bool preferred) async {
+    state = state.copyWith(speakerPreferred: preferred);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_speakerPreferredKey, preferred);
+    await applySpeakerPreference(_ref.read(speakerRouteProvider), preferred);
   }
 
   /// Persists the microphone choice and applies it live, [setCameraOnJoin]'s

@@ -107,6 +107,7 @@ Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
       'push to talk': voice.input.restorePushToTalkPreference(),
       'audio devices': voice.devices.restoreAudioDevicePreferences(),
       'mic fallback': voice.devices.restoreMicFallback(),
+      'speaker route': voice.devices.restoreSpeakerPreference(),
     }.entries)
       restoreOrDefault(container, entry.key, entry.value),
   ]);
@@ -131,6 +132,7 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
     'push to talk': voice.input.restorePushToTalkPreference(),
     'audio devices': voice.devices.restoreAudioDevicePreferences(),
     'mic fallback': voice.devices.restoreMicFallback(),
+    'speaker route': voice.devices.restoreSpeakerPreference(),
     'participant volumes': voice.volumes.restoreParticipantVolumes(),
     'hidden cameras': voice.cameras.restoreHiddenCameras(),
   };

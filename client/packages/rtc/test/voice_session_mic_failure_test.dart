@@ -24,6 +24,9 @@ class _Mic implements MicPort {
   bool get open => published && !muted;
   @override
   Future<double?> senderLevelDb() async => null;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     final error = failure;

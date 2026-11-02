@@ -34,6 +34,7 @@ class VoiceSettingsState {
     this.screenShareAllowAnnotations = false,
     this.pauseVideoWhenMinimised = true,
     this.micFallbackEnabled = true,
+    this.speakerPreferred = true,
     this.audioInputDeviceId,
     this.audioOutputDeviceId,
   });
@@ -115,6 +116,10 @@ class VoiceSettingsState {
   final bool pauseVideoWhenMinimised;
   final bool micFallbackEnabled;
 
+  /// Whether calls play through the loudspeaker rather than the earpiece;
+  /// only a phone with no output picker offers the choice.
+  final bool speakerPreferred;
+
   /// The persisted microphone choice; null is the system default. Applied
   /// live through `VoiceControllerAudioDevicesMixin.selectAudioInputDevice`
   /// and, for a future join, through [VoiceSession]'s own room options.
@@ -144,6 +149,7 @@ class VoiceSettingsState {
     bool? screenShareAllowAnnotations,
     bool? pauseVideoWhenMinimised,
     bool? micFallbackEnabled,
+    bool? speakerPreferred,
     String? audioInputDeviceId,
     bool clearAudioInputDeviceId = false,
     String? audioOutputDeviceId,
@@ -174,6 +180,7 @@ class VoiceSettingsState {
     pauseVideoWhenMinimised:
         pauseVideoWhenMinimised ?? this.pauseVideoWhenMinimised,
     micFallbackEnabled: micFallbackEnabled ?? this.micFallbackEnabled,
+    speakerPreferred: speakerPreferred ?? this.speakerPreferred,
     audioInputDeviceId: clearAudioInputDeviceId
         ? null
         : (audioInputDeviceId ?? this.audioInputDeviceId),

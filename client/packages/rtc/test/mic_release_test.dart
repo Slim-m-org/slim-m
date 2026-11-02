@@ -48,6 +48,9 @@ class _FakeMic implements MicPort {
 
   @override
   Future<double?> senderLevelDb() async => null;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
   @override
   Future<void> restart(lk.AudioCaptureOptions options) async {}
   @override

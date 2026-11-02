@@ -91,7 +91,7 @@ bool isSpeakingNow({
 ///
 /// AND, never OR: this can only narrow what the SFU's own voice-activity
 /// detector already decided was speech, never invent speech it did not
-/// report - the pinned `livekit_client` 2.10.0 source exposes no adjustable
+/// report - the pinned `livekit_client` 2.13.1 source exposes no adjustable
 /// threshold of its own for either field, only on/off capture toggles, so a
 /// local floor over the reported [level] (0-1, 1 loudest) is the one knob
 /// genuinely available. [sensitivity] 0 is strictest, 1 (the default,

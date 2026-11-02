@@ -22,6 +22,12 @@ const double kConcealedLogShare = kPoorConcealmentShare;
 /// How often remote audio is sampled.
 const Duration kGlitchWatchInterval = Duration(seconds: 5);
 
+/// Appended to a person's identity to key their screen-share audio apart from their voice.
+const String kShareKeySuffix = '#share';
+
+/// Share audio is read on every Nth sample: it is a second stream per person, not worth the voice cadence.
+const int kShareSampleEvery = 4;
+
 typedef AudioStatsSource = Future<AudioReceiveSample?> Function();
 typedef AudioSendSource = Future<AudioSendSample?> Function();
 
@@ -51,6 +57,7 @@ class AudioGlitchWatch {
     required this.log,
     this.nameOf = _same,
     this.local,
+    this.shareSources,
     this.localIdOf = _localName,
     VoiceHealth? health,
     this.interval = kGlitchWatchInterval,
@@ -61,6 +68,9 @@ class AudioGlitchWatch {
   final String Function(String identity) nameOf;
   final AudioSendSource? local;
 
+  /// Every remote person's screen-share audio, by identity.
+  final Map<String, AudioStatsSource> Function()? shareSources;
+
   /// Read at each sample: the room's local identity does not exist yet when
   /// the watch is built.
   final String Function() localIdOf;
@@ -70,6 +80,7 @@ class AudioGlitchWatch {
 
   Timer? _timer;
   final _previous = <String, AudioReceiveSample>{};
+  int _ticks = 0;
 
   static String _same(String identity) => identity;
   static String _localName() => 'local';
@@ -87,6 +98,7 @@ class AudioGlitchWatch {
     _timer?.cancel();
     _timer = null;
     _previous.clear();
+    _ticks = 0;
     health.clearPing();
   }
 
@@ -99,10 +111,16 @@ class AudioGlitchWatch {
   }
 
   Future<void> sample() async {
-    final current = sources();
-    _previous.removeWhere((who, _) => !current.containsKey(who));
-    health.retain(current.keys.toSet());
-    for (final entry in current.entries) {
+    final voices = sources();
+    final shares = {
+      for (final e in (shareSources?.call() ?? const {}).entries)
+        '${e.key}$kShareKeySuffix': e.value,
+    };
+    final all = {...voices, ...shares};
+    _previous.removeWhere((who, _) => !all.containsKey(who));
+    health.retain(all.keys.toSet());
+    final shareTick = ++_ticks % kShareSampleEvery == 0;
+    for (final entry in {...voices, if (shareTick) ...shares}.entries) {
       await _sampleRemote(entry.key, entry.value);
     }
     await _sampleLocal();
@@ -118,8 +136,8 @@ class AudioGlitchWatch {
         health.skip(id);
         return;
       }
-      final name = nameOf(id);
-      health.observeRemote(id, name, now);
+      final name = _labelOf(id);
+      health.observeRemote(id, name, now, gated: !_isShare(id));
       final before = _previous[id];
       _previous[id] = now;
       final line = before == null ? null : concealmentLine(name, before, now);
@@ -128,6 +146,12 @@ class AudioGlitchWatch {
       return;
     }
   }
+
+  static bool _isShare(String key) => key.endsWith(kShareKeySuffix);
+
+  String _labelOf(String key) => _isShare(key)
+      ? '${nameOf(key.substring(0, key.length - kShareKeySuffix.length))} (share)'
+      : nameOf(key);
 
   Future<void> _sampleLocal() async {
     final source = local;

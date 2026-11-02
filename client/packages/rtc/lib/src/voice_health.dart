@@ -136,7 +136,13 @@ class VoiceHealth {
       _remote.values.any((s) => s.history.isNotEmpty) ||
       (_local?.history.isNotEmpty ?? false);
 
-  void observeRemote(String id, String name, AudioReceiveSample now) {
+  /// A [gated] false stream is recorded but never flags a poor connection; screen-share audio is one.
+  void observeRemote(
+    String id,
+    String name,
+    AudioReceiveSample now, {
+    bool gated = true,
+  }) {
     _remotePing = now.rttMs;
     _publishPing();
     final stream = _remote.putIfAbsent(id, () => _Stream(name))
@@ -153,6 +159,7 @@ class VoiceHealth {
     stream.add(interval);
     final share = interval.concealShare;
     final buffer = interval.bufferMs;
+    if (!gated) return;
     _gate(
       stream,
       interval.seconds,
@@ -342,6 +349,8 @@ HealthInterval? _receiveInterval(
       delta(before.jitterBufferEmittedCount, now.jitterBufferEmittedCount);
   final per = now.jitterBufferEmittedCount == null ? samples : emitted;
   final jitter = now.jitterSeconds;
+  double? change(num? x, num? y) =>
+      y == null ? null : delta(x, y).clamp(0, 1e12).toDouble();
   return HealthInterval(
     seconds: samples / clock,
     concealedSamples: delta(before.concealedSamples, now.concealedSamples),
@@ -354,6 +363,19 @@ HealthInterval? _receiveInterval(
         now.jitterBufferDelay == null || per <= 0 ? null : delay / per * 1000,
     audioLevel: now.audioLevel?.toDouble(),
     rttMs: now.rttMs,
+    discardedPackets: change(before.packetsDiscarded, now.packetsDiscarded),
+    acceleratedSamples: change(
+      before.removedSamplesForAcceleration,
+      now.removedSamplesForAcceleration,
+    ),
+    deceleratedSamples: change(
+      before.insertedSamplesForDeceleration,
+      now.insertedSamplesForDeceleration,
+    ),
+    silentConcealedSamples: change(
+      before.silentConcealedSamples,
+      now.silentConcealedSamples,
+    ),
   );
 }
 
@@ -373,6 +395,8 @@ HealthInterval? _sendInterval(AudioSendSample before, AudioSendSample now) {
     jitterMs: jitter == null ? null : jitter * 1000,
     audioLevel: _sentLevel(before, now),
     rttMs: now.rttMs,
+    echoReturnLossDb: now.echoReturnLoss?.toDouble(),
+    echoEnhancementDb: now.echoReturnLossEnhancement?.toDouble(),
   );
 }
 

@@ -32,6 +32,9 @@ class _OpenMic implements MicPort {
   Future<double?> senderLevelDb() async => null;
 
   @override
+  Future<double?> capturedSeconds() async => null;
+
+  @override
   void onRoomEvent(lk.RoomEvent event) {}
 
   @override

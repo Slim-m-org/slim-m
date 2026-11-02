@@ -2,7 +2,10 @@
 /// The audio counters of a call as plain data, parsed from a raw [StatsEntry] report because the livekit wrapper drops some fields (samples received, jitter buffer emitted count, candidate pair round trip).
 library;
 
+import 'package:slimm_api/api.dart' show LogLevel;
+
 import 'call_stats.dart' show StatsEntry;
+import 'voice_log.dart';
 
 /// The Opus clock when a report names no codec.
 const double kDefaultAudioClockRate = 48000;
@@ -22,6 +25,10 @@ class AudioReceiveSample {
     this.jitterBufferEmittedCount,
     this.audioLevel,
     this.rttMs,
+    this.packetsDiscarded,
+    this.removedSamplesForAcceleration,
+    this.insertedSamplesForDeceleration,
+    this.silentConcealedSamples,
   });
 
   final num? concealedSamples;
@@ -45,6 +52,15 @@ class AudioReceiveSample {
   final num? audioLevel;
   final double? rttMs;
 
+  /// Packets that arrived too late to play, and the playout speed-ups and
+  /// slow-downs the jitter buffer used instead; they colour audio without being loss.
+  final num? packetsDiscarded;
+  final num? removedSamplesForAcceleration;
+  final num? insertedSamplesForDeceleration;
+
+  /// Concealed samples that were silence rather than made-up sound.
+  final num? silentConcealedSamples;
+
   /// Samples played out so far, whichever of the two counters the report has.
   double? get samples {
     if (totalSamples != null) return totalSamples!.toDouble();
@@ -67,6 +83,8 @@ class AudioSendSample {
     this.pingMs,
     this.packetsLost,
     this.jitterSeconds,
+    this.echoReturnLoss,
+    this.echoReturnLossEnhancement,
   });
 
   final num? timestampMs;
@@ -87,6 +105,11 @@ class AudioSendSample {
   /// Packets the far end reports missing from what we sent.
   final num? packetsLost;
   final num? jitterSeconds;
+
+  /// How far the echo canceller turned the speaker's sound down in dB, and the
+  /// extra it removed; null where the platform does not report them.
+  final num? echoReturnLoss;
+  final num? echoReturnLossEnhancement;
 }
 
 bool _isAudio(StatsEntry e) =>
@@ -131,6 +154,12 @@ AudioReceiveSample? parseAudioReceive(List<StatsEntry> entries) {
     jitterBufferEmittedCount: inbound.number('jitterBufferEmittedCount'),
     audioLevel: inbound.number('audioLevel'),
     rttMs: candidatePairRttMs(entries),
+    packetsDiscarded: inbound.number('packetsDiscarded'),
+    removedSamplesForAcceleration:
+        inbound.number('removedSamplesForAcceleration'),
+    insertedSamplesForDeceleration:
+        inbound.number('insertedSamplesForDeceleration'),
+    silentConcealedSamples: inbound.number('silentConcealedSamples'),
   );
 }
 
@@ -155,7 +184,18 @@ AudioSendSample? parseAudioSend(List<StatsEntry> entries) {
     pingMs: candidatePairRttMs(entries),
     packetsLost: remote?.number('packetsLost'),
     jitterSeconds: remote?.number('jitter'),
+    echoReturnLoss: source?.number('echoReturnLoss'),
+    echoReturnLossEnhancement: source?.number('echoReturnLossEnhancement'),
   );
+}
+
+/// The media-source entry's fields on one line, for the log: which of them a
+/// platform reports is not documented anywhere, so the first call records it.
+String? describeMediaSource(List<StatsEntry> entries) {
+  final source = entries.where((e) => e.type == 'media-source').firstOrNull;
+  if (source == null) return null;
+  final keys = source.values.keys.toList()..sort();
+  return keys.map((k) => '$k=${source.values[k]}').join(' ');
 }
 
 /// Share of the samples played out between two reads that were made up by the
@@ -169,4 +209,17 @@ double? concealedShare(AudioReceiveSample before, AudioReceiveSample now) {
   final concealed =
       (now.concealedSamples ?? 0) - (before.concealedSamples ?? 0);
   return concealed / (b - a);
+}
+
+/// Logs the media source's fields the first time they are seen, at debug level.
+class MediaSourceNote {
+  bool _logged = false;
+
+  void note(List<StatsEntry> entries, VoiceLog log) {
+    if (_logged) return;
+    final raw = describeMediaSource(entries);
+    if (raw == null) return;
+    _logged = true;
+    log('Media source stats: $raw', level: LogLevel.debug);
+  }
 }

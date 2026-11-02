@@ -21,6 +21,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../audio/sound_output_router.dart';
 import '../../settings/providers/notification_sound_controller.dart';
 import '../providers/mic_preview.dart';
+import '../providers/speaker_route_provider.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../settings/widgets/settings_hairline.dart';
@@ -90,6 +91,10 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     final settings = ref.watch(voiceSettingsControllerProvider);
     final notifier = ref.read(voiceControllerProvider.notifier);
     final settingsNotifier = ref.read(voiceSettingsControllerProvider.notifier);
+    // Capability, not width: a phone with an output picker keeps the picker.
+    final showSpeakerToggle =
+        !notifier.devices.supportsAudioOutputSelection &&
+        ref.watch(speakerRouteProvider).supported;
 
     final rows = [
       _DevicePickerRow(
@@ -110,17 +115,26 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
           semanticLabel: 'Switch microphone if mine stops working',
           onChanged: settingsNotifier.setMicFallbackEnabled,
         ),
-      _DevicePickerRow(
-        label: 'Speaker',
-        icon: AppIcons.speaker,
-        supported: notifier.devices.supportsAudioOutputSelection,
-        unsupportedCaption:
-            'This platform always plays a call through its default output.',
-        devices: _outputs,
-        listed: _listed,
-        selectedId: settings.audioOutputDeviceId,
-        onChanged: settingsNotifier.setAudioOutputDevice,
-      ),
+      if (showSpeakerToggle)
+        SettingsToggleRow(
+          label: 'Use loudspeaker',
+          description: 'Off plays calls through the earpiece.',
+          value: settings.speakerPreferred,
+          semanticLabel: 'Play calls through the loudspeaker',
+          onChanged: settingsNotifier.setSpeakerPreferred,
+        )
+      else
+        _DevicePickerRow(
+          label: 'Speaker',
+          icon: AppIcons.speaker,
+          supported: notifier.devices.supportsAudioOutputSelection,
+          unsupportedCaption:
+              'This platform always plays a call through its default output.',
+          devices: _outputs,
+          listed: _listed,
+          selectedId: settings.audioOutputDeviceId,
+          onChanged: settingsNotifier.setAudioOutputDevice,
+        ),
       const SpeakerTestRow(),
     ];
     if (widget.embedded) return SettingsRowGroup(children: rows);

@@ -45,6 +45,9 @@ class _Mic implements MicPort {
   void adoptOptions(lk.AudioCaptureOptions options) => adopted.add(options);
   @override
   Future<double?> senderLevelDb() async => null;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
   @override
   Stream<void> get lost => const Stream.empty();
   @override

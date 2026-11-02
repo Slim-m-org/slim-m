@@ -39,6 +39,7 @@ mixin VoiceSessionAudioDevices {
     LiveOutputSwitch? liveOutput,
     OsMicBlockProbe? osMicBlocked, [
     LiveInputSwitch? liveInput,
+    PulseAudio? pulse,
   ]) {
     if (osMicBlocked != null) _osMicBlocked = osMicBlocked;
     return AudioDeviceSwitching(
@@ -50,6 +51,8 @@ mixin VoiceSessionAudioDevices {
       liveOutput: liveOutput,
       log: _diag,
       liveInput: liveInput,
+      // Injected devices mean a test, which must not talk to the real sound server.
+      pulse: pulse ?? (devices == null ? null : PulseAudio.inert()),
     );
   }
 

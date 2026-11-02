@@ -2,6 +2,7 @@
 /// What a call's audio looked like, as numbers and as the log lines that carry them.
 library;
 
+import 'audio_stats.dart' show kDefaultAudioClockRate;
 import 'mic_recovery.dart' show senderLevelToDb;
 import 'voice_health_window.dart';
 import 'voice_reconnect_tracker.dart' show ReconnectStats;
@@ -21,6 +22,12 @@ class HealthStats {
     this.lossP50,
     this.lossP95,
     this.concealmentEvents = 0,
+    this.discardedPackets,
+    this.acceleratedSamples,
+    this.deceleratedSamples,
+    this.silentConcealedSamples,
+    this.echoLossP50,
+    this.echoEnhancementP50,
   });
 
   factory HealthStats.of(List<HealthInterval> intervals) {
@@ -41,6 +48,13 @@ class HealthStats {
       lossP50: at((e) => e.lossShare, 0.5),
       lossP95: at((e) => e.lossShare, 0.95),
       concealmentEvents: intervals.fold(0.0, (s, e) => s + e.concealmentEvents),
+      discardedPackets: sumOrNull(intervals.map((e) => e.discardedPackets)),
+      acceleratedSamples: sumOrNull(intervals.map((e) => e.acceleratedSamples)),
+      deceleratedSamples: sumOrNull(intervals.map((e) => e.deceleratedSamples)),
+      silentConcealedSamples:
+          sumOrNull(intervals.map((e) => e.silentConcealedSamples)),
+      echoLossP50: at((e) => e.echoReturnLossDb, 0.5),
+      echoEnhancementP50: at((e) => e.echoEnhancementDb, 0.5),
     );
   }
 
@@ -58,6 +72,16 @@ class HealthStats {
   final double? lossP50;
   final double? lossP95;
   final double concealmentEvents;
+
+  /// Totals over the run, null where the platform reports none; samples are at the Opus clock.
+  final double? discardedPackets;
+  final double? acceleratedSamples;
+  final double? deceleratedSamples;
+  final double? silentConcealedSamples;
+
+  /// Our own echo canceller, dB; null when the platform reports none.
+  final double? echoLossP50;
+  final double? echoEnhancementP50;
 }
 
 class CallHealthSummary {
@@ -111,6 +135,37 @@ String _pct(double? v) => v == null ? '?' : '${(v * 100).toStringAsFixed(1)}%';
 String _ms(double? v) => v == null ? '?' : '${v.round()}ms';
 String _db(double? level) =>
     level == null ? '?' : '${senderLevelToDb(level).round()}dB';
+String _echoDb(double v) => '${v.round()}dB';
+
+/// Samples at the Opus clock as milliseconds.
+String _sampleMs(double samples) =>
+    '${(samples / (kDefaultAudioClockRate / 1000)).round()}ms';
+
+/// The jitter buffer's other work: what the platform reports, and with
+/// [always] false only what is above zero.
+String _adaptation(
+  ({
+    double? discarded,
+    double? accelerated,
+    double? decelerated,
+    double? silent
+  }) v, {
+  bool always = false,
+}) {
+  bool show(double? n) => n != null && (always || n > 0);
+  final parts = [
+    if (show(v.discarded)) 'discarded=${v.discarded!.round()}',
+    if (show(v.accelerated)) 'accel=${_sampleMs(v.accelerated!)}',
+    if (show(v.decelerated)) 'decel=${_sampleMs(v.decelerated!)}',
+    if (show(v.silent)) 'silent=${_sampleMs(v.silent!)}',
+  ];
+  return parts.isEmpty ? '' : ' ${parts.join(' ')}';
+}
+
+String _echoParts(double? loss, double? enhancement) => [
+      if (loss != null) ' erl=${_echoDb(loss)}',
+      if (enhancement != null) ' erle=${_echoDb(enhancement)}',
+    ].join();
 
 /// One line for the whole call so far: every person's last minute.
 String? minuteLine(List<NamedWindow> windows) {
@@ -124,18 +179,25 @@ String _windowPart(NamedWindow w) {
   if (w.local) {
     return '${w.name}: sent=${win.kbps?.round() ?? '?'}kbps '
         'level=${_db(win.peakLevel)} rtt=${_ms(win.rttMs)} '
-        'loss=${_pct(win.lossShare)}';
+        'loss=${_pct(win.lossShare)}'
+        '${_echoParts(win.echoReturnLossDb, win.echoEnhancementDb)}';
   }
   return '${w.name}: conceal=${_pct(win.concealShare)} '
       'events=${win.concealmentEvents.round()} jitter=${_ms(win.jitterMs)} '
       'buffer=${_ms(win.bufferMs)} loss=${_pct(win.lossShare)} '
-      'level=${_db(win.peakLevel)} rtt=${_ms(win.rttMs)}';
+      'level=${_db(win.peakLevel)} rtt=${_ms(win.rttMs)}'
+      '${_adaptation((
+        discarded: win.discardedPackets,
+        accelerated: win.acceleratedSamples,
+        decelerated: win.deceleratedSamples,
+        silent: win.silentConcealedSamples
+      ))}';
 }
 
 /// The lines logged when a call ends: everyone pooled, then each person.
 List<String> summaryLines(CallHealthSummary summary) => [
       if (summary.peers.isNotEmpty)
-        '$kHealthSummaryPrefix ${_stats(summary.remote)}',
+        '$kHealthSummaryPrefix ${_stats(summary.remote, pooled: true)}',
       for (final e in summary.peers.entries)
         '$kHealthSummaryPrefix ${e.key}: ${_stats(e.value)}',
       if (summary.local case final local?)
@@ -143,14 +205,22 @@ List<String> summaryLines(CallHealthSummary summary) => [
       if (summary.reconnects.line case final line?) line,
     ];
 
-String _stats(HealthStats s) => 'over ${s.seconds.round()}s '
+String _stats(HealthStats s, {bool pooled = false}) =>
+    'over ${s.seconds.round()}s '
     'conceal p50=${_pct(s.concealP50)} p95=${_pct(s.concealP95)} '
     'events=${s.concealmentEvents.round()} '
     'buffer p50=${_ms(s.bufferP50)} p95=${_ms(s.bufferP95)} '
     'jitter p50=${_ms(s.jitterP50)} p95=${_ms(s.jitterP95)} '
     'rtt p50=${_ms(s.rttP50)} p95=${_ms(s.rttP95)} '
-    'loss p50=${_pct(s.lossP50)} p95=${_pct(s.lossP95)}';
+    'loss p50=${_pct(s.lossP50)} p95=${_pct(s.lossP95)}'
+    '${_adaptation((
+          discarded: s.discardedPackets,
+          accelerated: s.acceleratedSamples,
+          decelerated: s.deceleratedSamples,
+          silent: s.silentConcealedSamples
+        ), always: pooled)}';
 
 String _statsLocal(HealthStats s) => 'over ${s.seconds.round()}s '
     'rtt p50=${_ms(s.rttP50)} p95=${_ms(s.rttP95)} '
-    'loss p50=${_pct(s.lossP50)} p95=${_pct(s.lossP95)}';
+    'loss p50=${_pct(s.lossP50)} p95=${_pct(s.lossP95)}'
+    '${_echoParts(s.echoLossP50, s.echoEnhancementP50)}';

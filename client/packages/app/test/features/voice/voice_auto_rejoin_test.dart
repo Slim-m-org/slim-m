@@ -3,7 +3,7 @@
 ///
 /// LiveKit retries a dropped connection on its own schedule and then stops
 /// (ten attempts over 44 seconds, `defaultRetryDelaysInMs` in
-/// livekit_client 2.10.0). Before this, that was the end of the call: the
+/// livekit_client 2.13.1). Before this, that was the end of the call: the
 /// controller went to `failed`, the heartbeat stopped, and the only way back
 /// in was the manual "Try again" on `VoiceRejoinScreen`. Somebody whose phone
 /// changed network in a lift had to notice and tap.
