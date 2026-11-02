@@ -79,16 +79,18 @@ Future<DockHint?> _micCue(
 ) async {
   final devices = container.read(voiceControllerProvider.notifier).devices;
   if (!devices.supportsAudioInputSelection) return null;
-  final resolved = resolveAudioDevice(
-    await devices.audioInputDevices(),
-    savedAudioInputId(prefs),
-  );
-  final current = resolved?.id ?? '';
+  final saved = savedAudioInputId(prefs);
+  final listed = await devices.audioInputDevices();
+  final resolved = resolveAudioDevice(listed, saved);
+  // A saved microphone that is not listed falls back to the default at join; an empty list says nothing.
+  final fellBack = saved != null && resolved == null && listed.isNotEmpty;
+  final current = fellBack ? 'missing:$saved' : (resolved?.id ?? '');
   if (prefs.getString(micCueSeenKey) == current) return null;
   final label = resolved?.label ?? '';
+  final name = label.isEmpty ? 'System default' : label;
   return DockHint(
     target: DockHintTarget.mic,
-    text: 'Mic: ${label.isEmpty ? 'System default' : label}',
+    text: fellBack ? 'Mic: $name (saved mic not found)' : 'Mic: $name',
     seenKey: micCueSeenKey,
     seenValue: current,
   );

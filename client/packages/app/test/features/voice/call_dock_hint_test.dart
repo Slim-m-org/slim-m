@@ -257,6 +257,21 @@ void main() {
       expect(find.text('Mic: USB headset'), findsOneWidget);
     });
 
+    testWidgets('says the saved microphone is gone and the default opened', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        prefs: {_savedInputKey: 'gone-9', micCueSeenKey: ''},
+        session: _withInputs(),
+        touch: false,
+      );
+      expect(
+        find.text('Mic: System default (saved mic not found)'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('stays away for a microphone already shown', (tester) async {
       await _pump(
         tester,
