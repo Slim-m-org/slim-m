@@ -30,6 +30,7 @@ It is a status the person did not ask for, so it pushes content down and never o
 On someone else's tile a quiet warning glyph appears in the top-left corner while their audio is poor.
 A remote flag cannot say whose connection is at fault, so the glyph says only that the connection is unstable.
 Tapping the glyph opens that sentence on the tile, because a hover tooltip never reaches a finger and must not be the only carrier.
+The glyph is a per-person marker on that person's tile, so rule 6 does not apply to it.
 The tile and the banner both carry a screen reader label.
 
 The log gets one `[voice-health]` line about every 60 seconds, with each person's last minute of concealment, events, jitter, buffer, loss, level and round trip.

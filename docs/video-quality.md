@@ -53,15 +53,16 @@ Once the track starts, the size of its first frame is read (`screen_share_source
 The layers and the top bitrate come from that tier, so a 1080p screen with 2160p picked publishes at the 1080p bitrate (5.0M at 30 fps), not 10M.
 The frame rate is kept.
 Voice settings says "Larger than your screen" under a resolution above every display here.
-A window share is not handled separately: windows are not shareable yet (see `video-handling.md`), and a window's size would come through the same first-frame read.
+A window share is not handled separately: windows are shareable on Windows and macOS but not on Linux, and a window's size comes through the same first-frame read.
 
 ## Degradation preference
 
 When the uplink cannot carry what was asked, the encoder gives something up.
 A camera keeps its frame rate and drops resolution (`maintainFramerate`), so motion stays smooth.
-A screen share keeps its resolution and drops frames (`maintainResolution`), so text stays readable.
+A screen share uses `balanced`, which lowers size and frame rate together when the machine or the link cannot keep up.
+That was chosen on purpose in #2270, replacing the sharer banner that asked people to change a setting; the SDK default for a share would be `maintainResolution`.
 Both are set through `VideoPublishOptions.degradationPreference` in `video_publish_options.dart`.
-There is no user-facing motion mode yet.
+There is no user-facing motion or text mode yet.
 
 ## Call stats
 
