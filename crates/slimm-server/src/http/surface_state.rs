@@ -3,25 +3,36 @@
 //! For a surface everyone shares, the `state` comes from the last scene the
 //! server stored, never from whoever pressed, so a client cannot forge a board
 //! (seat a player, end a game, read an answer it was never told).
+//!
+//! Once a surface has a stored frame, a press that names no action is a redraw
+//! of that frame. Only a surface with nothing stored yet is launched, so a
+//! stray or stale launch cannot replace the board everyone is looking at.
 
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
-/// `input` with its `state` replaced by the one in `stored_scene`, or removed
-/// when the stored scene carries none. An input that is not an action frame
-/// (a launch's empty input, plain text) is returned unchanged.
+/// The action a press without one is turned into once a frame is stored.
+pub(super) const REDRAW_ACTION: &str = "refresh";
+
+/// The input a surface's module is run with. With a stored frame, the module
+/// always gets an action frame whose `state` is that frame's (or none when the
+/// frame carries none), and the client's own `state` is never passed on.
+/// With nothing stored, an action frame loses its `state` and anything else
+/// (a launch's empty input) is returned unchanged.
 pub(super) fn with_held_state(input: &str, stored_scene: Option<&str>) -> String {
-    let Ok(Value::Object(mut frame)) = serde_json::from_str::<Value>(input) else {
-        return input.to_owned();
-    };
-    if !frame.contains_key("action") {
+    let parsed = serde_json::from_str::<Value>(input);
+    let has_action = matches!(&parsed, Ok(Value::Object(frame)) if frame.contains_key("action"));
+    if stored_scene.is_none() && !has_action {
         return input.to_owned();
     }
+    let mut frame = match parsed {
+        Ok(Value::Object(frame)) if has_action => frame,
+        _ => Map::from_iter([("action".to_owned(), json!(REDRAW_ACTION))]),
+    };
     match stored_scene.and_then(held_state) {
         Some(state) => frame.insert("state".to_owned(), Value::String(state)),
         None => frame.remove("state"),
     };
-    serde_json::to_string(&Value::Object(Map::from_iter(frame)))
-        .unwrap_or_else(|_| input.to_owned())
+    serde_json::to_string(&Value::Object(frame)).unwrap_or_else(|_| input.to_owned())
 }
 
 fn held_state(stored_scene: &str) -> Option<String> {
@@ -65,9 +76,18 @@ mod tests {
     }
 
     #[test]
-    fn anything_that_is_not_an_action_frame_passes_through() {
+    fn nothing_that_is_not_an_action_frame_changes_while_nothing_is_stored() {
         for input in ["", "hello", r#"{"x":1}"#, "[1]"] {
-            assert_eq!(with_held_state(input, Some(STORED)), input);
+            assert_eq!(with_held_state(input, None), input);
+        }
+    }
+
+    #[test]
+    fn a_press_without_an_action_redraws_the_stored_frame() {
+        for input in ["", "hello", r#"{"x":1}"#, "[1]", r#"{"state":"forged"}"#] {
+            let out = with_held_state(input, Some(STORED));
+            assert_eq!(state_of(&out).as_deref(), Some("real"), "{input}");
+            assert!(out.contains(r#""action":"refresh""#), "{input}: {out}");
         }
     }
 }

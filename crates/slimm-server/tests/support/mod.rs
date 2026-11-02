@@ -500,3 +500,11 @@ fn literal_at(source: &str, from: usize) -> Option<String> {
     }
     None
 }
+
+/// A surface module that appends one `x` to the scene state it was handed.
+#[allow(dead_code)]
+pub mod tally_wasm;
+
+/// A launched "board" app surface and the requests that press it.
+#[allow(dead_code)]
+pub mod board_world;
