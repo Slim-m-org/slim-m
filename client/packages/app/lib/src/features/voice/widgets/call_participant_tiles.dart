@@ -228,7 +228,10 @@ class CallParticipantTile extends StatelessWidget {
         left: AppSpacing.s8,
         right: AppSpacing.s8,
         bottom: AppSpacing.s12,
-        child: _label(feed ? tokens.textPrimary : onFace, onVideo: feed),
+        child: _label(
+          _showsCamera ? tokens.textPrimary : onFace,
+          onVideo: _showsCamera,
+        ),
       ),
       // Top corner, so the name keeps the tile's whole width and its "(you)".
       Positioned(

@@ -38,6 +38,12 @@ class _Cameras implements CameraDevices {
 class _Local extends Fake implements lk.LocalParticipant {
   final enabled = <bool>[];
 
+  // Nothing is published yet, so a quality change has nothing to republish.
+  @override
+  lk.LocalTrackPublication? getTrackPublicationBySource(
+          lk.TrackSource source) =>
+      null;
+
   @override
   Future<lk.LocalTrackPublication?> setCameraEnabled(
     bool value, {
