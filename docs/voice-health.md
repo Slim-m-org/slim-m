@@ -25,9 +25,12 @@ An interval between the poor and recovered values changes nothing, which is what
 
 ## Where it shows
 
-A quiet warning glyph appears in the top-left corner of a person's call tile while their audio is poor, and on our own tile when our connection is.
-It follows the status rule (rule 6 in `docs/design/desktop-vs-mobile.md`): it is not asked for, it does not overlay content, and nothing shows while all is well.
-The glyph has a tooltip and a screen reader label.
+When our own connection is poor, a banner in the call says so.
+It follows the status rule (rule 6 in `docs/design/desktop-vs-mobile.md`): it is not asked for, it pushes content instead of overlaying it, and nothing shows while all is well.
+When another person's audio is poor, a small glyph appears in the top-left corner of their call tile.
+The glyph is a tap target that opens the same text, because a remote flag cannot say whose connection is at fault and a tooltip alone does not reach touch.
+The glyph is a per-person marker on that person's tile, so rule 6 does not apply to it.
+It has a screen reader label.
 
 The log gets one `[voice-health]` line about every 60 seconds, with each person's last minute of concealment, events, jitter, buffer, loss, level and round trip.
 When the call ends it gets a summary: p50 and p95 of concealment, jitter buffer, jitter, round trip and loss, for everyone pooled and for each person.

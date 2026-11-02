@@ -89,6 +89,7 @@ Everything below postdates the pre-build research above by weeks and reports on 
 | [voice-quality-harness-v2.md](voice-quality-harness-v2.md) | 2026-10-19 | The harness extended with ViSQOL and DNSMOS scores, mouth-to-ear latency, join and speaking-ring timings, and the desktop noise path, with a before and after of two client builds. Single runs and small n, caveated in the note |
 | [voice-bursts.md](voice-bursts.md) | 2026-10-19 | What the loss bursts and the gliding-tone burst were, the livekit_client 2.13.1 `red` default trap, and the RED on plus DTX off publish setting. Small n per cell, read as a direction |
 | [voice-corpus-results.md](voice-corpus-results.md) | 2026-10-20 | The same comparison on 31 licensed real-voice clips, and the desktop noise suppression results per voice. One or two runs per cell, and whole builds are compared |
+| [voice-stream-audit-2026-11-02.md](voice-stream-audit-2026-11-02.md) | 2026-11-02 | A source, run and measurement audit of the call, share and voice-lounge paths on main at 3cce41eee: ranked findings by area (audio, screen share, camera, network, reconnect, lounge UX), verifier corrections, the measurement plan, and the open questions the owner answered in [decision 0102](../decisions/0102-call-quality-batch-v121.md) |
 
 ## Why this corpus stays, unpruned
 
