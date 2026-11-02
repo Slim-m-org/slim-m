@@ -10,6 +10,7 @@ library;
 export 'src/android_capture_permission.dart';
 export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
+export 'src/guarded_connectivity.dart';
 export 'src/pulse_audio.dart';
 export 'src/audio_event_scope.dart';
 export 'src/call_media_role.dart'
