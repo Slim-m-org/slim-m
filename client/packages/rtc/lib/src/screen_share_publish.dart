@@ -11,6 +11,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'screen_share.dart';
 import 'screen_share_audio_options.dart';
+import 'screen_share_scale.dart';
 import 'screen_share_source_size.dart';
 import 'video_publish_options.dart';
 // ignore: implementation_imports
@@ -47,7 +48,7 @@ Future<void> publishScreenShare(
   try {
     for (final track in tracks) {
       if (track is lk.LocalVideoTrack) {
-        final fitted = await _fitToSource(
+        final fit = await _fitToSource(
           track,
           quality,
           maxHeight,
@@ -55,8 +56,9 @@ Future<void> publishScreenShare(
         );
         await participant.publishVideoTrack(
           track,
-          publishOptions: screenSharePublishOptionsFor(fitted),
+          publishOptions: screenSharePublishOptionsFor(fit.quality),
         );
+        await applyCaptureScale(track, fit.captureScale);
       } else if (track is lk.LocalAudioTrack) {
         await publishScreenShareAudio(participant, track);
       }
@@ -70,7 +72,7 @@ Future<void> publishScreenShare(
 }
 
 /// Corrects [track]'s options so LiveKit lays out its layers for the size actually captured.
-Future<ScreenShareQuality> _fitToSource(
+Future<ScreenShareFit> _fitToSource(
   lk.LocalVideoTrack track,
   ScreenShareQuality quality,
   int? maxHeight,
@@ -91,7 +93,7 @@ Future<ScreenShareQuality> _fitToSource(
   if (fit.quality == quality &&
       fit.width == dimensions.width &&
       fit.height == dimensions.height) {
-    return quality;
+    return fit;
   }
   track.currentOptions =
       (track.currentOptions as lk.ScreenShareCaptureOptions).copyWith(
@@ -103,7 +105,7 @@ Future<ScreenShareQuality> _fitToSource(
       ),
     ),
   );
-  return fit.quality;
+  return fit;
 }
 
 // Stopping, unmuting an existing share, and iOS before its broadcast starts stay on LiveKit's own path.
