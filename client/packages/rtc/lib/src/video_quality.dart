@@ -19,7 +19,7 @@ import 'video_subscription_culler.dart'
 
 /// How sharp the remote video you watch should be.
 enum ReceiveVideoQuality {
-  /// The top layer whatever the tile size; only the network can lower it.
+  /// The top layer for any tile over a third of its size; only the network can lower it.
   max,
 
   /// No cap: LiveKit picks the layer from the tile size and the network.
@@ -60,9 +60,9 @@ Duration videoDwellFor(ReceiveVideoQuality quality) =>
         ? const Duration(milliseconds: 1500)
         : videoSubscriptionDwell;
 
-/// Large enough that a tile's drawn size never undercuts the top simulcast
-/// layer, so LiveKit's adaptive sizing yields to the HIGH quality Max asks for
-/// while an unmounted view still pauses the track.
+/// What Max asks for, so adaptive sizing yields to HIGH while an unmounted view
+/// still pauses the track; the SDK clamps it to 3x, so a tile under a third of
+/// the top layer's size still gets a lower one.
 const maxQualityPixelDensity = 16.0;
 
 /// The adaptive-stream density a renderer reports for [quality].
