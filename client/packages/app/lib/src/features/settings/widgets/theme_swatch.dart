@@ -39,6 +39,11 @@ List<Color> themeSwatchColors(AppThemeChoice choice) {
   return [tokens.surfaceBase, tokens.accent, tokens.textPrimary];
 }
 
+/// Key on the outline, so a test can check it paints over the cells.
+/// Foreground, or the cells cover the edge and a swatch the colour of the
+/// menu loses its outline.
+const themeSwatchOutlineKey = Key('theme_swatch_outline');
+
 class ThemeSwatch extends StatelessWidget {
   const ThemeSwatch({super.key, required this.choice});
 
@@ -49,13 +54,16 @@ class ThemeSwatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final radius = BorderRadius.circular(AppRadii.control / 2);
     return DecoratedBox(
+      key: themeSwatchOutlineKey,
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadii.control / 2),
+        borderRadius: radius,
         border: Border.all(color: tokens.borderStrong),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.control / 2 - 1),
+        borderRadius: radius,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

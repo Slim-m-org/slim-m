@@ -215,6 +215,24 @@ void main() {
     expect(installs, hasLength(1));
   });
 
+  testWidgets('the registry sentence hides behind the badge until tapped', (
+    tester,
+  ) async {
+    await _pump(tester, asks: ['message.post']);
+    await tester.tap(_pageButton('Install v1.0.0'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    const sentence = 'From the official slim-addons registry.';
+    expect(find.text(sentence), findsNothing);
+    final badge = find.byTooltip(sentence);
+    expect(badge, findsOneWidget);
+    expect(find.bySemanticsLabel(sentence), findsOneWidget);
+    await tester.tap(badge);
+    await tester.pump();
+    expect(find.text(sentence), findsOneWidget);
+  });
+
   testWidgets('cancelling installs nothing', (tester) async {
     final installs = await _pump(tester, community: true, asks: ['kv.store']);
     await tester.tap(_pageButton('Install v1.0.0'));

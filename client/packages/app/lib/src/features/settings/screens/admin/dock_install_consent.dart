@@ -160,16 +160,20 @@ bool dockNeedsConsent({
 
 /// A "Verified" mark for a module from the official registry: the icon alone,
 /// named by its tooltip and semantics label so a row stays on one line.
+/// A tap shows the tooltip too, since a finger cannot hover.
 class DockVerifiedBadge extends StatelessWidget {
-  const DockVerifiedBadge({super.key});
+  const DockVerifiedBadge({super.key, this.message = 'Verified'});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Tooltip(
-      message: 'Verified',
+      message: message,
+      triggerMode: TooltipTriggerMode.tap,
       child: Semantics(
-        label: 'Verified',
+        label: message,
         child: ExcludeSemantics(
           child: Icon(
             AppIcons.verified,
@@ -333,17 +337,11 @@ class _ConsentSheetState extends State<_ConsentSheet> {
 
   Widget _standing(AppTokens tokens) {
     if (widget.verified) {
-      return Wrap(
-        spacing: AppSpacing.s8,
-        runSpacing: AppSpacing.s4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          const DockVerifiedBadge(),
-          Text(
-            'From the official slim-addons registry.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ],
+      return const Align(
+        alignment: Alignment.centerLeft,
+        child: DockVerifiedBadge(
+          message: 'From the official slim-addons registry.',
+        ),
       );
     }
     return AppCallout(
