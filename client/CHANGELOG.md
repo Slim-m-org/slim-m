@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.121.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.120.0...client-v0.121.0) (2026-11-02)
+
+
+### Features
+
+* v121 - call quality batch: strong fix, leveler, reconnect visibility, lounge, diagnostics ([#2329](https://github.com/Slim-m-org/slim-m/issues/2329)) ([ad7254a](https://github.com/Slim-m-org/slim-m/commit/ad7254addcc2e677bbf32c69516f45f885652c31))
+* v122 - voice audit remainder: quiet mic never switched, native share size, lounge fixes, measurements ([#2330](https://github.com/Slim-m-org/slim-m/issues/2330)) ([ee3a422](https://github.com/Slim-m-org/slim-m/commit/ee3a4221e3abf06e956323e5103edab928528b44))
+
 ## [0.120.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.119.1...client-v0.120.0) (2026-11-01)
 
 
