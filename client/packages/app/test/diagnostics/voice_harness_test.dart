@@ -4,8 +4,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/diagnostics/voice_harness.dart';
+import 'package:slimm_app/src/diagnostics/voice_harness_media.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_state.dart';
-import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+import 'package:slimm_rtc/rtc.dart'
+    show CameraQuality, ScreenShareQuality, VoiceSessionState;
 
 void main() {
   test('the harness is compiled out unless the define is passed', () {
@@ -53,4 +55,23 @@ void main() {
       expect(joinFailedMarker, 'SLIMM_HARNESS join-failed');
     },
   );
+
+  test('the share tier, ceiling and camera setting come from their flags', () {
+    expect(
+      harnessShareQuality(const ['--voice-harness-share=1080p30']),
+      ScreenShareQuality.standard,
+    );
+    expect(harnessShareQuality(const ['--voice-harness-share=999p30']), isNull);
+    expect(harnessShareQuality(const []), isNull);
+    expect(
+      harnessShareCeiling(const ['--voice-harness-share-ceiling=1440']),
+      1440,
+    );
+    expect(harnessShareCeiling(const []), isNull);
+    expect(
+      harnessCameraQuality(const ['--voice-harness-camera=high']),
+      CameraQuality.high,
+    );
+    expect(harnessCameraQuality(const ['--voice-harness-camera=x']), isNull);
+  });
 }

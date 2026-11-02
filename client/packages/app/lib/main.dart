@@ -133,6 +133,7 @@ Future<void> main([List<String> args = const []]) async {
         () => host.active!.container,
         harnessTarget,
         volumeFile: harnessVolumeFile(args),
+        args: args,
       ),
     );
   }

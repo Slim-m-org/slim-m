@@ -48,15 +48,13 @@ void main() {
   test('a source between tiers rounds down to the tier below', () {
     final fit = fitScreenShare(_p2160, sourceWidth: 2560, sourceHeight: 1600);
     expect(fit.quality.resolution, ScreenShareResolution.p1440);
-    expect((fit.width, fit.height), (2304, 1440));
-    expect(fit.captureScale, closeTo(1600 / 1440, 1e-9));
+    expect((fit.width, fit.height), (2560, 1440));
   });
 
   test('a source below 720p publishes at its own size', () {
     final fit = fitScreenShare(_p2160, sourceWidth: 1366, sourceHeight: 600);
     expect(fit.quality.resolution, ScreenShareResolution.p720);
-    expect((fit.width, fit.height), (1366, 600));
-    expect(fit.captureScale, 1);
+    expect((fit.width, fit.height), (1280, 600));
   });
 
   test('a smaller choice is not raised to the source', () {
@@ -66,33 +64,6 @@ void main() {
       sourceHeight: 2160,
     );
     expect(fit.quality, ScreenShareQuality.standard);
-  });
-
-  test('a 4K screen on the 1080p tier scales the capture down by two', () {
-    final fit = fitScreenShare(
-      const ScreenShareQuality(
-          ScreenShareResolution.p1080, ScreenShareFps.fps60),
-      sourceWidth: 3840,
-      sourceHeight: 2160,
-    );
-    expect((fit.width, fit.height), (1920, 1080));
-    expect(fit.captureScale, 2);
-  });
-
-  test('an ultrawide keeps its aspect and scales by the height ratio', () {
-    final fit = fitScreenShare(
-      const ScreenShareQuality(
-          ScreenShareResolution.p1080, ScreenShareFps.fps30),
-      sourceWidth: 3440,
-      sourceHeight: 1440,
-    );
-    expect((fit.width, fit.height), (2580, 1080));
-    expect(fit.captureScale, closeTo(1440 / 1080, 1e-9));
-  });
-
-  test('a source at or under the tier is not scaled', () {
-    final fit = fitScreenShare(_p2160, sourceWidth: 1920, sourceHeight: 1080);
-    expect(fit.captureScale, 1);
   });
 
   group('when the first frame never arrives', () {

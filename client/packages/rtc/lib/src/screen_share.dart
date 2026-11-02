@@ -110,21 +110,13 @@ class ScreenShareFit {
     required this.quality,
     required this.width,
     required this.height,
-    this.captureScale = 1,
   });
 
   /// The tier whose bitrate and frame rate apply to [width] by [height].
   final ScreenShareQuality quality;
   final int width;
   final int height;
-
-  /// How much larger than [height] the captured frames are, which the top layer must be scaled down by.
-  ///
-  /// Desktop capture ignores the requested size and delivers the source's own, so a 4K screen on the 1080p tier would otherwise encode 4K.
-  final double captureScale;
 }
-
-int _even(double v) => (v / 2).round() * 2;
 
 /// Never publishes above the shared source or the space ceiling.
 ///
@@ -145,18 +137,10 @@ ScreenShareFit fitScreenShare(
     orElse: () => ScreenShareResolution.values.first,
   );
   final quality = ScreenShareQuality(tier, chosen.frameRate);
-  if (sourceHeight <= quality.height) {
-    return ScreenShareFit(
-      quality: quality,
-      width: sourceWidth,
-      height: sourceHeight,
-    );
-  }
   return ScreenShareFit(
     quality: quality,
-    width: _even(quality.height * sourceWidth / sourceHeight),
-    height: quality.height,
-    captureScale: sourceHeight / quality.height,
+    width: quality.width < sourceWidth ? quality.width : sourceWidth,
+    height: quality.height < sourceHeight ? quality.height : sourceHeight,
   );
 }
 
