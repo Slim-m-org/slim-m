@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../widgets/status_banner.dart';
 import '../providers/share_watch.dart';
 import '../providers/voice_flags.dart';
 
@@ -77,22 +78,16 @@ class _Row extends StatelessWidget {
   final VoidCallback onWatch;
 
   @override
-  Widget build(BuildContext context) => AppCallout(
-    tone: AppCalloutTone.info,
+  Widget build(BuildContext context) => StatusBanner(
+    sticky: true,
     icon: AppIcons.tileHide,
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        AppButton(
-          label: action,
-          size: AppButtonSize.sm,
-          variant: AppButtonVariant.soft,
-          icon: AppIcons.preview,
-          onPressed: onWatch,
-        ),
-      ],
+    message: text,
+    action: AppButton(
+      label: action,
+      size: AppButtonSize.sm,
+      variant: AppButtonVariant.soft,
+      icon: AppIcons.preview,
+      onPressed: onWatch,
     ),
   );
 }

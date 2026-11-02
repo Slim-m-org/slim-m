@@ -9,7 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/live_quality_restart.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/widgets/video_quality_sections.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -140,4 +142,35 @@ void main() {
     expect(receive, ReceiveVideoQuality.auto);
     expect(camera, CameraQuality.balanced);
   });
+
+  for (final pending in [false, true]) {
+    testWidgets(
+      'the settings rows ${pending ? 'say' : 'do not say'} the next-share note',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shareSettingsPendingProvider.overrideWith((ref) => pending),
+            ],
+            child: MaterialApp(
+              theme: buildTheme(Brightness.dark, AppTokens.dark),
+              home: const Scaffold(
+                body: SingleChildScrollView(child: VideoQualitySection()),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Screen share resolution'), findsOneWidget);
+        expect(
+          find.text(shareSettingsPendingNote),
+          pending ? findsWidgets : findsNothing,
+        );
+      },
+    );
+  }
 }

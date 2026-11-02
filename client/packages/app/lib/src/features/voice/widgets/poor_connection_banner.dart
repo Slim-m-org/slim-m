@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/status_banner.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_health.dart';
 import 'call_tile_badges.dart';
@@ -28,14 +29,12 @@ class PoorConnectionBanner extends ConsumerWidget {
         .where((p) => p.isLocal && poor.contains(p.identity))
         .firstOrNull;
     if (me == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s12),
-      child: AppCallout(
-        key: poorConnectionBannerKey,
-        tone: AppCalloutTone.warn,
-        icon: AppIcons.connectionPoor,
-        child: Text(poorConnectionMessage(me)),
-      ),
+    return StatusBanner(
+      key: poorConnectionBannerKey,
+      severity: BannerSeverity.warning,
+      icon: AppIcons.connectionPoor,
+      message: poorConnectionMessage(me),
+      margin: const EdgeInsets.only(top: AppSpacing.s12),
     );
   }
 }
