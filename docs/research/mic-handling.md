@@ -27,7 +27,7 @@ Evidence tags: [code] = read in our repo or the fork; [src] = read in upstream s
 
 ### 1.2 Native chain in the fork (Linux + Windows) [code]
 Branch feat/voice-dynamics, files under common/cpp/src:
-- libwebrtc APM (prebuilt `third_party/libwebrtc/lib/libwebrtc.so`, version not recorded in the repo): AEC + NS + AGC + HPF per `RTCAudioOptions`.
+- libwebrtc APM (prebuilt `third_party/libwebrtc/lib/libwebrtc.so`, pinned to libwebrtc m150.7871.03 by the fork rebase in flutter-webrtc-fork-rebase.md): AEC + NS + AGC + HPF per `RTCAudioOptions`.
 - Then ONE custom capture post-processing hook, `CaptureChain` (flutter_webrtc_base.cc:36 `SetCapturePostProcessing`): `NoiseSuppressor` (rnnoise 0.2, only when frame == 480 samples i.e. 48 kHz, 10 ms) -> `InputGate` -> `VoiceDynamics`.
 - InputGate: per 10 ms frame RMS in dBFS vs threshold (default -50). Hold 300 ms, open ramp 5 ms, close ramp 60 ms, meter decay 1.5 dB/frame. Voice state tracked even when not gating.
 - VoiceDynamics: RMS compressor (-14 dBFS, 4:1, 6 dB knee, 10 ms attack, 150 ms release) + limiter (instant attack, 60 ms release, -1 dBFS ceiling).
