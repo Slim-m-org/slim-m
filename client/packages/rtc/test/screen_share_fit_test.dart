@@ -65,4 +65,25 @@ void main() {
     );
     expect(fit.quality, ScreenShareQuality.standard);
   });
+
+  group('when the first frame never arrives', () {
+    test('the space ceiling still lowers the tier and its bitrate', () {
+      final fit = fitMeasured(_p2160, null, maxHeight: 1080);
+      expect(fit.quality.resolution, ScreenShareResolution.p1080);
+      expect((fit.width, fit.height), (1920, 1080));
+      expect(fit.quality.maxBitrate, 5000000);
+    });
+
+    test('the chosen tier stands when no ceiling is lower', () {
+      final fit = fitMeasured(_p2160, null);
+      expect(fit.quality, _p2160);
+      expect((fit.width, fit.height), (3840, 2160));
+    });
+
+    test('a measured size still wins over the chosen tier', () {
+      final fit = fitMeasured(_p2160, (width: 1366, height: 768));
+      expect(fit.quality.resolution, ScreenShareResolution.p720);
+      expect((fit.width, fit.height), (1280, 720));
+    });
+  });
 }

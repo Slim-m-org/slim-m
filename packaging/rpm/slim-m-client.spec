@@ -72,6 +72,8 @@ Requires:       libGL.so.1()(64bit)
 Requires:       libasound.so.2()(64bit)
 Requires:       libpulse.so.0()(64bit)
 Requires:       libpipewire-0.3.so.0()(64bit)
+# pw-cli, pw-link and pw-dump keep the call out of shared desktop audio; without them a share goes out with no audio.
+Requires:       pipewire-utils
 
 # media_kit_video's own Linux plugin - the video texture/rendering
 # integration, distinct from media_kit's separate dlopen of libmpv to drive

@@ -17,13 +17,13 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'broadcast_bridge.dart';
 import 'screen_share.dart';
 import 'share_audio_isolation.dart';
-import 'package:slimm_api/api.dart' show LogTag, reportFailure;
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// Publishes or unpublishes a screen share track with the given options.
 /// `options` is null when disabling. `includeAudio` is [setEnabled]'s own
@@ -36,6 +36,14 @@ typedef ScreenSharePublish = Future<void> Function(
   lk.ScreenShareCaptureOptions? options,
   bool includeAudio,
 );
+
+/// Said when a share goes out without its audio because the sound server could not isolate it.
+const shareAudioOffNote = 'Share audio is off: PipeWire tools not found';
+
+/// [shareAudioOffNote] while the running share dropped its audio, else null.
+///
+/// A process-wide notifier rather than a `VoiceSession` member, so the many test doubles that implement `VoiceSession` stay valid.
+final shareAudioNote = ValueNotifier<String?>(null);
 
 /// Runs one [VoiceSession]'s screen share: the ceiling checks, the platform
 /// availability check, and on iOS the hand-off described below.
@@ -78,7 +86,19 @@ class ScreenShareControl {
   /// The share stopped without [setEnabled] being asked to (the system's stop
   /// button, the captured window closing); its audio mix must go with it.
   Future<void> shareEnded() async {
-    if (_startsInFlight == 0) await _isolation?.end();
+    if (_startsInFlight != 0) return;
+    shareAudioNote.value = null;
+    await _isolation?.end();
+  }
+
+  /// Whether the share may carry audio: false when the call's own playout could not be kept out of it.
+  Future<bool> _beginAudio() async {
+    final isolation = _isolation;
+    if (isolation == null || !isolation.supported) return true;
+    if (await isolation.begin()) return true;
+    AppLog.warning(LogTag.voice, shareAudioOffNote);
+    shareAudioNote.value = shareAudioOffNote;
+    return false;
   }
 
   /// The iOS hand-off in progress, if a share is still waiting on the system
@@ -106,6 +126,7 @@ class ScreenShareControl {
     required void Function(Object? error) onSettled,
   }) async {
     if (enabled) _startsInFlight++;
+    shareAudioNote.value = null;
     try {
       await _cancelHandoff();
       if (enabled && !await _broadcast.isAvailable()) {
@@ -123,7 +144,8 @@ class ScreenShareControl {
           onSettled: onSettled,
         );
       }
-      if (enabled && includeAudio) await _isolation?.begin();
+      final withAudio =
+          enabled && includeAudio ? await _beginAudio() : includeAudio;
       try {
         await publish(
           enabled,
@@ -135,7 +157,7 @@ class ScreenShareControl {
                   maxHeight: maxHeight,
                 )
               : null,
-          includeAudio,
+          withAudio,
         );
       } finally {
         // The platform recorder must end even when dropping the track threw.

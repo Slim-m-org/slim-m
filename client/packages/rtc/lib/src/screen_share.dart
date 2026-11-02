@@ -144,6 +144,21 @@ ScreenShareFit fitScreenShare(
   );
 }
 
+/// [fitScreenShare] for a measured [size], or for the chosen tier itself when no first frame arrived.
+///
+/// The space ceiling still has to hold when the measurement times out, or a late Wayland frame would let a share past it.
+ScreenShareFit fitMeasured(
+  ScreenShareQuality chosen,
+  ({int width, int height})? size, {
+  int? maxHeight,
+}) =>
+    fitScreenShare(
+      chosen,
+      sourceWidth: size?.width ?? chosen.width,
+      sourceHeight: size?.height ?? chosen.height,
+      maxHeight: maxHeight,
+    );
+
 /// A screen the OS will let this app capture; on Windows and macOS also a window.
 /// Linux lists screens only: enumerating windows through libwebrtc's capturer segfaults on Fedora Wayland (exit 139), which Dart cannot catch, and the portal picker chooses there.
 class ScreenShareSource {
