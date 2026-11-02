@@ -40,6 +40,17 @@ enum CameraFailureReason {
   /// A camera exists (or that could not be checked), and the platform gave
   /// no reason for the refusal beyond the raw failure itself.
   unknown,
+
+  /// The camera picked earlier is gone from the device list while others remain.
+  chosenCameraUnavailable,
+}
+
+/// The cause of [CameraFailureReason.chosenCameraUnavailable].
+class ChosenCameraUnavailable implements Exception {
+  const ChosenCameraUnavailable();
+
+  @override
+  String toString() => 'The camera you chose is not available.';
 }
 
 /// Classifies why enabling the camera failed.

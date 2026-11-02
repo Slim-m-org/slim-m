@@ -29,6 +29,19 @@ void main() {
     );
   });
 
+  test('a vanished chosen camera says so and points at the picker', () {
+    expect(
+      cameraFailureMessage(
+        true,
+        const CameraFailure(
+          ChosenCameraUnavailable(),
+          CameraFailureReason.chosenCameraUnavailable,
+        ),
+      ),
+      contains('chosen camera is not available'),
+    );
+  });
+
   test('turning off never shows a reason, only the generic off message', () {
     final message = cameraFailureMessage(
       false,

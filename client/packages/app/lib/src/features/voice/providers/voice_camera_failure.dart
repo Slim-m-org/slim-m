@@ -26,6 +26,8 @@ String cameraFailureMessage(bool wantOn, Object? cause) {
       'Camera access was denied. Check your camera permission for this app.',
     CameraFailureReason.cameraUnavailable =>
       'The camera could not be opened. It may be in use by another app.',
+    CameraFailureReason.chosenCameraUnavailable =>
+      'Your chosen camera is not available. Choose another one.',
     CameraFailureReason.unknown || null =>
       'Could not turn the camera ${wantOn ? 'on' : 'off'}. ${cause ?? ''}'
           .trim(),

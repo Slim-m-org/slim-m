@@ -234,6 +234,16 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   VoiceDisconnect? lastDisconnect;
 
+  /// What a drop reports as the share it ended; set before [dropWith].
+  @override
+  bool droppedWhileSharing = false;
+
+  /// Drives the camera a join opens after connected.
+  final cameraOpens = StreamController<CameraJoinOpen>.broadcast();
+
+  @override
+  Stream<CameraJoinOpen> get cameraJoinOpens => cameraOpens.stream;
+
   @override
   bool get screenShareNeedsSource => needsSource;
 
@@ -442,6 +452,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   Future<void> dispose() async {
     await _states.close();
     await _participants.close();
+    await cameraOpens.close();
     await _audioDeviceChanges.close();
   }
 

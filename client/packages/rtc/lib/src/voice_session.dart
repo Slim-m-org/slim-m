@@ -32,6 +32,7 @@ import 'call_diagnostics.dart';
 import 'call_stats.dart';
 import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
+import 'camera_join.dart';
 import 'camera_switching.dart';
 import 'desktop_sources.dart';
 import 'input_gate.dart';
@@ -111,10 +112,12 @@ class VoiceSession
     bool? mobile,
     JoinTimings? joinTimings,
     ShareAudioIsolation? shareAudioIsolation,
+    Duration cameraJoinTimeout = kJoinCameraTimeout,
   })  : _joinTimings = joinTimings ?? JoinTimings(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
-        ) {
+        ),
+        _cameraJoin = CameraJoin(timeout: cameraJoinTimeout) {
     _roomFactory = roomFactory ?? _buildRoom;
     _audio.log = audioLog;
     // An injected room has no native capture behind it to gate.
@@ -221,6 +224,7 @@ class VoiceSession
   @override
   final JoinTimings _joinTimings;
   final CameraSwitching _cameraSwitching;
+  final CameraJoin _cameraJoin;
   late final VoiceCamera _camera;
   late final VoiceScreenShare _share;
   late final VideoSubscriptionCuller _videoCuller;
@@ -318,6 +322,13 @@ class VoiceSession
   /// Why the last call ended, when the SFU ended it rather than this client.
   VoiceDisconnect? get lastDisconnect => _lastDisconnect;
 
+  /// Whether the call the SFU just ended was sharing a screen, read before the roster emptied.
+  bool get droppedWhileSharing => _droppedWhileSharing;
+  bool _droppedWhileSharing = false;
+
+  /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
+  Stream<CameraJoinOpen> get cameraJoinOpens => _cameraJoin.events;
+
   /// The in-flight join, so a second call serializes behind it; see [join].
   Future<void>? _joining;
 
@@ -366,6 +377,7 @@ class VoiceSession
     _audio.screenMuted.clear();
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
+    _droppedWhileSharing = false;
     // Whatever a canvas last asked for was about the call that just ended.
     _videoCuller.setInterest(null);
     _videoCuller.setBlocked(const {});
@@ -490,6 +502,7 @@ class VoiceSession
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();
+    await _cameraJoin.dispose();
     await _disposeCapture();
     await _disposeMicRecovery();
     await _gate.dispose();

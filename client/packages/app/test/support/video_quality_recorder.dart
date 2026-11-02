@@ -9,6 +9,10 @@ import 'package:flutter/foundation.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 mixin VideoQualityRecorder {
+  Stream<CameraJoinOpen> get cameraJoinOpens => const Stream.empty();
+
+  bool get droppedWhileSharing => false;
+
   CallStatsSampler callStats = CallStatsSampler(targets: () => const []);
 
   VoiceHealth health = VoiceHealth();
