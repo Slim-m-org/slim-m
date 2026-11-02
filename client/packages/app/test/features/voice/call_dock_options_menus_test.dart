@@ -58,6 +58,11 @@ typedef _Dock = ({ProviderContainer container, InertSession session});
 Rect _dockRect(WidgetTester tester) =>
     tester.getRect(find.byType(FloatingDockCard));
 
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
 void main() {
   testWidgets('the speaker button is a one-click deafen with no output menu', (
     tester,
@@ -80,10 +85,20 @@ void main() {
       await tester.tap(find.byTooltip('Microphone options'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Voice settings'), findsOneWidget);
       expect(find.text('USB headset'), findsOneWidget);
+      // Longer lists start collapsed to the current row.
+      expect(find.text('Strong'), findsNothing);
+
+      await tester.tap(find.textContaining('more'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byType(AppMenu),
+        findsOneWidget,
+        reason: 'expanding keeps it open',
+      );
       expect(find.text('Standard'), findsOneWidget);
       expect(find.text('Strong'), findsOneWidget);
-      expect(find.text('Voice settings'), findsOneWidget);
 
       await tester.tap(find.text('Strong'));
       await tester.pumpAndSettle();
@@ -103,6 +118,68 @@ void main() {
       );
     },
   );
+
+  testWidgets('a long device list collapses to the current one until asked', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpVoiceCallDock(
+      tester,
+      _connected,
+      width: 900,
+      session: InertSession(
+        supportsInputGate: true,
+        supportsAudioInputSelection: true,
+        audioInputDeviceList: const [
+          _usb,
+          AudioDevice(id: 'cam-1', label: 'Webcam mic'),
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Microphone options'));
+    await _settle(tester);
+
+    expect(find.text('USB headset'), findsNothing);
+    expect(find.text('Webcam mic'), findsNothing);
+    await tester.tap(find.text('Show 2 more'));
+    await _settle(tester);
+    expect(find.text('USB headset'), findsOneWidget);
+    expect(find.text('Webcam mic'), findsOneWidget);
+    await tester.tap(find.text('Show fewer'));
+    await _settle(tester);
+    expect(find.text('Webcam mic'), findsNothing);
+  });
+
+  testWidgets('on a short phone the mic sheet scrolls instead of overflowing', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 360);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpVoiceCallDock(
+      tester,
+      _connected,
+      width: 390,
+      session: _session(),
+    );
+    await tester.pump();
+    await tester.longPress(find.byTooltip(RegExp('^(Mute|Unmute)')).first);
+    await _settle(tester);
+
+    expect(find.text('Voice settings'), findsOneWidget);
+    // Voice settings is the last row; reaching it on a 360dp window means the sheet scrolls or fits.
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getTopLeft(find.text('Voice settings')).dy,
+      greaterThanOrEqualTo(0),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('a second press on any caret closes its menu', (tester) async {
     await _pumpDock(tester);

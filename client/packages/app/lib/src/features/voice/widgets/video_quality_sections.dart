@@ -3,8 +3,6 @@
 /// sends, and the resolution and frame rate of a screen share.
 library;
 
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -21,6 +19,7 @@ import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_segmented_row.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
+import 'share_resolution_support.dart';
 import 'video_quality_labels.dart';
 
 class VideoQualitySection extends ConsumerWidget {
@@ -34,6 +33,10 @@ class VideoQualitySection extends ConsumerWidget {
     final note = ref.watch(shareSettingsPendingProvider)
         ? shareSettingsPendingNote
         : null;
+    final maxShareHeight = currentMaxShareHeight(
+      ref,
+      settings.screenShareQuality.resolution,
+    );
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
         .share
@@ -67,13 +70,17 @@ class VideoQualitySection extends ConsumerWidget {
             _QualityRow<ScreenShareResolution>(
               label: 'Screen share resolution',
               description: note,
-              footnote: screenShareSizeNote(
-                settings.screenShareQuality.resolution,
-                _largestDisplayHeight(),
-              ),
+              footnote: shareResolutionNote(maxShareHeight),
               values: ScreenShareResolution.values,
-              selected: settings.screenShareQuality.resolution,
+              selected: effectiveShareResolution(
+                settings.screenShareQuality.resolution,
+                maxShareHeight,
+              ),
               nameOf: (r) => r.label,
+              disabledReasonOf: (r) =>
+                  shareResolutionSupported(r, maxShareHeight)
+                  ? null
+                  : shareResolutionTooHighReason,
               onSelected: notifier.setScreenShareResolution,
             ),
             _QualityRow<ScreenShareFps>(
@@ -126,6 +133,7 @@ class _QualityRow<T> extends StatelessWidget {
     required this.onSelected,
     this.description,
     this.footnote,
+    this.disabledReasonOf,
   });
 
   final String label;
@@ -135,6 +143,7 @@ class _QualityRow<T> extends StatelessWidget {
   final T selected;
   final String Function(T value) nameOf;
   final ValueChanged<T> onSelected;
+  final String? Function(T value)? disabledReasonOf;
 
   @override
   Widget build(BuildContext context) => SettingsSegmentedRow<T>(
@@ -143,15 +152,13 @@ class _QualityRow<T> extends StatelessWidget {
     footnote: footnote,
     value: selected,
     choices: [
-      for (final v in values) SettingsChoice(value: v, label: nameOf(v)),
+      for (final v in values)
+        SettingsChoice(
+          value: v,
+          label: nameOf(v),
+          disabledReason: disabledReasonOf?.call(v),
+        ),
     ],
     onChanged: onSelected,
   );
-}
-
-int? _largestDisplayHeight() {
-  final heights = [
-    for (final d in PlatformDispatcher.instance.displays) d.size.height.round(),
-  ];
-  return heights.isEmpty ? null : heights.reduce((a, b) => a > b ? a : b);
 }

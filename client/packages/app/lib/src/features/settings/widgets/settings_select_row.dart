@@ -15,6 +15,7 @@ class SettingsChoice<T> {
     required this.value,
     required this.label,
     this.leading,
+    this.disabledReason,
   });
 
   final T value;
@@ -22,6 +23,9 @@ class SettingsChoice<T> {
 
   /// A small mark shown before the label and beside the current value.
   final Widget? leading;
+
+  /// Shows the choice but not choosable, with this said on hover.
+  final String? disabledReason;
 }
 
 /// Replaces a row of segmented cards for settings with more than about three
