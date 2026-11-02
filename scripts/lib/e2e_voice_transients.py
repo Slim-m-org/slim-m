@@ -2,20 +2,28 @@
 """Mouth and desk sounds through the real Linux client: what each suppression arm does to them.
 
 The owner hears chewing, swallowing and room noise reach a call with Strong on, sometimes louder than the voice around them.
-This plays speech with lip smacks, chewing, a swallow and a breath (synthetic, or recorded clips from E2E_TRANSIENT_CLIPS) through the desktop client under Standard, Strong, Strong with auto gain off, and Strongest, and scores every event as sent against as heard.
+This plays speech with lip smacks, chewing, a swallow and a breath through the desktop client under Standard, Strong, Strong with auto gain off, and Strongest, and scores every event as sent against as heard.
+The sounds are the recorded CC0 clips fetch_mouth_noise.py builds when they exist (or E2E_TRANSIENT_CLIPS names a folder of `<kind>-*.wav`), else the synthetic set; E2E_TRANSIENT_CLIPS=synthetic forces the latter.
 Opt in with E2E_ONLY="voice transients"; the desktop scenario's E2E_DESKTOP_* variables apply.
 """
 import glob
 import os
 
 import e2e_voice_desktop as desktop
+import fetch_mouth_noise
 import voice_quality_dsp as dsp
 
 KINDS = ("smack", "chew", "swallow", "breath")
-# A gap event may never come out louder than it went in; a listener hears that as the suppressor pumping.
+# In an arm the native chain owns, a gap event may never come out louder than it went in; a listener hears that as pumping.
 AMPLIFY_MAX_DB = 1.0
+# Standard is libwebrtc's own processing, reported for comparison and not judged: its auto gain lifts an isolated sound by several dB.
+JUDGED_CHOICES = ("strong", "strongest")
 # Speech itself must survive every arm within this much of its sent level.
 SPEECH_DRIFT_MAX_DB = 3.0
+# A recorded clip is cut to its loudest stretch of this length, so it fits a sentence gap with clean air around it.
+CLIP_SECONDS = 1.5
+# The clips are peak-normalised to -6 dBFS; a mouth noise at a desk sits this far under that.
+CLIP_GAIN_DB = -12.0
 ARMS = {
     "standard-gate-on": desktop.arm_prefs("standard", desktop.GATE_ON),
     "strong-gate-on": desktop.arm_prefs("strong", desktop.GATE_ON),
@@ -24,28 +32,51 @@ ARMS = {
 }
 
 
+def loudest_window(samples, seconds, rate=48000):
+    """The `seconds` long stretch of `samples` with the most energy, stepped in 100 ms."""
+    size, step = int(seconds * rate), rate // 10
+    if len(samples) <= size:
+        return list(samples)
+    energy = [v * v for v in samples]
+    best_at, best = 0, -1.0
+    for at in range(0, len(samples) - size + 1, step):
+        total = sum(energy[at:at + size])
+        if total > best:
+            best_at, best = at, total
+    return samples[best_at:best_at + size]
+
+
 def recorded_clips(folder):
-    """One recorded clip per kind from `folder` (files named `<kind>-*.wav`), or None when it has none."""
+    """One recorded clip per kind from `folder` (files named `<kind>-*.wav`), cut and levelled, or None when it has none."""
     found = {}
+    gain = 10 ** (CLIP_GAIN_DB / 20)
     for kind in KINDS:
         paths = sorted(glob.glob(os.path.join(folder, f"{kind}-*.wav")))
         if paths:
             samples, rate = dsp.read_wav(paths[0])
             assert rate == 48000, f"{paths[0]} is {rate} Hz, the harness mixes at 48 kHz"
-            found[kind] = samples
+            found[kind] = [v * gain for v in loudest_window(samples, CLIP_SECONDS)]
     return found or None
 
 
 def transients_from_env():
-    folder = os.environ.get("E2E_TRANSIENT_CLIPS")
-    return recorded_clips(folder) if folder else True
+    """Recorded clips from E2E_TRANSIENT_CLIPS, else the fetched corpus when it exists, else the synthetic set."""
+    folder = os.environ.get("E2E_TRANSIENT_CLIPS") or fetch_mouth_noise.DEFAULT_OUT
+    if os.environ.get("E2E_TRANSIENT_CLIPS") == "synthetic":
+        return True
+    return recorded_clips(folder) or True
 
 
-def problems(results):
-    """Why a run fails: an event came out louder than it went in, or speech moved too far."""
+def judged(arm, arms=ARMS):
+    """Whether `arm` runs the native chain, which is what this scenario holds to account."""
+    return arms.get(arm, {}).get("slimm.voice.noise_suppression") in JUDGED_CHOICES
+
+
+def problems(results, arms=ARMS):
+    """Why a run fails: speech moved too far in any arm, or a gap event came out louder in an arm the chain owns."""
     out = []
-    for voice, arms in results.items():
-        for arm, profiles in arms.items():
+    for voice, per_arm in results.items():
+        for arm, profiles in per_arm.items():
             for profile, row in profiles.items():
                 if profile == "gate_log":
                     continue
@@ -53,6 +84,8 @@ def problems(results):
                 drift = noise["speech_level_change_db"]
                 if abs(drift) > SPEECH_DRIFT_MAX_DB:
                     out.append(f"{voice} {arm} {profile}: speech moved {drift:+.1f} dB")
+                if not judged(arm, arms):
+                    continue
                 for kind, event in noise.items():
                     if not isinstance(event, dict) or not kind.endswith("_gap"):
                         continue
