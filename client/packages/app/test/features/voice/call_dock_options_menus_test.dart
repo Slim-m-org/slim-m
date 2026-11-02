@@ -91,9 +91,9 @@ void main() {
       expect(find.text('Strong'), findsNothing);
 
       await tester.tap(find.textContaining('more'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       expect(
-        find.byType(AppMenu),
+        find.text('Voice settings'),
         findsOneWidget,
         reason: 'expanding keeps it open',
       );
