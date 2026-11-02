@@ -210,6 +210,9 @@ class SilentMicWatchdog {
   final void Function()? onRecovered;
   final DateTime Function() _now;
   bool _gaveUp = false;
+  bool _gaveUpOnStall = false;
+  bool _lastSpentOnStall = false;
+  int _stallRestarts = 0;
 
   DateTime? _silentSince;
   DateTime? _liveSince;
@@ -227,9 +230,11 @@ class SilentMicWatchdog {
       final since = _liveSince ??= now;
       if (now.difference(since) < timing.recoveredAfter) return;
       _restarts = 0;
+      _stallRestarts = 0;
       _nextAllowed = null;
       if (_gaveUp) {
         _gaveUp = false;
+        _gaveUpOnStall = false;
         onRecovered?.call();
       }
       return;
@@ -259,32 +264,39 @@ class SilentMicWatchdog {
     _movingSince = null;
     final since = _stalledSince ??= now;
     if (now.difference(since) < timing.captureStall) return;
-    if (_spendRestart(now)) _stalledSince = null;
+    if (_spendRestart(now, onStall: true)) _stalledSince = null;
   }
 
+  /// A moving counter only vouches for restarts a stall spent; a mic that reads
+  /// digital silence while its counter advances is the level watchdog's case.
   void _refillAfterMoving(DateTime now) {
     final since = _movingSince ??= now;
     if (now.difference(since) < timing.recoveredAfter) return;
-    _restarts = 0;
+    _restarts -= _stallRestarts;
+    _stallRestarts = 0;
     _nextAllowed = null;
-    if (_gaveUp) {
+    if (_gaveUp && _gaveUpOnStall) {
       _gaveUp = false;
+      _gaveUpOnStall = false;
       onRecovered?.call();
     }
   }
 
   /// True when a restart was asked for.
-  bool _spendRestart(DateTime now) {
+  bool _spendRestart(DateTime now, {bool onStall = false}) {
     final allowed = _nextAllowed;
     if (_restarts >= timing.maxSilentRestarts) {
       if (!_gaveUp) {
         _gaveUp = true;
+        _gaveUpOnStall = onStall;
         onGaveUp?.call();
       }
       return false;
     }
     if (allowed != null && now.isBefore(allowed)) return false;
     _restarts++;
+    _lastSpentOnStall = onStall;
+    if (onStall) _stallRestarts++;
     _nextAllowed = now.add(timing.silentCooldown * _restarts);
     onSilent();
     return true;
@@ -301,6 +313,7 @@ class SilentMicWatchdog {
   /// restart so a stalled gate cannot spend, or refill, the budget for a truly dead mic.
   void refundRestart() {
     if (_restarts > 0) _restarts--;
+    if (_lastSpentOnStall && _stallRestarts > 0) _stallRestarts--;
     _nextAllowed = null;
   }
 
@@ -311,7 +324,9 @@ class SilentMicWatchdog {
     _movingSince = null;
     _nextAllowed = null;
     _restarts = 0;
+    _stallRestarts = 0;
     _gaveUp = false;
+    _gaveUpOnStall = false;
   }
 }
 

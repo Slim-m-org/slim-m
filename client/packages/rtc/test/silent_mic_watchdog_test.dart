@@ -58,6 +58,15 @@ class _StallRig {
       dog.observeProgress(advancing: advancing, active: true);
     }
   }
+
+  /// A silent level with an advancing counter, once a second.
+  void feedBoth(double level, int seconds) {
+    for (var i = 0; i < seconds; i++) {
+      clock = clock.add(const Duration(seconds: 1));
+      dog.observe(level, active: true);
+      dog.observeProgress(advancing: true, active: true);
+    }
+  }
 }
 
 void main() {
@@ -226,6 +235,25 @@ void main() {
       }
 
       expect(rig.restarts, 1);
+    });
+
+    test('a moving counter never clears a give-up the silence earned', () {
+      final rig = _StallRig()..feedBoth(kInputFloorDb, 600);
+
+      expect(rig.restarts, 3);
+      expect(rig.gaveUp, 1);
+      expect(rig.recovered, 0);
+    });
+
+    test('a moving counter refunds only the restarts a stall spent', () {
+      final rig = _StallRig()
+        ..feed(false, 20)
+        ..feed(true, 130)
+        ..feedBoth(kInputFloorDb, 600);
+
+      expect(rig.restarts, 4);
+      expect(rig.gaveUp, 1);
+      expect(rig.recovered, 0);
     });
 
     test('a counter that moves for long enough clears a give-up', () {
