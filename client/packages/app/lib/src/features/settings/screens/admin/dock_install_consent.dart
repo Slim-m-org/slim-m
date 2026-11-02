@@ -160,18 +160,28 @@ bool dockNeedsConsent({
 
 /// A "Verified" mark for a module from the official registry: the icon alone,
 /// named by its tooltip and semantics label so a row stays on one line.
-/// A tap shows the tooltip too, since a finger cannot hover.
+///
+/// [tapToShow] also opens the tooltip on a tap. That is an owner exception to
+/// desktop-vs-mobile.md "never a tooltip on touch" (owner, 2026-11-02): the
+/// consent sheet shows only the badge, and a finger cannot hover. The sentence
+/// is also the semantics label, so the tooltip is never the only carrier.
+/// Rows leave it off so a tap on the badge still opens the row.
 class DockVerifiedBadge extends StatelessWidget {
-  const DockVerifiedBadge({super.key, this.message = 'Verified'});
+  const DockVerifiedBadge({
+    super.key,
+    this.message = 'Verified',
+    this.tapToShow = false,
+  });
 
   final String message;
+  final bool tapToShow;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Tooltip(
+    final badge = Tooltip(
       message: message,
-      triggerMode: TooltipTriggerMode.tap,
+      triggerMode: tapToShow ? TooltipTriggerMode.tap : null,
       child: Semantics(
         label: message,
         child: ExcludeSemantics(
@@ -183,6 +193,8 @@ class DockVerifiedBadge extends StatelessWidget {
         ),
       ),
     );
+    if (!tapToShow) return badge;
+    return AppTouchHitArea(alignment: Alignment.centerLeft, child: badge);
   }
 }
 
@@ -337,10 +349,17 @@ class _ConsentSheetState extends State<_ConsentSheet> {
 
   Widget _standing(AppTokens tokens) {
     if (widget.verified) {
-      return const Align(
-        alignment: Alignment.centerLeft,
-        child: DockVerifiedBadge(
-          message: 'From the official slim-addons registry.',
+      final room = AppTouchTargets.of(context)
+          ? (AppSizes.rowTouch - AppSizes.icon16) / 2
+          : 0.0;
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: room),
+        child: const Align(
+          alignment: Alignment.centerLeft,
+          child: DockVerifiedBadge(
+            message: 'From the official slim-addons registry.',
+            tapToShow: true,
+          ),
         ),
       );
     }

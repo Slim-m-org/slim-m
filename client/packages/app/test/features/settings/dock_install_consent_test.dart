@@ -155,6 +155,8 @@ Finder _inSheet(String text) =>
 Finder get _verifiedBadge => find.byType(DockVerifiedBadge);
 
 void main() {
+  setUpAll(loadRealFonts);
+
   testWidgets('unverified with access: Install waits for the acknowledgement', (
     tester,
   ) async {
@@ -231,6 +233,36 @@ void main() {
     await tester.tap(badge);
     await tester.pump();
     expect(find.text(sentence), findsOneWidget);
+  });
+
+  testWidgets('the badge has a 44dp touch target on a phone', (tester) async {
+    await _pump(tester, asks: ['message.post']);
+    await tester.tap(_pageButton('Install v1.0.0'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    final badge = find.byTooltip('From the official slim-addons registry.');
+    expect(tester.getSize(badge), const Size.square(AppSizes.icon16));
+    await tester.tapAt(tester.getCenter(badge) + const Offset(18, 0));
+    await tester.pump();
+    expect(
+      find.text('From the official slim-addons registry.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the badge keeps its drawn size as the target on desktop', (
+    tester,
+  ) async {
+    await _pump(tester, asks: ['message.post'], size: const Size(1400, 1000));
+    await tester.tap(_pageButton('Install v1.0.0'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    final badge = find.byTooltip('From the official slim-addons registry.');
+    await tester.tapAt(tester.getCenter(badge) + const Offset(18, 0));
+    await tester.pump();
+    expect(find.text('From the official slim-addons registry.'), findsNothing);
   });
 
   testWidgets('cancelling installs nothing', (tester) async {
@@ -340,6 +372,43 @@ void main() {
       );
       expect(_verifiedBadge, source == null ? findsOneWidget : findsNothing);
     }
+  });
+
+  testWidgets('tapping the badge in a row still opens the module', (
+    tester,
+  ) async {
+    const entry = api.DockIndexEntry(
+      id: 'ladder',
+      name: 'ladder',
+      version: '1.0.0',
+      summary: 's',
+    );
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        routerConfig: GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const Scaffold(
+                body: DockModuleRow(entry: entry, installed: null),
+              ),
+            ),
+            GoRoute(
+              path: '/:rest(.*)',
+              builder: (context, state) => const Text('opened module'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('Verified'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('opened module'), findsOneWidget);
   });
 
   testWidgets('the row marks Verified with an icon, not a chip', (
