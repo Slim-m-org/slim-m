@@ -19,7 +19,7 @@ SettingsSelectRow<int> _row(void Function(int) onChanged) =>
       label: 'Image cache',
       value: 100,
       sheetTitle: 'Image cache limit',
-      sheetFootnote: 'A lower limit saves memory.',
+      description: 'A lower limit saves memory.',
       choices: const [
         SettingsChoice(value: 50, label: '50 MB'),
         SettingsChoice(value: 100, label: '100 MB'),
@@ -45,9 +45,9 @@ void main() {
     await tester.tap(find.byType(SettingsSelectRow<int>));
     await tester.pumpAndSettle();
 
-    // The other two values, and the footnote, appear in the anchored menu.
     expect(find.text('50 MB'), findsOneWidget);
     expect(find.text('200 MB'), findsOneWidget);
+    // One copy: under the label, none repeated inside the open menu.
     expect(find.text('A lower limit saves memory.'), findsOneWidget);
 
     await tester.tap(find.text('200 MB'));

@@ -95,7 +95,7 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
         SettingsSelectRow<int>(
           label: 'Message retention',
           sheetTitle: 'Message retention',
-          sheetFootnote: 'How long this channel and its threads keep messages.',
+          description: 'How long this channel and its threads keep messages.',
           value: current.days ?? _followSpace,
           choices: [
             SettingsChoice(

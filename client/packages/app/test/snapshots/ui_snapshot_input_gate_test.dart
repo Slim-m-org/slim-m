@@ -86,6 +86,10 @@ void main() {
             const InputGateReading(levelDb: -28, voice: true),
           );
           await tester.pumpAndSettle();
+          if (auto) {
+            await tester.tap(find.text('Advanced'));
+            await tester.pump(const Duration(milliseconds: 300));
+          }
           expect(find.text('Input sensitivity'), findsOneWidget);
           await writeSnapshot(tester, 'input-gate-$label-${entry.key}-$theme');
           expect(tester.takeException(), isNull);
