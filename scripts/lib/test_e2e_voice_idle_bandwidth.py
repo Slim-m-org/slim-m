@@ -16,7 +16,7 @@ class RateBetween(unittest.TestCase):
         self.assertEqual(got["seconds"], 10.0)
         self.assertEqual(got["payload_bytes_per_s"], 5750.0)
         self.assertEqual(got["packets_per_s"], 50.0)
-        self.assertEqual(got["wire_kbps"], round(8 * (5750 + 50 * idle.OVERHEAD_BYTES) / 1000, 1))
+        self.assertAlmostEqual(got["wire_kbps"], 8 * (5750 + 50 * idle.OVERHEAD_BYTES) / 1000, places=1)
 
     def test_a_silent_stream_with_few_packets_reads_near_zero(self):
         rows = [_row(0, 0, 0), _row(60000, 8300, 290)]

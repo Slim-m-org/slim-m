@@ -176,32 +176,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DockHintAnchor(
-          target: DockHintTarget.mic,
-          enabled: widget.hints && listenOnly == null,
-          child: MutedTalkWatcher(
-            watching:
-                widget.hints &&
-                !voice.microphoneEnabled &&
-                listenOnly == null &&
-                !ref.watch(
-                  voiceSettingsControllerProvider.select(
-                    (s) => s.pushToTalkEnabled,
-                  ),
-                ),
-            child: MicOptionsMenu(
-              showCaret: micCaret,
-              extraOptions: widget.menuExtras,
-              destructive: micCallDestructive(ref, voice, listenOnly),
-              child: MicCallButton(
-                voice: voice,
-                listenOnly: listenOnly,
-                holdOpensOptions: !micCaret,
-                controller: widget.controller,
-              ),
-            ),
-          ),
-        ),
+        _micGroup(voice, listenOnly, micCaret: micCaret),
         const SizedBox(width: AppSpacing.s8),
         _deafenButton(voice),
         const SizedBox(width: AppSpacing.s8),
@@ -238,6 +213,39 @@ class _CallControlsState extends ConsumerState<CallControls> {
     if (!widget.tight) return primary;
     final spilled = [?switchCamera, ?extra];
     return _spillColumn(primary, spilled);
+  }
+
+  /// The mic button with its menu, its one-time hint and the talking-while-muted cue.
+  Widget _micGroup(
+    VoiceFlags voice,
+    String? listenOnly, {
+    required bool micCaret,
+  }) {
+    final pushToTalk = ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.pushToTalkEnabled),
+    );
+    return DockHintAnchor(
+      target: DockHintTarget.mic,
+      enabled: widget.hints && listenOnly == null,
+      child: MutedTalkWatcher(
+        watching:
+            widget.hints &&
+            !voice.microphoneEnabled &&
+            listenOnly == null &&
+            !pushToTalk,
+        child: MicOptionsMenu(
+          showCaret: micCaret,
+          extraOptions: widget.menuExtras,
+          destructive: micCallDestructive(ref, voice, listenOnly),
+          child: MicCallButton(
+            voice: voice,
+            listenOnly: listenOnly,
+            holdOpensOptions: !micCaret,
+            controller: widget.controller,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _spillColumn(Widget primary, List<Widget> spilled) {

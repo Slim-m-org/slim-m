@@ -137,9 +137,8 @@ ScreenShareFit fitScreenShare(
     (a, b) => a < b ? a : b,
   );
   final cappedTier = _tierWithin(capped);
-  final limit = sourceWidth >= cappedTier.width
-      ? capped
-      : (sourceHeight < capped ? sourceHeight : capped);
+  final shorter = sourceHeight < capped ? sourceHeight : capped;
+  final limit = sourceWidth >= cappedTier.width ? capped : shorter;
   final quality = ScreenShareQuality(_tierWithin(limit), chosen.frameRate);
   return ScreenShareFit(
     quality: quality,

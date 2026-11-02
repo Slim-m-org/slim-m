@@ -55,7 +55,7 @@ def _display_after(started, log, timeout=20):
     while time.time() < deadline:
         fresh = [p for p in _x11_sockets() if os.stat(p).st_mtime >= started]
         if fresh:
-            return ":" + os.path.basename(sorted(fresh)[0])[1:]
+            return ":" + os.path.basename(min(fresh))[1:]
         time.sleep(0.5)
     raise AssertionError(f"the nested compositor opened no X display:\n{da._log_tail(log)}")
 
@@ -63,7 +63,7 @@ def _display_after(started, log, timeout=20):
 def _await_displays_gone(baseline, timeout=20):
     """The next compositor reuses the display number, so the last one's socket must be gone first."""
     deadline = time.time() + timeout
-    while time.time() < deadline and not _x11_sockets() <= baseline:
+    while time.time() < deadline and _x11_sockets() - baseline:
         time.sleep(0.5)
 
 
@@ -92,7 +92,7 @@ def _run_case(case, ctx):
     return {"case": case["label"], "screen": f"{width}x{height}", "layers": layers(lines, case["source"]), "restarted": restarted}
 
 
-def an_encode_matches_what_was_asked(server, secret, admin_api, sign_in):
+def an_encode_matches_what_was_asked(server, secret, admin_api):
     bundle = os.path.abspath(os.environ.get("E2E_DESKTOP_BUNDLE") or vd.BUNDLE)
     assert os.path.exists(os.path.join(bundle, "slimm_app")), f"no desktop build at {bundle}"
     cases = [parse_case(c) for c in os.environ.get("E2E_ENCODE_CASES", CASES).split(",") if c]
@@ -120,8 +120,8 @@ def an_encode_matches_what_was_asked(server, secret, admin_api, sign_in):
     return results
 
 
-def run_if_selected(server, secret, admin_api, sign_in):
+def run_if_selected(server, secret, admin_api):
     if "encode readback" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='encode readback' to run it")
         return
-    an_encode_matches_what_was_asked(server, secret, admin_api, sign_in)
+    an_encode_matches_what_was_asked(server, secret, admin_api)

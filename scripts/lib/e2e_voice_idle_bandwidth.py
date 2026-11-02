@@ -112,13 +112,13 @@ def run(server, secret, admin_api, sign_in):
     inputs = _inputs(directory)
     wanted = [a for a in os.environ.get("E2E_IDLE_ARMS", "").split(",") if a]
     results = {}
-    with da.nested_compositor(os.path.join(directory, "kwin.log")) as compositor:
-        with xp.one_listener(server, secret, admin_api, sign_in, inputs["speech"]) as listener:
-            ctx = {"server": server, "secret": secret, "channel": channel, "bundle": bundle,
-                   "directory": directory, "inputs": inputs, "listener": listener,
-                   "compositor": compositor}
-            for choice in CHOICES:
-                for name in CONDITIONS:
+    with (da.nested_compositor(os.path.join(directory, "kwin.log")) as compositor,
+          xp.one_listener(server, secret, admin_api, sign_in, inputs["speech"]) as listener):
+        ctx = {"server": server, "secret": secret, "channel": channel, "bundle": bundle,
+               "directory": directory, "inputs": inputs, "listener": listener,
+               "compositor": compositor}
+        for choice in CHOICES:
+            for name in CONDITIONS:
                     if wanted and f"{choice}-{name}" not in wanted:
                         continue
                     results[f"{choice}-{name}"] = _condition(name, choice, ctx)
