@@ -40,7 +40,6 @@ mixin VoiceSessionMicRecovery {
   Timer? _senderPoll;
   Timer? _captureProbe;
   final _captureProgress = CaptureProgress();
-  bool _captureStalled = false;
   String? _inputSignature;
 
   /// Whether the mic is healthy, being brought back, or given up on.
@@ -117,39 +116,7 @@ mixin VoiceSessionMicRecovery {
     _micLevels = _gate.readings.listen(_observeGateReading);
   }
 
-  bool _gateStallLogged = false;
-
-  /// The gate read the floor; the sender's own level decides whether that is
-  /// a dead capture or a gate that is not processing, which a restart cannot cure.
-  Future<void> _onGateSilent() async {
-    double? sent;
-    try {
-      sent = await _mic.senderLevelDb();
-    } on Object {
-      sent = null;
-    }
-    if (!_captureStalled && sent != null && sent > kInputFloorDb + 1) {
-      if (!_gateStallLogged) {
-        _gateStallLogged = true;
-        _logMic(
-          'The input gate reads silence but the microphone is sending; '
-          'reinstalling the gate instead of restarting the capture',
-          level: LogLevel.warning,
-        );
-      }
-      _micWatchdog.refundRestart();
-      unawaited(_applyInputGate());
-      return;
-    }
-    _logMic(
-      'Microphone is sending silence; restarting the capture',
-      level: LogLevel.warning,
-    );
-    unawaited(_restartMicCapture('silent'));
-  }
-
-  /// Strong suppression turns a quiet room into near-silence, which read as a
-  /// dead mic and restarted the capture every 30-60 s; it proves nothing either way.
+  /// Strong suppression turns a quiet room into near-silence, so its readings say nothing about the mic.
   void _observeGateReading(InputGateReading reading) {
     if (!reading.strongActive) _observeMicLevel(reading.levelDb);
   }
@@ -176,11 +143,10 @@ mixin VoiceSessionMicRecovery {
   /// A new capture counts from its own first reading, and gets a grace to start.
   void _forgetCaptureProgress() {
     _captureProgress.reset();
-    _captureStalled = false;
   }
 
-  /// Reads the media source's sample counter on its own clock, because Strong
-  /// pauses the level watchdog and a stale sender level cannot tell a stall.
+  /// Reads the media source's sample counter on its own clock: the only sign
+  /// of life, whatever the level says. A host that reports none is never restarted.
   Future<void> _probeCapture() async {
     final active =
         _state == VoiceSessionState.connected && _micWanted && _mic.open;
@@ -197,9 +163,10 @@ mixin VoiceSessionMicRecovery {
     if (_state != VoiceSessionState.connected || !_micWanted || !_mic.open) {
       return;
     }
-    final advanced = _captureProgress.advanced(seconds);
-    _captureStalled = advanced == false;
-    _micWatchdog.observeProgress(advancing: advanced, active: true);
+    _micWatchdog.observeProgress(
+      advancing: _captureProgress.advanced(seconds),
+      active: true,
+    );
   }
 
   Future<void> _disposeMicRecovery() async {

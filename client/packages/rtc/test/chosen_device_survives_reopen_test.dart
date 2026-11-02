@@ -27,8 +27,12 @@ class _Mic implements MicPort {
   @override
   Future<double?> senderLevelDb() async => null;
 
+  /// The capture's sample counter stops moving while this is set.
+  bool frozen = false;
+  double _counter = 0;
+
   @override
-  Future<double?> capturedSeconds() async => null;
+  Future<double?> capturedSeconds() async => frozen ? _counter : _counter += 1;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     if (enabled) opened.add(options?.deviceId);

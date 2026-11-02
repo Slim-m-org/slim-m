@@ -41,10 +41,8 @@ class _Mic extends Fake implements MicPort {
   double _counter = 0;
 
   @override
-  Future<double?> senderLevelDb() async => level;
-
-  @override
-  Future<double?> capturedSeconds() async => null;
+  Future<double?> capturedSeconds() async =>
+      !readable ? null : (moving ? _counter += 1 : _counter);
 }
 
 class _Rig {

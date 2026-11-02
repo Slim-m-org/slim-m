@@ -147,6 +147,12 @@ ScreenShareFit fitScreenShare(
   );
 }
 
+ScreenShareResolution _tierWithin(int height) =>
+    ScreenShareResolution.values.lastWhere(
+      (r) => r.height <= height,
+      orElse: () => ScreenShareResolution.values.first,
+    );
+
 /// [fitScreenShare] for a measured [size], or for the chosen tier itself when no first frame arrived.
 ///
 /// The space ceiling still has to hold when the measurement times out, or a late Wayland frame would let a share past it.

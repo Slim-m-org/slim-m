@@ -217,12 +217,9 @@ class MicStallWatchdog {
   final void Function()? onQuiet;
   final DateTime Function() _now;
   bool _gaveUp = false;
-  bool _gaveUpOnStall = false;
-  bool _lastSpentOnStall = false;
-  int _stallRestarts = 0;
+  bool _quietNoted = false;
 
-  DateTime? _silentSince;
-  DateTime? _liveSince;
+  DateTime? _quietSince;
   DateTime? _stalledSince;
   DateTime? _movingSince;
   DateTime? _nextAllowed;
@@ -230,31 +227,21 @@ class MicStallWatchdog {
 
   /// Diagnostics only: [active] is false while muted, closed or out of a call.
   void observe(double levelDb, {required bool active}) {
-    if (!active) return reset();
-    final now = _now();
-    if (levelDb > kInputFloorDb + 1) {
-      _silentSince = null;
-      final since = _liveSince ??= now;
-      if (now.difference(since) < timing.recoveredAfter) return;
-      _restarts = 0;
-      _stallRestarts = 0;
-      _nextAllowed = null;
-      if (_gaveUp) {
-        _gaveUp = false;
-        _gaveUpOnStall = false;
-        onRecovered?.call();
-      }
+    if (!active || levelDb > kInputFloorDb + 1) {
+      _quietSince = null;
+      _quietNoted = false;
       return;
     }
-    _liveSince = null;
-    final since = _silentSince ??= now;
-    if (now.difference(since) < timing.silence) return;
-    if (_spendRestart(now)) _silentSince = null;
+    final since = _quietSince ??= _now();
+    if (_quietNoted || _now().difference(since) < timing.quietNote) return;
+    _quietNoted = true;
+    onQuiet?.call();
   }
 
-  /// Whether the capture's sample counter moved, which a level cannot say under
-  /// Strong. A stall past [MicRecoveryTiming.captureStall] spends the same
-  /// restart budget; null means no verdict this time.
+  /// Whether the capture's sample counter moved, which a level cannot say. A
+  /// stall past [MicRecoveryTiming.captureStall] spends the restart budget;
+  /// null means no verdict this time, and a host that never gives one is
+  /// never restarted.
   void observeProgress({required bool? advancing, required bool active}) {
     if (!active) {
       _stalledSince = null;
@@ -271,69 +258,45 @@ class MicStallWatchdog {
     _movingSince = null;
     final since = _stalledSince ??= now;
     if (now.difference(since) < timing.captureStall) return;
-    if (_spendRestart(now, onStall: true)) _stalledSince = null;
+    if (_spendRestart(now)) _stalledSince = null;
   }
 
-  /// A moving counter only vouches for restarts a stall spent; a mic that reads
-  /// digital silence while its counter advances is the level watchdog's case.
   void _refillAfterMoving(DateTime now) {
     final since = _movingSince ??= now;
     if (now.difference(since) < timing.recoveredAfter) return;
-    _restarts -= _stallRestarts;
-    _stallRestarts = 0;
+    _restarts = 0;
     _nextAllowed = null;
-    if (_gaveUp && _gaveUpOnStall) {
+    if (_gaveUp) {
       _gaveUp = false;
-      _gaveUpOnStall = false;
       onRecovered?.call();
     }
   }
 
   /// True when a restart was asked for.
-  bool _spendRestart(DateTime now, {bool onStall = false}) {
+  bool _spendRestart(DateTime now) {
     final allowed = _nextAllowed;
     if (_restarts >= timing.maxRestarts) {
       if (!_gaveUp) {
         _gaveUp = true;
-        _gaveUpOnStall = onStall;
         onGaveUp?.call();
       }
       return false;
     }
     if (allowed != null && now.isBefore(allowed)) return false;
     _restarts++;
-    _lastSpentOnStall = onStall;
-    if (onStall) _stallRestarts++;
-    _nextAllowed = now.add(timing.silentCooldown * _restarts);
-    onSilent();
+    _nextAllowed = now.add(timing.restartCooldown * _restarts);
+    onStalled();
     return true;
   }
 
-  /// A reading that proves nothing (Strong zeroes a quiet room): forgets the
-  /// silence so far without refilling the restart budget.
-  void pause() {
-    _silentSince = null;
-    _liveSince = null;
-  }
-
-  /// The silence just reported was the input gate's, not the capture's: gives back that
-  /// restart so a stalled gate cannot spend, or refill, the budget for a truly dead mic.
-  void refundRestart() {
-    if (_restarts > 0) _restarts--;
-    if (_lastSpentOnStall && _stallRestarts > 0) _stallRestarts--;
-    _nextAllowed = null;
-  }
-
   void reset() {
-    _silentSince = null;
-    _liveSince = null;
+    _quietSince = null;
+    _quietNoted = false;
     _stalledSince = null;
     _movingSince = null;
     _nextAllowed = null;
     _restarts = 0;
-    _stallRestarts = 0;
     _gaveUp = false;
-    _gaveUpOnStall = false;
   }
 }
 

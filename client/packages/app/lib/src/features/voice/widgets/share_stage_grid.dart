@@ -57,6 +57,10 @@ Widget shareStripQuality(
   onHold: hold,
 );
 
+/// How wide the sharer's own preview draws, beside the pane it sits in.
+const double localSharePreviewWidth = 320;
+const double localSharePreviewCompactWidth = 200;
+
 /// One share's stage tile, with the opt-out and focus controls bound to it.
 /// The sharer's own share is a small centred preview, never the full stage.
 Widget shareStageTile(

@@ -41,9 +41,6 @@ class _FakeMic implements MicPort {
       !counterReadable ? null : (frozen ? _counter : _counter += 1);
 
   @override
-  Future<double?> capturedSeconds() async => null;
-
-  @override
   bool get open => published && !muted;
 
   @override

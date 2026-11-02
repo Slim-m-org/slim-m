@@ -176,21 +176,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DockHintAnchor(
-          target: DockHintTarget.mic,
-          enabled: widget.hints && listenOnly == null,
-          child: MicOptionsMenu(
-            showCaret: micCaret,
-            extraOptions: widget.menuExtras,
-            destructive: micCallDestructive(ref, voice, listenOnly),
-            child: MicCallButton(
-              voice: voice,
-              listenOnly: listenOnly,
-              holdOpensOptions: !micCaret,
-              controller: widget.controller,
-            ),
-          ),
-        ),
+        _micGroup(voice, listenOnly, micCaret: micCaret),
         const SizedBox(width: AppSpacing.s8),
         _deafenButton(voice),
         const SizedBox(width: AppSpacing.s8),

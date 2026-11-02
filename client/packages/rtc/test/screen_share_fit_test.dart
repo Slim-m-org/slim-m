@@ -66,6 +66,55 @@ void main() {
     expect(fit.quality, ScreenShareQuality.standard);
   });
 
+  group('when capture already scaled the screen to the tier', () {
+    const p1080 = ScreenShareQuality.standard;
+
+    test('an ultrawide keeps the 1080p tier at its own aspect', () {
+      final fit = fitScreenShare(p1080, sourceWidth: 1920, sourceHeight: 804);
+      expect(fit.quality, p1080);
+      expect((fit.width, fit.height), (1920, 804));
+    });
+
+    test('a super ultrawide keeps the 1080p tier', () {
+      final fit = fitScreenShare(p1080, sourceWidth: 1920, sourceHeight: 406);
+      expect(fit.quality, p1080);
+      expect((fit.width, fit.height), (1920, 406));
+    });
+
+    test('a 16:10 screen scaled into the 1440p box declares its own size', () {
+      final fit = fitScreenShare(
+        const ScreenShareQuality(
+            ScreenShareResolution.p1440, ScreenShareFps.fps30),
+        sourceWidth: 2304,
+        sourceHeight: 1440,
+      );
+      expect(fit.quality.resolution, ScreenShareResolution.p1440);
+      expect((fit.width, fit.height), (2304, 1440));
+    });
+
+    test('a scaled 4K screen keeps the 1080p tier', () {
+      final fit = fitScreenShare(p1080, sourceWidth: 1920, sourceHeight: 1080);
+      expect(fit.quality, p1080);
+      expect((fit.width, fit.height), (1920, 1080));
+    });
+
+    test('the space ceiling still lowers an ultrawide', () {
+      final fit = fitScreenShare(
+        _p2160,
+        sourceWidth: 1920,
+        sourceHeight: 804,
+        maxHeight: 1080,
+      );
+      expect(fit.quality.resolution, ScreenShareResolution.p1080);
+      expect((fit.width, fit.height), (1920, 804));
+    });
+
+    test('a narrow source below the tier width still drops a tier', () {
+      final fit = fitScreenShare(p1080, sourceWidth: 1280, sourceHeight: 600);
+      expect(fit.quality.resolution, ScreenShareResolution.p720);
+    });
+  });
+
   group('when the first frame never arrives', () {
     test('the space ceiling still lowers the tier and its bitrate', () {
       final fit = fitMeasured(_p2160, null, maxHeight: 1080);
