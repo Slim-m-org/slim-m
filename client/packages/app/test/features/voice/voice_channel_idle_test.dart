@@ -198,6 +198,54 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('an older call whose person rejoined at the very end draws', (
+    tester,
+  ) async {
+    final start = DateTime(2026, 10, 12, 21, 4).millisecondsSinceEpoch;
+    final older = api.VoiceCall(
+      startedAt: start,
+      endedAt: start + 91 * _min,
+      events: [
+        api.VoiceCallEvent(
+          at: start,
+          userId: 'kiki',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        api.VoiceCallEvent(
+          at: start + 2 * _min,
+          userId: 'nick',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        api.VoiceCallEvent(
+          at: start + 91 * _min,
+          userId: 'kiki',
+          kind: api.VoiceCallEventKind.left,
+        ),
+        api.VoiceCallEvent(
+          at: start + 91 * _min,
+          userId: 'jelly',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+      ],
+      canvas: const [],
+    );
+    await _pump(
+      tester,
+      onJoin: () {},
+      history: api.VoiceCallHistory(
+        retentionDays: 30,
+        canvasObjectCount: 3,
+        calls: [_history().calls.first, older],
+      ),
+    );
+    await tester.tap(find.bySemanticsLabel(RegExp('^Call on .*, 1 h 31')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final nick = tester.getTopLeft(find.text('Nick').first);
+    final kiki = tester.getTopLeft(find.text('Kiki').first);
+    expect(nick.dx, kiki.dx);
+  });
+
   testWidgets('the last call timeline labels never overlap in a narrow pane', (
     tester,
   ) async {
