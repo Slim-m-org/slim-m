@@ -4,8 +4,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/widgets/status_banner.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../voice/voice_controller_harness.dart';
@@ -52,12 +52,7 @@ void main() {
 
     expect(find.text('The connection to the call dropped.'), findsOneWidget);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AppErrorState),
-        matching: find.text('Retry'),
-      ),
-    );
+    await tester.tap(find.text('Retry'));
     await tester.pump();
 
     expect(controller.joins, ['c1']);
@@ -72,7 +67,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(AppErrorState), findsNothing);
+    expect(find.byType(StatusBanner), findsNothing);
   });
 
   testWidgets('a failure in some other channel is not this canvas\'s', (
@@ -87,6 +82,6 @@ void main() {
       ),
     );
 
-    expect(find.byType(AppErrorState), findsNothing);
+    expect(find.byType(StatusBanner), findsNothing);
   });
 }

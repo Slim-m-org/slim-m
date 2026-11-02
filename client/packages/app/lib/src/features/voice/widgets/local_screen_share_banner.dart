@@ -7,18 +7,20 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/status_banner.dart';
+
 /// Says a share is requested but not yet live, which a bare spinner on the
 /// share button cannot. `info`, never accent: nothing is being shared yet.
 class LocalScreenSharePendingBanner extends StatelessWidget {
   const LocalScreenSharePendingBanner({super.key});
 
   @override
-  Widget build(BuildContext context) => const AppCallout(
-    tone: AppCalloutTone.info,
+  Widget build(BuildContext context) => const StatusBanner(
+    sticky: true,
     icon: AppIcons.screenShare,
-    child: Text(
-      'Waiting for you to start the broadcast. Tap the share button to '
-      'cancel.',
-    ),
+    message:
+        'Waiting for you to start the broadcast. Tap the share button to '
+        'cancel.',
+    margin: EdgeInsets.only(top: AppSpacing.s12),
   );
 }

@@ -16,6 +16,8 @@ import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_c
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/providers/toasts.dart';
+import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -219,6 +221,19 @@ void main() {
     });
   });
 
+  test('opening the overlay says so in one toast and no banner', () {
+    fakeAsync((async) {
+      final rig = _Rig();
+      async.flushMicrotasks();
+      final toasts = rig.container.read(toastsProvider);
+      expect(toasts.map((t) => t.message), [
+        'Viewers can draw on your screen.',
+      ]);
+      expect(toasts.single.severity, AppToastSeverity.info);
+      async.elapse(ToastsController.defaultDuration);
+    });
+  });
+
   test('stopping the share closes the overlay and withdraws consent', () {
     fakeAsync((async) {
       final rig = _Rig();
@@ -231,12 +246,14 @@ void main() {
     });
   });
 
-  test('turning it off from the indicator closes the overlay', () {
+  test('turning the setting off closes the overlay', () {
     fakeAsync((async) {
       final rig = _Rig();
       async.flushMicrotasks();
       unawaited(
-        rig.container.read(screenOverlayControllerProvider.notifier).turnOff(),
+        rig.container
+            .read(voiceSettingsControllerProvider.notifier)
+            .setScreenShareAllowAnnotations(false),
       );
       async.flushMicrotasks();
       expect(rig.active, isFalse);

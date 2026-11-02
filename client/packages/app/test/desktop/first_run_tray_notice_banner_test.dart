@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/first_run_tray_notice.dart';
 import 'package:slimm_app/src/desktop/first_run_tray_notice_banner.dart';
+import 'package:slimm_app/src/widgets/status_banner.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 const _trayCopy = 'still running in the tray';
@@ -42,7 +43,7 @@ void main() {
 
     expect(find.textContaining(_trayCopy), findsNothing);
     expect(find.textContaining(_taskbarCopy), findsNothing);
-    expect(find.byType(AppCallout), findsNothing);
+    expect(find.byType(StatusBanner), findsNothing);
   });
 
   testWidgets(

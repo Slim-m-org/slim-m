@@ -180,14 +180,13 @@ void main() {
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
 
-    expect(find.byType(AppErrorState), findsOneWidget);
     expect(
       find.text('The canvas is not available in this channel.'),
       findsOneWidget,
     );
     expect(
-      tester.widget<AppErrorState>(find.byType(AppErrorState)).onRetry,
-      isNull,
+      find.text('Retry'),
+      findsNothing,
       reason: 'a permission denial would just fail the same way again',
     );
   });
@@ -229,7 +228,7 @@ void main() {
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
 
-    expect(find.byType(AppCallout), findsOneWidget);
+    expect(find.textContaining('Zoom in to see it'), findsOneWidget);
   });
 
   /// Opening the canvas used to fire three requests: one against the
