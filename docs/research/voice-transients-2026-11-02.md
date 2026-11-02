@@ -102,13 +102,34 @@ With auto gain off the same chain takes it 2.3 dB down, the lip smack twice as f
 Speech costs 2.2 dB for turning auto gain off at this input level; the 2026-10-28 P5 measurement found up to 12 dB at a quiet input, so the chain has to level after suppression when auto gain goes.
 Word onsets clipped 1 to 2 of 10 in every arm, no worse than the Standard arm.
 
-## What to change
+## What changed in v121
 
-- The launch fix ships in v121 (`fix(voice): apply the saved noise suppression choice on launch`).
-- The scenario is the regression test for the rest: once the Strong arm is measured with rnnoise running, its gap-event changes become the ratchet, with the recorded corpus as the fixture.
-- Auto gain under Strong is decided by the `strong-agc-off` arm, not by argument: if quiet mouth sounds are removed 10 dB or more deeper with it off and speech level is held by the chain's own dynamics, Strong should turn it off and level after suppression; if not, leave it.
+- The launch fix (`fix(voice): apply the saved noise suppression choice on launch`).
+- Strong and Strongest open the capture with libwebrtc's auto gain off and turn on a leveler in the chain's dynamics stage (flutter_webrtc fork 5697ace, `VoiceDynamics`), decided by the `strong-agc-off` arm above.
+  The leveler lifts speech towards -20 dBFS by at most 12 dB, adapts only after five consecutive frames the suppressor is at least 80% sure are speech, up at 2 dB/s and down at 10 dB/s, and applies the gain the voice earned to everything else, so a sound in a pause can never come out louder than the voice would.
+  A Strong switch mid-call reopens the capture once for it; a member who turned auto gain off already is not reopened; hosts without the native chain keep auto gain.
+  Decision 0103 records it.
+- The scenario is the regression test: the Strong arms must send no gap event louder than it went in (1 dB of energy, 4 dB on the loudest frame, which reads 2 to 3 dB either way on a sharp onset from alignment alone) and every arm must hold speech within 3 dB.
+
+The third run (the same tree plus the leveler, fork 5697ace) confirms the hand-over on the real client:
+
+| arm | speech | hum floor | chew gap | smack gap | swallow gap | breath gap | bark gap | onsets clipped |
+|---|---|---|---|---|---|---|---|---|
+| standard (libwebrtc only) | +1.1 | -21.7 | +3.2 | -1.9 | -11.8 | -7.6 | +1.6 | 2/10 |
+| strong (auto gain off, leveler on) | -1.2 | -75.2 | -2.3 | -7.2 | -76.7 | -83.1 | -1.1 | 2/11 |
+| strong, auto gain off (same chain) | -1.3 | -74.8 | -2.9 | -5.8 | -76.2 | -82.6 | -1.1 | 5/10 |
+| strongest | -3.2 | -74.8 | -2.7 | -34.7 | -76.2 | -82.5 | -3.0 | 7/11 |
+
+Strong now reads like the auto-gain-off arm on every event.
+Speech sits 1.2 dB under what was sent because piper is already at the leveler's -20 dBFS target, so there is nothing to lift; the 2 dB it had with auto gain on was auto gain pushing already-loud speech further.
+Strongest costs 3.2 dB of speech and clips 7 of 11 word starts on this corpus, DeepFilterNet's known trade-off (`deepfilternet-evaluation.md`), so it is not a default arm of the scenario and has its own card.
+
+## What is left
+
 - Loud mouth sounds at the microphone are a model limit.
   rnnoise and DeepFilterNet both read them as voice.
   A card covers evaluating a newer small model trained on the DNS mouth-noise categories; nothing in the gate or the dynamics can fix it, and a stricter gate would clip word starts.
 - The owner's own microphone is the missing fixture.
   A 60 second raw recording (room tone, talking, chewing, a swallow, typing) from the headset he uses would replace the freesound previews with the real thing and can be added to the corpus folder as `chew-owner.wav` and friends without committing it.
+  A card covers recording such a sample from Settings so friends' machines can supply them too.
+- The Advanced card's "Automatic gain" row still reads as if it applied under Strong; its description should say the chain levels instead while Strong is the effective choice.

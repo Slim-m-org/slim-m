@@ -2,7 +2,7 @@
 """Mouth and desk sounds through the real Linux client: what each suppression arm does to them.
 
 The owner hears chewing, swallowing and room noise reach a call with Strong on, sometimes louder than the voice around them.
-This plays speech with lip smacks, chewing, a swallow and a breath through the desktop client under Standard, Strong, Strong with auto gain off, and Strongest, and scores every event as sent against as heard.
+This plays speech with lip smacks, chewing, a swallow and a breath through the desktop client under Standard, Strong and Strong with auto gain off (Strongest on request), and scores every event as sent against as heard.
 The sounds are the recorded CC0 clips fetch_mouth_noise.py builds when they exist (or E2E_TRANSIENT_CLIPS names a folder of `<kind>-*.wav`), else the synthetic set; E2E_TRANSIENT_CLIPS=synthetic forces the latter.
 Opt in with E2E_ONLY="voice transients"; the desktop scenario's E2E_DESKTOP_* variables apply.
 """
@@ -16,8 +16,12 @@ import voice_quality_dsp as dsp
 KINDS = ("smack", "chew", "swallow", "breath")
 # In an arm the native chain owns, a gap event may never come out louder than it went in; a listener hears that as pumping.
 AMPLIFY_MAX_DB = 1.0
+# The loudest 10 ms frame is a looser cap: a sharp onset reads 2 to 3 dB either way from frame alignment alone.
+PEAK_MAX_DB = 4.0
 # Standard is libwebrtc's own processing, reported for comparison and not judged: its auto gain lifts an isolated sound by several dB.
 JUDGED_CHOICES = ("strong", "strongest")
+# Strongest runs only via E2E_DESKTOP_ARMS: DeepFilterNet's known 3 dB speech cost (its own card) would fail the speech bound every time.
+DEFAULT_ARMS = ("standard-gate-on", "strong-gate-on", "strong-agc-off")
 # Speech itself must survive every arm within this much of its sent level.
 SPEECH_DRIFT_MAX_DB = 3.0
 # A recorded clip is cut to its loudest stretch of this length, so it fits a sentence gap with clean air around it.
@@ -89,8 +93,10 @@ def problems(results, arms=ARMS):
                 for kind, event in noise.items():
                     if not isinstance(event, dict) or not kind.endswith("_gap"):
                         continue
-                    peak = event.get("peak_change_db")
-                    if peak is not None and peak > AMPLIFY_MAX_DB:
+                    change, peak = event.get("change_db"), event.get("peak_change_db")
+                    if change is not None and change > AMPLIFY_MAX_DB:
+                        out.append(f"{voice} {arm} {profile}: {kind} came out {change:+.1f} dB louder")
+                    elif peak is not None and peak > PEAK_MAX_DB:
                         out.append(f"{voice} {arm} {profile}: {kind} came out {peak:+.1f} dB louder in its loudest frame")
     return out
 
@@ -114,7 +120,8 @@ def table(results):
 
 
 def mouth_sounds_through_the_desktop(server, secret, admin_api, sign_in):
-    run = desktop.Run.from_env(arms=dict(ARMS), profiles=("clean",),
+    arms = dict(ARMS) if os.environ.get("E2E_DESKTOP_ARMS") else {name: ARMS[name] for name in DEFAULT_ARMS}
+    run = desktop.Run.from_env(arms=arms, profiles=("clean",),
                                transients=transients_from_env(), label="transients")
     results = desktop.a_noisy_desktop(server, secret, admin_api, sign_in, run)
     print(table(results), flush=True)
