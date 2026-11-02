@@ -20,9 +20,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = tool);
   }
 
-  /// Escape with a drawing tool armed: drop a half-drawn stroke or shape first, then put the tool down to Pan.
+  /// Escape with a drawing tool armed: drop a half-drawn stroke or shape, else close a docked thread, else put the tool down to Pan.
   void _onEscapeTool() {
     if (_gestureController.cancelDrawing()) return;
+    if (_threadPaneDocked) return _closeThreadPane();
     _onToolChanged(CanvasTool.pan);
   }
 

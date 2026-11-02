@@ -37,6 +37,7 @@ Widget _pane(CanvasDocument document, {required String? error}) =>
               canManage: false,
               document: document,
               onClear: () async {},
+              onAddImageFile: () {},
               onRecenter: () {},
               onBringIntoBoard: () {},
               error: error,

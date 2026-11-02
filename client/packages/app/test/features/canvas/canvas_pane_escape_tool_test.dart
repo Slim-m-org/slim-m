@@ -10,10 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import 'canvas_pane_harness.dart';
 
 Future<void> _settle(WidgetTester tester) =>
-    tester.pump(const Duration(milliseconds: 500));
+    waitUntil(tester, () => true, reason: 'settling the pane');
 
 bool _active(WidgetTester tester, String label) =>
     tester
@@ -37,7 +38,14 @@ Future<ProviderContainer> _open(
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
   await pumpCanvasPane(tester, container);
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 100)),
+  );
   await _settle(tester);
+  if (!_active(tester, 'Pen')) {
+    await tester.tap(find.bySemanticsLabel('Pen'));
+    await _settle(tester);
+  }
   return container;
 }
 

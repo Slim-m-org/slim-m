@@ -59,5 +59,6 @@ None of them touched the armed tool, so there was no conflict to design around.
 Decision: Esc puts a drawing tool down, in this order, one step per press.
 First an open popover, menu or editor closes, since each owns focus and consumes the key.
 Then an in-progress pen stroke or shape drag is dropped without being sent, and the tool stays armed.
+Then an open docked thread pane closes, as it did before.
 Then an armed tool other than Pan returns to Pan.
-Only with Pan armed does Esc fall through to deselect, the docked panes, and leaving fullscreen, so one press never does two of these.
+Only with Pan armed does Esc fall through to deselect, the docked member pane, and leaving fullscreen, so one press never does two of these.

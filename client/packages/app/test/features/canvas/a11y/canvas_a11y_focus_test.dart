@@ -98,11 +98,10 @@ void main() {
   a11yTest('the overflow menu items draw a focus ring', (tester) async {
     final rig = await pumpA11yCanvas(tester);
     await openOverflowByKeyboard(tester);
-    await pressKey(tester, LogicalKeyboardKey.arrowDown);
 
     for (final item in [
-      'Show activity log',
       'Enter fullscreen',
+      'Show activity log',
       'People here',
     ]) {
       expect(await arrowTo(tester, item), isTrue, reason: item);
