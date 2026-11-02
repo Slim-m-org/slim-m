@@ -23,6 +23,8 @@ pub struct VoiceSessionRow {
     pub joined_at_ms: i64,
     pub left_at_ms: i64,
     pub alone_ms: i64,
+    /// The member is a bot account, module identities included.
+    pub is_bot: bool,
 }
 
 /// One page of a log: the rows the reader may see, and where to resume.
@@ -83,6 +85,7 @@ fn reply(page: &LogPage) -> Vec<u8> {
                 "joined_at_ms": r.joined_at_ms,
                 "left_at_ms": r.left_at_ms,
                 "alone_ms": r.alone_ms,
+                "is_bot": r.is_bot,
             })
         })
         .collect();

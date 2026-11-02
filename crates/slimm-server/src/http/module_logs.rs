@@ -43,12 +43,14 @@ impl SqliteLogs {
 
 impl LogBackend for SqliteLogs {
     fn voice_sessions(&self, after: i64, limit: i64) -> Result<LogPage, LogError> {
-        let (sessions, visible) = self
+        let (sessions, visible, bots) = self
             .handle
             .block_on(async {
                 let sessions = self.store.closed_voice_sessions_after(after, limit).await?;
                 let visible = self.visible_channels(&sessions).await?;
-                anyhow::Ok((sessions, visible))
+                let members: Vec<UserId> = sessions.iter().map(|s| s.user_id).collect();
+                let bots = self.store.bot_user_ids(&members).await?;
+                anyhow::Ok((sessions, visible, bots))
             })
             .map_err(|_| LogError)?;
         let next = sessions
@@ -65,6 +67,7 @@ impl LogBackend for SqliteLogs {
                     joined_at_ms: s.joined_at,
                     left_at_ms: s.left_at?,
                     alone_ms: s.alone_ms,
+                    is_bot: bots.contains(&s.user_id),
                 })
             })
             .collect();

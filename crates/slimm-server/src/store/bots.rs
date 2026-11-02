@@ -24,6 +24,10 @@
 //! A third thing lives here now: **a bot's managed role**. See
 //! `docs/decisions/0028-bot-accounts.md`.
 
+use std::collections::HashSet;
+
+use sqlx::{QueryBuilder, Row};
+
 use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{DeviceId, RoleId, SessionId, UserId};
 use crate::permissions::Permissions;
@@ -399,6 +403,23 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|r| r.is_bot != 0).unwrap_or(false))
+    }
+
+    /// Which of `users` are bots, in one query; ids that are not bots or do not exist are left out.
+    pub async fn bot_user_ids(&self, users: &[UserId]) -> anyhow::Result<HashSet<UserId>> {
+        if users.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let mut builder = QueryBuilder::new("SELECT id FROM users WHERE is_bot = 1 AND id IN (");
+        let mut separated = builder.separated(", ");
+        for user in users {
+            separated.push_bind(*user);
+        }
+        builder.push(")");
+        let rows = builder.build().fetch_all(&self.pool).await?;
+        rows.iter()
+            .map(|row| Ok(row.try_get::<UserId, _>("id")?))
+            .collect()
     }
 
     /// Whether this user is a bot or a webhook, i.e. posts on its own rather
