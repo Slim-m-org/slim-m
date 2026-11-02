@@ -55,10 +55,8 @@ class _CallMomentsViewState extends ConsumerState<CallMomentsView> {
         if (hidden > 0)
           Align(
             alignment: Alignment.centerLeft,
-            child: AppButton(
+            child: _FoldLink(
               label: '$hidden more',
-              variant: AppButtonVariant.ghost,
-              size: AppButtonSize.sm,
               onPressed: () => setState(() => _expanded = true),
             ),
           ),
@@ -68,6 +66,55 @@ class _CallMomentsViewState extends ConsumerState<CallMomentsView> {
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
       ],
+    );
+  }
+}
+
+/// The "N more" link: a ghost button's 12 dp of side padding pushed it off the list's left edge.
+class _FoldLink extends StatefulWidget {
+  const _FoldLink({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  State<_FoldLink> createState() => _FoldLinkState();
+}
+
+class _FoldLinkState extends State<_FoldLink> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final touch = AppTouchTargets.of(context);
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label: widget.label,
+      child: InkWell(
+        onTap: widget.onPressed,
+        focusColor: Colors.transparent,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: touch ? AppSizes.rowTouch : AppSizes.rowPointer,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: 1,
+            child: Text(
+              widget.label,
+              style: AppText.ui.copyWith(
+                color: tokens.accent,
+                fontWeight: AppWeights.medium,
+                decoration: _focused ? TextDecoration.underline : null,
+                decorationColor: tokens.accent,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -118,7 +165,6 @@ class _MomentRow extends ConsumerWidget {
           if (opensCanvas)
             AppButton(
               label: 'Open canvas',
-              variant: AppButtonVariant.ghost,
               size: AppButtonSize.sm,
               onPressed: onOpenCanvas,
             ),
