@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A microphone the watchdog gave up on is swapped for another one for this
-/// call only, each candidate once, and the device lines reach the log.
+/// A microphone that vanished from under the call is swapped for another one
+/// for this call only, each candidate once, and the device lines reach the log.
+/// Silence alone never switches anything.
 library;
 
 import 'dart:async';
@@ -22,30 +23,45 @@ class _Mic implements MicPort {
   bool published = false;
   bool muted = true;
   final restartDevices = <String?>[];
+  final _lost = StreamController<void>.broadcast();
   String? current;
+  double _counter = 0;
 
-  /// Device id ('' for the system default) to the level it sends.
-  final levels = <String, double>{};
+  /// Device ids ('' for the system default) that cannot be opened.
+  final closed = <String>{};
+
+  /// Device ids whose capture opens but never moves.
+  final stalled = <String>{};
+
+  /// What every device sends, exact zeros included.
+  double level = -30;
 
   @override
   bool get hasTrack => published;
   @override
   bool get open => published && !muted;
   @override
-  Future<double?> senderLevelDb() async => levels[current ?? ''] ?? -30;
+  Future<double?> senderLevelDb() async => level;
 
   @override
-  Future<double?> capturedSeconds() async => null;
+  Future<double?> capturedSeconds() async =>
+      stalled.contains(current ?? '') ? _counter : _counter += 1;
+
+  void _open(String? id) {
+    if (closed.contains(id ?? '')) throw StateError('cannot open $id');
+    current = id;
+  }
+
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
+    if (enabled) _open(options?.deviceId);
     published = true;
     muted = !enabled;
-    current = options?.deviceId;
   }
 
   @override
   Future<void> restart(lk.AudioCaptureOptions options) async {
-    current = options.deviceId;
+    _open(options.deviceId);
     restartDevices.add(options.deviceId);
   }
 
@@ -56,11 +72,16 @@ class _Mic implements MicPort {
   @override
   void adoptOptions(lk.AudioCaptureOptions options) {}
   @override
-  Stream<void> get lost => const Stream.empty();
+  Stream<void> get lost => _lost.stream;
   @override
   void onRoomEvent(lk.RoomEvent event) {}
   @override
   Future<void> discard() async => published = false;
+
+  void end() {
+    published = false;
+    _lost.add(null);
+  }
 }
 
 class _Devices implements AudioDevices {
@@ -83,9 +104,13 @@ class _Devices implements AudioDevices {
 }
 
 const _timing = MicRecoveryTiming(
-  silence: Duration.zero,
-  silentCooldown: Duration.zero,
-  maxSilentRestarts: 1,
+  retryBase: Duration(milliseconds: 10),
+  maxRetryDelay: Duration(milliseconds: 20),
+  maxRetries: 2,
+  quietNote: Duration.zero,
+  captureStall: Duration.zero,
+  restartCooldown: Duration.zero,
+  maxRestarts: 1,
   senderPoll: Duration(seconds: 1),
   fallbackSettle: Duration(seconds: 1),
 );
@@ -106,103 +131,173 @@ class _Rig {
     liveInput: (room, device) async {},
     liveOutput: (room, device) async => outputs.add(device.deviceId),
   );
+
+  /// The device in use is unplugged: gone from the list, its track ended,
+  /// and the ids in [alsoClosed] cannot be reopened either.
+  void unplug(String id, {Set<String> alsoClosed = const {}}) {
+    devices.mics = [
+      for (final d in devices.mics)
+        if (d.id != id) d,
+    ];
+    mic.closed
+      ..add(id)
+      ..addAll(alsoClosed);
+    mic.end();
+  }
 }
 
-/// Joins with the chosen mic [chosen] (null: the system default) and runs until the fallback settles.
-_Rig _run(
+/// Joins with the chosen mic [chosen] (null: the system default), then runs a minute.
+_Rig _join(
   FakeAsync clock, {
   AudioDevice? chosen,
-  Set<String> dead = const {''},
   bool enabled = true,
   AudioDevice? output,
+  _Rig? rig,
 }) {
-  final rig = _Rig();
-  rig.session.micStatuses.listen(rig.statuses.add);
-  rig.session.setMicFallbackEnabled(enabled);
-  for (final id in dead) {
-    rig.mic.levels[id] = kInputFloorDb;
-  }
+  final joined = rig ?? _Rig();
+  joined.session.micStatuses.listen(joined.statuses.add);
+  joined.session.setMicFallbackEnabled(enabled);
   unawaited(() async {
-    await rig.session.selectAudioInputDevice(chosen);
-    await rig.session.selectAudioOutputDevice(output);
-    await rig.session.join(
+    await joined.session.selectAudioInputDevice(chosen);
+    await joined.session.selectAudioOutputDevice(output);
+    await joined.session.join(
       url: 'wss://a.invalid',
       token: 't',
       microphoneEnabled: true,
     );
   }());
   clock.flushMicrotasks();
-  clock.elapse(const Duration(seconds: 60));
-  return rig;
+  clock.elapse(const Duration(seconds: 5));
+  return joined;
 }
 
-void main() {
-  test('a dead chosen mic falls back to the system default first', () {
-    fakeAsync((clock) {
-      final rig = _run(clock, chosen: _usb, dead: {'usb'});
+void _minutes(FakeAsync clock, int minutes) =>
+    clock.elapse(Duration(minutes: minutes));
 
-      expect(rig.mic.restartDevices.last, isNull);
-      expect(rig.session.audioInputInUse, isNull);
+void main() {
+  test('digital silence with a running capture never restarts or switches', () {
+    fakeAsync((clock) {
+      final rig = _Rig();
+      rig.mic.level = kInputFloorDb;
+      _join(clock, chosen: _usb, rig: rig);
+      _minutes(clock, 10);
+
+      expect(rig.mic.restartDevices, isEmpty);
+      expect(rig.session.audioInputInUse, 'usb');
       expect(rig.session.micStatus, MicStatus.ok);
-      expect(rig.session.micFallbackNotice, 'System mic');
+      expect(rig.session.micFallbackNotice, isNull);
+    });
+  });
+
+  test('a capture that stands still is told to the user, never switched', () {
+    fakeAsync((clock) {
+      final rig = _Rig();
+      _join(clock, chosen: _usb, rig: rig);
+      rig.mic.stalled.addAll({'usb', ''});
+      rig.mic.closed.add('usb');
+      _minutes(clock, 10);
+
+      expect(rig.session.micStatus, MicStatus.unavailable);
+      expect(rig.session.audioInputInUse, 'usb');
+      expect(rig.session.micFallbackNotice, isNull);
+      expect(rig.mic.restartDevices.whereType<String>(), isEmpty);
+    });
+  });
+
+  test(
+      'a stalled capture that survives every restart never starts the fallback',
+      () {
+    fakeAsync((clock) {
+      final rig = _join(clock, chosen: _usb);
+      rig.mic.stalled.addAll({'usb', ''});
+      _minutes(clock, 10);
+
+      expect(rig.session.micStatus, MicStatus.unavailable);
+      expect(rig.session.audioInputInUse, 'usb');
+      expect(rig.session.micFallbackNotice, isNull);
+      expect(rig.logs, isNot(contains(startsWith('Switching microphone'))));
+    });
+  });
+
+  test(
+      'an unplugged mic whose default will not open falls to the next real mic',
+      () {
+    fakeAsync((clock) {
+      final rig = _join(clock, chosen: _usb);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
+
+      expect(rig.session.audioInputInUse, 'desk');
+      expect(rig.session.micFallbackNotice, 'Desk mic');
+      expect(rig.session.micStatus, MicStatus.ok);
       expect(
         rig.logs,
-        contains(
-            'Switching microphone to the system default for this call only'),
+        contains('Switching microphone to Desk mic for this call only'),
       );
     });
   });
 
-  test('a dead default falls to the next real mic, not the virtual one', () {
+  test('a candidate that opens but never captures moves on to the next', () {
     fakeAsync((clock) {
-      final rig = _run(clock, dead: {''});
+      final rig = _join(clock, chosen: _usb);
+      rig.mic.stalled.add('desk');
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
 
-      expect(rig.mic.restartDevices.whereType<String>(), ['usb']);
-      expect(rig.session.audioInputInUse, 'usb');
-      expect(rig.session.micFallbackNotice, 'USB headset');
+      expect(rig.session.audioInputInUse, 'son');
+      expect(rig.logs, contains('Microphone Desk mic is not capturing either'));
+    });
+  });
+
+  test('a silent candidate that captures is kept', () {
+    fakeAsync((clock) {
+      final rig = _join(clock, chosen: _usb);
+      rig.mic.level = kInputFloorDb;
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
+
+      expect(rig.session.audioInputInUse, 'desk');
       expect(rig.session.micStatus, MicStatus.ok);
     });
   });
 
   test('every candidate is tried once and then the mic stays unavailable', () {
     fakeAsync((clock) {
-      final rig = _run(clock, dead: {'', 'usb', 'son', 'desk'});
-      final tried = rig.mic.restartDevices.whereType<String>().toList();
-      clock.elapse(const Duration(minutes: 10));
+      final rig = _join(clock, chosen: _usb);
+      rig.unplug('usb', alsoClosed: {'', 'desk', 'son'});
+      _minutes(clock, 10);
 
-      expect(tried.toSet(), {'usb', 'desk', 'son'});
-      expect(tried.where((id) => id == 'usb'), hasLength(1));
-      expect(
-        rig.mic.restartDevices.whereType<String>(),
-        tried,
-        reason: 'no further restarts once every candidate was tried',
-      );
       expect(rig.session.micStatus, MicStatus.unavailable);
       expect(rig.session.micFailure, MicFailureReason.silent);
       expect(rig.session.micFallbackNotice, isNull);
+      expect(
+        rig.logs.where((l) => l.startsWith('Switching microphone to Desk')),
+        hasLength(1),
+      );
     });
   });
 
-  test('a second failure never goes back to a device already tried', () {
+  test('a second vanished mic never goes back to a device already tried', () {
     fakeAsync((clock) {
-      final rig = _run(clock, dead: {''});
-      expect(rig.session.audioInputInUse, 'usb');
-
-      rig.mic.levels['usb'] = kInputFloorDb;
-      clock.elapse(const Duration(seconds: 60));
-
-      final after = rig.mic.restartDevices.skipWhile((d) => d != 'usb');
-      expect(after, isNot(contains(null)));
+      final rig = _join(clock, chosen: _usb);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
       expect(rig.session.audioInputInUse, 'desk');
-      expect(rig.session.micStatus, MicStatus.ok);
+
+      rig.unplug('desk');
+      _minutes(clock, 1);
+
+      expect(rig.session.audioInputInUse, 'son');
+      expect(rig.mic.restartDevices, isNot(contains('usb')));
     });
   });
 
   test('with the setting off nothing is switched', () {
     fakeAsync((clock) {
-      final rig = _run(clock, enabled: false, dead: {''});
+      final rig = _join(clock, chosen: _usb, enabled: false);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
 
-      expect(rig.mic.restartDevices.whereType<String>(), isEmpty);
       expect(rig.session.audioInputInUse, isNull);
       expect(rig.session.micStatus, MicStatus.unavailable);
       expect(rig.session.micFallbackNotice, isNull);
@@ -217,19 +312,10 @@ void main() {
           AudioDevice(id: 'spk', label: 'Speakers'),
           other
         ];
-      rig.mic.levels[''] = kInputFloorDb;
-      unawaited(() async {
-        await rig.session.selectAudioOutputDevice(other);
-        await rig.session.join(
-          url: 'wss://a.invalid',
-          token: 't',
-          microphoneEnabled: true,
-        );
-      }());
-      clock.flushMicrotasks();
-      clock.elapse(const Duration(seconds: 60));
+      _join(clock, chosen: _usb, output: other, rig: rig);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
 
-      expect(rig.session.audioOutputInUse, isNull);
       expect(rig.logs, contains('Speaker moved back to the system default'));
     });
   });
@@ -242,20 +328,10 @@ void main() {
           AudioDevice(id: 'spk', label: 'Speakers'),
           other
         ];
-      rig.mic.levels['usb'] = kInputFloorDb;
-      unawaited(() async {
-        await rig.session.selectAudioInputDevice(_usb);
-        await rig.session.selectAudioOutputDevice(other);
-        await rig.session.join(
-          url: 'wss://a.invalid',
-          token: 't',
-          microphoneEnabled: true,
-        );
-      }());
-      clock.flushMicrotasks();
-      clock.elapse(const Duration(seconds: 60));
-      expect(rig.session.audioInputInUse, isNull);
-      expect(rig.session.audioOutputInUse, isNull);
+      _join(clock, chosen: _usb, output: other, rig: rig);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
+      expect(rig.session.audioInputInUse, 'desk');
 
       unawaited(rig.session.leave());
       clock.flushMicrotasks();
@@ -268,19 +344,23 @@ void main() {
   test('the fallback is kept through a device change while it is plugged in',
       () {
     fakeAsync((clock) {
-      final rig = _run(clock, chosen: _usb, dead: {'usb'});
-      expect(rig.session.audioInputInUse, isNull);
+      final rig = _join(clock, chosen: _usb);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
+      expect(rig.session.audioInputInUse, 'desk');
 
       rig.devices.changes.add(null);
       clock.elapse(const Duration(seconds: 5));
 
-      expect(rig.session.audioInputInUse, isNull);
+      expect(rig.session.audioInputInUse, 'desk');
     });
   });
 
   test('the devices and the microphone list reach the log', () {
     fakeAsync((clock) {
-      final rig = _run(clock, chosen: _usb, dead: {'usb'});
+      final rig = _join(clock, chosen: _usb);
+      rig.unplug('usb', alsoClosed: {''});
+      _minutes(clock, 1);
 
       expect(
         rig.logs,
@@ -296,14 +376,6 @@ void main() {
         rig.logs.where((l) => l.contains('(usb)') || l.contains('(sys)')),
         isEmpty,
         reason: 'labels are logged, raw device ids are not',
-      );
-      expect(
-        rig.logs.where((l) => l.startsWith('Audio devices (restart: silent)')),
-        isNotEmpty,
-      );
-      expect(
-        rig.logs.where((l) => l.startsWith('Audio devices (gave up)')),
-        isNotEmpty,
       );
       expect(
         rig.logs.where((l) => l.startsWith('Audio devices (fallback)')),

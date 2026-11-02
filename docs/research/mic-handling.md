@@ -703,3 +703,22 @@ libwebrtc fixes these when the capture opens and the fork refuses `setAudioProce
 An unmuted mic restarts at once, a muted one gives its capture back so the next unmute opens with the new filters, and a push-to-talk mic is reopened muted.
 Strong (rnnoise) is independent: it still runs with the built-in suppression off, though the 2026-10-27 measurement says it then leaves steady hiss.
 Not verified: `getAudioProcessingState()` on the fork, a desktop run with the toggles flipped in a real call, and Windows.
+
+## Update 2026-11-02: silence is not a dead microphone
+
+Owner, 2026-11-02: "it changed my mic because I was quiet for awhile ... it believed the mic dropped out or was disconnected but I just didn't say anything, I don't like this behavior at all".
+He uses SteelSeries Sonar, whose own gate sends exact digital zeros while he is silent.
+The level watchdog read 10 s of exact zeros as a dead capture, restarted it up to three times, gave up, and the v119 fallback then switched the call to the next listed device.
+
+Reproduced with the real Linux client in a call: a PipeWire null source producing exact silence as the default input, a second live source beside it.
+The log showed "Microphone is sending silence; restarting the capture", then "still silent after every restart", then "Switching microphone to ... for this call only" and a successful fallback to a real device.
+
+A level cannot tell a dead capture from a quiet owner, because the two are the same bytes.
+The capture's sample counter (`totalSamplesDuration` of the media source) can: it advances while the device delivers frames, whatever those frames hold.
+So the rule is now that a device is alive while its counter advances.
+The automatic restart triggers are a stalled counter, a lost track and a device-change event for the device in use.
+The fallback runs only when recovery cannot reopen the mic and the chosen device is missing from the device list, and it judges a candidate by its counter, not by its level.
+A stalled counter on a device that is still listed ends as "Microphone unavailable, tap to retry", and nothing switches by itself.
+A host that reports no counter gets no automatic restart for a stall; the level never stands in for it.
+The level still feeds one log line after 2 minutes of the floor with an advancing counter, so a tester's export shows it.
+Not verified: that every host reports `totalSamplesDuration` (web and iOS read the sender level today), and the owner's Sonar on Windows.

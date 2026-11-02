@@ -75,8 +75,8 @@ class _Rig {
       roomFactory: ConnectlessRoom.new,
       micPort: mic,
       micRecoveryTiming: const MicRecoveryTiming(
-        silence: Duration(milliseconds: 150),
-        silentCooldown: Duration(milliseconds: 30),
+        quietNote: Duration(milliseconds: 150),
+        restartCooldown: Duration(milliseconds: 30),
       ),
       inputGate: gate,
     );
@@ -167,15 +167,13 @@ void main() {
     expect(rig.gate.rate, InputGateRate.off);
   });
 
-  test('the dead-mic watchdog still restarts a capture reading silence',
-      () async {
+  test('a gate that reads silence never restarts the capture', () async {
     await start(micOn: true, levelDb: kInputFloorDb);
     expect(rig.gate.rate, InputGateRate.slow);
-    final deadline = DateTime.now().add(const Duration(seconds: 5));
-    while (rig.mic.restarts.isEmpty) {
-      if (DateTime.now().isAfter(deadline)) fail('watchdog never fired');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    expect(rig.mic.restarts, isEmpty);
   });
 
   test('a muted silent mic is not mistaken for a dead one', () async {
