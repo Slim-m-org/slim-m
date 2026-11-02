@@ -237,6 +237,38 @@ void main() {
     expect(session.lastStrongNoiseSuppression, isFalse);
   });
 
+  testWidgets('a saved Strong reaches the session on launch when the Space '
+      'defaults to Standard', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.noise_suppression': 'strong',
+    });
+    final session = await _pump(tester);
+    expect(session.lastStrongNoiseSuppression, isNull);
+
+    await _container(
+      tester,
+    ).read(voiceControllerProvider.notifier).input.restoreNoiseSuppression();
+
+    expect(session.lastStrongNoiseSuppression, isTrue);
+    expect(session.lastStrongestNoiseSuppression, isFalse);
+  });
+
+  testWidgets('a saved Strongest reaches the session on launch the same way', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.noise_suppression': 'strongest',
+    });
+    final session = await _pump(tester);
+
+    await _container(
+      tester,
+    ).read(voiceControllerProvider.notifier).input.restoreNoiseSuppression();
+
+    expect(session.lastStrongNoiseSuppression, isTrue);
+    expect(session.lastStrongestNoiseSuppression, isTrue);
+  });
+
   group('the inactive note', () {
     const note = "Strong isn't running on this mic.";
 
