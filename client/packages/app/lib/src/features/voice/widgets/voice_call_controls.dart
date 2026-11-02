@@ -200,6 +200,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             active: voice.screenSharing,
             optionsLabel: 'Screen share options',
             options: shareOptions,
+            menuWidth: deviceMenuWidth,
             showCaret: showCaret,
             child: _shareButton(context, voice, showCaret: showCaret),
           ),
@@ -358,8 +359,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// so a phone's dock keeps a single caret, or none: a compact window opens
   /// them by long press, since its row has no width to spare.
   List<ControlOptionEntry> _shareOptions(BuildContext context) {
-    return [
-      if (widget.voice.screenSharing && _canSwitchSource) ...[
+    final actions = <ControlOptionEntry>[
+      if (widget.voice.screenSharing && _canSwitchSource)
         ControlOption(
           label: 'Switch screen...',
           icon: AppIcons.screenShareSwitch,
@@ -368,16 +369,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
             unawaited(_changeSource(context));
           },
         ),
-        ControlOption(
-          label: 'Stop sharing',
-          icon: AppIcons.screenShareStop,
-          tone: AppMenuItemTone.danger,
-          onSelected: () {
-            if (_shareRequestInFlight) return;
-            unawaited(_share(context));
-          },
-        ),
-      ],
       if (widget.voice.shareAudio != ShareAudio.none)
         ControlOption(
           label: widget.voice.shareAudio == ShareAudio.on
@@ -409,7 +400,23 @@ class _CallControlsState extends ConsumerState<CallControls> {
                 ),
           ),
         ),
+    ];
+    return [
+      ...actions,
+      if (actions.isNotEmpty) const ControlOptionDivider(),
       ...videoQualityOptions(ref),
+      if (widget.voice.screenSharing && _canSwitchSource) ...[
+        const ControlOptionDivider(),
+        ControlOption(
+          label: 'Stop sharing',
+          icon: AppIcons.screenShareStop,
+          tone: AppMenuItemTone.danger,
+          onSelected: () {
+            if (_shareRequestInFlight) return;
+            unawaited(_share(context));
+          },
+        ),
+      ],
     ];
   }
 

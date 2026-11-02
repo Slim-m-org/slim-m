@@ -20,6 +20,7 @@ class ControlOption extends ControlOptionEntry {
     required this.onSelected,
     this.tone = AppMenuItemTone.normal,
     this.selected = false,
+    this.keepOpen = false,
   });
 
   final String label;
@@ -29,6 +30,14 @@ class ControlOption extends ControlOptionEntry {
 
   /// Marks the current value of a pick-one group; [AppMenuItem] adds the check.
   final bool selected;
+
+  /// Leaves the menu open after the pick, for a row that only reveals more rows.
+  final bool keepOpen;
+}
+
+/// A hairline between groups of rows.
+class ControlOptionDivider extends ControlOptionEntry {
+  const ControlOptionDivider();
 }
 
 /// A heading over the rows that follow it, to tell several pick-one groups
@@ -145,6 +154,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       return [AppMenuLabel(entry.heading), ControlSliderRow(group: entry)];
     }
     if (entry is ControlOptionHeading) return [AppMenuLabel(entry.text)];
+    if (entry is ControlOptionDivider) return const [AppMenuDivider()];
     return _itemRows(context, entry as ControlOption, close);
   }
 
@@ -159,7 +169,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       tone: option.tone,
       selected: option.selected,
       onTap: () {
-        close();
+        if (!option.keepOpen) close();
         option.onSelected();
       },
     ),

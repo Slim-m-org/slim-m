@@ -25,28 +25,60 @@ import 'video_quality_labels.dart';
 /// Wide enough for a device name; the default menu width truncates them.
 const deviceMenuWidth = 280.0;
 
+/// A pick-one group under [heading] that shows only its current row and a "more" row until [expanded].
+///
+/// The row that expands keeps the menu open, so the long lists of devices stay out of the way until asked for.
+List<ControlOptionEntry> collapsibleOptions({
+  required String heading,
+  required List<ControlOption> options,
+  required bool expanded,
+  required VoidCallback onToggle,
+}) {
+  if (options.length <= 2) return [ControlOptionHeading(heading), ...options];
+  final current = options.firstWhere(
+    (o) => o.selected,
+    orElse: () => options.first,
+  );
+  return [
+    ControlOptionHeading(heading),
+    if (expanded) ...options else current,
+    ControlOption(
+      label: expanded ? 'Show fewer' : 'Show ${options.length - 1} more',
+      icon: expanded ? AppIcons.chevronUp : AppIcons.chevronDown,
+      keepOpen: true,
+      onSelected: onToggle,
+    ),
+  ];
+}
+
 /// A pick-one list of audio devices under [heading], with the system default first.
 List<ControlOptionEntry> audioDeviceOptions({
   required String heading,
   required List<AudioDevice> devices,
   required String? selectedId,
   required Future<void> Function(AudioDevice?) onPick,
+  required bool expanded,
+  required VoidCallback onToggle,
 }) {
   final resolved = resolveAudioDevice(devices, selectedId);
-  return [
-    ControlOptionHeading(heading),
-    ControlOption(
-      label: 'System default',
-      selected: resolved == null,
-      onSelected: () => unawaited(onPick(null)),
-    ),
-    for (final device in devices)
+  return collapsibleOptions(
+    heading: heading,
+    expanded: expanded,
+    onToggle: onToggle,
+    options: [
       ControlOption(
-        label: device.label.isEmpty ? 'Unnamed device' : device.label,
-        selected: device.id == resolved?.id,
-        onSelected: () => unawaited(onPick(device)),
+        label: 'System default',
+        selected: resolved == null,
+        onSelected: () => unawaited(onPick(null)),
       ),
-  ];
+      for (final device in devices)
+        ControlOption(
+          label: device.label.isEmpty ? 'Unnamed device' : device.label,
+          selected: device.id == resolved?.id,
+          onSelected: () => unawaited(onPick(device)),
+        ),
+    ],
+  );
 }
 
 /// What a pick in the camera menu does.

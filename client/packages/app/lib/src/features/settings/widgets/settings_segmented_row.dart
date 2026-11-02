@@ -60,7 +60,14 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
     );
     final control = AppSegmentedControl.inline(
       semanticLabel: label,
-      options: [for (final c in choices) AppSegmentedOption(label: c.label)],
+      options: [
+        for (final c in choices)
+          AppSegmentedOption(
+            label: c.label,
+            disabled: c.disabledReason != null,
+            disabledReason: c.disabledReason,
+          ),
+      ],
       selectedIndex: choices.indexWhere((c) => c.value == value),
       onSegmentSelected: (i) => onChanged(choices[i].value),
     );
