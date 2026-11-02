@@ -15,7 +15,7 @@ const Color _white = Color(0xFFFFFFFF);
 const Color _black = Color(0xFF000000);
 
 /// Fills its box with [identity]'s profile colour (the raised surface until
-/// the profile resolves) and hands [builder] a legible text colour for it.
+/// the profile resolves) and hands [builder] a legible text colour for it and the fill itself.
 class CallTileBackdrop extends ConsumerWidget {
   const CallTileBackdrop({
     super.key,
@@ -24,7 +24,8 @@ class CallTileBackdrop extends ConsumerWidget {
   });
 
   final String identity;
-  final Widget Function(BuildContext context, Color onBackdrop) builder;
+  final Widget Function(BuildContext context, Color onBackdrop, Color fill)
+  builder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,10 +40,10 @@ class CallTileBackdrop extends ConsumerWidget {
     if (colour == null) {
       return ColoredBox(
         color: tokens.surfaceRaised,
-        child: builder(context, tokens.textPrimary),
+        child: builder(context, tokens.textPrimary, tokens.surfaceRaised),
       );
     }
     final onColour = contrastRatio(colour, _white) >= 4.5 ? _white : _black;
-    return ColoredBox(color: colour, child: builder(context, onColour));
+    return ColoredBox(color: colour, child: builder(context, onColour, colour));
   }
 }
