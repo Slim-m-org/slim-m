@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Strong (rnnoise) and Strongest (DeepFilterNet, with rnnoise beside it) run natively on top of libwebrtc's own suppression, which
 /// stays on throughout: rnnoise alone passes steady hiss and hum that
-/// libwebrtc removes first, so toggling Strong never reopens the capture.
+/// libwebrtc removes first. Toggling Strong reopens the capture only to hand
+/// levelling from libwebrtc's auto gain to the chain's own leveler.
 library;
 
 import 'package:slimm_api/api.dart' show LogLevel;

@@ -127,6 +127,7 @@ class VoiceSession
       osMicBlocked,
       liveInput,
     );
+    _audioSwitching.levelsNatively = () => _levelsNatively;
     _initMicRelease(
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
@@ -199,6 +200,10 @@ class VoiceSession
   /// Reopens the capture when it changed; echo, gain and suppression are fixed at open.
   Future<void> setVoiceProcessing(VoiceProcessing next) =>
       _processing.set(next, inCall: _room != null);
+
+  @override
+  Future<void> _reopenCapture(String reason) =>
+      _processing.reopen(reason, inCall: _room != null);
 
   /// Whether a silent microphone is swapped for another, for this call only.
   void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;

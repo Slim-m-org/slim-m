@@ -129,10 +129,23 @@ mixin VoiceSessionInputGate {
   /// and room noise libwebrtc's own suppressor lets through; [strongest] adds
   /// DeepFilterNet, which costs more CPU.
   void setStrongNoiseSuppression(bool enabled, {bool strongest = false}) {
+    final leveledBefore = _levelsNatively;
     _strong.setStrong(enabled, strongest: strongest);
     _syncGateRate();
     unawaited(_applyInputGate());
+    // The chain takes over levelling from libwebrtc's auto gain, which is fixed when the capture opens.
+    if (_levelsNatively != leveledBefore &&
+        _audioSwitching.processing.autoGainControl) {
+      unawaited(_reopenCapture('strong noise suppression changed'));
+    }
   }
+
+  /// Whether the chain lifts quiet speech itself: whenever a suppressor runs
+  /// natively, since libwebrtc's auto gain ahead of it lifts quiet mouth
+  /// sounds into the band the suppressor keeps.
+  bool get _levelsNatively => _gate.supported && _strong.nativeStrong;
+
+  Future<void> _reopenCapture(String reason);
 
   Future<void> _applyInputGate() => _gate.configure(
         enabled: _gateEnabled,
@@ -140,5 +153,6 @@ mixin VoiceSessionInputGate {
         dynamics: _evenOutLoudSounds,
         strongNoiseSuppression: _strong.nativeStrong,
         strongestNoiseSuppression: _strong.nativeStrongest,
+        levelAfterSuppression: _levelsNatively,
       );
 }

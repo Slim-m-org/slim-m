@@ -32,6 +32,7 @@ class InputGateReading {
     required this.voice,
     this.strongActive = false,
     this.strongestActive = false,
+    this.levelerGainDb = 0.0,
     this.step = kInputGateDisplayInterval,
   });
 
@@ -52,6 +53,10 @@ class InputGateReading {
   /// Whether DeepFilterNet processed the last frame; false with Strongest on
   /// means rnnoise alone is running because the model could not.
   final bool strongestActive;
+
+  /// The lift the chain's own leveler applies in dB, 0 when it is off or
+  /// libwebrtc's auto gain is doing the levelling instead.
+  final double levelerGainDb;
 
   /// The poll interval this reading covers, so consumers that count time
   /// stay right when the rate changes.
@@ -157,14 +162,17 @@ class InputGateMonitor {
       rtc.WebRTC.invokeMethod<Object?, Object?>(method, args);
 
   /// [dynamics] turns on the compressor and limiter that run after the gate;
-  /// [strongNoiseSuppression] the rnnoise stage that runs before it, and
-  /// [strongestNoiseSuppression] DeepFilterNet beside it.
+  /// [strongNoiseSuppression] the rnnoise stage that runs before it,
+  /// [strongestNoiseSuppression] DeepFilterNet beside it, and
+  /// [levelAfterSuppression] the chain's own lift of quiet speech, which
+  /// stands in for libwebrtc's auto gain while a suppressor runs.
   Future<void> configure({
     required bool enabled,
     required double thresholdDb,
     required bool dynamics,
     bool strongNoiseSuppression = false,
     bool strongestNoiseSuppression = false,
+    bool levelAfterSuppression = false,
   }) async {
     if (!_supported) return;
     try {
@@ -174,6 +182,7 @@ class InputGateMonitor {
         'dynamics': dynamics,
         'strongNoiseSuppression': strongNoiseSuppression,
         'strongestNoiseSuppression': strongestNoiseSuppression,
+        'levelAfterSuppression': levelAfterSuppression,
       });
     } on Object catch (error, stack) {
       AppLog.swallowed(
@@ -211,6 +220,7 @@ class InputGateMonitor {
         voice: raw['voice'] == true,
         strongActive: raw['strongNoiseSuppression'] == true,
         strongestActive: raw['strongestNoiseSuppression'] == true,
+        levelerGainDb: (raw['levelerGainDb'] as num?)?.toDouble() ?? 0.0,
         step: kInputGateDisplayInterval * _rate.multiple,
       );
       if (!_levels.isClosed) _levels.add(reading);
