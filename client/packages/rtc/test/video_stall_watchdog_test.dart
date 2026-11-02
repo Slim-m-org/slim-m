@@ -313,4 +313,17 @@ void main() {
       expect(later.paused, isTrue);
     });
   });
+
+  test('a late clear after dispose does not touch the released notifier', () {
+    final released =
+        VideoStallWatchdog(recover: (key, step) {}, clock: () => clock.now);
+    released.observe([_playing(100)]);
+    clock.advance(const Duration(seconds: 4));
+    released.observe([_playing(100)]);
+    expect(released.health.value, isNotEmpty);
+
+    released.dispose();
+
+    released.observe(const []);
+  });
 }

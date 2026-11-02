@@ -6,10 +6,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-/// Shown only while [VoiceState.rejoining] is true, in the call stage's own
-/// column under the header - the grid, filmstrip and dock stay put and
-/// usable around it, unlike the full-screen spinner a first connection
-/// still gets.
+/// Shown while [VoiceState.rejoining] or [VoiceState.reconnecting] is true,
+/// in the call stage's own column under the header - the grid, filmstrip and
+/// dock stay put and usable around it, unlike the full-screen spinner a first
+/// connection still gets.
 class VoiceReconnectBanner extends StatelessWidget {
   const VoiceReconnectBanner({super.key});
 

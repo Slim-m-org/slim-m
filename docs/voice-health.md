@@ -31,6 +31,8 @@ The glyph has a tooltip and a screen reader label.
 
 The log gets one `[voice-health]` line about every 60 seconds, with each person's last minute of concealment, events, jitter, buffer, loss, level and round trip.
 When the call ends it gets a summary: p50 and p95 of concealment, jitter buffer, jitter, round trip and loss, for everyone pooled and for each person.
+A last line counts the transport blips, the times LiveKit's own resume or restart ran, with their total and longest duration; it is absent when the transport held.
+Sampling pauses and the ping readout clears while one runs.
 
 Settings, Troubleshooting, "Last call audio" shows the pooled summary of the last call that ended in this session.
 It is kept in memory only, so it is empty after a restart; the log line is the durable record.

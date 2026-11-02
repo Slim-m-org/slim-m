@@ -102,6 +102,24 @@ void main() {
     }
   });
 
+  testWidgets('a stalled share does not blame the sharer', (tester) async {
+    final health = ValueNotifier({'screen:bob': VideoTileHealth.stalled});
+    await tester.pumpWidget(
+      _app(
+        VideoHealthOverlay(
+          health: health,
+          tileKey: 'screen:bob',
+          sharerName: 'Bob',
+          sharerIdentity: 'bob',
+          child: const ColoredBox(color: Colors.green),
+        ),
+      ),
+    );
+
+    expect(find.text("Waiting for frames from Bob's screen"), findsOneWidget);
+    expect(find.textContaining('stopped sending'), findsNothing);
+  });
+
   group('local preview gate', () {
     Widget gate() => _app(
       const LocalPreviewGate(

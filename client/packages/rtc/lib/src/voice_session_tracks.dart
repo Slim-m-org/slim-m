@@ -26,6 +26,7 @@ extension VoiceSessionTracks on VoiceSession {
           _audio.refsOf(room), trackId, rtc_gain.holdArrivedAudio),
     );
     _cancelEvents = room.events.listen((event) {
+      _noteTransport(event);
       _mic.onRoomEvent(event);
       final replaced = audioReplacedBy(event);
       if (replaced != null) _audio.trackReplaced(replaced);
@@ -46,6 +47,40 @@ extension VoiceSessionTracks on VoiceSession {
     });
   }
 
+  /// Folds the SDK's reconnect events into [VoiceHealth.reconnect]; observation only.
+  void _noteTransport(lk.RoomEvent event) {
+    final tracker = health.reconnect;
+    switch (event) {
+      case lk.RoomReconnectingEvent():
+        tracker.started(ReconnectKind.restart);
+      case lk.RoomResumingEvent():
+        tracker.started(ReconnectKind.resume);
+      case lk.RoomAttemptReconnectEvent():
+        tracker.attempted(
+          event.attempt,
+          event.maxAttemptsRetry,
+          event.nextRetryDelaysInMs,
+        );
+      case lk.RoomReconnectedEvent():
+        tracker.ended('reconnected');
+      default:
+    }
+  }
+
+  /// Pauses what a half-repaired transport would only mislead, and rebuilds the roster from the live room once it is back.
+  void _onReconnectingChanged() {
+    if (_disposed) return;
+    if (health.reconnect.active.value) {
+      _glitchWatch.stop();
+      // Tracks are forgotten so the grace period starts again once frames can flow.
+      _stallWatchdog.observe(const []);
+      return;
+    }
+    if (_room == null || _state != VoiceSessionState.connected) return;
+    _glitchWatch.start();
+    _refreshParticipants();
+  }
+
   /// A disconnect this client did not ask for: the SFU removed this
   /// participant, the room was deleted, or the connection was lost for good.
   /// `_teardown` cancels this listener before it disconnects, so a `leave()`
@@ -62,7 +97,10 @@ extension VoiceSessionTracks on VoiceSession {
   /// out mid-share must not keep recording with no call left to publish to.
   Future<void> _onDisconnected(lk.DisconnectReason? reason) async {
     if (_disposed) return;
-    if (reason == lk.DisconnectReason.clientInitiated) return;
+    if (reason == lk.DisconnectReason.clientInitiated) {
+      health.reconnect.ended('disconnected');
+      return;
+    }
     _audio.cancelRetry();
     await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
@@ -71,6 +109,7 @@ extension VoiceSessionTracks on VoiceSession {
       _participantsController.add(_participants);
     }
     _setState(VoiceSessionState.failed);
+    health.reconnect.ended('disconnected');
     await _share.control.dispose();
   }
 
@@ -94,6 +133,7 @@ extension VoiceSessionTracks on VoiceSession {
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
+    health.reconnect.ended('left the call');
     _stopStallWatch();
     _stopMicWatch();
     _stopHealthWatch();
@@ -198,6 +238,9 @@ extension VoiceSessionTracks on VoiceSession {
         enlarged: _enlargedVideo.keys,
       ),
     );
+
+    // A full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
+    if (health.reconnect.active.value) return;
 
     final (next, recheck) = _speakingHold.apply(
       snapshotParticipants(

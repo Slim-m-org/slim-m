@@ -76,6 +76,8 @@ export 'src/voice_health.dart'
         kRecoverSustain;
 export 'src/voice_health_summary.dart' show CallHealthSummary, HealthStats;
 export 'src/voice_health_window.dart' show HealthInterval;
+export 'src/voice_reconnect_tracker.dart'
+    show ReconnectKind, ReconnectStats, ReconnectTracker, kReconnectQuiet;
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
     show

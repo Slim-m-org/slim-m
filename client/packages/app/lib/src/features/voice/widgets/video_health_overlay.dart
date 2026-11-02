@@ -116,7 +116,7 @@ class VideoHealthOverlay extends StatelessWidget {
       icon: stalled ? AppIcons.screenShare : AppIcons.screenShareStop,
       title: stalled ? 'Reconnecting screen share' : 'Not being captured',
       subtitle: stalled
-          ? "$name's screen stopped sending frames"
+          ? "Waiting for frames from $name's screen"
           : "$name's screen is not producing frames",
       identity: sharerIdentity ?? '',
       name: name,

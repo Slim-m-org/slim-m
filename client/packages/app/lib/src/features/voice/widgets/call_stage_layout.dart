@@ -135,7 +135,8 @@ class CallStageLayout extends ConsumerWidget {
         children: [
           _CallHeader(channelId: voice.channelId),
           // One banner at a time: the reconnect notice already says why the stage is quiet.
-          if (voice.rejoining) const VoiceReconnectBanner(),
+          if (voice.rejoining || voice.reconnecting)
+            const VoiceReconnectBanner(),
           if (!isDm && voice.channelId != null)
             WatchSessionGate(
               channelId: voice.channelId!,
@@ -148,7 +149,7 @@ class CallStageLayout extends ConsumerWidget {
               child: LocalScreenSharePendingBanner(),
             ),
           const ScreenOverlayBanner(),
-          if (voice.error != null && !voice.rejoining)
+          if (voice.error != null && !voice.rejoining && !voice.reconnecting)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s12),
               child: AppErrorState(message: voice.error!),

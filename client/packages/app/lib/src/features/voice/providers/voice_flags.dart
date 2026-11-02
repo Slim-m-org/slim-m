@@ -31,6 +31,7 @@ class VoiceFlags {
     this.state = VoiceSessionState.idle,
     this.joining = false,
     this.rejoining = false,
+    this.reconnecting = false,
     this.microphoneEnabled = true,
     this.cameraEnabled = false,
     this.cameraPending = false,
@@ -53,6 +54,7 @@ class VoiceFlags {
     state: state.state,
     joining: state.joining,
     rejoining: state.rejoining,
+    reconnecting: state.reconnecting,
     microphoneEnabled: state.microphoneEnabled,
     cameraEnabled: state.cameraEnabled,
     cameraPending: state.cameraPending,
@@ -84,6 +86,9 @@ class VoiceFlags {
 
   /// See [VoiceState.rejoining].
   final bool rejoining;
+
+  /// See [VoiceState.reconnecting].
+  final bool reconnecting;
   final bool microphoneEnabled;
   final bool cameraEnabled;
 
@@ -111,6 +116,7 @@ class VoiceFlags {
       other.state == state &&
       other.joining == joining &&
       other.rejoining == rejoining &&
+      other.reconnecting == reconnecting &&
       other.microphoneEnabled == microphoneEnabled &&
       other.cameraEnabled == cameraEnabled &&
       other.cameraPending == cameraPending &&
@@ -133,6 +139,7 @@ class VoiceFlags {
     state,
     joining,
     rejoining,
+    reconnecting,
     microphoneEnabled,
     cameraEnabled,
     cameraPending,
