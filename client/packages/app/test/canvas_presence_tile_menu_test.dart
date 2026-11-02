@@ -63,7 +63,6 @@ Widget _wrap({
                 onBringToFront: (_) {},
                 onSendToBack: (_) {},
                 onDeleteSelected: (_) {},
-                onPasteImageAt: (_) {},
                 onAddNoteAt: (_) {},
                 onRecenter: () {},
                 onToolChanged: (_) {},

@@ -162,6 +162,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   String? _selectedBeforeDown;
   final _focusNode = FocusNode(debugLabel: 'canvas pane');
   final _boardFocusNode = FocusNode(debugLabel: 'canvas board');
+  final _gestureController = CanvasGestureController();
   late final CanvasTimeoutBanner _timeoutBanner;
 
   /// How many pointers are down inside the pane right now.
@@ -342,6 +343,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             if (editingNote)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _onNoteEditCancel
+            else if (_tool != CanvasTool.pan)
+              const SingleActivator(LogicalKeyboardKey.escape): _onEscapeTool
             else if (fullscreen)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _escapeFullscreen
@@ -388,10 +391,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   document: _document,
                   onClear: _onClear,
                   scopedClear: partialClear ? _scopedClear : null,
-                  onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
                   onAddImageFile: () => unawaited(_pickImageFile()),
-                  onPasteImageAt: (world) =>
-                      unawaited(_imagePaste.pasteAt(world)),
                   onRecenter: _onRecenter,
                   onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
                   error: engineState.error,
@@ -462,6 +462,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   ),
                   onDraftEnded: _strokePreview.endLocalDraft,
                   onDraftCancel: _strokePreview.cancelLocalDraft,
+                  gestureController: _gestureController,
                   callParticipants: _callParticipants(),
                   blockedTileKeys: _blockedTileKeys(),
                   cameraViewFor: (identity) => ref

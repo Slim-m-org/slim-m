@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/widgets/canvas_text_editor.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
@@ -116,6 +117,53 @@ void main() {
 
     expect(find.byType(CanvasTextEditor), findsNothing);
     expect(fixture.posted, isEmpty);
+  });
+
+  testWidgets('Escape cancels a new text box and keeps the tool armed', (
+    tester,
+  ) async {
+    final fixture = await _openPane(tester);
+    await _placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(_field, 'never sent');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(_field, findsNothing);
+    expect(fixture.posted, isEmpty);
+    final text = tester.widget<AppIconButton>(
+      find.ancestor(
+        of: find.bySemanticsLabel('Text'),
+        matching: find.byWidgetPredicate((w) => w is AppIconButton),
+      ),
+    );
+    expect(text.active, isTrue, reason: 'the editor took the press');
+  });
+
+  testWidgets('Ctrl+Enter saves the text box', (tester) async {
+    final fixture = await _openPane(tester);
+    await _placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(_field, 'keys only');
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(fixture.posted.single['kind'], 'text');
+    expect((fixture.posted.single['props'] as Map)['text'], 'keys only');
+  });
+
+  testWidgets('size and colour share one row of the editor', (tester) async {
+    await _openPane(tester);
+    await _placeWithTool(tester, const Offset(150, 150));
+
+    final small = tester.getCenter(find.bySemanticsLabel('Small text'));
+    final large = tester.getCenter(find.bySemanticsLabel('Large text'));
+    final blue = tester.getCenter(find.bySemanticsLabel('Blue'));
+    expect(small.dy, closeTo(blue.dy, 0.5));
+    expect(large.dy, closeTo(blue.dy, 0.5));
+    expect(large.dx, lessThan(blue.dx), reason: 'sizes first, then colours');
   });
 
   testWidgets('size and colour picked in the editor travel with the text', (

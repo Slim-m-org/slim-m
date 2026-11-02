@@ -20,6 +20,12 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = tool);
   }
 
+  /// Escape with a drawing tool armed: drop a half-drawn stroke or shape first, then put the tool down to Pan.
+  void _onEscapeTool() {
+    if (_gestureController.cancelDrawing()) return;
+    _onToolChanged(CanvasTool.pan);
+  }
+
   CanvasTool get _defaultTool => canvasDefaultTool();
 
   /// A finger or a pen reaches further than a mouse, on a wide window too.

@@ -32,6 +32,7 @@ export 'src/canvas_presence_visibility.dart';
 export 'src/canvas_view_mode.dart';
 export 'src/canvas_resize.dart';
 export 'src/canvas_eraser_ring.dart';
+export 'src/canvas_gesture_controller.dart';
 export 'src/canvas_scene.dart';
 export 'src/canvas_snap.dart';
 export 'src/canvas_stroke_drafts.dart';

@@ -163,7 +163,6 @@ CanvasDockData buildCanvasDockData({
     onRedo: row.onRedo,
     canManage: row.canManage,
     onClear: row.onClear,
-    onPasteImage: row.onPasteImage,
     selection: row.selection,
     onBringToFront: row.onBringToFront,
     onSendToBack: row.onSendToBack,

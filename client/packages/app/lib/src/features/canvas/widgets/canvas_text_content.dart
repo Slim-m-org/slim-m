@@ -12,11 +12,11 @@ import '../providers/canvas_text_props.dart';
 /// A text box's world width when it is first placed.
 const double defaultTextBoxWidth = 240;
 
-/// The design style each font step is drawn with, for the sample letters in the editor.
+/// The compact style each font step's sample letter is drawn with in the editor's size picker; ordered like the real sizes, never as big.
 TextStyle canvasTextSizeSample(String key) => switch (key) {
-  'small' => AppText.ui,
-  'large' => AppText.title,
-  _ => AppText.heading,
+  'small' => AppText.caption,
+  'large' => AppText.heading,
+  _ => AppText.body,
 };
 
 /// Cleans every edit and cuts it to [maxTextBoxChars] code points, so a paste of hidden characters can never reach the wire.

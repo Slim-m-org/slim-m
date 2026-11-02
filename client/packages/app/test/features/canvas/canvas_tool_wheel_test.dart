@@ -42,7 +42,6 @@ class _Rig {
   final bool canDraw;
   final wheel = CanvasToolWheelController();
   final tools = <CanvasTool>[];
-  final pastes = <Offset>[];
   var tool = CanvasTool.pan;
 
   Widget build() => MaterialApp(
@@ -66,7 +65,6 @@ class _Rig {
                 onBringToFront: (_) {},
                 onSendToBack: (_) {},
                 onDeleteSelected: (_) {},
-                onPasteImageAt: (_) {},
                 onAddNoteAt: (_) {},
                 onRecenter: () {},
                 onToolChanged: tools.add,
@@ -84,7 +82,6 @@ class _Rig {
                     world.dy <= 160 &&
                     document.objectBounds('a') != null,
                 onToolChanged: tools.add,
-                onPasteImageAt: pastes.add,
               ),
             ],
           ),
@@ -200,21 +197,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(rig.tools, [CanvasTool.text]);
-    });
-
-    testWidgets('the Paste image item pastes at the held point', (
-      tester,
-    ) async {
-      final rig = _Rig();
-      await tester.pumpWidget(rig.build());
-      const anchor = Offset(400, 300);
-      final gesture = await _rightDown(tester, anchor);
-      await tester.pump(_hold);
-      await gesture.moveTo(_itemAt(anchor, CanvasWheelItem.pasteImage));
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(rig.pastes, [anchor]);
     });
 
     testWidgets('a tool that needs a writable canvas is not picked', (

@@ -80,7 +80,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
       await tester.pumpAndSettle();
-      expect(find.text('Paste image'), findsOneWidget);
+      expect(find.text('Enter fullscreen'), findsOneWidget);
     },
   );
 

@@ -22,18 +22,16 @@ enum CanvasWheelItem {
   note(CanvasTool.note, 'Note'),
   text(CanvasTool.text, 'Text'),
   shape(CanvasTool.shape, 'Shape'),
-  eraser(CanvasTool.eraser, 'Eraser'),
-  pasteImage(null, 'Paste image');
+  eraser(CanvasTool.eraser, 'Eraser');
 
   const CanvasWheelItem(this.tool, this.label);
 
-  /// Null for an item that acts instead of arming a tool.
-  final CanvasTool? tool;
+  final CanvasTool tool;
   final String label;
 
   /// One rule with the tool strip, so the wheel never offers what the strip cannot.
   bool isAvailable({required bool canDraw}) =>
-      tool?.isAvailable(canDraw: canDraw) ?? canDraw;
+      tool.isAvailable(canDraw: canDraw);
 }
 
 /// Distance from the wheel's centre to each tool's centre.
@@ -146,7 +144,6 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
     CanvasWheelItem.text => AppIcons.textBox,
     CanvasWheelItem.shape => canvasShapeKindIcon(widget.shapeKind),
     CanvasWheelItem.eraser => AppIcons.eraser,
-    CanvasWheelItem.pasteImage => AppIcons.clipboardPaste,
   };
 
   CanvasWheelItem get _firstFocus => CanvasWheelItem.values.firstWhere(

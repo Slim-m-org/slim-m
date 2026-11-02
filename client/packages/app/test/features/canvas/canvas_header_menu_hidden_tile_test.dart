@@ -45,8 +45,6 @@ Widget _pane(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
               canManage: false,
               document: document,
               onClear: () async {},
-              onPasteImage: () {},
-              onPasteImageAt: (_) {},
               onRecenter: () {},
               onBringIntoBoard: () {},
               error: null,

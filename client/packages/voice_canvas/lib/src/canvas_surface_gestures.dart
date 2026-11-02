@@ -361,6 +361,14 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
   }
 
+  /// Abandons a pen stroke or shape still being dragged; the pointer's later moves and lift then do nothing.
+  bool _cancelDrawing() {
+    final tool = _gesture?.tool;
+    if (tool != CanvasTool.pen && tool != CanvasTool.shape) return false;
+    _cancelGesture();
+    return true;
+  }
+
   void _flushPendingErase() {
     if (_pendingErasePoint case final pending?) {
       widget.onErase?.call(pending);

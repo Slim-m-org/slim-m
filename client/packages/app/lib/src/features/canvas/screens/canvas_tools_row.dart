@@ -57,7 +57,6 @@ class CanvasToolsRow extends StatefulWidget {
     required this.canManage,
     required this.onClear,
     this.scopedClear,
-    required this.onPasteImage,
     this.onAddImageFile,
     required this.selection,
     required this.onBringToFront,
@@ -93,8 +92,7 @@ class CanvasToolsRow extends StatefulWidget {
 
   /// False while the pane's error banner is an active refusal (forbidden, a
   /// timeout freeze, or a canvas that did not load) that would make placing a
-  /// new object fail the identical way again; any other banner leaves it true. Disarms pen, note and shape (and the
-  /// overflow's "Paste image"), the exact tools the empty-canvas CTA this
+  /// new object fail the identical way again; any other banner leaves it true. Disarms pen, note and shape the exact tools the empty-canvas CTA this
   /// screen-review finding names invites - a still-selectable pen tool
   /// underneath a banner reading "the canvas is not available" or "you
   /// cannot draw right now" invites the same failure the banner already
@@ -123,7 +121,6 @@ class CanvasToolsRow extends StatefulWidget {
 
   final Future<void> Function() onClear;
   final CanvasScopedClear? scopedClear;
-  final VoidCallback onPasteImage;
 
   /// Picks an image file to place; null where the canvas cannot place one.
   final VoidCallback? onAddImageFile;
@@ -239,7 +236,6 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
         ),
         const SizedBox(width: AppSpacing.s4),
         CanvasOverflowMenu(
-          onPasteImage: widget.onPasteImage,
           onAddImageFile: widget.onAddImageFile,
           canDraw: widget.canDraw,
           canManage: widget.canManage,

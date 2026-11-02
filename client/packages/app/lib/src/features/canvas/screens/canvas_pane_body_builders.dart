@@ -15,7 +15,6 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     canManage: widget.canManage,
     onClear: widget.onClear,
     scopedClear: widget.scopedClear,
-    onPasteImage: widget.onPasteImage,
     onAddImageFile: widget.onAddImageFile,
     selection: widget.document.selectedObjectId,
     onBringToFront: widget.onBringToFront,
@@ -66,6 +65,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       actions: CanvasPaneSurfaceActions(
         onDraftEnded: widget.onDraftEnded,
         onDraftCancel: widget.onDraftCancel,
+        gestureController: widget.gestureController,
         onDraftPoint: widget.onDraftPoint,
         onPointerLeft: widget.onPointerLeft,
         onPointerMoved: widget.onPointerMoved,
@@ -87,7 +87,6 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onBringToFront: widget.onBringToFront,
         onSendToBack: widget.onSendToBack,
         onDeleteSelected: widget.onDeleteSelected,
-        onPasteImageAt: widget.onPasteImageAt,
         onEditNote: widget.onEditNote,
         onRecenter: widget.onRecenter,
         onToolChanged: widget.onToolChanged,

@@ -173,8 +173,6 @@ Future<void> renderCanvasAssembledPane(
               canManage: canManage,
               document: document,
               onClear: () async {},
-              onPasteImage: () {},
-              onPasteImageAt: (_) {},
               onRecenter: () {},
               onBringIntoBoard: () {},
               error: error,

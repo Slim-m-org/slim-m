@@ -192,8 +192,7 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
                   style: AppText.caption.copyWith(color: tokens.dangerText),
                 ),
               const SizedBox(height: AppSpacing.s4),
-              ControlSwatchRow(swatches: _sizeSwatches(tokens), close: () {}),
-              ControlSwatchRow(swatches: _colourSwatches(tokens), close: () {}),
+              _styleRow(tokens),
               const SizedBox(height: AppSpacing.s4),
               Align(
                 alignment: Alignment.centerRight,
@@ -237,7 +236,7 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
         child: TextField(
           controller: _controller,
           focusNode: _focus,
-          minLines: 2,
+          minLines: 1,
           maxLines: 6,
           keyboardType: TextInputType.multiline,
           inputFormatters: [TextBoxInputFormatter(onRefused: _markFull)],
@@ -256,6 +255,29 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
       ),
     );
   }
+
+  /// Size and colour on one line, split by a hairline, so the panel stays a single compact strip.
+  Widget _styleRow(AppTokens tokens) => Row(
+    children: [
+      Expanded(
+        flex: canvasTextSizeKeys.length,
+        child: ControlSwatchRow(swatches: _sizeSwatches(tokens), close: () {}),
+      ),
+      Container(
+        width: 1,
+        height: AppSpacing.s16,
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+        color: tokens.borderSubtle,
+      ),
+      Expanded(
+        flex: canvasPenColors.length + 1,
+        child: ControlSwatchRow(
+          swatches: _colourSwatches(tokens),
+          close: () {},
+        ),
+      ),
+    ],
+  );
 
   List<ControlSwatch> _sizeSwatches(AppTokens tokens) => [
     for (final key in canvasTextSizeKeys)

@@ -55,12 +55,12 @@ void main() {
   ) async {
     final s = await _openCanvasInShell(tester);
     await openOverflowByKeyboard(tester);
-    expect(find.text('Paste image'), findsOneWidget);
+    expect(find.text('Enter fullscreen'), findsOneWidget);
 
     await pressKey(tester, LogicalKeyboardKey.escape);
     await settle(tester);
 
-    expect(find.text('Paste image'), findsNothing);
+    expect(find.text('Enter fullscreen'), findsNothing);
     await teardown(tester, s.container, s.db);
   });
 
