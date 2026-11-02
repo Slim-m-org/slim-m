@@ -37,6 +37,8 @@ On Ubuntu 24.04 (`packages.ubuntu.com/noble/amd64/libpulse0/filelist`, checked d
 The capturer records the default sink monitor, which holds everything played, so other people in the call were sent back to them as share audio.
 While a share with audio runs, `ShareAudioIsolation` (`client/packages/rtc/lib/src/share_audio_isolation.dart`) creates one null sink through a long-lived `pw-cli`, links every other app's playback ports into it with `pw-link`, and never links this process.
 The default output and every stream's routing are untouched, a new app is linked within a second, and the sink goes with the `pw-cli` process, so a crash cleans up.
+When the mix cannot be made (no `pw-cli`, `pw-link` or `pw-dump`, shipped by `pipewire-utils` in the rpm), the share is published without audio and the call shows "Share audio is off: PipeWire tools not found"; capturing the default output instead would echo the call back to viewers.
+Other packagings need those three tools installed too.
 The capturer must record that sink's monitor: the app sets `SLIMM_SHARE_AUDIO_SOURCE`, which needs the one-line fork change in `linux/pulse_loopback_capturer.cc` (read the variable before falling back to the default monitor).
 Until the fork pin carries that change, the echo remains.
 Proved on a private PipeWire with two tones: the mix held only the other app, and the default sink and routing were identical before, during and after.

@@ -36,6 +36,9 @@ class ShareAudioIsolation {
 
   bool get active => _mixNode != null;
 
+  /// Whether this platform has a sound server to drive at all; false means there is nothing to isolate.
+  bool get supported => _graph.supported;
+
   /// Returns false, changing nothing, when the sound server cannot be driven.
   Future<bool> begin() => _serially(_begin);
 

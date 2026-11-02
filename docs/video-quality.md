@@ -10,6 +10,7 @@ Three independent choices, all stored on the device and edited in Voice settings
   The camera button has no options menu, and a menu on it just for this was not worth the extra control.
 - Watching quality (Auto, Balanced, Data saver): Voice settings only.
   It caps the layer received, and the pixel size of that layer depends on what each sender publishes, so it keeps plain words instead of invented numbers.
+  Data saver asks for the lowest layer of cameras and of shares (960x540 for a share, which publishes only two layers); an enlarged or popped-out tile always gets the top layer.
 
 ## Screen share bitrate ceiling
 

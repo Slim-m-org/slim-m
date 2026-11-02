@@ -28,17 +28,19 @@ enum ReceiveVideoQuality {
   /// A medium layer for cameras, the full one for shares.
   balanced,
 
-  /// The smallest layer that still reads: low for cameras, medium for shares.
+  /// The smallest layer: low for cameras and for shares.
   dataSaver;
 
   /// The layer ceiling for a camera or, with [screenShare], a screen share.
   ///
-  /// Shares stay one step sharper than cameras because the lowest layer of a
-  /// screen is unreadable text, which defeats watching one at all.
+  /// Balanced keeps shares at the top layer, since text wants every pixel. A
+  /// share publishes only two layers (960x540 and full size), so Data saver
+  /// takes the 960x540 one; an enlarged tile overrides it in
+  /// [applyReceiveVideoQuality].
   lk.VideoQuality layerFor({required bool screenShare}) => switch (this) {
         max || auto => lk.VideoQuality.HIGH,
         balanced => screenShare ? lk.VideoQuality.HIGH : lk.VideoQuality.MEDIUM,
-        dataSaver => screenShare ? lk.VideoQuality.MEDIUM : lk.VideoQuality.LOW,
+        dataSaver => lk.VideoQuality.LOW,
       };
 }
 

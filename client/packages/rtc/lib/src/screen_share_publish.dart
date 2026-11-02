@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'screen_share.dart';
 import 'screen_share_audio_options.dart';
 import 'screen_share_source_size.dart';
@@ -75,14 +76,17 @@ Future<ScreenShareQuality> _fitToSource(
   int? maxHeight,
   Future<({int width, int height})?> Function(rtc.MediaStream) measure,
 ) async {
+  final clock = Stopwatch()..start();
   final size = await measure(track.mediaStream);
-  if (size == null) return quality;
-  final fit = fitScreenShare(
-    quality,
-    sourceWidth: size.width,
-    sourceHeight: size.height,
-    maxHeight: maxHeight,
+  AppLog.info(
+    LogTag.voice,
+    size == null
+        ? 'Screen share size not read after ${clock.elapsedMilliseconds} ms; '
+            'fitting the chosen ${quality.id}'
+        : 'Screen share size ${size.width}x${size.height} read in '
+            '${clock.elapsedMilliseconds} ms',
   );
+  final fit = fitMeasured(quality, size, maxHeight: maxHeight);
   final dimensions = track.currentOptions.params.dimensions;
   if (fit.quality == quality &&
       fit.width == dimensions.width &&

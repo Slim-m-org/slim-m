@@ -20,6 +20,7 @@ const _ownPid = 4242;
 /// A just-enough PipeWire: playback streams with ports, one mix node, and the links made into it.
 class _FakeGraph implements ShareAudioGraph {
   bool canDrive = true;
+  bool mixWorks = true;
   bool mix = false;
   String? exported = 'unset';
   int destroys = 0;
@@ -43,7 +44,7 @@ class _FakeGraph implements ShareAudioGraph {
   Future<bool> createMix(String name) async {
     creates++;
     await holdCreate?.future;
-    return mix = true;
+    return mix = mixWorks;
   }
 
   @override
@@ -161,6 +162,45 @@ void main() {
     expect(await isolation.begin(), isFalse);
     expect(graph.exported, 'unset');
     expect(isolation.active, isFalse);
+  });
+
+  group('when the sound server cannot be driven', () {
+    tearDown(() => shareAudioNote.value = null);
+
+    Future<bool> shareWithAudio() async {
+      var published = true;
+      final control = ScreenShareControl(_NoBroadcast(), isolation: isolation);
+      await control.setEnabled(
+        true,
+        quality: ScreenShareQuality.standard,
+        includeAudio: true,
+        publish: (_, __, audio) async => published = audio,
+        isSharing: () => true,
+        onSettled: (_) {},
+      );
+      return published;
+    }
+
+    test('the share goes out without audio and says why', () async {
+      graph.mixWorks = false;
+      expect(await shareWithAudio(), isFalse);
+      expect(shareAudioNote.value, shareAudioOffNote);
+    });
+
+    test('a platform with no sound server keeps its audio and stays quiet',
+        () async {
+      graph.canDrive = false;
+      expect(await shareWithAudio(), isTrue);
+      expect(shareAudioNote.value, isNull);
+    });
+
+    test('the next share starts with the note cleared', () async {
+      graph.mixWorks = false;
+      await shareWithAudio();
+      graph.mixWorks = true;
+      expect(await shareWithAudio(), isTrue);
+      expect(shareAudioNote.value, isNull);
+    });
   });
 
   test('a share that fails to start ends the isolation', () async {

@@ -63,11 +63,8 @@ void main() {
       await applyReceiveVideoQuality(
           refs(), ReceiveVideoQuality.dataSaver, lowered);
 
-      expect(share, [
-        lk.VideoQuality.MEDIUM,
-        lk.VideoQuality.HIGH,
-        lk.VideoQuality.MEDIUM
-      ]);
+      expect(share,
+          [lk.VideoQuality.LOW, lk.VideoQuality.HIGH, lk.VideoQuality.LOW]);
       expect(camera, everyElement(lk.VideoQuality.LOW),
           reason: 'the grid tile stays capped');
     });
@@ -83,7 +80,7 @@ void main() {
       expect(share, isEmpty);
     });
 
-    test('data saver caps a camera low and a share medium', () async {
+    test('data saver caps a camera and a share low', () async {
       final camera = <lk.VideoQuality>[];
       final share = <lk.VideoQuality>[];
       await applyReceiveVideoQuality(
@@ -94,7 +91,19 @@ void main() {
           ReceiveVideoQuality.dataSaver,
           {});
       expect(camera, [lk.VideoQuality.LOW]);
-      expect(share, [lk.VideoQuality.MEDIUM]);
+      expect(share, [lk.VideoQuality.LOW]);
+    });
+
+    test('data saver asks the low layer of a share, the one sent at 960x540',
+        () {
+      expect(
+        ReceiveVideoQuality.dataSaver.layerFor(screenShare: true),
+        lk.VideoQuality.LOW,
+      );
+      expect(
+        ReceiveVideoQuality.balanced.layerFor(screenShare: true),
+        lk.VideoQuality.HIGH,
+      );
     });
 
     test('balanced caps a camera medium', () async {
