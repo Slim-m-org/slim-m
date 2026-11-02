@@ -82,3 +82,9 @@ C is not recommended: it adds a second cap to maintain and measured the same as 
 - The viewer's frame rate at low target bitrate is low (0 to 3 fps in the first 10 s) because the encoder drops frames at a 0.3 to 0.5 Mbps budget on heavy-motion content. Viewer size is the layer the SFU picked for a 1920x1080 viewer window.
 - A used the fork URL at the upstream release commit rather than the upstream repository, so it is byte-identical to upstream 2.13.1 but resolved from the fork.
 - Two runs per cell; the runs agree closely, but this is not a statistical sample.
+
+## Decision (2026-11-02)
+
+The fork override is not shipped: the hint is never consulted on the path slim-m uses (a share published after join), and lowering it would only act in the one path that was not measured.
+The fork Slim-m-org/client-sdk-flutter keeps the two branches for the day a change in livekit_client is needed; nothing pins it.
+The finding that matters is the ramp itself, about 30 s to 1080p on an unconstrained link, which has its own card (Ready, "A screen share takes about 30 s to reach 1080p").
