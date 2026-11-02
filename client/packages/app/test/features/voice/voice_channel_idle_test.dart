@@ -239,7 +239,7 @@ void main() {
       ),
     );
     await tester.tap(find.bySemanticsLabel(RegExp('^Call on .*, 1 h 31')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(tester.takeException(), isNull);
     final nick = tester.getTopLeft(find.text('Nick').first);
     final kiki = tester.getTopLeft(find.text('Kiki').first);
