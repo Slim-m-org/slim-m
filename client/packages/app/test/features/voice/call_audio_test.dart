@@ -382,13 +382,15 @@ void main() {
         startable: [module],
       );
       await tester.tap(find.byKey(CallAudioStartControl.buttonKey));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Writes down what is said.'), findsOneWidget);
       expect(find.text('It keeps: The text, for 30 days.'), findsOneWidget);
       expect(rig.requests.where((r) => r.startsWith('POST')), isEmpty);
 
       await tester.tap(find.byKey(const ValueKey('call-audio-ask-transcript')));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(
         rig.requests.where((r) => r.startsWith('POST')).single,
         'POST /channels/c1/voice/call-audio {"module_id":"transcript"}',
