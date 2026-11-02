@@ -68,31 +68,39 @@ Future<bool> applyPresenceVisibility(
   return ok;
 }
 
-/// The rail footer's avatar, as a tap target that opens the status menu
-/// upward off the bottom bar on a pointer layout, or as a bottom sheet under
-/// `kCompactWidth` - the same anchored-vs-sheet split `member_profile.dart`
-/// uses, per `docs/design/desktop-vs-mobile.md`: an anchored surface under a
-/// thumb is a review defect.
-class PresenceMenuButton extends ConsumerStatefulWidget {
-  const PresenceMenuButton({super.key});
+/// The status menu hung off any trigger: an anchored [AppMenu] on a pointer
+/// layout, a bottom sheet under `kCompactWidth` - the same anchored-vs-sheet
+/// split `member_profile.dart` uses, per `docs/design/desktop-vs-mobile.md`:
+/// an anchored surface under a thumb is a review defect.
+///
+/// [builder] gets the callback that opens it, so the rail avatar and your own
+/// profile card share one menu rather than each growing a copy.
+class PresenceMenuAnchor extends StatefulWidget {
+  const PresenceMenuAnchor({
+    super.key,
+    required this.builder,
+    this.targetAnchor = Alignment.topLeft,
+    this.followerAnchor = Alignment.bottomLeft,
+    this.offset = const Offset(0, -4),
+  });
+
+  final Widget Function(BuildContext context, VoidCallback open) builder;
+  final Alignment targetAnchor;
+  final Alignment followerAnchor;
+  final Offset offset;
 
   @override
-  ConsumerState<PresenceMenuButton> createState() => _PresenceMenuButtonState();
+  State<PresenceMenuAnchor> createState() => _PresenceMenuAnchorState();
 }
 
-class _PresenceMenuButtonState extends ConsumerState<PresenceMenuButton> {
+class _PresenceMenuAnchorState extends State<PresenceMenuAnchor> {
   final _controller = AnimatedMenuController();
 
-  /// Finger-down feedback, the same shape [AppIconButton] uses: nothing else
-  /// here draws a hover fill for a tap to interrupt.
-  bool _pressed = false;
-
-  /// Opens the sheet on a compact width. A fresh [_PresenceMenuItems] owns
-  /// this presentation's own guarded-action state, the same reason
-  /// `member_profile.dart` gives `MemberProfileBody` a fresh instance per
-  /// presentation: this content lives in the sheet route's own subtree, not
-  /// this button's, so a refusal here cannot be shown by setting state on the
-  /// button.
+  /// A fresh [_PresenceMenuItems] owns this presentation's own guarded-action
+  /// state, the same reason `member_profile.dart` gives `MemberProfileBody` a
+  /// fresh instance per presentation: this content lives in the sheet route's
+  /// own subtree, not the trigger's, so a refusal here cannot be shown by
+  /// setting state on the trigger.
   Future<void> _openSheet(BuildContext context) {
     return showAppSheet<void>(
       context,
@@ -115,54 +123,75 @@ class _PresenceMenuButtonState extends ConsumerState<PresenceMenuButton> {
   }
 
   @override
+  Widget build(BuildContext context) => AnchoredMenu(
+    controller: _controller,
+    targetAnchor: widget.targetAnchor,
+    followerAnchor: widget.followerAnchor,
+    offset: widget.offset,
+    menu: _PresenceMenuItems(onDone: _controller.hide),
+    child: Builder(
+      builder: (context) => widget.builder(context, () => _open(context)),
+    ),
+  );
+}
+
+/// The rail footer's avatar, as a tap target that opens the status menu.
+class PresenceMenuButton extends ConsumerStatefulWidget {
+  const PresenceMenuButton({super.key});
+
+  @override
+  ConsumerState<PresenceMenuButton> createState() => _PresenceMenuButtonState();
+}
+
+class _PresenceMenuButtonState extends ConsumerState<PresenceMenuButton> {
+  /// Finger-down feedback, the same shape [AppIconButton] uses: nothing else
+  /// here draws a hover fill for a tap to interrupt.
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final me = ref.watch(meProvider);
 
-    return AnchoredMenu(
-      controller: _controller,
-      // Only ever shown on a pointer layout; see [_open].
-      targetAnchor: Alignment.topLeft,
-      followerAnchor: Alignment.bottomLeft,
-      offset: const Offset(0, -4),
-      menu: _PresenceMenuItems(onDone: _controller.hide),
-      // A 28pt avatar is well under the touch minimum, so the tap area is
-      // grown around it rather than the glyph being grown to match.
-      child: Semantics(
-        button: true,
-        label: 'Change your status',
-        onTap: () => _open(context),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTap: () {
-            AppHaptics.selection();
-            _open(context);
-          },
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: AppSizes.rowTouch,
-              minHeight: AppSizes.rowTouch,
-            ),
-            // heightFactor: a bare Center fills any bounded height, which stretched the whole footer row and sent the menu off the top.
-            child: Center(
-              heightFactor: 1,
-              child: AnimatedScale(
-                scale: _pressed ? AppMotion.pressScale : 1,
-                duration: AppMotion.reduced(context, AppMotion.fast),
-                curve: AppMotion.entrance,
-                child: UserAvatar(
-                  userId: ref.watch(sessionProvider).tokens?.userId,
-                  name: me.valueOrNull?.displayName ?? '',
-                  size: AppAvatarSize.s28,
-                  presence: true,
+    return PresenceMenuAnchor(
+      builder: (context, open) =>
+          // A 28pt avatar is well under the touch minimum, so the tap area is
+          // grown around it rather than the glyph being grown to match.
+          Semantics(
+            button: true,
+            label: 'Change your status',
+            onTap: open,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (_) => setState(() => _pressed = true),
+              onTapUp: (_) => setState(() => _pressed = false),
+              onTapCancel: () => setState(() => _pressed = false),
+              onTap: () {
+                AppHaptics.selection();
+                open();
+              },
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: AppSizes.rowTouch,
+                  minHeight: AppSizes.rowTouch,
+                ),
+                // heightFactor: a bare Center fills any bounded height, which stretched the whole footer row and sent the menu off the top.
+                child: Center(
+                  heightFactor: 1,
+                  child: AnimatedScale(
+                    scale: _pressed ? AppMotion.pressScale : 1,
+                    duration: AppMotion.reduced(context, AppMotion.fast),
+                    curve: AppMotion.entrance,
+                    child: UserAvatar(
+                      userId: ref.watch(sessionProvider).tokens?.userId,
+                      name: me.valueOrNull?.displayName ?? '',
+                      size: AppAvatarSize.s28,
+                      presence: true,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }

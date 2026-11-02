@@ -30,7 +30,8 @@ class AppBadge extends StatelessWidget {
       required this.label,
       this.icon,
       this.markerIcon,
-      this.semanticLabel});
+      this.semanticLabel,
+      this.compact = false});
 
   final AppBadgeVariant variant;
   final String label;
@@ -44,6 +45,10 @@ class AppBadge extends StatelessWidget {
 
   final String? semanticLabel;
 
+  /// A module variant sitting beside a role chip: muted text with no outline,
+  /// origin marker or glyph, so it never competes with the role.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -53,8 +58,8 @@ class AppBadge extends StatelessWidget {
     // file.
     final fontSize = AppText.micro.fontSize!;
 
-    final Color foreground;
-    final Color border;
+    Color foreground;
+    Color border;
     final String text;
     var letterSpacing = 0.0;
     var tabularNumerals = false;
@@ -90,6 +95,12 @@ class AppBadge extends StatelessWidget {
         text = label;
     }
 
+    final quiet = compact && variant.index >= AppBadgeVariant.module.index;
+    if (quiet) {
+      foreground = tokens.textSecondary;
+      border = Colors.transparent;
+    }
+
     final textStyle = TextStyle(
       fontFamily: AppFonts.sans,
       fontSize: fontSize,
@@ -103,11 +114,11 @@ class AppBadge extends StatelessWidget {
     final child = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (markerIcon != null) ...[
+        if (markerIcon != null && !quiet) ...[
           Icon(markerIcon, size: AppSizes.icon12, color: foreground),
           const SizedBox(width: AppSpacing.s4),
         ],
-        if (icon != null) ...[
+        if (icon != null && !quiet) ...[
           Icon(icon, size: AppSizes.icon16, color: foreground),
           const SizedBox(width: AppSpacing.s4),
         ],
@@ -119,7 +130,9 @@ class AppBadge extends StatelessWidget {
     );
 
     final badge = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      padding: quiet
+          ? const EdgeInsets.symmetric(horizontal: 2)
+          : const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         border: Border.all(color: border),
         borderRadius: BorderRadius.circular(AppRadii.control),

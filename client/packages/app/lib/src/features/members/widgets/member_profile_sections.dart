@@ -16,9 +16,10 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
 import '../providers/presence_view.dart';
+import '../providers/status_text.dart';
 import 'member_handle_line.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
-import 'presence_indicator.dart';
+import 'member_profile_status_line.dart';
 import 'user_avatar.dart';
 import 'profile_colour.dart';
 
@@ -78,23 +79,15 @@ class MemberProfileHeader extends ConsumerWidget {
               ),
             ],
           )
-        : Row(
-            spacing: AppSpacing.s8,
-            children: [
-              if (presence.word != null)
-                PresenceIndicator(
-                  presence: presence,
-                  size: 8,
-                  backgroundColor: tokens.surfaceRaised,
-                ),
-              Flexible(
-                child: Text(
-                  _sentenceCase(presence.word),
-                  overflow: TextOverflow.ellipsis,
-                  style: secondary,
-                ),
-              ),
-            ],
+        : MemberProfileStatusLine(
+            presence: presence,
+            statusText: ref.watch(
+              statusTextProvider((
+                userId: profile.id,
+                snapshot: profile.statusText,
+              )),
+            ),
+            editable: isSelf,
           );
 
     final name = Text(
@@ -188,10 +181,6 @@ const double _avatarGap = 3;
 
 /// The avatar's height below the banner's lower edge: half of it plus its border.
 const double _avatarSlot = AppAvatarSize.s56 / 2 + _avatarGap;
-
-String _sentenceCase(String? word) => word == null || word.isEmpty
-    ? ''
-    : word[0].toUpperCase() + word.substring(1);
 
 /// The timed-out banner: amber rather than red, because it expires on its own
 /// and the error grammar reserves red for something that needs acting on.

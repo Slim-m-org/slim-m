@@ -18,11 +18,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
+import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
 import 'package:slimm_app/src/features/members/providers/member_selection.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -233,6 +235,7 @@ void main() {
   testWidgets("a module badge shows on its member's row and a change to it "
       'rebuilds only that row', (tester) async {
     debugResetMemberRowBuildCounts();
+    SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: true});
     final members = [_profile('a', 'Anna'), _profile('b', 'Bo')];
     final events = StreamController<ServerEvent>.broadcast();
     addTearDown(events.close);
