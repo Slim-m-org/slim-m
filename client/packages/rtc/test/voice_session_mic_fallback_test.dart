@@ -41,17 +41,10 @@ class _Mic implements MicPort {
   @override
   bool get open => published && !muted;
   @override
-  Future<double?> senderLevelDb() async => level;
+  Future<double?> senderLevelDb() async => levels[current ?? ''] ?? -30;
 
   @override
-  Future<double?> capturedSeconds() async =>
-      stalled.contains(current ?? '') ? _counter : _counter += 1;
-
-  void _open(String? id) {
-    if (closed.contains(id ?? '')) throw StateError('cannot open $id');
-    current = id;
-  }
-
+  Future<double?> capturedSeconds() async => null;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     if (enabled) _open(options?.deviceId);

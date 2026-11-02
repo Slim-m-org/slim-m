@@ -52,8 +52,6 @@ import e2e_share_quality
 import e2e_voice_noise
 import e2e_voice_desktop
 import e2e_voice_desktop_volume
-import e2e_voice_encode
-import e2e_voice_idle_bandwidth
 import e2e_voice_transients
 import e2e_voice_experience
 import e2e_voice_latency
@@ -370,13 +368,6 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("volume slider on the desktop: the Linux client's playback level per slider "
          "value (opt in with E2E_ONLY)",
          lambda: e2e_voice_desktop_volume.run_if_selected(
-             server, secret, admin, sign_in)),
-        ("encode readback: the Linux client's real share and camera encode per layer "
-         "(opt in with E2E_ONLY)",
-         lambda: e2e_voice_encode.run_if_selected(server, secret, admin)),
-        ("voice idle bandwidth: bytes on the wire from the Linux client silent behind a "
-         "closed gate, silent with it open, and speaking (opt in with E2E_ONLY)",
-         lambda: e2e_voice_idle_bandwidth.run_if_selected(
              server, secret, admin, sign_in)),
         ("voice transients: chewing, smacks, a swallow and a breath through the Linux "
          "client per suppression arm (opt in with E2E_ONLY)",

@@ -58,24 +58,10 @@ extension VoiceSessionStats on VoiceSession {
   void _syncCallDiagnostics(VoiceSessionState state) {
     switch (state) {
       case VoiceSessionState.connecting || VoiceSessionState.connected:
-        final starting = !diagnostics.active;
         diagnostics.begin();
-        if (starting) unawaited(_noteEndpointEffects());
       case VoiceSessionState.idle || VoiceSessionState.failed:
         diagnostics.end();
         _releaseStats();
-    }
-  }
-
-  /// Reads once per call what Windows does to the microphone on top of our own processing.
-  Future<void> _noteEndpointEffects() async {
-    try {
-      final line = await windowsMicEffectsLine(inputId: audioInputInUse);
-      if (line == null || _disposed) return;
-      diagnostics.noteEffectsLine(line);
-      _diag(line);
-    } on Object catch (error, stack) {
-      AppLog.swallowed(LogTag.voice, 'No Windows mic effects', error, stack);
     }
   }
 

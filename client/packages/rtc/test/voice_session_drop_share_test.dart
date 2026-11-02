@@ -76,17 +76,4 @@ void main() {
 
     expect(session.droppedWhileSharing, isFalse);
   });
-
-  test('a rejoin after a share drop reconnects and clears the flag', () async {
-    final (session, room) = await joined(sharing: true);
-    dropRoom(room);
-    await pumpEventQueue();
-    expect(session.state, VoiceSessionState.failed);
-    expect(session.droppedWhileSharing, isTrue);
-
-    await session.join(url: 'wss://a.invalid', token: 't');
-
-    expect(session.state, VoiceSessionState.connected);
-    expect(session.droppedWhileSharing, isFalse);
-  });
 }

@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_rtc/rtc.dart' show resolveAudioDevice;
 
 import '../../../providers/providers.dart';
-import 'muted_talk_cue.dart';
 import 'voice_controller.dart';
 import 'voice_settings_controller.dart' show savedAudioInputId;
 
@@ -63,7 +62,6 @@ Future<DockHint?> resolveDockHint(
   required bool touch,
 }) async {
   final prefs = await container.read(preferencesProvider.future);
-  if (container.read(mutedTalkCueProvider)) return _MutedTalkHint(container);
   final mic = await _micCue(container, prefs);
   if (mic != null) return mic;
   if (!touch || prefs.getBool(shareHintSeenKey) == true) return null;
@@ -81,37 +79,17 @@ Future<DockHint?> _micCue(
 ) async {
   final devices = container.read(voiceControllerProvider.notifier).devices;
   if (!devices.supportsAudioInputSelection) return null;
-  final saved = savedAudioInputId(prefs);
-  final listed = await devices.audioInputDevices();
-  final resolved = resolveAudioDevice(listed, saved);
-  // A saved microphone that is not listed falls back to the default at join; an empty list says nothing.
-  final fellBack = saved != null && resolved == null && listed.isNotEmpty;
-  final current = fellBack ? 'missing:$saved' : (resolved?.id ?? '');
+  final resolved = resolveAudioDevice(
+    await devices.audioInputDevices(),
+    savedAudioInputId(prefs),
+  );
+  final current = resolved?.id ?? '';
   if (prefs.getString(micCueSeenKey) == current) return null;
   final label = resolved?.label ?? '';
-  final name = label.isEmpty ? 'System default' : label;
   return DockHint(
     target: DockHintTarget.mic,
-    text: fellBack ? 'Mic: $name (saved mic not found)' : 'Mic: $name',
+    text: 'Mic: ${label.isEmpty ? 'System default' : label}',
     seenKey: micCueSeenKey,
     seenValue: current,
   );
-}
-
-/// The talking-while-muted cue: never remembered, it ends when it has been seen.
-class _MutedTalkHint extends DockHint {
-  _MutedTalkHint(this._container)
-    : super(
-        target: DockHintTarget.mic,
-        text: mutedTalkCueText,
-        seenKey: 'muted-talk',
-        seenValue: true,
-      );
-
-  final ProviderContainer _container;
-
-  @override
-  Future<void> remember(SharedPreferences prefs) async {
-    _container.read(mutedTalkCueProvider.notifier).state = false;
-  }
 }

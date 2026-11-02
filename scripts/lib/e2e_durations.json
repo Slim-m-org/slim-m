@@ -79,7 +79,5 @@
  "voice: sharing a screen": 2.2,
  "voice: the canvas dock keeps mute and hang-up reachable": 2.2,
  "voice: two clients in one call": 3.0,
- "voice: two shares at once reach a third person, focus, and stopping one leaves the other": 61.5,
- "encode readback: the Linux client's real share and camera encode per layer (opt in with E2E_ONLY)": 0.0,
- "voice idle bandwidth: bytes on the wire from the Linux client silent behind a closed gate, silent with it open, and speaking (opt in with E2E_ONLY)": 0.0
+ "voice: two shares at once reach a third person, focus, and stopping one leaves the other": 61.5
 }
