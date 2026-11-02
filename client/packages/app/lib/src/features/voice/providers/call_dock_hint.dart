@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_rtc/rtc.dart' show resolveAudioDevice;
 
 import '../../../providers/providers.dart';
+import 'muted_talk_cue.dart';
 import 'voice_controller.dart';
 import 'voice_settings_controller.dart' show savedAudioInputId;
 
@@ -62,6 +63,7 @@ Future<DockHint?> resolveDockHint(
   required bool touch,
 }) async {
   final prefs = await container.read(preferencesProvider.future);
+  if (container.read(mutedTalkCueProvider)) return _MutedTalkHint(container);
   final mic = await _micCue(container, prefs);
   if (mic != null) return mic;
   if (!touch || prefs.getBool(shareHintSeenKey) == true) return null;
@@ -94,4 +96,22 @@ Future<DockHint?> _micCue(
     seenKey: micCueSeenKey,
     seenValue: current,
   );
+}
+
+/// The talking-while-muted cue: never remembered, it ends when it has been seen.
+class _MutedTalkHint extends DockHint {
+  _MutedTalkHint(this._container)
+    : super(
+        target: DockHintTarget.mic,
+        text: mutedTalkCueText,
+        seenKey: 'muted-talk',
+        seenValue: true,
+      );
+
+  final ProviderContainer _container;
+
+  @override
+  Future<void> remember(SharedPreferences prefs) async {
+    _container.read(mutedTalkCueProvider.notifier).state = false;
+  }
 }

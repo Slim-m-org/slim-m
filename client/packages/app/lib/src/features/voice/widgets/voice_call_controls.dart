@@ -33,6 +33,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import 'mic_call_button.dart';
+import 'muted_talk_watcher.dart';
 import 'mic_options_menu.dart';
 import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
@@ -178,15 +179,26 @@ class _CallControlsState extends ConsumerState<CallControls> {
         DockHintAnchor(
           target: DockHintTarget.mic,
           enabled: widget.hints && listenOnly == null,
-          child: MicOptionsMenu(
-            showCaret: micCaret,
-            extraOptions: widget.menuExtras,
-            destructive: micCallDestructive(ref, voice, listenOnly),
-            child: MicCallButton(
-              voice: voice,
-              listenOnly: listenOnly,
-              holdOpensOptions: !micCaret,
-              controller: widget.controller,
+          child: MutedTalkWatcher(
+            watching:
+                widget.hints &&
+                !voice.microphoneEnabled &&
+                listenOnly == null &&
+                !ref.watch(
+                  voiceSettingsControllerProvider.select(
+                    (s) => s.pushToTalkEnabled,
+                  ),
+                ),
+            child: MicOptionsMenu(
+              showCaret: micCaret,
+              extraOptions: widget.menuExtras,
+              destructive: micCallDestructive(ref, voice, listenOnly),
+              child: MicCallButton(
+                voice: voice,
+                listenOnly: listenOnly,
+                holdOpensOptions: !micCaret,
+                controller: widget.controller,
+              ),
             ),
           ),
         ),

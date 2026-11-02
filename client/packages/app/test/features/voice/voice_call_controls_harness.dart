@@ -183,8 +183,11 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   @override
   final bool supportsInputGate;
 
+  /// Feeds [inputGateReadings], for suites that need the native gate to speak.
+  final gateReadings = StreamController<InputGateReading>.broadcast();
+
   @override
-  Stream<InputGateReading> get inputGateReadings => const Stream.empty();
+  Stream<InputGateReading> get inputGateReadings => gateReadings.stream;
 
   @override
   void setInputGate({required bool enabled, required double thresholdDb}) {}
