@@ -151,7 +151,7 @@ class _StatusBannerState extends State<StatusBanner> {
     );
 
     return AnimatedSize(
-      duration: AppMotion.reduced(context, AppMotion.base),
+      duration: AppMotion.reducedSize(context, AppMotion.base),
       alignment: Alignment.topCenter,
       child: _closed
           ? const SizedBox(width: double.infinity)
