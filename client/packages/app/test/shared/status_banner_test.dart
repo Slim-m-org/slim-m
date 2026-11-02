@@ -100,7 +100,9 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await _pump(tester, BannerSeverity.info);
-    final pill = tester.getRect(find.byType(Container).first);
-    expect(pill.width, lessThan(kStatusBannerMaxWidth + 1));
+    final span =
+        tester.getRect(_close).right -
+        tester.getRect(find.text('Heads up')).left;
+    expect(span, lessThan(kStatusBannerMaxWidth));
   });
 }
