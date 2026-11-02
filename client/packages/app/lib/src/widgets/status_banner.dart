@@ -50,7 +50,7 @@ class StatusBanner extends StatefulWidget {
   /// Called once the banner closes, by the close button or its timer.
   final VoidCallback? onDismiss;
 
-  /// Skips the severity timer, for a banner that is the only way back to something.
+  /// For a banner bound to a live condition: no timer and no close button, so the caller owns its lifetime.
   final bool sticky;
 
   /// Outside space that collapses with the banner, so a hidden one reserves none.
@@ -73,8 +73,9 @@ class _StatusBannerState extends State<StatusBanner> {
   @override
   void didUpdateWidget(StatusBanner old) {
     super.didUpdateWidget(old);
-    if (old.message == widget.message && old.severity == widget.severity)
+    if (old.message == widget.message && old.severity == widget.severity) {
       return;
+    }
     _closed = false;
     _arm();
   }
@@ -114,7 +115,8 @@ class _StatusBannerState extends State<StatusBanner> {
       BannerSeverity.error => tokens.dangerBorder,
     };
     final dismissible =
-        widget.severity != BannerSeverity.error || widget.onDismiss != null;
+        !widget.sticky &&
+        (widget.severity != BannerSeverity.error || widget.onDismiss != null);
 
     final pill = Container(
       constraints: const BoxConstraints(maxWidth: kStatusBannerMaxWidth),

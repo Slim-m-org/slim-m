@@ -93,6 +93,11 @@ void main() {
     expect(find.text('Heads up'), findsOneWidget);
   });
 
+  testWidgets('a sticky banner has no close button', (tester) async {
+    await _pump(tester, BannerSeverity.warning, sticky: true, onDismiss: () {});
+    expect(_close, findsNothing);
+  });
+
   testWidgets('it is a compact pill, not the full width of its parent', (
     tester,
   ) async {

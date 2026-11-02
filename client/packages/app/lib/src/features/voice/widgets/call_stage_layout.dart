@@ -152,6 +152,7 @@ class CallStageLayout extends ConsumerWidget {
           if (voice.error != null && !voice.rejoining && !voice.reconnecting)
             StatusBanner(
               severity: BannerSeverity.error,
+              sticky: true,
               message: voice.error!,
               margin: const EdgeInsets.only(top: AppSpacing.s12),
             ),

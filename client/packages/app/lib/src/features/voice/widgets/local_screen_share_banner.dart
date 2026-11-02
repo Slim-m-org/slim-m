@@ -16,6 +16,7 @@ class LocalScreenSharePendingBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const StatusBanner(
+    sticky: true,
     icon: AppIcons.screenShare,
     message:
         'Waiting for you to start the broadcast. Tap the share button to '

@@ -27,6 +27,7 @@ class MicFailureBanner extends ConsumerWidget {
     final settings = advice.settings;
     return StatusBanner(
       severity: BannerSeverity.error,
+      sticky: true,
       message: advice.message,
       margin: const EdgeInsets.only(top: AppSpacing.s12),
       action: settings == null

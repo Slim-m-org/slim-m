@@ -18,6 +18,7 @@ class VoiceReconnectBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const StatusBanner(
     severity: BannerSeverity.warning,
+    sticky: true,
     icon: AppIcons.retry,
     message: 'Reconnecting to the call.',
     margin: EdgeInsets.only(top: AppSpacing.s12),

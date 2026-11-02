@@ -32,6 +32,7 @@ class PoorConnectionBanner extends ConsumerWidget {
     return StatusBanner(
       key: poorConnectionBannerKey,
       severity: BannerSeverity.warning,
+      sticky: true,
       icon: AppIcons.connectionPoor,
       message: poorConnectionMessage(me),
       margin: const EdgeInsets.only(top: AppSpacing.s12),
