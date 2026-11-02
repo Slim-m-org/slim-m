@@ -506,7 +506,7 @@ Lounge UX and canvas items are in sections 6 and 7.
   - Untested for the target population.
 - LAN clients reach the SFU through router hairpin.
   Low.
-  - UDP hairpin is VERIFIED working in prod logs (LAN client 10.0.0.178 selected a udp4 host pair against 73.132.148.72 at 2026-11-01T20:00Z).
+  - UDP hairpin is VERIFIED working in prod logs (a LAN client selected a udp4 host pair against the public address at 2026-11-01T20:00Z).
   - The only open item is the RTT and loss of that pair.
     Measure currentRoundTripTime on a LAN client before adding a LAN candidate or signaling URL.
 - Prod and repo voice config have drifted.
