@@ -114,7 +114,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     final orderController = ref.read(channelOrderControllerProvider.notifier);
 
     return Container(
-      color: tokens.surfaceSunken,
+      color: AppBackgroundScope.paneColor(context, tokens.surfaceSunken),
       child: Column(
         children: [
           // On every platform, title bar included - 0012's 2026-09-25 addendum.

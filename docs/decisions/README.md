@@ -112,3 +112,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0101](0101-halloween-theme-and-backdrops.md) | Halloween is the seventh palette, and a theme can carry a procedural backdrop | accepted |
 | [0102](0102-call-quality-batch-v121.md) | Call quality batch for v121: Strong stays opt-in, Data saver shares use the small layer, reconnect is display only, LiveKit 1.13.11 after staging | accepted |
 | [0103](0103-level-after-suppression.md) | Strong levels the microphone after suppression: libwebrtc's auto gain goes off and the chain's leveler takes over | accepted |
+| [0104](0104-personal-background-picture.md) | A personal background picture, with panes half translucent over it and a measured contrast floor | accepted |

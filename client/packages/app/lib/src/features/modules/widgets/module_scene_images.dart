@@ -36,7 +36,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
-import '../../../widgets/bounded_image_decode.dart';
+import '../../../providers/bounded_image_decode.dart';
 import 'module_scene.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 

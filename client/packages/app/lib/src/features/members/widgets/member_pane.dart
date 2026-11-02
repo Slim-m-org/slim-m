@@ -86,7 +86,7 @@ class AppMemberPane extends ConsumerWidget {
     return Container(
       width: width,
       decoration: BoxDecoration(
-        color: tokens.surfaceSunken,
+        color: AppBackgroundScope.paneColor(context, tokens.surfaceSunken),
         border: Border(left: BorderSide(color: tokens.borderSubtle)),
       ),
       child: Column(

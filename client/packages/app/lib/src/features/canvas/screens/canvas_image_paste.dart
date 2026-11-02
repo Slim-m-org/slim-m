@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
-import '../../../widgets/bounded_image_decode.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../../composer/widgets/composer_clipboard_image.dart';
 import '../../composer/widgets/composer_clipboard_paste.dart';
 import 'canvas_forbidden_message.dart';
