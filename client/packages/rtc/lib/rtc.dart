@@ -30,6 +30,7 @@ export 'src/stream_quality_label.dart';
 export 'src/call_stats_sampler.dart'
     show CallStatsSampler, CallStatsSnapshot, CallStatsTarget;
 export 'src/camera_devices.dart';
+export 'src/camera_join.dart';
 export 'src/camera_failure.dart';
 export 'src/camera_switching.dart';
 export 'src/desktop_sources.dart';

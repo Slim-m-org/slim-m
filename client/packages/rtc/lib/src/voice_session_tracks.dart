@@ -63,6 +63,9 @@ extension VoiceSessionTracks on VoiceSession {
   Future<void> _onDisconnected(lk.DisconnectReason? reason) async {
     if (_disposed) return;
     if (reason == lk.DisconnectReason.clientInitiated) return;
+    // Read from the last roster, before the empty one below erases it.
+    _droppedWhileSharing =
+        _participants.any((p) => p.isLocal && p.isScreenSharing);
     _audio.cancelRetry();
     await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
@@ -94,6 +97,7 @@ extension VoiceSessionTracks on VoiceSession {
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
+    _cameraJoin.cancel();
     _stopStallWatch();
     _stopMicWatch();
     _stopHealthWatch();
@@ -163,6 +167,12 @@ extension VoiceSessionTracks on VoiceSession {
   Future<bool> _trySetCamera(bool enabled) async {
     final room = _room;
     if (room == null) return false;
+    final result = await _setCamera(room, enabled);
+    if (result.error != null) _lastError = result.error;
+    return result.ok;
+  }
+
+  Future<CameraToggleResult> _setCamera(lk.Room room, bool enabled) async {
     final result = await _cameraSwitching.setEnabled(
       room.localParticipant,
       enabled,
@@ -171,12 +181,20 @@ extension VoiceSessionTracks on VoiceSession {
         _cameraQuality,
       ),
     );
-    if (result.error != null) _lastError = result.error;
     // Off means the next enable republishes fresh, front-facing: reset now.
     if (!enabled && result.ok) _cameraSwitching.resetFacing();
     _refreshParticipants();
-    return result.ok;
+    return result;
   }
+
+  /// Opens the camera a join asked for once the call is connected; a leave or newer join discards its outcome.
+  Future<void> _openCameraAfterJoin(lk.Room room, int generation) =>
+      _cameraJoin.open(
+        enable: () => _setCamera(room, true),
+        current: () =>
+            !_disposed && identical(_room, room) && generation == _generation,
+        noteFailure: (error) => _lastError = error,
+      );
 
   /// Moved here from the main class body for its 500-line hard ceiling:
   /// private plumbing, so an extension costs it nothing an

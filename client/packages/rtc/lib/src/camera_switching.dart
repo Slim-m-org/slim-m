@@ -122,14 +122,20 @@ class CameraSwitching {
   /// A disable failure is reported with no [CameraFailureReason.noCameraDetected]
   /// framing: the camera was already on, so a device plainly exists, and the
   /// caller (`VoiceSession._trySetCamera`) does not ask for one in that case.
-  /// [_devices] is only consulted here, on failure, rather than on every
-  /// attempt: it is an extra round trip that only the error message needs.
+  /// [_devices] is consulted before enabling only when a camera was chosen by
+  /// id, and otherwise only on failure: the extra round trip is for the message.
   Future<CameraToggleResult> setEnabled(
     lk.LocalParticipant? local,
     bool enabled, {
     lk.CameraCaptureOptions? options,
   }) async {
     if (local == null) return const CameraToggleResult.ok();
+    if (enabled && await _chosenCameraMissing(options?.deviceId)) {
+      return const CameraToggleResult.failed(
+        ChosenCameraUnavailable(),
+        CameraFailureReason.chosenCameraUnavailable,
+      );
+    }
     try {
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
@@ -147,6 +153,22 @@ class CameraSwitching {
         e,
         classifyCameraFailure(e, hasDevice: hasDevice),
       );
+    }
+  }
+
+  /// Whether [chosenId] names a camera the platform no longer lists.
+  ///
+  /// The native capturer opens device 0 for an id it cannot find, so without
+  /// this a camera unplugged since it was picked silently becomes another one.
+  /// An empty list or a failed listing proves nothing, so those pass.
+  Future<bool> _chosenCameraMissing(String? chosenId) async {
+    if (chosenId == null || chosenId.isEmpty) return false;
+    try {
+      final listed = await _devices.list();
+      return listed.isNotEmpty && !listed.any((d) => d.id == chosenId);
+    } catch (error, stack) {
+      reportFailure(LogTag.voice, 'list cameras', error, stack);
+      return false;
     }
   }
 

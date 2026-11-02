@@ -8,11 +8,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
+/// What a fake local participant does when asked to turn the camera on or off.
+typedef CameraHook = Future<void> Function(
+  bool enabled,
+  lk.CameraCaptureOptions? options,
+);
+
+class _LiveShare extends Fake
+    implements lk.LocalTrackPublication<lk.LocalVideoTrack> {
+  @override
+  lk.TrackSource get source => lk.TrackSource.screenShareVideo;
+
+  @override
+  bool get muted => false;
+}
+
 class _Me extends Fake implements lk.LocalParticipant {
-  _Me(this.identity);
+  _Me(this.identity, this.camera, this.sharing);
+
+  final bool sharing;
 
   @override
   final String identity;
+  final CameraHook? camera;
+
+  @override
+  Future<lk.LocalTrackPublication?> setCameraEnabled(
+    bool enabled, {
+    lk.CameraCaptureOptions? cameraCaptureOptions,
+  }) async {
+    await camera?.call(enabled, cameraCaptureOptions);
+    return null;
+  }
 
   @override
   String get name => '';
@@ -28,7 +55,7 @@ class _Me extends Fake implements lk.LocalParticipant {
 
   @override
   List<lk.LocalTrackPublication<lk.LocalVideoTrack>>
-      get videoTrackPublications => const [];
+      get videoTrackPublications => [if (sharing) _LiveShare()];
 
   @override
   List<lk.LocalTrackPublication<lk.LocalAudioTrack>>
@@ -63,12 +90,18 @@ class ConnectlessRoom extends lk.Room {
 
 /// A room whose connect returns at once and whose local identity is [me].
 class InstantRoom extends ConnectlessRoom {
-  InstantRoom({this.me = 'me'});
+  InstantRoom({this.me = 'me', this.camera, this.sharing = false});
 
   final String me;
 
+  /// Whether the local participant has a live screen share published.
+  final bool sharing;
+
+  /// Drives the camera; null opens it at once.
+  final CameraHook? camera;
+
   @override
-  lk.LocalParticipant? get localParticipant => _Me(me);
+  lk.LocalParticipant? get localParticipant => _Me(me, camera, sharing);
 }
 
 /// A microphone that counts how often the capture is opened muted.

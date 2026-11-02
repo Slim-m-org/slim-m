@@ -15,6 +15,7 @@ import 'voice_call_lifecycle_report.dart';
 import 'voice_camera_hiding.dart';
 import 'voice_input_settings.dart';
 import 'voice_rejoin.dart';
+import 'voice_share_resume.dart';
 import 'voice_state.dart';
 import 'voice_state_access.dart';
 
@@ -28,6 +29,7 @@ class VoiceSessionSync {
     required this.autoRejoin,
     required this.callClock,
     required this.rejoin,
+    required this.shareResume,
     required this.input,
     required this.cameras,
     required this.log,
@@ -41,6 +43,7 @@ class VoiceSessionSync {
   final VoiceAutoRejoin autoRejoin;
   final VoiceCallClock callClock;
   final VoiceRejoin rejoin;
+  final VoiceShareResume shareResume;
   final VoiceInputSettings input;
   final VoiceCameraHiding cameras;
   final void Function(String message, {Object? detail}) log;
@@ -56,6 +59,10 @@ class VoiceSessionSync {
       heartbeat.stop();
       input.stopWatchingSpaceNoiseSuppression();
       log('The call ended: ${dropped.name}', detail: dropped.message);
+      shareResume.noteDrop(
+        wasSharing:
+            session.droppedWhileSharing && VoiceRejoin.rejoinableDrop(dropped),
+      );
       rejoin.endCallForDrop(dropped);
       return;
     }
@@ -73,6 +80,7 @@ class VoiceSessionSync {
     if (s == VoiceSessionState.connected) {
       cameras.pushBlocked();
       unawaited(callClock.adoptServerStart(access));
+      unawaited(shareResume.onConnected());
     }
   }
 

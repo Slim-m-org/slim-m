@@ -172,4 +172,22 @@ void main() {
 
     expect(mic.reopens, 1);
   });
+
+  test('a slow push-to-talk prime does not hold the call from connected',
+      () async {
+    gate.complete();
+    await session.setKeepMicReady(true);
+    mic.reopenGate = Completer<void>();
+    final states = <VoiceSessionState>[];
+    final sub = session.states.listen(states.add);
+    addTearDown(sub.cancel);
+
+    final joined = join(micOn: false);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(states, contains(VoiceSessionState.connected));
+    expect(mic.reopens, 1);
+    mic.reopenGate!.complete();
+    await joined;
+  });
 }

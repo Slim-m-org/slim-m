@@ -34,6 +34,7 @@ import 'voice_rejoin.dart';
 import 'voice_screen_share.dart';
 import 'voice_settings_controller.dart' show loadCameraOnJoinPreference;
 import 'voice_session_sync.dart';
+import 'voice_share_resume.dart';
 import 'voice_sfu_connect.dart';
 import 'voice_state.dart';
 import 'voice_state_access.dart';
@@ -91,6 +92,13 @@ class VoiceController extends StateNotifier<VoiceState> {
       _log,
       broadcastStartTimeout: broadcastStartTimeout,
     );
+    _shareResume = VoiceShareResume(
+      ref: _ref,
+      session: _session,
+      share: share,
+      access: access,
+      callGeneration: () => _callGeneration,
+    );
     _rejoin = VoiceRejoin(access, _autoRejoin, _callClock, _ref, join);
     _sfu = VoiceSfuConnect(_session, _ref, access, _joinMuted, input);
     _sync = VoiceSessionSync(
@@ -102,6 +110,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       autoRejoin: _autoRejoin,
       callClock: _callClock,
       rejoin: _rejoin,
+      shareResume: _shareResume,
       input: input,
       cameras: cameras,
       log: _log,
@@ -114,6 +123,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _shareSourceLost = _session.screenShareSourceLost.listen(
       (_) => share.reportShareSourceLost(),
     );
+    _cameraJoinOpens = _session.cameraJoinOpens.listen(_onCameraJoinOpen);
     _participants = _session.participantChanges.listen((p) {
       _activity.observe(p);
       unawaited(_callClock.adoptServerStart(access));
@@ -154,6 +164,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Screen sharing and the broadcast deadline.
   late final VoiceScreenShare share;
   late final VoiceRejoin _rejoin;
+  late final VoiceShareResume _shareResume;
   late final VoiceSfuConnect _sfu;
   late final VoiceSessionSync _sync;
 
@@ -169,6 +180,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   late final StreamSubscription<VoiceSessionState> _states;
   late final StreamSubscription<List<VoiceParticipant>> _participants;
   late final StreamSubscription<String> _shareSourceLost;
+  late final StreamSubscription<CameraJoinOpen> _cameraJoinOpens;
   late final StreamSubscription<void> _endCallRequests;
 
   /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
@@ -205,6 +217,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _muteNextJoin = false;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
+    if (state.channelId != channelId) _shareResume.forget();
     // A queued rejoin was about the call this one replaces; see VoiceAutoRejoin.cancelPending.
     _autoRejoin.cancelPending();
     unawaited(input.refreshSpaceNoiseSuppression());
@@ -230,6 +243,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   Future<void> leave() async {
     final generation = ++_callGeneration;
     share.cancelBroadcastDeadline();
+    _shareResume.forget();
     final channelId = state.channelId;
     final startedAt = state.connectedAt;
     // Read before `_session.leave()`, so nobody still here misreads as having left when we did.
@@ -311,6 +325,16 @@ class VoiceController extends StateNotifier<VoiceState> {
     );
   }
 
+  /// The camera a join asked for opens after connected: pending while it does, and a persistent error when it cannot.
+  void _onCameraJoinOpen(CameraJoinOpen open) {
+    final failure = open.failure;
+    if (failure != null) _log('Could not turn the camera on', detail: failure);
+    state = state.copyWith(
+      cameraPending: open.pending,
+      error: failure == null ? null : cameraFailureMessage(true, failure),
+    );
+  }
+
   /// Whether [identity] is silenced for this listener alone; see
   /// [VoiceSession.setLocallyMuted].
   bool isLocallyMuted(String identity) => _session.isLocallyMuted(identity);
@@ -368,6 +392,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     unawaited(_states.cancel());
     unawaited(_participants.cancel());
     unawaited(_shareSourceLost.cancel());
+    unawaited(_cameraJoinOpens.cancel());
     unawaited(_endCallRequests.cancel());
     unawaited(_session.dispose());
     _callLifecycle.dispose();
