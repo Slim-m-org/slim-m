@@ -23,7 +23,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Auto-download media'), findsOneWidget);
+    expect(find.text('Load images in chat'), findsOneWidget);
     expect(find.text('Autoplay GIFs'), findsOneWidget);
     expect(find.text('Attachment preview quality'), findsOneWidget);
     expect(find.text('Image cache'), findsOneWidget);

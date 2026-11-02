@@ -89,7 +89,7 @@ Future<List<RenderedRow>> renderedSettingsRows(
   for (final e
       in find.byWidgetPredicate((w) => w is SettingsSelectRow).evaluate()) {
     final w = e.widget as SettingsSelectRow;
-    add(w.label, w.description ?? w.sheetFootnote);
+    add(w.label, w.description);
   }
   for (final e
       in find.byWidgetPredicate((w) => w is SettingsSegmentedRow).evaluate()) {

@@ -49,6 +49,7 @@ export 'src/input_gate.dart'
         kInputGateDisplayInterval,
         InputGateRate,
         supportsStrongestNoiseSuppression;
+export 'src/noise_floor_estimator.dart' show NoiseFloorEstimator;
 export 'src/camera_fit.dart';
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';

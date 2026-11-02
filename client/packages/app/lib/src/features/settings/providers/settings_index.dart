@@ -263,9 +263,9 @@ const personalSettingsIndex = <SettingsEntry>[
   ...voiceSettingsIndex,
   SettingsEntry(
     'performance',
-    'Auto-download media',
-    description: 'Whether images load as you scroll or wait for a tap.',
-    keywords: ['data', 'images', 'download'],
+    'Load images in chat',
+    description: 'Fetches images in messages as you scroll, using your data.',
+    keywords: ['data', 'images', 'download', 'auto-download', 'media'],
   ),
   SettingsEntry(
     'performance',

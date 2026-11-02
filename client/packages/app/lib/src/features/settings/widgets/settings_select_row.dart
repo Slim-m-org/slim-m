@@ -35,7 +35,6 @@ class SettingsSelectRow<T> extends StatelessWidget {
     required this.choices,
     required this.onChanged,
     this.sheetTitle,
-    this.sheetFootnote,
     this.description,
     this.unknownLabel = 'Unknown',
     this.sub = false,
@@ -54,12 +53,8 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// sheet on its own.
   final String? sheetTitle;
 
-  /// A caveat line under the choices, shown where the reader is actually
-  /// weighing them rather than as a section caption answering a question
-  /// nobody asked yet.
-  final String? sheetFootnote;
-
-  /// A line under the label saying what the setting governs.
+  /// A line under the label saying what the setting governs. It never goes
+  /// inside the open dropdown or sheet.
   final String? description;
 
   /// Shown in place of a choice's label when [value] is null. Must never be a
@@ -88,7 +83,6 @@ class SettingsSelectRow<T> extends StatelessWidget {
     required String title,
     required T? value,
     required List<SettingsChoice<T>> choices,
-    String? footnote,
   }) {
     return showAppSheet<T>(
       context,
@@ -105,7 +99,6 @@ class SettingsSelectRow<T> extends StatelessWidget {
                 selected: choice.value == value,
                 onTap: () => Navigator.of(sheetContext).pop(choice.value),
               ),
-            if (footnote != null) AppMenuFootnote(footnote),
           ],
         ),
       ),
@@ -118,7 +111,6 @@ class SettingsSelectRow<T> extends StatelessWidget {
       title: sheetTitle ?? label,
       value: value,
       choices: choices,
-      footnote: sheetFootnote,
     );
     if (chosen != null && chosen != value) onChanged(chosen);
   }
@@ -159,11 +151,6 @@ class SettingsSelectRow<T> extends StatelessWidget {
               leading: choice.leading,
               selected: choice.value == value,
             ),
-          ),
-        if (sheetFootnote != null)
-          PopupMenuItem<T>(
-            enabled: false,
-            child: AppMenuFootnote(sheetFootnote!),
           ),
       ],
     );

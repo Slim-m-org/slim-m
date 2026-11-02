@@ -103,7 +103,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
             for (final option in TimeFormatPreference.values)
               SettingsChoice(value: option, label: _timeFormatLabel(option)),
           ],
-          sheetFootnote: 'System follows your device clock.',
+          description: 'System follows your device clock.',
           onChanged: (next) =>
               ref.read(timeFormatControllerProvider.notifier).select(next),
         ),
@@ -115,7 +115,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
             for (final option in MotionOverride.values)
               SettingsChoice(value: option, label: _motionLabel(option)),
           ],
-          sheetFootnote: 'System follows your device motion setting.',
+          description: 'System follows your device motion setting.',
           onChanged: (next) => ref
               .read(motionPreferenceControllerProvider.notifier)
               .select(next),

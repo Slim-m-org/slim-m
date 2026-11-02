@@ -129,7 +129,7 @@ class _VoiceRoomSettingsSheetState extends ConsumerState<VoiceRoomSettingsSheet>
               for (final option in options)
                 SettingsChoice(value: option.$2, label: option.$1),
             ],
-            sheetFootnote: 'The most people in the call at once.',
+            description: 'The most people in the call at once.',
             onChanged: (value) => _saving ? null : _save(userLimit: value),
           ),
           if (actionError != null) ...[

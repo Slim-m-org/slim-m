@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'settings_hairline.dart';
+
 class SettingsDisclosure extends StatefulWidget {
   const SettingsDisclosure({
     super.key,
@@ -30,45 +32,32 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsRowGroup(
       children: [
-        FocusableTapTarget(
+        AppListRow(
+          label: widget.title,
           semanticLabel:
               '${widget.title}, ${widget.summary}, '
               '${_expanded ? 'expanded' : 'collapsed'}',
-          onTap: () => setState(() => _expanded = !_expanded),
-          builder: (context, focused, hovered) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
-            child: Row(
-              children: [
-                Icon(
-                  _expanded ? AppIcons.chevronDown : AppIcons.chevronRight,
-                  size: AppSizes.icon16,
-                  color: tokens.textSecondary,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpacing.s8,
+            children: [
+              Flexible(
+                child: Text(
+                  widget.summary,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.ui.copyWith(color: tokens.textSecondary),
                 ),
-                const SizedBox(width: AppSpacing.s8),
-                Text(
-                  widget.title,
-                  style: AppText.ui.copyWith(
-                    color: hovered ? tokens.textPrimary : tokens.textSecondary,
-                    fontWeight: AppWeights.medium,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.s8),
-                Expanded(
-                  child: Text(
-                    widget.summary,
-                    textAlign: TextAlign.end,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.caption.copyWith(
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                _expanded ? AppIcons.chevronDown : AppIcons.chevronRight,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+            ],
           ),
+          onTap: () => setState(() => _expanded = !_expanded),
         ),
         if (_expanded) ...widget.children,
       ],
