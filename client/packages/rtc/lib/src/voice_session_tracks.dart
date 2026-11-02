@@ -224,7 +224,6 @@ extension VoiceSessionTracks on VoiceSession {
         _cameraQuality,
       ),
     );
-    if (result.error != null) _lastError = result.error;
     // Off only mutes, and the next enable reopens the capture front-facing: reset now.
     if (!enabled && result.ok) _cameraSwitching.resetFacing();
     _refreshParticipants();

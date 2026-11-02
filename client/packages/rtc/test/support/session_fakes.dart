@@ -60,6 +60,15 @@ class _Me extends Fake implements lk.LocalParticipant {
   List<lk.LocalTrackPublication<lk.LocalVideoTrack>>
       get videoTrackPublications => [...videos, if (sharing) _LiveShare()];
 
+  // The camera republish check asks for the published camera before enabling.
+  @override
+  lk.LocalTrackPublication? getTrackPublicationBySource(lk.TrackSource source) {
+    for (final pub in videoTrackPublications) {
+      if (pub.source == source) return pub;
+    }
+    return null;
+  }
+
   @override
   List<lk.LocalTrackPublication<lk.LocalAudioTrack>>
       get audioTrackPublications => const [];
