@@ -162,6 +162,7 @@ const _deviceKeys = <String>{
   'slimm.voice.screen_share_allow_annotations',
   'slimm.voice.screen_share_quality',
   'slimm.voice.shortcut_overrides',
+  'slimm.voice.speaker_preferred',
   'slimm.voice.webrtc_noise_suppression',
   'slimm.whats_new.last_seen_version',
 };

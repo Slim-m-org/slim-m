@@ -60,6 +60,7 @@ export 'src/screen_share.dart';
 export 'src/screen_share_source_size.dart' show localShareCapturedSize;
 export 'src/screen_share_audio.dart';
 export 'src/share_audio_isolation.dart';
+export 'src/speaker_route.dart';
 export 'src/screen_share_control.dart';
 export 'src/video_publish_options.dart';
 export 'src/video_quality.dart';
