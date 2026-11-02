@@ -54,7 +54,7 @@ class VoiceSettingsBody extends StatelessWidget {
 /// How readily the speaking indicator lights, over and above whatever the
 /// SFU itself already decided; see `passesActivationThreshold` in the rtc
 /// package for the exact floor. Not wired to the microphone's own capture -
-/// checked against the pinned `livekit_client` 2.10.0 source before adding
+/// checked against the pinned `livekit_client` 2.13.1 source before adding
 /// this screen, and it exposes no adjustable noise-gate threshold at all,
 /// only on/off capture toggles this client already leaves at their defaults.
 class _SensitivitySection extends ConsumerWidget {

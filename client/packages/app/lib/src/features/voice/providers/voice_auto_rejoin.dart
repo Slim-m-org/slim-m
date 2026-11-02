@@ -3,7 +3,7 @@
 /// having to notice and tap.
 ///
 /// LiveKit retries a dropped connection itself, on its own schedule
-/// (`defaultRetryDelaysInMs` in livekit_client 2.10.0: ten attempts spanning
+/// (`defaultRetryDelaysInMs` in livekit_client 2.13.1: ten attempts spanning
 /// 44 seconds). This picks up where that gives up. Until it existed, a
 /// client whose transport outlasted that budget landed in
 /// [VoiceSessionState.failed] and stayed there: `VoiceController`'s

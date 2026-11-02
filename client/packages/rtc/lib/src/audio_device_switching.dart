@@ -66,7 +66,7 @@ class AudioDeviceSwitching {
   bool _chosenInputWentMissing = false;
 
   /// Whether picking a specific microphone actually changes the live call.
-  /// False on mobile: `Hardware.selectAudioInput` (livekit_client 2.10.0,
+  /// False on mobile: `Hardware.selectAudioInput` (livekit_client 2.13.1,
   /// the pinned version) warns and returns without doing anything for iOS
   /// and Android, so offering a picker there would be a control that
   /// quietly does nothing.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Per-participant playback gain, and the honest answer about where it works.
 ///
-/// livekit_client 2.10.0 has no per-participant volume API at all - only
+/// livekit_client 2.13.1 has no per-participant volume API at all - only
 /// whether a track plays. flutter_webrtc, already a direct dependency here,
 /// does: `Helper.setVolume` sets receive-side gain on a track, on every
 /// platform slim-m ships except the web, which this file exists to say.
