@@ -137,7 +137,7 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
                 child: Align(
                   alignment: Alignment.bottomLeft,
                   child: RevealFade(
-                    revealed: revealed,
+                    revealed: revealed || widget.isLocal,
                     child: MediaLabelChip(
                       icon: AppIcons.screenShare,
                       label: widget.isLocal
