@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// Every retry attempt emits an event, so this only fires when the SDK never
 /// reports that it finished, which would otherwise leave the call held forever.
-const Duration kReconnectQuiet = Duration(seconds: 30);
+const Duration kReconnectQuiet = Duration(seconds: 60);
 
 /// How the SDK is repairing the connection.
 enum ReconnectKind {

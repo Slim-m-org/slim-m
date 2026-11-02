@@ -81,6 +81,28 @@ void main() {
       expect(call.session.state, VoiceSessionState.failed);
     });
 
+    test('a blip that ends in the SDK giving up is in that call\'s summary',
+        () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      call.room.emit(const lk.RoomReconnectingEvent());
+      await pumpEventQueue();
+
+      call.room.emit(lk.RoomDisconnectedEvent(
+        reason: lk.DisconnectReason.reconnectAttemptsExceeded,
+      ));
+      await pumpEventQueue();
+
+      final lines = call.log.where((l) => l.contains('transport blips'));
+      expect(lines, hasLength(1));
+      expect(lines.single, contains('transport blips=1'));
+      expect(call.session.health.reconnect.stats.count, 0,
+          reason: 'the next call starts from zero');
+      await call.session.leave();
+      expect(call.log.where((l) => l.contains('transport blips')), hasLength(1),
+          reason: 'the blip is not logged again for the next call');
+    });
+
     test('leaving mid-reconnect clears it', () async {
       final call = await JoinedCall.join();
       addTearDown(call.session.dispose);

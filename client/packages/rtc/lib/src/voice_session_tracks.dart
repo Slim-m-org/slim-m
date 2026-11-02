@@ -108,8 +108,8 @@ extension VoiceSessionTracks on VoiceSession {
     if (!_participantsController.isClosed) {
       _participantsController.add(_participants);
     }
+    // Ends any open blip through the health summary, with the state already failed.
     _setState(VoiceSessionState.failed);
-    health.reconnect.ended('disconnected');
     await _share.control.dispose();
   }
 

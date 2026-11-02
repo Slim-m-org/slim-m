@@ -221,6 +221,8 @@ class VoiceHealth {
   /// Ends the call: the summary lines for the log, and the summary kept for
   /// the Troubleshooting page. Empty when nothing was sampled.
   List<String> finish() {
+    // An episode still open when the call ends is a blip of this call, not the next.
+    reconnect.ended('call ended');
     final blips = reconnect.stats;
     if (!hasData) {
       reset();
