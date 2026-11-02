@@ -59,11 +59,11 @@ class VoiceJoinBar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!compact)
+          if (!compact && lastCallAt != null)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s8),
               child: Text(
-                _statusLine(roster.hasValue, here),
+                'last call ${callDayLabel(lastCallAt!, now: now)}',
                 style: AppText.code.copyWith(color: tokens.textSecondary),
               ),
             ),
@@ -129,14 +129,6 @@ class VoiceJoinBar extends ConsumerWidget {
     final verb = rejoin ? 'Rejoin' : 'Join';
     if (compact) return verb;
     return here.isEmpty ? '$verb muted' : '$verb · ${here.length} here';
-  }
-
-  String _statusLine(bool checked, List<api.VoiceRosterParticipant> here) {
-    final last = lastCallAt;
-    return [
-      if (checked) here.isEmpty ? 'empty' : '${here.length} in the call',
-      if (last != null) 'last call ${callDayLabel(last, now: now)}',
-    ].join(' · ');
   }
 
   Widget _joinButton(String label, List<api.VoiceRosterParticipant> here) {

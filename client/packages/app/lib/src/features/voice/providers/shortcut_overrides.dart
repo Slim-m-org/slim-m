@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The mute and deafen shortcuts a person remapped, kept on this device.
+/// The call shortcuts a person remapped, kept on this device.
 ///
 /// An absent entry means the default. The map is mirrored into
 /// [userShortcutOverrides] so every hint and binding follows the change.
@@ -19,6 +19,9 @@ import '../../../providers/providers.dart';
 const remappableActions = [
   AppAction.toggleMuteCall,
   AppAction.toggleDeafenCall,
+  AppAction.toggleCameraCall,
+  AppAction.toggleShareCall,
+  AppAction.leaveCall,
 ];
 
 /// Hold-to-talk key until the person picks another.

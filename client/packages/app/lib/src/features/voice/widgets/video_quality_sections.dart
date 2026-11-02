@@ -48,7 +48,9 @@ class VideoQualitySection extends ConsumerWidget {
           children: [
             _QualityRow<ReceiveVideoQuality>(
               label: 'Watching',
-              description: 'Video and screens from others.',
+              description: receiveVideoQualityNote(
+                settings.receiveVideoQuality,
+              ),
               values: ReceiveVideoQuality.values,
               selected: settings.receiveVideoQuality,
               nameOf: receiveVideoQualityLabel,
@@ -56,6 +58,7 @@ class VideoQualitySection extends ConsumerWidget {
             ),
             _QualityRow<CameraQuality>(
               label: 'Your camera',
+              description: 'Sharpness of the camera video you send.',
               values: CameraQuality.values,
               selected: settings.cameraQuality,
               nameOf: cameraQualityLabel,
@@ -90,7 +93,7 @@ class VideoQualitySection extends ConsumerWidget {
             if (supportsAudio)
               SettingsToggleRow(
                 label: 'Share device audio',
-                description: note,
+                description: note ?? 'Includes sound playing on this device.',
                 value: settings.screenShareIncludeAudio,
                 semanticLabel: 'Share audio with a screen share',
                 onChanged: notifier.setScreenShareIncludeAudio,

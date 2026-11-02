@@ -22,7 +22,7 @@
 ///
 /// **Never shrinks a touch target to make room.** [CallDockButton] draws
 /// every control at a fixed size regardless of width, and the canvas toggle
-/// is the same button. When the row - mic, maybe speaker, camera, maybe
+/// is the same button. When the row - mic, deafen, camera, maybe
 /// switch-camera, share, leave, and the toggle - would not fit the available
 /// width at that fixed size, the toggle folds into a second row of its own
 /// inside the same

@@ -70,6 +70,11 @@ One rule to learn: the far right of the dock ends the call.
 
 Why: a destructive control in the middle of a row of toggles gets hit by accident, and it should not move when the canvas opens.
 
+Amended 2026-11-01, reconciling this point with point 3: "the only control with a danger outline" was wrong once a muted mic and a deafened headset took the same outline as a state.
+Leave is now the only control whose danger outline is always on, and it is heavier (2px against 1px) with a hover-only danger fill.
+Danger stays outlined and never filled at rest (`call_dock_button.dart`).
+A muted mic, a deafened headset and a lost mic keep the 1px outline of point 3, so the outline means "this is off" on them and "this ends the call" only on Leave, where it is also 2px.
+
 ### 4. The canvas button is a toggle in the same slot in both states
 
 Today: `CanvasOpenButton` and `_CanvasToggleButton` in `voice_call_dock.dart` already take `active` from `canvasOpenProvider`, but the semantic label stays "Open canvas" and the canvas tools row has its own separate close X at the far right.
@@ -162,6 +167,32 @@ Amended 2026-10-14: the who-could-join line is gone. The owner asked not to be t
 
 Why: for a small group this is the most common call state, and it is currently the emptiest.
 
+### 12. Options on the phone dock and the camera
+
+Amended 2026-11-01, from the voice audit (section 6, items 1, 10 and 16), with the owner's approval of a visible entry for share options on a phone.
+
+Today: on a phone the mic and share options open by long press, with no caret and no hint, and the one thing a person is likely to want there (share resolution and frame rate) is hidden.
+The camera button has no options at all, so camera quality and the mirror setting live only in Settings, and no speaker can be chosen in a call since the speaker button became deafen.
+
+Change:
+
+- Share options on a phone get a first-call coach mark, not a permanent 44dp chip.
+  A chip does not fit the width budget: the compact call row of five controls already measures 319dp (`callRowFits`), a sixth 52dp slot does not fit a 360dp window, and the card was shrunk on 2026-10-02 at the owner's request.
+  The mark is a short bubble over the share button, "Hold to change share quality", shown once per install at touch density (below `kCompactWidth`, so it follows width and never platform).
+  It floats in the overlay and ignores pointers, so it never changes the dock's measured height or catches a tap meant for what is under it, and it is remembered after 8 seconds.
+  A pointer-width window has the caret and shows no mark, and the canvas docks show none either, since their tools sit directly above the call row.
+  desktop-vs-mobile.md rule 2 is the menu it points at (one value for a control that stays on screen), and its translation table row for a hover or caret affordance gives the long press, which the mark now names.
+- The camera button gets the same options component as the mic and share: a caret at pointer width, a long press when the row is touch density or tight.
+  The menu holds the camera switch (a flip on mobile, a device list on a picker platform) while a camera is on, the 360p, 720p and 1080p resolution, and the mirror toggle, each written through the notifier Voice settings uses.
+  Changing the resolution restarts a live camera through `LiveQualityRestart`, as it does from Settings.
+- The speaker list is a section of the mic menu, so deafen stays a one-click toggle (point 3's "one rule per control") and a narrow dock reaches it through the same mic long press.
+  It is absent on iOS and the web, where the platform cannot switch output.
+- A call opened on a microphone the person has not been shown, the first time or after the saved one changed, names it once in a bubble over the mic button ("Mic: <device>").
+  It is the cue beside the live level bar that joining with the saved mic otherwise lacks, without adding a lobby, which the owner removed twice.
+
+The call row grows by one caret at pointer width (24dp), so `callRowFits` counts three, `_oneRowMinWidth` in `canvas_call_dock.dart` moved from 720 to 744, and a music button carries its caret into `dockExtraExtent`.
+The stacked canvas layout now keeps the music button too, in the tight call row's spill line, where it used to be unreachable between about 390 and 460dp.
+
 ## The controls-with-options rule
 
 The owner settled this one, so it is a rule and not an option.
@@ -174,7 +205,7 @@ The owner settled this one, so it is a rule and not an option.
 This replaces hidden long-press-only routes, such as the share button's "hold to change source".
 It is being built as a design-system component on `feat/control-with-options`, applied to the share button first so the Wayland source switch stops being invisible.
 The share control is therefore not a card under this record.
-Mic, camera and tool options adopt the same component as they grow options.
+Mic, camera and tool options adopt the same component as they grow options; the camera did in point 12.
 
 ## Open questions
 

@@ -6,10 +6,11 @@ Three independent choices, all stored on the device and edited in Voice settings
 
 - Screen share resolution (720p, 1080p, 1440p, 2160p) and frame rate (15, 30, 60 fps): Voice settings and the screen share button's options menu.
   They are the only quality choices in that menu, because they are the only ones about the share.
-- Camera quality (360p, 720p, 1080p): Voice settings only.
-  The camera button has no options menu, and a menu on it just for this was not worth the extra control.
+- Camera quality (360p, 720p, 1080p): Voice settings and the camera button's options menu, which also holds the camera switch and the mirror setting.
+  Both write the same setting, and a live camera restarts to pick it up.
 - Watching quality (Max, Auto, Balanced, Data saver): Voice settings, and the quality chip on a share's control strip in the call.
   It caps the layer received, and the pixel size of that layer depends on what each sender publishes, so it keeps plain words instead of invented numbers.
+  The row says in one sentence what the current pick changes (`receiveVideoQualityNote`): Max always takes the top layer, Auto follows tile size and the network, Balanced takes a medium camera layer and a full screen layer, and Data saver takes the smallest layer that still reads.
   Data saver asks for the lowest layer of cameras and of shares (960x540 for a share, which publishes only two layers); an enlarged or popped-out tile always gets the top layer.
   The setting is global, so the chip's menu is headed "Watching quality (all streams)" and a pick there changes every stream and camera, written through the same `receiveVideoQuality` setting Voice settings edits.
 

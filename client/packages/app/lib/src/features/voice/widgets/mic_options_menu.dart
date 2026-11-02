@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The call dock's microphone options: input device, noise suppression and
-/// the input toggles, all backed by the providers Voice settings already uses.
+/// The call dock's microphone options: input and speaker device, noise
+/// suppression and the input toggles, all backed by the providers Voice
+/// settings already uses.
 library;
 
 import 'dart:async';
@@ -9,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart' show AudioDevice, resolveAudioDevice;
+import 'package:slimm_rtc/rtc.dart' show AudioDevice;
 
 import '../../../routing/routes.dart';
 import '../../../widgets/control_options_menu.dart';
@@ -17,19 +18,10 @@ import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../providers/noise_suppression.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
-
-/// Wide enough for a device name; the default menu width truncates them.
-const micMenuWidth = 280.0;
+import 'call_device_options.dart';
 
 /// The voice settings pane the menu's last row opens.
 const voiceSettingsPane = 'voice';
-
-const _labels = {
-  NoiseSuppressionChoice.spaceDefault: 'Space default',
-  NoiseSuppressionChoice.standard: 'Standard',
-  NoiseSuppressionChoice.strong: 'Strong',
-  NoiseSuppressionChoice.strongest: 'Strongest',
-};
 
 class MicOptionsMenu extends ConsumerStatefulWidget {
   const MicOptionsMenu({
@@ -55,7 +47,9 @@ class MicOptionsMenu extends ConsumerStatefulWidget {
 
 class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
   List<AudioDevice> _inputs = const [];
+  List<AudioDevice> _outputs = const [];
   StreamSubscription<void>? _changes;
+  late final ValueNotifier<bool> _spaceStrong;
 
   @override
   void initState() {
@@ -66,20 +60,34 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
         .devices
         .audioDeviceChanges
         .listen((_) => unawaited(_refresh()));
+    _spaceStrong =
+        ref
+            .read(voiceControllerProvider.notifier)
+            .input
+            .spaceStrongNoiseSuppression
+          ..addListener(_rebuild);
   }
+
+  void _rebuild() => setState(() {});
 
   @override
   void dispose() {
     unawaited(_changes?.cancel());
+    _spaceStrong.removeListener(_rebuild);
     super.dispose();
   }
 
   Future<void> _refresh() async {
-    final inputs = await ref
-        .read(voiceControllerProvider.notifier)
-        .devices
-        .audioInputDevices();
-    if (mounted) setState(() => _inputs = inputs);
+    final devices = ref.read(voiceControllerProvider.notifier).devices;
+    final inputs = await devices.audioInputDevices();
+    final outputs = devices.supportsAudioOutputSelection
+        ? await devices.audioOutputDevices()
+        : const <AudioDevice>[];
+    if (!mounted) return;
+    setState(() {
+      _inputs = inputs;
+      _outputs = outputs;
+    });
   }
 
   @override
@@ -87,25 +95,35 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
     final settings = ref.watch(voiceSettingsControllerProvider);
     final noise = ref.watch(noiseSuppressionProvider);
     final controller = ref.read(voiceControllerProvider.notifier);
+    final spaceStrong = controller.input.spaceStrongNoiseSuppression.value;
     final notifier = ref.read(voiceSettingsControllerProvider.notifier);
     return ControlOptionsMenu(
       optionsLabel: 'Microphone options',
       showCaret: widget.showCaret,
       destructive: widget.destructive,
-      menuWidth: micMenuWidth,
+      menuWidth: deviceMenuWidth,
       options: [
-        ..._deviceOptions(
-          supported: controller.devices.supportsAudioInputSelection,
-          selectedId: settings.audioInputDeviceId,
-          onPick: notifier.setAudioInputDevice,
-        ),
+        if (controller.devices.supportsAudioInputSelection)
+          ...audioDeviceOptions(
+            heading: 'Microphone',
+            devices: _inputs,
+            selectedId: settings.audioInputDeviceId,
+            onPick: notifier.setAudioInputDevice,
+          ),
+        if (controller.devices.supportsAudioOutputSelection)
+          ...audioDeviceOptions(
+            heading: 'Speaker',
+            devices: _outputs,
+            selectedId: settings.audioOutputDeviceId,
+            onPick: notifier.setAudioOutputDevice,
+          ),
         if (controller.input.supportsInputGate) ...[
           const ControlOptionHeading('Noise suppression'),
           for (final choice in NoiseSuppressionChoice.offered(
             supported: ref.watch(strongestSupportedProvider),
           ))
             ControlOption(
-              label: _labels[choice]!,
+              label: noiseSuppressionLabel(choice, spaceStrong: spaceStrong),
               selected: choice == noise,
               onSelected: () => unawaited(
                 ref.read(noiseSuppressionProvider.notifier).set(choice),
@@ -140,28 +158,5 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
       ],
       child: widget.child,
     );
-  }
-
-  List<ControlOptionEntry> _deviceOptions({
-    required bool supported,
-    required String? selectedId,
-    required Future<void> Function(AudioDevice?) onPick,
-  }) {
-    if (!supported) return const [];
-    final resolved = resolveAudioDevice(_inputs, selectedId);
-    return [
-      const ControlOptionHeading('Microphone'),
-      ControlOption(
-        label: 'System default',
-        selected: resolved == null,
-        onSelected: () => unawaited(onPick(null)),
-      ),
-      for (final device in _inputs)
-        ControlOption(
-          label: device.label.isEmpty ? 'Unnamed device' : device.label,
-          selected: device.id == resolved?.id,
-          onSelected: () => unawaited(onPick(device)),
-        ),
-    ];
   }
 }

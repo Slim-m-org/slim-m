@@ -15,6 +15,8 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogRecord, LogSink;
+import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart'
+    show remappableActions;
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/push_to_talk_key_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -187,7 +189,7 @@ void main() {
 
       final keyCap = find.bySemanticsLabel(RegExp('Push-to-talk key: V'));
       expect(keyCap, findsOneWidget);
-      expect(find.text('Change'), findsNWidgets(3));
+      expect(find.text('Change'), findsNWidgets(1 + remappableActions.length));
 
       semantics.dispose();
     },

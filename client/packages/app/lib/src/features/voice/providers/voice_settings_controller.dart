@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart'
+    show SharedPreferences;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart';
 
@@ -141,6 +143,10 @@ Future<(String?, String?)> loadAudioDevicePreferences(Ref ref) async {
     prefs.getString(_audioOutputDeviceIdKey),
   );
 }
+
+/// The saved microphone id from [prefs], null for the system default.
+String? savedAudioInputId(SharedPreferences prefs) =>
+    prefs.getString(_audioInputDeviceIdKey);
 
 Future<bool> loadMicFallbackEnabled(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
