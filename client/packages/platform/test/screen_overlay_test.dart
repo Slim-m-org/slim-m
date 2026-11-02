@@ -112,11 +112,14 @@ void main() {
       expect((await const ChannelScreenOverlay().support()).supported, isFalse);
     });
 
-    test('show names the monitor and answers whether it opened', () async {
+    test('show names the monitors and answers whether it opened', () async {
       answer((_) => true);
-      expect(await const ChannelScreenOverlay().show(1), isTrue);
+      expect(await const ChannelScreenOverlay().show([1, 2]), isTrue);
       expect(calls.single.method, 'show');
-      expect(calls.single.arguments, {'monitor': 1});
+      expect(calls.single.arguments, {
+        'monitor': 1,
+        'monitors': [1, 2]
+      });
     });
 
     test('draw sends every shape as its json', () async {
@@ -135,7 +138,7 @@ void main() {
 
     test('a refusing runner answers false, not an error', () async {
       answer((_) => throw PlatformException(code: 'nope'));
-      expect(await const ChannelScreenOverlay().show(0), isFalse);
+      expect(await const ChannelScreenOverlay().show([0]), isFalse);
     });
 
     test('hide reaches the runner', () async {

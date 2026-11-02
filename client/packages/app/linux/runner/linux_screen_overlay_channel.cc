@@ -93,7 +93,14 @@ void OnMethodCall(FlMethodChannel*, FlMethodCall* call, gpointer) {
     g_autoptr(FlValue) reply = SupportReply();
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(reply));
   } else if (g_strcmp0(method, "show") == 0) {
-    bool shown = slimm_overlay::Show(static_cast<int>(Number(Field(args, "monitor"))));
+    std::vector<int> monitors;
+    for (double index : Numbers(Field(args, "monitors"))) {
+      monitors.push_back(static_cast<int>(index));
+    }
+    if (monitors.empty()) {
+      monitors.push_back(static_cast<int>(Number(Field(args, "monitor"))));
+    }
+    bool shown = slimm_overlay::Show(monitors);
     g_autoptr(FlValue) reply = fl_value_new_bool(shown);
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(reply));
   } else if (g_strcmp0(method, "draw") == 0) {

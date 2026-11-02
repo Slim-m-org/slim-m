@@ -74,46 +74,63 @@ void main() {
     });
   });
 
-  group('pickSharedMonitor', () {
-    final monitors = [
-      _monitor(1920, 1080, primary: true),
-      _monitor(2560, 1600),
-    ];
+  group('pickSharedMonitors', () {
+    final monitors = [_monitor(1920, 1080), _monitor(2560, 1600)];
 
     test('the capturer screen number picks its monitor', () {
-      expect(pickSharedMonitor(monitors, screenNumber: 2), 1);
+      expect(pickSharedMonitors(monitors, screenNumber: 2), [1]);
     });
 
-    test('an out-of-range screen number falls back to the primary', () {
-      expect(pickSharedMonitor(monitors, screenNumber: 7), 0);
+    test('an out-of-range screen number falls back to every monitor', () {
+      expect(pickSharedMonitors(monitors, screenNumber: 7), [0, 1]);
     });
 
     test('with no number the captured shape picks the monitor', () {
       expect(
-        pickSharedMonitor(monitors, capturedSize: const Size(1280, 800)),
-        1,
+        pickSharedMonitors(monitors, capturedSize: const Size(1280, 800)),
+        [1],
       );
       expect(
-        pickSharedMonitor(monitors, capturedSize: const Size(1280, 720)),
-        0,
+        pickSharedMonitors(monitors, capturedSize: const Size(1280, 720)),
+        [0],
       );
     });
 
     test('a size capture scaled down still picks the same monitor', () {
       expect(
-        pickSharedMonitor(monitors, capturedSize: const Size(2304, 1440)),
-        1,
+        pickSharedMonitors(monitors, capturedSize: const Size(2304, 1440)),
+        [1],
       );
     });
 
-    test('with nothing to go on the primary monitor is used', () {
-      expect(
-        pickSharedMonitor([
-          _monitor(800, 600),
-          _monitor(800, 600, primary: true),
-        ]),
+    test(
+      'identical monitors are all candidates, never the first by default',
+      () {
+        final twins = [_monitor(1920, 1080), _monitor(1920, 1080)];
+        expect(
+          pickSharedMonitors(twins, capturedSize: const Size(1920, 1080)),
+          [0, 1],
+        );
+      },
+    );
+
+    test('with nothing to go on every monitor is covered', () {
+      expect(pickSharedMonitors([_monitor(800, 600), _monitor(800, 600)]), [
+        0,
         1,
-      );
+      ]);
+    });
+  });
+
+  group('sharedAspect', () {
+    final monitors = [_monitor(1920, 1080), _monitor(2560, 1600)];
+
+    test('monitors of one shape give it', () {
+      expect(sharedAspect(monitors, [0]), closeTo(1920 / 1080, 1e-9));
+    });
+
+    test('monitors of different shapes give none', () {
+      expect(sharedAspect(monitors, [0, 1]), isNull);
     });
   });
 

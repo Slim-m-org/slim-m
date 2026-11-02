@@ -123,7 +123,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final monitors = _support.monitors;
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
-    final index = pickSharedMonitor(
+    final covered = pickSharedMonitors(
       monitors,
       screenNumber: isWindowsHost
           ? screenNumberFromLabel(controller.share.lastShareSource?.name ?? '')
@@ -132,11 +132,11 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
           ? null
           : Size(captured.width.toDouble(), captured.height.toDouble()),
     );
-    if (!await _ref.read(screenOverlayProvider).show(index)) return;
+    if (!await _ref.read(screenOverlayProvider).show(covered)) return;
     if (!mounted) return;
     _channelId = flags.channelId;
     _selfId = self.identity;
-    _aspect = monitors[index].aspect;
+    _aspect = sharedAspect(monitors, covered);
     state = const ScreenOverlayState(active: true);
     _sendConsent(allowed: true);
     _heartbeat = Timer.periodic(
