@@ -32,6 +32,9 @@ class DockHintAnchor extends ConsumerStatefulWidget {
   final DockHintTarget target;
   final Widget child;
 
+  /// The bubble's box, for tests that measure where it sits.
+  static const bubbleKey = Key('dock-hint-bubble');
+
   /// False while the control it points at cannot be used, so it is never pointed at.
   final bool enabled;
 
@@ -148,6 +151,7 @@ class _Bubble extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
           child: DecoratedBox(
+            key: DockHintAnchor.bubbleKey,
             decoration: BoxDecoration(
               color: tokens.surfaceRaised,
               borderRadius: BorderRadius.circular(AppRadii.control),

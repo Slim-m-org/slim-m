@@ -75,6 +75,7 @@ Future<void> _pumpTwoRowCard(WidgetTester tester) async {
           body: Align(
             alignment: Alignment.bottomCenter,
             child: FloatingDockCard(
+              key: _cardKey,
               rows: [
                 SizedBox(width: 200, height: 40),
                 Row(
@@ -97,6 +98,8 @@ Future<void> _pumpTwoRowCard(WidgetTester tester) async {
     await tester.pump();
   }
 }
+
+const _cardKey = Key('two-row-card');
 
 Future<void> _elapse(WidgetTester tester) async {
   await tester.pump(dockHintDuration + const Duration(seconds: 1));
@@ -235,11 +238,11 @@ void main() {
       await _pumpTwoRowCard(tester);
       final text = find.text('Mic: System default');
       expect(text, findsOneWidget);
-      final bubble = find
-          .ancestor(of: text, matching: find.byType(DecoratedBox))
-          .first;
-      final cardTop = tester.getTopLeft(find.byType(FloatingDockCard)).dy;
-      expect(tester.getBottomLeft(bubble).dy, lessThanOrEqualTo(cardTop));
+      final cardTop = tester.getTopLeft(find.byKey(_cardKey)).dy;
+      expect(
+        tester.getBottomLeft(find.byKey(DockHintAnchor.bubbleKey)).dy,
+        lessThanOrEqualTo(cardTop),
+      );
     });
 
     testWidgets('names a saved microphone that was not shown yet', (
