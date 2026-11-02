@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// screen-review canvas.md: the pane's own error banner kept the pen tool
-/// and the dock's "Paste image" reachable underneath it, so a person could
+/// and the dock's "Add image from file" reachable underneath it, so a person could
 /// pick a tool, or an action, that was guaranteed to fail the same write
 /// the banner already refused. `canvas_tools_row_test.dart` proves the row
 /// itself gates correctly given `canDraw`; this proves `CanvasPaneBody`
@@ -37,8 +37,7 @@ Widget _pane(CanvasDocument document, {required String? error}) =>
               canManage: false,
               document: document,
               onClear: () async {},
-              onPasteImage: () {},
-              onPasteImageAt: (_) {},
+              onAddImageFile: () {},
               onRecenter: () {},
               onBringIntoBoard: () {},
               error: error,
@@ -79,7 +78,7 @@ Widget _pane(CanvasDocument document, {required String? error}) =>
     );
 
 void main() {
-  testWidgets('an error banner disables the pen tool and paste image', (
+  testWidgets('an error banner disables the pen tool and add image', (
     tester,
   ) async {
     final document = CanvasDocument()..setViewport(const Size(1000, 800));
@@ -103,13 +102,13 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
-    final pasteItem = tester.widget<AppMenuItem>(
-      find.widgetWithText(AppMenuItem, 'Paste image'),
+    final addImage = tester.widget<AppMenuItem>(
+      find.widgetWithText(AppMenuItem, 'Add image from file'),
     );
-    expect(pasteItem.onTap, isNull);
+    expect(addImage.onTap, isNull);
   });
 
-  testWidgets('with no error the pen tool and paste image stay live', (
+  testWidgets('with no error the pen tool and add image stay live', (
     tester,
   ) async {
     final document = CanvasDocument()..setViewport(const Size(1000, 800));
@@ -128,9 +127,9 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
-    final pasteItem = tester.widget<AppMenuItem>(
-      find.widgetWithText(AppMenuItem, 'Paste image'),
+    final addImage = tester.widget<AppMenuItem>(
+      find.widgetWithText(AppMenuItem, 'Add image from file'),
     );
-    expect(pasteItem.onTap, isNotNull);
+    expect(addImage.onTap, isNotNull);
   });
 }

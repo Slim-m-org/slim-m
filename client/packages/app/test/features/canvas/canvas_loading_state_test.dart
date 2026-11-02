@@ -33,8 +33,6 @@ Widget _pane(CanvasDocument document, {required bool loading}) => ProviderScope(
           canManage: false,
           document: document,
           onClear: () async {},
-          onPasteImage: () {},
-          onPasteImageAt: (_) {},
           onRecenter: () {},
           onBringIntoBoard: () {},
           error: null,

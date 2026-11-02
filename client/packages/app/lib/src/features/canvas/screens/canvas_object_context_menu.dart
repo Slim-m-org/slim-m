@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A right-click on the canvas: front, back and delete over an object; paste
-/// image, add note and recenter at the clicked point over empty space (an
+/// A right-click on the canvas: front, back and delete over an object;
+/// add note and recenter at the clicked point over empty space (an
 /// owner request, 2026-08-29). Clear canvas stays out: it is destructive and
 /// needs MANAGE_CANVAS, so it keeps the overflow menu's extra step.
 ///
@@ -57,7 +57,6 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
-    required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
     required this.onToolChanged,
@@ -91,11 +90,6 @@ class CanvasObjectContextMenu extends StatefulWidget {
   final ValueChanged<String> onBringToFront;
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;
-
-  /// The empty-space menu's "Paste image" item - `CanvasImagePaste.pasteAt`,
-  /// the same clipboard-image pipeline the overflow menu's "Paste image"
-  /// runs, aimed at the clicked point instead of the view's centre.
-  final ValueChanged<Offset> onPasteImageAt;
 
   /// The empty-space menu's "Add note" item - the exact callback
   /// `CanvasSurface.onNotePlace` already is, so this is the same note-sheet
@@ -315,12 +309,6 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     if (id != null) widget.onDeleteSelected(id);
   }
 
-  void _pasteImage() {
-    final world = _emptySpaceWorld;
-    _close();
-    if (world != null) widget.onPasteImageAt(world);
-  }
-
   void _addNote() {
     final world = _emptySpaceWorld;
     _close();
@@ -456,11 +444,6 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     return AppMenu(
       width: 200,
       children: [
-        AppMenuItem(
-          label: 'Paste image',
-          leading: AppIcons.clipboardPaste,
-          onTap: widget.canDraw ? _pasteImage : null,
-        ),
         AppMenuItem(
           label: 'Add note',
           leading: AppIcons.note,

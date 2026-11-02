@@ -44,7 +44,6 @@ Widget _build({required CanvasDocument document, required CanvasTool tool}) =>
             onBringToFront: (_) {},
             onSendToBack: (_) {},
             onDeleteSelected: (_) {},
-            onPasteImageAt: (_) {},
             onAddNoteAt: (_) {},
             onRecenter: () {},
             onToolChanged: (_) {},
@@ -84,7 +83,7 @@ void main() {
       await tester.longPressAt(const Offset(200, 200));
       await tester.pumpAndSettle();
 
-      expect(find.text('Paste image'), findsOneWidget);
+      expect(find.text('Paste image'), findsNothing);
       expect(find.text('Add note'), findsOneWidget);
       expect(find.text('Recenter view'), findsOneWidget);
     },

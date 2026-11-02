@@ -78,7 +78,7 @@ void main() {
 
       await tester.runAsync(() async {
         build();
-        final done = paste.pasteAt(const Offset(10, 10)).catchError((Object e) {
+        final done = paste.pasteFromKeystroke().catchError((Object e) {
           log.add('threw ${e.runtimeType}: $e'.split('\n').first);
         });
         await Future<void>.delayed(const Duration(milliseconds: 200));

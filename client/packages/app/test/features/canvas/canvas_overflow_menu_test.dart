@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// canvas.md: at the previous `width: 200`, this menu's own longest labels
-/// truncated - "Paste image" (with its Ctrl+V hint) to "Paste i…", "Hide my
+/// truncated - "Hide my
 /// camera bubble" to "Hide my camera bu…" - narrower than every sibling
 /// item in the same menu ("Enter fullscreen" fit fine), which read as broken
 /// rather than intentionally abbreviated.
@@ -53,7 +53,6 @@ void main() {
             theme: buildTheme(Brightness.light, AppTokens.light),
             home: Scaffold(
               body: CanvasOverflowMenu(
-                onPasteImage: () {},
                 canDraw: true,
                 onToggleFullscreen: () {},
                 canManage: false,

@@ -29,7 +29,6 @@ void main() {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 80),
                 child: CanvasOverflowMenu(
-                  onPasteImage: () {},
                   canDraw: true,
                   onToggleFullscreen: () {},
                   canManage: true,

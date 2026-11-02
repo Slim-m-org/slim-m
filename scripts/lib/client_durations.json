@@ -1611,6 +1611,7 @@
 "test/ui_snapshot_call_header_test.dart": 1.2,
 "test/ui_snapshot_canvas_people_test.dart": 1.8,
 "test/ui_snapshot_canvas_short_test.dart": 1.1,
+"test/ui_snapshot_canvas_text_editor_test.dart": 1.0,
 "test/ui_snapshot_canvas_tool_options_test.dart": 1.1,
 "test/ui_snapshot_canvas_tools_test.dart": 0.8,
 "test/ui_snapshot_share_strip_test.dart": 1.0,

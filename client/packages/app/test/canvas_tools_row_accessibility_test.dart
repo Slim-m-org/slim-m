@@ -9,7 +9,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import 'support/canvas_tools_row_fixtures.dart';
 
@@ -118,41 +117,11 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
-    expect(find.text('Paste image'), findsOneWidget);
+    expect(find.text('Enter fullscreen'), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
 
-    expect(find.text('Paste image'), findsNothing);
-  });
-
-  /// Ctrl+V already works from anywhere in the pane; nothing said so until
-  /// this hint, which is why it belongs in the one menu item that duplicates
-  /// what the shortcut already does.
-  testWidgets('Paste image shows a Ctrl+V hint on a pointer layout', (
-    tester,
-  ) async {
-    await tester.pumpWidget(wrapCanvasToolsRow(buildCanvasToolsRow()));
-
-    await tester.tap(find.bySemanticsLabel('More canvas actions'));
-    await tester.pumpAndSettle();
-
-    expect(find.widgetWithText(AppKbd, 'Ctrl'), findsOneWidget);
-    expect(find.widgetWithText(AppKbd, 'V'), findsOneWidget);
-  });
-
-  /// The same "no finger can press it" rule the channel search field's own
-  /// Ctrl+K hint already follows.
-  testWidgets('the Ctrl+V hint is dropped on a touch layout', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(wrapCanvasToolsRow(buildCanvasToolsRow()));
-
-    await tester.tap(find.bySemanticsLabel('More canvas actions'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AppKbd), findsNothing);
+    expect(find.text('Enter fullscreen'), findsNothing);
   });
 }

@@ -46,7 +46,6 @@ class _Harness {
   final List<String> bringToFront = [];
   final List<String> sendToBack = [];
   final List<String> deleted = [];
-  final List<Offset> pastedAt = [];
   final List<Offset> notedAt = [];
   int recentered = 0;
   final List<CanvasTool> toolChanges = [];
@@ -67,7 +66,6 @@ class _Harness {
           onBringToFront: bringToFront.add,
           onSendToBack: sendToBack.add,
           onDeleteSelected: deleted.add,
-          onPasteImageAt: pastedAt.add,
           onAddNoteAt: notedAt.add,
           onRecenter: () => recentered++,
           onToolChanged: toolChanges.add,
@@ -143,7 +141,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Bring to front'), findsNothing);
-      expect(find.text('Paste image'), findsOneWidget);
+      expect(find.text('Paste image'), findsNothing);
       expect(find.text('Add note'), findsOneWidget);
       expect(find.text('Recenter view'), findsOneWidget);
       expect(document.selectedObjectId.value, isNull);
@@ -192,31 +190,6 @@ void main() {
     },
   );
 
-  testWidgets('picking Paste image in the space menu pastes at the clicked '
-      'world point', (tester) async {
-    final document = CanvasDocument();
-    addTearDown(document.dispose);
-    final harness = _Harness(
-      document: document,
-      requests: CanvasObjectMenuRequests(),
-    );
-    await tester.pumpWidget(harness.build());
-
-    await tester.tapAt(const Offset(120, 140), buttons: kSecondaryButton);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Paste image'));
-    await tester.pumpAndSettle();
-
-    expect(harness.pastedAt, [const Offset(120, 140)]);
-    expect(harness.notedAt, isEmpty);
-    expect(harness.recentered, 0);
-    expect(
-      find.text('Paste image'),
-      findsNothing,
-      reason: 'picking an item must close the menu',
-    );
-  });
-
   testWidgets('picking Add note in the space menu places a note at the '
       'clicked world point', (tester) async {
     final document = CanvasDocument();
@@ -233,7 +206,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.notedAt, [const Offset(150, 90)]);
-    expect(harness.pastedAt, isEmpty);
   });
 
   testWidgets('picking Recenter view in the space menu recenters the view', (
@@ -253,7 +225,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.recentered, 1);
-    expect(harness.pastedAt, isEmpty);
     expect(harness.notedAt, isEmpty);
   });
 
@@ -284,7 +255,6 @@ void main() {
       expect(find.text('Paste image'), findsNothing);
       expect(find.text('Add note'), findsNothing);
       expect(find.text('Recenter view'), findsNothing);
-      expect(harness.pastedAt, isEmpty);
       expect(harness.notedAt, isEmpty);
       expect(harness.recentered, 0);
     },

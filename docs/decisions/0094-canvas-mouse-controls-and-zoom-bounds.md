@@ -45,3 +45,20 @@ Decisions on 2026-10-26: left click stays Move, a right-click hold opens a tool 
 - The size slider is in screen pixels, 1 to 24, with a dot preview of the same size.
 - A stroke stores `width / zoom` at the moment it is drawn, so everyone sees one stroke and the drawer sees the size they chose.
 - Shapes and the eraser have no size today (a fixed outline and a fixed ring), so there is nothing to convert yet.
+
+## Escape with a drawing tool armed (2026-11-02)
+
+Nick pressed Esc by instinct to put the pen down and found it did nothing, so this looked at what comparable tools do.
+Excalidraw's `actionFinalize` runs on Esc for a multi-point element in progress and then sets the active tool back to the preferred selection tool ([source](https://raw.githubusercontent.com/excalidraw/excalidraw/master/packages/excalidraw/actions/actionFinalize.tsx)).
+Figma users report pressing V or Esc to get back to the selection tool after drawing a shape, and Esc as the default "back to Move" key ([Figma forum](https://forum.figma.com/ask-the-community-7/why-doesn-t-the-mouse-switch-to-selection-after-using-shortcut-r-to-create-a-graphic-i-have-to-press-v-or-esc-to-switch-it-to-selection-mode-14475)).
+Miro's moderators describe Esc as deselect, and Esc twice to leave text editing and then deselect ([Miro community](https://community.miro.com/ideas/1202)).
+A Blender thread asks for the same two-step behaviour: the first Esc cancels the action in progress, the second returns to the select tool ([Blender devtalk](https://devtalk.blender.org/t/pressing-esc-while-in-active-tool-go-out-of-the-tool-back-to-selection/6593)).
+I could not confirm tldraw, FigJam, Photoshop or Krita from search results, so they are not cited.
+Our own Esc bindings were: the open menu or popover, the text and note editors, the tool wheel, deselect, then the docked thread and member panes, then fullscreen.
+None of them touched the armed tool, so there was no conflict to design around.
+Decision: Esc puts a drawing tool down, in this order, one step per press.
+First an open popover, menu or editor closes, since each owns focus and consumes the key.
+Then an in-progress pen stroke or shape drag is dropped without being sent, and the tool stays armed.
+Then an open docked thread pane closes, as it did before.
+Then an armed tool other than Pan returns to Pan.
+Only with Pan armed does Esc fall through to deselect, the docked member pane, and leaving fullscreen, so one press never does two of these.

@@ -153,7 +153,7 @@ class CanvasToolButtons extends StatelessWidget {
   }
 }
 
-/// The pen button, with a dot of the armed colour under the glyph.
+/// The pen button, with a bar of the armed colour under the glyph, like the tip of the nib.
 class _PenButton extends StatelessWidget {
   const _PenButton({
     required this.pen,
@@ -167,14 +167,15 @@ class _PenButton extends StatelessWidget {
   final bool canDraw;
   final VoidCallback? onPressed;
 
-  static const double _sampleInset = 4;
+  /// Drops the bar to just under the 20px glyph, whatever the button's own height.
+  static const double _barOffset = 22;
+  static const double _barLength = 14;
 
-  /// Grows with the armed width, so the dot still says thin or thick.
-  double get _dot => (pen.width + 3).clamp(5, 9).toDouble();
+  /// Grows with the armed width, so the bar still says thin or thick.
+  double get _barThickness => (pen.width / 2).clamp(2, 4).toDouble();
 
   @override
   Widget build(BuildContext context) => Stack(
-    alignment: Alignment.bottomCenter,
     children: [
       AppIconButton(
         icon: AppIcons.pen,
@@ -183,13 +184,21 @@ class _PenButton extends StatelessWidget {
         active: active,
         onPressed: onPressed,
       ),
-      Positioned(
-        bottom: _sampleInset,
+      Positioned.fill(
         child: IgnorePointer(
-          child: Container(
-            width: _dot,
-            height: _dot,
-            decoration: BoxDecoration(color: pen.color, shape: BoxShape.circle),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: _barOffset),
+              child: Container(
+                key: const ValueKey('pen-colour-bar'),
+                width: _barLength,
+                height: _barThickness,
+                decoration: BoxDecoration(
+                  color: pen.color,
+                  borderRadius: BorderRadius.circular(_barThickness),
+                ),
+              ),
+            ),
           ),
         ),
       ),

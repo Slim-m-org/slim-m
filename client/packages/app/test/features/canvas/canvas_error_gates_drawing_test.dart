@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Only an error that means placing would fail again (a refusal, a canvas
-/// that did not load) disarms pen, note, shape and paste; a failed reorder or
+/// that did not load) disarms pen, note and shape; a failed reorder or
 /// delete is just a banner.
 library;
 
@@ -60,9 +60,7 @@ Future<ProviderContainer> _pump(
 void _report(ProviderContainer container, String message) =>
     container.read(canvasEngineProvider('c1').notifier).reportError(message);
 
-Future<({AppMenuItem paste, AppMenuItem note})> _emptySpaceMenu(
-  WidgetTester tester,
-) async {
+Future<({AppMenuItem note})> _emptySpaceMenu(WidgetTester tester) async {
   // A bare right-click under a drawing tool only returns to Move.
   await tester.tap(find.bySemanticsLabel('Pan'));
   await tester.pump();
@@ -72,9 +70,6 @@ Future<({AppMenuItem paste, AppMenuItem note})> _emptySpaceMenu(
   );
   await tester.pumpAndSettle();
   return (
-    paste: tester.widget<AppMenuItem>(
-      find.widgetWithText(AppMenuItem, 'Paste image'),
-    ),
     note: tester.widget<AppMenuItem>(
       find.widgetWithText(AppMenuItem, 'Add note'),
     ),
@@ -182,7 +177,6 @@ void main() {
 
       final menu = await _emptySpaceMenu(tester);
 
-      expect(menu.paste.onTap, isNull);
       expect(menu.note.onTap, isNull);
     },
   );
@@ -196,7 +190,6 @@ void main() {
 
     final menu = await _emptySpaceMenu(tester);
 
-    expect(menu.paste.onTap, isNotNull);
     expect(menu.note.onTap, isNotNull);
   });
 }

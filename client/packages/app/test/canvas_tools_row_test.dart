@@ -100,75 +100,52 @@ void main() {
     expect(find.bySemanticsLabel('More canvas actions'), findsOneWidget);
   });
 
-  testWidgets('tapping paste image in the overflow calls onPasteImage', (
-    tester,
-  ) async {
-    var pasted = 0;
-    await tester.pumpWidget(
-      wrapCanvasToolsRow(buildCanvasToolsRow(onPasteImage: () => pasted++)),
-    );
+  testWidgets('the overflow does not offer Paste image', (tester) async {
+    await tester.pumpWidget(wrapCanvasToolsRow(buildCanvasToolsRow()));
 
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Paste image'));
-    await tester.pump();
 
-    expect(pasted, 1);
+    expect(find.text('Enter fullscreen'), findsOneWidget);
+    expect(find.text('Paste image'), findsNothing);
   });
 
   // screen-review canvas.md: the pen tool stayed selectable under an error banner, so a tap could pick a tool guaranteed to fail the identical write.
-  testWidgets(
-    'pen, note, shape and paste image are disabled while canDraw is false, '
-    'eraser and pan stay live',
-    (tester) async {
-      var toolChanged = false;
-      var pasted = false;
-      await tester.pumpWidget(
-        wrapCanvasToolsRow(
-          buildCanvasToolsRow(
-            canDraw: false,
-            onToolChanged: (_) => toolChanged = true,
-            onPasteImage: () => pasted = true,
-          ),
+  testWidgets('pen, note and shape are disabled while canDraw is false, '
+      'eraser and pan stay live', (tester) async {
+    var toolChanged = false;
+    await tester.pumpWidget(
+      wrapCanvasToolsRow(
+        buildCanvasToolsRow(
+          canDraw: false,
+          onToolChanged: (_) => toolChanged = true,
+        ),
+      ),
+    );
+
+    for (final label in ['Pen', 'Note', 'Shape']) {
+      final button = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.bySemanticsLabel(label),
+          matching: find.byType(AppIconButton),
         ),
       );
+      expect(button.onPressed, isNull, reason: label);
+    }
+    await tester.tap(find.bySemanticsLabel('Pen'), warnIfMissed: false);
+    await tester.pump();
+    expect(toolChanged, isFalse);
 
-      for (final label in ['Pen', 'Note', 'Shape']) {
-        final button = tester.widget<AppIconButton>(
-          find.ancestor(
-            of: find.bySemanticsLabel(label),
-            matching: find.byType(AppIconButton),
-          ),
-        );
-        expect(button.onPressed, isNull, reason: label);
-      }
-      await tester.tap(find.bySemanticsLabel('Pen'), warnIfMissed: false);
-      await tester.pump();
-      expect(toolChanged, isFalse);
-
-      await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pumpAndSettle();
-      final pasteItem = tester.widget<AppMenuItem>(
-        find.widgetWithText(AppMenuItem, 'Paste image'),
+    for (final label in ['Eraser', 'Pan']) {
+      final button = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.bySemanticsLabel(label),
+          matching: find.byType(AppIconButton),
+        ),
       );
-      expect(pasteItem.onTap, isNull);
-      await tester.tap(find.text('Paste image'), warnIfMissed: false);
-      await tester.pump();
-      expect(pasted, isFalse);
-      await tester.tapAt(const Offset(1, 1));
-      await tester.pumpAndSettle();
-
-      for (final label in ['Eraser', 'Pan']) {
-        final button = tester.widget<AppIconButton>(
-          find.ancestor(
-            of: find.bySemanticsLabel(label),
-            matching: find.byType(AppIconButton),
-          ),
-        );
-        expect(button.onPressed, isNotNull, reason: label);
-      }
-    },
-  );
+      expect(button.onPressed, isNotNull, reason: label);
+    }
+  });
 
   testWidgets('the overflow no longer carries Recenter view', (tester) async {
     await tester.pumpWidget(wrapCanvasToolsRow(buildCanvasToolsRow()));
@@ -177,7 +154,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Recenter view'), findsNothing);
-    expect(find.text('Paste image'), findsOneWidget);
+    expect(find.text('Enter fullscreen'), findsOneWidget);
   });
 
   testWidgets('redo sits right after undo and is dimmed with nothing to redo', (
@@ -261,7 +238,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Paste image'), findsOneWidget);
+    expect(find.text('Enter fullscreen'), findsOneWidget);
     expect(find.text('Clear canvas'), findsNothing);
   });
 
@@ -275,7 +252,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('More canvas actions'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Paste image'), findsOneWidget);
+    expect(find.text('Enter fullscreen'), findsOneWidget);
     expect(find.text('Clear canvas'), findsOneWidget);
   });
 

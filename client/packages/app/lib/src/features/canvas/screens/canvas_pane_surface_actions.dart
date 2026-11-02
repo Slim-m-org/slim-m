@@ -16,6 +16,7 @@ class CanvasPaneSurfaceActions {
   const CanvasPaneSurfaceActions({
     this.onDraftEnded,
     this.onDraftCancel,
+    this.gestureController,
     this.onDraftPoint,
     this.onPointerLeft,
     this.onPointerMoved,
@@ -37,7 +38,6 @@ class CanvasPaneSurfaceActions {
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
-    required this.onPasteImageAt,
     this.onEditNote,
     required this.onRecenter,
     required this.onToolChanged,
@@ -50,6 +50,7 @@ class CanvasPaneSurfaceActions {
 
   final VoidCallback? onDraftEnded;
   final VoidCallback? onDraftCancel;
+  final CanvasGestureController? gestureController;
   final DraftPointAdded? onDraftPoint;
   final VoidCallback? onPointerLeft;
   final PointerMoved? onPointerMoved;
@@ -72,7 +73,6 @@ class CanvasPaneSurfaceActions {
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;
 
-  final ValueChanged<Offset> onPasteImageAt;
   final ValueChanged<String>? onEditNote;
   final VoidCallback onRecenter;
   final ValueChanged<CanvasTool> onToolChanged;

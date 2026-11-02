@@ -64,9 +64,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.document,
     required this.onClear,
     this.scopedClear,
-    required this.onPasteImage,
     this.onAddImageFile,
-    required this.onPasteImageAt,
     required this.onRecenter,
     required this.onBringIntoBoard,
     required this.error,
@@ -104,6 +102,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.onDraftPoint,
     this.onDraftEnded,
     this.onDraftCancel,
+    this.gestureController,
     this.callParticipants = const [],
     this.blockedTileKeys = const {},
     required this.cameraViewFor,
@@ -153,19 +152,8 @@ class CanvasPaneBody extends StatefulWidget {
   final Future<void> Function() onClear;
   final CanvasScopedClear? scopedClear;
 
-  /// The toolbar's "Paste image" action, always available - the manual
-  /// fallback that works on every platform, the same shape the composer's
-  /// own "+" sheet row already is.
-  final VoidCallback onPasteImage;
-
   /// Picks an image file to place; null where the canvas cannot place one.
   final VoidCallback? onAddImageFile;
-
-  /// The empty-canvas right-click menu's own "Paste image" item - the same
-  /// pipeline as [onPasteImage], aimed at the clicked world point instead of
-  /// the view's centre. See `CanvasObjectContextMenu`'s own doc for why that
-  /// menu exists now.
-  final ValueChanged<Offset> onPasteImageAt;
 
   /// Fits the view to the drawn content: the zoom chip's tap and a menu item.
   final VoidCallback onRecenter;
@@ -252,6 +240,7 @@ class CanvasPaneBody extends StatefulWidget {
   final DraftPointAdded? onDraftPoint;
   final VoidCallback? onDraftEnded;
   final VoidCallback? onDraftCancel;
+  final CanvasGestureController? gestureController;
 
   /// Who is on this channel's call right now, already filtered for
   /// blocking - empty whenever there is no call here, or this viewer has not

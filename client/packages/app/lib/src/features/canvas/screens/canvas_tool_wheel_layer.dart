@@ -37,7 +37,6 @@ class CanvasToolWheelLayer extends StatefulWidget {
     required this.canDraw,
     required this.isObjectAt,
     required this.onToolChanged,
-    required this.onPasteImageAt,
   });
 
   final CanvasDocument document;
@@ -49,7 +48,6 @@ class CanvasToolWheelLayer extends StatefulWidget {
   /// Whether a right-click at this world point belongs to an object's own menu.
   final bool Function(Offset world) isObjectAt;
   final ValueChanged<CanvasTool> onToolChanged;
-  final ValueChanged<Offset> onPasteImageAt;
 
   @override
   State<CanvasToolWheelLayer> createState() => _CanvasToolWheelLayerState();
@@ -64,7 +62,6 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
   Offset _pressGlobal = Offset.zero;
   bool _flicked = false;
   Offset _center = Offset.zero;
-  Offset _world = Offset.zero;
   bool _byPointer = true;
 
   @override
@@ -158,11 +155,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
   void _openHeld() {
     if (widget.isObjectAt(_toWorld(_pressLocal))) return;
     widget.controller.holdOpened();
-    _open(
-      anchorGlobal: _pressGlobal,
-      world: _toWorld(_pressLocal),
-      byPointer: true,
-    );
+    _open(anchorGlobal: _pressGlobal, byPointer: true);
   }
 
   void _openAtMiddle() {
@@ -170,21 +163,15 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
     if (box is! RenderBox || !box.hasSize) return;
     _open(
       anchorGlobal: box.localToGlobal(box.size.center(Offset.zero)),
-      world: widget.document.worldView.center,
       byPointer: false,
     );
   }
 
-  void _open({
-    required Offset anchorGlobal,
-    required Offset world,
-    required bool byPointer,
-  }) {
+  void _open({required Offset anchorGlobal, required bool byPointer}) {
     final overlay = _overlayBox;
     if (overlay == null || _portal.isShowing) return;
     _flicked = false;
     _highlight.value = null;
-    _world = world;
     _byPointer = byPointer;
     setState(() {
       _center = canvasWheelCenter(
@@ -202,12 +189,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
 
   void _pick(CanvasWheelItem item) {
     _close();
-    final tool = item.tool;
-    if (tool != null) {
-      widget.onToolChanged(tool);
-    } else {
-      widget.onPasteImageAt(_world);
-    }
+    widget.onToolChanged(item.tool);
   }
 
   @override
