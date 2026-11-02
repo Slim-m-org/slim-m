@@ -228,10 +228,12 @@ void main() {
         mirror: true,
         devices: const [],
         canFlip: false,
-        onQuality: (_) {},
-        onMirror: (_) {},
-        onDevice: (_) {},
-        onFlip: () {},
+        actions: CameraMenuActions(
+          onQuality: (_) {},
+          onMirror: (_) {},
+          onDevice: (_) {},
+          onFlip: () {},
+        ),
       );
       final labels = [
         for (final entry in entries)

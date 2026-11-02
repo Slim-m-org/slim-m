@@ -109,28 +109,25 @@ class TileStateBadges extends StatelessWidget {
             ),
           ),
         if (_showsMicBadge(p))
-          _badgeCircle(
-            tokens,
-            Icon(
-              p.isMuted ? AppIcons.micOff : AppIcons.mic,
-              key: p.isMuted ? mutedBadgeKey : null,
-              size: 12,
-              color: p.isMuted ? tokens.textSecondary : tokens.accent,
-            ),
-          ),
-        if (p.isScreenSharing)
-          _badgeCircle(
-            tokens,
-            Icon(
-              shareHidden ? AppIcons.tileHide : AppIcons.screenShare,
-              key: shareHidden ? hiddenShareBadgeKey : sharingBadgeKey,
-              size: 12,
-              color: shareHidden ? tokens.textSecondary : tokens.accent,
-            ),
-          ),
+          _badgeCircle(tokens, _micIcon(tokens, p.isMuted)),
+        if (p.isScreenSharing) _badgeCircle(tokens, _shareIcon(tokens)),
       ],
     );
   }
+
+  static Icon _micIcon(AppTokens tokens, bool muted) => Icon(
+    muted ? AppIcons.micOff : AppIcons.mic,
+    key: muted ? mutedBadgeKey : null,
+    size: 12,
+    color: muted ? tokens.textSecondary : tokens.accent,
+  );
+
+  Icon _shareIcon(AppTokens tokens) => Icon(
+    shareHidden ? AppIcons.tileHide : AppIcons.screenShare,
+    key: shareHidden ? hiddenShareBadgeKey : sharingBadgeKey,
+    size: 12,
+    color: shareHidden ? tokens.textSecondary : tokens.accent,
+  );
 }
 
 /// A tile's poor-connection glyph. Tapping it opens the sentence the glyph

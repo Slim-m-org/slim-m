@@ -49,30 +49,42 @@ List<ControlOptionEntry> audioDeviceOptions({
   ];
 }
 
+/// What a pick in the camera menu does.
+class CameraMenuActions {
+  const CameraMenuActions({
+    required this.onQuality,
+    required this.onMirror,
+    required this.onDevice,
+    required this.onFlip,
+  });
+
+  final ValueChanged<CameraQuality> onQuality;
+  final ValueChanged<bool> onMirror;
+  final ValueChanged<CameraDevice> onDevice;
+  final VoidCallback onFlip;
+}
+
 /// What the camera menu offers, from plain values so a test can read it without a call.
 List<ControlOptionEntry> cameraMenuEntries({
   required CameraQuality quality,
   required bool mirror,
   required List<CameraDevice> devices,
   required bool canFlip,
-  required ValueChanged<CameraQuality> onQuality,
-  required ValueChanged<bool> onMirror,
-  required ValueChanged<CameraDevice> onDevice,
-  required VoidCallback onFlip,
+  required CameraMenuActions actions,
 }) {
   return [
     if (canFlip)
       ControlOption(
         label: 'Flip camera',
         icon: AppIcons.switchCamera,
-        onSelected: onFlip,
+        onSelected: actions.onFlip,
       ),
     if (devices.isNotEmpty) ...[
       const ControlOptionHeading('Switch camera'),
       for (final device in devices)
         ControlOption(
           label: device.label.isEmpty ? 'Unnamed camera' : device.label,
-          onSelected: () => onDevice(device),
+          onSelected: () => actions.onDevice(device),
         ),
     ],
     const ControlOptionHeading('Resolution'),
@@ -80,13 +92,13 @@ List<ControlOptionEntry> cameraMenuEntries({
       ControlOption(
         label: cameraQualityLabel(value),
         selected: value == quality,
-        onSelected: () => onQuality(value),
+        onSelected: () => actions.onQuality(value),
       ),
     const ControlOptionHeading('Preview'),
     ControlOption(
       label: 'Mirror my view',
       selected: mirror,
-      onSelected: () => onMirror(!mirror),
+      onSelected: () => actions.onMirror(!mirror),
     ),
   ];
 }
@@ -129,10 +141,12 @@ class CameraOptionsMenu extends ConsumerWidget {
         mirror: settings.mirrorSelfView,
         devices: devices.length > 1 ? devices : const [],
         canFlip: cameraOn && video.canFlipCamera,
-        onQuality: (value) => unawaited(notifier.setCameraQuality(value)),
-        onMirror: (value) => unawaited(notifier.setMirrorSelfView(value)),
-        onDevice: (device) => unawaited(video.selectCameraDevice(device)),
-        onFlip: () => unawaited(video.flipCamera()),
+        actions: CameraMenuActions(
+          onQuality: (value) => unawaited(notifier.setCameraQuality(value)),
+          onMirror: (value) => unawaited(notifier.setMirrorSelfView(value)),
+          onDevice: (device) => unawaited(video.selectCameraDevice(device)),
+          onFlip: () => unawaited(video.flipCamera()),
+        ),
       ),
       child: child,
     );

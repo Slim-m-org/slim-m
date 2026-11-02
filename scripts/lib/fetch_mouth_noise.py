@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.parse
@@ -19,8 +20,14 @@ MANIFEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mouth_noise
 DEFAULT_OUT = os.path.expanduser("~/.slimm-scratch/tmp/mouth-noise/clips")
 AGENT = "slimm-voice-corpus/1.0 (https://github.com/Slim-m-org)"
 ALLOWED_HOSTS = ("cdn.freesound.org",)
+KINDS = ("chew", "swallow", "smack", "breath", "sip", "mouseclick", "creak", "cough")
+FORMATS = ("mp3", "ogg")
 SILENCE_DB = -50
 RATE = 48_000
+# Only freesound preview URLs are fetched, and they are rebuilt from these numbers rather than taken from the manifest.
+_PREVIEW_PATH = re.compile(r"^/previews/(\d+)/(\d+)_(\d+)-hq\.(mp3|ogg)$")
+_SLUG = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def load_manifest(path=MANIFEST):
@@ -39,13 +46,28 @@ def problems(manifest):
                 out.append(f"{name}: missing {field}")
         if clip.get("licence") != "CC0":
             out.append(f"{name}: licence {clip.get('licence')!r} is not CC0")
-        host = urllib.parse.urlsplit(clip.get("url", "")).hostname or ""
-        if urllib.parse.urlsplit(clip.get("url", "")).scheme != "https" or host not in ALLOWED_HOSTS:
-            out.append(f"{name}: only https downloads from {', '.join(ALLOWED_HOSTS)} are allowed")
+        if not _SLUG.match(str(name)):
+            out.append(f"{name}: id must be a short lowercase slug")
+        if clip.get("kind") not in KINDS:
+            out.append(f"{name}: kind {clip.get('kind')!r} is not one of {', '.join(KINDS)}")
+        if not _SHA256.match(str(clip.get("sha256", ""))):
+            out.append(f"{name}: sha256 must be 64 hex digits")
+        parts = urllib.parse.urlsplit(clip.get("url", ""))
+        if parts.scheme != "https" or parts.hostname not in ALLOWED_HOSTS or not _PREVIEW_PATH.match(parts.path):
+            out.append(f"{name}: only https preview downloads from {', '.join(ALLOWED_HOSTS)} are allowed")
         if name in seen:
             out.append(f"{name}: duplicate id")
         seen.add(name)
     return out
+
+
+def source_url(clip):
+    """The clip's download URL, rebuilt from the allowed host and the preview's numbers after `problems` passed it."""
+    parts = urllib.parse.urlsplit(clip["url"])
+    host = ALLOWED_HOSTS[ALLOWED_HOSTS.index(parts.hostname)]
+    folder, sound, user, fmt = _PREVIEW_PATH.match(parts.path).groups()
+    ext = FORMATS[FORMATS.index(fmt)]
+    return f"https://{host}/previews/{int(folder)}/{int(sound)}_{int(user)}-hq.{ext}", ext
 
 
 def sha256_of(path):
@@ -56,15 +78,23 @@ def sha256_of(path):
     return digest.hexdigest()
 
 
-def fetch(clip, cache):
-    """The cached source for `clip`, downloaded once and checked against the manifest's sha256."""
+def _download(url, target):
+    request = urllib.request.Request(url, headers={"User-Agent": AGENT})
+    with urllib.request.urlopen(request, timeout=60) as response, open(target + ".part", "wb") as fh:
+        fh.write(response.read())
+    os.replace(target + ".part", target)
+
+
+def fetch(clip, cache, index):
+    """The cached source for the manifest's `index`th clip, downloaded once and checked against its sha256.
+
+    The cache is named by position, so a reordered manifest just downloads again.
+    """
     os.makedirs(cache, exist_ok=True)
-    target = os.path.join(cache, clip["sha256"][:16] + os.path.splitext(urllib.parse.urlsplit(clip["url"]).path)[1])
-    if not os.path.exists(target):
-        request = urllib.request.Request(clip["url"], headers={"User-Agent": AGENT})
-        with urllib.request.urlopen(request, timeout=60) as response, open(target + ".part", "wb") as fh:
-            fh.write(response.read())
-        os.replace(target + ".part", target)
+    url, ext = source_url(clip)
+    target = os.path.join(cache, f"{index:02d}.{ext}")
+    if not os.path.exists(target) or sha256_of(target) != clip["sha256"]:
+        _download(url, target)
     got = sha256_of(target)
     if got != clip["sha256"]:
         os.remove(target)
@@ -97,15 +127,17 @@ def build(manifest, out_dir, only=None):
     os.makedirs(out_dir, exist_ok=True)
     cache = os.path.join(os.path.dirname(os.path.abspath(out_dir)), "cache")
     rows = []
-    for clip in manifest["clips"]:
+    for index, clip in enumerate(manifest["clips"]):
         if only and clip["id"] not in only:
             continue
-        source = fetch(clip, cache)
-        out_path = os.path.join(out_dir, f"{clip['id']}.wav")
+        source = fetch(clip, cache, index)
+        # `<kind>-NN.wav`, the name the transients scenario globs for; the kind comes from KINDS, not the file.
+        kind = KINDS[KINDS.index(clip["kind"])]
+        out_path = os.path.join(out_dir, f"{kind}-{index:02d}.wav")
         convert(source, out_path, manifest["max_seconds"])
         seconds = normalise(out_path, manifest["peak_dbfs"])
-        rows.append((clip["id"], clip["kind"], seconds))
-        print(f"  {clip['id']:22} {clip['kind']:10} {seconds:5.1f} s")
+        rows.append((clip["id"], kind, seconds))
+        print(f"  {clip['id']:22} {kind:10} {seconds:5.1f} s  {os.path.basename(out_path)}")
     return rows
 
 

@@ -76,46 +76,56 @@ def judged(arm, arms=ARMS):
     return arms.get(arm, {}).get("slimm.voice.noise_suppression") in JUDGED_CHOICES
 
 
-def problems(results, arms=ARMS):
-    """Why a run fails: speech moved too far in any arm, or a gap event came out louder in an arm the chain owns."""
+def _gap_problems(noise):
+    """Each gap event that came out louder than it went in, by energy or by its loudest frame."""
     out = []
+    for kind, event in noise.items():
+        if not isinstance(event, dict) or not kind.endswith("_gap"):
+            continue
+        change, peak = event.get("change_db"), event.get("peak_change_db")
+        if change is not None and change > AMPLIFY_MAX_DB:
+            out.append(f"{kind} came out {change:+.1f} dB louder")
+        elif peak is not None and peak > PEAK_MAX_DB:
+            out.append(f"{kind} came out {peak:+.1f} dB louder in its loudest frame")
+    return out
+
+
+def _row_problems(noise, held_to_account):
+    """One measured arm and profile: speech drift always, gap events only where the chain owns them."""
+    drift = noise["speech_level_change_db"]
+    out = [f"speech moved {drift:+.1f} dB"] if abs(drift) > SPEECH_DRIFT_MAX_DB else []
+    if held_to_account:
+        out += _gap_problems(noise)
+    return out
+
+
+def measured_rows(results):
+    """Every (voice, arm, profile, row) in a run, skipping the gate logs stored beside the profiles."""
     for voice, per_arm in results.items():
         for arm, profiles in per_arm.items():
             for profile, row in profiles.items():
-                if profile == "gate_log":
-                    continue
-                noise = row["noise"]
-                drift = noise["speech_level_change_db"]
-                if abs(drift) > SPEECH_DRIFT_MAX_DB:
-                    out.append(f"{voice} {arm} {profile}: speech moved {drift:+.1f} dB")
-                if not judged(arm, arms):
-                    continue
-                for kind, event in noise.items():
-                    if not isinstance(event, dict) or not kind.endswith("_gap"):
-                        continue
-                    change, peak = event.get("change_db"), event.get("peak_change_db")
-                    if change is not None and change > AMPLIFY_MAX_DB:
-                        out.append(f"{voice} {arm} {profile}: {kind} came out {change:+.1f} dB louder")
-                    elif peak is not None and peak > PEAK_MAX_DB:
-                        out.append(f"{voice} {arm} {profile}: {kind} came out {peak:+.1f} dB louder in its loudest frame")
-    return out
+                if profile != "gate_log":
+                    yield voice, arm, profile, row
+
+
+def problems(results, arms=ARMS):
+    """Why a run fails: speech moved too far in any arm, or a gap event came out louder in an arm the chain owns."""
+    return [f"{voice} {arm} {profile}: {why}"
+            for voice, arm, profile, row in measured_rows(results)
+            for why in _row_problems(row["noise"], judged(arm, arms))]
 
 
 def table(results):
     """One line per arm and gap event: energy change, worst frame, and how it sits against the voice."""
     lines = []
-    for voice, arms in results.items():
-        for arm, profiles in arms.items():
-            for profile, row in profiles.items():
-                if profile == "gate_log":
-                    continue
-                noise = row["noise"]
-                for kind in sorted(k for k in noise if k.endswith("_gap")):
-                    e = noise[kind]
-                    lines.append(f"  {voice:8} {arm:18} {profile:8} {kind:13} change {e['change_db']:+6.1f} dB"
-                                 f"  worst {e['peak_change_db']!s:>6}  over speech {e.get('over_speech_db')!s:>6}")
-                lines.append(f"  {voice:8} {arm:18} {profile:8} speech {noise['speech_level_change_db']:+.1f} dB"
-                             f"  onsets clipped {noise['onsets']['clipped']}/{noise['onsets']['count']}")
+    for voice, arm, profile, row in measured_rows(results):
+        noise = row["noise"]
+        for kind in sorted(k for k in noise if k.endswith("_gap")):
+            e = noise[kind]
+            lines.append(f"  {voice:8} {arm:18} {profile:8} {kind:13} change {e['change_db']:+6.1f} dB"
+                         f"  worst {e['peak_change_db']!s:>6}  over speech {e.get('over_speech_db')!s:>6}")
+        lines.append(f"  {voice:8} {arm:18} {profile:8} speech {noise['speech_level_change_db']:+.1f} dB"
+                     f"  onsets clipped {noise['onsets']['clipped']}/{noise['onsets']['count']}")
     return "\n".join(lines)
 
 

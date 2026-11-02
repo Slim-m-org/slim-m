@@ -3,7 +3,7 @@ import unittest
 
 import fetch_mouth_noise as fetch
 
-KINDS = ("chew", "swallow", "smack", "breath", "sip", "mouseclick", "creak", "cough")
+KINDS = fetch.KINDS
 
 
 class Manifest(unittest.TestCase):
@@ -17,7 +17,7 @@ class Manifest(unittest.TestCase):
         kinds = {c["kind"] for c in self.manifest["clips"]}
         for kind in ("chew", "swallow", "smack", "breath"):
             self.assertIn(kind, kinds)
-        self.assertTrue(kinds <= set(KINDS), kinds - set(KINDS))
+        self.assertLessEqual(kinds, set(KINDS), kinds - set(KINDS))
 
     def test_only_cc0_passes(self):
         clip = dict(self.manifest["clips"][0], licence="CC BY 4.0")
@@ -28,6 +28,20 @@ class Manifest(unittest.TestCase):
         self.assertTrue(any("allowed" in p for p in fetch.problems({"clips": [clip]})))
         clip["url"] = "https://example.com/1.mp3"
         self.assertTrue(any("allowed" in p for p in fetch.problems({"clips": [clip]})))
+
+    def test_the_download_url_is_rebuilt_from_the_preview_numbers(self):
+        clip = dict(self.manifest["clips"][0], url="https://cdn.freesound.org/previews/465/465250_1829455-hq.mp3")
+        self.assertEqual(fetch.source_url(clip), ("https://cdn.freesound.org/previews/465/465250_1829455-hq.mp3", "mp3"))
+        clip["url"] = "https://cdn.freesound.org/previews/../etc/passwd"
+        self.assertTrue(any("allowed" in p for p in fetch.problems({"clips": [clip]})))
+
+    def test_an_odd_id_kind_or_hash_is_named(self):
+        first = dict(self.manifest["clips"][0])
+        found = fetch.problems({"clips": [dict(first, id="../x"), dict(first, id="b", kind="yawn"),
+                                          dict(first, id="c", sha256="xyz")]})
+        self.assertTrue(any("slug" in p for p in found))
+        self.assertTrue(any("kind" in p for p in found))
+        self.assertTrue(any("hex" in p for p in found))
 
     def test_a_missing_hash_or_duplicate_id_is_named(self):
         first = dict(self.manifest["clips"][0])
