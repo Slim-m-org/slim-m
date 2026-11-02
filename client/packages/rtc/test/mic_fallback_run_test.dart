@@ -36,6 +36,9 @@ class _Mic extends Fake implements MicPort {
   double? level = -30;
   @override
   Future<double?> senderLevelDb() async => level;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
 }
 
 class _Rig {

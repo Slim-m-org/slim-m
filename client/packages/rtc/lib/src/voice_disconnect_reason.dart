@@ -16,8 +16,7 @@ VoiceDisconnect mapDisconnectReason(lk.DisconnectReason? reason) =>
         VoiceDisconnect.replacedByOtherDevice,
       lk.DisconnectReason.participantRemoved ||
       lk.DisconnectReason.roomDeleted ||
-      lk.DisconnectReason.roomClosed ||
-      lk.DisconnectReason.serverShutdown =>
+      lk.DisconnectReason.roomClosed =>
         VoiceDisconnect.removed,
       lk.DisconnectReason.signalingConnectionFailure ||
       lk.DisconnectReason.reconnectAttemptsExceeded ||
@@ -26,6 +25,8 @@ VoiceDisconnect mapDisconnectReason(lk.DisconnectReason? reason) =>
       lk.DisconnectReason.connectionTimeout ||
       lk.DisconnectReason.mediaFailure ||
       lk.DisconnectReason.migration ||
+      lk.DisconnectReason.serverShutdown ||
+      lk.DisconnectReason.stateMismatch ||
       lk.DisconnectReason.disconnected =>
         VoiceDisconnect.connectionLost,
       _ => VoiceDisconnect.unknown,

@@ -279,6 +279,7 @@ impl VoiceService {
             // The display name is set below; no reason to let a client rewrite it mid-call.
             can_update_own_metadata: false,
             room_admin: false,
+            room_create: false,
         };
 
         let token = self.sign(

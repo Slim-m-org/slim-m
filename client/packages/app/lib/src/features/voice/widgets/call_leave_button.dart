@@ -2,7 +2,8 @@
 /// The leave control, drawn by whichever dock owns the call's far edge.
 ///
 /// Decision 0047 point 2: leave is the last control in every dock, after a
-/// divider, so it cannot be hit by a reach for something else.
+/// divider, so it cannot be hit by a reach for something else. Its outline is
+/// always danger and heavier than a muted mic's, which is a state.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -33,6 +34,7 @@ class CallLeaveButton extends StatelessWidget {
     tooltip: labelWithShortcut('Leave call', AppAction.leaveCall),
     active: false,
     destructive: true,
+    heavyOutline: true,
     onPressed: controller.leave,
   );
 }

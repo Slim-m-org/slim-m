@@ -54,6 +54,7 @@ import '../../members/widgets/member_pane.dart'
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../members/widgets/profile_colour.dart' show profileColourOf;
+import '../providers/canvas_focus_video_hold.dart';
 import '../providers/canvas_self_presence.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
@@ -138,6 +139,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   bool _activityLogOpen = false;
   late final WindowFullscreenHold _windowHold;
   late final PhoneLandscapeHold _landscapeHold;
+  late final CanvasFocusVideoHold _focusVideoHold;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
 
   /// The note whose in-place editor is open, if any.
@@ -192,6 +194,15 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _landscapeHold = PhoneLandscapeHold(
       ref.read(orientationChannelProvider),
       ref.read(portraitLockedPhoneProvider.notifier),
+    );
+    _focusVideoHold = CanvasFocusVideoHold(
+      ref.read(voiceControllerProvider.notifier).video.holdEnlargedVideo,
+    );
+    ref.listenManual(
+      canvasFocusedTileProvider,
+      (_, focus) =>
+          _focusVideoHold.follow(focusedTileOf(focus, widget.channelId)),
+      fireImmediately: true,
     );
     _engine.attachPane(); // also forces the late field's ref.read now
     _engine.viewRelay.followedTile.addListener(_onFollowedTile);
@@ -263,6 +274,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _focusNode.dispose();
     _windowHold.release();
     _landscapeHold.release();
+    _focusVideoHold.release();
     _engine.viewRelay.followedTile.removeListener(_onFollowedTile);
     _engine.detachPane();
     super.dispose();

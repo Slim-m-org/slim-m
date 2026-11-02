@@ -16,6 +16,7 @@ class VoiceState {
     this.state = VoiceSessionState.idle,
     this.joining = false,
     this.rejoining = false,
+    this.reconnecting = false,
     this.participants = const [],
     this.microphoneEnabled = true,
     this.cameraEnabled = false,
@@ -69,6 +70,9 @@ class VoiceState {
   /// still time the app spends reconnecting and a screen that read it as
   /// "you left" would be showing an error nobody had been asked to act on.
   final bool rejoining;
+
+  /// True once the SDK's own resume or restart has gone on past the banner's debounce; the session stays [VoiceSessionState.connected] throughout.
+  final bool reconnecting;
 
   /// What the user has asked for, which is not always what they got: a token
   /// without SPEAK cannot open a microphone however the toggle is set.
@@ -141,6 +145,7 @@ class VoiceState {
     VoiceSessionState? state,
     bool? joining,
     bool? rejoining,
+    bool? reconnecting,
     List<VoiceParticipant>? participants,
     bool? microphoneEnabled,
     bool? cameraEnabled,
@@ -166,6 +171,7 @@ class VoiceState {
     state: state ?? this.state,
     joining: joining ?? this.joining,
     rejoining: rejoining ?? this.rejoining,
+    reconnecting: reconnecting ?? this.reconnecting,
     participants: participants ?? this.participants,
     microphoneEnabled: microphoneEnabled ?? this.microphoneEnabled,
     cameraEnabled: cameraEnabled ?? this.cameraEnabled,

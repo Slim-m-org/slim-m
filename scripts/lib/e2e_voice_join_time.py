@@ -5,6 +5,7 @@ Bob sits in the call publishing the fake tone. Alice joins and leaves it
 JOIN_RUNS times; each join is stamped by e2e_join_probe_js on the page's own
 clock, so the numbers are what a listener waits, not what a widget claims.
 The target is a p50 of 1.5 s or less (docs/research/voice-experience-plan.md).
+JOIN_NETEM picks the egress profile and defaults to wan70, since a zero-RTT loopback passes the target trivially; "clean" turns it off.
 """
 import json
 import math
@@ -25,6 +26,7 @@ TARGET_P50_MS = 1500
 # Extra profiles for this scenario; the SFU's egress is all netem can shape here.
 WAN_PROFILES = {"wan70": "delay 70ms 5ms"}
 ARRIVAL_TIMEOUT = 25
+DEFAULT_NETEM = "wan70"
 
 
 def percentile(values, pct):
@@ -98,9 +100,13 @@ def _impair(profile):
     return e2e_netem.apply(profile)
 
 
+def join_profile():
+    return os.environ.get("JOIN_NETEM") or DEFAULT_NETEM
+
+
 def join_time(a, b, room_id, channel=L.VOICE_CHANNEL):
     runs_wanted = int(os.environ.get("JOIN_RUNS", "6"))
-    profile = os.environ.get("JOIN_NETEM", "clean")
+    profile = join_profile()
     if profile == "clean":
         return _join_time(a, b, room_id, channel, runs_wanted)
     print(f"  profile {profile}: {_impair(profile)}")

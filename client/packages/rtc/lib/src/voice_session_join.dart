@@ -45,6 +45,7 @@ extension VoiceSessionJoinWork on VoiceSession {
     _glitchWatch.finish();
 
     _lastDisconnect = null;
+    _droppedWhileSharing = false;
     _setState(VoiceSessionState.connecting);
     final generation = _generation;
     await _forgetUnpluggedDevices();
@@ -52,6 +53,7 @@ extension VoiceSessionJoinWork on VoiceSession {
     final room = _roomFactory();
     _room = room;
     _listen(room);
+    _setupLog.start();
     try {
       _joinTimings.mark(JoinStage.connectStarted);
       await room.connect(url, token);
@@ -60,14 +62,13 @@ extension VoiceSessionJoinWork on VoiceSession {
       _joinTimings.mark(JoinStage.connected);
       // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
       final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
-      if (cameraEnabled) {
-        await _trySetCamera(true);
-      }
-      if (!microphoneEnabled) await _primeMutedMic();
       if (!identical(_room, room)) return;
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
+      // A slow webcam must not hold "connected" back; see CameraJoin.
+      if (cameraEnabled) unawaited(_openCameraAfterJoin(room, generation));
       if (micFailed) _retryMicAfterJoin();
+      if (!microphoneEnabled) await _primeMutedMic();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(_room, room)) return;

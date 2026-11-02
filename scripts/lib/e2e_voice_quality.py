@@ -3,6 +3,8 @@
 
 Each side taps the decoded remote track to PCM and samples the receive-side concealment counters per network profile (e2e_netem.py); voice_quality.py analyses it.
 Opt in with E2E_ONLY="voice quality"; E2E_VQ_PROFILES (comma list), E2E_VQ_SECONDS, E2E_VQ_VARIANT (a row in VARIANTS) and E2E_VQ_OUT tune it.
+Both ends are Chrome with browser voice processing off, so this arm is the network-impairment control, not a model of the native client's capture chain.
+Every results.json side carries the Chrome version and libwebrtc milestone that produced it.
 """
 import base64
 import json
@@ -123,10 +125,19 @@ def _git(*args):
     return done.stdout.strip() if done.returncode == 0 else None
 
 
-def provenance(profiles):
-    """What produced a run's numbers: the commit, whether the tree was clean, when, and every knob."""
+def browser_stamp(user_agent):
+    """Chrome's version and the libwebrtc milestone it ships (Chrome N carries libwebrtc mN)."""
+    found = re.search(r"Chrome/(\d+)((?:\.\d+)*)", user_agent or "")
+    if not found:
+        return {"chrome": None, "libwebrtc_milestone": None}
+    return {"chrome": found.group(1) + found.group(2), "libwebrtc_milestone": f"m{found.group(1)}"}
+
+
+def provenance(profiles, browser=None):
+    """What produced a run's numbers: the commit, whether the tree was clean, when, the browser, and every knob."""
     status = _git("status", "--porcelain")
     return {
+        "browser": browser or browser_stamp(None),
         "commit": _git("rev-parse", "HEAD"),
         "dirty": None if status is None else bool(status),
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -137,9 +148,9 @@ def provenance(profiles):
     }
 
 
-def write_provenance(directory, profiles):
+def write_provenance(directory, profiles, browser=None):
     with open(os.path.join(directory, PROVENANCE_FILE), "w") as fh:
-        json.dump(provenance(profiles), fh, indent=2)
+        json.dump(provenance(profiles, browser), fh, indent=2)
 
 
 def requested_variant():
@@ -246,6 +257,7 @@ def analyse_saved(directory):
     results = {}
     refs = {who: dsp.read_wav(os.path.join(directory, f"clip-{who}.wav"))
             for who in "AB"}
+    browser = _stamped_browser(directory)
     for profile in sorted(os.listdir(directory)):
         folder = os.path.join(directory, profile)
         if not os.path.isdir(folder):
@@ -259,10 +271,20 @@ def analyse_saved(directory):
             report = voice_quality.analyze(ref, ref_rate, rec, rate)
             with open(os.path.join(folder, f"{who}-stats.json")) as fh:
                 report["stats"] = json.load(fh)
+            report["browser"] = browser
             results.setdefault(profile, {})[who] = report
     with open(os.path.join(directory, RESULTS_FILE), "w") as fh:
         json.dump(results, fh, indent=2)
     return results
+
+
+def _stamped_browser(directory):
+    """The browser stamp provenance.json holds for this run; empty fields when there is none."""
+    try:
+        with open(os.path.join(directory, PROVENANCE_FILE)) as fh:
+            return json.load(fh).get("browser") or browser_stamp(None)
+    except FileNotFoundError:
+        return browser_stamp(None)
 
 
 def _wanted_profiles():
@@ -319,6 +341,22 @@ def _record_profile(ca, cb, directory, profile):
     return next((s["pair"] for s in summaries if s["pair"]), None)
 
 
+def _record_all(ca, cb, directory, wanted, record=_record_profile):
+    """Records every wanted profile and returns the first selected ICE pair that any of them reported.
+
+    Fails unless each profile left both sides' recordings behind, since its folder exists before recording starts.
+    """
+    pair = None
+    for profile in wanted:
+        got = record(ca, cb, directory, profile)
+        pair = pair or got
+    missing = [os.path.join(profile, f"{who}-rx.wav") for profile in wanted
+               for who in ("vqa", "vqb")
+               if not os.path.exists(os.path.join(directory, profile, f"{who}-rx.wav"))]
+    assert not missing, f"profiles recorded without their audio: {missing}"
+    return pair
+
+
 def a_scored_call(server, secret, admin_api, sign_in):
     e2e_netem.ensure_image()
     wanted = _wanted_profiles()
@@ -334,10 +372,10 @@ def a_scored_call(server, secret, admin_api, sign_in):
         for client, user in ((ca, "vqa"), (cb, "vqb")):
             e2e_audio.install(client, extra=script)
             sign_in(client, server, user, secret)
+        write_provenance(directory, wanted, browser_stamp(ca.ev("navigator.userAgent")))
         try:
             _join_and_settle(ca, cb)
-            for profile in wanted:
-                pair = pair or _record_profile(ca, cb, directory, profile)
+            pair = _record_all(ca, cb, directory, wanted)
         finally:
             e2e_netem.clear()
             for client in (ca, cb):

@@ -19,7 +19,7 @@ import 'video_subscription_culler.dart'
 
 /// How sharp the remote video you watch should be.
 enum ReceiveVideoQuality {
-  /// The top layer whatever the tile size; only the network can lower it.
+  /// The top layer for any tile over a third of its size; only the network can lower it.
   max,
 
   /// No cap: LiveKit picks the layer from the tile size and the network.
@@ -28,17 +28,19 @@ enum ReceiveVideoQuality {
   /// A medium layer for cameras, the full one for shares.
   balanced,
 
-  /// The smallest layer that still reads: low for cameras, medium for shares.
+  /// The smallest layer: low for cameras and for shares.
   dataSaver;
 
   /// The layer ceiling for a camera or, with [screenShare], a screen share.
   ///
-  /// Shares stay one step sharper than cameras because the lowest layer of a
-  /// screen is unreadable text, which defeats watching one at all.
+  /// Balanced keeps shares at the top layer, since text wants every pixel. A
+  /// share publishes only two layers (960x540 and full size), so Data saver
+  /// takes the 960x540 one; an enlarged tile overrides it in
+  /// [applyReceiveVideoQuality].
   lk.VideoQuality layerFor({required bool screenShare}) => switch (this) {
         max || auto => lk.VideoQuality.HIGH,
         balanced => screenShare ? lk.VideoQuality.HIGH : lk.VideoQuality.MEDIUM,
-        dataSaver => screenShare ? lk.VideoQuality.MEDIUM : lk.VideoQuality.LOW,
+        dataSaver => lk.VideoQuality.LOW,
       };
 }
 
@@ -60,9 +62,9 @@ Duration videoDwellFor(ReceiveVideoQuality quality) =>
         ? const Duration(milliseconds: 1500)
         : videoSubscriptionDwell;
 
-/// Large enough that a tile's drawn size never undercuts the top simulcast
-/// layer, so LiveKit's adaptive sizing yields to the HIGH quality Max asks for
-/// while an unmounted view still pauses the track.
+/// What Max asks for, so adaptive sizing yields to HIGH while an unmounted view
+/// still pauses the track; the SDK clamps it to 3x, so a tile under a third of
+/// the top layer's size still gets a lower one.
 const maxQualityPixelDensity = 16.0;
 
 /// The adaptive-stream density a renderer reports for [quality].

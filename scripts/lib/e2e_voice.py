@@ -94,13 +94,17 @@ def _click_channel_row(client, channel, timeout=90):
     because the roster was still empty then, and this is that same click
     repeated once the roster is not.
     """
+    client.tap(*channel_row_point(client, channel, timeout))
+    client.settle(1.5)
+
+
+def channel_row_point(client, channel, timeout=90):
+    """Where the channel row's own text sits, found by prefix so the Manage kebab is never picked."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         for n in client.nodes():
             if n["t"].lower().startswith(channel.lower()):
-                client.tap(n["x"], n["y"])
-                client.settle(1.5)
-                return
+                return n["x"], n["y"]
         time.sleep(0.25)
     raise AssertionError(f"{client.name}: no row named {channel!r} found")
 
@@ -352,12 +356,11 @@ def canvas_keeps_call_controls(client, room_id, channel=L.VOICE_CHANNEL):
     canvas opening, which the dock while it is still open already answers
     without ever triggering `ConversationPane`'s stage swap back.
     """
-    try:
-        client.wait_for(L.OPEN_CANVAS, timeout=8)
-    except AssertionError:
-        # Run alone there is no earlier join; the scenario needs only a call.
+    # Run alone there is no earlier join; the header offers the canvas either way.
+    if not client.find(L.IN_CALL):
         client.click(channel)
         client.wait_for(L.IN_CALL)
+    client.wait_for(L.OPEN_CANVAS)
     client.click(L.OPEN_CANVAS)
     # "Canvas," not "no objects": the canvas scenarios leave objects here.
     client.wait_for("Canvas,")

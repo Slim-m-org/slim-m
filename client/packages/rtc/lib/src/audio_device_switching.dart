@@ -4,7 +4,10 @@
 /// stays a plain, test-friendly class with no LiveKit connection of its own.
 library;
 
+import 'dart:async';
+
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'audio_devices.dart';
 import 'screen_share_audio_options.dart';
@@ -45,6 +48,14 @@ class AudioDeviceSwitching {
   /// Which of libwebrtc's filters the next capture opens with.
   VoiceProcessing processing = const VoiceProcessing();
 
+  /// Whether the native chain levels the microphone itself right now, in
+  /// which case libwebrtc's auto gain stays off however [processing] reads:
+  /// it runs before the suppressor and lifts quiet non-speech into the band
+  /// the suppressor keeps.
+  bool Function() levelsNatively = _never;
+
+  static bool _never() => false;
+
   final AudioDevices _devices;
   final LiveInputSwitch _liveInput;
   final LiveOutputSwitch _liveOutput;
@@ -66,7 +77,7 @@ class AudioDeviceSwitching {
   bool _chosenInputWentMissing = false;
 
   /// Whether picking a specific microphone actually changes the live call.
-  /// False on mobile: `Hardware.selectAudioInput` (livekit_client 2.10.0,
+  /// False on mobile: `Hardware.selectAudioInput` (livekit_client 2.13.1,
   /// the pinned version) warns and returns without doing anything for iOS
   /// and Android, so offering a picker there would be a control that
   /// quietly does nothing.
@@ -104,8 +115,10 @@ class AudioDeviceSwitching {
     // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
     final deviceId =
         isPulseDeviceId(_preferredInputId) ? null : _preferredInputId;
+    final leveled = processing.autoGainControl && levelsNatively();
     final line =
-        'voice-ns: capture options device=${deviceId ?? 'default'} ${processing.summary}';
+        'voice-ns: capture options device=${deviceId ?? 'default'} ${processing.summary}'
+        '${leveled ? ' (agc off: the chain levels)' : ''}';
     if (line != _loggedOptions) {
       _loggedOptions = line;
       log?.call(line);
@@ -113,7 +126,7 @@ class AudioDeviceSwitching {
     return lk.AudioCaptureOptions(
       deviceId: deviceId,
       echoCancellation: processing.echoCancellation,
-      autoGainControl: processing.autoGainControl,
+      autoGainControl: processing.autoGainControl && !leveled,
       noiseSuppression: processing.noiseSuppression,
       // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
       stopAudioCaptureOnMute: false,
@@ -312,6 +325,23 @@ class AudioDeviceSwitching {
     }
     if (isPulseDeviceId(output)) {
       await _pulse.moveOwnStreams(capture: false, deviceId: output!);
+    }
+  }
+
+  /// Keeps new playback streams of this process on the chosen speaker; the
+  /// caller cancels the subscription when the call ends.
+  StreamSubscription<void> followPlaybackStarts() =>
+      _pulse.ownPlaybackStarts.listen((_) => unawaited(_reroute()));
+
+  Future<void> _reroute() async {
+    try {
+      await applyServerRouting();
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'Could not move a new call stream to the chosen device',
+          error,
+          stack);
     }
   }
 

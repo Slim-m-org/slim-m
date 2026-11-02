@@ -4,8 +4,15 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_rtc/rtc.dart' show CameraDevice;
 
 import 'voice_controller.dart';
+
+/// The cameras a picker platform offers, deduplicated; empty until resolved.
+final cameraDeviceListProvider = FutureProvider.autoDispose
+    .family<List<CameraDevice>, VoiceController>(
+      (ref, controller) => controller.video.cameraDevices(),
+    );
 
 /// The deduplicated camera count on a picker platform.
 ///

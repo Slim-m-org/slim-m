@@ -28,19 +28,23 @@ import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
 import 'broadcast_bridge.dart';
+import 'call_diagnostics.dart';
 import 'call_stats.dart';
 import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
+import 'camera_join.dart';
 import 'camera_switching.dart';
 import 'desktop_sources.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
+import 'livekit_setup_log.dart';
 import 'local_audio.dart';
 import 'mic_failure.dart';
 import 'mic_port.dart';
 import 'mic_recovery.dart';
 import 'mic_release.dart';
 import 'noise_floor_estimator.dart';
+import 'pulse_audio.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
@@ -48,6 +52,7 @@ import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
 import 'speaking_hold.dart';
 import 'strong_noise_suppression.dart';
+import 'track_stats_summary.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
@@ -59,6 +64,7 @@ import 'voice_processing_control.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'voice_session_camera.dart';
+import 'voice_reconnect_tracker.dart';
 import 'voice_session_mic_fallback.dart';
 import 'voice_session_screen_share.dart';
 
@@ -102,16 +108,19 @@ class VoiceSession
     AudioDevices? audioDevices,
     LiveOutputSwitch? liveOutput,
     LiveInputSwitch? liveInput,
+    PulseAudio? pulse,
     OsMicBlockProbe? osMicBlocked,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
     bool? mobile,
     JoinTimings? joinTimings,
     ShareAudioIsolation? shareAudioIsolation,
+    Duration cameraJoinTimeout = kJoinCameraTimeout,
   })  : _joinTimings = joinTimings ?? JoinTimings(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
-        ) {
+        ),
+        _cameraJoin = CameraJoin(timeout: cameraJoinTimeout) {
     _roomFactory = roomFactory ?? _buildRoom;
     _audio.log = audioLog;
     // An injected room has no native capture behind it to gate.
@@ -126,7 +135,9 @@ class VoiceSession
       liveOutput,
       osMicBlocked,
       liveInput,
+      pulse,
     );
+    _audioSwitching.levelsNatively = () => _levelsNatively;
     _initMicRelease(
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
@@ -156,6 +167,9 @@ class VoiceSession
       _receiveDensity,
     );
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
+    health.reconnect
+      ..log = _diag
+      ..active.addListener(_onReconnectingChanged);
   }
 
   /// The room a fresh call publishes into: only what is on screen is
@@ -186,6 +200,8 @@ class VoiceSession
     ),
   );
 
+  late final _setupLog = LiveKitSetupLog(_diag);
+
   late final _processing = VoiceProcessingControl(
     switching: _audioSwitching,
     mic: _mic,
@@ -200,6 +216,10 @@ class VoiceSession
   Future<void> setVoiceProcessing(VoiceProcessing next) =>
       _processing.set(next, inCall: _room != null);
 
+  @override
+  Future<void> _reopenCapture(String reason) =>
+      _processing.reopen(reason, inCall: _room != null);
+
   /// Whether a silent microphone is swapped for another, for this call only.
   void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;
 
@@ -210,6 +230,7 @@ class VoiceSession
   @override
   final JoinTimings _joinTimings;
   final CameraSwitching _cameraSwitching;
+  final CameraJoin _cameraJoin;
   late final VoiceCamera _camera;
   late final VoiceScreenShare _share;
   late final VideoSubscriptionCuller _videoCuller;
@@ -222,11 +243,15 @@ class VoiceSession
   StreamSubscription<CallStatsSnapshot>? _stallStats;
   final _activeVideoKeys = <String>{};
 
-  /// Per-track video stats, sampled only while something is listening.
+  /// Per-track video stats, sampled while somebody watches, listens or we publish video.
   late final callStats = CallStatsSampler(
     targets: () => _callStatsTargets(),
     log: (line) => AppLog.debug(LogTag.voice, line),
+    onSample: _onStatsSample,
   );
+
+  late final _trackSummaries =
+      TrackStatsSummary(onSummary: _recordTrackSummary);
 
   @override
   lk.Room? _room;
@@ -292,8 +317,8 @@ class VoiceSession
   VoidCallback holdEnlargedVideo(String tileKey) => _enlargedVideo.hold(
       tileKey, () => _disposed ? null : _refreshParticipants());
 
-  /// How sharp your camera publishes. Read when the camera turns on, since
-  /// capture parameters cannot change on a live track; the app cycles a live
+  /// How sharp your camera publishes. Read when the camera turns on, and a
+  /// different one than it was published at republishes; the app cycles a live
   /// camera to apply a change.
   void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
 
@@ -302,6 +327,13 @@ class VoiceSession
 
   /// Why the last call ended, when the SFU ended it rather than this client.
   VoiceDisconnect? get lastDisconnect => _lastDisconnect;
+
+  /// Whether the call the SFU just ended was sharing a screen, read before the roster emptied.
+  bool get droppedWhileSharing => _droppedWhileSharing;
+  bool _droppedWhileSharing = false;
+
+  /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
+  Stream<CameraJoinOpen> get cameraJoinOpens => _cameraJoin.events;
 
   /// The in-flight join, so a second call serializes behind it; see [join].
   Future<void>? _joining;
@@ -351,6 +383,7 @@ class VoiceSession
     _audio.screenMuted.clear();
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
+    _droppedWhileSharing = false;
     // Whatever a canvas last asked for was about the call that just ended.
     _videoCuller.setInterest(null);
     _videoCuller.setBlocked(const {});
@@ -475,6 +508,7 @@ class VoiceSession
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();
+    await _cameraJoin.dispose();
     await _disposeCapture();
     await _disposeMicRecovery();
     await _gate.dispose();

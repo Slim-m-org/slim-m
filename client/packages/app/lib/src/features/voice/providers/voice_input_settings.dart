@@ -3,7 +3,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -99,10 +99,19 @@ class VoiceInputSettings {
       NoiseSuppressionChoice.spaceDefault;
   bool _spaceStrongNoiseSuppression = false;
 
+  /// What the Space defaults to, as last read; a call rereads it periodically.
+  final spaceStrongNoiseSuppression = ValueNotifier<bool>(false);
+
   /// Seeds the noise suppression choice and the Space's default before any
   /// call.
+  ///
+  /// The saved choice is applied here, not left to the Space read: that read
+  /// only applies when the default differs from what it last knew, so a
+  /// saved Strong on a Space that defaults to Standard never reached the
+  /// microphone until the picker was touched again.
   Future<void> restoreNoiseSuppression() async {
     _noiseSuppression = await loadNoiseSuppressionChoice(_ref);
+    _applyNoiseSuppression();
     await refreshSpaceNoiseSuppression();
   }
 
@@ -118,6 +127,7 @@ class VoiceInputSettings {
     final fetched = await fetchSpaceStrongNoiseSuppression(_ref);
     if (fetched == null || fetched == _spaceStrongNoiseSuppression) return;
     _spaceStrongNoiseSuppression = fetched;
+    spaceStrongNoiseSuppression.value = fetched;
     _applyNoiseSuppression();
   }
 

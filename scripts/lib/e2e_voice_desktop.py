@@ -26,15 +26,28 @@ SECONDS = int(os.environ.get("E2E_DESKTOP_SECONDS", "60"))
 WARMUP = 12
 USER = "vqdesk"
 GATE_OFF, GATE_ON = -80.0, -50.0
-ARMS = {
-    "standard-gate-off": ("standard", GATE_OFF),
-    "standard-gate-on": ("standard", GATE_ON),
-    "strong-gate-off": ("strong", GATE_OFF),
-    "strong-gate-on": ("strong", GATE_ON),
-}
+PROFILES = "clean,loss5-jitter30,burst"
 BUNDLE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "client", "packages", "app",
     "build", "linux", "x64", "release", "bundle")
+
+
+def arm_prefs(choice, threshold_db, **extra):
+    """The saved settings one arm launches with: a suppression choice, a fixed gate, and overrides."""
+    prefs = {"slimm.voice.noise_suppression": choice,
+             "slimm.voice.input_threshold_db": threshold_db,
+             "slimm.voice.input_threshold_auto": False,
+             "slimm.voice.even_out_loud": True}
+    prefs.update(extra)
+    return prefs
+
+
+ARMS = {
+    "standard-gate-off": arm_prefs("standard", GATE_OFF),
+    "standard-gate-on": arm_prefs("standard", GATE_ON),
+    "strong-gate-off": arm_prefs("strong", GATE_OFF),
+    "strong-gate-on": arm_prefs("strong", GATE_ON),
+}
 
 
 def _voice_samples(voice):
@@ -47,10 +60,10 @@ def _voice_samples(voice):
     return voice_corpus.gapped(clip, chunk_s=min(3.5, max(1.2, len(clip) / voice_corpus.RATE / 8)))
 
 
-def _write_inputs(directory, voice=None):
+def _write_inputs(directory, voice=None, transients=None):
     """Clean speech, the noisy mix and the event list; returns their paths."""
     samples, spans = _voice_samples(voice)
-    noisy, events = make_noise_bed.mix(samples, spans)
+    noisy, events = make_noise_bed.mix(samples, spans, transients=transients)
     paths = {"clean": os.path.join(directory, "clean.wav"),
              "mix": os.path.join(directory, "mix.wav")}
     dsp.write_wav(paths["clean"], samples, speech.RATE)
@@ -105,6 +118,8 @@ class Stack:
     directory: str
     bundle: str
     feeder: object
+    arms: dict
+    profiles: list
 
 
 def gate_problems(choice, gate):
@@ -112,8 +127,8 @@ def gate_problems(choice, gate):
     if not gate["readings"]:
         return ["the app logged no gate readings"]
     strong = gate["strong"]
-    if choice == "strong" and strong < STRONG_MIN:
-        return [f"strong arm but rnnoise ran on only {strong:.0%} of readings"]
+    if choice in ("strong", "strongest") and strong < STRONG_MIN:
+        return [f"{choice} arm but rnnoise ran on only {strong:.0%} of readings"]
     if choice == "standard" and strong > STANDARD_MAX:
         return [f"standard arm but rnnoise ran on {strong:.0%} of readings"]
     return []
@@ -131,15 +146,11 @@ def recording_problems(samples, seconds):
 def _arm(name, ctx):
     listener, inputs, server, secret = ctx.listener, ctx.inputs, ctx.server, ctx.secret
     directory = ctx.directory
-    choice, threshold = ARMS[name]
+    prefs = ctx.arms[name]
+    choice = prefs["slimm.voice.noise_suppression"]
     # Refresh tokens are single use, so every launch gets a pair nobody has spent.
     tokens = _tokens(server, secret)
-    root = da.seed_profile(
-        os.path.join(directory, f"xdg-{name}"), server, tokens,
-        {"slimm.voice.noise_suppression": choice,
-         "slimm.voice.input_threshold_db": threshold,
-         "slimm.voice.input_threshold_auto": False,
-         "slimm.voice.even_out_loud": True})
+    root = da.seed_profile(os.path.join(directory, f"xdg-{name}"), server, tokens, prefs)
     app = da.Desktop(ctx.bundle, root, ctx.channel, os.path.join(directory, f"app-{name}.log"))
     clean, mix = (dsp.read_wav(inputs[k]) for k in ("clean", "mix"))
     seconds = record_seconds(len(mix[0]) / mix[1])
@@ -151,8 +162,7 @@ def _arm(name, ctx):
         pids = app.app_pids()
         da.assert_isolated(pids)
         assert da.app_captures_mic(pids), "the app is not recording from the virtual microphone"
-        for profile in [p for p in os.environ.get(
-                "E2E_DESKTOP_PROFILES", "clean,loss5-jitter30,burst").split(",") if p]:
+        for profile in ctx.profiles:
             da.full_volume()
             samples, _, dropped = _listen(listener, profile, seconds)
             xp.save_wav(os.path.join(directory, f"rx-{name}-{profile}.wav"), samples)
@@ -174,7 +184,29 @@ def _arm(name, ctx):
     return rows
 
 
-def a_noisy_desktop(server, secret, admin_api, sign_in):
+@dataclasses.dataclass
+class Run:
+    """One desktop measurement: which arms, which network profiles, what is mixed in, and where it lands."""
+    arms: dict = dataclasses.field(default_factory=lambda: dict(ARMS))
+    profiles: tuple = tuple(PROFILES.split(","))
+    transients: object = None
+    label: str = "desktop"
+
+    @classmethod
+    def from_env(cls, **overrides):
+        run = cls(**overrides)
+        wanted = [a for a in os.environ.get("E2E_DESKTOP_ARMS", "").split(",") if a]
+        if wanted:
+            run.arms = {name: run.arms[name] for name in wanted}
+        profiles = [p for p in os.environ.get("E2E_DESKTOP_PROFILES", "").split(",") if p]
+        if profiles:
+            run.profiles = tuple(profiles)
+        return run
+
+
+def a_noisy_desktop(server, secret, admin_api, sign_in, run=None):
+    """Every arm of `run` (the four noise arms by default), one voice at a time; returns the results per voice."""
+    run = run or Run.from_env()
     e2e_netem.ensure_image()
     bundle = os.path.abspath(os.environ.get("E2E_DESKTOP_BUNDLE") or BUNDLE)
     assert os.path.exists(os.path.join(bundle, "slimm_app")), f"no desktop build at {bundle}"
@@ -183,20 +215,22 @@ def a_noisy_desktop(server, secret, admin_api, sign_in):
     owner_before = da.default_devices()
     assert not any("slimm_vq" in line for line in owner_before), \
         f"a default device already points at a harness device: {owner_before}"
+    results = {}
     try:
         for voice in [v for v in os.environ.get("E2E_DESKTOP_VOICES", "").split(",") if v] or [None]:
-            _one_voice(voice, (server, secret, admin_api, sign_in), channel, bundle)
+            results[voice or "piper"] = _one_voice(
+                voice, (server, secret, admin_api, sign_in), channel, bundle, run)
     finally:
         after = da.default_devices()
         assert after == owner_before, f"the owner's default audio devices changed: {after}"
+    return results
 
 
-def _one_voice(voice, stack, channel, bundle):
+def _one_voice(voice, stack, channel, bundle, run):
     server, secret, admin_api, sign_in = stack
-    directory = xp.out_dir("desktop" + (f"-{voice}" if voice else ""))
-    paths, spans, events = _write_inputs(directory, voice)
+    directory = xp.out_dir(run.label + (f"-{voice}" if voice else ""))
+    paths, spans, events = _write_inputs(directory, voice, run.transients)
     inputs = {**paths, "spans": spans, "events": events}
-    wanted = [a for a in os.environ.get("E2E_DESKTOP_ARMS", ",".join(ARMS)).split(",") if a]
     results = {}
     owner_devices = da.default_devices()
     with da.nested_compositor(os.path.join(directory, "kwin.log")) as compositor, \
@@ -204,11 +238,12 @@ def _one_voice(voice, stack, channel, bundle):
         assert da.default_devices() == owner_devices, "starting the virtual devices moved a default"
         with xp.one_listener(server, secret, admin_api, sign_in, paths["clean"]) as listener:
             ctx = Stack(listener, inputs, server, secret, channel, compositor, directory,
-                        bundle, feeder)
-            for name in wanted:
+                        bundle, feeder, run.arms, list(run.profiles))
+            for name in run.arms:
                 results[name] = _arm_with_retry(name, ctx)
-                with open(os.path.join(directory, "desktop.json"), "w") as fh:
+                with open(os.path.join(directory, f"{run.label}.json"), "w") as fh:
                     json.dump(results, fh, indent=1)
+    return results
 
 
 def _arm_with_retry(name, ctx):

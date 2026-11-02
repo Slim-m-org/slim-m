@@ -53,6 +53,7 @@
  "voice experience: join time, the speaking ring and a 10 s network cut (opt in with E2E_ONLY)": 0.0,
  "voice latency: chirps through the call give the mouth-to-ear delay per network profile (opt in with E2E_ONLY)": 0.0,
  "voice quality: known clips played both ways are scored per network profile (opt in with E2E_ONLY)": 0.0,
+ "voice transients: chewing, smacks, a swallow and a breath through the Linux client per suppression arm (opt in with E2E_ONLY)": 0.0,
  "voice: a call nobody answers shows up in the dm": 32.9,
  "voice: a client that loses its network rejoins on its own": 69.1,
  "voice: a listener's volume slider scales the sound, to silence, and survives rejoining": 54.9,

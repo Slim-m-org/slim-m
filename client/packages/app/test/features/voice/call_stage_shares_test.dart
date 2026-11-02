@@ -83,14 +83,14 @@ Future<void> _leave(_Call call) =>
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
 
 void main() {
-  test('columns follow the window width', () {
-    expect(shareGridColumns(390, 2), 1);
-    expect(shareGridColumns(599, 3), 1);
-    expect(shareGridColumns(800, 2), 2);
-    expect(shareGridColumns(800, 3), 2);
-    expect(shareGridColumns(1200, 2), 2);
-    expect(shareGridColumns(1200, 3), 3);
-    expect(shareGridColumns(1200, 4), 2);
+  test('columns follow the pane the grid sits in', () {
+    expect(shareGridColumns(355, 2), 1);
+    expect(shareGridColumns(571, 2), 1);
+    expect(shareGridColumns(572, 2), 2);
+    expect(shareGridColumns(983, 3), 2);
+    expect(shareGridColumns(984, 3), 3);
+    expect(shareGridColumns(1400, 4), 2);
+    expect(shareGridColumns(355, 4), 1);
   });
 
   testWidgets('one share keeps the single stage with no grid', (tester) async {
@@ -196,24 +196,29 @@ void main() {
   });
 
   testWidgets(
-    'stop watching removes the share and blocks it, with no badge to undo it',
+    'stop watching removes the share and blocks it, and a row offers it back',
     (tester) async {
       final call = await _connected(tester, [_p('a'), _p('b')], _wide);
 
       await rightClickMenu(tester, find.byType(ScreenShareStage).first);
-      await tester.tap(find.text('Hide stream'));
+      await tester.tap(find.text('Stop watching'));
       await tester.pumpAndSettle();
       expect(find.byType(ScreenShareStage), findsOneWidget);
       expect(find.byKey(const Key('fake-share-view-a')), findsNothing);
       expect(call.session.videoBlocked.last, {'screen:a'});
-      // Owner: show it again from the person's menu, not a badge at the top.
+      expect(find.text('a is sharing'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(AppButton, 'Watch'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const Key('fake-share-view-a')), findsOneWidget);
+      expect(call.session.videoBlocked.last, isEmpty);
       expect(find.text('a is sharing'), findsNothing);
-      expect(find.text('Watch'), findsNothing);
       await _leave(call);
     },
   );
 
-  testWidgets('stopping the only share leaves the grid and no badge', (
+  testWidgets('stopping the only share leaves the grid and a row to watch it', (
     tester,
   ) async {
     final call = await _connected(tester, [
@@ -221,22 +226,22 @@ void main() {
       _p('me', local: true, sharing: false),
     ], _wide);
     await rightClickMenu(tester, find.byType(ScreenShareStage));
-    await tester.tap(find.text('Hide stream'));
+    await tester.tap(find.text('Stop watching'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsNothing);
-    expect(find.text('a is sharing'), findsNothing);
+    expect(find.text('a is sharing'), findsOneWidget);
     await _leave(call);
   });
 
-  testWidgets('on a phone Hide stream is in the long-press menu', (
+  testWidgets('on a phone Stop watching is in the long-press menu', (
     tester,
   ) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _phone);
     await longPressMenu(tester, _tile('a'));
-    await tester.tap(find.text('Hide stream'));
+    await tester.tap(find.text('Stop watching'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsOneWidget);
-    expect(find.text('a is sharing'), findsNothing);
+    expect(find.text('a is sharing'), findsOneWidget);
     await _leave(call);
   });
 
@@ -245,7 +250,7 @@ void main() {
   ) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _wide);
     await rightClickMenu(tester, find.byType(ScreenShareStage).first);
-    await tester.tap(find.text('Hide stream'));
+    await tester.tap(find.text('Stop watching'));
     await tester.pumpAndSettle();
 
     call.session.emitParticipants([_p('a', sharing: false), _p('b')]);

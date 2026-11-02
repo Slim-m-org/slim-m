@@ -35,7 +35,9 @@ pub async fn remove_if_empty(
     }
     match store.delete_channel(channel_id).await {
         Ok(true) => {
-            let _ = voice.delete_room(channel_id).await;
+            if let Err(VoiceError::Internal(err)) = voice.delete_room(channel_id).await {
+                tracing::warn!(%err, "could not end the removed empty voice room");
+            }
             hub.publish(Event::ChannelDeleted { channel_id });
         }
         Ok(false) => {}

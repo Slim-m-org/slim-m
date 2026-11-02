@@ -1,0 +1,159 @@
+{
+ "version": 1,
+ "rate": 48000,
+ "max_seconds": 18,
+ "peak_dbfs": -6.0,
+ "note": "Recorded mouth and desk sounds for the voice transients scenario. CC0 only; nothing here needs attribution, it is given anyway. fetch_mouth_noise.py rebuilds the clips; no audio is committed.",
+ "clips": [
+  {
+   "id": "breath-465250",
+   "kind": "breath",
+   "description": "breathing, close recording",
+   "licence": "CC0",
+   "attribution": "P_Chester, \"breathing on your right side.wav\", freesound.org, CC0",
+   "page": "https://freesound.org/people/P_Chester/sounds/465250/",
+   "url": "https://cdn.freesound.org/previews/465/465250_1829455-hq.mp3",
+   "sha256": "84e9cf0ca78ec8bffe11a4aff71b6011dc2a60106d0a987570abec3f54d6df17"
+  },
+  {
+   "id": "chew-462301",
+   "kind": "chew",
+   "description": "chewing an apple",
+   "licence": "CC0",
+   "attribution": "taya_yelton, \"chewing apple.WAV\", freesound.org, CC0",
+   "page": "https://freesound.org/people/taya_yelton/sounds/462301/",
+   "url": "https://cdn.freesound.org/previews/462/462301_9612987-hq.mp3",
+   "sha256": "8aabe51d05eeef8e905cdff90000a143597e732e55df512e5f21fba7aef85365"
+  },
+  {
+   "id": "chew-729595",
+   "kind": "chew",
+   "description": "chewing crunchy cereal",
+   "licence": "CC0",
+   "attribution": "minniemighty, \"Chewing on Crunchy Cereal\", freesound.org, CC0",
+   "page": "https://freesound.org/people/minniemighty/sounds/729595/",
+   "url": "https://cdn.freesound.org/previews/729/729595_15845711-hq.mp3",
+   "sha256": "cd1947bde9556193e2cbfcb89b128566aeb9f5d34e33d6aadf3093aa6dff880b"
+  },
+  {
+   "id": "chew-805674",
+   "kind": "chew",
+   "description": "eating crispbread",
+   "licence": "CC0",
+   "attribution": "giddster, \"Eating crispbread\", freesound.org, CC0",
+   "page": "https://freesound.org/people/giddster/sounds/805674/",
+   "url": "https://cdn.freesound.org/previews/805/805674_1738686-hq.mp3",
+   "sha256": "f427865f5fcc204da7be51adc4c91fe5de7cd43e83263d0e4f1e78b8b22a795d"
+  },
+  {
+   "id": "chew-860365",
+   "kind": "chew",
+   "description": "chewing crunchy chips close to the mic",
+   "licence": "CC0",
+   "attribution": "Johnmode, \"low chips crunching in mouth - eating crunchy food\", freesound.org, CC0",
+   "page": "https://freesound.org/people/Johnmode/sounds/860365/",
+   "url": "https://cdn.freesound.org/previews/860/860365_17591071-hq.mp3",
+   "sha256": "d68bbfafb2df1758de7c295d1eaf78b272fbc2730844b72486175d6840a61cd0"
+  },
+  {
+   "id": "cough-650914",
+   "kind": "cough",
+   "description": "coughing",
+   "licence": "CC0",
+   "attribution": "frenkfurth, \"Coughing 001.wav\", freesound.org, CC0",
+   "page": "https://freesound.org/people/frenkfurth/sounds/650914/",
+   "url": "https://cdn.freesound.org/previews/650/650914_13558226-hq.mp3",
+   "sha256": "7d2767e794178ee8c785389279a1acba4d2d4734d49363a0e1f56a150163033e"
+  },
+  {
+   "id": "creak-436777",
+   "kind": "creak",
+   "description": "squeaky desk chair",
+   "licence": "CC0",
+   "attribution": "Kiyoshiakira, \"squeaky desk chair.wav\", freesound.org, CC0",
+   "page": "https://freesound.org/people/Kiyoshiakira/sounds/436777/",
+   "url": "https://cdn.freesound.org/previews/436/436777_7085413-hq.mp3",
+   "sha256": "95641fdbdcb94a59f89af77f854bd363e411a6d4f71fe3a4febc016a5824168b"
+  },
+  {
+   "id": "mouseclick-334998",
+   "kind": "mouseclick",
+   "description": "mouse clicks",
+   "licence": "CC0",
+   "attribution": "paulocorona, \"Mouse Clicks\", freesound.org, CC0",
+   "page": "https://freesound.org/people/paulocorona/sounds/334998/",
+   "url": "https://cdn.freesound.org/previews/334/334998_5863857-hq.mp3",
+   "sha256": "a87d8d7c15cf4fc9c413b68ceb2ad9e36c4ec934f5247cf9725bb58ff0889f18"
+  },
+  {
+   "id": "sip-411973",
+   "kind": "sip",
+   "description": "sipping a drink",
+   "licence": "CC0",
+   "attribution": "VPP_2015, \"Sipping Drink\", freesound.org, CC0",
+   "page": "https://freesound.org/people/VPP_2015/sounds/411973/",
+   "url": "https://cdn.freesound.org/previews/411/411973_5276695-hq.mp3",
+   "sha256": "dc5e5fbd7e558bf7e43cefccc5505fc0766cb48b66e341503acfec95be3f3a7d"
+  },
+  {
+   "id": "smack-232930",
+   "kind": "smack",
+   "description": "smacking and popping lips",
+   "licence": "CC0",
+   "attribution": "bmusic92, \"Smacking_Popping Lips.mp3\", freesound.org, CC0",
+   "page": "https://freesound.org/people/bmusic92/sounds/232930/",
+   "url": "https://cdn.freesound.org/previews/232/232930_4211564-hq.mp3",
+   "sha256": "198bff138c3f90a3cd85251553fde5844aa3f791665180fced361c2c47acdbb1"
+  },
+  {
+   "id": "smack-528195",
+   "kind": "smack",
+   "description": "slurping tea and smacking lips",
+   "licence": "CC0",
+   "attribution": "fthgurdy, \"Slurping tea and smacking lips\", freesound.org, CC0",
+   "page": "https://freesound.org/people/fthgurdy/sounds/528195/",
+   "url": "https://cdn.freesound.org/previews/528/528195_3302313-hq.mp3",
+   "sha256": "1ab2e4e68297a4a42ec6659869b4347d5de13c2ace0f75566908005d78dd29d0"
+  },
+  {
+   "id": "smack-861352",
+   "kind": "smack",
+   "description": "wet mouth clicks, voiceover style",
+   "licence": "CC0",
+   "attribution": "qubodup, \"Annoying Voiceover Wet Mouth Clicks\", freesound.org, CC0",
+   "page": "https://freesound.org/people/qubodup/sounds/861352/",
+   "url": "https://cdn.freesound.org/previews/861/861352_71257-hq.mp3",
+   "sha256": "dd45623a1aad0a4ff06c4e11dae17892434ae90eecedc929d9d663908970c409"
+  },
+  {
+   "id": "swallow-239007",
+   "kind": "swallow",
+   "description": "slurping and swallowing",
+   "licence": "CC0",
+   "attribution": "squashy555, \"slurping and swallowing2.wav\", freesound.org, CC0",
+   "page": "https://freesound.org/people/squashy555/sounds/239007/",
+   "url": "https://cdn.freesound.org/previews/239/239007_1149179-hq.mp3",
+   "sha256": "5d134a735fa3c0b5e13310fe881c5ed1eff2534512b23d091df2c5f5f33d53ef"
+  },
+  {
+   "id": "swallow-383742",
+   "kind": "swallow",
+   "description": "human drinking and swallowing water",
+   "licence": "CC0",
+   "attribution": "deleted_user_7146007, \"Human Drinking Swallowing Liquid Water\", freesound.org, CC0",
+   "page": "https://freesound.org/people/deleted_user_7146007/sounds/383742/",
+   "url": "https://cdn.freesound.org/previews/383/383742_7146007-hq.mp3",
+   "sha256": "19eedf92cfdfbeb41511303189b566a68ec3f64c507a9f2cde35e21f2e98abd7"
+  },
+  {
+   "id": "swallow-667132",
+   "kind": "swallow",
+   "description": "drinking and swallowing",
+   "licence": "CC0",
+   "attribution": "Nickisawsome74, \"Drinking/swallowing\", freesound.org, CC0",
+   "page": "https://freesound.org/people/Nickisawsome74/sounds/667132/",
+   "url": "https://cdn.freesound.org/previews/667/667132_7738466-hq.mp3",
+   "sha256": "b94e700d3c264c81250be9df498bedefa78a967c8f3044e53c030a523a9f8f64"
+  }
+ ]
+}

@@ -20,7 +20,7 @@ Riley published 3840x2160 VP8 simulcast: `q` 1920x1080 at 3 Mbps and `h` 3840x21
    With a tile large enough for `h`, the sender encodes 4K, and under CPU or bandwidth limits libwebrtc scales that layer down hard, which is how Riley's viewer ended at 960x540.
 4. **The sender was never told.**
    The stats panel already printed `limited by cpu`/`bandwidth` per layer, but only if someone opened it.
-   There is now a banner for the sharer.
+   A banner for the sharer was added for this and later removed on purpose in #2270 (see "What changed"); do not reintroduce it.
 
 ## Measurements
 
@@ -54,7 +54,7 @@ The machine was shared with other agents, so treat fps to within a few frames.
 Reading it:
 
 - A constrained 4K sender reproduces the report: 960x540 at 6 to 10 fps, limited by bandwidth, on the `q` layer.
-  The same weak sender at 1080p30 gave 1280x720 and the banner would say cpu.
+  The same weak sender at 1080p30 gave 1280x720 and the removed banner would have said cpu.
 - Free-running 4K tiers are not smooth on this box (9 to 13 fps) because drawing a 4K source in software shares the CPU with the encoder, so they say little about a real GPU-composited desktop.
 - The 4K layer is only encoded when a viewer's tile wants it, so most of the cost of a 4K tier is paid by sharers whose viewer is fullscreen or on a large window.
 - The 1 core throttled 4K share never produced a first frame within the warm-up, so the viewer saw nothing at all.
@@ -91,7 +91,7 @@ The 2160p tier on a 1080p screen used to hand LiveKit the 2160p30 budget; measur
 Received video was unchanged for these unconstrained senders (1080p screen: 1920x1080 at about 28 fps either way), because the web client already laid layers out from `getSettings`.
 The saving is the budget and, on desktop, where `getSettings` does not exist, the layout too: LiveKit was told 3840x2160 for a 1080p screen.
 The source size comes from the first frame of the captured stream, which works on every platform; if it never arrives within 3 s the share publishes as chosen.
-Windows are not shared yet, so there is no window case; a window would come through the same read.
+Windows are shareable on Windows and macOS but not on Linux; a window would come through the same read.
 Voice settings now says "Larger than your screen, so it is shared at your screen size." under a resolution above every display.
 The default e2e run checks it: a 1080p fake screen with 2160p picked must publish a top layer of at most 5 Mbps.
 Not exercised: the desktop first-frame read on a real Linux or Windows share (only the web path ran here).
@@ -102,14 +102,15 @@ Changed because the numbers prove it:
 
 - The inbound and outbound bitrate readout (unit bug).
 - A share is capped to the source's size and budget (above).
-- A banner tells the sharer once per share when the encoder reports `cpu` or `bandwidth` limits twice in a row, and says to lower the resolution or frame rate.
+- A banner told the sharer once per share when the encoder reported `cpu` or `bandwidth` limits twice in a row.
+  Removed on purpose in #2270: screen share now publishes with `balanced` degradation, which lowers quality quietly instead of asking the sharer to act.
 
 Not changed:
 
 - The default tier stays 1080p30, which is already what a new install uses (`ScreenShareQuality.standard`).
   Riley chose a 2160p tier or an older build was in use; nothing here shows the default itself is wrong.
 - The 2160p tiers stay for strong senders.
-  The banner is the guard for weak ones.
+  The banner was the guard for weak ones; it was removed on purpose in #2270 and balanced degradation took its place.
   The numbers do not show a different bitrate table would help, because the limit was the sender's CPU and uplink rather than the ceiling.
 - `screen_share_max_height` (2160 on prod) only clamps the capture size in `ScreenShareControl.captureOptionsFor`; it does not pick a tier.
   Lowering it to 1440 or 1080 would cap the capture and so the cost of a 4K choice, but it is the space's decision and nothing here argues for changing prod.

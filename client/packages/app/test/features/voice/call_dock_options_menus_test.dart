@@ -172,13 +172,13 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(340, 1600);
+    tester.view.physicalSize = const Size(364, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await pumpVoiceCallDock(
       tester,
       _connected,
-      width: 340,
+      width: 364,
       session: _session(),
       extraOverrides: [
         voiceParticipantsProvider.overrideWithValue(const [_me]),

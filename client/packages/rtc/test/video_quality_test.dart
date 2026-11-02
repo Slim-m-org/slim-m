@@ -63,13 +63,26 @@ void main() {
       await applyReceiveVideoQuality(
           refs(), ReceiveVideoQuality.dataSaver, lowered);
 
-      expect(share, [
-        lk.VideoQuality.MEDIUM,
-        lk.VideoQuality.HIGH,
-        lk.VideoQuality.MEDIUM
-      ]);
+      expect(share,
+          [lk.VideoQuality.LOW, lk.VideoQuality.HIGH, lk.VideoQuality.LOW]);
       expect(camera, everyElement(lk.VideoQuality.LOW),
           reason: 'the grid tile stays capped');
+    });
+
+    test('an enlarged camera is lifted to the top layer under data saver',
+        () async {
+      final camera = <lk.VideoQuality>[];
+      final lowered = <String>{};
+      List<RemoteVideoQualityRef> refs() =>
+          [_pub(lk.TrackSource.camera, camera, key: 'camera:ada')];
+
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered);
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered,
+          enlarged: {'camera:ada'});
+
+      expect(camera, [lk.VideoQuality.LOW, lk.VideoQuality.HIGH]);
     });
 
     test('enlarging under auto changes nothing', () async {
@@ -83,7 +96,7 @@ void main() {
       expect(share, isEmpty);
     });
 
-    test('data saver caps a camera low and a share medium', () async {
+    test('data saver caps a camera and a share low', () async {
       final camera = <lk.VideoQuality>[];
       final share = <lk.VideoQuality>[];
       await applyReceiveVideoQuality(
@@ -94,7 +107,19 @@ void main() {
           ReceiveVideoQuality.dataSaver,
           {});
       expect(camera, [lk.VideoQuality.LOW]);
-      expect(share, [lk.VideoQuality.MEDIUM]);
+      expect(share, [lk.VideoQuality.LOW]);
+    });
+
+    test('data saver asks the low layer of a share, the one sent at 960x540',
+        () {
+      expect(
+        ReceiveVideoQuality.dataSaver.layerFor(screenShare: true),
+        lk.VideoQuality.LOW,
+      );
+      expect(
+        ReceiveVideoQuality.balanced.layerFor(screenShare: true),
+        lk.VideoQuality.HIGH,
+      );
     });
 
     test('balanced caps a camera medium', () async {
@@ -229,25 +254,30 @@ void main() {
       }
     });
 
-    test('a small tile at the Max density still resolves to the top layer', () {
-      // A 1080p top layer and a 320x180 tile: the merge keeps the quality.
-      const top = lk.VideoDimensions(1920, 1080);
-      lk.VideoDimensions tile(double density) =>
-          lk.VideoDimensions((320 * density).ceil(), (180 * density).ceil());
-      final max = resolveVideoSettings(
-        adaptiveStreamDimensions: tile(maxQualityPixelDensity),
-        userPreference: VideoSettings.high,
-        layerDimensionsForQuality: (_) => top,
-      );
-      expect(max.quality, lk.VideoQuality.HIGH);
-      expect(max.dimensions, isNull);
+    test('the SDK clamps the Max density to 3x whatever the screen', () {
+      final max = pixelDensityFor(ReceiveVideoQuality.max);
+      for (final ratio in [1.0, 2.0, 3.0, 4.0]) {
+        expect(max.resolve(ratio), lk.AdaptiveStreamPixelDensity.maxDensity);
+      }
+      expect(maxQualityPixelDensity, greaterThan(max.resolve(1)));
+    });
 
-      final auto = resolveVideoSettings(
-        adaptiveStreamDimensions: tile(2),
-        userPreference: VideoSettings.high,
-        layerDimensionsForQuality: (_) => top,
-      );
-      expect(auto.dimensions, isNotNull);
+    test('a tile a third of the top layer wide gets it, a smaller one not', () {
+      const top = lk.VideoDimensions(1920, 1080);
+      final density = pixelDensityFor(ReceiveVideoQuality.max).resolve(1);
+      VideoSettings settle(int width, int height) => resolveVideoSettings(
+            adaptiveStreamDimensions: lk.VideoDimensions(
+              (width * density).ceil(),
+              (height * density).ceil(),
+            ),
+            userPreference: VideoSettings.high,
+            layerDimensionsForQuality: (_) => top,
+          );
+
+      final large = settle(640, 360);
+      expect(large.quality, lk.VideoQuality.HIGH);
+      expect(large.dimensions, isNull);
+      expect(settle(144, 90).dimensions, isNotNull);
     });
   });
 

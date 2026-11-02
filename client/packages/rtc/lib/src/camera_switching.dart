@@ -52,6 +52,17 @@ lk.VideoViewMirrorMode mirrorModeFor({
 CameraFacing facingAfterSwitch(bool isFrontCamera) =>
     isFrontCamera ? CameraFacing.front : CameraFacing.back;
 
+/// Whether a camera that was published as [published] must be unpublished to
+/// capture at [wanted]: its resolution and encodings are fixed at publish.
+bool cameraNeedsRepublish(
+  lk.LocalTrack? published,
+  lk.CameraCaptureOptions? wanted,
+) {
+  final options = published?.currentOptions;
+  if (options is! lk.VideoCaptureOptions || wanted == null) return false;
+  return options.params != wanted.params;
+}
+
 /// What came of a camera enable/disable attempt. [reason] is only ever set
 /// alongside a failed *enable* (see [CameraSwitching.setEnabled]), since
 /// "no camera detected" has no sensible reading for a camera that was
@@ -122,15 +133,27 @@ class CameraSwitching {
   /// A disable failure is reported with no [CameraFailureReason.noCameraDetected]
   /// framing: the camera was already on, so a device plainly exists, and the
   /// caller (`VoiceSession._trySetCamera`) does not ask for one in that case.
-  /// [_devices] is only consulted here, on failure, rather than on every
-  /// attempt: it is an extra round trip that only the error message needs.
+  /// [_devices] is consulted before enabling only when a camera was chosen by
+  /// id, and otherwise only on failure: the extra round trip is for the message.
   Future<CameraToggleResult> setEnabled(
     lk.LocalParticipant? local,
     bool enabled, {
     lk.CameraCaptureOptions? options,
   }) async {
     if (local == null) return const CameraToggleResult.ok();
+    if (enabled && await _chosenCameraMissing(options?.deviceId)) {
+      return const CameraToggleResult.failed(
+        ChosenCameraUnavailable(),
+        CameraFailureReason.chosenCameraUnavailable,
+      );
+    }
     try {
+      // Only a real republish awaits here, so an ordinary enable keeps its timing.
+      final stale = enabled ? _staleCamera(local, options) : null;
+      if (stale != null) {
+        await local.removePublishedTrack(stale.sid);
+        resetFacing();
+      }
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
     } catch (e, stack) {
@@ -147,6 +170,35 @@ class CameraSwitching {
         e,
         classifyCameraFailure(e, hasDevice: hasDevice),
       );
+    }
+  }
+
+  /// The camera publication to drop because it was published at another
+  /// quality than [wanted], or null.
+  ///
+  /// A muted camera unmutes with its original capture options and simulcast
+  /// encodings, so only a fresh publish applies a changed quality.
+  lk.LocalTrackPublication? _staleCamera(
+    lk.LocalParticipant local,
+    lk.CameraCaptureOptions? wanted,
+  ) {
+    final pub = local.getTrackPublicationBySource(lk.TrackSource.camera);
+    return cameraNeedsRepublish(pub?.track, wanted) ? pub : null;
+  }
+
+  /// Whether [chosenId] names a camera the platform no longer lists.
+  ///
+  /// The native capturer opens device 0 for an id it cannot find, so without
+  /// this a camera unplugged since it was picked silently becomes another one.
+  /// An empty list or a failed listing proves nothing, so those pass.
+  Future<bool> _chosenCameraMissing(String? chosenId) async {
+    if (chosenId == null || chosenId.isEmpty) return false;
+    try {
+      final listed = await _devices.list();
+      return listed.isNotEmpty && !listed.any((d) => d.id == chosenId);
+    } catch (error, stack) {
+      reportFailure(LogTag.voice, 'list cameras', error, stack);
+      return false;
     }
   }
 

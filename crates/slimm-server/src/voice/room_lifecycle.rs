@@ -35,13 +35,7 @@ impl VoiceService {
         };
         let room = room_for_channel(channel_id);
         // A room that never existed is already in the state this asks for.
-        self.room_service_call(
-            enabled,
-            "DeleteRoom",
-            &room,
-            serde_json::json!({ "room": room }),
-        )
-        .await?;
+        self.room_delete_call(enabled, &room).await?;
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The controls that choose which screen shares a viewer watches: the stage
-/// the shared context-menu rows, and the opt-back-in chip.
+/// The controls that choose which screen shares a viewer watches: the shared
+/// context-menu rows. The way back in is `stopped_shares_banner.dart`.
 library;
 
 import 'package:flutter/material.dart';
@@ -69,7 +69,7 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
         onFocus,
       ),
     if (onStopWatching != null)
-      row('Hide stream', AppIcons.tileHide, onStopWatching),
+      row('Stop watching', AppIcons.tileHide, onStopWatching),
     if (onFullscreen != null) row('Full screen', AppIcons.expand, onFullscreen),
   ];
 }

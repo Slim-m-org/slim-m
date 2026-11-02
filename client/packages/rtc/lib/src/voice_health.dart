@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import 'audio_stats.dart';
+import 'voice_reconnect_tracker.dart';
 import 'voice_health_summary.dart';
 import 'voice_health_window.dart';
 
@@ -122,6 +123,9 @@ class VoiceHealth {
   /// first sample and once the call ends.
   final ValueNotifier<int?> pingMs = ValueNotifier(null);
 
+  /// The SDK's own transport repair, watched; see [ReconnectTracker].
+  final ReconnectTracker reconnect = ReconnectTracker();
+
   double? _localPing;
   double? _remotePing;
 
@@ -132,7 +136,13 @@ class VoiceHealth {
       _remote.values.any((s) => s.history.isNotEmpty) ||
       (_local?.history.isNotEmpty ?? false);
 
-  void observeRemote(String id, String name, AudioReceiveSample now) {
+  /// A [gated] false stream is recorded but never flags a poor connection; screen-share audio is one.
+  void observeRemote(
+    String id,
+    String name,
+    AudioReceiveSample now, {
+    bool gated = true,
+  }) {
     _remotePing = now.rttMs;
     _publishPing();
     final stream = _remote.putIfAbsent(id, () => _Stream(name))
@@ -149,6 +159,7 @@ class VoiceHealth {
     stream.add(interval);
     final share = interval.concealShare;
     final buffer = interval.bufferMs;
+    if (!gated) return;
     _gate(
       stream,
       interval.seconds,
@@ -205,6 +216,9 @@ class VoiceHealth {
     _publish();
   }
 
+  /// Each person's last minute so far, for a screen that shows it live.
+  List<NamedWindow> recentWindows() => _windows();
+
   /// The once-a-minute line, or null when none is due or there is nothing to say.
   String? takeMinuteLine() {
     final now = _clock();
@@ -217,14 +231,18 @@ class VoiceHealth {
   /// Ends the call: the summary lines for the log, and the summary kept for
   /// the Troubleshooting page. Empty when nothing was sampled.
   List<String> finish() {
+    // An episode still open when the call ends is a blip of this call, not the next.
+    reconnect.ended('call ended');
+    final blips = reconnect.stats;
     if (!hasData) {
       reset();
-      return const [];
+      return [if (blips.line case final line?) line];
     }
     final summary = CallHealthSummary.of(
       endedAt: _clock(),
       remote: _historiesByLabel(),
       local: _local?.history,
+      reconnects: blips,
     );
     // Sitting alone must not erase the numbers of the call before.
     if (summary.peers.isNotEmpty || lastCall.value == null) {
@@ -249,6 +267,7 @@ class VoiceHealth {
   }
 
   void reset() {
+    reconnect.resetStats();
     _remote.clear();
     _local = null;
     _localId = null;
@@ -260,6 +279,7 @@ class VoiceHealth {
   }
 
   void dispose() {
+    reconnect.dispose();
     poorConnections.dispose();
     pingMs.dispose();
     lastCall.dispose();
@@ -329,6 +349,8 @@ HealthInterval? _receiveInterval(
       delta(before.jitterBufferEmittedCount, now.jitterBufferEmittedCount);
   final per = now.jitterBufferEmittedCount == null ? samples : emitted;
   final jitter = now.jitterSeconds;
+  double? change(num? x, num? y) =>
+      y == null ? null : delta(x, y).clamp(0, 1e12).toDouble();
   return HealthInterval(
     seconds: samples / clock,
     concealedSamples: delta(before.concealedSamples, now.concealedSamples),
@@ -341,6 +363,19 @@ HealthInterval? _receiveInterval(
         now.jitterBufferDelay == null || per <= 0 ? null : delay / per * 1000,
     audioLevel: now.audioLevel?.toDouble(),
     rttMs: now.rttMs,
+    discardedPackets: change(before.packetsDiscarded, now.packetsDiscarded),
+    acceleratedSamples: change(
+      before.removedSamplesForAcceleration,
+      now.removedSamplesForAcceleration,
+    ),
+    deceleratedSamples: change(
+      before.insertedSamplesForDeceleration,
+      now.insertedSamplesForDeceleration,
+    ),
+    silentConcealedSamples: change(
+      before.silentConcealedSamples,
+      now.silentConcealedSamples,
+    ),
   );
 }
 
@@ -360,6 +395,8 @@ HealthInterval? _sendInterval(AudioSendSample before, AudioSendSample now) {
     jitterMs: jitter == null ? null : jitter * 1000,
     audioLevel: _sentLevel(before, now),
     rttMs: now.rttMs,
+    echoReturnLossDb: now.echoReturnLoss?.toDouble(),
+    echoEnhancementDb: now.echoReturnLossEnhancement?.toDouble(),
   );
 }
 

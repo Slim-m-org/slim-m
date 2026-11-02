@@ -17,7 +17,7 @@ Evidence tags: [code] = read in our repo or the fork; [src] = read in upstream s
 
 ### 1.1 Dart side [code]
 - `client/packages/rtc/lib/src/voice_session.dart:83` builds `lk.Room` with `RoomOptions(adaptiveStream: true, dynacast: true)`.
-- `client/packages/rtc/lib/src/audio_device_switching.dart:47` layers `defaultAudioCaptureOptions: AudioCaptureOptions(deviceId: ...)` on top. Nothing else is overridden, so all other fields are livekit_client 2.10.0 defaults (track/options.dart): echoCancellation true, noiseSuppression true, autoGainControl true, highPassFilter false, voiceIsolation true, typingNoiseDetection true, stopAudioCaptureOnMute true, all `*Mode` automatic.
+- `client/packages/rtc/lib/src/audio_device_switching.dart:47` layers `defaultAudioCaptureOptions: AudioCaptureOptions(deviceId: ...)` on top. Nothing else is overridden, so all other fields are livekit_client 2.13.1 defaults (track/options.dart): echoCancellation true, noiseSuppression true, autoGainControl true, highPassFilter false, voiceIsolation true, typingNoiseDetection true, stopAudioCaptureOnMute true, all `*Mode` automatic.
 - Publish options are not set anywhere (grep for AudioPublishOptions/dtx/audioBitrate in client/packages finds nothing). livekit_client defaults: encoding preset music = 48000 bps, dtx true, red true (options.dart ~L476-515; types/audio_encoding.dart: telephone 12k, speech 24k, music 48k).
 - There is no user-facing AEC/NS/AGC toggle in the app. The only user knobs: input threshold, "Even out loud sounds", noise suppression Space default/Standard/Strong (providers/noise_suppression.dart, voice_controller_input.dart), push-to-talk.
 - Mute and PTT both call `room.localParticipant.setMicrophoneEnabled(bool)` (rtc/lib/src/voice_session_tracks.dart:94, `_trySetMicrophone`; app/lib/src/features/voice/providers/voice_controller_input.dart:143 `setPushToTalkHeld`). With the default `stopAudioCaptureOnMute: true`, livekit_client's `publication.mute(stopOnMute: true)` stops capture (participant/local.dart:779).
@@ -27,7 +27,7 @@ Evidence tags: [code] = read in our repo or the fork; [src] = read in upstream s
 
 ### 1.2 Native chain in the fork (Linux + Windows) [code]
 Branch feat/voice-dynamics, files under common/cpp/src:
-- libwebrtc APM (prebuilt `third_party/libwebrtc/lib/libwebrtc.so`, version not recorded in the repo): AEC + NS + AGC + HPF per `RTCAudioOptions`.
+- libwebrtc APM (prebuilt `third_party/libwebrtc/lib/libwebrtc.so`, pinned to libwebrtc m150.7871.03 by the fork rebase in flutter-webrtc-fork-rebase.md): AEC + NS + AGC + HPF per `RTCAudioOptions`.
 - Then ONE custom capture post-processing hook, `CaptureChain` (flutter_webrtc_base.cc:36 `SetCapturePostProcessing`): `NoiseSuppressor` (rnnoise 0.2, only when frame == 480 samples i.e. 48 kHz, 10 ms) -> `InputGate` -> `VoiceDynamics`.
 - InputGate: per 10 ms frame RMS in dBFS vs threshold (default -50). Hold 300 ms, open ramp 5 ms, close ramp 60 ms, meter decay 1.5 dB/frame. Voice state tracked even when not gating.
 - VoiceDynamics: RMS compressor (-14 dBFS, 4:1, 6 dB knee, 10 ms attack, 150 ms release) + limiter (instant attack, 60 ms release, -1 dBFS ceiling).
@@ -55,7 +55,7 @@ Our state vs best practice:
 - We are on the standard trio, and rnnoise on top is the same architecture Discord ships (WebRTC AEC + ML NS), implemented with an older, smaller model. Fine.
 - Gap: no way to expose NS level, no AGC2, no per-user toggles for AEC/AGC, which is how Discord handles "my voice sounds wrong" support cases.
 
-Recommendation: add a diagnostics/advanced section (AEC, NS, AGC toggles that map to existing `AudioCaptureOptions`; LiveKit also supports live `LocalAudioTrack.setAudioProcessingOptions` and `AudioManager.getAudioProcessingState()` per audio_manager.dart in 2.10.0). Cheap, Dart-only, helps support (P9).
+Recommendation: add a diagnostics/advanced section (AEC, NS, AGC toggles that map to existing `AudioCaptureOptions`; LiveKit also supports live `LocalAudioTrack.setAudioProcessingOptions` and `AudioManager.getAudioProcessingState()` per audio_manager.dart in 2.13.1). Cheap, Dart-only, helps support (P9).
 
 ### 2.2 Chain order and double processing
 Facts:
@@ -67,6 +67,7 @@ Facts:
 
 Recommendations:
 - Keep order AEC -> NS -> AGC -> rnnoise -> gate -> compressor/limiter.
+  Superseded 2026-11-02 for Strong and Strongest: AGC1 lifted quiet mouth sounds into the band rnnoise keeps (chewing came out 2.2 dB louder than sent with it on, 2.3 dB quieter with it off), so under Strong the capture opens with AGC off and the chain's dynamics stage levels after suppression; see decision 0103 and `voice-transients-2026-11-02.md`.
 - When strong NS is on, consider turning off WebRTC NS rather than stacking. Not possible from the hook alone; requires passing `noiseSuppression:false` in constraints when `Strong` is chosen. Needs an A/B listen test before committing (P4).
 - Surface "strong NS inactive at this sample rate" in the settings UI instead of silently passing audio through (or resample 16k/44.1k -> 48k inside the hook; rnnoise is 48k only).
 
@@ -264,7 +265,7 @@ Decision 2026-10-26 (owner): try option B behind a hidden flag, default off.
 - Whether `AudioCategory_GameChat` avoids ducking.
 - Discord/Zoom/Teams/Meet VAD and gating internals (no primary sources found; Krisp use by Discord is documented by Discord).
 - Which Android echo canceller (hardware vs software) the Java ADM selects in flutter-webrtc 1.6.0.
-- Whether livekit_client 2.10.0 on desktop honours `setAudioProcessingOptions` through our fork.
+- Whether livekit_client 2.13.1 on desktop honours `setAudioProcessingOptions` through our fork.
 
 ## 6. Measured 2026-10-18: Strong at any mic, and what the input bar shows
 
@@ -495,7 +496,7 @@ The entry is also only written when the enable that precedes it can be seen to h
 
 ## Update 2026-10-18: releasing a muted capture, and what a deafened listener receives
 
-Silence on the receive side is now two calls: the media track's `enabled` flag for an instant local result, and the publication's `disable()`, which sends `UpdateTrackSettings(disabled)` so the SFU stops forwarding (livekit_client 2.10.0, `remote.dart`).
+Silence on the receive side is now two calls: the media track's `enabled` flag for an instant local result, and the publication's `disable()`, which sends `UpdateTrackSettings(disabled)` so the SFU stops forwarding (livekit_client 2.13.1, `remote.dart`).
 It keeps the subscription and needs no renegotiation, so the "drops the subscription" comments that said otherwise are gone.
 
 A mute keeps the capture for `kMicReleaseGrace`, then stops it and reopens it on the next unmute.

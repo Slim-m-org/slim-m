@@ -67,6 +67,7 @@ Leaving the TURN relay range closed is worse than having no TURN: relay candidat
 TURN over TLS on 5349 is not configured.
 No compose file configures it, and enabling it is a manual job described in [deploy/README.md](../deploy/README.md#turntls-and-why-it-is-not-on-443).
 A client on a network that allows only outbound 443 therefore cannot use TURN to get out.
+The live slim-m deployment differs from this in a few places; see [prod-voice-topology.md](prod-voice-topology.md).
 The symptom of a missing forward is a call that joins and then carries no media; see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#voice-does-not-connect-off-the-lan).
 
 ## Two-factor authentication

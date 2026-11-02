@@ -359,8 +359,14 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'troubleshooting',
     'Call stats',
-    description: 'Live video numbers for a call.',
+    description: 'Live audio and video numbers for a call.',
     keywords: ['bitrate', 'fps', 'packet loss', 'latency', 'network'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Copy call diagnostics',
+    description: 'Audio and video numbers to paste into a bug report.',
+    keywords: ['report', 'bug', 'logs', 'call', 'quality', 'copy'],
   ),
   SettingsEntry(
     'troubleshooting',

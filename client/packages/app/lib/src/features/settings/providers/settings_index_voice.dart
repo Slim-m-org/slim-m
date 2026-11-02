@@ -38,6 +38,27 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Camera shortcut',
+    keywords: ['camera', 'video', 'hotkey', 'keybind', 'remap'],
+    conditional: true,
+    available: _desktop,
+  ),
+  SettingsEntry(
+    'voice',
+    'Share shortcut',
+    keywords: ['screen share', 'hotkey', 'keybind', 'remap'],
+    conditional: true,
+    available: _desktop,
+  ),
+  SettingsEntry(
+    'voice',
+    'Leave shortcut',
+    keywords: ['hang up', 'call', 'hotkey', 'keybind', 'remap'],
+    conditional: true,
+    available: _desktop,
+  ),
+  SettingsEntry(
+    'voice',
     'Reset shortcuts',
     keywords: ['default', 'keybind', 'hotkey'],
     conditional: true,
@@ -58,6 +79,7 @@ const voiceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'voice',
     'Share device audio',
+    description: 'Includes sound playing on this device.',
     keywords: ['screen share audio', 'system audio'],
   ),
   SettingsEntry(
@@ -95,10 +117,15 @@ const voiceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'voice',
     'Watching',
-    description: 'Video and screens from others.',
+    description: 'How sharp the video you watch is.',
     keywords: ['video quality'],
   ),
-  SettingsEntry('voice', 'Your camera', keywords: ['webcam', 'video']),
+  SettingsEntry(
+    'voice',
+    'Your camera',
+    description: 'Sharpness of the camera video you send.',
+    keywords: ['webcam', 'video'],
+  ),
   SettingsEntry(
     'voice',
     'Screen share resolution',

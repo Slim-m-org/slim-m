@@ -32,11 +32,15 @@ mixin VoiceSessionMicRecovery {
   StreamSubscription<void>? _micLost;
   StreamSubscription<InputGateReading>? _micLevels;
   StreamSubscription<void>? _deviceChanges;
+  StreamSubscription<void>? _playbackFollow;
   Timer? _deviceDebounce;
   bool _followingDeviceChange = false;
   bool _deviceChangedMeanwhile = false;
   String? _lastDeviceChangeLine;
   Timer? _senderPoll;
+  Timer? _captureProbe;
+  final _captureProgress = CaptureProgress();
+  bool _captureStalled = false;
   String? _inputSignature;
 
   /// Whether the mic is healthy, being brought back, or given up on.
@@ -75,6 +79,7 @@ mixin VoiceSessionMicRecovery {
       enable: () async {
         // A track that failed mid-restart is still published but dead.
         if (_mic.hasTrack) await _mic.discard();
+        _forgetCaptureProgress();
         return await enable() && _mic.open;
       },
       onStatus: _setMicStatus,
@@ -116,7 +121,7 @@ mixin VoiceSessionMicRecovery {
     } on Object {
       sent = null;
     }
-    if (sent != null && sent > kInputFloorDb + 1) {
+    if (!_captureStalled && sent != null && sent > kInputFloorDb + 1) {
       if (!_gateStallLogged) {
         _gateStallLogged = true;
         _logMic(
@@ -162,13 +167,44 @@ mixin VoiceSessionMicRecovery {
     }
   }
 
+  /// A new capture counts from its own first reading, and gets a grace to start.
+  void _forgetCaptureProgress() {
+    _captureProgress.reset();
+    _captureStalled = false;
+  }
+
+  /// Reads the media source's sample counter on its own clock, because Strong
+  /// pauses the level watchdog and a stale sender level cannot tell a stall.
+  Future<void> _probeCapture() async {
+    final active =
+        _state == VoiceSessionState.connected && _micWanted && _mic.open;
+    if (!active) {
+      _forgetCaptureProgress();
+      return _micWatchdog.observeProgress(advancing: null, active: false);
+    }
+    double? seconds;
+    try {
+      seconds = await _mic.capturedSeconds();
+    } on Object catch (e) {
+      _logMic('Could not read the capture counter: $e', level: LogLevel.debug);
+    }
+    if (_state != VoiceSessionState.connected || !_micWanted || !_mic.open) {
+      return;
+    }
+    final advanced = _captureProgress.advanced(seconds);
+    _captureStalled = advanced == false;
+    _micWatchdog.observeProgress(advancing: advanced, active: true);
+  }
+
   Future<void> _disposeMicRecovery() async {
     _micRecovery.dispose();
     _deviceDebounce?.cancel();
     _senderPoll?.cancel();
+    _captureProbe?.cancel();
     await _micLost?.cancel();
     await _micLevels?.cancel();
     await _deviceChanges?.cancel();
+    await _playbackFollow?.cancel();
     await _micStatuses.close();
     await _micFailures.close();
     await _fallback.dispose();
@@ -198,6 +234,7 @@ mixin VoiceSessionMicRecovery {
       unawaited(_logInputList());
       if (_watchDevices) {
         _deviceChanges ??= _audioSwitching.onChange.listen(_onDeviceChange);
+        _playbackFollow ??= _audioSwitching.followPlaybackStarts();
         unawaited(_rememberInputs());
       }
       if (!_gate.supported) {
@@ -206,6 +243,10 @@ mixin VoiceSessionMicRecovery {
           (_) => unawaited(_pollSenderLevel()),
         );
       }
+      _captureProbe ??= Timer.periodic(
+        _micTiming.captureProbe,
+        (_) => unawaited(_probeCapture()),
+      );
       return;
     }
     _stopMicWatch();
@@ -217,10 +258,15 @@ mixin VoiceSessionMicRecovery {
     _deviceDebounce = null;
     _senderPoll?.cancel();
     _senderPoll = null;
+    _captureProbe?.cancel();
+    _captureProbe = null;
+    _forgetCaptureProgress();
     _inputSignature = null;
     _fallback.reset();
     unawaited(_deviceChanges?.cancel());
     _deviceChanges = null;
+    unawaited(_playbackFollow?.cancel());
+    _playbackFollow = null;
     _micRecovery.reset();
     _micWatchdog.reset();
     _setMicFailure(null);
@@ -327,6 +373,7 @@ mixin VoiceSessionMicRecovery {
     if (!_mic.hasTrack) return _micRecovery.recoverNow(reason);
     try {
       await _mic.restart(_audioSwitching.captureOptions());
+      _forgetCaptureProgress();
       _afterRestart();
       _logMic('Microphone capture restarted ($reason)');
       if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);

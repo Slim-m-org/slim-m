@@ -42,9 +42,15 @@ class VoiceProcessingControl {
     if (next == switching.processing) return;
     switching.processing = next;
     log?.call('voice-ns: processing ${next.summary}');
+    await reopen('voice processing changed', inCall: inCall);
+  }
+
+  /// Reopens the capture with whatever options the switching builds now, for
+  /// a change outside [VoiceProcessing] that alters them.
+  Future<void> reopen(String reason, {required bool inCall}) async {
     if (!inCall || !mic.hasTrack) return;
     if (micWanted()) {
-      await restartCapture('voice processing changed');
+      await restartCapture(reason);
       return;
     }
     mic.adoptOptions(switching.captureOptions());

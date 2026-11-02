@@ -150,6 +150,7 @@ const _deviceKeys = <String>{
   'slimm.voice.hidden_cameras',
   'slimm.voice.input_threshold_auto',
   'slimm.voice.input_threshold_db',
+  'slimm.voice.mic_cue_device',
   'slimm.voice.mic_fallback_enabled',
   'slimm.voice.noise_suppression',
   'slimm.voice.participant_screen_volumes',
@@ -161,7 +162,9 @@ const _deviceKeys = <String>{
   'slimm.voice.screen_share_include_audio',
   'slimm.voice.screen_share_allow_annotations',
   'slimm.voice.screen_share_quality',
+  'slimm.voice.share_hint_seen',
   'slimm.voice.shortcut_overrides',
+  'slimm.voice.speaker_preferred',
   'slimm.voice.webrtc_noise_suppression',
   'slimm.whats_new.last_seen_version',
 };

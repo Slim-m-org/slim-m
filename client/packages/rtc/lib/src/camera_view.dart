@@ -20,8 +20,12 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart'
+    show RTCVideoRenderer, RTCVideoValue;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'camera_fit.dart';
+import 'camera_frame_scope.dart';
 import 'camera_switching.dart';
 import 'first_frame_gate.dart';
 import 'mirror_self_view.dart';
@@ -144,34 +148,60 @@ class _CameraViewState extends State<CameraView> with TrackTileState {
     }());
     // Read before any early return so the view always tracks the choice.
     final mirrorSelf = MirrorSelfViewScope.of(context);
+    final fit = CameraFitScope.of(context);
     final track = currentTrack();
     // Unlike a screen share, no placeholder text for a camera not here yet.
     if (track == null) return const SizedBox.shrink();
     final owned = ownedRenderer;
     // The renderer's own initialize() is still pending; same nothing as above.
     if (owned == null) return const SizedBox.shrink();
-    return FirstFrameReveal(
+    return CameraFrameReporter(
       tracker: owned.tracker,
-      // No placeholder graphic for a camera either, same as the branch above.
-      placeholder: const SizedBox.expand(),
-      child: OwnedRendererView(
-        owned: owned,
-        builder: (renderer) => withReceiveDensity(
-          widget.density,
-          (density) => lk.VideoTrackRenderer(
-            track,
-            fit: lk.VideoViewFit.cover,
-            mirrorMode: mirrorModeFor(
-              isLocal: _isLocal,
-              facing: widget.facing.value,
-              mirrorSelf: mirrorSelf,
+      child: FirstFrameReveal(
+        tracker: owned.tracker,
+        // The tile owns what shows before a frame, through CameraFrameScope.
+        placeholder: const SizedBox.expand(),
+        child: OwnedRendererView(
+          owned: owned,
+          builder: (renderer) => withReceiveDensity(
+            widget.density,
+            (density) => _fitted(
+              renderer,
+              fit,
+              (viewFit) => lk.VideoTrackRenderer(
+                track,
+                fit: viewFit,
+                mirrorMode: mirrorModeFor(
+                  isLocal: _isLocal,
+                  facing: widget.facing.value,
+                  mirrorSelf: mirrorSelf,
+                ),
+                cachedRenderer: renderer,
+                autoDisposeRenderer: false,
+                adaptiveStreamPixelDensity: density,
+              ),
             ),
-            cachedRenderer: renderer,
-            autoDisposeRenderer: false,
-            adaptiveStreamPixelDensity: density,
           ),
         ),
       ),
+    );
+  }
+
+  /// Follows the feed's own shape only when the surface asked it to.
+  static Widget _fitted(
+    RTCVideoRenderer? renderer,
+    CameraFit fit,
+    Widget Function(lk.VideoViewFit) build,
+  ) {
+    lk.VideoViewFit viewFor(double aspect) => fitShowsWholeFeed(fit, aspect)
+        ? lk.VideoViewFit.contain
+        : lk.VideoViewFit.cover;
+    if (fit != CameraFit.coverUnlessPortrait || renderer == null) {
+      return build(viewFor(1));
+    }
+    return ValueListenableBuilder<RTCVideoValue>(
+      valueListenable: renderer,
+      builder: (context, value, child) => build(viewFor(value.aspectRatio)),
     );
   }
 }

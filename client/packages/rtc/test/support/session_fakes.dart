@@ -7,12 +7,42 @@ import 'dart:collection';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_rtc/src/voice_log.dart';
+
+/// What a fake local participant does when asked to turn the camera on or off.
+typedef CameraHook = Future<void> Function(
+  bool enabled,
+  lk.CameraCaptureOptions? options,
+);
+
+class _LiveShare extends Fake
+    implements lk.LocalTrackPublication<lk.LocalVideoTrack> {
+  @override
+  lk.TrackSource get source => lk.TrackSource.screenShareVideo;
+
+  @override
+  bool get muted => false;
+}
 
 class _Me extends Fake implements lk.LocalParticipant {
-  _Me(this.identity);
+  _Me(this.identity, this.videos, this.camera, this.sharing);
+
+  final bool sharing;
 
   @override
   final String identity;
+  final CameraHook? camera;
+
+  @override
+  Future<lk.LocalTrackPublication?> setCameraEnabled(
+    bool enabled, {
+    lk.CameraCaptureOptions? cameraCaptureOptions,
+  }) async {
+    await camera?.call(enabled, cameraCaptureOptions);
+    return null;
+  }
+
+  final List<lk.LocalTrackPublication<lk.LocalVideoTrack>> videos;
 
   @override
   String get name => '';
@@ -28,7 +58,16 @@ class _Me extends Fake implements lk.LocalParticipant {
 
   @override
   List<lk.LocalTrackPublication<lk.LocalVideoTrack>>
-      get videoTrackPublications => const [];
+      get videoTrackPublications => [...videos, if (sharing) _LiveShare()];
+
+  // The camera republish check asks for the published camera before enabling.
+  @override
+  lk.LocalTrackPublication? getTrackPublicationBySource(lk.TrackSource source) {
+    for (final pub in videoTrackPublications) {
+      if (pub.source == source) return pub;
+    }
+    return null;
+  }
 
   @override
   List<lk.LocalTrackPublication<lk.LocalAudioTrack>>
@@ -63,12 +102,26 @@ class ConnectlessRoom extends lk.Room {
 
 /// A room whose connect returns at once and whose local identity is [me].
 class InstantRoom extends ConnectlessRoom {
-  InstantRoom({this.me = 'me'});
+  InstantRoom({
+    this.me = 'me',
+    List<lk.LocalTrackPublication<lk.LocalVideoTrack>>? videos,
+    this.camera,
+    this.sharing = false,
+  }) : videos = videos ?? [];
 
   final String me;
 
+  /// The video the local participant publishes; a test mutates it between events.
+  final List<lk.LocalTrackPublication<lk.LocalVideoTrack>> videos;
+
+  /// Whether the local participant has a live screen share published.
+  final bool sharing;
+
+  /// Drives the camera; null opens it at once.
+  final CameraHook? camera;
+
   @override
-  lk.LocalParticipant? get localParticipant => _Me(me);
+  lk.LocalParticipant? get localParticipant => _Me(me, videos, camera, sharing);
 }
 
 /// A microphone that counts how often the capture is opened muted.
@@ -82,6 +135,9 @@ class CountingMic implements MicPort {
   bool get open => hasTrackNow;
   @override
   Future<double?> senderLevelDb() async => null;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     hasTrackNow = enabled;
@@ -124,9 +180,12 @@ VoiceSession instantSession({
   required CountingMic mic,
   JoinTimings? timings,
   String me = 'me',
+  InstantRoom? room,
+  VoiceLog? audioLog,
 }) =>
     VoiceSession(
-      roomFactory: () => InstantRoom(me: me),
+      roomFactory: () => room ?? InstantRoom(me: me),
+      audioLog: audioLog,
       micPort: mic,
       audioDevices: NoDevices(),
       liveOutput: (room, device) async {},

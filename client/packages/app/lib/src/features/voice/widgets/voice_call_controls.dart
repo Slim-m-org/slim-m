@@ -1,40 +1,27 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The in-call controls: mute, camera, screen share and leave.
+/// The in-call controls: mute, deafen, camera, screen share and leave.
 ///
 /// Sharing has no quality dialog of its own: the ceiling, and whether to
 /// include this device's own audio, are whatever Voice settings already has
 /// saved (`voice_settings_screen.dart`'s `voiceSettingsControllerProvider`),
-/// applied directly rather than asked again on every share, which is what
-/// the owner reported as the quality setting "not mattering".
+/// applied directly rather than asked again on every share.
 ///
-/// The camera button is the same row as hang up, which is where the owner
-/// asked for it: no separate toggle lived anywhere in a call before this.
 /// Switching cameras once one is on is a bare flip on mobile
-/// (`VoiceController.flipCamera`, no device list to show) and a picker on
-/// desktop (`camera_source_sheet.dart`), the same fork `screenShareNeedsSource`
-/// already draws for sharing. The switch button itself only shows on a
-/// picker platform once `cameraDevices()` has resolved to more than one
-/// deduplicated entry, so a desktop with one physical webcam that happens to
-/// enumerate several V4L2 nodes never offers a choice there is none of.
+/// (`VoiceController.flipCamera`) and a picker on desktop
+/// (`camera_source_sheet.dart`), the same fork `screenShareNeedsSource`
+/// already draws for sharing. The switch button only shows on a picker
+/// platform once `cameraDevices()` has resolved to more than one
+/// deduplicated entry, so one webcam that enumerates several V4L2 nodes never
+/// offers a choice there is none of.
 ///
-/// This widget is a bare row now, not a bar: it used to paint its own
-/// full-width, edge-anchored strip, which is exactly what made opening the
-/// canvas make it disappear outright (`ConversationPane` swaps the whole
-/// pane, controls included) rather than merely getting out of the way. The
-/// shell - a floating card, positioned and sized by whoever is showing this
-/// call right now - lives in `FloatingDockCard` and `canvas_call_dock.dart`
-/// instead, so a call's controls can sit inside the identical card a
-/// canvas's controls do, combined, whenever both are relevant at once.
+/// This widget is a bare row, not a bar. The shell, a floating card sized by
+/// whoever shows this call, lives in `FloatingDockCard` and
+/// `canvas_call_dock.dart`, so a call's controls can sit inside the identical
+/// card a canvas's controls do.
 ///
-/// Its own file because `voice_screen.dart` was over this repo's hard file
-/// limit, and this row is the one part of that screen with no dependency on
-/// which channel is being looked at.
-///
-/// `CallDockButton`, the chip every one of these draws, moved to its own
-/// file (`call_dock_button.dart`, re-exported below) once the keyboard
-/// shortcuts and the speaker quick-switch pushed this one past the same
-/// limit again; every existing importer of `CallDockButton` from here keeps
-/// working unchanged.
+/// `CallDockButton`, the chip every one of these draws, lives in
+/// `call_dock_button.dart` and is re-exported below, so every existing
+/// importer of `CallDockButton` from here keeps working unchanged.
 library;
 
 import 'dart:async';
@@ -62,6 +49,9 @@ import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import 'screen_share_start.dart';
 import 'call_availability.dart';
+import 'call_device_options.dart';
+import 'call_dock_hint.dart';
+import '../providers/call_dock_hint.dart' show DockHintTarget;
 import 'call_dock_button.dart';
 import 'call_quality_options.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
@@ -76,12 +66,16 @@ class CallControls extends ConsumerStatefulWidget {
     this.extraControl,
     this.tight = false,
     this.menuExtras = const [],
+    this.hints = true,
   });
 
   final VoiceController controller;
 
   /// Camera switch and the extra control wrap to a second row, and the mic's caret gives way to a long press, for a card too narrow to hold them all.
   final bool tight;
+
+  /// False in a dock with tools directly above, which a hint bubble would cover.
+  final bool hints;
 
   /// Controls folded into the mic menu so the row stays one line.
   final List<ControlOptionEntry> menuExtras;
@@ -181,33 +175,47 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        MicOptionsMenu(
-          showCaret: micCaret,
-          extraOptions: widget.menuExtras,
-          destructive: micCallDestructive(ref, voice, listenOnly),
-          child: MicCallButton(
-            voice: voice,
-            listenOnly: listenOnly,
-            holdOpensOptions: !micCaret,
-            controller: widget.controller,
+        DockHintAnchor(
+          target: DockHintTarget.mic,
+          enabled: widget.hints && listenOnly == null,
+          child: MicOptionsMenu(
+            showCaret: micCaret,
+            extraOptions: widget.menuExtras,
+            destructive: micCallDestructive(ref, voice, listenOnly),
+            child: MicCallButton(
+              voice: voice,
+              listenOnly: listenOnly,
+              holdOpensOptions: !micCaret,
+              controller: widget.controller,
+            ),
           ),
         ),
         const SizedBox(width: AppSpacing.s8),
         _deafenButton(voice),
         const SizedBox(width: AppSpacing.s8),
-        _cameraButton(voice, listenOnly),
+        CameraOptionsMenu(
+          controller: widget.controller,
+          cameraOn: voice.cameraEnabled,
+          active: voice.cameraEnabled && listenOnly == null,
+          showCaret: micCaret,
+          child: _cameraButton(voice, listenOnly, holdOpens: !micCaret),
+        ),
         if (switchCamera != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
           switchCamera,
         ],
         // At touch density the pair's leading half sits flush right in its hit box, so the gap before it is widened to keep the row's rhythm.
         SizedBox(width: pairedAtTouch ? AppSpacing.s16 : AppSpacing.s8),
-        ControlOptionsMenu(
-          active: voice.screenSharing,
-          optionsLabel: 'Screen share options',
-          options: shareOptions,
-          showCaret: showCaret,
-          child: _shareButton(context, voice, showCaret: showCaret),
+        DockHintAnchor(
+          target: DockHintTarget.share,
+          enabled: widget.hints && listenOnly == null && !showCaret,
+          child: ControlOptionsMenu(
+            active: voice.screenSharing,
+            optionsLabel: 'Screen share options',
+            options: shareOptions,
+            showCaret: showCaret,
+            child: _shareButton(context, voice, showCaret: showCaret),
+          ),
         ),
         if (extra != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
@@ -241,7 +249,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     );
   }
 
-  /// One click stops all incoming audio, the same toggle as the user panel's headphones; output devices stay in Voice settings.
+  /// One click stops all incoming audio, the same toggle as the user panel's headphones; the speaker list is in the mic menu.
   Widget _deafenButton(VoiceFlags voice) {
     return CallDockButton(
       icon: voice.deafened ? AppIcons.headphonesOff : AppIcons.headphones,
@@ -255,8 +263,13 @@ class _CallControlsState extends ConsumerState<CallControls> {
     );
   }
 
-  Widget _cameraButton(VoiceFlags voice, String? listenOnly) {
+  Widget _cameraButton(
+    VoiceFlags voice,
+    String? listenOnly, {
+    required bool holdOpens,
+  }) {
     return CallDockButton(
+      holdOpensOptions: holdOpens,
       icon: voice.cameraEnabled && listenOnly == null
           ? AppIcons.camera
           : AppIcons.cameraOff,

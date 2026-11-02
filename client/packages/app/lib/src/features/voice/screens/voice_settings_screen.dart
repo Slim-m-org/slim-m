@@ -51,10 +51,14 @@ class VoiceSettingsBody extends StatelessWidget {
   );
 }
 
+/// Said under the slider: it never changes what anyone else hears.
+const sensitivityDescription =
+    'Only changes when speaking rings light on your screen.';
+
 /// How readily the speaking indicator lights, over and above whatever the
 /// SFU itself already decided; see `passesActivationThreshold` in the rtc
 /// package for the exact floor. Not wired to the microphone's own capture -
-/// checked against the pinned `livekit_client` 2.10.0 source before adding
+/// checked against the pinned `livekit_client` 2.13.1 source before adding
 /// this screen, and it exposes no adjustable noise-gate threshold at all,
 /// only on/off capture toggles this client already leaves at their defaults.
 class _SensitivitySection extends ConsumerWidget {
@@ -71,6 +75,10 @@ class _SensitivitySection extends ConsumerWidget {
         Text(
           'Voice activity sensitivity',
           style: AppText.ui.copyWith(color: tokens.textPrimary),
+        ),
+        Text(
+          sensitivityDescription,
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
         AppSlider(
           value: settings.voiceActivitySensitivity,

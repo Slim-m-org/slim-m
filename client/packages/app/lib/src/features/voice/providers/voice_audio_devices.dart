@@ -7,6 +7,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart';
 import 'voice_deafen_publish.dart';
+import 'speaker_route_provider.dart';
 import 'voice_settings_controller.dart';
 import 'voice_state_access.dart';
 
@@ -31,6 +32,10 @@ class VoiceAudioDevices {
   /// The speaker in use, null for the system default; see
   /// [VoiceSession.audioOutputInUse].
   String? get audioOutputInUse => _session.audioOutputInUse;
+
+  /// The microphone in use, null for the system default; see
+  /// [VoiceSession.audioInputInUse].
+  String? get audioInputInUse => _session.audioInputInUse;
 
   /// Fires when the platform's own device list changes; see
   /// [VoiceSession.audioDeviceChanges].
@@ -60,6 +65,13 @@ class VoiceAudioDevices {
   /// Seeds the fallback switch before any call; see [VoiceSession.setMicFallbackEnabled].
   Future<void> restoreMicFallback() async {
     _session.setMicFallbackEnabled(await loadMicFallbackEnabled(_ref));
+  }
+
+  /// Applies the saved speaker or earpiece choice before the first call; the
+  /// default needs no call, because the SDK starts on the speaker.
+  Future<void> restoreSpeakerPreference() async {
+    if (await loadSpeakerPreferred(_ref)) return;
+    await applySpeakerPreference(_ref.read(speakerRouteProvider), false);
   }
 
   void setMicFallbackEnabled(bool enabled) =>

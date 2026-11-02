@@ -311,6 +311,8 @@ void main() {
       const VoiceFlags(state: VoiceSessionState.connected, cameraEnabled: true),
       session: InertSession()..canFlipCamera = true,
     );
+    // The first tree's auto-disposed providers are released on a zero timer.
+    await tester.pump();
     expect(find.byTooltip('Switch camera'), findsOneWidget);
   });
 

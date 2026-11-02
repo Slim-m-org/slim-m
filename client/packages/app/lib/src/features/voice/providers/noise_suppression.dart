@@ -46,6 +46,26 @@ enum NoiseSuppressionChoice {
   ];
 }
 
+/// A choice's plain name.
+String noiseSuppressionName(NoiseSuppressionChoice choice) => switch (choice) {
+  NoiseSuppressionChoice.spaceDefault => 'Space default',
+  NoiseSuppressionChoice.standard => 'Standard',
+  NoiseSuppressionChoice.strong => 'Strong',
+  NoiseSuppressionChoice.strongest => 'Strongest',
+};
+
+/// [noiseSuppressionName], with Space default saying what the Space currently uses.
+String noiseSuppressionLabel(
+  NoiseSuppressionChoice choice, {
+  required bool spaceStrong,
+}) {
+  if (choice != NoiseSuppressionChoice.spaceDefault) {
+    return noiseSuppressionName(choice);
+  }
+  final current = spaceStrong ? 'Strong' : 'Standard';
+  return 'Space default ($current)';
+}
+
 /// Whether this host can run Strongest; a provider so tests can override it.
 final strongestSupportedProvider = Provider<bool>(
   (ref) => supportsStrongestNoiseSuppression,

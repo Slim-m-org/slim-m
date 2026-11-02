@@ -62,6 +62,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Noise suppression, sensitivity, input threshold, even out loud sounds | `slimm.voice.*` | Device | the microphone |
 | Push to talk | `slimm.voice.push_to_talk_*` | Device | the keyboard |
 | Remapped call shortcuts | `slimm.voice.shortcut_overrides` | Device | the keyboard |
+| Dock hints already shown | `slimm.voice.mic_cue_device`, `slimm.voice.share_hint_seen` | Device | the microphone and the screen size it was shown on |
 | Screen share quality, audio, receive quality, pause video | `slimm.voice.*` | Device | bandwidth and the machine |
 | Participant volumes | `slimm.voice.participant_*volumes` | Device | already keyed by server-issued user ids |
 | UI scale | `slimm.appearance.ui_scale` | Device | the display |

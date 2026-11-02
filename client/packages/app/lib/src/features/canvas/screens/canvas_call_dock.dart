@@ -182,9 +182,9 @@ CallDockData? callDockDataFor(
 
 /// Measured at desktop density (every pane the non-compact dock draws is in a
 /// window of at least [kCompactWidth], so never touch density): the one-row
-/// card is 638dp with the pen or shape caret out, 714dp with the speaker and
-/// camera-switch buttons too. Anything narrower takes two rows.
-const _oneRowMinWidth = 720.0;
+/// card is 662dp with the pen or shape caret out, 738dp with the camera-switch
+/// button too. Anything narrower takes two rows.
+const _oneRowMinWidth = 744.0;
 
 /// Measured the same way: tools and undo, redo and more on one row, the call
 /// group (with the canvas toggle and leave) on the other, 381dp at the worst.
@@ -300,7 +300,10 @@ class CanvasCallDock extends ConsumerWidget {
         _callRow(call, toggle: _toggle(canvas), alone: alone),
       ];
     }
-    return [..._stackedCanvasRows(canvas), _callRow(call, tight: true)];
+    return [
+      ..._stackedCanvasRows(canvas),
+      _callRow(call, tight: true, alone: alone),
+    ];
   }
 
   static List<Widget> _stackedCanvasRows(CanvasDockData canvas) {
@@ -326,6 +329,7 @@ class CanvasCallDock extends ConsumerWidget {
     controller: call.controller,
     voice: call.voice,
     tight: tight,
+    hints: false,
     extraControl: dockExtras(alone: alone, toggle: toggle),
   );
 

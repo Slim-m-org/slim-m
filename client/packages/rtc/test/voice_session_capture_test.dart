@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// How the session opens the microphone while Strong noise suppression is
-/// chosen: libwebrtc's own stays on and rnnoise is a native gate flag only. The real livekit track
-/// behind [LiveKitMicPort] needs a native audio stack and stays untested here.
+/// chosen: libwebrtc's own suppression stays on, rnnoise is a native gate
+/// flag, and libwebrtc's auto gain hands over to the chain's leveler, which
+/// is the one reason a Strong switch reopens the capture. The real livekit
+/// track behind [LiveKitMicPort] needs a native audio stack and stays
+/// untested here.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +19,7 @@ class _FakeMic implements MicPort {
   bool muted = true;
   final enables = <(bool, lk.AudioCaptureOptions?)>[];
   final restarts = <bool>[];
+  final restartOptions = <lk.AudioCaptureOptions>[];
   final mutedReopens = <bool>[];
 
   @override
@@ -25,6 +29,9 @@ class _FakeMic implements MicPort {
 
   @override
   Future<double?> senderLevelDb() async => senderLevel;
+
+  @override
+  Future<double?> capturedSeconds() async => null;
 
   @override
   bool get open => published && !muted;
@@ -37,8 +44,10 @@ class _FakeMic implements MicPort {
   }
 
   @override
-  Future<void> restart(lk.AudioCaptureOptions options) async =>
-      restarts.add(options.noiseSuppression);
+  Future<void> restart(lk.AudioCaptureOptions options) async {
+    restarts.add(options.noiseSuppression);
+    restartOptions.add(options);
+  }
 
   @override
   Future<void> release() async {}
@@ -136,9 +145,10 @@ void main() {
     expect(enabled, isTrue);
     expect(options!.noiseSuppression, isTrue);
     expect(options.echoCancellation, isTrue);
-    expect(options.autoGainControl, isTrue);
+    expect(options.autoGainControl, isFalse,
+        reason: 'the chain levels after suppression instead of auto gain');
     expect(rig.gate.configured.last, isTrue, reason: 'rnnoise is on natively');
-    expect(rig.mic.restarts, isEmpty);
+    expect(rig.mic.restarts, isEmpty, reason: 'chosen before the join');
   });
 
   test('Strongest asks the native gate for both rnnoise and DeepFilterNet',
@@ -171,19 +181,28 @@ void main() {
     );
   });
 
-  test('switching Strong mid-call only flips the gate flag', () async {
+  test(
+      'switching Strong mid-call flips the gate flag and reopens the capture '
+      'once, with auto gain handed to the chain', () async {
     final rig = _Rig();
     addTearDown(rig.session.dispose);
     await rig.join();
     rig.session.setStrongNoiseSuppression(true);
     await _until(() => rig.gate.configured.contains(true));
+    await _until(() => rig.mic.restarts.isNotEmpty);
+    expect(rig.mic.restartOptions.single.autoGainControl, isFalse);
+    expect(rig.mic.restartOptions.single.noiseSuppression, isTrue,
+        reason: "libwebrtc's own suppression stays on");
     await rig.session.setMicrophoneEnabled(false);
     rig.session.setStrongNoiseSuppression(false);
     await _until(() => rig.gate.configured.last == false);
     await rig.session.setMicrophoneEnabled(true);
     await _quiet();
-    expect(rig.mic.restarts, isEmpty);
+    expect(rig.mic.restarts, hasLength(1),
+        reason: 'a muted mic is not restarted');
     expect(rig.mic.mutedReopens, isEmpty);
+    expect(rig.mic.enables.last.$2!.autoGainControl, isTrue,
+        reason: 'Standard gives auto gain back');
     expect(
         rig.mic.enables.every((e) => e.$2?.noiseSuppression ?? true), isTrue);
   });
@@ -199,7 +218,8 @@ void main() {
     expect(rig.gate.configured.last, isTrue);
   });
 
-  test('push to talk readies the same capture whatever Strong is', () async {
+  test('push to talk reopens the ready capture once for Strong, muted',
+      () async {
     final rig = _Rig();
     addTearDown(rig.session.dispose);
     rig.session.setInputGate(enabled: false, thresholdDb: -50);
@@ -208,9 +228,11 @@ void main() {
     expect(rig.mic.mutedReopens, [true]);
     rig.session.setStrongNoiseSuppression(true);
     await _quiet();
-    expect(rig.mic.mutedReopens, [true], reason: 'no reopen for Strong');
+    expect(rig.mic.mutedReopens, [true, true],
+        reason: 'reopened muted so auto gain goes off before the key is held');
     await rig.session.setMicrophoneEnabled(true);
     expect(rig.mic.enables.last.$2!.noiseSuppression, isTrue);
-    expect(rig.mic.restarts, isEmpty);
+    expect(rig.mic.enables.last.$2!.autoGainControl, isFalse);
+    expect(rig.mic.restarts, isEmpty, reason: 'never restarted while muted');
   });
 }

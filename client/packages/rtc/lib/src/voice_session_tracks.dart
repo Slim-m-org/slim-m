@@ -26,6 +26,7 @@ extension VoiceSessionTracks on VoiceSession {
           _audio.refsOf(room), trackId, rtc_gain.holdArrivedAudio),
     );
     _cancelEvents = room.events.listen((event) {
+      _noteTransport(event);
       _mic.onRoomEvent(event);
       final replaced = audioReplacedBy(event);
       if (replaced != null) _audio.trackReplaced(replaced);
@@ -42,8 +43,43 @@ extension VoiceSessionTracks on VoiceSession {
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }
+      _syncStatsHold();
       _refreshParticipants();
     });
+  }
+
+  /// Folds the SDK's reconnect events into [VoiceHealth.reconnect]; observation only.
+  void _noteTransport(lk.RoomEvent event) {
+    final tracker = health.reconnect;
+    switch (event) {
+      case lk.RoomReconnectingEvent():
+        tracker.started(ReconnectKind.restart);
+      case lk.RoomResumingEvent():
+        tracker.started(ReconnectKind.resume);
+      case lk.RoomAttemptReconnectEvent():
+        tracker.attempted(
+          event.attempt,
+          event.maxAttemptsRetry,
+          event.nextRetryDelaysInMs,
+        );
+      case lk.RoomReconnectedEvent():
+        tracker.ended('reconnected');
+      default:
+    }
+  }
+
+  /// Pauses what a half-repaired transport would only mislead, and rebuilds the roster from the live room once it is back.
+  void _onReconnectingChanged() {
+    if (_disposed) return;
+    if (health.reconnect.active.value) {
+      _glitchWatch.stop();
+      // Tracks are forgotten so the grace period starts again once frames can flow.
+      _stallWatchdog.observe(const []);
+      return;
+    }
+    if (_room == null || _state != VoiceSessionState.connected) return;
+    _glitchWatch.start();
+    _refreshParticipants();
   }
 
   /// A disconnect this client did not ask for: the SFU removed this
@@ -62,7 +98,13 @@ extension VoiceSessionTracks on VoiceSession {
   /// out mid-share must not keep recording with no call left to publish to.
   Future<void> _onDisconnected(lk.DisconnectReason? reason) async {
     if (_disposed) return;
-    if (reason == lk.DisconnectReason.clientInitiated) return;
+    if (reason == lk.DisconnectReason.clientInitiated) {
+      health.reconnect.ended('disconnected');
+      return;
+    }
+    // Read from the last roster, before the empty one below erases it.
+    _droppedWhileSharing =
+        _participants.any((p) => p.isLocal && p.isScreenSharing);
     _audio.cancelRetry();
     await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
@@ -70,6 +112,7 @@ extension VoiceSessionTracks on VoiceSession {
     if (!_participantsController.isClosed) {
       _participantsController.add(_participants);
     }
+    // Ends any open blip through the health summary, with the state already failed.
     _setState(VoiceSessionState.failed);
     await _share.control.dispose();
   }
@@ -94,9 +137,13 @@ extension VoiceSessionTracks on VoiceSession {
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
+    health.reconnect.ended('left the call');
+    _cameraJoin.cancel();
     _stopStallWatch();
+    _releaseStats();
     _stopMicWatch();
     _stopHealthWatch();
+    _setupLog.stop();
     _strong.reset();
     _stopArrivalWatch?.call();
     _stopArrivalWatch = null;
@@ -163,6 +210,12 @@ extension VoiceSessionTracks on VoiceSession {
   Future<bool> _trySetCamera(bool enabled) async {
     final room = _room;
     if (room == null) return false;
+    final result = await _setCamera(room, enabled);
+    if (result.error != null) _lastError = result.error;
+    return result.ok;
+  }
+
+  Future<CameraToggleResult> _setCamera(lk.Room room, bool enabled) async {
     final result = await _cameraSwitching.setEnabled(
       room.localParticipant,
       enabled,
@@ -171,12 +224,20 @@ extension VoiceSessionTracks on VoiceSession {
         _cameraQuality,
       ),
     );
-    if (result.error != null) _lastError = result.error;
-    // Off means the next enable republishes fresh, front-facing: reset now.
+    // Off only mutes, and the next enable reopens the capture front-facing: reset now.
     if (!enabled && result.ok) _cameraSwitching.resetFacing();
     _refreshParticipants();
-    return result.ok;
+    return result;
   }
+
+  /// Opens the camera a join asked for once the call is connected; a leave or newer join discards its outcome.
+  Future<void> _openCameraAfterJoin(lk.Room room, int generation) =>
+      _cameraJoin.open(
+        enable: () => _setCamera(room, true),
+        current: () =>
+            !_disposed && identical(_room, room) && generation == _generation,
+        noteFailure: (error) => _lastError = error,
+      );
 
   /// Moved here from the main class body for its 500-line hard ceiling:
   /// private plumbing, so an extension costs it nothing an
@@ -198,6 +259,9 @@ extension VoiceSessionTracks on VoiceSession {
         enlarged: _enlargedVideo.keys,
       ),
     );
+
+    // A full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
+    if (health.reconnect.active.value) return;
 
     final (next, recheck) = _speakingHold.apply(
       snapshotParticipants(
@@ -224,6 +288,7 @@ extension VoiceSessionTracks on VoiceSession {
     _state = next;
     _syncMicWatch(next);
     _syncHealthWatch(next);
+    _syncCallDiagnostics(next);
     if (next == VoiceSessionState.connected) {
       unawaited(_applyInputGate());
       _applyGateRate();

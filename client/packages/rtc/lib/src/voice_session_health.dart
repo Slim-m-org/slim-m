@@ -10,28 +10,42 @@ mixin VoiceSessionHealth {
   /// Per-person quality and the last call's summary; see [VoiceHealth].
   final VoiceHealth health = VoiceHealth();
 
+  /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
+  final CallDiagnostics diagnostics = CallDiagnostics();
+
   late final _glitchWatch = AudioGlitchWatch(
     sources: _remoteVoiceStats,
     nameOf: _nameOf,
     local: _localVoiceStats,
+    shareSources: _remoteShareStats,
     localIdOf: () => _room?.localParticipant?.identity ?? 'local',
     health: health,
-    log: _diag,
+    log: _logHealth,
   );
+
+  void _logHealth(String line, {LogLevel level = LogLevel.info}) {
+    diagnostics.noteHealthLine(line);
+    _diag(line, level: level);
+  }
 
   String _nameOf(String identity) {
     final peer = _room?.remoteParticipants[identity];
     return peer == null || peer.name.isEmpty ? identity : peer.name;
   }
 
-  Map<String, AudioStatsSource> _remoteVoiceStats() {
+  Map<String, AudioStatsSource> _remoteVoiceStats() =>
+      _remoteAudioStats(lk.TrackSource.microphone);
+
+  Map<String, AudioStatsSource> _remoteShareStats() =>
+      _remoteAudioStats(lk.TrackSource.screenShareAudio);
+
+  Map<String, AudioStatsSource> _remoteAudioStats(lk.TrackSource source) {
     final out = <String, AudioStatsSource>{};
     final remotes = _room?.remoteParticipants.values.toList() ?? const [];
     for (final p in remotes) {
       for (final pub in p.audioTrackPublications) {
         final track = pub.track;
-        if (track is lk.RemoteAudioTrack &&
-            pub.source == lk.TrackSource.microphone) {
+        if (track is lk.RemoteAudioTrack && pub.source == source) {
           out[p.identity] = _receiveStats(pub, track);
         }
       }
@@ -56,8 +70,14 @@ mixin VoiceSessionHealth {
     final track = pub?.track;
     if (track is! lk.LocalAudioTrack) return null;
     final reports = await track.sender?.getStats();
-    return reports == null ? null : parseAudioSend(_entries(reports));
+    if (reports == null) return null;
+    final entries = _entries(reports);
+    diagnostics.noteTransport(parseTransportStats(entries));
+    _mediaSource.note(entries, _diag);
+    return parseAudioSend(entries);
   }
+
+  final _mediaSource = MediaSourceNote();
 
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>
       [for (final r in reports) StatsEntry.fromReport(r)];

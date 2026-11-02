@@ -60,17 +60,20 @@ def clear_window(client):
 
 
 _EDGE_DELTA = 3
+_EDGE_STRIP_X = 2
 
 
 def _letterbox_at_foot(client, rect):
-    """How many pixels below the board's foot are letterbox, read up a strip clear of the dock.
+    """How many pixels below the board's foot are letterbox, read up a strip at the surface's edge.
 
     The board is centred on the view above the dock and the view never leaves
     the board, so in a window tall enough that the board's height sets the
     zoom, the board ends exactly where the dock's share begins; the strip
-    below that edge is the flat letterbox colour.
+    below that edge is the flat letterbox colour. The dock is centred and in a
+    narrow pane reaches within a few percent of the edge, so only the edge
+    itself is sure to be clear of it.
     """
-    strip = {"x": rect["x"] + rect["width"] * 0.05, "y": rect["y"],
+    strip = {"x": rect["x"] + _EDGE_STRIP_X, "y": rect["y"],
              "width": 1, "height": rect["height"]}
     _, height, rows, _ = e2e_png.decode(client.region_png(strip))
     pixels = [tuple(rows[y][:3]) for y in range(height)][::-1]

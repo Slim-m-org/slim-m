@@ -9,24 +9,29 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-/// Shows the received quality of [identity]'s [source], live while the menu is open.
-class StreamQualityRow extends StatefulWidget {
-  const StreamQualityRow({
+/// Rebuilds [builder] with the received quality label of [identity]'s [source],
+/// listening to the sampler, which is what starts it sampling, for as long as it is mounted.
+class StreamQualityBuilder extends StatefulWidget {
+  const StreamQualityBuilder({
     super.key,
     required this.sampler,
     required this.identity,
     required this.source,
+    required this.builder,
   });
 
   final CallStatsSampler sampler;
   final String identity;
   final CallStatsSource source;
 
+  /// [label] is null until a first sample lands.
+  final Widget Function(BuildContext context, String? label) builder;
+
   @override
-  State<StreamQualityRow> createState() => _StreamQualityRowState();
+  State<StreamQualityBuilder> createState() => _StreamQualityBuilderState();
 }
 
-class _StreamQualityRowState extends State<StreamQualityRow> {
+class _StreamQualityBuilderState extends State<StreamQualityBuilder> {
   StreamSubscription<CallStatsSnapshot>? _sub;
   String? _label;
 
@@ -52,13 +57,36 @@ class _StreamQualityRowState extends State<StreamQualityRow> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.builder(context, _label);
+}
+
+/// Shows the received quality of [identity]'s [source], live while the menu is open.
+class StreamQualityRow extends StatelessWidget {
+  const StreamQualityRow({
+    super.key,
+    required this.sampler,
+    required this.identity,
+    required this.source,
+  });
+
+  final CallStatsSampler sampler;
+  final String identity;
+  final CallStatsSource source;
+
+  @override
+  Widget build(BuildContext context) => StreamQualityBuilder(
+    sampler: sampler,
+    identity: identity,
+    source: source,
+    builder: (context, label) => _row(context, label ?? 'Measuring'),
+  );
+
+  Widget _row(BuildContext context, String value) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final touch = AppTouchTargets.of(context);
     final style = (touch ? AppText.body : AppText.ui).copyWith(
       color: tokens.textSecondary,
     );
-    final value = _label ?? 'Measuring';
     return Semantics(
       label: 'Receiving quality, $value',
       container: true,

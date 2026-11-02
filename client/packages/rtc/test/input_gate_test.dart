@@ -13,6 +13,7 @@ class _FakeGate {
   bool voice = false;
   bool? strongNoiseSuppression;
   bool? strongestNoiseSuppression;
+  double? levelerGainDb;
   bool fail = false;
 
   Future<Object?> invoke(String method, [Object? args]) async {
@@ -26,6 +27,7 @@ class _FakeGate {
           'strongNoiseSuppression': strongNoiseSuppression,
         if (strongestNoiseSuppression != null)
           'strongestNoiseSuppression': strongestNoiseSuppression,
+        if (levelerGainDb != null) 'levelerGainDb': levelerGainDb,
       };
     }
     return null;
@@ -46,6 +48,37 @@ void main() {
       'dynamics': false,
       'strongNoiseSuppression': false,
       'strongestNoiseSuppression': false,
+      'levelAfterSuppression': false,
+    });
+  });
+
+  test('configure asks the chain to level after suppression when told to',
+      () async {
+    final fake = _FakeGate();
+    final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+    await gate.configure(
+      enabled: true,
+      thresholdDb: -50,
+      dynamics: true,
+      strongNoiseSuppression: true,
+      levelAfterSuppression: true,
+    );
+    expect((fake.calls.single.$2! as Map)['levelAfterSuppression'], isTrue);
+  });
+
+  test('a reading carries the leveler gain, zero when the build has none', () {
+    fakeAsync((async) {
+      final fake = _FakeGate();
+      final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+      final gains = <double>[];
+      gate.readings.listen((r) => gains.add(r.levelerGainDb));
+      gate.start(() {});
+      async.elapse(const Duration(milliseconds: 60));
+      fake.levelerGainDb = 7.5;
+      async.elapse(const Duration(milliseconds: 60));
+      gate.stop();
+      expect(gains.first, 0.0);
+      expect(gains.last, 7.5);
     });
   });
 

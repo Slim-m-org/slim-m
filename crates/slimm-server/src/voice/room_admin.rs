@@ -74,9 +74,9 @@ impl VoiceService {
         Ok(())
     }
 
-    /// One authenticated room-service call, the single place that mints the admin token, posts the
-    /// request and reads the status. `Ok(None)` is a 404: the room, or the participant in it, is
-    /// already gone, which every caller treats as the state it asked for.
+    /// One authenticated room-service call with the regular room-admin token. `Ok(None)` is a 404:
+    /// the room, or the participant in it, is already gone, which every caller treats as the state
+    /// it asked for.
     pub(super) async fn room_service_call(
         &self,
         enabled: &Enabled,
@@ -84,14 +84,39 @@ impl VoiceService {
         room: &str,
         body: serde_json::Value,
     ) -> Result<Option<reqwest::Response>, VoiceError> {
-        let admin = self.admin_token(enabled, room)?;
+        let token = self.admin_token(enabled, room)?;
+        Self::post_room_service(enabled, &token, method, body).await
+    }
+
+    /// The `DeleteRoom` call, the one room-service method LiveKit gates on `roomCreate`.
+    pub(super) async fn room_delete_call(
+        &self,
+        enabled: &Enabled,
+        room: &str,
+    ) -> Result<Option<reqwest::Response>, VoiceError> {
+        let token = self.delete_room_token(enabled, room)?;
+        Self::post_room_service(
+            enabled,
+            &token,
+            "DeleteRoom",
+            serde_json::json!({ "room": room }),
+        )
+        .await
+    }
+
+    async fn post_room_service(
+        enabled: &Enabled,
+        token: &str,
+        method: &str,
+        body: serde_json::Value,
+    ) -> Result<Option<reqwest::Response>, VoiceError> {
         let response = enabled
             .http
             .post(format!(
                 "{}/twirp/livekit.RoomService/{method}",
                 enabled.service_url
             ))
-            .bearer_auth(admin)
+            .bearer_auth(token)
             .json(&body)
             .send()
             .await
@@ -111,6 +136,24 @@ impl VoiceService {
     /// A room-admin token good for one immediate call, the shape
     /// [`Self::room_service_call`] needs.
     pub(super) fn admin_token(&self, enabled: &Enabled, room: &str) -> Result<String, VoiceError> {
+        self.server_token(enabled, room, false)
+    }
+
+    /// The only token that carries `roomCreate`, minted per `DeleteRoom` call and never shared.
+    pub(super) fn delete_room_token(
+        &self,
+        enabled: &Enabled,
+        room: &str,
+    ) -> Result<String, VoiceError> {
+        self.server_token(enabled, room, true)
+    }
+
+    fn server_token(
+        &self,
+        enabled: &Enabled,
+        room: &str,
+        room_create: bool,
+    ) -> Result<String, VoiceError> {
         let now = unix_secs();
         self.sign(
             enabled,
@@ -123,6 +166,7 @@ impl VoiceService {
                 video: VideoGrant {
                     room: room.to_owned(),
                     room_admin: true,
+                    room_create,
                     room_join: false,
                     can_subscribe: false,
                     can_publish: false,

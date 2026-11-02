@@ -3,6 +3,7 @@
 /// where libwebrtc lists no audio devices (owner's box, 2026-10-15).
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -104,6 +105,56 @@ void main() {
     expect(isDeviceEvent("Event 'change' on source #70"), isFalse);
     expect(isDeviceEvent("Event 'new' on source-output #5"), isFalse);
     expect(isDeviceEvent("Event 'new' on sink-input #5"), isFalse);
+  });
+
+  test('a new playback stream is told apart from every other event', () {
+    expect(newSinkInputIndex("Event 'new' on sink-input #600"), 600);
+    expect(newSinkInputIndex("Event 'change' on sink-input #600"), isNull);
+    expect(newSinkInputIndex("Event 'remove' on sink-input #600"), isNull);
+    expect(newSinkInputIndex("Event 'new' on source-output #600"), isNull);
+    expect(newSinkInputIndex("Event 'new' on sink #600"), isNull);
+  });
+
+  test('only this process own new playback stream is announced', () async {
+    final pulse = PulseAudio(
+      run: _FakePactl().call,
+      processId: 4242,
+      subscribe: () => Stream.fromIterable([
+        "Event 'new' on sink-input #601",
+        "Event 'new' on sink-input #600",
+        "Event 'change' on sink-input #600",
+        "Event 'new' on source #71",
+      ]),
+    );
+
+    expect(await pulse.ownPlaybackStarts.length, 1);
+  });
+
+  test('a new call stream is moved onto the chosen speaker', () async {
+    final pactl = _FakePactl();
+    final starts = StreamController<String>();
+    final switching = AudioDeviceSwitching(
+      _NoDevices(),
+      pulse: PulseAudio(
+        run: pactl.call,
+        processId: 4242,
+        subscribe: () => starts.stream,
+      ),
+    );
+    await switching.selectOutput(
+      null,
+      const AudioDevice(id: 'pulse:alsa_output.b', label: 'B'),
+    );
+    pactl.calls.clear();
+    final follow = switching.followPlaybackStarts();
+    addTearDown(follow.cancel);
+
+    starts.add("Event 'new' on sink-input #600");
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(pactl.moves, [
+      ['move-sink-input', '600', 'alsa_output.b'],
+    ]);
   });
 
   test('a hot-plug reaches the app as a change, volume noise does not',

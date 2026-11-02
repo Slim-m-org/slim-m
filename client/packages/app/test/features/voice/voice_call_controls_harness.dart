@@ -422,6 +422,7 @@ Future<ProviderContainer> pumpVoiceCallDock(
   String? canvasChannelId,
   double width = 800,
   bool touch = false,
+  bool scoped = true,
   InertSession? session,
   List<Override> extraOverrides = const [],
 }) async {
@@ -446,8 +447,9 @@ Future<ProviderContainer> pumpVoiceCallDock(
             alignment: Alignment.bottomCenter,
             child: SizedBox(
               width: width,
-              child: AppTouchTargets(
-                enabled: touch,
+              child: _density(
+                scoped: scoped,
+                touch: touch,
                 child: VoiceCallDock(
                   controller: container.read(voiceControllerProvider.notifier),
                   voice: voice,
@@ -463,3 +465,10 @@ Future<ProviderContainer> pumpVoiceCallDock(
   await tester.pump();
   return container;
 }
+
+/// Unscoped, density follows the window width, as it does in the real app.
+Widget _density({
+  required bool scoped,
+  required bool touch,
+  required Widget child,
+}) => scoped ? AppTouchTargets(enabled: touch, child: child) : child;

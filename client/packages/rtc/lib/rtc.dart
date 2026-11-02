@@ -23,6 +23,7 @@ export 'src/audio_publish_options.dart';
 export 'src/voice_processing.dart';
 export 'src/screen_share_audio_options.dart';
 export 'src/broadcast_bridge.dart';
+export 'src/call_diagnostics.dart' show CallDiagnostics, kDiagnosticsSummaryCap;
 export 'src/call_stats.dart';
 export 'src/strong_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
@@ -30,9 +31,12 @@ export 'src/stream_quality_label.dart';
 export 'src/call_stats_sampler.dart'
     show CallStatsSampler, CallStatsSnapshot, CallStatsTarget;
 export 'src/camera_devices.dart';
+export 'src/camera_join.dart';
 export 'src/camera_failure.dart';
+export 'src/camera_frame_scope.dart';
 export 'src/camera_switching.dart';
 export 'src/desktop_sources.dart';
+export 'src/first_frame_gate.dart' show FirstFrameTracker;
 export 'src/join_timings.dart';
 export 'src/input_gate.dart'
     show
@@ -44,6 +48,7 @@ export 'src/input_gate.dart'
         kInputGateDisplayInterval,
         InputGateRate,
         supportsStrongestNoiseSuppression;
+export 'src/camera_fit.dart';
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/mirror_self_view.dart';
@@ -60,6 +65,7 @@ export 'src/screen_share.dart';
 export 'src/screen_share_source_size.dart' show localShareCapturedSize;
 export 'src/screen_share_audio.dart';
 export 'src/share_audio_isolation.dart';
+export 'src/speaker_route.dart';
 export 'src/screen_share_control.dart';
 export 'src/video_publish_options.dart';
 export 'src/video_quality.dart';
@@ -74,8 +80,11 @@ export 'src/voice_health.dart'
         kPoorRttMs,
         kPoorSustain,
         kRecoverSustain;
-export 'src/voice_health_summary.dart' show CallHealthSummary, HealthStats;
-export 'src/voice_health_window.dart' show HealthInterval;
+export 'src/voice_health_summary.dart'
+    show CallHealthSummary, HealthStats, NamedWindow;
+export 'src/voice_health_window.dart' show HealthInterval, HealthWindow;
+export 'src/voice_reconnect_tracker.dart'
+    show ReconnectKind, ReconnectStats, ReconnectTracker, kReconnectQuiet;
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
     show
