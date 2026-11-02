@@ -41,7 +41,11 @@ class PersonalSettingsScreen extends ConsumerWidget {
     this.initialPaneId,
     this.onPaneChanged,
     this.hasDesktopPane,
+    this.focusAbout = false,
   });
+
+  /// Focuses the About field once the profile pane is up.
+  final bool focusAbout;
 
   /// The pane to open on, when something deep-links to one.
   final String? initialPaneId;
@@ -72,12 +76,12 @@ class PersonalSettingsScreen extends ConsumerWidget {
               label: 'Profile',
               icon: AppIcons.account,
               // No presence rows: the rail footer's own status menu already sets both the state and the status text.
-              builder: (context) => const Column(
+              builder: (context) => Column(
                 children: [
-                  SettingsProfilePreview(),
-                  AvatarSettingsSection(),
-                  ProfileFieldsSection(),
-                  ActivitySharingSection(),
+                  const SettingsProfilePreview(),
+                  const AvatarSettingsSection(),
+                  ProfileFieldsSection(focusAbout: focusAbout),
+                  const ActivitySharingSection(),
                 ],
               ),
             ),

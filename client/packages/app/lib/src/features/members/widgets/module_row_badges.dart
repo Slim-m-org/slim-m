@@ -20,7 +20,7 @@ List<api.ModuleBadge> visibleModuleBadges(List<api.ModuleBadge>? badges) =>
     const [];
 
 /// The least room a module badge gets; one that cannot have it is dropped.
-const double moduleBadgeMinWidth = 40;
+const double moduleBadgeMinWidth = 28;
 
 /// Drawn in the room a real role chip leaves, so module badges shrink or drop
 /// first. Carries its own leading gap so a dropped set leaves no gap behind.
@@ -49,6 +49,7 @@ class ModuleRowBadges extends StatelessWidget {
                   badge.item,
                   source: badge.moduleId,
                   inline: true,
+                  compact: true,
                 ),
               ),
           ],

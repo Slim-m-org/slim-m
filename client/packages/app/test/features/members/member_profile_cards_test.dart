@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The two member card layouts: someone else's (Message and Add note up top,
 /// "Remove from #channel" when opened from a channel you manage) and your own
-/// (activity, then Set status, Profile settings), at popover
+/// (activity, then Profile settings), at popover
 /// and phone width, in both themes.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/members/providers/user_notes.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
+import 'package:slimm_app/src/features/members/widgets/member_profile_status_line.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 
@@ -37,6 +39,7 @@ const _other = api.UserProfile(
   roles: ['member'],
   roleIds: ['role-member'],
   about: 'Plays too much synth. Ask me about modular.',
+  statusText: 'Out for lunch',
 );
 
 const _me = api.Me(
@@ -45,6 +48,7 @@ const _me = api.Me(
   displayName: 'Maya Chen',
   createdAt: 1788000000000,
   permissions: 0,
+  statusText: 'Out for lunch',
 );
 
 const _spotify = api.PresenceActivity(
@@ -166,13 +170,36 @@ void main() {
 
       expect(find.text('@maya'), findsOneWidget);
       expect(find.text('Away'), findsOneWidget);
+      expect(find.text('ABOUT'), findsOneWidget);
+      final presenceRow = find.ancestor(
+        of: find.text('Away'),
+        matching: find.byWidgetPredicate((w) => w is Row),
+      );
+      expect(
+        find.descendant(
+          of: presenceRow.first,
+          matching: find.text('Out for lunch'),
+        ),
+        findsOneWidget,
+        reason: 'the typed status sits beside the presence word',
+      );
+      expect(
+        find.descendant(
+          of: presenceRow.first,
+          matching: find.textContaining('synth'),
+        ),
+        findsNothing,
+        reason: 'the bio is not the status',
+      );
       expect(find.text('MEMBER'), findsOneWidget);
       expect(find.textContaining('Joined'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
       expect(find.byTooltip('Add note'), findsOneWidget);
       expect(find.text('Report user'), findsOneWidget);
       expect(find.text('Block'), findsOneWidget);
-      expect(find.text('Set status'), findsNothing);
+      expect(find.text('Profile settings'), findsNothing);
+      expect(find.bySemanticsLabel('Change your status'), findsNothing);
+      expect(find.bySemanticsLabel('Edit about'), findsNothing);
       expect(find.textContaining('last seen'), findsNothing);
       expect(find.text('Add a private note'), findsNothing);
     });
@@ -258,12 +285,12 @@ void main() {
   });
 
   group('your own card', () {
-    testWidgets('is the preview plus Set status and settings', (tester) async {
+    testWidgets('is the preview plus settings', (tester) async {
       await _pump(tester, _harness((_) => _card(), self: true));
 
       expect(find.text('YOU'), findsOneWidget);
       expect(find.text('Online'), findsOneWidget);
-      expect(find.text('Set status'), findsOneWidget);
+      expect(find.text('Set status'), findsNothing);
       expect(find.text('Copy username'), findsNothing);
       expect(find.byTooltip('Copy username'), findsOneWidget);
       expect(find.text('Profile settings'), findsOneWidget);
@@ -308,13 +335,76 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('Set status opens the status editor', (tester) async {
+    testWidgets('the status line opens the status menu in place', (
+      tester,
+    ) async {
       await _pump(tester, _harness((_) => _card(), self: true));
 
-      await tester.tap(find.text('Set status'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Change your status'));
+      await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Set a status'), findsOneWidget);
+      expect(find.text('Appear offline'), findsOneWidget);
+      expect(find.text('Do not disturb'), findsOneWidget);
+    });
+
+    testWidgets('the status edit pencil shows on hover, not before', (
+      tester,
+    ) async {
+      await _pump(tester, _harness((_) => _card(), self: true));
+      double pencil() =>
+          tester.widget<Opacity>(find.byKey(statusEditPencilKey)).opacity;
+      expect(pencil(), 0);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.text('Out for lunch')));
+      await tester.pump();
+
+      expect(pencil(), 1);
+    });
+    testWidgets(
+      'the status menu opens inside the real popover and keeps it up',
+      (tester) async {
+        await _pump(
+          tester,
+          _harness(
+            (_) => Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showMemberProfile(context, profile: _other),
+                child: const Text('open card'),
+              ),
+            ),
+            self: true,
+          ),
+        );
+        await tester.tap(find.text('open card'));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 500));
+        }
+
+        await tester.tap(find.bySemanticsLabel('Change your status'));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 500));
+        }
+
+        expect(find.text('Appear offline'), findsOneWidget);
+        expect(find.text('Profile settings'), findsOneWidget);
+      },
+    );
+
+    testWidgets('on a touch width the status pencil is always showing', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _harness((_) => _card(compact: true), self: true, width: 390),
+        size: const Size(390, 900),
+      );
+
+      expect(
+        tester.widget<Opacity>(find.byKey(statusEditPencilKey)).opacity,
+        1,
+      );
     });
 
     testWidgets('shows the activity box', (tester) async {
@@ -386,7 +476,7 @@ void main() {
             members: const [listed],
           ),
         );
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 400));
         expect(find.byTooltip('Joined with invite K7Q2'), findsOneWidget);
       },
     );
@@ -396,7 +486,7 @@ void main() {
       'no invite line',
       (tester) async {
         await tester.pumpWidget(_harness((_) => _card()));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 400));
         expect(
           find.byWidgetPredicate(
             (w) => w is Tooltip && (w.message ?? '').contains('invite'),

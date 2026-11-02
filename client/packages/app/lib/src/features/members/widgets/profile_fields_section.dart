@@ -18,7 +18,10 @@ import '../../settings/widgets/settings_section_header.dart';
 import '../providers/member_actions.dart';
 
 class ProfileFieldsSection extends ConsumerStatefulWidget {
-  const ProfileFieldsSection({super.key});
+  const ProfileFieldsSection({super.key, this.focusAbout = false});
+
+  /// Puts the cursor in About on arrival, for a card's edit pencil.
+  final bool focusAbout;
 
   @override
   ConsumerState<ProfileFieldsSection> createState() =>
@@ -63,7 +66,9 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     _pronouns.text = _savedPronouns = me.pronouns ?? '';
     _about.text = _savedAbout = me.about ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.invalidate(profileDraftProvider);
+      if (!mounted) return;
+      ref.invalidate(profileDraftProvider);
+      if (widget.focusAbout) _aboutFocus.requestFocus();
     });
   }
 

@@ -6,8 +6,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
+import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane_rows.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -46,7 +48,11 @@ Future<void> _pump(
   double width,
   List<api.ModuleBadge> badges, {
   String role = 'Mod',
+  Set<String> shown = const {'xp'},
 }) async {
+  SharedPreferences.setMockInitialValues({
+    moduleMemberBadgesKey: shown.toList(),
+  });
   // A fresh scope each time: an override change keeps the old notifier.
   await tester.pumpWidget(const SizedBox.shrink());
   tester.view.physicalSize = Size(width, 200);
@@ -74,6 +80,8 @@ Future<void> _pump(
       ),
     ),
   );
+  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+  await tester.pump();
 }
 
 Size _role(WidgetTester tester) => tester.getSize(
@@ -159,5 +167,40 @@ void main() {
       );
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a module badge stays out of the member list until it is turned '
+      'on for that module', (tester) async {
+    await _pump(tester, 390, two, shown: const {});
+    expect(find.text('Streak 4'), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is AppBadge), findsOneWidget);
+
+    await _pump(tester, 390, two, shown: const {'another'});
+    expect(find.text('Streak 4'), findsNothing);
+
+    await _pump(tester, 390, two);
+    expect(find.text('Streak 4'), findsOneWidget);
+  });
+
+  testWidgets('a row badge is quiet: no outline, no origin marker', (
+    tester,
+  ) async {
+    await _pump(tester, 390, [_badge('Lv 8', 'accent')]);
+
+    final badge = tester.widget<AppBadge>(
+      find.byWidgetPredicate(
+        (w) => w is AppBadge && w.variant != AppBadgeVariant.role,
+      ),
+    );
+    expect(badge.compact, isTrue);
+    final box = tester.widget<Container>(
+      find.descendant(
+        of: find.byWidget(badge),
+        matching: find.byWidgetPredicate((w) => w is Container),
+      ),
+    );
+    final border = (box.decoration! as BoxDecoration).border! as Border;
+    expect(border.top.color, Colors.transparent);
+    expect(find.byIcon(AppIcons.dock), findsNothing);
   });
 }

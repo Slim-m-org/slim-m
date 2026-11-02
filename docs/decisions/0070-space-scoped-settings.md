@@ -49,6 +49,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Message sounds | `slimm.notifications.message_sounds_enabled` | Space | sounds |
 | Desktop notification text | `slimm.notifications.desktop_message_text` | Space | notifications |
 | Module sounds | `slimm.modules.sound_enabled` | Space | modules belong to one server |
+| Module badges in the member list | `slimm.modules.member_list_badges` | Space | modules belong to one server |
 | Media auto-download | `slimm.performance.media_autodownload` | Space | what a community's messages show |
 | GIF autoplay | `slimm.performance.gif_autoplay` | Space | what a community's messages show |
 | Link previews | `slimm.performance.link_previews` | Space | what a community's messages show |

@@ -93,7 +93,8 @@ class AppMemberPane extends ConsumerWidget {
         children: [
           _Header(
             count: membersAsync.valueOrNull?.length,
-            onInvite: watchCanInviteFriend(ref)
+            onInvite:
+                watchCanInviteFriend(ref) && !ref.watch(inviteInFlightProvider)
                 ? () => inviteAFriend(context)
                 : null,
             // Only a moderator is offered the mode; the server refuses the rest anyway.

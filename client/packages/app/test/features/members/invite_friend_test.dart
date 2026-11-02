@@ -4,6 +4,7 @@
 /// single-use invite that lasts a day.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -72,6 +73,7 @@ class _World {
               });
             case '/invites':
               created.add(jsonDecode(request.body) as Map<String, dynamic>);
+              await holdInvite?.future;
               return _json({
                 'code': 'abc123',
                 'max_uses': 1,
@@ -92,6 +94,7 @@ class _World {
   }
 
   final sharer = _FakeSharer(canShare: true);
+  Completer<void>? holdInvite;
   final created = <Map<String, dynamic>>[];
   late final ProviderContainer container;
 
@@ -213,6 +216,32 @@ void main() {
 
     expect(world.created, hasLength(1));
     expect(world.sharer.shared, hasLength(1));
+    await tester.pumpWidget(const SizedBox());
+    world.container.dispose();
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('rapid taps on the member list invite make one request while '
+      'it is in flight', (tester) async {
+    final world = _World(permissions: 0, membersCanInvite: true);
+    addTearDown(world.container.dispose);
+    world.holdInvite = Completer<void>();
+    await world.pump(tester, const AppMemberPane(channelId: null));
+
+    for (var i = 0; i < 4; i++) {
+      final button = find.bySemanticsLabel('Invite a friend');
+      if (button.evaluate().isNotEmpty) await tester.tap(button);
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(world.created, hasLength(1));
+
+    world.holdInvite!.complete();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(world.sharer.shared, hasLength(1));
+
+    await tester.tap(find.bySemanticsLabel('Invite a friend'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(world.created, hasLength(2), reason: 'the guard lets go afterwards');
     await tester.pumpWidget(const SizedBox());
     world.container.dispose();
     await tester.pump(const Duration(seconds: 5));
