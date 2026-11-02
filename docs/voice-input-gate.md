@@ -47,6 +47,12 @@ libwebrtc's own AGC2 limiter would have been the first choice, but the prebuilt 
 It runs on the speaker's device, so it costs the server nothing.
 "Even out loud sounds" in Voice settings turns it off (`slimm.voice.even_out_loud`, on by default); it is sent as `dynamics` on the same `setInputGate` call, which an older native build simply ignores.
 
+Since 2026-11-02 the same stage also levels the microphone while Strong or Strongest runs (decision 0103).
+libwebrtc's auto gain sits before the suppressor and lifts a quiet chewing or swallowing sound by more than it lifts speech, into the band rnnoise keeps, so under Strong the capture opens with auto gain off and the chain lifts speech itself: towards -20 dBFS, by at most 12 dB, adapting only after five consecutive frames rnnoise is at least 80% sure are speech, up at 2 dB/s and down at 10 dB/s.
+A sound in a pause leaves at the gain the voice earned and never a higher one.
+It is sent as `levelAfterSuppression` on `setInputGate`, and `getInputGate` reports `levelerGainDb`.
+Standard keeps libwebrtc's auto gain, so the "after AEC, NS and AGC" above holds there; under Strong the chain runs after AEC and NS only.
+
 Measured with the stage compiled on its own and fed 48 kHz frames:
 
 | Input | In RMS / peak (dBFS) | Out RMS / peak (dBFS) |
