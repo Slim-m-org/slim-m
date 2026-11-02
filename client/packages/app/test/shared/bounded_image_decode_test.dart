@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/bounded_image_decode.dart';
+import 'package:slimm_app/src/providers/bounded_image_decode.dart';
 
 Future<Uint8List> _png(int width, int height) async {
   final recorder = ui.PictureRecorder();

@@ -7,7 +7,8 @@ import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_design_system/design_system.dart' show AppHaptics;
+import 'package:slimm_design_system/design_system.dart'
+    show AppHaptics, AppTokens, OpaquePanes, PaneSurface;
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../members/providers/member_selection.dart';
@@ -91,6 +92,7 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
       },
       child: DrawerEdgeDrag(
         builder: (context, restore) => Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: showAppBar
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(
@@ -102,7 +104,13 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
                 )
               : null,
           drawer: showRail
-              ? restore(CompactChannelRailDrawer(selectedChannelId: channelId))
+              ? restore(
+                  OpaquePanes(
+                    child: CompactChannelRailDrawer(
+                      selectedChannelId: channelId,
+                    ),
+                  ),
+                )
               : null,
           drawerEdgeDragWidth: edgeWidth,
           // Down, not start (both drawers): the drawer then follows from the first pixel instead of from where the touch slop was crossed.
@@ -113,14 +121,23 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
           // The roster slides in from the right: the conversation is the only pane at this width.
           endDrawer: showMembers
               ? restore(
-                  Drawer(
-                    width: AppMemberPane.width,
-                    child: SafeArea(child: AppMemberPane(channelId: channelId)),
+                  OpaquePanes(
+                    child: Drawer(
+                      width: AppMemberPane.width,
+                      child: SafeArea(
+                        child: AppMemberPane(channelId: channelId),
+                      ),
+                    ),
                   ),
                 )
               : null,
           // No rail here, so the connection bar mounts under the app bar; one SafeArea wraps the whole column, so no child insets itself and opens a gap or a dead band.
-          body: restore(SafeArea(child: body)),
+          body: restore(
+            PaneSurface(
+              color: Theme.of(context).extension<AppTokens>()!.surfaceBase,
+              child: SafeArea(child: body),
+            ),
+          ),
         ),
       ),
     );

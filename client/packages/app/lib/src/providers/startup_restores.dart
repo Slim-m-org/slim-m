@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'app_lock_preference.dart';
+import '../features/background/providers/app_background_controller.dart';
 import '../features/messages/providers/attachment_preview_quality.dart';
 import '../desktop/providers/desktop_splash_preference.dart';
 import '../features/settings/providers/display_density.dart';
@@ -56,6 +57,7 @@ restorablePreferences = {
   'time format': (c) => c.read(timeFormatControllerProvider.notifier),
   'motion': (c) => c.read(motionPreferenceControllerProvider.notifier),
   'high contrast': (c) => c.read(highContrastControllerProvider.notifier),
+  'background': (c) => c.read(appBackgroundControllerProvider.notifier),
   'image cache limit': (c) =>
       c.read(imageCacheLimitControllerProvider.notifier),
   'attachment preview quality': (c) =>

@@ -185,6 +185,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'appearance',
+    'Background',
+    description: 'A picture behind the chat, kept on this device.',
+    keywords: ['wallpaper', 'image', 'picture', 'vignette', 'blur', 'dim'],
+  ),
+  SettingsEntry(
+    'appearance',
     'Clock',
     description: 'System follows your device clock.',
     keywords: ['time', '24 hour', '12 hour'],

@@ -77,6 +77,10 @@ class CompactChannelAppBar extends ConsumerWidget
     final isDm = channel?.kind == 'dm';
     return AppBar(
       toolbarHeight: height,
+      backgroundColor: AppBackgroundScope.paneColor(
+        context,
+        tokens.surfaceBase,
+      ),
       shape: Border(bottom: BorderSide(color: tokens.borderSubtle)),
       leading: IconButton(
         icon: const Icon(AppIcons.back),

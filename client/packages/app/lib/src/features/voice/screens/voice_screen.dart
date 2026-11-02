@@ -311,11 +311,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 
     // DmCallPane's own conversation already covers text for a DM's call; only a real voice channel gets the docked/tabbed pane below.
     if (widget.isDm) {
-      return Container(color: tokens.surfaceBase, child: callBody);
+      return PaneSurface(color: tokens.surfaceBase, child: callBody);
     }
     final width = MediaQuery.sizeOf(context).width;
     final canDock = LayoutClass.of(context).fitsThreadPane(width);
-    return Container(
+    return PaneSurface(
       color: tokens.surfaceBase,
       child: canDock
           ? VoiceCallWithChatPane(channelId: channelId, call: callBody)

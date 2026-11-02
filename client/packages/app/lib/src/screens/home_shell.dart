@@ -72,6 +72,7 @@ import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
 import '../features/messages/widgets/inbox_sheet.dart';
+import '../features/background/widgets/app_background_host.dart';
 import 'home_shell_pane_slots.dart';
 
 /// The shell. One widget handles every width: at compact widths it shows one
@@ -117,7 +118,9 @@ class HomeShell extends ConsumerWidget {
                   child: RulesGateBannerHost(
                     child: UpdateBannerHost(
                       child: DownloadFailureHost(
-                        child: DatabaseResetNotice(child: scaffold),
+                        child: DatabaseResetNotice(
+                          child: AppBackgroundHost(child: scaffold),
+                        ),
                       ),
                     ),
                   ),
@@ -246,7 +249,12 @@ class HomeShell extends ConsumerWidget {
           ? wide(false)
           : withChannelKind(ref, selected, wide);
     }
-    if (selected == null) return const Scaffold(body: ChannelRail());
+    if (selected == null) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: ChannelRail(),
+      );
+    }
     return _compactScaffold(context, ref, facts, selected);
   }
 
@@ -257,15 +265,19 @@ class HomeShell extends ConsumerWidget {
     bool isDm,
   ) {
     final selected = facts.selected;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Scaffold(
+      backgroundColor: Colors.transparent,
       // Where no pane docks, the roster is the same end drawer compact uses.
       onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
       endDrawerEnableOpenDragGesture: !facts.canvasOpen,
       endDrawer: isDm || facts.membersFit || selected == null
           ? null
-          : Drawer(
-              width: AppMemberPane.width,
-              child: SafeArea(child: AppMemberPane(channelId: selected)),
+          : OpaquePanes(
+              child: Drawer(
+                width: AppMemberPane.width,
+                child: SafeArea(child: AppMemberPane(channelId: selected)),
+              ),
             ),
       body: Row(
         children: [
@@ -283,9 +295,12 @@ class HomeShell extends ConsumerWidget {
           // screen reader at all. The member pane paints after it and so
           // was never affected, which is what made this look like a rail bug.
           Expanded(
-            child: Semantics(
-              container: true,
-              child: CallMiniPlayerHost(child: child),
+            child: PaneSurface(
+              color: tokens.surfaceBase,
+              child: Semantics(
+                container: true,
+                child: CallMiniPlayerHost(child: child),
+              ),
             ),
           ),
           // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
