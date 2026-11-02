@@ -30,7 +30,7 @@ They are not declared as extension points, and the module routes on `command` li
 | command | when | `input` |
 | --- | --- | --- |
 | `@event` | a subscribed event happened | the JSON text `{"event","id","at_ms","data"}` |
-| `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","viewer_id"}` |
+| `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","bot_ids","viewer_id"}` |
 
 A module with `subscriptions` that returns `{ok:false}` for `@event` counts every event as a failed run, so route it.
 Return `{ok:true}` for an event you choose to ignore.
@@ -101,9 +101,10 @@ Store the cursor yourself, in `data.store` or `kv.store`, and move it only after
 Phase 1 has one log, `voice.sessions`, with one row per closed voice session, in the order they closed:
 
 ```json
-{ "id": 41, "user_id": "...", "channel_id": "...", "joined_at_ms": 1760000000000, "left_at_ms": 1760000600000, "alone_ms": 120000 }
+{ "id": 41, "user_id": "...", "channel_id": "...", "joined_at_ms": 1760000000000, "left_at_ms": 1760000600000, "alone_ms": 120000, "is_bot": false }
 ```
 
+- `is_bot` is true when the member is a bot account, a module's own identity included, so a module that rewards people can leave those rows out.
 - `id` is the same number as `session_id` in the `voice.session.closed` event, so an event and the log agree about which session is which.
 - Only closed sessions are returned.
   A session left open by a missed leave is closed when its room finishes, when its heartbeat goes stale, or at server startup, which caps its length.
@@ -309,8 +310,8 @@ Slots need no capability.
 - At most 4 slots, each `kind` and `name` pair once, `name` at most 64 characters and `title` at most 40.
 - Only an enabled module with `"addon_api": 1` is asked.
 
-The host asks by running the module with `command: "@slot"` and `input` of `{"slot","name","user_ids","viewer_id"}`.
-`slot` is the kind, `name` is the slot's name, `user_ids` are the members to answer for (one run covers every member the cache lacks, up to 100), and `viewer_id` is the member looking.
+The host asks by running the module with `command: "@slot"` and `input` of `{"slot","name","user_ids","bot_ids","viewer_id"}`.
+`slot` is the kind, `name` is the slot's name, `user_ids` are the members to answer for (one run covers every member the cache lacks, up to 100), `bot_ids` are the ones among them that are bot accounts, and `viewer_id` is the member looking.
 `caller.id` is the viewer's, the same as for any command that member runs.
 Answer with an output string of:
 

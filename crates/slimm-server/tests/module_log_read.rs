@@ -252,3 +252,31 @@ async fn a_channel_that_turns_private_is_excluded_on_the_next_read() {
     assert!(ids(&after).is_empty(), "{after}");
     assert_eq!(after["next"], id);
 }
+
+#[tokio::test]
+async fn a_row_says_whether_the_member_is_a_bot() {
+    let c = calls("slimm-logread-isbot").await;
+    let person = c.session("a", false, Some(2_000)).await;
+    let bot =
+        c.w.store
+            .create_bot("helper", "Helper", Permissions::NONE, c.w.user.id)
+            .await
+            .unwrap()
+            .bot
+            .user_id;
+    let s = &c.w.store;
+    s.open_voice_session(c.channel, bot, "b", 1_000)
+        .await
+        .unwrap();
+    s.close_voice_sessions(SessionScope::Sid(bot, "b"), 3_000)
+        .await
+        .unwrap();
+
+    let reply = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
+    let rows = reply["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 2, "{reply}");
+    assert_eq!(rows[0]["id"], person);
+    assert_eq!(rows[0]["is_bot"], false);
+    assert_eq!(rows[1]["user_id"], bot.to_string());
+    assert_eq!(rows[1]["is_bot"], true);
+}

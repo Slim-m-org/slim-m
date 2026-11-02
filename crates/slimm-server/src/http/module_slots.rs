@@ -4,7 +4,7 @@
 //! module is asked once per slot for every member missing from the cache, and
 //! a module that fails shows nothing instead of failing the request.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Instant;
 
 use axum::Router;
@@ -235,12 +235,18 @@ async fn items_for(
     found
 }
 
-/// The run's `input`: which slot, for whom, and who is looking.
-fn slot_input(slot: &ModuleSlot, members: &[UserId], viewer: UserId) -> String {
+/// The run's `input`: which slot, for whom, which of them are bots, and who is looking.
+fn slot_input(
+    slot: &ModuleSlot,
+    members: &[UserId],
+    bots: &HashSet<UserId>,
+    viewer: UserId,
+) -> String {
     json!({
         "slot": slot.kind,
         "name": slot.name,
         "user_ids": members.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        "bot_ids": members.iter().filter(|m| bots.contains(m)).map(ToString::to_string).collect::<Vec<_>>(),
         "viewer_id": viewer.to_string(),
     })
     .to_string()
@@ -255,7 +261,8 @@ async fn run_slot(
     viewer: UserId,
     members: &[UserId],
 ) -> Option<HashMap<UserId, SlotItem>> {
-    let input = slot_input(slot, members, viewer);
+    let bots = state.store.bot_user_ids(members).await.unwrap_or_default();
+    let input = slot_input(slot, members, &bots, viewer);
     let surface = super::module_host::surface_for(state, module, viewer, None);
     let request = RunRequest {
         caller: viewer,
@@ -291,20 +298,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_run_input_names_the_slot_the_members_and_the_viewer() {
+    fn the_run_input_names_the_slot_the_members_the_bots_among_them_and_the_viewer() {
         let (ada, bob, viewer) = (UserId::generate(), UserId::generate(), UserId::generate());
         let slot = ModuleSlot {
             kind: MEMBER_BADGE.into(),
             name: "level".into(),
             title: None,
         };
-        let input: Value = serde_json::from_str(&slot_input(&slot, &[ada, bob], viewer)).unwrap();
+        let bots = HashSet::from([bob]);
+        let input: Value =
+            serde_json::from_str(&slot_input(&slot, &[ada, bob], &bots, viewer)).unwrap();
         assert_eq!(
             input,
             json!({
                 "slot": "member.badge",
                 "name": "level",
                 "user_ids": [ada.to_string(), bob.to_string()],
+                "bot_ids": [bob.to_string()],
                 "viewer_id": viewer.to_string(),
             })
         );
