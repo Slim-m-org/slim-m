@@ -170,11 +170,19 @@ class CallParticipantTile extends StatelessWidget {
     );
   }
 
-  Widget _face(Color onFace, double avatarSize) => Stack(
+  /// [feed] is whether a decoded camera frame is showing; until then the camera
+  /// stays mounted under a [fill] cover so it can start, and the avatar stays.
+  Widget _face(
+    Color onFace,
+    double avatarSize,
+    Color fill, {
+    bool feed = false,
+  }) => Stack(
     children: [
-      if (_showsCamera)
-        Positioned.fill(child: cameraView!)
-      else
+      if (_showsCamera) Positioned.fill(child: cameraView!),
+      if (_showsCamera && !feed)
+        Positioned.fill(child: ColoredBox(color: fill)),
+      if (!feed)
         Positioned(
           left: 0,
           right: 0,
@@ -192,7 +200,7 @@ class CallParticipantTile extends StatelessWidget {
         left: AppSpacing.s8,
         right: AppSpacing.s8,
         bottom: AppSpacing.s12,
-        child: _label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
+        child: _label(feed ? const Color(0xFFFFFFFF) : onFace),
       ),
       if (poorConnection)
         Positioned(
@@ -206,13 +214,20 @@ class CallParticipantTile extends StatelessWidget {
         top: AppSpacing.s8,
         child: _StateBadge(
           participant: participant,
-          stacked:
-              !_showsCamera &&
-              _badgesReachAvatar(width, avatarSize, participant),
+          stacked: !feed && _badgesReachAvatar(width, avatarSize, participant),
         ),
       ),
     ],
   );
+
+  Widget _body(double avatarSize) {
+    Widget backdrop({required bool feed}) => CallTileBackdrop(
+      identity: participant.identity,
+      builder: (_, onFace, fill) => _face(onFace, avatarSize, fill, feed: feed),
+    );
+    if (!_showsCamera) return backdrop(feed: false);
+    return CameraFrameScope(builder: (_, hasFrame) => backdrop(feed: hasFrame));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +273,6 @@ class CallParticipantTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppRadii.card),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: _showsCamera ? const Color(0xFF000000) : null,
                         border: ringsTile
                             ? Border.all(color: tokens.accent, width: 2)
                             : Border.all(color: tokens.borderSubtle),
@@ -267,13 +281,7 @@ class CallParticipantTile extends StatelessWidget {
                       child: SizedBox(
                         width: width,
                         height: height,
-                        child: _showsCamera
-                            ? _face(tokens.textPrimary, avatarSize)
-                            : CallTileBackdrop(
-                                identity: participant.identity,
-                                builder: (_, onFace) =>
-                                    _face(onFace, avatarSize),
-                              ),
+                        child: _body(avatarSize),
                       ),
                     ),
                   ),
