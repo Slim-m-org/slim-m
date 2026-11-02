@@ -3,7 +3,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -99,6 +99,9 @@ class VoiceInputSettings {
       NoiseSuppressionChoice.spaceDefault;
   bool _spaceStrongNoiseSuppression = false;
 
+  /// What the Space defaults to, as last read; a call rereads it periodically.
+  final spaceStrongNoiseSuppression = ValueNotifier<bool>(false);
+
   /// Seeds the noise suppression choice and the Space's default before any
   /// call.
   Future<void> restoreNoiseSuppression() async {
@@ -118,6 +121,7 @@ class VoiceInputSettings {
     final fetched = await fetchSpaceStrongNoiseSuppression(_ref);
     if (fetched == null || fetched == _spaceStrongNoiseSuppression) return;
     _spaceStrongNoiseSuppression = fetched;
+    spaceStrongNoiseSuppression.value = fetched;
     _applyNoiseSuppression();
   }
 

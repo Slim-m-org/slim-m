@@ -39,7 +39,10 @@ double get _focusRingOverhead => 2 * (focusRingGap + focusRingWidth);
 /// At pointer density the mic and share buttons are the leading half of a joined pair
 /// with their options caret, so it drops the ring overhead.
 Size _expectedSize(String label, double side, {bool joined = false}) =>
-    joined && (label.startsWith('Share') || label.startsWith('Mute'))
+    joined &&
+        (label.startsWith('Share') ||
+            label.startsWith('Mute') ||
+            label.startsWith('Turn on camera'))
     ? Size(side - _focusRingOverhead, side - _focusRingOverhead)
     : Size(side, side);
 

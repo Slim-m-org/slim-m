@@ -1,0 +1,162 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The dock's one-time hints: the share button's long press on a phone, and
+/// the microphone a call opened. Each shows once, floats over the dock without
+/// resizing it, and comes back only when it says something new.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_call_dock.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_dock_hint.dart';
+import 'package:slimm_rtc/rtc.dart';
+
+import 'voice_call_controls_harness.dart';
+
+const _connected = VoiceFlags(state: VoiceSessionState.connected);
+const _usb = AudioDevice(id: 'usb-1', label: 'USB headset');
+const _savedInputKey = 'slimm.voice.audio_input_device_id';
+
+InertSession _withInputs() => InertSession(
+  supportsAudioInputSelection: true,
+  audioInputDeviceList: const [_usb],
+);
+
+Future<ProviderContainer> _pump(
+  WidgetTester tester, {
+  Map<String, Object> prefs = const {},
+  InertSession? session,
+  bool touch = true,
+}) async {
+  SharedPreferences.setMockInitialValues(prefs);
+  final width = touch ? 390.0 : 900.0;
+  tester.view.physicalSize = Size(width, 700);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  final container = await pumpVoiceCallDock(
+    tester,
+    _connected,
+    width: width,
+    touch: touch,
+    session: session,
+  );
+  for (var i = 0; i < 4; i++) {
+    await tester.pump();
+  }
+  return container;
+}
+
+Future<void> _elapse(WidgetTester tester) async {
+  await tester.pump(dockHintDuration + const Duration(seconds: 1));
+  for (var i = 0; i < 4; i++) {
+    await tester.pump();
+  }
+}
+
+void main() {
+  group('the share hint', () {
+    testWidgets('names the long press on a phone, once per install', (
+      tester,
+    ) async {
+      await _pump(tester);
+      expect(find.text(shareHintText), findsOneWidget);
+
+      await _elapse(tester);
+      expect(find.text(shareHintText), findsNothing);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(shareHintSeenKey), isTrue);
+    });
+
+    testWidgets('stays away from a pointer-width dock, which has a caret', (
+      tester,
+    ) async {
+      await _pump(tester, touch: false);
+      expect(find.text(shareHintText), findsNothing);
+      expect(find.byTooltip('Screen share options'), findsOneWidget);
+    });
+
+    testWidgets('stays away once it was seen', (tester) async {
+      await _pump(tester, prefs: {shareHintSeenKey: true});
+      expect(find.text(shareHintText), findsNothing);
+    });
+
+    testWidgets('lets a tap through to what it covers', (tester) async {
+      await _pump(tester);
+      final text = tester.renderObject(find.text(shareHintText));
+
+      final hit = tester.hitTestOnBinding(
+        tester.getCenter(find.text(shareHintText)),
+      );
+      expect(hit.path.any((entry) => entry.target == text), isFalse);
+    });
+
+    testWidgets('floats over the dock without resizing it', (tester) async {
+      await _pump(tester, prefs: {shareHintSeenKey: true});
+      final quiet = tester.getSize(find.byKey(VoiceCallDock.slideKey));
+
+      await _pump(tester);
+      expect(find.text(shareHintText), findsOneWidget);
+      expect(tester.getSize(find.byKey(VoiceCallDock.slideKey)), quiet);
+    });
+  });
+
+  group('the mic cue', () {
+    testWidgets('names the system default on the first call', (tester) async {
+      await _pump(tester, session: _withInputs(), touch: false);
+      expect(find.text('Mic: System default'), findsOneWidget);
+    });
+
+    testWidgets('names a saved microphone that was not shown yet', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        prefs: {_savedInputKey: 'usb-1', micCueSeenKey: ''},
+        session: _withInputs(),
+        touch: false,
+      );
+      expect(find.text('Mic: USB headset'), findsOneWidget);
+    });
+
+    testWidgets('stays away for a microphone already shown', (tester) async {
+      await _pump(
+        tester,
+        prefs: {_savedInputKey: 'usb-1', micCueSeenKey: 'usb-1'},
+        session: _withInputs(),
+        touch: false,
+      );
+      expect(find.textContaining('Mic:'), findsNothing);
+    });
+
+    testWidgets('is remembered after it was on screen', (tester) async {
+      await _pump(tester, session: _withInputs(), touch: false);
+      await _elapse(tester);
+
+      expect(find.textContaining('Mic:'), findsNothing);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(micCueSeenKey), '');
+    });
+
+    testWidgets('stays away where the platform picks the microphone', (
+      tester,
+    ) async {
+      await _pump(tester, touch: false);
+      expect(find.textContaining('Mic:'), findsNothing);
+    });
+
+    testWidgets('gives way to the share hint on a phone, one at a time', (
+      tester,
+    ) async {
+      await _pump(tester, session: _withInputs());
+      expect(find.text('Mic: System default'), findsOneWidget);
+      expect(find.text(shareHintText), findsNothing);
+
+      await _elapse(tester);
+      expect(find.text('Mic: System default'), findsNothing);
+      expect(find.text(shareHintText), findsOneWidget);
+    });
+  });
+}

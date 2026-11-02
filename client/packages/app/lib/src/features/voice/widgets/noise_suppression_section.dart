@@ -13,13 +13,6 @@ import '../../settings/widgets/settings_select_row.dart';
 class NoiseSuppressionSection extends ConsumerWidget {
   const NoiseSuppressionSection({super.key});
 
-  static const _labels = {
-    NoiseSuppressionChoice.spaceDefault: 'Space default',
-    NoiseSuppressionChoice.standard: 'Standard',
-    NoiseSuppressionChoice.strong: 'Strong',
-    NoiseSuppressionChoice.strongest: 'Strongest',
-  };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final choice = ref.watch(noiseSuppressionProvider);
@@ -47,7 +40,7 @@ class NoiseSuppressionSection extends ConsumerWidget {
         for (final value in NoiseSuppressionChoice.offered(
           supported: supported,
         ))
-          SettingsChoice(value: value, label: _labels[value]!),
+          SettingsChoice(value: value, label: noiseSuppressionName(value)),
       ],
       onChanged: (v) => ref.read(noiseSuppressionProvider.notifier).set(v),
     );
