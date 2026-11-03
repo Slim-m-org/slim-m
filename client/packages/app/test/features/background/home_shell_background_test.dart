@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/background/providers/app_background_controller.dart';
 import 'package:slimm_app/src/features/background/providers/background_image_store.dart';
@@ -21,6 +22,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _shell(
   WidgetTester tester,
   double width,
 ) async {
+  SharedPreferences.setMockInitialValues({});
   final store = MemoryBackgroundImageStore();
   final s = setup(
     httpClient: quietClient(),
@@ -51,16 +53,9 @@ void main() {
   testWidgets('the docked rail lets the picture through', (tester) async {
     final s = await _shell(tester, 1400);
     await tester.pump();
-    final context = tester.element(find.byType(ChannelRail));
-    expect(AppBackgroundScope.showingOf(context), isTrue);
-    final rail = tester.widget<Container>(
-      find
-          .descendant(
-            of: find.byType(ChannelRail),
-            matching: find.byType(Container),
-          )
-          .first,
-    );
+    final surface = find.byKey(ChannelRail.surfaceKey);
+    expect(AppBackgroundScope.showingOf(tester.element(surface)), isTrue);
+    final rail = tester.widget<Container>(surface);
     expect((rail.color ?? Colors.black).a, closeTo(kBackgroundPaneAlpha, 0.01));
     expect(find.byKey(const Key('app_background_layer')), findsOneWidget);
     await teardown(tester, s.container, s.db);
@@ -71,15 +66,17 @@ void main() {
   ) async {
     final s = await _shell(tester, 500);
     await tester.pump();
-    final scaffold = tester
-        .widgetList<Scaffold>(find.byType(Scaffold))
-        .firstWhere((w) => w.drawer != null);
+    final withDrawer = find.byWidgetPredicate(
+      (w) => w is Scaffold && w.drawer != null,
+    );
+    final scaffold = tester.widget<Scaffold>(withDrawer);
     expect(scaffold.backgroundColor, Colors.transparent);
-    final state = tester.state<ScaffoldState>(find.byWidget(scaffold));
-    state.openDrawer();
-    await tester.pumpAndSettle();
-    final context = tester.element(find.byType(ChannelRail));
-    expect(AppBackgroundScope.showingOf(context), isFalse);
+    tester.state<ScaffoldState>(withDrawer).openDrawer();
+    await tester.pump();
+    // The drawer's slide is a fixed-length route animation; one pump past it is enough.
+    await tester.pump(const Duration(seconds: 1));
+    final surface = find.byKey(ChannelRail.surfaceKey);
+    expect(AppBackgroundScope.showingOf(tester.element(surface)), isFalse);
     await teardown(tester, s.container, s.db);
   });
 }

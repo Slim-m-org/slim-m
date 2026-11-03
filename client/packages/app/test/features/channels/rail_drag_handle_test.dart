@@ -316,7 +316,15 @@ void main() {
 
       // Off-screen until dragged (#301's own suite covers the drag itself).
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      expect(scaffold.drawer, isA<CompactChannelRailDrawer>());
+      // The drawer is kept opaque over a background picture, so it arrives wrapped.
+      expect(
+        scaffold.drawer,
+        isA<OpaquePanes>().having(
+          (w) => w.child,
+          'child',
+          isA<CompactChannelRailDrawer>(),
+        ),
+      );
 
       await teardown(tester, s.container, s.db);
     },
