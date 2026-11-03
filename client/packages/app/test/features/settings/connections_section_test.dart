@@ -231,17 +231,17 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('linked without a picture, or unlinked: the link icon stays', (
+  testWidgets('linked without a picture, or unlinked: the Discord mark stays', (
     tester,
   ) async {
     await _pump(tester, (_) => _json(200, [linkedJson]));
     expect(find.byType(AppAvatar), findsNothing);
-    expect(find.byIcon(AppIcons.link), findsOneWidget);
+    expect(find.byKey(const ValueKey('brand-discord')), findsOneWidget);
     await _unmount(tester);
 
     await _pump(tester, (_) => _json(200, []));
     expect(find.byType(AppAvatar), findsNothing);
-    expect(find.byIcon(AppIcons.link), findsOneWidget);
+    expect(find.byKey(const ValueKey('brand-discord')), findsOneWidget);
     await _unmount(tester);
   });
 }

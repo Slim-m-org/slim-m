@@ -218,6 +218,10 @@ class _MentionChip extends StatelessWidget {
         color: tokens.accentSoft,
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
+      foregroundDecoration: BoxDecoration(
+        border: Border.all(color: tokens.mentionPillOutline),
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
       child: Text(
         text,
         maxLines: 1,

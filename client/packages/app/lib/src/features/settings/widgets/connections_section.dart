@@ -114,7 +114,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
       userId: userId,
       account: discord,
       size: AppAvatarSize.s32,
-      fallback: const SettingsIconTile(AppIcons.link),
+      fallback: const SettingsBrandTile(BrandService.discord),
     );
   }
 
@@ -143,8 +143,9 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
     }
     return [
       SettingsDetailRow(
-        icon: AppIcons.link,
-        leading: _discordPicture(discord),
+        leading:
+            _discordPicture(discord) ??
+            const SettingsBrandTile(BrandService.discord),
         title: 'Discord',
         detail: discord == null ? 'Not linked' : discordLabel(discord),
         error: actionError,

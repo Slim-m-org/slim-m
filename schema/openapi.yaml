@@ -13686,6 +13686,25 @@ components:
             Cover art. Accepted only as `https://i.scdn.co/image/` followed by
             40 lowercase hex characters, with no port, query or fragment;
             anything else is refused with 400. Decision 0056.
+        duration_ms:
+          type: integer
+          format: int64
+          description: >
+            Track length in milliseconds, from 1 to 86400000. Send it with
+            `position_ms` and `position_at` or not at all; a partial set is
+            refused with 400.
+        position_ms:
+          type: integer
+          format: int64
+          description: >
+            Playback position in milliseconds at `position_at`, from 0 to
+            `duration_ms`. Viewers extrapolate from it while the activity
+            stands, so the sender republishes only on a track change, a seek,
+            or a pause, not every poll.
+        position_at:
+          type: integer
+          format: int64
+          description: Epoch milliseconds `position_ms` was sampled.
 
     SetVisibilityRequest:
       type: object

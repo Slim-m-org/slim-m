@@ -32,6 +32,32 @@ class SettingsIconTile extends StatelessWidget {
   }
 }
 
+/// A [SettingsIconTile] for a third-party service, in its own mark.
+class SettingsBrandTile extends StatelessWidget {
+  const SettingsBrandTile(this.service, {super.key});
+
+  final BrandService service;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Container(
+      width: AppSizes.icon32,
+      height: AppSizes.icon32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tokens.surfaceBase,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: BrandLogo(
+        service,
+        key: ValueKey('brand-${service.asset}'),
+        size: AppSizes.icon20,
+      ),
+    );
+  }
+}
+
 /// A card row: tile, title with an optional badge, one detail line, trailing.
 class SettingsDetailRow extends StatelessWidget {
   const SettingsDetailRow({

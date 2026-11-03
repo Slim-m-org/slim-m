@@ -41,6 +41,7 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
   final Future<void> Function()? _onRevoked;
   final bool Function() _isForeground;
   DateTime? _backoffUntil;
+  final _anchor = ProgressAnchor();
 
   @override
   Stream<NowPlaying?> watch() =>
@@ -76,17 +77,25 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
       playback = await _client.currentlyPlaying(tokens.accessToken);
     }
     switch (playback) {
-      case SpotifyPlaying(:final title, :final artist, :final artUrl):
-        return NowPlaying(
+      case SpotifyPlaying(
+        :final title,
+        :final artist,
+        :final artUrl,
+        :final positionMs,
+        :final durationMs,
+      ):
+        final playing = NowPlaying(
           title: title,
           artist: artist,
           source: 'Spotify',
           artUrl: artUrl,
         );
+        return _anchor.apply(playing, positionMs, durationMs, _now());
       case SpotifyRateLimited(:final retryAfter):
         _backoffUntil = _now().add(retryAfter);
         throw const PollSkip();
       case SpotifyIdle() || SpotifyUnauthorized():
+        _anchor.reset();
         return null;
     }
   }
@@ -105,4 +114,51 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
       return null;
     }
   }
+}
+
+/// Keeps the first sampled position of a track and hands it back on every poll
+/// that agrees with it, so the stream sees an equal value and publishes only
+/// on a track change, a seek or a pause, never on a steady tick.
+class ProgressAnchor {
+  /// A poll this far off the extrapolation counts as a seek.
+  static const seekTolerance = Duration(seconds: 3);
+
+  NowPlaying? _held;
+
+  void reset() => _held = null;
+
+  NowPlaying apply(
+    NowPlaying playing,
+    int? positionMs,
+    int? durationMs,
+    DateTime now,
+  ) {
+    if (positionMs == null || durationMs == null || durationMs <= 0) {
+      _held = null;
+      return playing;
+    }
+    final held = _held;
+    if (held != null && _sameTrack(held, playing, durationMs)) {
+      final expected =
+          held.positionMs! + now.millisecondsSinceEpoch - held.sampledAtMs!;
+      if ((positionMs - expected).abs() <= seekTolerance.inMilliseconds) {
+        return held;
+      }
+    }
+    return _held = NowPlaying(
+      title: playing.title,
+      artist: playing.artist,
+      source: playing.source,
+      artUrl: playing.artUrl,
+      positionMs: positionMs,
+      durationMs: durationMs,
+      sampledAtMs: now.millisecondsSinceEpoch,
+    );
+  }
+
+  bool _sameTrack(NowPlaying held, NowPlaying next, int durationMs) =>
+      held.title == next.title &&
+      held.artist == next.artist &&
+      held.artUrl == next.artUrl &&
+      held.durationMs == durationMs;
 }
