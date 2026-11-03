@@ -731,6 +731,7 @@ The host runs a command of yours on a timer, with nobody invoking it.
 - `schedule` and a `schedules` list come together; one without the other is refused.
 - The command runs with empty input and no caller: `caller.id` is the module's own principal, not a person.
 - It runs as the module's **own principal**, a bot-style account with no password and no token, whose posts carry the module's name.
+  It is managed with the module and never appears in the Bots list, so there is no token to re-issue.
   It may post only in the channel the admin chooses on the module's Dock screen, and nothing runs until they choose one.
   `message.post` from a scheduled run posts as that principal into that channel; to post anywhere else you need a bot.
 - A scheduled run is held to the same limits as any run, and the admin's Dock screen shows when it last ran and the error if it failed.

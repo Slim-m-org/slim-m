@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT u.id AS \"user_id!: UserId\", u.username, u.display_name,\n                      u.created_at, u.bot_prefix,\n                      t.name AS token_name, t.last_used_at,\n                      r.id AS \"role_id: RoleId\", r.permissions AS \"permissions: Permissions\"\n               FROM users u\n               LEFT JOIN bot_tokens t\n                 ON t.bot_user_id = u.id AND t.revoked_at IS NULL\n               LEFT JOIN roles r ON r.managed_bot_id = u.id\n               WHERE u.is_bot = 1 AND u.deleted_at IS NULL\n                 AND (? = 1 OR NOT EXISTS (\n                   SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id\n                 ))\n               ORDER BY u.created_at DESC",
+  "query": "SELECT u.id AS \"user_id!: UserId\", u.username, u.display_name,\n                      u.created_at, u.bot_prefix,\n                      t.name AS token_name, t.last_used_at,\n                      r.id AS \"role_id: RoleId\", r.permissions AS \"permissions: Permissions\"\n               FROM users u\n               LEFT JOIN bot_tokens t\n                 ON t.bot_user_id = u.id AND t.revoked_at IS NULL\n               LEFT JOIN roles r ON r.managed_bot_id = u.id\n               WHERE u.is_bot = 1 AND u.deleted_at IS NULL\n                 AND NOT EXISTS (\n                   SELECT 1 FROM installed_modules m WHERE m.bot_user_id = u.id\n                 )\n                 AND (? = 1 OR NOT EXISTS (\n                   SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id\n                 ))\n               ORDER BY u.created_at DESC",
   "describe": {
     "columns": [
       {
@@ -64,5 +64,5 @@
       true
     ]
   },
-  "hash": "75ac503ae36a59e8fb57f2194c4eca3ad2a9b6c3969853a3478892258fbb542a"
+  "hash": "2d9fdc02dff258303f8310a23d434a8262ae095b65515d763130e8e19b58077e"
 }
