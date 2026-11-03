@@ -50,6 +50,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Desktop notification text | `slimm.notifications.desktop_message_text` | Space | notifications |
 | Module sounds | `slimm.modules.sound_enabled` | Space | modules belong to one server |
 | Module badges in the member list | `slimm.modules.member_list_badges_enabled` | Space | per user and device, not an admin switch; members cannot list modules, so one switch covers all |
+| Module sections on profile cards | `slimm.modules.profile_sections_enabled` | Space | per user and device, on by default; the same reasoning as the member-list badges |
 | Media auto-download | `slimm.performance.media_autodownload` | Space | what a community's messages show |
 | GIF autoplay | `slimm.performance.gif_autoplay` | Space | what a community's messages show |
 | Link previews | `slimm.performance.link_previews` | Space | what a community's messages show |

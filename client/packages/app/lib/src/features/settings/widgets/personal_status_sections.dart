@@ -18,6 +18,7 @@ import 'package:slimm_platform/platform.dart'
 
 import '../../../desktop/providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_member_badge_settings.dart';
+import '../../modules/providers/module_profile_section_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../../../push/providers/push_controller.dart';
@@ -53,6 +54,9 @@ class NotificationsSection extends ConsumerWidget {
     final soundsEnabled = ref.watch(messageSoundSettingsProvider);
     final moduleSoundsEnabled = ref.watch(moduleSoundSettingsProvider);
     final moduleBadgesShown = ref.watch(moduleMemberBadgeSettingsProvider);
+    final profileSectionsShown = ref.watch(
+      moduleProfileSectionSettingsProvider,
+    );
     final uiSoundsEnabled = ref.watch(uiSoundSettingsProvider);
     final hapticsEnabled = ref.watch(hapticsSettingsProvider);
     final style = notificationBannerStyle(status);
@@ -129,6 +133,15 @@ class NotificationsSection extends ConsumerWidget {
                   .read(moduleMemberBadgeSettingsProvider.notifier)
                   .setShown(value),
               semanticLabel: 'Show module badges in the member list',
+            ),
+            SettingsToggleRow(
+              label: 'Module sections on profiles',
+              description: 'Shows module levels and stats on profile cards.',
+              value: profileSectionsShown,
+              onChanged: (value) => ref
+                  .read(moduleProfileSectionSettingsProvider.notifier)
+                  .setShown(value),
+              semanticLabel: 'Show module sections on profile cards',
             ),
           ],
         ),

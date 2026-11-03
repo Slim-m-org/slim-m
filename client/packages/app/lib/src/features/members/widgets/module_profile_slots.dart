@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../modules/providers/module_profile_section_settings.dart';
 import '../../modules/widgets/module_slot_view.dart';
 import '../providers/module_profile_slots.dart';
 
@@ -18,6 +19,9 @@ class ModuleProfileSlots extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(moduleProfileSectionSettingsProvider)) {
+      return const SizedBox.shrink();
+    }
     final sections = ref
         .watch(moduleProfileSlotsProvider(userId))
         .valueOrNull

@@ -3,7 +3,7 @@
 ///
 /// A per-user, per-device choice, off by default: a module's badge competes
 /// with the role chip in a 236px row. Members cannot list installed modules,
-/// so one switch covers them all. The profile card is unaffected.
+/// so one switch covers them all. The profile card has its own switch.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

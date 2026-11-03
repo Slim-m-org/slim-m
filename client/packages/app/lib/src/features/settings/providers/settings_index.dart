@@ -263,6 +263,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'notifications',
+    'Module sections on profiles',
+    description: 'Shows module levels and stats on profile cards.',
+    keywords: ['profile', 'level', 'xp', 'modules'],
+  ),
+  SettingsEntry(
+    'notifications',
     'Notify me for',
     keywords: ['mentions', 'all messages', 'push'],
   ),

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/module_profile_slots.dart';
@@ -116,6 +117,16 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('the profile switch off hides the section', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.modules.profile_sections_enabled': false,
+    });
+    await _pumpCard(tester, 'maya', _slots);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Level'), findsNothing);
+  });
 
   testWidgets('a section with nothing to draw is not shown', (tester) async {
     await _pumpCard(tester, 'maya', _slots);

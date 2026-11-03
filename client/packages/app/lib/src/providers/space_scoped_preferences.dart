@@ -18,6 +18,7 @@ const Set<String> spaceScopedKeys = {
   'slimm.notifications.desktop_message_text',
   'slimm.modules.sound_enabled',
   'slimm.modules.member_list_badges_enabled',
+  'slimm.modules.profile_sections_enabled',
   'slimm.performance.media_autodownload',
   'slimm.performance.gif_autoplay',
   'slimm.performance.link_previews',
