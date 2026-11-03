@@ -21,8 +21,12 @@ library;
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  // The real plugin has no host here, and only the snapshot render path reaches it.
+  setUp(() => SharedPreferences.setMockInitialValues(const {}));
   await testMain();
 }
