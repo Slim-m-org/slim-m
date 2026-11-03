@@ -122,6 +122,7 @@ class _ReviewRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.s12),
               Expanded(
                 child: AppInput(
+                  key: ValueKey('emoji-name-${item.upload.fileName}'),
                   maxLength: InputLimits.emojiName,
                   controller: item.name,
                   enabled: enabled,
@@ -131,6 +132,7 @@ class _ReviewRow extends StatelessWidget {
                 ),
               ),
               AppIconButton(
+                key: ValueKey('emoji-remove-${item.upload.fileName}'),
                 icon: AppIcons.dismiss,
                 semanticLabel: 'Remove ${item.upload.fileName}',
                 onPressed: enabled ? onRemove : null,
