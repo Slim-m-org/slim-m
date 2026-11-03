@@ -17,6 +17,7 @@ impl Class {
             Class::InviteCheck => "invite_check",
             Class::Upload => "upload",
             Class::Canvas => "canvas",
+            Class::CanvasBatch => "canvas_batch",
             Class::CanvasCursor => "canvas_cursor",
             Class::CanvasStrokePreview => "canvas_stroke_preview",
             Class::CanvasObjectPreview => "canvas_object_preview",

@@ -6704,6 +6704,60 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/objects/batch:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: placeCanvasObjects
+      tags: [canvas]
+      summary: Place many objects on a channel's canvas in one request.
+      description: >
+        For bots that draw many marks. `objects` holds 1 to 200 entries, each
+        exactly what `placeCanvasObject` takes and checked the same way (kind,
+        props size, extent, attachment, `VIEW_CHANNEL` and `USE_CANVAS`, and
+        the timeout refusal). The batch is all or nothing: one invalid object
+        is a 400 or 409 that names its index, and nothing is written. The
+        canvas cap is checked against the whole batch in the same transaction.
+        An id repeated inside one batch is a 400.
+
+
+        Objects take consecutive seqs in array order and each fans out as the
+        same `object_placed` event a single place sends, in that order. Each
+        `id` is an idempotency key as for a single place: a retried batch
+        answers with the stored rows, and an object already placed sends no
+        second event. The request body is at most 1 MiB.
+
+
+        Rate limiting is by object count, not by request: a batch is charged
+        one token per object against its own budget (a burst of 400 and 100
+        objects a second), so a 200-object batch goes through at once and a
+        sustained loop is slowed to that rate with a 429.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CanvasObjectBatch"
+      responses:
+        "201":
+          description: The stored objects in request order, fresh or replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasObjectBatchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/canvas/ops:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -16067,6 +16121,23 @@ components:
           type: integer
           format: int64
 
+    CanvasObjectBatch:
+      type: object
+      required: [objects]
+      properties:
+        objects:
+          type: array
+          description: 1 to 200 placements, each as for `placeCanvasObject`.
+          items:
+            $ref: "#/components/schemas/CanvasObjectPlacement"
+    CanvasObjectBatchResult:
+      type: object
+      required: [objects]
+      properties:
+        objects:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasObject"
     CanvasObjectPlacement:
       type: object
       required: [id, kind, x, y, w, h, props]

@@ -20,10 +20,11 @@
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::routing::get;
+use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
+use self::canvas_batch::{MAX_BATCH_BODY_BYTES, place_batch};
 use self::canvas_ops::list_ops;
 use self::canvas_ops_write::submit_op;
 use self::canvas_write::{MAX_BODY_BYTES, place};
@@ -35,6 +36,7 @@ use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasObject, Rect, ViewportQuery, WORLD_LIMIT};
 
+pub(super) mod canvas_batch;
 pub(super) mod canvas_media_slots;
 pub(super) mod canvas_object_locks;
 pub(super) mod canvas_ops;
@@ -65,6 +67,14 @@ pub fn routes() -> Router<AppState> {
             get(list_ops).post(submit_op),
         )
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+        .merge(
+            Router::new()
+                .route(
+                    "/channels/{channel_id}/canvas/objects/batch",
+                    post(place_batch),
+                )
+                .layer(DefaultBodyLimit::max(MAX_BATCH_BODY_BYTES)),
+        )
 }
 
 // --- Wire types ---

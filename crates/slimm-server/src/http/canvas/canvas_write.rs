@@ -102,7 +102,7 @@ fn image_attachment(props: &Value) -> Result<Vec<u8>, ApiError> {
 #[derive(Deserialize)]
 pub(in crate::http) struct PlaceParams {
     /// Client-generated UUIDv7, and the idempotency key.
-    id: String,
+    pub(super) id: String,
     kind: String,
     x: f64,
     y: f64,
@@ -111,33 +111,27 @@ pub(in crate::http) struct PlaceParams {
     props: Value,
 }
 
-/// `POST /channels/{channel_id}/canvas/objects`.
-///
-/// Idempotent by `id`: a replay answers with the stored row, its original
-/// `seq` intact, writes nothing, and - the part worth stating - publishes
-/// nothing, so a retry after a lost response cannot fan a duplicate frame out
-/// to every viewer.
-pub(in crate::http) async fn place(
-    AuthedLimited(ctx): AuthedLimited<CANVAS>,
-    Path(channel_id): Path<String>,
-    State(state): State<AppState>,
-    Json(params): Json<PlaceParams>,
-) -> Result<(axum::http::StatusCode, Json<CanvasObjectDto>), ApiError> {
-    let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let id = CanvasObjectId(parse_uuid(&params.id)?);
+/// A place request that has passed every check that needs no store.
+pub(super) struct ValidatedPlace {
+    kind: String,
+    bounds: (f64, f64, f64, f64),
+    props: String,
+    attachment: Option<Vec<u8>>,
+}
 
-    // One per-channel evaluation, as the read does, so a missing channel and a forbidden one look alike.
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
+impl ValidatedPlace {
+    pub(super) fn request(&self) -> crate::store::PlaceRequest<'_> {
+        crate::store::PlaceRequest {
+            kind: &self.kind,
+            bounds: self.bounds,
+            props: &self.props,
+            attachment: self.attachment.as_deref(),
+        }
     }
-    if state.store.timed_out_until(ctx.user_id).await?.is_some() {
-        return Err(ApiError::Forbidden);
-    }
+}
 
+/// The kind, props and attachment checks one place and every object of a batch share.
+pub(super) fn validate_place(params: PlaceParams) -> Result<ValidatedPlace, ApiError> {
     if !KINDS.contains(&params.kind.as_str()) {
         return Err(ApiError::BadRequest("unknown canvas object kind"));
     }
@@ -156,47 +150,77 @@ pub(in crate::http) async fn place(
     } else {
         None
     };
+    Ok(ValidatedPlace {
+        kind: params.kind,
+        bounds: (params.x, params.y, params.w, params.h),
+        props,
+        attachment,
+    })
+}
+
+/// What a refused place answers with.
+pub(super) fn place_error_api(error: PlaceError) -> ApiError {
+    match error {
+        PlaceError::OutOfBounds => {
+            ApiError::BadRequest("the object is outside the world or too large")
+        }
+        PlaceError::ChannelFull => ApiError::Conflict("this canvas is full"),
+        PlaceError::IdConflict => ApiError::Conflict("canvas object id already used"),
+        PlaceError::Removed => ApiError::Conflict("that object was removed"),
+        PlaceError::AttachmentNotFound => {
+            ApiError::BadRequest("attachment not found; upload it first")
+        }
+        PlaceError::NotAPicture => {
+            ApiError::BadRequest("an image object must name a picture attachment")
+        }
+        PlaceError::Internal(err) => err.into(),
+    }
+}
+
+/// Whether the caller may draw on this channel now: the view and draw bits, and no timeout.
+pub(super) async fn ensure_may_draw(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    channel_id: ChannelId,
+) -> Result<(), ApiError> {
+    // One per-channel evaluation, as the read does, so a missing channel and a forbidden one look alike.
+    let permissions = state
+        .store
+        .permissions_in_channel(user_id, channel_id)
+        .await?;
+    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
+        return Err(ApiError::Forbidden);
+    }
+    if state.store.timed_out_until(user_id).await?.is_some() {
+        return Err(ApiError::Forbidden);
+    }
+    Ok(())
+}
+
+/// `POST /channels/{channel_id}/canvas/objects`.
+///
+/// Idempotent by `id`: a replay answers with the stored row, its original
+/// `seq` intact, writes nothing, and - the part worth stating - publishes
+/// nothing, so a retry after a lost response cannot fan a duplicate frame out
+/// to every viewer.
+pub(in crate::http) async fn place(
+    AuthedLimited(ctx): AuthedLimited<CANVAS>,
+    Path(channel_id): Path<String>,
+    State(state): State<AppState>,
+    Json(params): Json<PlaceParams>,
+) -> Result<(axum::http::StatusCode, Json<CanvasObjectDto>), ApiError> {
+    let channel_id = ChannelId(parse_uuid(&channel_id)?);
+    let id = CanvasObjectId(parse_uuid(&params.id)?);
+
+    ensure_may_draw(&state, ctx.user_id, channel_id).await?;
+
+    let place = validate_place(params)?;
 
     let placement = state
         .store
-        .place_canvas_object(
-            channel_id,
-            ctx.user_id,
-            id,
-            crate::store::PlaceRequest {
-                kind: &params.kind,
-                bounds: (params.x, params.y, params.w, params.h),
-                props: &props,
-                attachment: attachment.as_deref(),
-            },
-        )
-        .await;
-    let placement = match placement {
-        Ok(placement) => placement,
-        Err(PlaceError::OutOfBounds) => {
-            return Err(ApiError::BadRequest(
-                "the object is outside the world or too large",
-            ));
-        }
-        Err(PlaceError::ChannelFull) => return Err(ApiError::Conflict("this canvas is full")),
-        Err(PlaceError::IdConflict) => {
-            return Err(ApiError::Conflict("canvas object id already used"));
-        }
-        Err(PlaceError::Removed) => {
-            return Err(ApiError::Conflict("that object was removed"));
-        }
-        Err(PlaceError::AttachmentNotFound) => {
-            return Err(ApiError::BadRequest(
-                "attachment not found; upload it first",
-            ));
-        }
-        Err(PlaceError::NotAPicture) => {
-            return Err(ApiError::BadRequest(
-                "an image object must name a picture attachment",
-            ));
-        }
-        Err(PlaceError::Internal(err)) => return Err(err.into()),
-    };
+        .place_canvas_object(channel_id, ctx.user_id, id, place.request())
+        .await
+        .map_err(place_error_api)?;
 
     // No await between the commit and this call; see `ws::permission_cache`.
     if placement.fresh {

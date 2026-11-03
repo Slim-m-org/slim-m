@@ -142,6 +142,11 @@ impl RateLimiter {
         self.admit_at(class, key, 1.0, Instant::now())
     }
 
+    /// [`RateLimiter::admit`] charging `cost` tokens, for a request that is worth several.
+    pub fn admit_weighted(&self, class: Class, key: &str, cost: f64) -> Result<(), RetryAfter> {
+        self.admit_at(class, key, cost, Instant::now())
+    }
+
     /// The one admission decision; [`RateLimiter::check_weighted_at`] and
     /// [`RateLimiter::admit`] both read it.
     pub fn admit_at(

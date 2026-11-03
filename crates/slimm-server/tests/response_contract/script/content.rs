@@ -187,6 +187,19 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
         }),
     )
     .await;
+    c.json(
+        "placeCanvasObjects",
+        "POST",
+        &format!("/channels/{channel}/canvas/objects/batch"),
+        root,
+        json!({ "objects": [{
+            "id": Uuid::now_v7().to_string(),
+            "kind": "stroke",
+            "x": 300.0, "y": 300.0, "w": 40.0, "h": 20.0,
+            "props": { "points": [0.0, 0.0, 40.0, 20.0], "width": 3.0, "color": "annotation" },
+        }] }),
+    )
+    .await;
     let removed = c
         .json(
             "submitCanvasOp",
