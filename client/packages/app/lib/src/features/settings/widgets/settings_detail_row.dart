@@ -49,7 +49,11 @@ class SettingsBrandTile extends StatelessWidget {
         color: tokens.surfaceBase,
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
-      child: BrandLogo(service, size: AppSizes.icon20),
+      child: BrandLogo(
+        service,
+        key: ValueKey('brand-${service.asset}'),
+        size: AppSizes.icon20,
+      ),
     );
   }
 }
