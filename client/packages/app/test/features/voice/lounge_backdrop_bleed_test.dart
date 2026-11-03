@@ -103,9 +103,11 @@ Future<void> _expectPaneUntouched(WidgetTester tester, {ui.Image? glow}) async {
     for (var y = 0; y < image.height; y += 8) {
       for (var x = _stage.toInt() + 1; x < image.width; x += 8) {
         final i = (y * image.width + x) * 4;
-        if (bytes.getUint8(i) + bytes.getUint8(i + 1) + bytes.getUint8(i + 2) >
-            0)
+        final sum =
+            bytes.getUint8(i) + bytes.getUint8(i + 1) + bytes.getUint8(i + 2);
+        if (sum > 0) {
           lit++;
+        }
       }
     }
     return lit;
