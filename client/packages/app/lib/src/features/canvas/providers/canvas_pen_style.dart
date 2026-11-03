@@ -91,7 +91,8 @@ class CanvasPenStyle {
     width: width ?? this.width,
   );
 
-  Color get color => canvasPenInkByKey[colorKey] ?? AppCanvasColors.annotation;
+  Color get color =>
+      resolveCanvasInk(canvasPenInkByKey, colorKey, AppCanvasColors.annotation);
 
   @override
   bool operator ==(Object other) =>

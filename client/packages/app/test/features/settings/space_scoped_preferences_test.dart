@@ -126,6 +126,7 @@ const _deviceKeys = <String>{
   'slimm.appearance.background.has_image',
   'slimm.appearance.background.tone',
   'slimm.appearance.background.vignette',
+  'slimm.canvas.recent_colours',
   'slimm.canvas.self_bubble.hidden',
   'slimm.canvas.snap_to_grid',
   'slimm.database.key',

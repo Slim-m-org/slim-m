@@ -221,11 +221,14 @@ CanvasDocument documentWithImage({required bool loadFailed}) {
 
 /// A document holding one committed horizontal stroke, camera set last so the
 /// placed object is culled in before anything paints.
-CanvasDocument documentWithCommittedStroke(double zoom) {
+CanvasDocument documentWithCommittedStroke(
+  double zoom, {
+  String colorKey = 'ink',
+}) {
   final document = CanvasDocument();
   document.setViewport(const Size(400, 400));
   document.applyPlaced(
-    const CanvasStrokeInput(
+    CanvasStrokeInput(
       id: 'committed',
       seq: 1,
       zIndex: 1,
@@ -233,9 +236,9 @@ CanvasDocument documentWithCommittedStroke(double zoom) {
       y: 50,
       w: 100,
       h: 1,
-      points: [0, 0, 100, 0],
+      points: const [0, 0, 100, 0],
       width: 4,
-      colorKey: 'ink',
+      colorKey: colorKey,
     ),
   );
   document.setCamera(Camera(zoom: zoom));

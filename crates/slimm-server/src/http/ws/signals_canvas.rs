@@ -90,9 +90,12 @@ const MAX_PREVIEW_COLOR_LEN: usize = 32;
 /// Widest pen, in world units, a preview may claim.
 const MAX_PREVIEW_WIDTH: f64 = 256.0;
 
-/// A colour key made only of identifier characters, or none.
+/// A colour key made only of identifier characters, a `#rrggbb`, or none.
 pub(super) fn valid_preview_color(color: Option<String>) -> Option<String> {
     color.filter(|c| {
+        if let Some(hex) = c.strip_prefix('#') {
+            return hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit());
+        }
         !c.is_empty()
             && c.len() <= MAX_PREVIEW_COLOR_LEN
             && c.chars()
@@ -354,4 +357,19 @@ pub(super) async fn handle_canvas_object_preview(
         h,
         ended: frame.ended,
     }));
+}
+
+#[cfg(test)]
+mod colour_tests {
+    use super::valid_preview_color;
+
+    #[test]
+    fn a_preview_may_carry_a_hex_colour_but_not_a_forged_one() {
+        let keep = |c: &str| valid_preview_color(Some(c.to_owned()));
+        assert_eq!(keep("#3a7bd5").as_deref(), Some("#3a7bd5"));
+        assert_eq!(keep("annotation").as_deref(), Some("annotation"));
+        for bad in ["#3a7bd", "#3a7bd5f", "#zzzzzz", "a b!", ""] {
+            assert!(keep(bad).is_none(), "{bad}");
+        }
+    }
 }

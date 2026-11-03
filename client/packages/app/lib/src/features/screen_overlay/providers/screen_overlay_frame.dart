@@ -4,6 +4,7 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart' show resolveCanvasInk;
 import 'package:slimm_platform/platform.dart';
 
 import '../../canvas/providers/canvas_pen_style.dart';
@@ -21,7 +22,11 @@ List<OverlayShape> overlayShapesFor(
   for (final mark in marks) {
     final alpha = mark.alphaAt(now);
     if (alpha <= 0) continue;
-    final ink = canvasPenInkByKey[mark.colorKey] ?? AppCanvasColors.annotation;
+    final ink = resolveCanvasInk(
+      canvasPenInkByKey,
+      mark.colorKey,
+      AppCanvasColors.annotation,
+    );
     final p = mark.points;
     switch (mark.kind) {
       case ScreenAnnotationKind.stroke when p.length >= 4:

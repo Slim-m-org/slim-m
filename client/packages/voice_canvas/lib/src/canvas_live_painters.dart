@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+import 'canvas_ink.dart';
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';
 import 'canvas_smooth_path.dart';
@@ -281,8 +282,10 @@ class RemoteDraftPainter extends CustomPainter {
     for (final draft in drafts.all) {
       final points = draft.points;
       if (points.length < 4) continue;
-      final pen =
-          inkColors[draft.colorKey] ?? (draft.colorKey == null ? null : ink);
+      final key = draft.colorKey;
+      final pen = key == null
+          ? null
+          : inkColors[key] ?? parseCanvasHexColor(key) ?? ink;
       paint
         ..color = pen ??
             colors[draft.colorIndex % colors.length].withValues(alpha: 0.7)

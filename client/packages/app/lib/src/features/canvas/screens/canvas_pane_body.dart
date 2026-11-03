@@ -390,8 +390,10 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                 trailing: compact
                     ? ListenableBuilder(
                         listenable: _hiddenTiles,
-                        builder: (context, _) =>
-                            CanvasCompactEditGroup(canvas: _dockData()),
+                        builder: (context, _) => CanvasCompactEditGroup(
+                          canvas: _dockData(),
+                          chatChannelId: widget.channelId,
+                        ),
                       )
                     : null,
               ),
