@@ -167,6 +167,19 @@ const personalSettingsIndex = <SettingsEntry>[
     description: 'Changing it signs out your other devices.',
     keywords: ['change password', 'security'],
   ),
+  SettingsEntry('appearance', 'Modules'),
+  SettingsEntry(
+    'appearance',
+    'Show module badges',
+    description: 'Next to names in the member list.',
+    keywords: ['members', 'badge', 'modules', 'level'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Show module levels',
+    description: 'On profile cards.',
+    keywords: ['profile', 'level', 'xp', 'modules'],
+  ),
   SettingsEntry(
     'appearance',
     'Theme',
@@ -179,9 +192,39 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'appearance',
+    'Theme store',
+    description: 'Themes shared in this Space.',
+    keywords: ['theme', 'import', 'export', 'share', 'publish', 'default'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Publish current theme',
+    description: 'Share it with this Space.',
+    keywords: ['theme', 'store', 'share'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Export current theme',
+    description: 'Save it as a file.',
+    keywords: ['theme', 'file', 'download'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Import a theme',
+    description: 'Open a theme file.',
+    keywords: ['theme', 'file', 'upload'],
+  ),
+  SettingsEntry(
+    'appearance',
     'High contrast',
     description: 'Stronger borders and text.',
     keywords: ['accessibility', 'contrast', 'theme'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Background',
+    description: 'A picture behind the chat, kept on this device.',
+    keywords: ['wallpaper', 'image', 'picture', 'vignette', 'blur', 'dim'],
   ),
   SettingsEntry(
     'appearance',
@@ -263,9 +306,9 @@ const personalSettingsIndex = <SettingsEntry>[
   ...voiceSettingsIndex,
   SettingsEntry(
     'performance',
-    'Auto-download media',
-    description: 'Whether images load as you scroll or wait for a tap.',
-    keywords: ['data', 'images', 'download'],
+    'Load images in chat',
+    description: 'Fetches images in messages as you scroll, using your data.',
+    keywords: ['data', 'images', 'download', 'auto-download', 'media'],
   ),
   SettingsEntry(
     'performance',

@@ -16,6 +16,8 @@ import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_c
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/providers/toasts.dart';
+import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -52,15 +54,15 @@ class _Sync extends NoopSyncController {
 }
 
 class _FakeOverlay implements ScreenOverlay {
-  final shown = <int>[];
+  final shown = <List<int>>[];
   final draws = <List<OverlayShape>>[];
   var hides = 0;
 
   @override
   Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
   @override
-  Future<bool> show(int monitor) async {
-    shown.add(monitor);
+  Future<bool> show(List<int> monitors) async {
+    shown.add(monitors);
     return true;
   }
 
@@ -167,16 +169,31 @@ void main() {
         final rig = _Rig();
         async.flushMicrotasks();
         expect(rig.active, isTrue);
-        expect(rig.overlay.shown, [0]);
+        expect(rig.overlay.shown, [
+          [0, 1],
+        ]);
         final consent = rig.sync.sent.single;
         expect(
           (consent.kind, consent.allowed, consent.target),
           ('consent', true, 'me'),
         );
-        expect(consent.aspect, closeTo(1920 / 1080, 1e-9));
+        expect(consent.aspect, isNull);
       });
     },
   );
+
+  test('a known capture size covers only the monitor of that shape', () {
+    fakeAsync((async) {
+      localShareCapturedSize.value = (width: 1280, height: 800);
+      addTearDown(() => localShareCapturedSize.value = null);
+      final rig = _Rig();
+      async.flushMicrotasks();
+      expect(rig.overlay.shown, [
+        [1],
+      ]);
+      expect(rig.sync.sent.single.aspect, closeTo(1.6, 1e-9));
+    });
+  });
 
   test('consent is repeated while the overlay stays up', () {
     fakeAsync((async) {
@@ -219,6 +236,19 @@ void main() {
     });
   });
 
+  test('opening the overlay says so in one toast and no banner', () {
+    fakeAsync((async) {
+      final rig = _Rig();
+      async.flushMicrotasks();
+      final toasts = rig.container.read(toastsProvider);
+      expect(toasts.map((t) => t.message), [
+        'Viewers can draw on your screen.',
+      ]);
+      expect(toasts.single.severity, AppToastSeverity.info);
+      async.elapse(ToastsController.defaultDuration);
+    });
+  });
+
   test('stopping the share closes the overlay and withdraws consent', () {
     fakeAsync((async) {
       final rig = _Rig();
@@ -231,12 +261,14 @@ void main() {
     });
   });
 
-  test('turning it off from the indicator closes the overlay', () {
+  test('turning the setting off closes the overlay', () {
     fakeAsync((async) {
       final rig = _Rig();
       async.flushMicrotasks();
       unawaited(
-        rig.container.read(screenOverlayControllerProvider.notifier).turnOff(),
+        rig.container
+            .read(voiceSettingsControllerProvider.notifier)
+            .setScreenShareAllowAnnotations(false),
       );
       async.flushMicrotasks();
       expect(rig.active, isFalse);
@@ -287,14 +319,16 @@ void main() {
   });
 
   test(
-    'off Windows a capturer screen number is not trusted, so the primary monitor is used',
+    'off Windows a capturer screen number is not trusted, so every monitor is covered',
     () {
       fakeAsync((async) {
         final rig = _Rig(
           source: const ScreenShareSource(id: 's', name: 'Screen 2'),
         );
         async.flushMicrotasks();
-        expect(rig.overlay.shown, [0]);
+        expect(rig.overlay.shown, [
+          [0, 1],
+        ]);
       });
     },
   );

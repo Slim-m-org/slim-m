@@ -29,6 +29,7 @@ import 'canvas_document.dart';
 import 'canvas_eraser_ring.dart';
 import 'canvas_painters.dart';
 import 'canvas_resize.dart' show minObjectSize;
+import 'canvas_gesture_controller.dart';
 import 'canvas_stroke_drafts.dart';
 import 'selection_painter.dart';
 
@@ -98,6 +99,7 @@ class CanvasSurface extends StatefulWidget {
     this.onDraftPoint,
     this.onDraftEnded,
     this.onDraftCancel,
+    this.gestureController,
   });
 
   final CanvasDocument document;
@@ -170,6 +172,9 @@ class CanvasSurface extends StatefulWidget {
 
   /// Fires when a draft is explicitly cancelled without committing ink.
   final VoidCallback? onDraftCancel;
+
+  /// Lets the owner cancel the stroke or shape being drawn, for an Escape press.
+  final CanvasGestureController? gestureController;
 
   /// Which gesture a pointer draws. Resolving a world point to an object is
   /// the caller's job, over [onErase], so this widget stays free of any
@@ -250,6 +255,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
     _glideTicker = createTicker(_onGlideFrame);
     widget.cursors?.addListener(_onCursorsChanged);
     widget.document.addListener(_onDocumentChanged);
+    widget.gestureController?.attach(_cancelDrawing);
   }
 
   /// Starts the glide ticker on a cursor update. The zero-glide early
@@ -304,6 +310,10 @@ class _CanvasSurfaceState extends State<CanvasSurface>
     if (oldWidget.document != widget.document) {
       oldWidget.document.removeListener(_onDocumentChanged);
       widget.document.addListener(_onDocumentChanged);
+    }
+    if (oldWidget.gestureController != widget.gestureController) {
+      oldWidget.gestureController?.attach(null);
+      widget.gestureController?.attach(_cancelDrawing);
     }
     if (oldWidget.tool != widget.tool || !widget.enabled) {
       _endGestureAfterBuild();
@@ -407,6 +417,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
 
   @override
   void dispose() {
+    widget.gestureController?.attach(null);
     widget.document.removeListener(_onDocumentChanged);
     widget.cursors?.removeListener(_onCursorsChanged);
     _cursorPainter?.disposeLabels();

@@ -36,6 +36,12 @@ const MODULE: Option<&str> = Some("id");
 pub const AUDITED_ROUTES: &[AuditedRoute] = &[
     route(Method::PATCH, "/space/settings", "space.update", None),
     route(Method::PUT, "/space/join-gate", "space.join_gate", None),
+    route(
+        Method::POST,
+        "/space/uplink-test",
+        "space.uplink_test",
+        None,
+    ),
     route(Method::PATCH, "/space/analytics", "space.analytics", None),
     route(Method::PATCH, "/space/retention", "space.retention", None),
     route(Method::PATCH, "/space/canvas-cap", "space.canvas_cap", None),
@@ -184,6 +190,18 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "invite.revoke",
         Some("code"),
     ),
+    route(
+        Method::DELETE,
+        "/space/themes/{theme_id}",
+        "theme.delete",
+        Some("theme_id"),
+    ),
+    route(
+        Method::PUT,
+        "/space/default-theme",
+        "theme.set_default",
+        None,
+    ),
     route(Method::POST, "/emoji", "emoji.create", None),
     route(Method::POST, "/emoji/bulk", "emoji.bulk_create", None),
     route(
@@ -232,6 +250,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         Method::PUT,
         "/space/dock/modules/{id}/schedule-channel",
         "module.schedule_channel",
+        MODULE,
+    ),
+    route(
+        Method::PUT,
+        "/space/dock/modules/{id}/call-audio-channels",
+        "module.call_audio_channels",
         MODULE,
     ),
     route(

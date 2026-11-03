@@ -76,7 +76,6 @@ class _Harness {
             onBringToFront: restacked.add,
             onSendToBack: restacked.add,
             onDeleteSelected: deleted.add,
-            onPasteImageAt: (_) {},
             onAddNoteAt: (_) {},
             onRecenter: () {},
             onToolChanged: (_) {},
@@ -143,7 +142,7 @@ void main() {
     await _openMenu(tester);
     // Not theirs to move, so the right-click misses it and opens the empty-space menu.
     expect(find.text('Lock in place'), findsNothing);
-    expect(find.text('Paste image'), findsOneWidget);
+    expect(find.text('Add note'), findsOneWidget);
   });
 
   testWidgets('a canvas moderator may lock anyone\'s object', (tester) async {

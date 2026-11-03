@@ -32,8 +32,8 @@ struct Shape {
 // What the desktop can host: false with no monitors where it cannot, so Dart never offers the setting.
 bool Supported(std::vector<Monitor>* monitors);
 
-// Opens the overlay over monitor index [monitor]; false when it could not be made.
-bool Show(int monitor);
+// Opens the overlay over every listed monitor index; false when it could not be made.
+bool Show(const std::vector<int>& monitors);
 
 void Draw(std::vector<Shape> shapes);
 

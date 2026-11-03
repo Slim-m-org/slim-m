@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/widgets/input_level_meter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/first_run/widgets/first_run_device_steps.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -75,14 +76,36 @@ void main() {
     );
     await _settle(tester);
 
-    final bar = tester.widget<AppSlider>(
-      find.byWidgetPredicate(
-        (w) => w is AppSlider && w.semanticLabel == 'Input sensitivity',
+    final bar = tester.widget<InputLevelMeter>(find.byKey(inputLevelMeterKey));
+    expect(bar.levelDb, closeTo(-42, 0.5));
+    expect(bar.status, InputLevelStatus.sending);
+    expect(find.textContaining('Join a call'), findsNothing);
+    await _leave(tester);
+  });
+
+  testWidgets('automatic sensitivity moves the line from the preview level', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.input_threshold_auto': true,
+    });
+    final source = FakeMicSource(level: -75);
+    await tester.pumpWidget(
+      wrap(
+        const VoiceSettingsBody(),
+        overrides: _overrides(source, gate: true),
       ),
     );
-    expect(bar.meter, closeTo(inputLevelFraction(-42) * 100, 0.01));
-    expect(bar.meterActive, isTrue);
-    expect(find.textContaining('Join a call'), findsNothing);
+    for (var i = 0; i < 80; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    final meter = tester.widget<InputLevelMeter>(
+      find.byKey(inputLevelMeterKey),
+    );
+    expect(meter.auto, isTrue);
+    expect(meter.onChanged, isNull);
+    expect(meter.thresholdDb, lessThan(-50));
     await _leave(tester);
   });
 

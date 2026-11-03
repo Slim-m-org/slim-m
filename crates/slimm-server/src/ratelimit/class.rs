@@ -87,6 +87,15 @@ classes! {
     /// the rate is elsewhere: the per-object props ceiling, the per-channel
     /// object ceiling, and the viewport limit.
     Canvas,
+    /// Placing objects in a batch, denominated in objects, not requests.
+    ///
+    /// A batch is charged its object count through [`super::RateLimiter::admit_weighted`],
+    /// so a 200-object request costs what 200 single places would against a looser
+    /// bucket: one transaction writes them, which is what makes them cheaper than 200
+    /// requests. The burst of 400 lets two full batches through back to back, and the
+    /// refill of 100 objects a second admits a 600-stroke drawing in a few seconds
+    /// while a sustained loop still waits. A count above the burst is always refused.
+    CanvasBatch,
     /// Canvas pointer-position frames over the WebSocket. Sent far more often
     /// than a typing refresh (a client throttles to roughly 12/second while
     /// the pointer is moving over the canvas), so the budget is sized around
@@ -377,6 +386,7 @@ impl Class {
             Class::InviteCheck => (10.0, 1.0 / 10.0),
             Class::Upload => (10.0, 1.0 / 20.0),
             Class::Canvas => (60.0, 10.0),
+            Class::CanvasBatch => (400.0, 100.0),
             Class::CanvasCursor => (30.0, 15.0),
             // See this variant's own doc comment for how these were sized.
             Class::CanvasStrokePreview => (24_576.0, 12_288.0),

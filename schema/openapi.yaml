@@ -2973,7 +2973,11 @@ paths:
     get:
       operationId: listRoles
       tags: [roles]
-      summary: List every role. Requires MANAGE_ROLES.
+      summary: List every role. Requires MANAGE_ROLES or VIEW_MODERATION_HISTORY.
+      description: >
+        VIEW_MODERATION_HISTORY is the read-only bit for moderation history; it
+        lets a log bot read a role's permission bits without being able to
+        change any role.
       responses:
         "200":
           description: All roles.
@@ -6700,6 +6704,60 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/canvas/objects/batch:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: placeCanvasObjects
+      tags: [canvas]
+      summary: Place many objects on a channel's canvas in one request.
+      description: >
+        For bots that draw many marks. `objects` holds 1 to 200 entries, each
+        exactly what `placeCanvasObject` takes and checked the same way (kind,
+        props size, extent, attachment, `VIEW_CHANNEL` and `USE_CANVAS`, and
+        the timeout refusal). The batch is all or nothing: one invalid object
+        is a 400 or 409 that names its index, and nothing is written. The
+        canvas cap is checked against the whole batch in the same transaction.
+        An id repeated inside one batch is a 400.
+
+
+        Objects take consecutive seqs in array order and each fans out as the
+        same `object_placed` event a single place sends, in that order. Each
+        `id` is an idempotency key as for a single place: a retried batch
+        answers with the stored rows, and an object already placed sends no
+        second event. The request body is at most 1 MiB.
+
+
+        Rate limiting is by object count, not by request: a batch is charged
+        one token per object against its own budget (a burst of 400 and 100
+        objects a second), so a 200-object batch goes through at once and a
+        sustained loop is slowed to that rate with a 429.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CanvasObjectBatch"
+      responses:
+        "201":
+          description: The stored objects in request order, fresh or replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasObjectBatchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/canvas/ops:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -7272,6 +7330,140 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/voice/call-audio:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      operationId: getVoiceCallAudio
+      tags: [voice]
+      summary: Whether a module is hearing this call, and which modules the caller may start.
+      description: >
+        Needs `VIEW_CHANNEL` and `CONNECT` (decision 0105). `session` is null
+        when no module is asking or listening. `startable` lists the modules
+        this caller may turn on here: enabled, approved for call audio, armed
+        for this channel by an admin, the caller holding the permission the
+        module names, and the listener connected; it is empty while a session
+        exists. Someone whose presence is hidden is left out of `included`
+        and `pending` for every viewer but themselves.
+      responses:
+        "200":
+          description: The session and the modules the caller may start.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: requestVoiceCallAudio
+      tags: [voice]
+      summary: Ask everyone in the call to let a module hear it.
+      description: >
+        The caller must be in the call (by LiveKit's own account), the channel
+        armed for the module, the module enabled with call audio approved, the
+        caller must hold the permission the manifest names if it names one,
+        and the listener must be connected and under its session limit (409
+        "busy" otherwise). Their request counts as their own yes; everyone
+        else in the call is asked and has 60 seconds. After a decline, a
+        lapse or a stop the channel answers 429 with `Retry-After` for 60
+        seconds. 501 without a listener configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [module_id]
+              properties:
+                module_id:
+                  type: string
+      responses:
+        "200":
+          description: The session as it stands.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: stopVoiceCallAudio
+      tags: [voice]
+      summary: Stop a module hearing this call, for everyone.
+      description: >
+        Anyone in the call may stop it. A stop starts the same 60 second wait
+        before the channel can be asked again.
+      responses:
+        "204":
+          description: Stopped.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/voice/call-audio/consent:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    put:
+      operationId: answerVoiceCallAudio
+      tags: [voice]
+      summary: Say yes or not now to a module hearing this call.
+      description: >
+        Only someone in the call may answer. A yes includes the caller once
+        everyone has said yes (or at once when it is already on). A no stops
+        it for everyone and never says who. 404 when nothing is being asked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [allow]
+              properties:
+                allow:
+                  type: boolean
+      responses:
+        "200":
+          description: The session as it stands; session is null when the answer ended it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -9564,6 +9756,53 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/uplink-test:
+    get:
+      operationId: getSpaceUplinkTests
+      tags: [space]
+      summary: Read the kept uplink measurements.
+      description: >
+        Gated on MANAGE_SERVER. Newest first, at most 10.
+      responses:
+        "200":
+          description: The kept results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceUplinkTests"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: runSpaceUplinkTest
+      tags: [space]
+      summary: Measure this host's uplink.
+      description: >
+        Gated on MANAGE_SERVER and audited. The server uploads about 40 MB to
+        a speed endpoint (SLIMM_UPLINK_TEST_URL, Cloudflare by default) for
+        at most 20 seconds. Refused with 409 while a call is live or another
+        test is running, and with 429 within a minute of the last result.
+        503 means the endpoint could not be reached.
+      responses:
+        "200":
+          description: The new result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceUplinkTest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /space/link-previews:
     get:
       operationId: getSpaceLinkPreviews
@@ -10169,6 +10408,68 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/call-audio-channels:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getDockModuleCallAudioChannels
+      tags: [space]
+      summary: The voice channels a module may hear.
+      description: Gated on MANAGE_SERVER. The list starts empty.
+      responses:
+        "200":
+          description: The channels.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallAudioChannels"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: setDockModuleCallAudioChannels
+      tags: [space]
+      summary: Choose the voice channels a module may hear.
+      description: >
+        Gated on MANAGE_SERVER. Replaces the list. Voice channels only, never
+        a direct message call; the module's principal must be able to view
+        each one; a non-empty list needs the module's call audio approved
+        (409 otherwise). Every change writes an audit row, and a channel taken
+        off the list stops a session the module has there.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CallAudioChannels"
+      responses:
+        "200":
+          description: The list after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallAudioChannels"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/installed:
     get:
       operationId: listInstalledDockModules
@@ -10593,6 +10894,147 @@ paths:
         "503":
           description: The connection ceiling was reached.
 
+  /space/themes:
+    get:
+      operationId: listSpaceThemes
+      tags: [space]
+      summary: The Space's theme store and its default theme.
+      description: >
+        Readable by every authenticated member. Each theme is the document
+        without picture bytes; `has_picture` says whether
+        `/space/themes/{theme_id}/picture` has one. Decision 0106.
+      responses:
+        "200":
+          description: The store, oldest first, and the default theme's id if one is set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceThemeList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: publishSpaceTheme
+      tags: [space]
+      summary: Publish a theme to the Space's store.
+      description: >
+        Any member may publish. The body is the theme file; the server
+        validates it as the client does (every token, colours, the contrast
+        floors, the picture sniffed from its bytes, at most 2 MiB) and refuses
+        with 400 naming each problem. A Space holds at most 50 themes, then 409.
+        Decision 0106.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpaceThemeFile"
+      responses:
+        "201":
+          description: The theme was published.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceTheme"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/themes/{theme_id}:
+    delete:
+      operationId: deleteSpaceTheme
+      tags: [space]
+      summary: Remove a theme from the store.
+      description: >
+        The author, or a member with MANAGE_SERVER, may remove a theme; anyone
+        else gets 403. Removing the Space default clears the default.
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/themes/{theme_id}/picture:
+    get:
+      operationId: fetchSpaceThemePicture
+      tags: [space]
+      summary: A store theme's backdrop picture.
+      description: Readable by any authenticated member.
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The picture's bytes, as the type sniffed when it was published.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/default-theme:
+    put:
+      operationId: setSpaceDefaultTheme
+      tags: [space]
+      summary: Set or clear the Space's default theme.
+      description: >
+        Requires MANAGE_SERVER. New members and anyone on "Space default" get
+        this theme; a null `theme_id` clears it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetSpaceDefaultThemeRequest"
+      responses:
+        "204":
+          description: Set.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /emoji:
     get:
       operationId: listCustomEmoji
@@ -11275,6 +11717,16 @@ components:
           description: >
             Whether any member, not only holders of CREATE_INVITE, may create
             invites. Absent on older servers, which a client reads as false.
+        module_member_badges:
+          type: boolean
+          description: >
+            Whether module badges show beside names in the member list, for
+            everyone. Off by default; absent on older servers, read as false.
+        module_profile_sections:
+          type: boolean
+          description: >
+            Whether module sections show on profile cards, for everyone. On
+            by default; absent on older servers, read as true.
         canvas_scoped_clear:
           type: boolean
           description: >
@@ -12006,6 +12458,12 @@ components:
         members_can_invite:
           type: boolean
           description: Whether every member may create invites; see `/version`.
+        module_member_badges:
+          type: boolean
+          description: See `/version`.
+        module_profile_sections:
+          type: boolean
+          description: See `/version`.
         welcome_enabled:
           type: boolean
           description: Whether a welcome message is posted when someone joins. Off by default.
@@ -12078,6 +12536,10 @@ components:
         strong_noise_suppression:
           type: boolean
         members_can_invite:
+          type: boolean
+        module_member_badges:
+          type: boolean
+        module_profile_sections:
           type: boolean
         welcome_enabled:
           type: boolean
@@ -12450,6 +12912,35 @@ components:
             Client-advertised: a client reads this and caps its own capture
             parameters, rather than the server inspecting published tracks.
             Settable range is 360 to 2160; the default is 2160.
+    SpaceUplinkTest:
+      type: object
+      required: [id, measured_at, mbit_per_s, bytes, duration_ms]
+      properties:
+        id:
+          type: integer
+          format: int64
+        measured_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds.
+        mbit_per_s:
+          type: number
+          format: double
+        bytes:
+          type: integer
+          format: int64
+          description: Bytes sent; less than 40 MB when the time limit hit first.
+        duration_ms:
+          type: integer
+          format: int64
+    SpaceUplinkTests:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpaceUplinkTest"
     SpaceLinkPreviews:
       type: object
       required: [enabled]
@@ -12714,6 +13205,21 @@ components:
             optional changelog; empty when the module publishes none.
           items:
             $ref: "#/components/schemas/DockChangelogEntry"
+        call_audio:
+          type: object
+          description: >
+            The module's own words about what it does with a call it hears
+            (decision 0105), shown word for word at consent and to everyone in
+            a call; present with the call.audio capability.
+          required: [purpose, keeps]
+          properties:
+            purpose:
+              type: string
+            keeps:
+              type: string
+            permission:
+              type: string
+              description: One of the module's own permission keys a member needs to start a session.
         addon_api:
           type: integer
           description: The add-on API version it declares; absent when it uses none.
@@ -13441,6 +13947,93 @@ components:
             that named none. Absent whenever `status` is `offline`, so a
             member who chose `hidden` leaks nothing here either.
 
+    SpaceThemeFile:
+      type: object
+      required: [format, version, name, base, brightness, tokens]
+      additionalProperties: false
+      description: >
+        A theme file, decision 0106. `tokens` carries all 19 core colours as
+        `#RRGGBB` (only the translucent ones, accentRing, warnSoft and stripe, may be `#AARRGGBB`).
+        `backdrop.picture.data` is base64 of a PNG, JPEG or WebP of at most
+        2 MiB and appears in a file, never in a store listing.
+      properties:
+        format:
+          type: string
+          enum: [slimm-theme]
+        version:
+          type: integer
+          enum: [1]
+        name:
+          type: string
+          description: 1 to 40 characters.
+        author:
+          type: string
+          description: At most 40 characters, display only.
+        base:
+          type: string
+          enum: [dark, light, trueBlack, catppuccin, softDark, forest, halloween]
+        brightness:
+          type: string
+          enum: [light, dark]
+        tokens:
+          type: object
+          additionalProperties:
+            type: string
+        backdrop:
+          type: object
+          additionalProperties: false
+          properties:
+            effect:
+              type: string
+              nullable: true
+              enum: [halloweenWebs]
+            picture:
+              type: object
+              additionalProperties: true
+              description: >
+                `data` (base64), `dim` and `blur` from 0 to 1, and `vignette`.
+                A store listing carries `present: true` instead of `data`.
+    SpaceTheme:
+      type: object
+      required: [id, name, author_name, created_at, has_picture, theme]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        author_id:
+          type: string
+          nullable: true
+          description: Null once the author's account is deleted.
+        author_name:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        has_picture:
+          type: boolean
+        theme:
+          type: object
+          additionalProperties: true
+          description: The theme document, without picture bytes.
+    SpaceThemeList:
+      type: object
+      required: [themes]
+      properties:
+        themes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpaceTheme"
+        default_theme_id:
+          type: string
+          nullable: true
+    SetSpaceDefaultThemeRequest:
+      type: object
+      required: [theme_id]
+      properties:
+        theme_id:
+          type: string
+          nullable: true
     PresenceActivity:
       type: object
       required: [type, title]
@@ -13475,6 +14068,25 @@ components:
             Cover art. Accepted only as `https://i.scdn.co/image/` followed by
             40 lowercase hex characters, with no port, query or fragment;
             anything else is refused with 400. Decision 0056.
+        duration_ms:
+          type: integer
+          format: int64
+          description: >
+            Track length in milliseconds, from 1 to 86400000. Send it with
+            `position_ms` and `position_at` or not at all; a partial set is
+            refused with 400.
+        position_ms:
+          type: integer
+          format: int64
+          description: >
+            Playback position in milliseconds at `position_at`, from 0 to
+            `duration_ms`. Viewers extrapolate from it while the activity
+            stands, so the sender republishes only on a track change, a seek,
+            or a pause, not every poll.
+        position_at:
+          type: integer
+          format: int64
+          description: Epoch milliseconds `position_ms` was sampled.
 
     SetVisibilityRequest:
       type: object
@@ -15509,6 +16121,23 @@ components:
           type: integer
           format: int64
 
+    CanvasObjectBatch:
+      type: object
+      required: [objects]
+      properties:
+        objects:
+          type: array
+          description: 1 to 200 placements, each as for `placeCanvasObject`.
+          items:
+            $ref: "#/components/schemas/CanvasObjectPlacement"
+    CanvasObjectBatchResult:
+      type: object
+      required: [objects]
+      properties:
+        objects:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasObject"
     CanvasObjectPlacement:
       type: object
       required: [id, kind, x, y, w, h, props]
@@ -17963,10 +18592,12 @@ components:
         - $ref: "#/components/schemas/ChannelDeleted"
         - $ref: "#/components/schemas/OverwriteChanged"
         - $ref: "#/components/schemas/CategoryChanged"
+        - $ref: "#/components/schemas/SpaceSettingsChanged"
         - $ref: "#/components/schemas/VoiceActivityChanged"
         - $ref: "#/components/schemas/VoiceParticipantJoined"
         - $ref: "#/components/schemas/VoiceParticipantLeft"
         - $ref: "#/components/schemas/VoiceScreenShareChanged"
+        - $ref: "#/components/schemas/VoiceCallAudioChanged"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -19112,13 +19743,14 @@ components:
       required: [type, role_id]
       description: >
         A role was created, renamed, had its permission bits changed, or was
-        deleted. Carries only the id: the name and the bits are gated behind
-        MANAGE_ROLES over `GET /roles`, and this frame reaches every
-        connection regardless of whether they hold it, since a role's effect
-        on channel visibility is deployment-wide. A receiving client cannot
-        resolve what changed, only that it should re-ask what it is now
-        allowed to do (its own permissions and channel list, and its role
-        list if it manages roles).
+        deleted. Carries the role id and, when the change came through the
+        role routes, its name and member-visible look before and after
+        (name, colour, hoist, mentionable). The permission bits are gated
+        behind MANAGE_ROLES over `GET /roles` and never travel here; this
+        frame reaches every connection regardless of whether they hold it,
+        since a role's effect on channel visibility is deployment-wide. A
+        change with no `change` field (a reorder, a module permission) says
+        only that a client should re-ask what it is now allowed to do.
       properties:
         type:
           type: string
@@ -19130,10 +19762,37 @@ components:
         role_id:
           type: string
           format: uuid
+        change:
+          type: string
+          enum: [created, updated, deleted]
+          description: What happened, when known.
+        name:
+          type: string
+          description: The role's name after the change, or before a delete.
+        before:
+          $ref: '#/components/schemas/RoleLook'
+        after:
+          $ref: '#/components/schemas/RoleLook'
+
+    RoleLook:
+      type: object
+      required: [name, hoist, mentionable]
+      description: A role as a member sees it; never its permission bits.
+      properties:
+        name:
+          type: string
+        color:
+          type: integer
+          format: int64
+          nullable: true
+        hoist:
+          type: boolean
+        mentionable:
+          type: boolean
 
     MemberRoleChanged:
       type: object
-      required: [type, user_id, role_id]
+      required: [type, user_id, role_id, granted]
       description: >
         A role was granted to or revoked from a member. Carries both ids,
         which is no more than `GET /members` already publishes for any
@@ -19154,6 +19813,12 @@ components:
         role_id:
           type: string
           format: uuid
+        granted:
+          type: boolean
+          description: True when the role was granted, false when revoked.
+        role_name:
+          type: string
+          description: The role's name.
 
     ChannelCreated:
       type: object
@@ -19233,6 +19898,17 @@ components:
         type:
           type: string
           enum: [category.changed]
+
+    SpaceSettingsChanged:
+      type: object
+      required: [type]
+      description: >
+        A Space-wide display setting changed. Carries no fields; a receiving
+        client re-reads `/version`, which every member can read.
+      properties:
+        type:
+          type: string
+          enum: [space.settings_changed]
 
     ReportsChanged:
       type: object
@@ -19435,6 +20111,98 @@ components:
           type: string
         is_sharing_screen:
           type: boolean
+
+    CallAudioChannels:
+      type: object
+      required: [channel_ids]
+      properties:
+        channel_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CallAudioSession:
+      type: object
+      nullable: true
+      description: >
+        A module hearing (or asking to hear) a call as text (decision 0105),
+        or null where there is none.
+        `purpose` and `keeps` are the module's own words, shown word for word.
+      required: [module_id, module_name, purpose, keeps, status, asked_by, included, pending, expires_at_ms, full]
+      properties:
+        module_id:
+          type: string
+        module_name:
+          type: string
+        purpose:
+          type: string
+        keeps:
+          type: string
+        status:
+          type: string
+          enum: [asking, "on"]
+        asked_by:
+          type: string
+        included:
+          type: array
+          description: Everyone who said yes, the only people the module hears.
+          items:
+            type: string
+        pending:
+          type: array
+          description: Everyone who has not answered; a joiner stays here, left out, until they say yes.
+          items:
+            type: string
+        expires_at_ms:
+          type: integer
+          format: int64
+          description: When the ask lapses, or the session reaches its four hour limit.
+        full:
+          type: boolean
+          description: The call holds more people than a session can ask; later joiners stay out.
+
+    VoiceCallAudio:
+      type: object
+      required: [session, startable]
+      properties:
+        session:
+          $ref: "#/components/schemas/CallAudioSession"
+        startable:
+          type: array
+          items:
+            type: object
+            required: [module_id, module_name, purpose, keeps]
+            properties:
+              module_id:
+                type: string
+              module_name:
+                type: string
+              purpose:
+                type: string
+              keeps:
+                type: string
+
+    VoiceCallAudioChanged:
+      type: object
+      required: [type, channel_id, state]
+      description: >
+        A call-audio session started, changed or ended (decision 0105).
+        `state` is null once it ends, and `ended` then says how: `declined`,
+        `lapsed`, `stopped`, `call_ended`, `time_limit`, `overload`,
+        `module_disabled`, `channel_removed` or `listener_unavailable`. Never
+        says who declined. Sent to everyone who can view the channel.
+      properties:
+        type:
+          type: string
+          enum: [voice.call_audio]
+        channel_id:
+          type: string
+          format: uuid
+        state:
+          $ref: "#/components/schemas/CallAudioSession"
+        ended:
+          type: string
 
     WatchSession:
       type: object

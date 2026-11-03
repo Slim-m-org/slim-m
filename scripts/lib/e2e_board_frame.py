@@ -12,6 +12,7 @@ from the letterbox under the board in a window tall enough to be set by the
 board's height, and the area is centred above it.
 """
 import json
+import re
 import time
 
 import e2e_labels as L
@@ -47,6 +48,21 @@ def fit_to_board_zoom_one(client):
     assert abs(rect["width"] - SHARED_W) < 1 and rect["height"] >= SHARED_H, \
         f"{client.name}: surface is {rect['width']}x{rect['height']}, not the shared area"
     _dock_insets.pop(client.name, None)
+
+
+_ZOOM_PERCENT = re.compile(r"zoom (\d+) percent")
+
+
+def show_shared_area(client):
+    """Brings the view back to the shared area through the zoom chip.
+
+    A canvas keeps the viewer's pan and zoom across a close and reopen, and the chip frames what is drawn, so this only lands on
+    the shared area (the chip reads 100) when the board has nothing drawn on it.
+    """
+    client.click(L.FIT_VIEW, settle=1.5)
+    percent = int(_ZOOM_PERCENT.search(client.wait_for(L.FIT_VIEW + ", zoom")["t"]).group(1))
+    assert percent == 100, \
+        f"{client.name}: the chip reads {percent}%, so the view is framing drawn content, not the shared area"
 
 
 def set_window(client, width, height):

@@ -74,3 +74,9 @@ Old drawings keep their world coordinates and sit in the middle quarter.
 - A viewer can pan from there and zoom out as far as the whole board.
 - Default tile layout and the follow fallback view stay in shared-area units, so untouched tiles land where they always did.
 - The server never knew the board size, so nothing is migrated.
+
+## Revision: the view is kept for the session
+
+Closing the canvas and reopening it in the same channel now puts the viewer's own pan and zoom back (`CanvasViewMemory`), so "opening a canvas always fits the board" holds only for a viewer who was on the fit.
+Following someone, a focused tile and the personal view still win, and a reload forgets it.
+A tile that appears while the viewer is panned or zoomed away does not move their view: the view is theirs, the same as when they zoom in during a session, and zooming out or panning brings the tile back.

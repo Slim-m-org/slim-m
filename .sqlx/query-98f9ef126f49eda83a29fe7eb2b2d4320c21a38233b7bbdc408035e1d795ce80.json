@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings\n             SET module_member_badges = COALESCE(?, module_member_badges),\n                 module_profile_sections = COALESCE(?, module_profile_sections),\n                 updated_at = ?\n             WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "98f9ef126f49eda83a29fe7eb2b2d4320c21a38233b7bbdc408035e1d795ce80"
+}

@@ -18,7 +18,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/blocks_controller.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/member_presence.dart';
-import '../../../providers/providers.dart';
 import '../providers/user_notes.dart';
 import '../../../routing/routes.dart';
 import 'member_actions.dart';
@@ -35,7 +34,6 @@ import 'member_remove_from_channel.dart';
 import '../../voice/widgets/participant_actions.dart';
 import '../../../widgets/run_guarded.dart';
 import 'member_voice_chip.dart';
-import 'status_editor_sheet.dart';
 
 /// Runs [action] after closing the card, with a container that outlives it.
 typedef CardRun =
@@ -88,7 +86,6 @@ class SelfMemberCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(meProvider).valueOrNull?.statusText ?? '';
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,8 +96,14 @@ class SelfMemberCard extends ConsumerWidget {
           isSelf: true,
           inCallTogether: false,
         ),
-        if (profile.about case final about? when about.isNotEmpty)
-          MemberProfileAbout(about: about),
+        MemberProfileAbout(
+          about: profile.about ?? '',
+          onEdit: () {
+            onDone();
+            memberPaneScaffold?.closeEndDrawer();
+            unawaited(host.push(Routes.personalSettingsAbout()));
+          },
+        ),
         MemberProfileActivity(userId: profile.id),
         MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(
@@ -110,15 +113,6 @@ class SelfMemberCard extends ConsumerWidget {
         ModuleProfileSlots(profile.id),
         const _Rule(),
         _Section([
-          AppMenuItem(
-            label: 'Set status',
-            leading: AppIcons.smile,
-            onTap: () {
-              onDone();
-              memberPaneScaffold?.closeEndDrawer();
-              unawaited(showStatusEditorSheet(host, status));
-            },
-          ),
           AppMenuItem(
             label: 'Profile settings',
             leading: AppIcons.settings,

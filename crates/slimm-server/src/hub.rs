@@ -49,7 +49,7 @@ mod memory_guard;
 mod moderation_seq;
 mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
-pub use event::{CanvasEvent, Event, MessageEvent};
+pub use event::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
@@ -173,11 +173,13 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::VoiceParticipantLeft { .. }
         | Event::VoiceScreenShareChanged { .. }
         | Event::WatchTick { .. }
+        | Event::CallAudioChanged { .. }
         // Ringing, and how a ring ended, changes no permission's answer either.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
         // A category grants and denies nothing (docs/decisions/0006).
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         // A report being filed or resolved changes no permission's answer either.
         | Event::ReportsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
@@ -263,6 +265,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::ChannelUpdated(..)
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         | Event::Canvas(CanvasEvent::ObjectPlaced { .. })
         | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
         | Event::Canvas(CanvasEvent::Cleared { .. })
@@ -277,6 +280,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::VoiceParticipantJoined { .. }
         | Event::VoiceParticipantLeft { .. }
         | Event::VoiceScreenShareChanged { .. }
+        | Event::CallAudioChanged { .. }
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }
@@ -622,10 +626,13 @@ mod epoch_tests {
         for event in [
             Event::RoleChanged {
                 role_id: RoleId::generate(),
+                change: None,
             },
             Event::MemberRoleChanged {
                 user_id: UserId::generate(),
                 role_id: RoleId::generate(),
+                granted: true,
+                role_name: None,
             },
             Event::MemberTimeoutChanged {
                 user_id: UserId::generate(),

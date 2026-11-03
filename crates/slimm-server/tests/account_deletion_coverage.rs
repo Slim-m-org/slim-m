@@ -80,6 +80,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("custom_emoji", "uploader_id", OnDelete::Anonymize),
     ("data_exports", "user_id", OnDelete::Purge),
+    ("space_themes", "author_id", OnDelete::Anonymize),
     ("devices", "user_id", OnDelete::Purge),
     (
         "dm_channels",

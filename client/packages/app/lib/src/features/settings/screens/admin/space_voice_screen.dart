@@ -11,6 +11,7 @@ import '../../../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
 import 'noise_suppression_default_section.dart';
 import 'screen_share_cap_section.dart';
+import 'uplink_test_section.dart';
 
 class SpaceVoiceScreen extends StatelessWidget {
   const SpaceVoiceScreen({super.key});
@@ -31,6 +32,10 @@ class SpaceVoicePane extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [ScreenShareCapSection(), NoiseSuppressionDefaultSection()],
+    children: [
+      ScreenShareCapSection(),
+      NoiseSuppressionDefaultSection(),
+      UplinkTestSection(),
+    ],
   );
 }

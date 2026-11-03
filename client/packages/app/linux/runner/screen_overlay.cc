@@ -5,6 +5,7 @@
 #include <gtk/gtk.h>
 #include <pango/pangocairo.h>
 
+#include <algorithm>
 #include <cmath>
 
 #ifdef GDK_WINDOWING_X11
@@ -39,7 +40,7 @@ constexpr int kEdgeBottom = 3;
 constexpr int kKeyboardNone = 0;
 
 LayerShell g_layer;
-GtkWidget* g_window = nullptr;
+std::vector<GtkWidget*> g_windows;
 std::vector<Shape> g_shapes;
 
 template <typename T>
@@ -185,7 +186,10 @@ void MakeClickThrough(GtkWidget* window) {
 
 void OnRealize(GtkWidget* window, gpointer) { MakeClickThrough(window); }
 
-void OnDestroyed(GtkWidget*, gpointer) { g_window = nullptr; }
+void OnDestroyed(GtkWidget* window, gpointer) {
+  g_windows.erase(std::remove(g_windows.begin(), g_windows.end(), window),
+                  g_windows.end());
+}
 
 GdkMonitor* MonitorAt(int index) {
   GdkDisplay* display = gdk_display_get_default();
@@ -207,27 +211,7 @@ void PlaceOnWayland(GtkWindow* window, GdkMonitor* monitor) {
   }
 }
 
-}  // namespace
-
-bool Supported(std::vector<Monitor>* monitors) {
-  if (!HostsOverlay()) return false;
-  GdkDisplay* display = gdk_display_get_default();
-  int n = gdk_display_get_n_monitors(display);
-  for (int i = 0; i < n; i++) {
-    GdkMonitor* monitor = gdk_display_get_monitor(display, i);
-    GdkRectangle geometry;
-    gdk_monitor_get_geometry(monitor, &geometry);
-    monitors->push_back(
-        {geometry.x, geometry.y, geometry.width, geometry.height,
-         static_cast<bool>(gdk_monitor_is_primary(monitor))});
-  }
-  return !monitors->empty();
-}
-
-bool Show(int monitor_index) {
-  if (!HostsOverlay()) return false;
-  if (g_window != nullptr) gtk_widget_destroy(g_window);
-  GdkMonitor* monitor = MonitorAt(monitor_index);
+void ShowOn(GdkMonitor* monitor) {
   GdkRectangle geometry;
   gdk_monitor_get_geometry(monitor, &geometry);
 
@@ -253,21 +237,51 @@ bool Show(int monitor_index) {
   } else {
     gtk_window_move(GTK_WINDOW(window), geometry.x, geometry.y);
   }
-  g_shapes.clear();
-  g_window = window;
+  g_windows.push_back(window);
   gtk_widget_show_all(window);
+}
+
+}  // namespace
+
+bool Supported(std::vector<Monitor>* monitors) {
+  if (!HostsOverlay()) return false;
+  GdkDisplay* display = gdk_display_get_default();
+  int n = gdk_display_get_n_monitors(display);
+  for (int i = 0; i < n; i++) {
+    GdkMonitor* monitor = gdk_display_get_monitor(display, i);
+    GdkRectangle geometry;
+    gdk_monitor_get_geometry(monitor, &geometry);
+    monitors->push_back(
+        {geometry.x, geometry.y, geometry.width, geometry.height,
+         static_cast<bool>(gdk_monitor_is_primary(monitor))});
+  }
+  return !monitors->empty();
+}
+
+bool Show(const std::vector<int>& monitor_indexes) {
+  if (!HostsOverlay()) return false;
+  Hide();
+  std::vector<int> unique;
+  for (int index : monitor_indexes) {
+    if (std::find(unique.begin(), unique.end(), index) == unique.end()) {
+      unique.push_back(index);
+    }
+  }
+  if (unique.empty()) unique.push_back(0);
+  for (int index : unique) ShowOn(MonitorAt(index));
   return true;
 }
 
 void Draw(std::vector<Shape> shapes) {
   g_shapes = std::move(shapes);
-  if (g_window != nullptr) gtk_widget_queue_draw(g_window);
+  for (GtkWidget* window : g_windows) gtk_widget_queue_draw(window);
 }
 
 void Hide() {
   g_shapes.clear();
-  if (g_window != nullptr) gtk_widget_destroy(g_window);
-  g_window = nullptr;
+  std::vector<GtkWidget*> open = g_windows;
+  for (GtkWidget* window : open) gtk_widget_destroy(window);
+  g_windows.clear();
 }
 
 }  // namespace slimm_overlay

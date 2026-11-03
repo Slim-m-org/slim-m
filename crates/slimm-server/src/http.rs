@@ -32,6 +32,7 @@ pub mod build_id;
 mod canvas;
 mod proxy_hint;
 mod storage_room;
+pub mod uplink_test;
 use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;
 mod categories;
@@ -77,12 +78,13 @@ mod diagnostics;
 mod direct_route;
 mod metrics;
 mod module_breaker;
+pub(crate) mod module_call_audio;
 mod module_caller;
 mod module_commands;
 pub mod module_compat;
-mod module_events;
+pub(crate) mod module_events;
 pub(crate) mod module_hooks;
-mod module_host;
+pub(crate) mod module_host;
 mod module_logs;
 mod module_net;
 mod module_run;
@@ -128,8 +130,10 @@ mod space_banner;
 mod space_icon;
 mod space_link_previews;
 mod space_setup;
+mod space_themes;
 mod still_picture;
 mod storage;
+mod surface_lock;
 mod surface_state;
 mod sync;
 mod sync_ops;
@@ -143,7 +147,7 @@ mod users;
 mod version;
 mod viewable_message;
 mod voice;
-use voice::{voice_calls, voice_ring, voice_rooms, voice_webhook};
+use voice::{voice_call_audio, voice_calls, voice_ring, voice_rooms, voice_webhook};
 mod watch_session;
 mod webhooks;
 mod webhooks_admin;
@@ -224,8 +228,10 @@ pub fn router(state: AppState) -> Router {
         .merge(attachment_limit::routes())
         .merge(media_compression::routes())
         .merge(module_schedule::routes())
+        .merge(module_call_audio::routes())
         .merge(module_hooks::routes())
         .merge(channel_retention::routes())
+        .merge(space_themes::routes())
         .merge(apps::routes())
         .merge(auth::routes())
         .merge(canvas::routes())
@@ -281,6 +287,7 @@ pub fn router(state: AppState) -> Router {
         .merge(space_icon::routes())
         .merge(totp::routes())
         .merge(storage::routes())
+        .merge(uplink_test::routes())
         .merge(sync::routes())
         .merge(read_states::routes())
         .merge(threads::routes())
@@ -292,6 +299,7 @@ pub fn router(state: AppState) -> Router {
         .merge(interaction_forms::routes())
         .merge(message_components::routes())
         .merge(voice::routes())
+        .merge(voice_call_audio::routes())
         .merge(voice_calls::routes())
         .merge(voice_ring::routes())
         .merge(voice_rooms::routes())

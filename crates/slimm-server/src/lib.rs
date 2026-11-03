@@ -8,6 +8,7 @@ mod attachment_text;
 pub mod auth;
 pub mod blobs;
 pub mod bot_ui;
+pub mod call_audio;
 pub mod call_history;
 pub mod canvas_text;
 pub mod capacity;
@@ -37,6 +38,7 @@ pub mod notifications;
 pub use notifications::notification_schedule;
 pub mod permissions;
 pub mod presence;
+pub mod space_theme;
 pub use presence::presence_activity;
 pub use presence::typing;
 pub use presence::viewing;
@@ -168,6 +170,7 @@ pub async fn run() -> anyhow::Result<()> {
     link_previews.set_override(store.link_previews_override().await?);
     let dock = http::dock::Dock::new(&config);
     let code_runner = code_runner::CodeRunner::new(&config)?;
+    let call_audio = call_audio::CallAudio::new(config.listener_settings()?);
     let state = state::AppState {
         store,
         auth,
@@ -180,12 +183,14 @@ pub async fn run() -> anyhow::Result<()> {
         link_previews,
         dock,
         code_runner,
+        call_audio,
     };
     http::module_compat::disable_incompatible(&state).await;
     http::module_schedule::spawn_sweep(state.clone());
     http::module_timers::spawn_sweep(state.clone());
     http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
+    let _call_audio = call_audio::runtime::spawn(state.clone());
     let mut router = http::router(state);
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));

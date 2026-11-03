@@ -7,16 +7,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart' show AppThemeChoice;
 
-String themeLabel(AppThemeChoice choice) => switch (choice) {
-  AppThemeChoice.system => 'System',
-  AppThemeChoice.light => 'Light',
-  AppThemeChoice.dark => 'Dark',
-  AppThemeChoice.trueBlack => 'True black',
-  AppThemeChoice.catppuccin => 'Catppuccin',
-  AppThemeChoice.softDark => 'Soft dark',
-  AppThemeChoice.forest => 'Forest',
-  AppThemeChoice.halloween => 'Halloween',
-};
+export '../providers/theme_labels.dart' show themeLabel;
 
 /// The palette a choice paints with; System shows both of its halves.
 List<Color> themeSwatchColors(AppThemeChoice choice) {
@@ -39,27 +30,38 @@ List<Color> themeSwatchColors(AppThemeChoice choice) {
   return [tokens.surfaceBase, tokens.accent, tokens.textPrimary];
 }
 
+/// Key on the outline, so a test can check it paints over the cells.
+/// Foreground, or the cells cover the edge and a swatch the colour of the
+/// menu loses its outline.
+const themeSwatchOutlineKey = Key('theme_swatch_outline');
+
 class ThemeSwatch extends StatelessWidget {
-  const ThemeSwatch({super.key, required this.choice});
+  const ThemeSwatch({super.key, required this.choice, this.colors});
 
   final AppThemeChoice choice;
+
+  /// Paints these instead of the choice's own, for a theme read from a file.
+  final List<Color>? colors;
 
   static const _cell = 12.0;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final radius = BorderRadius.circular(AppRadii.control / 2);
     return DecoratedBox(
+      key: themeSwatchOutlineKey,
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadii.control / 2),
+        borderRadius: radius,
         border: Border.all(color: tokens.borderStrong),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.control / 2 - 1),
+        borderRadius: radius,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final color in themeSwatchColors(choice))
+            for (final color in colors ?? themeSwatchColors(choice))
               SizedBox.square(
                 dimension: _cell,
                 child: ColoredBox(color: color),

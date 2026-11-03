@@ -1,4 +1,5 @@
 [
+  "{\"after\":{\"color\":3,\"hoist\":true,\"mentionable\":false,\"name\":\"Moderators\"},\"before\":{\"color\":null,\"hoist\":false,\"mentionable\":false,\"name\":\"Mods\"},\"change\":\"updated\",\"name\":\"Moderators\",\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"seq\":\"CLOCK\",\"type\":\"role.changed\"}",
   "{\"author_id\":\"BOB\",\"before_seq\":5,\"channel_id\":\"CHANNEL\",\"kinds\":[\"stroke\"],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":6,\"type\":\"canvas.cleared_scoped\"}",
   "{\"before_seq\":4,\"channel_id\":\"CHANNEL\",\"kinds\":[],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":5,\"spared_count\":1,\"spared_ids\":[\"01900000-0000-7000-8000-000000000002\"],\"type\":\"canvas.cleared_scoped\"}",
   "{\"block_index\":0,\"channel_id\":\"CHANNEL\",\"command\":\"run\",\"message_id\":\"01900000-0000-7000-8000-000000000001\",\"module_id\":\"runner\",\"ok\":true,\"output\":\"hello\",\"ran_at\":1700000000000,\"ran_by\":\"ALICE\",\"type\":\"code_run.changed\"}",
@@ -39,7 +40,7 @@
   "{\"channel_id\":\"CHANNEL\",\"type\":\"voice.participant_left\",\"user_id\":\"BOB\"}",
   "{\"client_kind\":\"linux\",\"device_id\":\"01900000-0000-7000-8000-00000000000c\",\"device_name\":\"laptop\",\"signed_in_at\":1700000000005,\"type\":\"device.signed_in\"}",
   "{\"from_channel_id\":\"CHANNEL\",\"moved_by_id\":\"BOB\",\"moved_by_name\":\"bob\",\"to_channel_id\":\"01900000-0000-7000-8000-00000000000d\",\"to_channel_name\":\"lounge\",\"type\":\"voice.moved\"}",
-  "{\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"seq\":\"CLOCK\",\"type\":\"member.role_changed\",\"user_id\":\"BOB\"}",
+  "{\"granted\":true,\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"role_name\":\"Moderators\",\"seq\":\"CLOCK\",\"type\":\"member.role_changed\",\"user_id\":\"BOB\"}",
   "{\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"seq\":\"CLOCK\",\"type\":\"role.changed\"}",
   "{\"seq\":\"CLOCK\",\"type\":\"member.removed\",\"user_id\":\"01900000-0000-7000-8000-000000000006\"}",
   "{\"seq\":\"CLOCK\",\"type\":\"member.restored\",\"user_id\":\"01900000-0000-7000-8000-000000000007\"}",
@@ -49,5 +50,6 @@
   "{\"type\":\"join_gate.changed\",\"user_id\":\"BOB\"}",
   "{\"type\":\"member.joined\",\"user_id\":\"01900000-0000-7000-8000-000000000008\"}",
   "{\"type\":\"profile.changed\",\"user_id\":\"BOB\"}",
-  "{\"type\":\"reports.changed\"}"
+  "{\"type\":\"reports.changed\"}",
+  "{\"type\":\"space.settings_changed\"}"
 ]

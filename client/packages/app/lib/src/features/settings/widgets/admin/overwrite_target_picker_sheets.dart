@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Shared picker sheets: [ChannelPickerSheet] for `channel_permissions_screen.dart`'s
-/// channel choice, [RolePickerSheet] and [MemberPickerSheet] for adding a
-/// grid column and for `account_recovery_screen.dart`'s member search alike.
+/// channel choice, and [RolePickerSheet] for adding a grid column.
 ///
-/// The role and member sheets watch their provider from inside the sheet
+/// The role sheet watches its provider from inside the sheet
 /// rather than being handed a pre-read list: an autoDispose `FutureProvider`
 /// read once with `ref.read` outside a listener registers no subscriber, so
 /// it can be (and reliably is) torn down mid-fetch, leaving the sheet
@@ -17,20 +16,18 @@
 ///
 /// Each carries a one-line heading, matching every sibling "choose one"
 /// sheet (`camera_source_sheet.dart`, `screen_source_sheet.dart`) - these
-/// three used to open straight into a bare row list, which read as a
+/// these used to open straight into a bare row list, which read as a
 /// floating pill on desktop and gave no on-screen confirmation of what was
 /// being picked on phone.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
 import '../../../channels/providers/dms.dart' show dmChannelKind;
-import '../../../members/providers/member_presence.dart' show membersProvider;
 
 /// The ceiling a resolved list may grow to before it scrolls internally
 /// rather than pushing the sheet past the window - never a size the sheet
@@ -111,88 +108,6 @@ class RolePickerSheet extends ConsumerWidget {
                   ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class MemberPickerSheet extends ConsumerStatefulWidget {
-  const MemberPickerSheet({super.key});
-
-  @override
-  ConsumerState<MemberPickerSheet> createState() => _MemberPickerSheetState();
-}
-
-class _MemberPickerSheetState extends ConsumerState<MemberPickerSheet> {
-  final _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  bool _matches(api.UserProfile member, String needle) =>
-      member.displayName.toLowerCase().contains(needle) ||
-      member.username.toLowerCase().contains(needle);
-
-  @override
-  Widget build(BuildContext context) {
-    final members = ref.watch(membersProvider);
-    final needle = _search.text.trim().toLowerCase();
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: _headingPadding,
-            child: Text('Choose a member', style: AppText.heading),
-          ),
-          Padding(
-            padding: _headingPadding,
-            child: AppInput(
-              controller: _search,
-              placeholder: 'Search members',
-              icon: const Icon(AppIcons.search),
-              semanticLabel: 'Search members',
-              onChanged: (_) => setState(() {}),
-            ),
-          ),
-          AppAsyncView(
-            value: AppAsyncState(
-              data: members.valueOrNull,
-              error: members.error,
-            ),
-            errorMessage: 'Could not load members.',
-            onRetry: () => ref.invalidate(membersProvider),
-            emptyMessage: 'No members yet.',
-            isEmpty: (list) => list.isEmpty,
-            data: (context, list) {
-              final shown = [
-                for (final member in list)
-                  if (needle.isEmpty || _matches(member, needle)) member,
-              ];
-              if (shown.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.all(AppSpacing.s16),
-                  child: Text('No members match.'),
-                );
-              }
-              return _PickerList(
-                children: [
-                  for (final member in shown)
-                    AppListRow(
-                      leading: const Icon(AppIcons.account),
-                      label: member.displayName,
-                      meta: '@${member.username}',
-                      onTap: () => Navigator.of(context).pop(member),
-                    ),
-                ],
-              );
-            },
           ),
         ],
       ),

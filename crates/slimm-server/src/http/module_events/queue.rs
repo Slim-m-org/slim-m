@@ -13,7 +13,7 @@ use super::depths::QueueDepths;
 use crate::ids::{ChannelId, MessageId};
 
 /// Events held per module before the oldest is dropped.
-pub(super) const QUEUE_CAPACITY: usize = 256;
+pub(in crate::http) const QUEUE_CAPACITY: usize = 256;
 
 /// What delivery re-checks before the rendered body is handed over.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -44,7 +44,7 @@ struct State {
     dropped: HashMap<String, u64>,
 }
 
-pub(super) struct Queues {
+pub(in crate::http) struct Queues {
     state: Mutex<State>,
     capacity: usize,
     wake: Notify,
@@ -58,7 +58,7 @@ impl Queues {
     }
 
     /// Queues that report how many events each module has waiting to `depths`.
-    pub(super) fn with_depths(capacity: usize, depths: Arc<QueueDepths>) -> Arc<Self> {
+    pub(in crate::http) fn with_depths(capacity: usize, depths: Arc<QueueDepths>) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::default(),
             capacity,

@@ -23,6 +23,8 @@ import 'call_device_options.dart';
 /// The voice settings pane the menu's last row opens.
 const voiceSettingsPane = 'voice';
 
+const _noiseSuppression = 'Noise suppression';
+
 class MicOptionsMenu extends ConsumerStatefulWidget {
   const MicOptionsMenu({
     super.key,
@@ -50,6 +52,7 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
   List<AudioDevice> _outputs = const [];
   StreamSubscription<void>? _changes;
   late final ValueNotifier<bool> _spaceStrong;
+  final _expanded = <String>{};
 
   @override
   void initState() {
@@ -69,6 +72,11 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
   }
 
   void _rebuild() => setState(() {});
+
+  VoidCallback _toggle(String group) =>
+      () => setState(() {
+        if (!_expanded.remove(group)) _expanded.add(group);
+      });
 
   @override
   void dispose() {
@@ -109,6 +117,8 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
             devices: _inputs,
             selectedId: settings.audioInputDeviceId,
             onPick: notifier.setAudioInputDevice,
+            expanded: _expanded.contains('Microphone'),
+            onToggle: _toggle('Microphone'),
           ),
         if (controller.devices.supportsAudioOutputSelection)
           ...audioDeviceOptions(
@@ -116,19 +126,30 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
             devices: _outputs,
             selectedId: settings.audioOutputDeviceId,
             onPick: notifier.setAudioOutputDevice,
+            expanded: _expanded.contains('Speaker'),
+            onToggle: _toggle('Speaker'),
           ),
         if (controller.input.supportsInputGate) ...[
-          const ControlOptionHeading('Noise suppression'),
-          for (final choice in NoiseSuppressionChoice.offered(
-            supported: ref.watch(strongestSupportedProvider),
-          ))
-            ControlOption(
-              label: noiseSuppressionLabel(choice, spaceStrong: spaceStrong),
-              selected: choice == noise,
-              onSelected: () => unawaited(
-                ref.read(noiseSuppressionProvider.notifier).set(choice),
-              ),
-            ),
+          ...collapsibleOptions(
+            heading: _noiseSuppression,
+            expanded: _expanded.contains(_noiseSuppression),
+            onToggle: _toggle(_noiseSuppression),
+            options: [
+              for (final choice in NoiseSuppressionChoice.offered(
+                supported: ref.watch(strongestSupportedProvider),
+              ))
+                ControlOption(
+                  label: noiseSuppressionLabel(
+                    choice,
+                    spaceStrong: spaceStrong,
+                  ),
+                  selected: choice == noise,
+                  onSelected: () => unawaited(
+                    ref.read(noiseSuppressionProvider.notifier).set(choice),
+                  ),
+                ),
+            ],
+          ),
           const ControlOptionHeading('Input'),
           ControlOption(
             label: 'Automatic sensitivity',

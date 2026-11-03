@@ -21,11 +21,15 @@ use url::{Host, Url};
 pub(crate) fn validate(raw: &str, var_name: &str) -> anyhow::Result<()> {
     let url = Url::parse(raw).with_context(|| format!("{var_name} is not a valid URL: {raw:?}"))?;
     match url.scheme() {
-        "https" => Ok(()),
-        "http" if is_local(url.host()) => Ok(()),
+        "https" | "wss" => Ok(()),
+        "http" | "ws" if is_local(url.host()) => Ok(()),
         "http" => anyhow::bail!(
             "{var_name} ({raw}) uses http:// for a non-local host; \
              use https://, or point it at a loopback or private-range address"
+        ),
+        "ws" => anyhow::bail!(
+            "{var_name} ({raw}) uses ws:// for a non-local host; \
+             use wss://, or point it at a loopback or private-range address"
         ),
         other => anyhow::bail!(
             "{var_name} ({raw}) has an unsupported scheme {other:?}; \
@@ -101,6 +105,15 @@ mod tests {
             validate("http://piston.example.com", "TEST").is_err(),
             "a dotted public-looking name is not a compose service"
         );
+    }
+
+    #[test]
+    fn websocket_schemes_follow_the_same_rule() {
+        assert!(validate("wss://listener.example.com/v1/control", "TEST").is_ok());
+        assert!(validate("ws://listener:9400", "TEST").is_ok());
+        assert!(validate("ws://10.0.0.5:9400", "TEST").is_ok());
+        let err = validate("ws://listener.example.com", "TEST").unwrap_err();
+        assert!(err.to_string().contains("wss://"), "{err}");
     }
 
     #[test]

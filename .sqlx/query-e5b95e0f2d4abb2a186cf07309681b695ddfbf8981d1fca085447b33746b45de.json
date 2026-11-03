@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO uplink_tests (measured_at, mbit_per_s, bytes, duration_ms)\n             VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "e5b95e0f2d4abb2a186cf07309681b695ddfbf8981d1fca085447b33746b45de"
+}

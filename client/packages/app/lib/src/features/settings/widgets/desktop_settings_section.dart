@@ -36,7 +36,7 @@ class _StartupSplashRow extends ConsumerWidget {
         for (final value in SplashDuration.values)
           SettingsChoice(value: value, label: value.label),
       ],
-      sheetFootnote: 'How long the splash shows when the app opens.',
+      description: 'How long the splash shows when the app opens.',
       onChanged: (next) =>
           ref.read(splashDurationControllerProvider.notifier).select(next),
     );

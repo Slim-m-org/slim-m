@@ -18,6 +18,9 @@ import 'package:slimm_rtc/rtc.dart'
 
 export 'src/desktop/startup_state.dart';
 
+import 'src/features/settings/providers/resolved_theme.dart';
+import 'src/features/settings/providers/stored_theme.dart';
+import 'src/features/settings/providers/theme_store.dart';
 import 'src/deep_links.dart';
 import 'src/features/accounts/providers/account_host.dart';
 import 'src/features/accounts/providers/account_host_factory.dart';
@@ -59,6 +62,7 @@ import 'src/widgets/ui_scale_frame.dart';
 import 'src/features/auth/widgets/client_too_old_gate.dart';
 import 'src/features/auth/widgets/server_identity_change_gate.dart';
 import 'src/features/voice/providers/voice_settings_controller.dart';
+import 'src/features/voice/widgets/call_audio_prompt.dart';
 import 'src/features/voice/widgets/incoming_call_overlay.dart';
 import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
@@ -393,12 +397,18 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
   Widget _app() {
     final choice = ref.watch(themeControllerProvider);
     final highContrast = ref.watch(highContrastControllerProvider);
+    final theme = resolveTheme(
+      choice,
+      custom: ref.watch(customThemeProvider),
+      spaceDefault: ref.watch(spaceDefaultThemeProvider),
+    );
+    ref.watch(spaceThemeSyncProvider);
     final lightTokens = highContrast
-        ? applyHighContrast(AppTokens.light)
-        : AppTokens.light;
+        ? applyHighContrast(theme.light)
+        : theme.light;
     final darkTokens = highContrast
-        ? applyHighContrast(_darkTokensFor(choice))
-        : _darkTokensFor(choice);
+        ? applyHighContrast(theme.dark)
+        : theme.dark;
 
     // Watched rather than read: this is what mounts the tap listener, and a
     // notification tap has to reach the router from outside the widget tree.
@@ -411,7 +421,7 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       darkTheme: buildTheme(Brightness.dark, darkTokens),
       // Without this line MaterialApp's own ThemeMode.system default applies,
       // and no choice the user makes can reach the theme; that is what shipped.
-      themeMode: _themeModeFor(choice),
+      themeMode: theme.mode,
       // Theme switching is on the motion spec's never-animates list, and
       // Material lerps it over 200ms by default.
       themeAnimationDuration: Duration.zero,
@@ -486,6 +496,7 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
                     const Positioned.fill(child: WebUpdatePill()),
                     const Positioned.fill(child: AccountCallPill()),
                     const Positioned.fill(child: IncomingCallOverlay()),
+                    const Positioned.fill(child: CallAudioPrompt()),
                   ],
                 ),
               ),
@@ -496,25 +507,3 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     );
   },
 );
-
-ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
-  AppThemeChoice.system => ThemeMode.system,
-  AppThemeChoice.light => ThemeMode.light,
-  AppThemeChoice.dark ||
-  AppThemeChoice.trueBlack ||
-  AppThemeChoice.catppuccin ||
-  AppThemeChoice.softDark ||
-  AppThemeChoice.forest ||
-  AppThemeChoice.halloween => ThemeMode.dark,
-};
-
-/// The dark-family choices are palettes, not modes: each is the dark theme
-/// built from a different token set, so MaterialApp needs no extra dark slot.
-AppTokens _darkTokensFor(AppThemeChoice choice) => switch (choice) {
-  AppThemeChoice.trueBlack => AppTokens.trueBlack,
-  AppThemeChoice.catppuccin => AppTokens.mocha,
-  AppThemeChoice.softDark => AppTokens.soft,
-  AppThemeChoice.forest => AppTokens.forest,
-  AppThemeChoice.halloween => AppTokens.halloween,
-  _ => AppTokens.dark,
-};

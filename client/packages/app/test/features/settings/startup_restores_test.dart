@@ -73,7 +73,10 @@ void main() {
 
       await restoreStartupPreferences(container);
 
-      expect(container.read(themeControllerProvider), AppThemeChoice.system);
+      expect(
+        container.read(themeControllerProvider),
+        AppThemeChoice.spaceDefault,
+      );
       expect(
         container.read(timeFormatControllerProvider),
         TimeFormatPreference.system,

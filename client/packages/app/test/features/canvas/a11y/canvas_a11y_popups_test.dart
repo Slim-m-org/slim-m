@@ -11,7 +11,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'canvas_a11y_probe.dart';
 import 'canvas_a11y_rig.dart';
 
-bool _overflowOpen() => find.text('Paste image').evaluate().isNotEmpty;
+bool _overflowOpen() => find.text('Show activity log').evaluate().isNotEmpty;
 
 void main() {
   group('Escape closes the popup that is open', () {

@@ -44,11 +44,19 @@ sealed class SpotifyPlayback {
 }
 
 class SpotifyPlaying extends SpotifyPlayback {
-  const SpotifyPlaying({required this.title, this.artist, this.artUrl});
+  const SpotifyPlaying({
+    required this.title,
+    this.artist,
+    this.artUrl,
+    this.positionMs,
+    this.durationMs,
+  });
 
   final String title;
   final String? artist;
   final String? artUrl;
+  final int? positionMs;
+  final int? durationMs;
 }
 
 /// Nothing playing, paused, an ad or a podcast episode.
@@ -179,6 +187,12 @@ class SpotifyClient {
       title: title.trim(),
       artist: names.isEmpty ? null : names,
       artUrl: _coverUrl(item['album']),
+      positionMs: json['progress_ms'] is int
+          ? json['progress_ms'] as int
+          : null,
+      durationMs: item['duration_ms'] is int
+          ? item['duration_ms'] as int
+          : null,
     );
   }
 

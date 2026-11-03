@@ -207,6 +207,8 @@ void main() {
         contains('PUT /notifications/schedule/allowed-users/user-noor'),
       );
       expect(wired.scheduleReads, greaterThan(reads));
+      // The picked row's presence dot starts sync, whose retry timer must go.
+      wired.container.dispose();
       await _unmount(tester);
     });
 

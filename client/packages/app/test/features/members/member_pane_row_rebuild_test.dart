@@ -23,6 +23,7 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/features/members/providers/member_selection.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -253,6 +254,7 @@ void main() {
           return api;
         }),
         moduleBadgesClockProvider.overrideWithValue(() => now),
+        moduleMemberBadgesShownProvider.overrideWithValue(true),
         liveEventsProvider.overrideWithValue(events.stream),
         membersProvider.overrideWith((ref) async => members),
         channelMembersProvider.overrideWith((ref, _) async => members),

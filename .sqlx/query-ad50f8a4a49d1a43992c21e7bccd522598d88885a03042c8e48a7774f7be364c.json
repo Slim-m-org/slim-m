@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT module_member_badges AS \"badges!: bool\",\n                      module_profile_sections AS \"sections!: bool\"\n               FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "badges!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "sections!: bool",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ad50f8a4a49d1a43992c21e7bccd522598d88885a03042c8e48a7774f7be364c"
+}

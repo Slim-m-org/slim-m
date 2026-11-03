@@ -198,6 +198,54 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('an older call whose person rejoined at the very end draws', (
+    tester,
+  ) async {
+    final start = DateTime(2026, 10, 12, 21, 4).millisecondsSinceEpoch;
+    final older = api.VoiceCall(
+      startedAt: start,
+      endedAt: start + 91 * _min,
+      events: [
+        api.VoiceCallEvent(
+          at: start,
+          userId: 'kiki',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        api.VoiceCallEvent(
+          at: start + 2 * _min,
+          userId: 'nick',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        api.VoiceCallEvent(
+          at: start + 91 * _min,
+          userId: 'kiki',
+          kind: api.VoiceCallEventKind.left,
+        ),
+        api.VoiceCallEvent(
+          at: start + 91 * _min,
+          userId: 'jelly',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+      ],
+      canvas: const [],
+    );
+    await _pump(
+      tester,
+      onJoin: () {},
+      history: api.VoiceCallHistory(
+        retentionDays: 30,
+        canvasObjectCount: 3,
+        calls: [_history().calls.first, older],
+      ),
+    );
+    await tester.tap(find.bySemanticsLabel(RegExp('^Call on .*, 1 h 31')));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    final nick = tester.getTopLeft(find.text('Nick').first);
+    final kiki = tester.getTopLeft(find.text('Kiki').first);
+    expect(nick.dx, kiki.dx);
+  });
+
   testWidgets('the last call timeline labels never overlap in a narrow pane', (
     tester,
   ) async {
@@ -246,6 +294,26 @@ void main() {
     expect(find.text('Call'), findsOneWidget, reason: 'not the last call');
     expect(find.text('Kiki'), findsNothing, reason: 'Kiki was not on Saturday');
     expect(find.textContaining('3 h 30 min'), findsOneWidget);
+  });
+
+  testWidgets('earlier calls line their columns up', (tester) async {
+    await _pump(tester, onJoin: () {}, history: _history());
+    final wide = tester.getTopLeft(find.text('3 h 30'));
+    final narrow = tester.getTopLeft(find.text('1 h 59'));
+    expect(narrow.dx, wide.dx);
+  });
+
+  testWidgets('a phone still lists earlier calls and opens one', (
+    tester,
+  ) async {
+    await _pump(tester, onJoin: () {}, history: _history(), width: 390);
+    expect(find.text('Last call'), findsOneWidget);
+
+    await tester.tap(find.text('Sat'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Call'), findsOneWidget, reason: 'not the last call');
+    expect(find.textContaining('3 h 30'), findsWidgets);
   });
 
   testWidgets('a failed join shows why, with a retry', (tester) async {

@@ -13,6 +13,16 @@ pub const TEXT_SIZES: [&str; 3] = ["small", "medium", "large"];
 
 const MAX_COLOR_BYTES: usize = 32;
 
+/// A named colour key, or `#rrggbb`.
+fn is_colour(c: &str) -> bool {
+    if let Some(hex) = c.strip_prefix('#') {
+        return hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit());
+    }
+    !c.is_empty()
+        && c.len() <= MAX_COLOR_BYTES
+        && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+
 /// Refuses props a client could not have produced: wrong types, an empty or oversized text, hidden characters, an unknown size.
 ///
 /// A line break is the one control character allowed, since it is what a text box wraps on.
@@ -35,13 +45,30 @@ pub fn check_text_props(props: &Value) -> Result<(), &'static str> {
         return Err("props.size is not a known text size");
     }
     if let Some(color) = props.get("color")
-        && !color.as_str().is_some_and(|c| {
-            !c.is_empty()
-                && c.len() <= MAX_COLOR_BYTES
-                && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
-        })
+        && !color.as_str().is_some_and(is_colour)
     {
-        return Err("props.color is not a colour key");
+        return Err("props.color is not a colour key or #rrggbb");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn text_with(color: Value) -> Result<(), &'static str> {
+        check_text_props(&json!({"text": "hi", "color": color}))
+    }
+
+    #[test]
+    fn a_text_colour_is_a_key_or_a_six_digit_hex() {
+        for ok in ["annotation", "amber", "#ff8800", "#FF8800"] {
+            assert!(text_with(json!(ok)).is_ok(), "{ok}");
+        }
+        for bad in ["", "#fff", "#ff88001", "#gg0000", "a b", "#", "rgb(1,2,3)"] {
+            assert!(text_with(json!(bad)).is_err(), "{bad}");
+        }
+        assert!(text_with(json!(7)).is_err());
+    }
 }

@@ -85,3 +85,15 @@ def cut(container=LIVEKIT_CONTAINER):
 def restore(container=LIVEKIT_CONTAINER):
     """Ends the outage; returns the epoch ms the link came back, give or take the call time."""
     return _stamped(f"tc qdisc del dev {DEVICE} root", container)
+
+
+def limit_uplink(mbit, container=LIVEKIT_CONTAINER):
+    """Polices what the SFU receives to `mbit` Mbit/s, the senders' uplink; drops the excess."""
+    clear_uplink(container)
+    _tc(f"tc qdisc add dev {DEVICE} handle ffff: ingress && "
+        f"tc filter add dev {DEVICE} parent ffff: protocol ip u32 match u32 0 0 "
+        f"police rate {mbit}mbit burst 200k drop", container)
+
+
+def clear_uplink(container=LIVEKIT_CONTAINER):
+    _tc(f"tc qdisc del dev {DEVICE} ingress 2>/dev/null; true", container)

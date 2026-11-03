@@ -26,6 +26,10 @@ int? dockDataMaxMb(Object? json) {
 /// Whether a module's `settings` array declares at least one setting.
 bool dockDeclaresSettings(Object? json) => json is List && json.isNotEmpty;
 
+/// Whether a module's `slots` array declares a `member.badge` slot.
+bool dockDeclaresMemberBadge(Object? json) =>
+    json is List && json.any((s) => s is Map && s['kind'] == 'member.badge');
+
 /// One column of a module's data table: its type and the index flags it asks for.
 class DockDataColumn {
   const DockDataColumn({

@@ -24,6 +24,10 @@
 //! A third thing lives here now: **a bot's managed role**. See
 //! `docs/decisions/0028-bot-accounts.md`.
 
+use std::collections::HashSet;
+
+use sqlx::{QueryBuilder, Row};
+
 use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{DeviceId, RoleId, SessionId, UserId};
 use crate::permissions::Permissions;
@@ -239,6 +243,9 @@ impl Store {
     /// member is always included, even revoked, because it stays on the
     /// roster everywhere else and its authorship may still matter to
     /// whoever is reading this list. See `docs/decisions/0028-bot-accounts.md`.
+    ///
+    /// A module's own principal is left out: it has no token by design, so
+    /// it would read as a revoked bot with nothing the operator can do.
     pub async fn list_bots(&self, include_removed: bool) -> anyhow::Result<Vec<Bot>> {
         let include_removed = i64::from(include_removed);
         let rows = sqlx::query!(
@@ -251,6 +258,9 @@ impl Store {
                  ON t.bot_user_id = u.id AND t.revoked_at IS NULL
                LEFT JOIN roles r ON r.managed_bot_id = u.id
                WHERE u.is_bot = 1 AND u.deleted_at IS NULL
+                 AND NOT EXISTS (
+                   SELECT 1 FROM installed_modules m WHERE m.bot_user_id = u.id
+                 )
                  AND (? = 1 OR NOT EXISTS (
                    SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id
                  ))
@@ -399,6 +409,23 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|r| r.is_bot != 0).unwrap_or(false))
+    }
+
+    /// Which of `users` are bots, in one query; ids that are not bots or do not exist are left out.
+    pub async fn bot_user_ids(&self, users: &[UserId]) -> anyhow::Result<HashSet<UserId>> {
+        if users.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let mut builder = QueryBuilder::new("SELECT id FROM users WHERE is_bot = 1 AND id IN (");
+        let mut separated = builder.separated(", ");
+        for user in users {
+            separated.push_bind(*user);
+        }
+        builder.push(")");
+        let rows = builder.build().fetch_all(&self.pool).await?;
+        rows.iter()
+            .map(|row| Ok(row.try_get::<UserId, _>("id")?))
+            .collect()
     }
 
     /// Whether this user is a bot or a webhook, i.e. posts on its own rather

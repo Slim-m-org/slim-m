@@ -25,6 +25,8 @@
 //! A bot is a role holder like any other; see
 //! `docs/decisions/0028-bot-accounts.md`.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
@@ -39,7 +41,7 @@ use super::extract::require_manage_roles;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{Event, RoleChange};
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -140,11 +142,17 @@ struct UpdateRoleRequest {
 
 // --- Handlers: role CRUD ---
 
+/// Readable by `MANAGE_ROLES`, or by the read-only `VIEW_MODERATION_HISTORY` so a log bot can show what a role change did.
 async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<RoleDto>>, ApiError> {
-    require_manage_roles(&state, ctx.user_id).await?;
+    let base = state.store.base_permissions(ctx.user_id).await?;
+    if base.contains(Permissions::MANAGE_ROLES) {
+        require_manage_roles(&state, ctx.user_id).await?;
+    } else if !base.contains(Permissions::VIEW_MODERATION_HISTORY) {
+        return Err(ApiError::Forbidden);
+    }
     let roles = state.store.list_roles_with_member_counts().await?;
     Ok(Json(roles.into_iter().map(RoleDto::from).collect()))
 }
@@ -200,6 +208,7 @@ async fn create(
     if created.fresh {
         state.hub.publish(Event::RoleChanged {
             role_id: created.id,
+            change: Some(Arc::new(RoleChange::created(&role))),
         });
     }
     // A role this endpoint just created has no holders yet; see the doc above.
@@ -235,7 +244,8 @@ async fn update(
     }
 
     // Read before the write, against granted permissions; see `escalation`.
-    if let Some(current) = state.store.role(role_id).await? {
+    let before = state.store.role(role_id).await?;
+    if let Some(current) = &before {
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
@@ -247,7 +257,12 @@ async fn update(
     match updated {
         Ok(Some(role)) => {
             let role = state.store.role(role.id).await?.ok_or(ApiError::Internal)?;
-            state.hub.publish(Event::RoleChanged { role_id });
+            state.hub.publish(Event::RoleChanged {
+                role_id,
+                change: before
+                    .as_ref()
+                    .map(|b| Arc::new(RoleChange::updated(b, &role))),
+            });
             let member_count = state.store.member_count_for_role(&role).await?;
             Ok(Json(RoleDto::new(role, member_count)))
         }
@@ -271,7 +286,8 @@ async fn delete(
     let role_id = RoleId(parse_uuid(&role_id)?);
 
     // Read before the mutating write; see `update`'s identical note.
-    if let Some(current) = state.store.role(role_id).await? {
+    let before = state.store.role(role_id).await?;
+    if let Some(current) = &before {
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
@@ -280,7 +296,10 @@ async fn delete(
 
     match state.store.delete_role(role_id).await {
         Ok(Some(())) => {
-            state.hub.publish(Event::RoleChanged { role_id });
+            state.hub.publish(Event::RoleChanged {
+                role_id,
+                change: before.as_ref().map(|b| Arc::new(RoleChange::deleted(b))),
+            });
             Ok(StatusCode::NO_CONTENT)
         }
         Ok(None) => Err(ApiError::NotFound("role not found")),
@@ -312,9 +331,12 @@ async fn assign(
     escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
 
     if state.store.assign_role(user_id, role_id).await? {
-        state
-            .hub
-            .publish(Event::MemberRoleChanged { user_id, role_id });
+        state.hub.publish(Event::MemberRoleChanged {
+            user_id,
+            role_id,
+            granted: true,
+            role_name: Some(role.name.clone()),
+        });
     }
     Ok(StatusCode::NO_CONTENT)
 }
@@ -337,16 +359,20 @@ async fn unassign(
     let user_id = UserId(parse_uuid(&user_id)?);
     let role_id = RoleId(parse_uuid(&role_id)?);
 
-    if let Some(role) = state.store.role(role_id).await? {
+    let role = state.store.role(role_id).await?;
+    if let Some(role) = &role {
         escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
     }
 
     match state.store.unassign_role(user_id, role_id).await {
         Ok(removed) => {
             if removed {
-                state
-                    .hub
-                    .publish(Event::MemberRoleChanged { user_id, role_id });
+                state.hub.publish(Event::MemberRoleChanged {
+                    user_id,
+                    role_id,
+                    granted: false,
+                    role_name: role.map(|r| r.name),
+                });
             }
             Ok(StatusCode::NO_CONTENT)
         }

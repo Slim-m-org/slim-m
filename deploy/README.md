@@ -154,6 +154,48 @@ It also carries a `build_id`, the short git SHA the image was built from, which 
 A build made without one (a local `cargo run`, or `docker build` with no `SLIMM_BUILD_ID` build arg) leaves the field out.
 Without the voice overlay it simply has no SFU, which is the expected answer rather than a fault.
 
+## Call audio (optional, off by default)
+
+A module with the `call.audio` power can turn a voice call into text.
+It never gets the audio.
+A separate service, the listener, joins the call as a hidden participant that can only listen, turns the speech of people who agreed into text on this machine, and hands the text to the server (decision 0105).
+Nothing is sent to a cloud engine, and no audio is written to disk.
+
+The listener is for a server that already has voice.
+To turn it on:
+
+1. Generate a secret: `openssl rand -hex 32`. Put it in `.env` as `SLIMM_LISTENER_SECRET`.
+2. Set `SLIMM_LISTENER_URL=ws://listener:9400` in `.env`.
+3. Set `COMPOSE_PROFILES=listener` and run `docker compose up -d`.
+4. In Settings, Modules, install a module that asks for call audio, then pick the voice channels it may hear.
+
+### The speech model
+
+The first start downloads `ggml-base.bin` (about 148 MB) once from Hugging Face into the `listener_models` volume and checks it against a pinned sha256.
+That download is the only traffic the listener makes of its own, and it carries no audio.
+To avoid it, put the file at `/models/ggml-base.bin` in that volume first.
+`WHISPER_LANGUAGE` sets a language (`en`, `de`, ...); the default detects each utterance.
+
+### CPU and memory
+
+Transcription runs on the CPU, on `LISTENER_THREADS` worker threads (default 4), one utterance at a time each.
+It uses no CPU while no call is being heard.
+Plan for four cores and 1.5 GB of memory with the base model.
+Four people talking at once peaked at 964 MiB, so the compose limit is 1536M.
+If it cannot keep up, it drops the oldest speech it has not transcribed, and ends the session after two minutes of that.
+`LISTENER_MAX_SESSIONS` (default 2) is how many calls it hears at once; a request past that is told the listener is busy.
+
+### Pointing it at LiveKit
+
+The listener dials LiveKit itself, with a token the server mints.
+If the public LiveKit address goes through a proxy, send the listener to the LAN address instead:
+
+```
+SLIMM_LISTENER_LIVEKIT_URL=ws://livekit:7880
+```
+
+When this is unset the listener uses the address clients use.
+
 ## Backups (optional)
 
 Litestream is off by default because it needs a real S3-compatible bucket.
@@ -269,26 +311,33 @@ Both sides of each mapping follow the variable, so changing it in `.env` is enou
 The `livekit` service carries a Docker `HEALTHCHECK` too, same as the server and Caddy: a plain `GET /` against its own signaling port, which LiveKit answers `OK` to with no auth needed.
 `docker compose ps` reports its real state, so a LiveKit that starts and then crashloops shows `unhealthy` there rather than looking identical to a working one - see "Monitoring" below for the incident this closes.
 
-### TURN/TLS, and why it is not on 443
+### TURN/TLS needs 443 and a router that splits it by name
 
-TURN/TLS (`turns:`) is off by default, and when you turn it on it does not go on 443.
-Caddy already owns 443 for the API and LiveKit signaling domains, and TURN is not an HTTP protocol Caddy can multiplex onto that port alongside them.
-LiveKit's TURN/TLS listener gets 5349 instead, the IANA default for `turns:`.
+TURN/TLS (`turns:`) is off by default.
+Plain UDP TURN on 3478 already covers ordinary home and NAT networks; TURN/TLS is only for a client on a network that allows nothing but outbound 443.
 
-The consequence is worth stating plainly: a client on a network so locked down that only outbound 443 is allowed cannot use TURN/TLS to escape it, because it is not on 443 here.
-That is an accepted trade-off for a friend-group deployment, and plain UDP TURN on 3478 already covers ordinary home and NAT networks.
+LiveKit always tells clients to reach TURN/TLS at `turns:<turn.domain>:443?transport=tcp`, whatever `tls_port` says (`pkg/service/roommanager.go` in livekit-server 1.13).
+`tls_port` is only the port LiveKit itself listens on, so something on 443 has to hand TURN connections to it.
+Caddy already owns 443 here, and stock Caddy cannot route a non-HTTP TLS connection by name, so TURN/TLS needs one of these in front:
 
-Its listener also needs a certificate of its own.
-It cannot borrow Caddy's, because Caddy's ACME storage layout is not a stable path to mount from.
+- a TCP router that splits 443 by SNI, such as Traefik's `HostSNI` TCP router, nginx `stream` with `ssl_preread`, or Caddy built with the layer4 module;
+- or a second public address whose 443 goes straight to LiveKit.
 
-To enable it: point a third DNS name at this host (`turn.example.com`, say), obtain a certificate and key for it by whatever means you like, mount them into the `livekit` container, uncomment the `- "5349:5349"` port line in `docker-compose.voice.yml`, and add these four keys under the existing `turn:` block in `LIVEKIT_CONFIG`:
+A `tls_port` that is reachable but not on 443 does nothing: clients never try it, gather no relay candidate, and a relay-only join times out.
+
+With an SNI router, the simplest setup lets the router terminate TLS and pass plain TCP to LiveKit.
+Point a third DNS name at this host (`turn.example.com`, say) with no CDN proxy in front of it, route that name on 443 to the `livekit` container's `tls_port`, and add these keys under the existing `turn:` block in `LIVEKIT_CONFIG`:
 
 ```yaml
           domain: turn.example.com
           tls_port: 5349
-          cert_file: /etc/livekit/turn.crt
-          key_file: /etc/livekit/turn.key
+          external_tls: true
 ```
+
+If LiveKit should terminate TLS itself instead, leave out `external_tls`, mount a certificate and key for that name into the container, add `cert_file` and `key_file`, and have the router pass the connection through untouched.
+The relay ports (`relay_range_start`/`relay_range_end`, published and forwarded like the media range) apply to TURN/TLS exactly as to UDP TURN.
+
+The live slim-m deployment runs Traefik with the TURN router on both 443 and 5349; a relay-only browser join there connected in about 1.4 s on 2026-11-03 ([prod-voice-topology.md](../docs/prod-voice-topology.md)).
 
 If LiveKit exits at startup with `could not resolve external IP`, that is your host's DNS, not your firewall.
 Ubuntu and Fedora run systemd-resolved, whose `/etc/resolv.conf` names a `127.0.0.53` stub that does not exist inside a container, and LiveKit needs one hostname resolved to discover the address peers must reach it on.

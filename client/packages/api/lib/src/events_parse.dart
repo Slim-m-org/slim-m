@@ -10,6 +10,7 @@ ServerEvent? coreFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'hello' => HelloEvent(protocol: decoded['protocol'] as int? ?? 0),
     'category.changed' => const CategoryChanged(),
+    'space.settings_changed' => const SpaceSettingsChanged(),
     'reports.changed' => const ReportsChanged(),
     'pong' => const PongEvent(),
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
@@ -313,6 +314,16 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         userId: decoded['user_id'] as String,
         isSharingScreen: decoded['is_sharing_screen'] as bool,
+      ),
+    'voice.call_audio'
+        when decoded['channel_id'] is String &&
+            (decoded['state'] == null || decoded['state'] is Map) =>
+      VoiceCallAudioChanged(
+        channelId: decoded['channel_id'] as String,
+        state: decoded['state'] == null
+            ? null
+            : CallAudioState.fromJson(decoded['state'] as Map<String, dynamic>),
+        ended: decoded['ended'] as String?,
       ),
     'watch.tick'
         when decoded['channel_id'] is String &&

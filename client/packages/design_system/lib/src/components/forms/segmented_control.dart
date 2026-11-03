@@ -18,6 +18,7 @@ class AppSegmentedOption {
   const AppSegmentedOption({
     required this.label,
     this.disabled = false,
+    this.disabledReason,
   });
 
   final String label;
@@ -29,6 +30,9 @@ class AppSegmentedOption {
   /// looking available and reports it as a button to assistive tech, so the
   /// only feedback for an unavailable choice is that nothing happens.
   final bool disabled;
+
+  /// Said on hover over a [disabled] option, for the pointer that cannot tap it.
+  final String? disabledReason;
 }
 
 class AppSegmentedControl extends StatelessWidget {
@@ -79,7 +83,7 @@ class AppSegmentedControl extends StatelessWidget {
     final option = options[index];
     final selected = index == selectedIndex;
 
-    return FocusableTapTarget(
+    final segment = FocusableTapTarget(
       onTap: option.disabled ? null : () => onSegmentSelected(index),
       enabled: !option.disabled,
       selected: selected,
@@ -114,5 +118,7 @@ class AppSegmentedControl extends StatelessWidget {
         );
       },
     );
+    final reason = option.disabled ? option.disabledReason : null;
+    return reason == null ? segment : Tooltip(message: reason, child: segment);
   }
 }

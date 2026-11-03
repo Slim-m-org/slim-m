@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+# Its own workspace: libwebrtc is a large prebuilt download for glibc and must not touch the server's static musl build (decision 0105).
+[workspace]
+
+[package]
+name = "slimm-listener"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+repository = "https://github.com/Slim-m-org/slim-m"
+description = "slim-m call-audio listener: joins a call as a hidden listener and turns the speech of people who agreed into text"
+
+[features]
+default = ["livekit-room", "whisper"]
+# The real LiveKit room (libwebrtc); off for tests that use a fake RoomSource.
+livekit-room = ["dep:livekit"]
+# whisper.cpp; off for tests that use a fake Transcriber.
+whisper = ["dep:whisper-rs"]
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.8", features = ["ws"] }
+futures-util = "0.3"
+# Released 2026-10-12, more than two weeks before this was pinned.
+livekit = { version = "=0.9.5", optional = true, default-features = false, features = ["native", "rustls-tls-webpki-roots"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "time", "sync"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+whisper-rs = { version = "0.16", optional = true }
+
+[dev-dependencies]
+base64 = "0.22"
+hmac = "0.12"
+sha2 = "0.10"
+tokio = { version = "1", features = ["test-util"] }
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect"] }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

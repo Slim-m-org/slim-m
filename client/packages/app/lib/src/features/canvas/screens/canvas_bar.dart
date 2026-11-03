@@ -28,6 +28,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../members/widgets/member_list_toggle.dart';
 import '../../voice/widgets/call_header_facts.dart';
+import 'canvas_chat_toggle.dart';
 
 class CanvasBar extends ConsumerWidget {
   const CanvasBar({super.key, required this.channelId, this.trailing});
@@ -40,14 +41,23 @@ class CanvasBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final isDm =
-        ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind == 'dm';
+    final kind = ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind;
+    final isDm = kind == 'dm';
     final phoneControls = this.trailing;
     // The member list docks beside the canvas too, so its toggle lives here as it does on the channel header.
+    final members = !isDm && MemberListToggle.fits(context);
+    // A DM's own conversation already holds its text; only a voice channel's chat is out of reach from here.
+    final chat = kind == 'voice' && phoneControls == null;
     final trailing =
         phoneControls ??
-        (!isDm && MemberListToggle.fits(context)
-            ? const MemberListToggle()
+        (members || chat
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (chat) CanvasChatToggle(channelId: channelId),
+                  if (members) const MemberListToggle(),
+                ],
+              )
             : null);
     final line = CallHeaderLine(
       channelId: channelId,

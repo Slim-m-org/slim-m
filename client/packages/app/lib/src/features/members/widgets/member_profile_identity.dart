@@ -22,15 +22,27 @@ String formatJoinDate(int createdAtMs) {
   return 'Joined ${_shortMonths[dt.month - 1]} ${dt.year}';
 }
 
-/// A short "about" paragraph under the status line.
+/// The member's own "About" text, labelled so it is not read as their typed
+/// status, which sits beside the presence word above. [onEdit] adds a pencil
+/// on your own card; with no text it becomes a prompt to write one.
 class MemberProfileAbout extends StatelessWidget {
-  const MemberProfileAbout({super.key, required this.about});
+  const MemberProfileAbout({super.key, required this.about, this.onEdit});
 
   final String about;
+
+  /// Opens the field this text is edited in; null on someone else's card.
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final body = Text(
+      about.isEmpty ? 'Write a short bio' : about,
+      style: AppText.caption.copyWith(
+        color: tokens.textSecondary,
+        fontStyle: about.isEmpty ? FontStyle.italic : null,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -38,9 +50,32 @@ class MemberProfileAbout extends StatelessWidget {
         AppSpacing.s16,
         AppSpacing.s12,
       ),
-      child: Text(
-        about,
-        style: AppText.caption.copyWith(color: tokens.textSecondary),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 2,
+              children: [
+                Text(
+                  'ABOUT',
+                  style: AppText.label.copyWith(color: tokens.textSecondary),
+                ),
+                body,
+              ],
+            ),
+          ),
+          if (onEdit != null)
+            AppIconButton(
+              icon: AppIcons.edit,
+              iconSize: AppSizes.icon16,
+              semanticLabel: 'Edit about',
+              tooltip: 'Edit about',
+              size: AppIconButtonSize.sm,
+              onPressed: onEdit,
+            ),
+        ],
       ),
     );
   }

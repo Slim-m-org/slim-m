@@ -21,6 +21,7 @@ import '../../../routing/routes.dart';
 import '../widgets/compact_channel_app_bar.dart';
 import '../widgets/channel_header.dart';
 import '../../canvas/screens/canvas_pane.dart';
+import '../../canvas/screens/canvas_chat_toggle.dart' show canvasChatDocks;
 import 'unlisted_channel.dart';
 import 'channel_screen.dart';
 import '../../voice/screens/dm_call_pane.dart';
@@ -98,6 +99,7 @@ class ConversationPane extends ConsumerWidget {
     final body = AppFadeIn(
       key: ValueKey('pane-$stage'),
       child: _pane(
+        context: context,
         canvasOpen: canvasOpen,
         isLobby: isLobby,
         isVoice: isVoice,
@@ -152,14 +154,23 @@ class ConversationPane extends ConsumerWidget {
     return 'text';
   }
 
+  /// A voice channel's canvas docks the channel's chat beside it where there
+  /// is room, as the call does; narrower, the canvas's own toggle sheets it.
+  Widget _canvas(BuildContext context, {required bool isVoice}) {
+    final canvas = CanvasPane(channelId: channelId);
+    if (!isVoice || !canvasChatDocks(context)) return canvas;
+    return VoiceCallWithChatPane(channelId: channelId, call: canvas);
+  }
+
   Widget _pane({
+    required BuildContext context,
     required bool canvasOpen,
     required bool isLobby,
     required bool isVoice,
     required bool dmCallOpen,
     required bool caretOnOpen,
   }) {
-    if (canvasOpen) return CanvasPane(channelId: channelId);
+    if (canvasOpen) return _canvas(context, isVoice: isVoice);
     if (isLobby) return VoiceLobbyRedirect(lobbyId: channelId);
     if (isVoice) return VoiceScreen(channelId: channelId, openChat: openChat);
     if (dmCallOpen) return DmCallPane(channelId: channelId);

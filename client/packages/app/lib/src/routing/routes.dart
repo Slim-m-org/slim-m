@@ -14,6 +14,12 @@ const _openChatQuery = 'chat';
 /// the same reason as [_openChatQuery].
 const settingsPaneQuery = 'pane';
 
+/// The query key that asks a settings pane to focus one of its fields.
+const settingsFocusQuery = 'focus';
+
+/// The value of [settingsFocusQuery] for the profile pane's About field.
+const settingsFocusAbout = 'about';
+
 /// The id of the personal settings pane that lists signed-in devices.
 const accountDevicesPane = 'account-devices';
 
@@ -30,6 +36,10 @@ abstract final class Routes {
   static String personalSettingsPane(String paneId) =>
       '$personalSettings?$settingsPaneQuery=$paneId';
   static const spaceSettings = '/settings/space';
+
+  /// The profile pane, with the About field focused.
+  static String personalSettingsAbout() =>
+      '${personalSettingsPane('profile')}&$settingsFocusQuery=$settingsFocusAbout';
 
   /// [spaceSettings] opened on one pane; see [settingsPaneQuery].
   static String spaceSettingsPane(String paneId) =>

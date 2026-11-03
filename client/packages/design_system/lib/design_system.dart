@@ -6,6 +6,8 @@
 /// rather than every widget.
 library;
 
+export 'src/app_background.dart';
+export 'src/app_background_policy.dart';
 export 'src/app_fade_in.dart';
 export 'src/app_haptics.dart';
 export 'src/app_icons.dart';
@@ -14,12 +16,15 @@ export 'src/app_motion.dart';
 export 'src/app_theme.dart';
 export 'src/app_tokens.dart';
 export 'src/app_typography.dart';
+export 'src/brand_logo.dart';
 export 'src/colour_contrast.dart';
 export 'src/colour_hex.dart';
+export 'src/custom_theme.dart';
 export 'src/components/core.dart';
 export 'src/components/forms.dart';
 export 'src/components/surfaces.dart';
 export 'src/high_contrast.dart';
+export 'src/mention_colours.dart';
 export 'src/theme_backdrop.dart';
 export 'src/stable_index.dart';
 export 'src/text_context_menu.dart';

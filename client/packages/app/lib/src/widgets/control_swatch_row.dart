@@ -21,6 +21,7 @@ class ControlSwatch {
     this.color,
     this.lineWidth,
     this.mark,
+    this.disabledReason,
   }) : assert(
          (color == null ? 0 : 1) +
                  (lineWidth == null ? 0 : 1) +
@@ -42,6 +43,9 @@ class ControlSwatch {
   /// Draws this widget as it is, for a choice neither a colour nor a width
   /// describes, such as an emoji.
   final Widget? mark;
+
+  /// Dims the tile and says why it cannot be picked; null leaves it live.
+  final String? disabledReason;
 }
 
 /// A [heading] and its [swatches] on a single line.
@@ -108,15 +112,21 @@ class _SwatchTileState extends State<_SwatchTile> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final swatch = widget.swatch;
+    final reason = swatch.disabledReason;
     return Tooltip(
-      message: swatch.label,
+      message: reason == null ? swatch.label : '${swatch.label}: $reason',
       excludeFromSemantics: true,
       child: Semantics(
         label: swatch.label,
         button: true,
         selected: swatch.selected,
+        enabled: reason == null,
+        hint: reason,
         child: FocusableActionDetector(
-          mouseCursor: SystemMouseCursors.click,
+          enabled: reason == null,
+          mouseCursor: reason == null
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.forbidden,
           onShowHoverHighlight: (v) => setState(() => _hovered = v),
           onShowFocusHighlight: (v) => setState(() => _focused = v),
           actions: {
@@ -126,7 +136,7 @@ class _SwatchTileState extends State<_SwatchTile> {
           },
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: _select,
+            onTap: reason == null ? _select : null,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 1),
               decoration: BoxDecoration(
@@ -142,7 +152,12 @@ class _SwatchTileState extends State<_SwatchTile> {
                     )
                   : null,
               alignment: Alignment.center,
-              child: ExcludeSemantics(child: _mark(tokens)),
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: reason == null ? 1 : 0.4,
+                  child: _mark(tokens),
+                ),
+              ),
             ),
           ),
         ),

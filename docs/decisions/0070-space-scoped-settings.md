@@ -66,6 +66,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Screen share quality, audio, receive quality, pause video | `slimm.voice.*` | Device | bandwidth and the machine |
 | Participant volumes | `slimm.voice.participant_*volumes` | Device | already keyed by server-issued user ids |
 | UI scale | `slimm.appearance.ui_scale` | Device | the display |
+| Background picture, dim, vignette, blur, tone | `slimm.appearance.background.*` | Device | the picture's bytes live on this device |
 | Motion, high contrast | `slimm.appearance.motion`, `.high_contrast` | Device | accessibility needs follow the person's eyes and OS, not the community |
 | Image cache limit, preview quality, message page size | `slimm.performance.*` | Device | memory and bandwidth |
 | Splash on and duration | `slimm.performance.desktop_splash_*` | Device | startup of the app |
@@ -86,3 +87,5 @@ A key not in `spaceScopedKeys` is device-wide.
 - Haptics is Space-scoped with the sounds, though it describes the phone.
 - Media auto-download and GIF autoplay are Space-scoped as message display; the image cache, preview quality and page size stay device-wide as memory and bandwidth.
 - The first Space started from the old values and a Space added later inherits them too, rather than starting from the app defaults.
+
+Module badges in the member list and module sections on profile cards moved out of this table: they are now Space-wide admin settings (Space settings > Modules) that apply to everyone.

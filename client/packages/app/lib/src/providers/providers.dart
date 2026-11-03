@@ -430,6 +430,12 @@ enum AppThemeChoice {
   softDark,
   forest,
   halloween,
+
+  /// The Space's default theme, or [system] while it has none.
+  spaceDefault,
+
+  /// A theme from a file or the Space store, kept on this device.
+  custom,
 }
 
 /// The stored appearance choice.
@@ -443,7 +449,7 @@ class ThemeController extends EnumPreferenceController<AppThemeChoice> {
     : super(
         storageKey: themeChoiceKey,
         choices: AppThemeChoice.values,
-        fallback: AppThemeChoice.system,
+        fallback: AppThemeChoice.spaceDefault,
       );
 }
 

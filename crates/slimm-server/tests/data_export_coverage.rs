@@ -61,6 +61,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ("channels", "room_owner_id", Fate::Excluded(SPACE_RECORD)),
     ("code_runs", "ran_by", Fate::Excluded(BOT_CONFIG)),
     ("custom_emoji", "uploader_id", Fate::Excluded(SPACE_RECORD)),
+    ("space_themes", "author_id", Fate::Excluded(SPACE_RECORD)),
     (
         "data_exports",
         "user_id",

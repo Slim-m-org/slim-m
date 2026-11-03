@@ -52,6 +52,7 @@ import 'screen_share_audio.dart' as rtc_share_audio;
 import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
 import 'speaking_hold.dart';
+import 'start_bitrate_room.dart';
 import 'strong_noise_suppression.dart';
 import 'track_stats_summary.dart';
 import 'video_quality.dart';
@@ -177,8 +178,8 @@ class VoiceSession
   /// subscribed, at the size shown, so several video tiles do not cost the
   /// same as all at full size, plus whatever microphone/speaker Voice
   /// Settings has chosen; see [VoiceSessionAudioDevices].
-  lk.Room _buildRoom() => lk.Room(
-        roomOptions: _audioSwitching.roomOptions(receiveRoomOptions()),
+  lk.Room _buildRoom() => buildRoomWithStartBitrate(
+        _audioSwitching.roomOptions(receiveRoomOptions()),
       );
 
   late final RoomFactory _roomFactory;

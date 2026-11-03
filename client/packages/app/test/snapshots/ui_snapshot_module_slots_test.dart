@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/module_profile_slots.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/features/members/widgets/module_profile_slots.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -173,6 +174,7 @@ void main() {
           dark,
           ProviderScope(
             overrides: [
+              moduleMemberBadgesShownProvider.overrideWithValue(true),
               sessionProvider.overrideWithValue(
                 api.SessionStore(tokens: _tokens),
               ),

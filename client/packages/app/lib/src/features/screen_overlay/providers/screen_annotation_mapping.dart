@@ -41,36 +41,41 @@ Offset fromNormalised(Offset normalised, Rect content) => Offset(
   content.top + normalised.dy * content.height,
 );
 
-/// The monitor a share most likely covers.
+/// The monitors a share may cover, as indexes into [monitors].
 ///
 /// [screenNumber] is the capturer's own 1-based "Screen N", trusted only where
-/// the platform lists real monitors in order. Otherwise the monitor whose
-/// shape best matches the captured size wins, and the primary monitor breaks
-/// a tie. Returns an index into [monitors].
-int pickSharedMonitor(
+/// the platform lists real monitors in order. Otherwise every monitor whose
+/// shape matches the captured size is a candidate, and every monitor is one
+/// when the size is unknown: Wayland never says which monitor the portal
+/// picked and reports no primary, so guessing one would draw on the wrong screen.
+List<int> pickSharedMonitors(
   List<OverlayMonitor> monitors, {
   int? screenNumber,
   Size? capturedSize,
 }) {
-  if (monitors.isEmpty) return 0;
+  if (monitors.isEmpty) return const [0];
   if (screenNumber != null &&
       screenNumber >= 1 &&
       screenNumber <= monitors.length) {
-    return screenNumber - 1;
+    return [screenNumber - 1];
   }
-  final primary = math.max(0, monitors.indexWhere((m) => m.primary));
-  if (capturedSize == null || capturedSize.isEmpty) return primary;
+  final all = [for (var i = 0; i < monitors.length; i++) i];
+  if (capturedSize == null || capturedSize.isEmpty) return all;
   final want = capturedSize.width / capturedSize.height;
-  var best = primary;
-  var bestGap = (monitors[primary].aspect - want).abs();
-  for (var i = 0; i < monitors.length; i++) {
-    final gap = (monitors[i].aspect - want).abs();
-    if (gap < bestGap - 0.01) {
-      best = i;
-      bestGap = gap;
-    }
-  }
-  return best;
+  final gaps = [for (final m in monitors) (m.aspect - want).abs()];
+  final best = gaps.reduce(math.min);
+  return [
+    for (final i in all)
+      if (gaps[i] <= best + 0.01) i,
+  ];
+}
+
+/// The shape every monitor in [covered] shares, or null when they differ and the shared one is unknown.
+double? sharedAspect(List<OverlayMonitor> monitors, List<int> covered) {
+  if (covered.isEmpty || monitors.isEmpty) return null;
+  final first = monitors[covered.first].aspect;
+  final same = covered.every((i) => (monitors[i].aspect - first).abs() <= 0.01);
+  return same ? first : null;
 }
 
 /// The 1-based number in a capturer label like "Screen 2", or null.

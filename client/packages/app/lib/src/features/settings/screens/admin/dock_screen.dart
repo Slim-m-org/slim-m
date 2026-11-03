@@ -35,6 +35,7 @@ import 'dock_file_install.dart';
 import 'dock_file_section.dart';
 import 'dock_install_consent.dart';
 import 'dock_module_row.dart';
+import 'module_display_section.dart';
 import 'dock_sources_section.dart';
 
 class DockScreen extends StatelessWidget {
@@ -234,6 +235,7 @@ class _DockPaneState extends ConsumerState<DockPane>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const ModuleDisplaySection(),
             if (actionError case final message?) ...[
               AppErrorState(message: message, onDismiss: clearActionError),
               const SizedBox(height: AppSpacing.s12),

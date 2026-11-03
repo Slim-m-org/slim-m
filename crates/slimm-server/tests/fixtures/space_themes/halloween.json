@@ -1,0 +1,32 @@
+{
+  "format": "slimm-theme",
+  "version": 1,
+  "name": "halloween",
+  "author": "built-in",
+  "base": "halloween",
+  "brightness": "dark",
+  "tokens": {
+    "surfaceSunken": "#110B16",
+    "surfaceBase": "#1A1221",
+    "surfaceRaised": "#251A2E",
+    "borderSubtle": "#3A2A47",
+    "borderStrong": "#8E78A0",
+    "textPrimary": "#F4EADB",
+    "textSecondary": "#BDAFC4",
+    "textDisabled": "#8A7A94",
+    "accent": "#FF7A1A",
+    "accentFill": "#FF7A1A",
+    "accentOn": "#1A0B02",
+    "accentSoft": "#4A2A12",
+    "accentRing": "#40FF7A1A",
+    "focusRing": "#FF7A1A",
+    "dangerText": "#F08A7E",
+    "dangerBorder": "#D9594C",
+    "warnText": "#F2C94C",
+    "warnSoft": "#1AF2C94C",
+    "stripe": "#12BDAFC4"
+  },
+  "backdrop": {
+    "effect": "halloweenWebs"
+  }
+}

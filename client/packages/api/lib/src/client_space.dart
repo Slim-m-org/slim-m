@@ -27,6 +27,8 @@ extension SlimmApiSpace on SlimmApi {
       :description,
       :strongNoiseSuppression,
       :membersCanInvite,
+      :moduleMemberBadges,
+      :moduleProfileSections,
       :welcomeEnabled,
       :welcomeChannelId,
       :welcomeMessage,
@@ -38,6 +40,8 @@ extension SlimmApiSpace on SlimmApi {
           description != null ||
           strongNoiseSuppression != null ||
           membersCanInvite != null ||
+          moduleMemberBadges != null ||
+          moduleProfileSections != null ||
           welcomeEnabled != null ||
           welcomeChannelId != null ||
           welcomeMessage != null,
@@ -54,6 +58,10 @@ extension SlimmApiSpace on SlimmApi {
         if (strongNoiseSuppression != null)
           'strong_noise_suppression': strongNoiseSuppression,
         if (membersCanInvite != null) 'members_can_invite': membersCanInvite,
+        if (moduleMemberBadges != null)
+          'module_member_badges': moduleMemberBadges,
+        if (moduleProfileSections != null)
+          'module_profile_sections': moduleProfileSections,
         if (welcomeEnabled != null) 'welcome_enabled': welcomeEnabled,
         if (welcomeChannelId != null) 'welcome_channel_id': welcomeChannelId,
         if (welcomeMessage != null) 'welcome_message': welcomeMessage,
@@ -209,5 +217,19 @@ extension SlimmApiSpace on SlimmApi {
   Future<SpaceStorage> fetchSpaceStorage() async {
     final json = await send('GET', '/space/storage');
     return SpaceStorage.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// The kept uplink measurements, newest first.
+  Future<List<UplinkTest>> fetchUplinkTests() async {
+    final json = await send('GET', '/space/uplink-test');
+    return ((json as Map<String, dynamic>)['results'] as List<dynamic>)
+        .map((e) => UplinkTest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Measures the server host's uplink; refused while a call is live.
+  Future<UplinkTest> runUplinkTest() async {
+    final json = await send('POST', '/space/uplink-test');
+    return UplinkTest.fromJson(json as Map<String, dynamic>);
   }
 }

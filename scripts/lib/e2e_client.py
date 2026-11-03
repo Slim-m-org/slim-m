@@ -32,6 +32,8 @@ _DEFAULT_MIME = "image/png"
 _shots_dir = None
 # Enough to carry a launch's worth of failures without holding a whole run.
 LOG_LINES = 200
+# The error an uncaught `!` on web prints; kept the moment it appears, since it is rare.
+NULL_CHECK = "Null check operator"
 
 
 def shots_dir():
@@ -57,6 +59,7 @@ class Client:
         self._ws = None
         self._id = 0
         self._log = []
+        self._null_check_kept = False
 
     def _connect(self):
         from websocket import create_connection
@@ -100,10 +103,17 @@ class Client:
             args = " ".join(str(a.get("value", a.get("description", "")))
                             for a in params.get("args") or [])
             line = f"{params.get('type')} {args}".strip()
+        elif method == "Runtime.exceptionThrown":
+            detail = params.get("exceptionDetails") or {}
+            body = (detail.get("exception") or {}).get("description")
+            line = f"uncaught {body or detail.get('text')}"
         else:
             return
         self._log.append(line)
         del self._log[:-LOG_LINES]
+        if NULL_CHECK in line and not self._null_check_kept:
+            self._null_check_kept = True
+            self._write_log("null-check")
 
     def _write_log(self, tag):
         if not self._log:

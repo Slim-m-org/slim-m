@@ -30,7 +30,7 @@ They are not declared as extension points, and the module routes on `command` li
 | command | when | `input` |
 | --- | --- | --- |
 | `@event` | a subscribed event happened | the JSON text `{"event","id","at_ms","data"}` |
-| `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","viewer_id"}` |
+| `@slot` | a member opened a profile or a list that shows a badge | the JSON text `{"slot","name","user_ids","bot_ids","viewer_id"}` |
 
 A module with `subscriptions` that returns `{ok:false}` for `@event` counts every event as a failed run, so route it.
 Return `{ok:true}` for an event you choose to ignore.
@@ -101,9 +101,10 @@ Store the cursor yourself, in `data.store` or `kv.store`, and move it only after
 Phase 1 has one log, `voice.sessions`, with one row per closed voice session, in the order they closed:
 
 ```json
-{ "id": 41, "user_id": "...", "channel_id": "...", "joined_at_ms": 1760000000000, "left_at_ms": 1760000600000, "alone_ms": 120000 }
+{ "id": 41, "user_id": "...", "channel_id": "...", "joined_at_ms": 1760000000000, "left_at_ms": 1760000600000, "alone_ms": 120000, "is_bot": false }
 ```
 
+- `is_bot` is true when the member is a bot account, a module's own identity included, so a module that rewards people can leave those rows out.
 - `id` is the same number as `session_id` in the `voice.session.closed` event, so an event and the log agree about which session is which.
 - Only closed sessions are returned.
   A session left open by a missed leave is closed when its room finishes, when its heartbeat goes stale, or at server startup, which caps its length.
@@ -309,8 +310,8 @@ Slots need no capability.
 - At most 4 slots, each `kind` and `name` pair once, `name` at most 64 characters and `title` at most 40.
 - Only an enabled module with `"addon_api": 1` is asked.
 
-The host asks by running the module with `command: "@slot"` and `input` of `{"slot","name","user_ids","viewer_id"}`.
-`slot` is the kind, `name` is the slot's name, `user_ids` are the members to answer for (one run covers every member the cache lacks, up to 100), and `viewer_id` is the member looking.
+The host asks by running the module with `command: "@slot"` and `input` of `{"slot","name","user_ids","bot_ids","viewer_id"}`.
+`slot` is the kind, `name` is the slot's name, `user_ids` are the members to answer for (one run covers every member the cache lacks, up to 100), `bot_ids` are the ones among them that are bot accounts, and `viewer_id` is the member looking.
 `caller.id` is the viewer's, the same as for any command that member runs.
 Answer with an output string of:
 
@@ -343,6 +344,74 @@ An item has at most 40 nodes and a depth of 4.
 A client that does not know a `type` skips that node, and shows `fallback` when it skipped every node, so always send a plain `fallback`.
 The vocabulary only grows: fields are added and never repurposed.
 There are no actions in phase 1, so a slot shows content and cannot be clicked into the module.
+
+## Call audio: `call.audio`
+
+Add-on API 4 (decision [0105](../decisions/0105-module-call-audio.md)).
+A module can hear a voice call as text.
+It never receives audio.
+Speech is turned into text by a listener service the operator runs beside the server, and the module is sent one event per utterance.
+
+### What the manifest says
+
+```json
+"addon_api": 4,
+"capabilities": ["call.audio", "data.store", "schedule"],
+"call_audio": {
+  "purpose": "Writes down what is said in the call and posts the transcript when the call ends.",
+  "keeps": "The transcript text, in this module's own data, for 30 days unless an admin changes it.",
+  "permission": "start"
+}
+```
+
+- `purpose` and `keeps` are required, 20 to 240 characters each.
+  They are shown word for word at install and to every person in a call before they agree.
+  The host cannot check them, so write them as a promise you mean to keep.
+- `permission` is optional and must be one of your own declared permissions.
+  With none, anyone in the call may ask for your module to be turned on.
+- Approval is asked again on every new build, and whenever `purpose`, `keeps` or `permission` changes.
+
+### What has to be true before you hear anything
+
+1. The operator runs the listener and sets `SLIMM_LISTENER_URL`.
+2. An admin approved `call.audio` at install, ticking that they understand.
+3. An admin picked the voice channels your module may hear. The list starts empty and never holds a direct message call.
+4. A person in the call asked for your module, and everyone in the call said yes within 60 seconds.
+
+A person who joins later is left out until they say yes.
+If they say no, the session stops for everyone.
+Anyone in the call can stop it.
+
+### The four events
+
+They need no `subscriptions` entry.
+
+| Event | `data` |
+| --- | --- |
+| `call.audio.started` | `session_id`, `channel_id`, `started_at_ms`, `included` (user ids) |
+| `call.audio.participant` | `session_id`, `channel_id`, `user_id`, `included` (bool) |
+| `call.audio.segment` | `session_id`, `channel_id`, `segment_id`, `user_id`, `start_ms`, `end_ms`, `text`, `language` |
+| `call.audio.stopped` | `session_id`, `channel_id`, `stopped_at_ms`, `reason`, `segments_sent` |
+
+- `start_ms` and `end_ms` are wall-clock milliseconds.
+- `text` is cut at 1,000 characters on a word boundary. A session delivers at most 120 segments a minute.
+- `reason` is one of `stopped`, `declined`, `call_ended`, `time_limit`, `overload`, `module_disabled`, `channel_removed`, `listener_unavailable`. It never names a person.
+- Event ids are `call-audio:<session_id>:<n>`.
+- `segments_sent` is how many the host handed to your queue. If you received fewer, your queue dropped some (it holds 256, oldest first), and a transcript should say so.
+- After a server restart no `stopped` arrives for a session that was on. Treat a session with no event for 10 minutes as ended.
+- The run's `caller.id` is your module's own principal, as for every event.
+
+### What the host keeps
+
+Nothing.
+The session lives in memory and a restart ends it.
+Segment text goes straight to your queue and never passes through the hub or the database.
+What you keep is your business, and your `keeps` text has to say what it is.
+
+### Testing
+
+The fake host in `slim-addons` can send the four events.
+The `transcript` module there is the worked example: it inserts a row per segment and posts the transcript when it sees `call.audio.stopped`.
 
 ## Interceptors and the permission hook
 

@@ -28,6 +28,7 @@ import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_row_callbacks.dart';
 import 'message_hover_toolbar.dart';
+import 'card_spacing.dart';
 import 'message_inline.dart' show extractLinkPreviewUrls;
 import 'message_row_identity.dart';
 import 'message_row_parts.dart';
@@ -39,6 +40,13 @@ import 'reply_quote.dart';
 final _selfId = Provider<String?>(
   (ref) => ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
 );
+
+/// The least width a grouped body keeps once the toolbar's reserve is taken off its right.
+const double _minBodyWidth = 280;
+
+final double _toolbarReserve = MessageHoverToolbar.clearance(
+  compact: false,
+).right;
 
 class MessageRowColumn extends ConsumerWidget {
   const MessageRowColumn({
@@ -97,8 +105,25 @@ class MessageRowColumn extends ConsumerWidget {
         ..._body(edited),
         ..._cards(edited),
         ..._footer(),
+        if (_endsInCard) const SizedBox(height: kCardBottomGap),
       ],
     );
+  }
+
+  /// A card as the last thing in the row; a link preview adds its own gap, since it may render nothing.
+  bool get _endsInCard {
+    final chipsAfter =
+        (!_unsent && extras.reactions.isNotEmpty) ||
+        (extras.threadReplyCount ?? 0) > 0 ||
+        message.failed;
+    if (editing || chipsAfter) return false;
+    return extras.embeds.isNotEmpty ||
+        extras.attachments.isNotEmpty ||
+        extras.poll != null ||
+        extras.call != null ||
+        extras.appSurface != null ||
+        extras.components.isNotEmpty ||
+        message.forwarded != null;
   }
 
   Widget? _editedWidget(bool isBot) {
@@ -166,20 +191,22 @@ class MessageRowColumn extends ConsumerWidget {
       )
     // An attachment-only message has no body; an empty one still adds a blank line above the image. A forward's own note is often empty too.
     else if (message.content.isNotEmpty)
-      Padding(
-        // A headerless row's first line is what the toolbar would sit on.
-        padding: grouped
-            ? MessageHoverToolbar.clearance(compact: compact)
-            : EdgeInsets.zero,
-        child: MessageBody(
-          content: message.content,
-          messageId: message.id,
-          knownUsernames: knownUsernames,
-          knownRoleNames: knownRoleNames,
-          customEmoji: customEmoji,
-          dim: message.pending,
-          announceSending: message.pending,
-          trailing: edited,
+      LayoutBuilder(
+        // A headerless row's first line is what the toolbar would sit on, unless that leaves the text a sliver.
+        builder: (context, box) => Padding(
+          padding: grouped && box.maxWidth - _toolbarReserve >= _minBodyWidth
+              ? MessageHoverToolbar.clearance(compact: compact)
+              : EdgeInsets.zero,
+          child: MessageBody(
+            content: message.content,
+            messageId: message.id,
+            knownUsernames: knownUsernames,
+            knownRoleNames: knownRoleNames,
+            customEmoji: customEmoji,
+            dim: message.pending,
+            announceSending: message.pending,
+            trailing: edited,
+          ),
         ),
       ),
     if (!editing &&

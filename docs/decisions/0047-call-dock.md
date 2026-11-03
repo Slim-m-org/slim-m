@@ -225,3 +225,17 @@ These are recorded, not decided.
 - The dock is one size rule, one order rule and one colour rule, so new controls have an obvious place.
 - Work is split into cards by the files it touches, so two of them do not edit `canvas_tools_row.dart` at once; the cards say what to sequence.
 - Nothing here touches the server or the wire protocol.
+
+## Addendum 2026-11-03: any colour, and the chat from the canvas
+
+- The six pen colours stay as named keys, and a stroke or text box may also carry any colour as `#rrggbb` in `color`.
+  The painter resolves a named key first, then a six-digit hex, then falls back to the default ink.
+- The pen menu gains a Custom row: a tile that opens the shared colour picker, and the last five colours picked, kept per device.
+  The text editor's colour strip gains the same tile and the last two.
+- The server accepts `#rrggbb` where it accepted a colour key: a text object's `props.color` and the live preview and screen-annotation `color`.
+  Stroke and shape props stay opaque to it.
+- Shapes keep their one fixed colour; they have no colour choice today.
+- A voice channel's canvas had no way to reach the channel's text chat.
+  The canvas header carries a chat toggle, with a dot while a message waits.
+  Where `fitsThreadPane` has room the chat docks beside the canvas through the same state the call view uses.
+  Narrower it opens as a sheet (desktop-vs-mobile rule 3), so the canvas stays mounted underneath.

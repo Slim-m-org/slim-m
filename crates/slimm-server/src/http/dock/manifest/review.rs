@@ -23,6 +23,9 @@ struct Reviewed<'a> {
     subscriptions: Vec<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<&'a crate::module_runtime::DataSchema>,
+    /// The words everyone in a call is shown, so a swap after review changes the digest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    call_audio: Option<(&'a str, &'a str, Option<&'a str>)>,
 }
 
 fn sorted<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
@@ -54,6 +57,13 @@ impl Manifest {
             limits: (limits.memory_mb, limits.wall_ms, limits.fuel),
             subscriptions: sorted(self.platform.subscriptions.iter().map(String::as_str)),
             data: self.data.as_ref(),
+            call_audio: self.call_audio.as_ref().map(|c| {
+                (
+                    c.purpose.as_str(),
+                    c.keeps.as_str(),
+                    c.permission.as_deref(),
+                )
+            }),
         };
         let json = serde_json::to_vec(&reviewed).unwrap_or_default();
         to_hex(&Sha256::digest(json))

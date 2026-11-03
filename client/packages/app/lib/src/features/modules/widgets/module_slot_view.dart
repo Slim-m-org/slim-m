@@ -21,11 +21,15 @@ class ModuleSlotView extends StatelessWidget {
     required this.source,
     super.key,
     this.inline = false,
+    this.compact = false,
   });
 
   final api.ModuleSlotItem item;
   final String source;
   final bool inline;
+
+  /// Quiet badges for a crowded row; the profile card leaves it off.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -37,25 +41,27 @@ class ModuleSlotView extends StatelessWidget {
       );
     }
     return inline
-        ? _SlotRow(item.nodes, source)
-        : _SlotStack(item.nodes, source);
+        ? _SlotRow(item.nodes, source, compact)
+        : _SlotStack(item.nodes, source, compact);
   }
 }
 
-Widget _draw(api.ModuleSlotNode node, String source) => switch (node) {
-  api.ModuleSlotText() => _SlotText(node),
-  api.ModuleSlotIcon() => _SlotIcon(node.name),
-  api.ModuleSlotBadge() => _SlotBadge(node, source),
-  api.ModuleSlotProgress() => ModuleSlotProgressBar(node),
-  api.ModuleSlotRow() => _SlotRow(node.children, source),
-  api.ModuleSlotStack() => _SlotStack(node.children, source),
-};
+Widget _draw(api.ModuleSlotNode node, String source, bool compact) =>
+    switch (node) {
+      api.ModuleSlotText() => _SlotText(node),
+      api.ModuleSlotIcon() => _SlotIcon(node.name),
+      api.ModuleSlotBadge() => _SlotBadge(node, source, compact),
+      api.ModuleSlotProgress() => ModuleSlotProgressBar(node),
+      api.ModuleSlotRow() => _SlotRow(node.children, source, compact),
+      api.ModuleSlotStack() => _SlotStack(node.children, source, compact),
+    };
 
 class _SlotStack extends StatelessWidget {
-  const _SlotStack(this.nodes, this.source);
+  const _SlotStack(this.nodes, this.source, this.compact);
 
   final List<api.ModuleSlotNode> nodes;
   final String source;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -65,17 +71,21 @@ class _SlotStack extends StatelessWidget {
     children: [
       for (final node in nodes)
         node is api.ModuleSlotProgress
-            ? SizedBox(width: double.infinity, child: _draw(node, source))
-            : _draw(node, source),
+            ? SizedBox(
+                width: double.infinity,
+                child: _draw(node, source, compact),
+              )
+            : _draw(node, source, compact),
     ],
   );
 }
 
 class _SlotRow extends StatelessWidget {
-  const _SlotRow(this.nodes, this.source);
+  const _SlotRow(this.nodes, this.source, this.compact);
 
   final List<api.ModuleSlotNode> nodes;
   final String source;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -84,8 +94,8 @@ class _SlotRow extends StatelessWidget {
     children: [
       for (final node in nodes)
         node is api.ModuleSlotIcon
-            ? _draw(node, source)
-            : Flexible(child: _draw(node, source)),
+            ? _draw(node, source, compact)
+            : Flexible(child: _draw(node, source, compact)),
     ],
   );
 }
@@ -132,10 +142,11 @@ class _SlotIcon extends StatelessWidget {
 }
 
 class _SlotBadge extends StatelessWidget {
-  const _SlotBadge(this.node, this.source);
+  const _SlotBadge(this.node, this.source, this.compact);
 
   final api.ModuleSlotBadge node;
   final String source;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +165,7 @@ class _SlotBadge extends StatelessWidget {
             api.ModuleSlotTone.normal => AppBadgeVariant.module,
           },
           label: node.text,
+          compact: compact,
           markerIcon: AppIcons.dock,
           icon: moduleSlotIcon(node.icon),
           semanticLabel: '${node.text}, ${origin.toLowerCase()}',

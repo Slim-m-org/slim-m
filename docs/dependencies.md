@@ -110,8 +110,9 @@ The image's builder stage gains `make`, which `tikv-jemalloc-sys` needs to build
 
 ## The release profile
 
-`opt-level = "z"`, LTO, one codegen unit, stripped, and `panic = "abort"`.
-The brief treats binary size as a budget for a self-host binary, and `server-ci` enforces it at 20 MiB.
+`opt-level = "z"`, LTO, one codegen unit, stripped, and `panic = "unwind"` so a request panic answers 500.
+The brief treats binary size as a budget for a self-host binary, and `server-ci` enforces it at 22 MiB.
+It was 20 MiB until v123 (2026-11-03), which reached 21,020,600 bytes with no new heavy dependency: about 450 KB of its own theme store, call audio, uplink test, canvas batch and module display code on top of 20,568,760 on main.
 
 ## Dev dependencies
 

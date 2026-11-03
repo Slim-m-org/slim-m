@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/status_banner.dart';
+
 /// Shown while [VoiceState.rejoining] or [VoiceState.reconnecting] is true,
 /// in the call stage's own column under the header - the grid, filmstrip and
 /// dock stay put and usable around it, unlike the full-screen spinner a first
@@ -14,12 +16,11 @@ class VoiceReconnectBanner extends StatelessWidget {
   const VoiceReconnectBanner({super.key});
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.only(top: AppSpacing.s12),
-    child: AppCallout(
-      tone: AppCalloutTone.warn,
-      icon: AppIcons.retry,
-      child: Text('Reconnecting to the call.'),
-    ),
+  Widget build(BuildContext context) => const StatusBanner(
+    severity: BannerSeverity.warning,
+    sticky: true,
+    icon: AppIcons.retry,
+    message: 'Reconnecting to the call.',
+    margin: EdgeInsets.only(top: AppSpacing.s12),
   );
 }

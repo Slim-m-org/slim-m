@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Paste image" on a clipboard holding no image (or on a platform
-/// with no clipboard image channel at all) must say so, not do nothing.
+/// Ctrl+V on a clipboard holding no image (or on a platform with no clipboard
+/// image channel at all) stays silent, so a text paste never raises an error.
 library;
 
 import 'package:flutter/services.dart';
@@ -23,7 +23,7 @@ void main() {
 
   for (final handled in [true, false]) {
     test(
-      'the Paste image button reports no image when the clipboard has none '
+      'Ctrl+V raises no error when the clipboard has no image '
       '(${handled ? "channel answers empty" : "no channel handler"})',
       () async {
         if (handled) {
@@ -45,13 +45,9 @@ void main() {
           timedOutUntil: () => null,
         );
 
-        await paste.pasteFromButton();
+        await paste.pasteFromKeystroke();
 
-        expect(
-          errors.whereType<String>(),
-          isNotEmpty,
-          reason: 'the button gave no feedback; got $errors',
-        );
+        expect(errors.whereType<String>(), isEmpty);
       },
     );
   }

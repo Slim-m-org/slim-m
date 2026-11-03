@@ -5,6 +5,7 @@
 /// unless turned off.
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,15 +14,14 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/input_level_meter.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../ui_snapshot_support.dart' show loadRealFonts;
 import 'voice_settings_screen_harness.dart';
 
-Finder _meter() => find.byWidgetPredicate(
-  (w) => w is AppSlider && w.semanticLabel == 'Input sensitivity',
-);
+Finder _meter() => find.byKey(inputLevelMeterKey);
 
 Future<FakeSession> _pump(WidgetTester tester) async {
   final session = FakeSession(supportsInputGate: true);
@@ -54,6 +54,7 @@ ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(VoiceSettingsBody)));
 
 void main() {
+  setUpAll(loadRealFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('the gate replaces the indicator-only sensitivity slider', (
@@ -61,13 +62,7 @@ void main() {
   ) async {
     await _pump(tester);
     expect(_meter(), findsOneWidget);
-    expect(
-      find.text('-50 dB'),
-      findsNothing,
-      reason: 'shown only on the thumb',
-    );
-    expect(find.text('-80 dB'), findsNothing);
-    expect(find.text('0 dB'), findsNothing);
+    expect(find.text('Line at -50 dB. Drag it to change.'), findsOneWidget);
     expect(find.text('Sound below the line is not sent.'), findsOneWidget);
     expect(find.text('Voice activity sensitivity'), findsNothing);
   });
@@ -76,11 +71,10 @@ void main() {
     tester,
   ) async {
     final session = await _pump(tester);
-    final slider = tester.widget<AppSlider>(_meter());
-    slider.onChanged!(-35);
+    tester.widget<InputLevelMeter>(_meter()).onChanged!(-35);
     await tester.pumpAndSettle();
 
-    expect(tester.widget<AppSlider>(_meter()).value, -35);
+    expect(tester.widget<InputLevelMeter>(_meter()).thresholdDb, -35);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.input_threshold_db'), -35);
     expect(session.inputGateCalls.last, (enabled: true, thresholdDb: -35.0));
@@ -136,14 +130,17 @@ void main() {
     ).read(voiceControllerProvider.notifier);
     await controller.join('channel-1');
     await tester.pumpAndSettle();
-    expect(tester.widget<AppSlider>(_meter()).meter, 0);
+    expect(tester.widget<InputLevelMeter>(_meter()).levelDb, isNull);
 
     session.inputGateController.add(
       const InputGateReading(levelDb: -40, voice: true),
     );
     await tester.pumpAndSettle();
-    expect(tester.widget<AppSlider>(_meter()).meter, 50);
-    expect(tester.widget<AppSlider>(_meter()).meterActive, isTrue);
+    expect(tester.widget<InputLevelMeter>(_meter()).levelDb, -40);
+    expect(
+      tester.widget<InputLevelMeter>(_meter()).status,
+      InputLevelStatus.sending,
+    );
     expect(
       find.textContaining('Join a voice call to see your live input level'),
       findsNothing,
@@ -166,9 +163,9 @@ void main() {
       const InputGateReading(levelDb: -30, voice: false),
     );
     await tester.pumpAndSettle();
-    final slider = tester.widget<AppSlider>(_meter());
-    expect(slider.meter, 62.5);
-    expect(slider.meterActive, isFalse);
+    final meter = tester.widget<InputLevelMeter>(_meter());
+    expect(meter.levelDb, -30);
+    expect(meter.status, InputLevelStatus.notSent);
     await controller.leave();
   });
 
@@ -179,12 +176,12 @@ void main() {
       (w) => w is SettingsToggleRow && w.label == 'Automatic sensitivity',
     );
     expect(tester.widget<SettingsToggleRow>(toggle).value, isFalse);
-    expect(tester.widget<AppSlider>(_meter()).onChanged, isNotNull);
+    expect(tester.widget<InputLevelMeter>(_meter()).onChanged, isNotNull);
 
     tester.widget<SettingsToggleRow>(toggle).onChanged!(true);
     await tester.pumpAndSettle();
 
-    expect(tester.widget<AppSlider>(_meter()).onChanged, isNull);
+    expect(tester.widget<InputLevelMeter>(_meter()).onChanged, isNull);
     expect(session.autoInputThreshold, isTrue);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('slimm.voice.input_threshold_auto'), isTrue);
@@ -204,10 +201,22 @@ void main() {
     tester.widget<SettingsToggleRow>(toggle).onChanged!(false);
     await tester.pumpAndSettle();
 
-    expect(tester.widget<AppSlider>(_meter()).value.round(), -44);
-    expect(tester.widget<AppSlider>(_meter()).onChanged, isNotNull);
+    expect(tester.widget<InputLevelMeter>(_meter()).thresholdDb.round(), -44);
+    expect(tester.widget<InputLevelMeter>(_meter()).onChanged, isNotNull);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.input_threshold_db'), -44);
     expect(session.autoInputThreshold, isFalse);
+  });
+
+  testWidgets('the loud-sounds description is one line at phone width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester);
+    final line = find.text('Softens shouts and sudden bangs.');
+    expect(line, findsOneWidget);
+    expect(tester.getSize(line).height, lessThan(20));
   });
 }

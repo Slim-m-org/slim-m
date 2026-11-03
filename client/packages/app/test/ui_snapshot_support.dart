@@ -19,51 +19,19 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/main.dart' show appChromeBuilder;
-import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
-import 'package:slimm_app/src/features/settings/providers/notification_sound_controller.dart';
-import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/routing/modal_page.dart';
-import 'support/fake_mic_preview.dart' show quietMicPreview;
-import 'package:slimm_app/src/features/settings/screens/admin/account_recovery_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/analytics_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/emoji_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/invites_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/performance_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/removed_members_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/reports_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/server_metrics_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/audit_log_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/debug_log_screen.dart';
-import 'package:slimm_app/src/screens/home_shell.dart';
-import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
-import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
-import 'package:slimm_app/src/routing/settings_pages.dart';
-import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_platform/testing.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'support/real_shadows.dart';
-import 'ui_snapshot_channel_settings.dart';
-import 'ui_snapshot_dock.dart';
-import 'ui_snapshot_fixture_data.dart';
-import 'support/fake_sync.dart';
-import 'support/fake_sound_player.dart';
+import 'ui_snapshot_fixture.dart';
 
+export 'ui_snapshot_fixture.dart';
 export 'ui_snapshot_fonts.dart'
     show emojiFontPath, loadEmojiFont, loadFontFamily, loadRealFonts;
 export 'ui_snapshot_fixture_data.dart'
@@ -137,197 +105,6 @@ const snapshotDir = 'build/ui-snapshots';
 /// Set SLIMM_UI_SNAPSHOTS=1 to write them. Unset, the matrix still runs and
 /// still asserts no overflow, which is the part that belongs in CI.
 bool get writingSnapshots => Platform.environment['SLIMM_UI_SNAPSHOTS'] == '1';
-
-const fixtureTokens = api.TokenPair(
-  userId: 'user-nick',
-  accessToken: 'access',
-  refreshToken: 'refresh',
-  accessExpiresAt: 0,
-);
-
-/// A container wired like the app's, with the network and database swapped.
-///
-/// [extraOverrides] layers on top for a test that needs one more provider
-/// swapped (a fake voice call, say) without duplicating this whole setup.
-Future<({ProviderContainer container, SlimmDatabase db})> fixtureContainer({
-  List<Override> extraOverrides = const [],
-  List<api.Message>? messages,
-}) async {
-  final resolvedMessages = messages ?? fixtureMessages;
-  // The voice settings screen reads SharedPreferences, which is a platform
-  // channel with no host in a test; empty mock values are its real defaults.
-  SharedPreferences.setMockInitialValues(const {});
-  final db = SlimmDatabase(NativeDatabase.memory());
-  final container = ProviderContainer(
-    overrides: [
-      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      sessionProvider.overrideWithValue(
-        api.SessionStore(tokens: fixtureTokens),
-      ),
-      syncControllerProvider.overrideWith(NoopSyncController.new),
-      quietMicPreview,
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: fixtureClient(),
-        );
-        ref.onDispose(client.close);
-        return client;
-      }),
-      databaseProvider.overrideWith((ref) => db),
-      // HomeShell watches this, so the real AudioPlayers player is built for
-      // every surface. Ordinary widget tests never notice, because nothing
-      // drives the platform channel; the SLIMM_UI_SNAPSHOTS render path does,
-      // through tester.runAsync, and the channel has no host in a test.
-      notificationSoundControllerProvider.overrideWith(
-        (ref) => NotificationSoundController(ref, player: SilentSoundPlayer()),
-      ),
-      ...extraOverrides,
-    ],
-  );
-  final store = await container.read(storeProvider.future);
-  await store.upsertChannels(fixtureChannels);
-  await store.replaceCategories(fixtureCategories);
-  await store.applyMessages(resolvedMessages);
-  // Reactions, attachments and polls live in an in-memory controller rather
-  // than the store, so seeding the store alone renders none of them.
-  container
-      .read(messageExtrasProvider.notifier)
-      .applyMessages(resolvedMessages);
-  return (container: container, db: db);
-}
-
-/// Whether the real app reaches [location] by pushing it over the channel
-/// shell, rather than it being a destination of its own.
-///
-/// Every settings and administration route is reached this way: a member
-/// opens one from inside the app, never cold. [fixtureRouter] starts there
-/// at the channel shell instead, and `ui_snapshot_test.dart` pushes the real
-/// target on top of it after the first frame, so [modalPage]'s
-/// `Navigator.of(context).canPop()` reads true exactly as it would in the
-/// app - floating shadow, scrim and all - rather than the "opened cold"
-/// presentation a bare `initialLocation` at the route itself would produce.
-/// A thread is pushed the same way, over the parent channel, from the
-/// message context menu.
-bool isModalFixtureRoute(String location) =>
-    location.startsWith('/settings') || location.startsWith('/thread/');
-
-/// The shell, on the real routes, at [location].
-///
-/// The settings and admin routes use the app's own [modalPage]; see
-/// [isModalFixtureRoute] for how this router is primed so a desktop render
-/// shows the real floating presentation rather than the cold-open one.
-/// Onboarding and sign-in stand alone, exactly as the real router mounts
-/// them.
-GoRouter fixtureRouter(String location) => GoRouter(
-  initialLocation: isModalFixtureRoute(location)
-      ? '/channels/c-general'
-      : location,
-  routes: [
-    GoRoute(
-      path: '/join',
-      builder: (context, state) =>
-          OnboardingScreen(onServerChosen: (server, invite) {}),
-    ),
-    GoRoute(
-      path: '/sign-in',
-      builder: (context, state) => const SignInScreen(),
-    ),
-    GoRoute(path: '/settings', pageBuilder: personalSettingsPage),
-    GoRoute(path: '/settings/space', pageBuilder: spaceSettingsPage),
-    GoRoute(
-      path: '/settings/reports',
-      pageBuilder: (context, state) =>
-          modalPage(context, const ReportsScreen()),
-    ),
-    GoRoute(
-      path: '/settings/invites',
-      pageBuilder: (context, state) =>
-          modalPage(context, const InvitesScreen()),
-    ),
-    GoRoute(
-      path: '/settings/roles',
-      pageBuilder: (context, state) => modalPage(context, const RolesScreen()),
-    ),
-    channelSettingsFixtureRoute,
-    GoRoute(
-      path: '/settings/permissions',
-      pageBuilder: (context, state) =>
-          modalPage(context, const ChannelPermissionsScreen()),
-    ),
-    GoRoute(
-      path: '/settings/emoji',
-      pageBuilder: (context, state) => modalPage(context, const EmojiScreen()),
-    ),
-    GoRoute(
-      path: '/settings/removed-members',
-      pageBuilder: (context, state) =>
-          modalPage(context, const RemovedMembersScreen()),
-    ),
-    GoRoute(
-      path: '/settings/analytics',
-      pageBuilder: (context, state) =>
-          modalPage(context, const AnalyticsScreen()),
-    ),
-    GoRoute(
-      path: '/settings/performance',
-      pageBuilder: (context, state) =>
-          modalPage(context, const PerformanceScreen()),
-    ),
-    GoRoute(
-      path: '/settings/storage',
-      pageBuilder: (context, state) =>
-          modalPage(context, const StorageScreen()),
-    ),
-    GoRoute(
-      path: '/settings/audit-log',
-      pageBuilder: (context, state) =>
-          modalPage(context, const AuditLogScreen()),
-    ),
-    GoRoute(
-      path: '/settings/server-metrics',
-      pageBuilder: (context, state) =>
-          modalPage(context, const ServerMetricsScreen()),
-    ),
-    GoRoute(
-      path: '/settings/account-recovery',
-      pageBuilder: (context, state) =>
-          modalPage(context, const AccountRecoveryScreen()),
-    ),
-    ...dockFixtureRoutes,
-    GoRoute(
-      path: '/settings/debug-log',
-      pageBuilder: (context, state) =>
-          modalPage(context, const DebugLogScreen()),
-    ),
-    GoRoute(
-      path: '/thread/:channelId',
-      pageBuilder: (context, state) => modalPage(
-        context,
-        ThreadScreen(channelId: state.pathParameters['channelId']!),
-      ),
-    ),
-    ShellRoute(
-      builder: (context, state, child) => HomeShell(child: child),
-      routes: [
-        GoRoute(
-          path: '/channels',
-          // The real route renders NoChannelSelected here, not a placeholder.
-          builder: (context, state) => const NoChannelSelected(),
-          routes: [
-            GoRoute(
-              path: ':channelId',
-              builder: (context, state) => ConversationPane(
-                channelId: state.pathParameters['channelId']!,
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ],
-);
 
 /// Key on the boundary the PNG is taken from.
 const snapshotBoundary = Key('ui_snapshot_boundary');
@@ -424,6 +201,7 @@ Future<void> renderSurface(
   bool allowNoText = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
+  List<Widget> overlays = const [],
 }) => renderSurfaceThemes(
   tester,
   route,
@@ -439,12 +217,15 @@ Future<void> renderSurface(
   allowNoText: allowNoText,
   textScaler: textScaler,
   afterSettle: afterSettle,
+  overlays: overlays,
 );
 
 /// [renderSurface] for several [themes] in one mount: the surface is built and
 /// settled in the first theme, captured, then the theme is switched in place
 /// and settled again before each further capture, so the shell, fonts and
 /// fixture are paid for once per viewport instead of once per theme.
+///
+/// [overlays] stack above the routed tree like `main.dart`'s own overlays.
 ///
 /// [snapshotNameFor] maps a theme to the capture name, so the files written
 /// are the ones a per-theme [renderSurface] would write.
@@ -461,6 +242,7 @@ Future<void> renderSurfaceThemes(
   bool allowNoText = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
+  List<Widget> overlays = const [],
 }) async {
   tester.view.physicalSize = viewports[viewportName]!;
   tester.view.devicePixelRatio = 1.0;
@@ -477,7 +259,11 @@ Future<void> renderSurfaceThemes(
       ),
       routerConfig: router,
       // The same wrapper main.dart ships, so density matches the app.
-      builder: appChromeBuilder,
+      builder: overlays.isEmpty
+          ? appChromeBuilder
+          : (context, child) => Stack(
+              children: [appChromeBuilder(context, child), ...overlays],
+            ),
     );
     return UncontrolledProviderScope(
       container: fixture.container,

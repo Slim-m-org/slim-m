@@ -44,8 +44,15 @@ The longest label that read well was 5 words ("Require Face ID or fingerprint", 
 The longest description that read well was 12 ("Install a new version with your package manager while slim-m starts").
 A tighter cap would force rewrites that lose meaning, and a looser one would admit the three-line paragraphs this rule exists to stop.
 
-The gate reads `description:` and `sheetFootnote:` arguments, named description constants, and the `label:` of `SettingsToggleRow` and `SettingsSelectRow`.
+The gate reads `description:` arguments, named description constants, and the `label:` of `SettingsToggleRow` and `SettingsSelectRow`.
 Exceptions go in `client/packages/app/test/settings_copy_allow.txt`, one `path|start of the text` per line, and each needs a reason in the pull request that adds it.
+
+### Dropdown rows and Advanced
+
+A dropdown row keeps its description under the label, never inside the open menu or sheet.
+
+A setting belongs under Advanced when it is rarely changed and a wrong value can make calls or media worse, such as echo cancellation or automatic gain.
+Advanced rows look like every other row; only the folded header row ("Advanced", the current state, a chevron) tells them apart.
 
 ### Detail that left the rows
 

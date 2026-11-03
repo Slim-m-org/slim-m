@@ -49,7 +49,7 @@ class DmCallPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Container(
+    return PaneSurface(
       color: tokens.surfaceBase,
       // No AppBar sits above this bar; see ConversationPane's doc.
       child: SafeArea(

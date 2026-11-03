@@ -3,13 +3,17 @@
 /// the in-call share menu as well as Voice settings.
 library;
 
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/live_quality_restart.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/widgets/video_quality_sections.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -22,6 +26,13 @@ Future<void> _openMenu(WidgetTester tester) async {
   await tester.tap(find.bySemanticsLabel('Screen share options'));
   await tester.pumpAndSettle();
 }
+
+bool _selected(WidgetTester tester, String label) =>
+    tester
+        .getSemantics(find.bySemanticsLabel(label))
+        .flagsCollection
+        .isSelected ==
+    Tristate.isTrue;
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -84,6 +95,7 @@ void main() {
     container.read(voiceSettingsControllerProvider);
     await tester.pumpAndSettle();
     await _openMenu(tester);
+    final handle = tester.ensureSemantics();
 
     final state = container.read(voiceSettingsControllerProvider);
     expect(
@@ -93,19 +105,13 @@ void main() {
         ScreenShareFps.fps15,
       ),
     );
-    // One check per group, on the saved row.
-    expect(find.byIcon(AppIcons.check), findsNWidgets(2));
     for (final label in ['1440p', '15 fps']) {
-      final row = find.ancestor(
-        of: find.text(label).first,
-        matching: find.byType(AppMenuItem),
-      );
-      expect(
-        find.descendant(of: row.first, matching: find.byIcon(AppIcons.check)),
-        findsOneWidget,
-        reason: label,
-      );
+      expect(_selected(tester, label), isTrue, reason: label);
     }
+    for (final label in ['720p', '1080p', '30 fps', '60 fps']) {
+      expect(_selected(tester, label), isFalse, reason: label);
+    }
+    handle.dispose();
   });
 
   testWidgets('saved choices are seeded into the session at launch', (
@@ -140,4 +146,35 @@ void main() {
     expect(receive, ReceiveVideoQuality.auto);
     expect(camera, CameraQuality.balanced);
   });
+
+  for (final pending in [false, true]) {
+    testWidgets(
+      'the settings rows ${pending ? 'say' : 'do not say'} the next-share note',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shareSettingsPendingProvider.overrideWith((ref) => pending),
+            ],
+            child: MaterialApp(
+              theme: buildTheme(Brightness.dark, AppTokens.dark),
+              home: const Scaffold(
+                body: SingleChildScrollView(child: VideoQualitySection()),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Screen share resolution'), findsOneWidget);
+        expect(
+          find.text(shareSettingsPendingNote),
+          pending ? findsWidgets : findsNothing,
+        );
+      },
+    );
+  }
 }

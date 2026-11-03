@@ -52,6 +52,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::VoiceParticipantLeft { .. }
         | Event::VoiceScreenShareChanged { .. }
         | Event::WatchTick { .. }
+        | Event::CallAudioChanged { .. }
         // Same again: a DM's own VIEW_CHANNEL already limits this to the pair.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
@@ -70,6 +71,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::MemberRoleChanged { .. }
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         | Event::ReportsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }

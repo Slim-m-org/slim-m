@@ -16,7 +16,7 @@ mod dock_install;
 mod dock_package;
 mod fetch;
 pub(super) mod keywords;
-mod manifest;
+pub(super) mod manifest;
 mod module_data;
 mod sources;
 mod ssrf;
@@ -75,6 +75,8 @@ pub struct Dock {
     module_data: Arc<std::sync::OnceLock<Arc<crate::module_runtime::SqliteData>>>,
     /// Pushed events each module has waiting, kept current by the event queue.
     queue_depths: Arc<super::module_events::QueueDepths>,
+    /// Every module's pending events, shared so the host can queue straight to one (call audio).
+    event_queues: Arc<super::module_events::Queues>,
     /// The live module hooks; see `module_hooks`.
     hooks: Arc<super::module_hooks::Registry>,
 }
@@ -100,6 +102,11 @@ impl Dock {
     /// The depths the event queue reports into, shared so the Dock can read them.
     pub(super) fn queue_depths(&self) -> Arc<super::module_events::QueueDepths> {
         Arc::clone(&self.queue_depths)
+    }
+
+    /// The queues pushed events wait in; see `module_events`.
+    pub(super) fn event_queues(&self) -> Arc<super::module_events::Queues> {
+        Arc::clone(&self.event_queues)
     }
 
     /// The hooks modules have placed in front of actions.
@@ -168,11 +175,13 @@ impl Dock {
             .host_str()
             .expect("the source root always has a host")
             .to_owned();
+        let queue_depths = Arc::default();
         Self {
             slot_cache: super::module_slot_cache::SlotCache::default(),
             hooks: Arc::default(),
             module_data: Arc::default(),
-            queue_depths: Arc::default(),
+            event_queues: new_event_queues(&queue_depths),
+            queue_depths,
             inner: Some(Arc::new(Enabled {
                 client: ssrf::build_client(allow_private),
                 official_bases,
@@ -188,12 +197,14 @@ impl Dock {
     /// in the Dock: every one of its routes would need a real fetch, so
     /// nothing exercises it by accident.
     pub fn disabled() -> Self {
+        let queue_depths = Arc::default();
         Self {
             inner: None,
             slot_cache: super::module_slot_cache::SlotCache::default(),
             hooks: Arc::default(),
             module_data: Arc::default(),
-            queue_depths: Arc::default(),
+            event_queues: new_event_queues(&queue_depths),
+            queue_depths,
         }
     }
 
@@ -381,4 +392,13 @@ async fn install(
     install_manifest(&state, &manifest, artifact, &req, resolved.repo.as_deref())
         .await
         .map(Json)
+}
+
+fn new_event_queues(
+    depths: &Arc<super::module_events::QueueDepths>,
+) -> Arc<super::module_events::Queues> {
+    super::module_events::Queues::with_depths(
+        super::module_events::QUEUE_CAPACITY,
+        Arc::clone(depths),
+    )
 }

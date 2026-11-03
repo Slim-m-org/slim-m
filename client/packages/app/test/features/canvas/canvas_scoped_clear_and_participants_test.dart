@@ -76,7 +76,6 @@ Future<void> _pump(
       alignment: Alignment.topRight,
       child: CanvasOverflowMenu(
         opensBelow: true,
-        onPasteImage: () {},
         canDraw: true,
         onToggleFullscreen: () {},
         canManage: true,

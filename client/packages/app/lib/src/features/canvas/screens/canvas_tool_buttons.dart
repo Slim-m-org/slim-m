@@ -5,19 +5,21 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/canvas_pen_style.dart';
+import '../widgets/canvas_custom_colours.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_tool_options.dart';
 
 const _cannotDrawTooltip = "Can't draw right now";
 
-class CanvasToolButtons extends StatelessWidget {
+class CanvasToolButtons extends ConsumerWidget {
   const CanvasToolButtons({
     super.key,
     required this.tool,
@@ -42,14 +44,25 @@ class CanvasToolButtons extends StatelessWidget {
       onToolChanged(tool == picked ? CanvasTool.pan : picked);
 
   /// Options belong to the selected tool only, and only while it can be used.
-  List<ControlOptionEntry> _optionsFor(CanvasTool forTool) =>
-      tool == forTool && forTool.isAvailable(canDraw: canDraw)
+  List<ControlOptionEntry> _optionsFor(
+    BuildContext context,
+    WidgetRef ref,
+    CanvasTool forTool,
+  ) => tool == forTool && forTool.isAvailable(canDraw: canDraw)
       ? canvasToolOptions(
           forTool,
           pen: pen,
           onPenChanged: onPenChanged,
           shapeKind: shapeKind,
           onShapeKindChanged: onShapeKindChanged,
+          customColours: forTool == CanvasTool.pen
+              ? canvasCustomColourSwatches(
+                  context: context,
+                  ref: ref,
+                  selectedKey: pen.colorKey,
+                  onChoose: (hex) => onPenChanged(pen.copyWith(colorKey: hex)),
+                )
+              : const [],
         )
       : const [];
 
@@ -61,18 +74,23 @@ class CanvasToolButtons extends StatelessWidget {
         : '${armed}select it to choose another';
   }
 
-  Widget _withOptions(CanvasTool forTool, String label, Widget child) =>
-      ControlOptionsMenu(
-        active: true,
-        caretHeight: AppSizes.icon28,
-        opensAbove: true,
-        optionsLabel: label,
-        options: _optionsFor(forTool),
-        child: child,
-      );
+  Widget _withOptions(
+    BuildContext context,
+    WidgetRef ref,
+    CanvasTool forTool,
+    String label,
+    Widget child,
+  ) => ControlOptionsMenu(
+    active: true,
+    caretHeight: AppSizes.icon28,
+    opensAbove: true,
+    optionsLabel: label,
+    options: _optionsFor(context, ref, forTool),
+    child: child,
+  );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Six touch-sized tools plus the armed caret only fit a 360dp dock when they touch.
     final gap = SizedBox(
       width: AppTouchTargets.of(context) ? 0 : AppSpacing.s4,
@@ -92,6 +110,8 @@ class CanvasToolButtons extends StatelessWidget {
         ),
         gap,
         _withOptions(
+          context,
+          ref,
           CanvasTool.pen,
           'Pen options',
           _PenButton(
@@ -125,6 +145,8 @@ class CanvasToolButtons extends StatelessWidget {
         ),
         gap,
         _withOptions(
+          context,
+          ref,
           CanvasTool.shape,
           'Shape options',
           AppIconButton(
@@ -153,7 +175,7 @@ class CanvasToolButtons extends StatelessWidget {
   }
 }
 
-/// The pen button, with a dot of the armed colour under the glyph.
+/// The pen button, with a bar of the armed colour under the glyph, like the tip of the nib.
 class _PenButton extends StatelessWidget {
   const _PenButton({
     required this.pen,
@@ -167,32 +189,61 @@ class _PenButton extends StatelessWidget {
   final bool canDraw;
   final VoidCallback? onPressed;
 
-  static const double _sampleInset = 4;
+  /// Drops the bar to just under the 20px glyph, whatever the button's own height.
+  static const double _barOffset = 19;
+  static const double _barLength = 14;
 
-  /// Grows with the armed width, so the dot still says thin or thick.
-  double get _dot => (pen.width + 3).clamp(5, 9).toDouble();
+  /// Grows with the armed width, so the bar still says thin or thick.
+  double get _barThickness => (pen.width / 2).clamp(2, 4).toDouble();
 
   @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.bottomCenter,
-    children: [
-      AppIconButton(
-        icon: AppIcons.pen,
-        semanticLabel: 'Pen',
-        tooltip: canDraw ? 'Pen (P)' : _cannotDrawTooltip,
-        active: active,
-        onPressed: onPressed,
-      ),
-      Positioned(
-        bottom: _sampleInset,
-        child: IgnorePointer(
-          child: Container(
-            width: _dot,
-            height: _dot,
-            decoration: BoxDecoration(color: pen.color, shape: BoxShape.circle),
+  Widget build(BuildContext context) {
+    final outline = penBarOutline(pen.color);
+    return Stack(
+      children: [
+        AppIconButton(
+          icon: AppIcons.pen,
+          semanticLabel: 'Pen',
+          tooltip: canDraw ? 'Pen (P)' : _cannotDrawTooltip,
+          active: active,
+          onPressed: onPressed,
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: _barOffset),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: outline == null
+                        ? null
+                        : Border.all(color: outline, width: 0.75),
+                    borderRadius: BorderRadius.circular(_barThickness),
+                  ),
+                  child: Container(
+                    key: const ValueKey('pen-colour-bar'),
+                    width: _barLength,
+                    height: _barThickness,
+                    decoration: BoxDecoration(
+                      color: pen.color,
+                      borderRadius: BorderRadius.circular(_barThickness),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
+}
+
+/// A hairline for a near-black or near-white pen, which would vanish into the dark or light surface.
+@visibleForTesting
+Color? penBarOutline(Color colour) {
+  final luminance = colour.computeLuminance();
+  if (luminance < 0.05) return const Color(0x99FFFFFF);
+  if (luminance > 0.85) return const Color(0x99000000);
+  return null;
 }

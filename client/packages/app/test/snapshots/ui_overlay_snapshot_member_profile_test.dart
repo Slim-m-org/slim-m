@@ -27,6 +27,9 @@ api.UserProfile _profile({required bool image}) => api.UserProfile(
   createdAt: 1790000000000,
   roles: const ['admin'],
   profileColor: 2,
+  about:
+      'Builds slim-m. Ask me about the canvas, voice, or why the build is red.',
+  statusText: 'heads down until 3',
   bannerUpdatedAt: image ? 1 : null,
 );
 

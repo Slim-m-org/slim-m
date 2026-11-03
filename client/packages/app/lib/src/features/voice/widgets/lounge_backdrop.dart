@@ -58,8 +58,11 @@ class LoungeBackdrop extends ConsumerWidget {
         ),
       );
     }
+    // The aurora's pools are wider than the stage near its edge, and a docked chat pane has no surface of its own to hide them.
     return IgnorePointer(
-      child: ExcludeSemantics(child: RepaintBoundary(child: body)),
+      child: ExcludeSemantics(
+        child: ClipRect(child: RepaintBoundary(child: body)),
+      ),
     );
   }
 

@@ -37,6 +37,8 @@ pub use self::canvas_geometry::{
 pub(crate) use self::canvas_geometry::{channel_key, valid_bounds};
 
 pub(super) mod canvas_audit;
+pub(super) mod canvas_batch;
+use self::canvas_batch::{ensure_room, existing_placement, insert_object};
 pub(super) mod canvas_clear;
 pub(super) mod canvas_edit;
 pub(super) mod canvas_geometry;
@@ -173,122 +175,19 @@ impl Store {
         id: CanvasObjectId,
         request: PlaceRequest<'_>,
     ) -> Result<Placement, PlaceError> {
-        let PlaceRequest {
-            kind,
-            bounds,
-            props,
-            attachment,
-        } = request;
-        let (x, y, w, h) = bounds;
-        if !valid_bounds(x, y, w, h) {
-            return Err(PlaceError::OutOfBounds);
-        }
-        if let Some(sha256) = attachment {
-            if !super::attachments::may_link(self, author_id, sha256).await? {
-                return Err(PlaceError::AttachmentNotFound);
-            }
-            let summary = self
-                .attachment_summary(sha256)
-                .await
-                .map_err(PlaceError::Internal)?
-                .ok_or(PlaceError::AttachmentNotFound)?;
-            if !crate::media::is_inline(&summary.content_type) {
-                return Err(PlaceError::NotAPicture);
-            }
-        }
+        self.check_place_request(author_id, &request).await?;
 
         // Reads the id before deciding to write, so the write lock is taken up
         // front (see `Store::begin_write`).
         let mut tx = self.begin_write().await?;
-        if let Some(existing) = fetch_object(&mut tx, id).await? {
+        if let Some(existing) = existing_placement(&mut tx, channel_id, id).await? {
             tx.commit().await?;
-            return match (existing.0 == channel_id, existing.1) {
-                (true, false) => Ok(Placement {
-                    object: existing.2,
-                    fresh: false,
-                }),
-                (true, true) => Err(PlaceError::Removed),
-                // A removed row keeps the id, so falling through would be a UNIQUE violation reported as a 500.
-                (false, _) => Err(PlaceError::IdConflict),
-            };
+            return Ok(existing);
         }
-
-        let live = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_objects
-               WHERE channel_id = ? AND deleted_at IS NULL"#,
-            channel_id
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-        // Read in this same write transaction as the count above it.
-        let cap = super::space::read_canvas_object_cap(&mut *tx).await?;
-        if live >= cap {
-            tx.commit().await?;
-            return Err(PlaceError::ChannelFull);
-        }
-
-        let seq = next_canvas_seq(&mut tx, channel_id).await?;
-
-        let key = channel_key(channel_id);
-        let now = now_ms();
-        // `z_index` is seeded from `seq`, so the default paint order is the
-        // order things were drawn in and raising an object is a later edit.
-        sqlx::query!(
-            r#"INSERT INTO canvas_objects
-                   (id, channel_id, channel_key, kind, z_index, x, y, w, h,
-                    author_id, seq, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
-            id,
-            channel_id,
-            key,
-            kind,
-            seq,
-            x,
-            y,
-            w,
-            h,
-            author_id,
-            seq,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO canvas_object_props (object_id, props) VALUES (?, ?)",
-            id,
-            props
-        )
-        .execute(&mut *tx)
-        .await?;
-        if let Some(sha256) = attachment {
-            sqlx::query!(
-                "INSERT INTO canvas_object_attachments (object_id, sha256) VALUES (?, ?)",
-                id,
-                sha256
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-        // Same transaction, same seq, or the op stream stops being dense.
-        insert_place_op(&mut tx, channel_id, seq, author_id, id, now).await?;
+        ensure_room(&mut tx, channel_id, 1).await?;
+        let placement = insert_object(&mut tx, channel_id, author_id, id, &request).await?;
         tx.commit().await?;
-
-        Ok(Placement {
-            object: CanvasObject {
-                id,
-                kind: kind.to_owned(),
-                z_index: seq,
-                x,
-                y,
-                w,
-                h,
-                props: props.to_owned(),
-                author_id: Some(author_id),
-                seq: Seq(seq),
-                created_at: now,
-            },
-            fresh: true,
-        })
+        Ok(placement)
     }
 
     /// The channel's live objects intersecting `view`, z-ordered, held back to

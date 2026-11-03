@@ -28,17 +28,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../widgets/status_banner.dart';
 import '../providers/direct_play_provider.dart';
 import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_health.dart';
+import 'call_audio_banner.dart';
 import 'call_filmstrip.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
 import 'fullscreen_video_overlay.dart';
-import '../../screen_overlay/widgets/screen_overlay_banner.dart';
 import 'local_screen_share_banner.dart';
 import 'mic_failure_banner.dart';
 import 'poor_connection_banner.dart';
@@ -148,16 +149,15 @@ class CallStageLayout extends ConsumerWidget {
               participantIds: [for (final p in participants) p.identity],
             ),
           // A live share has no banner: the share control and the stage caption say it (decision 0047, point 8).
-          if (voice.awaitingBroadcast)
-            const Padding(
-              padding: EdgeInsets.only(top: AppSpacing.s12),
-              child: LocalScreenSharePendingBanner(),
-            ),
-          const ScreenOverlayBanner(),
+          if (voice.awaitingBroadcast) const LocalScreenSharePendingBanner(),
+          if (!isDm && voice.channelId != null)
+            CallAudioBanner(channelId: voice.channelId!),
           if (voice.error != null && !voice.rejoining && !voice.reconnecting)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s12),
-              child: AppErrorState(message: voice.error!),
+            StatusBanner(
+              severity: BannerSeverity.error,
+              sticky: true,
+              message: voice.error!,
+              margin: const EdgeInsets.only(top: AppSpacing.s12),
             ),
           const MicFailureBanner(),
           const StoppedSharesBanner(),
@@ -178,6 +178,7 @@ class CallStageLayout extends ConsumerWidget {
                       participants: participants,
                       controller: controller,
                       onOpenProfile: onOpenProfile,
+                      channelId: voice.channelId,
                       menuItemsBuilder: menuItemsBuilder,
                     )
                   : _ParticipantGrid(
@@ -224,8 +225,11 @@ class _StageWithFilmstrip extends StatelessWidget {
     required this.participants,
     required this.controller,
     required this.onOpenProfile,
+    required this.channelId,
     this.menuItemsBuilder,
   });
+
+  final String? channelId;
 
   /// The viewer's own player, which takes the stage while they play directly.
   final Widget? directStage;
@@ -246,6 +250,7 @@ class _StageWithFilmstrip extends StatelessWidget {
       width: double.infinity,
       height: _filmstripHeight,
       child: CallFilmstrip(
+        channelId: channelId,
         leadingItemWidth: ShareThumbnail.widthFor(
           _filmstripHeight - AppSpacing.s16,
         ),
@@ -286,6 +291,7 @@ class _StageWithFilmstrip extends StatelessWidget {
     if (shares.length > 1 && focusedIdentity == null) {
       return LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
+          key: PageStorageKey<String>('call-share-grid-scroll-$channelId'),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Column(
@@ -363,6 +369,7 @@ class _ParticipantGrid extends StatelessWidget {
         participants.length,
       );
       return SingleChildScrollView(
+        key: PageStorageKey<String>('call-roster-scroll-$channelId'),
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: Center(

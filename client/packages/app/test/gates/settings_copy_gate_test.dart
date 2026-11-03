@@ -22,7 +22,7 @@ final _literalRun = RegExp('(?:${_literal.pattern}\\s*)+');
 final _interpolation = RegExp(r'\$\{[^}]*\}|\$\w+');
 final _sentenceEnd = RegExp(r'[.!?](?=\s|$)');
 
-final _descriptionKey = RegExp(r'\b(?:description|sheetFootnote)\s*:');
+final _descriptionKey = RegExp(r'\bdescription\s*:');
 final _descriptionDecl = RegExp(
   r'\b(?:const|final|String)\s+(?:get\s+)?_?\w*[dD]escription\w*\b[^=;{]*?(=>|=|\{)',
 );

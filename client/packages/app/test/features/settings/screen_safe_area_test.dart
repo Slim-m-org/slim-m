@@ -32,7 +32,10 @@ import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/personal_settings_screen.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
-import 'package:slimm_data/data.dart' as data show Channel, MessageStore;
+import 'package:drift/native.dart';
+import 'package:slimm_data/data.dart'
+    as data
+    show Channel, MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -342,6 +345,9 @@ class _ChannelsOnlyStore implements data.MessageStore {
   final List<data.Channel> channels;
 
   @override
+  final data.SlimmDatabase db = data.SlimmDatabase(NativeDatabase.memory());
+
+  @override
   Stream<List<data.Channel>> watchChannels() => Stream.value(channels);
 
   @override
@@ -459,6 +465,9 @@ void main() {
       find.byType(SingleChildScrollView).last,
       'the channel list',
     );
+    // Drift closes its query streams on a timer after the last listener goes.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 50));
   });
 
   testWidgets('sign-in clears both the notch and the home indicator', (

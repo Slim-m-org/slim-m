@@ -58,6 +58,7 @@
  "voice: a client that loses its network rejoins on its own": 69.1,
  "voice: a listener's volume slider scales the sound, to silence, and survives rejoining": 54.9,
  "voice: a moderator moves a member to another call and they hear her there": 18.7,
+ "voice: a share reaches the viewer's full resolution within seconds": 64.0,
  "voice: a share reaches the viewer, measured, with the sender held back": 62.0,
  "voice: a share's own volume moves apart from the sharer's voice": 68.5,
  "voice: a shared camera tile converges and persists": 17.8,

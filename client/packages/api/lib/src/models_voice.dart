@@ -135,3 +135,107 @@ class OutstandingDmCallRing {
         remainingMs: json['remaining_ms'] as int,
       );
 }
+
+/// A module a member may turn on for the call they are in, with its own words
+/// about what it does with what it hears.
+class CallAudioModule {
+  const CallAudioModule({
+    required this.moduleId,
+    required this.moduleName,
+    required this.purpose,
+    required this.keeps,
+  });
+
+  final String moduleId;
+  final String moduleName;
+  final String purpose;
+  final String keeps;
+
+  factory CallAudioModule.fromJson(Map<String, dynamic> json) =>
+      CallAudioModule(
+        moduleId: json['module_id'] as String,
+        moduleName: json['module_name'] as String,
+        purpose: json['purpose'] as String,
+        keeps: json['keeps'] as String,
+      );
+}
+
+/// A module hearing a call as text, or asking to (decision 0105). Nothing is
+/// heard from anyone in [pending]; [included] is everyone who said yes.
+class CallAudioState {
+  const CallAudioState({
+    required this.moduleId,
+    required this.moduleName,
+    required this.purpose,
+    required this.keeps,
+    required this.isOn,
+    required this.askedBy,
+    required this.included,
+    required this.pending,
+    required this.expiresAtMs,
+    required this.full,
+  });
+
+  final String moduleId;
+  final String moduleName;
+  final String purpose;
+  final String keeps;
+
+  /// False while everyone is still being asked.
+  final bool isOn;
+  final String askedBy;
+  final List<String> included;
+  final List<String> pending;
+
+  /// When the ask lapses, or the session reaches its time limit.
+  final int expiresAtMs;
+
+  /// The call holds more people than a session can ask.
+  final bool full;
+
+  bool isIncluded(String userId) => included.contains(userId);
+
+  /// Waiting on [userId]'s answer, so their prompt is up.
+  bool isAsking(String userId) => pending.contains(userId);
+
+  /// People who have answered yes, out of everyone the session knows.
+  int get answered => included.length;
+  int get total => included.length + pending.length;
+
+  factory CallAudioState.fromJson(Map<String, dynamic> json) => CallAudioState(
+        moduleId: json['module_id'] as String,
+        moduleName: json['module_name'] as String,
+        purpose: json['purpose'] as String,
+        keeps: json['keeps'] as String,
+        isOn: json['status'] == 'on',
+        askedBy: json['asked_by'] as String,
+        included: _strings(json['included']),
+        pending: _strings(json['pending']),
+        expiresAtMs: (json['expires_at_ms'] as num).toInt(),
+        full: json['full'] as bool? ?? false,
+      );
+
+  static List<String> _strings(Object? json) => [
+        for (final item in json as List<dynamic>? ?? const []) item as String,
+      ];
+}
+
+/// `GET /channels/{id}/voice/call-audio`: the session, if any, and the
+/// modules the caller may turn on here.
+class CallAudioStatus {
+  const CallAudioStatus({this.session, this.startable = const []});
+
+  final CallAudioState? session;
+  final List<CallAudioModule> startable;
+
+  factory CallAudioStatus.fromJson(Map<String, dynamic> json) =>
+      CallAudioStatus(
+        session: json['session'] == null
+            ? null
+            : CallAudioState.fromJson(json['session'] as Map<String, dynamic>),
+        startable: [
+          for (final m in json['startable'] as List<dynamic>? ?? const [])
+            CallAudioModule.fromJson(m as Map<String, dynamic>),
+        ],
+      );
+}

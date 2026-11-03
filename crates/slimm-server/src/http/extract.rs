@@ -145,6 +145,21 @@ pub(crate) fn enforce(
     state.limiter.admit(class, &key).map_err(ApiError::from)
 }
 
+/// [`enforce`], charging `cost` tokens: for a request whose weight is only known once its body is read.
+pub(crate) fn enforce_weighted(
+    state: &AppState,
+    parts: &Parts,
+    ctx: &SessionContext,
+    class: Class,
+    cost: f64,
+) -> Result<(), ApiError> {
+    let key = limit_key(parts, Some(ctx), state.limiter.trusted_hops());
+    state
+        .limiter
+        .admit_weighted(class, &key, cost)
+        .map_err(ApiError::from)
+}
+
 /// An unauthenticated request that has passed the rate limit for its class.
 /// Used by the password and refresh endpoints, which are reachable by anyone.
 pub(crate) struct RateLimited<const C: u8>;

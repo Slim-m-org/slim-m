@@ -57,6 +57,34 @@ use world::Contract;
 /// this list must be called.
 const UNCOVERED: &[(&str, &str)] = &[
     (
+        "runSpaceUplinkTest",
+        "uploads 40 MB to an external speed endpoint; tests/uplink_test.rs covers it against a local one",
+    ),
+    (
+        "requestVoiceCallAudio",
+        "needs a connected listener, an armed module and a member on the call; \
+         tests/call_audio.rs drives every outcome of it against a fake listener.",
+    ),
+    (
+        "stopVoiceCallAudio",
+        "needs a running session, which needs a connected listener; it can only answer \
+         404 here. tests/call_audio.rs covers its 204.",
+    ),
+    (
+        "answerVoiceCallAudio",
+        "needs an open ask, which needs a connected listener; tests/call_audio.rs \
+         drives every outcome of it.",
+    ),
+    (
+        "getDockModuleCallAudioChannels",
+        "needs a module with call audio approved; tests/call_audio.rs reads it back.",
+    ),
+    (
+        "setDockModuleCallAudioChannels",
+        "needs a module with call audio approved; tests/call_audio.rs covers its \
+         200, 400 and 403.",
+    ),
+    (
         "putDockModuleHook",
         "the fixture's module declares no hooks, so it can only answer 404 here. Its 204 and \
          the order it sets are covered by tests/module_hooks.rs.",

@@ -150,6 +150,19 @@ void main() {
       expect(playback.artist, 'A, B');
     });
 
+    test('the position and track length come through', () async {
+      final playback = await read(
+        http.Response(
+          '{"is_playing":true,"currently_playing_type":"track","progress_ms":'
+          '1234,"item":{"name":"Song","duration_ms":200000,"artists":[]}}',
+          200,
+        ),
+      );
+      playback as SpotifyPlaying;
+      expect(playback.positionMs, 1234);
+      expect(playback.durationMs, 200000);
+    });
+
     const base = 'https://i.scdn.co/image/ab67616d0000';
     const ids = {640: 'b273', 300: '1e02', 64: '4851'};
     Map<String, Object> image(int size) => {

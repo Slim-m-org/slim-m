@@ -41,6 +41,7 @@ import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
 import '../../../widgets/image_decode.dart';
 import '../../../widgets/text_link.dart';
+import 'card_spacing.dart';
 import 'youtube_inline_player.dart';
 import '../../../widgets/animation_gate.dart';
 
@@ -170,136 +171,148 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
     final onCardTap = preview.isPlayableVideo ? _handlePlayTap : _open;
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Semantics(
-      button: true,
-      label: preview.isPlayableVideo
-          ? 'Play video preview for ${preview.title ?? widget.url}'
-          : 'Open link preview for ${preview.title ?? widget.url}',
-      onTap: onCardTap,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          onTap: onCardTap,
-          child: SelectionContainer.disabled(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
-              child: Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: tokens.borderSubtle),
-                      borderRadius: BorderRadius.circular(AppRadii.control),
-                    ),
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.s8,
-                      AppSpacing.s8,
-                      widget.onRemove == null
-                          ? AppSpacing.s8
-                          : AppSizes.controlSm,
-                      AppSpacing.s8,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (preview.siteName case final siteName?)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                AppIcons.link,
-                                size: 12,
-                                color: tokens.textSecondary,
-                              ),
-                              const SizedBox(width: AppSpacing.s4),
-                              Flexible(
-                                child: Text(
-                                  siteName,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppText.caption.copyWith(
-                                    color: tokens.textSecondary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: kCardBottomGap),
+      child: Semantics(
+        button: true,
+        label: preview.isPlayableVideo
+            ? 'Play video preview for ${preview.title ?? widget.url}'
+            : 'Open link preview for ${preview.title ?? widget.url}',
+        onTap: onCardTap,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            onTap: onCardTap,
+            child: SelectionContainer.disabled(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: tokens.borderSubtle),
+                        borderRadius: BorderRadius.circular(AppRadii.control),
+                      ),
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.s8,
+                        AppSpacing.s8,
+                        widget.onRemove == null
+                            ? AppSpacing.s8
+                            : AppSizes.controlSm,
+                        AppSpacing.s8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (preview.siteName case final siteName?)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  AppIcons.link,
+                                  size: 12,
+                                  color: tokens.textSecondary,
+                                ),
+                                const SizedBox(width: AppSpacing.s4),
+                                Flexible(
+                                  child: Text(
+                                    siteName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.caption.copyWith(
+                                      color: tokens.textSecondary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        if (preview.title case final title?)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.s4),
-                            child: Text(
-                              title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.body.copyWith(
-                                fontWeight: AppWeights.semi,
-                                color: tokens.textPrimary,
-                              ),
+                              ],
                             ),
-                          ),
-                        if (preview.authorName case final authorName?)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.s4),
-                            child: _AuthorRow(
-                              name: authorName,
-                              url: preview.authorUrl,
-                            ),
-                          ),
-                        if (preview.description case final description?)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.s4),
-                            child: Text(
-                              description,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.caption.copyWith(
-                                color: tokens.textSecondary,
+                          if (preview.title case final title?)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.s4,
+                              ),
+                              child: Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.body.copyWith(
+                                  fontWeight: AppWeights.semi,
+                                  color: tokens.textPrimary,
+                                ),
                               ),
                             ),
-                          ),
-                        if (preview.imageToken != null ||
-                            preview.isPlayableVideo)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.s8),
-                            child: _LinkPreviewMedia(
-                              url: widget.url,
-                              preview: preview,
-                              revealed: _revealed,
-                              onReveal: () => setState(() => _revealed = true),
-                              playing: _playing,
-                              onPlay: _handlePlayTap,
+                          if (preview.authorName case final authorName?)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.s4,
+                              ),
+                              child: _AuthorRow(
+                                name: authorName,
+                                url: preview.authorUrl,
+                              ),
                             ),
-                          ),
-                      ],
+                          if (preview.description case final description?)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.s4,
+                              ),
+                              child: Text(
+                                description,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.caption.copyWith(
+                                  color: tokens.textSecondary,
+                                ),
+                              ),
+                            ),
+                          if (preview.imageToken != null ||
+                              preview.isPlayableVideo)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.s8,
+                              ),
+                              child: _LinkPreviewMedia(
+                                url: widget.url,
+                                preview: preview,
+                                revealed: _revealed,
+                                onReveal: () =>
+                                    setState(() => _revealed = true),
+                                playing: _playing,
+                                onPlay: _handlePlayTap,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (widget.onRemove != null)
-                    Positioned(
-                      top: AppSpacing.s4,
-                      right: AppSpacing.s4,
-                      child: Focus(
-                        canRequestFocus: false,
-                        onFocusChange: (focused) =>
-                            setState(() => _removeFocused = focused),
-                        child: AnimatedOpacity(
-                          opacity: _hovered || _removeFocused || !_hasMouse
-                              ? 1
-                              : 0,
-                          duration: AppMotion.fast,
-                          alwaysIncludeSemantics: true,
-                          child: AppIconButton(
-                            icon: AppIcons.dismiss,
-                            semanticLabel: widget.removeLabel,
-                            tooltip: widget.removeLabel,
-                            size: AppIconButtonSize.sm,
-                            iconSize: AppSizes.icon16,
-                            onPressed: widget.onRemove,
+                    if (widget.onRemove != null)
+                      Positioned(
+                        top: AppSpacing.s4,
+                        right: AppSpacing.s4,
+                        child: Focus(
+                          canRequestFocus: false,
+                          onFocusChange: (focused) =>
+                              setState(() => _removeFocused = focused),
+                          child: AnimatedOpacity(
+                            opacity: _hovered || _removeFocused || !_hasMouse
+                                ? 1
+                                : 0,
+                            duration: AppMotion.fast,
+                            alwaysIncludeSemantics: true,
+                            child: AppIconButton(
+                              icon: AppIcons.dismiss,
+                              semanticLabel: widget.removeLabel,
+                              tooltip: widget.removeLabel,
+                              size: AppIconButtonSize.sm,
+                              iconSize: AppSizes.icon16,
+                              onPressed: widget.onRemove,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

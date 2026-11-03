@@ -181,5 +181,9 @@ pub(super) async fn anonymize_authored_content(
     )
     .execute(&mut **tx)
     .await?;
+    sqlx::query("UPDATE space_themes SET author_id = NULL WHERE author_id = ?")
+        .bind(user_id)
+        .execute(&mut **tx)
+        .await?;
     Ok(())
 }

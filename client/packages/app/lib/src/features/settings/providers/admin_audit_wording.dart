@@ -183,6 +183,7 @@ class _Describer {
     'module.enable' => 'turned on ${_module()}',
     'module.disable' => 'turned off ${_module()}',
     'module.schedule_channel' => 'set the schedule channel for ${_module()}',
+    'module.call_audio_channels' => 'changed which calls ${_module()} can hear',
     'module.clear_storage' => 'cleared the stored data of ${_module()}',
     'module.settings' => 'changed the settings of ${_module()}',
     'module.hook' => 'changed the checks of ${_module()}',

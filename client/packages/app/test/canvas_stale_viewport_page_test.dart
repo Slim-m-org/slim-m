@@ -12,6 +12,9 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'features/canvas/canvas_pane_harness.dart';
 import 'support/async_wait.dart';
 
+/// The first-view read, the rest-of-board page, and the camera-settle read.
+const settledReads = 3;
+
 void main() {
   testWidgets('a stale viewport page does not resurrect ink cleared meanwhile', (
     tester,
@@ -34,6 +37,15 @@ void main() {
       tester,
       () => container.read(canvasEngineProvider('c1')).paging == null,
       reason: 'the rest of the board is in',
+    );
+
+    // The pane re-reads once its camera settles to the laid-out size; a read landing after the gate is armed would take it instead of the one below.
+    await waitUntil(
+      tester,
+      () =>
+          fixture.viewportGets >= settledReads &&
+          fixture.viewportAnswered == fixture.viewportGets,
+      reason: 'the camera-settle read was answered',
     );
 
     // A second region holds ink the document has never seen, so a clear cannot tombstone it.

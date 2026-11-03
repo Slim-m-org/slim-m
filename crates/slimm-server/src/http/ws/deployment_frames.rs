@@ -8,7 +8,7 @@
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
 use super::signals;
-use crate::hub::{Event, Hub};
+use crate::hub::{Event, Hub, RoleChange};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
 
@@ -114,14 +114,28 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         Event::MemberJoined(user_id) => ServerFrame::MemberJoined {
             user_id: user_id.to_string(),
         },
-        Event::RoleChanged { role_id } => ServerFrame::RoleChanged {
+        Event::RoleChanged { role_id, change } => ServerFrame::RoleChanged {
             seq: None,
             role_id: role_id.to_string(),
+            change: change.as_deref().map(RoleChange::kind),
+            name: change
+                .as_deref()
+                .and_then(|c| c.after().or(c.before()))
+                .map(|look| look.name.clone()),
+            before: change.as_deref().and_then(|c| c.before().cloned()),
+            after: change.as_deref().and_then(|c| c.after().cloned()),
         },
-        Event::MemberRoleChanged { user_id, role_id } => ServerFrame::MemberRoleChanged {
+        Event::MemberRoleChanged {
+            user_id,
+            role_id,
+            granted,
+            role_name,
+        } => ServerFrame::MemberRoleChanged {
             seq: None,
             user_id: user_id.to_string(),
             role_id: role_id.to_string(),
+            granted,
+            role_name,
         },
         Event::ProfileChanged(user_id) => ServerFrame::ProfileChanged {
             user_id: user_id.to_string(),
@@ -130,6 +144,7 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             bot_user_id: bot_user_id.to_string(),
         },
         Event::CategoryChanged => ServerFrame::CategoryChanged,
+        Event::SpaceSettingsChanged => ServerFrame::SpaceSettingsChanged,
         other => return Err(Box::new(other)),
     })
 }

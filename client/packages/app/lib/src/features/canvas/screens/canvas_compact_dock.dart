@@ -97,9 +97,16 @@ class CanvasCompactDock extends StatelessWidget {
 
 /// Undo, the overflow menu and close, drawn in the header at phone width.
 class CanvasCompactEditGroup extends StatelessWidget {
-  const CanvasCompactEditGroup({super.key, required this.canvas});
+  const CanvasCompactEditGroup({
+    super.key,
+    required this.canvas,
+    this.chatChannelId,
+  });
 
   final CanvasDockData canvas;
+
+  /// The voice channel whose chat the overflow can open; null where there is none.
+  final String? chatChannelId;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -109,6 +116,7 @@ class CanvasCompactEditGroup extends StatelessWidget {
         canvas: canvas,
         part: CanvasToolsRowPart.editOnly,
         overflowOpensBelow: true,
+        chatChannelId: chatChannelId,
       ),
       const SizedBox(width: AppSpacing.s4),
       CanvasDockToggle(open: true, onPressed: canvas.onClose),

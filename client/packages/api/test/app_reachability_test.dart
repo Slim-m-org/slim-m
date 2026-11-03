@@ -39,6 +39,9 @@ import 'support/code_only.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
+  'placeCanvasObjects': 'the batch place for bots that draw hundreds of marks; '
+      'the app commits one gesture at a time through placeCanvasObject '
+      '(2026-11-03)',
   'getExport': 'one export by id, for API clients and scripts that follow a '
       'single job; the app holds at most one job per kind and polls the short '
       'list from listExports instead (2026-10-20)',

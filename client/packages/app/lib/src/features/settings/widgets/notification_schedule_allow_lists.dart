@@ -10,14 +10,14 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
+import 'admin/overwrite_target_picker_sheets.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../providers/notification_schedule_controller.dart';
 import '../../../providers/providers.dart';
-import 'admin/overwrite_target_picker_sheets.dart';
+import '../../members/widgets/member_picker.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
@@ -45,10 +45,7 @@ class _NotificationScheduleAllowedPeopleState
     extends ConsumerState<NotificationScheduleAllowedPeople>
     with GuardedActionState<NotificationScheduleAllowedPeople> {
   Future<void> _add() async {
-    final member = await showAppSheet<api.UserProfile>(
-      context,
-      builder: (context) => const MemberPickerSheet(),
-    );
+    final member = await pickMember(context);
     if (member == null) return;
     final ok = await guard(
       whatFailed: 'add that person to your off-hours list',

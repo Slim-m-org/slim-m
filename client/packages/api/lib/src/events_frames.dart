@@ -329,6 +329,11 @@ class CategoryChanged extends ServerEvent {
   const CategoryChanged();
 }
 
+/// A Space-wide display setting changed; a receiver re-reads `/version`.
+class SpaceSettingsChanged extends ServerEvent {
+  const SpaceSettingsChanged();
+}
+
 /// Someone's presence on a channel's voice call changed: a join, a clean
 /// hangup, or the stale-heartbeat sweep evicting someone. Carries only the
 /// channel id, never who - unlike [ThreadUpdated]'s reply count, a voice
@@ -375,6 +380,21 @@ class VoiceScreenShareChanged extends ServerEvent {
   final String channelId;
   final String userId;
   final bool isSharingScreen;
+}
+
+/// A module started hearing, or asking to hear, [channelId]'s call, or the
+/// session ended when [state] is null. [ended] then says how (`declined`,
+/// `lapsed`, `stopped`, ...) and never says who declined.
+class VoiceCallAudioChanged extends ServerEvent {
+  const VoiceCallAudioChanged({
+    required this.channelId,
+    required this.state,
+    this.ended,
+  });
+
+  final String channelId;
+  final CallAudioState? state;
+  final String? ended;
 }
 
 /// A DM call ring started. [callerId] is who is calling; the receiving

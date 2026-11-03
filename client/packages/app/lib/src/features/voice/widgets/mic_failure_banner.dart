@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/status_banner.dart';
 import '../providers/mic_failure_advice.dart';
 import '../providers/mic_failure_providers.dart';
 import '../providers/voice_controller.dart';
@@ -24,20 +25,23 @@ class MicFailureBanner extends ConsumerWidget {
     final advice = reason == null ? null : micAdviceFor(reason);
     if (advice == null) return const SizedBox.shrink();
     final settings = advice.settings;
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s12),
-      child: AppErrorState(
-        message: advice.message,
-        onRetry: settings == null
-            ? null
-            : () => unawaited(
+    return StatusBanner(
+      severity: BannerSeverity.error,
+      sticky: true,
+      message: advice.message,
+      margin: const EdgeInsets.only(top: AppSpacing.s12),
+      action: settings == null
+          ? null
+          : AppButton(
+              size: AppButtonSize.sm,
+              label: 'Open settings',
+              onPressed: () => unawaited(
                 openMicSettings(
                   settings,
                   launcher: ref.read(micSettingsLauncherProvider),
                 ),
               ),
-        retryLabel: 'Open settings',
-      ),
+            ),
     );
   }
 }
@@ -49,27 +53,13 @@ class _SwitchedNotice extends ConsumerWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-    padding: const EdgeInsets.only(top: AppSpacing.s12),
-    child: AppCallout(
-      tone: AppCalloutTone.info,
-      icon: AppIcons.mic,
-      child: Row(
-        spacing: AppSpacing.s8,
-        children: [
-          Expanded(
-            child: Text('Your microphone went silent. Switched to $label.'),
-          ),
-          AppButton(
-            size: AppButtonSize.sm,
-            label: 'Dismiss',
-            onPressed: ref
-                .read(voiceControllerProvider.notifier)
-                .devices
-                .dismissMicFallbackNotice,
-          ),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context, WidgetRef ref) => StatusBanner(
+    icon: AppIcons.mic,
+    message: 'Your microphone went silent. Switched to $label.',
+    margin: const EdgeInsets.only(top: AppSpacing.s12),
+    onDismiss: ref
+        .read(voiceControllerProvider.notifier)
+        .devices
+        .dismissMicFallbackNotice,
   );
 }

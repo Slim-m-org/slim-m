@@ -61,7 +61,7 @@ void main() {
     addTearDown(paste.stop);
 
     await tester.runAsync(() async {
-      await paste.pasteAt(const Offset(10, 10));
+      await paste.pasteFromKeystroke();
       await Future<void>.delayed(const Duration(milliseconds: 200));
     });
 
@@ -115,7 +115,7 @@ void main() {
     addTearDown(paste.stop);
 
     await tester.runAsync(() async {
-      await paste.pasteAt(const Offset(10, 10));
+      await paste.pasteFromKeystroke();
       await Future<void>.delayed(const Duration(milliseconds: 200));
     });
 

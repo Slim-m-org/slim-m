@@ -80,8 +80,10 @@ Which monitor is shared:
 
 - Windows: the capturer's own "Screen N" label, taken as the Nth monitor in enumeration order, because the app's own source picker chose it.
 - Linux Wayland: the portal's picker makes the choice and never says which monitor.
-  The size of the first captured frame picks the monitor whose shape matches best, and the primary monitor breaks a tie.
-  On a layout of identical monitors this can choose the wrong one; that limit is accepted and documented rather than hidden.
+  The size of the first captured frame narrows the choice to the monitors whose shape matches.
+  Wayland reports no primary monitor, so a tie cannot be broken honestly: the overlay opens on every monitor that matches, and on every monitor when the size is unknown.
+  This replaced a primary-monitor tie-break that always chose the first monitor, so on two identical monitors a share of the second one drew on the first (2026-11-02, nested KWin with two outputs).
+  A mark may therefore also appear on a monitor that is not shared; that is shown rather than silently missing.
 
 ## Coordinates
 
@@ -110,7 +112,8 @@ Nothing is persisted and there is no migration.
 - Only the sharer's own screen, only while they share it, only a mark a call member drew.
   A mark from someone the sharer has blocked is dropped before it is painted, on the sharer's overlay and on a viewer's tile alike.
 - Off by default, per user, and the setting survives a restart but the overlay never starts without a live share.
-- The notice and the one-click off are always visible in the call stage while it is up.
+- There is no banner while the overlay is up (owner decision, 2026-11-02).
+  A short info toast says viewers can draw when it opens, and the share menu keeps the toggle.
   The share options menu carries the same toggle for anyone not on the call page.
 - Nothing a viewer draws is stored on the server or the sharer's disk.
 - The overlay cannot take input, so it cannot be used to click something on the sharer's machine.
@@ -126,7 +129,7 @@ The overlay repaints about 30 times a second only while a mark is alive and goes
 
 ## Surface rules
 
-This follows `docs/design/desktop-vs-mobile.md` rule 2 for the share options toggle (a value on a control that stays on screen) and rule 6 for the notice, which pushes content in the call stage and never overlays it.
+This follows `docs/design/desktop-vs-mobile.md` rule 2 for the share options toggle (a value on a control that stays on screen) and rule 6 for the status line, which was a banner and is now one info toast.
 The tile's pen, circle and note pill is part of the tile's own controls, so it is sized by width: hidden on a tile narrower than 220 logical pixels.
 
 ## Not done

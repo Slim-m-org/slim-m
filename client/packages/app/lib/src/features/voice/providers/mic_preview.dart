@@ -131,3 +131,20 @@ extension MicMeterCaption on MicMeterView {
     _ => 'Opening your microphone...',
   };
 }
+
+/// Where automatic sensitivity would put the line, learned from the preview
+/// level while no call is up, so the settings meter shows it working.
+final previewAutoThresholdProvider = StreamProvider.autoDispose<double>((ref) {
+  final estimator = NoiseFloorEstimator(
+    initialThresholdDb: ref.read(
+      voiceSettingsControllerProvider.select((s) => s.inputThresholdDb),
+    ),
+  );
+  final out = StreamController<double>();
+  ref.onDispose(out.close);
+  ref.listen(micPreviewProvider, (_, reading) {
+    if (reading.status != MicPreviewStatus.live) return;
+    out.add(estimator.add(reading.levelDb));
+  });
+  return out.stream;
+});

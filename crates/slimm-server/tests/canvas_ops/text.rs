@@ -93,8 +93,15 @@ async fn an_unknown_size_or_colour_is_refused() {
     );
     assert_eq!(
         placed(json!({ "text": "a", "color": "#ff0000" })).await,
-        StatusCode::BAD_REQUEST
+        StatusCode::CREATED
     );
+    for malformed in ["#ff00", "#gggggg", "#ff00001"] {
+        assert_eq!(
+            placed(json!({ "text": "a", "color": malformed })).await,
+            StatusCode::BAD_REQUEST,
+            "{malformed}"
+        );
+    }
     assert_eq!(
         placed(json!({ "text": "a", "color": "x".repeat(33) })).await,
         StatusCode::BAD_REQUEST

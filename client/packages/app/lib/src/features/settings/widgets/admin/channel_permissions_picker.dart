@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'channel_permissions_grid_rows.dart';
 import 'overwrite_target_picker_sheets.dart';
+import '../../../members/widgets/member_picker.dart';
 
 /// Resolves to the chosen column, or null when the user backs out at either
 /// step or [context] is gone by then.
@@ -26,10 +27,7 @@ Future<GridColumn?> pickGridColumn(BuildContext context) async {
     if (role == null) return null;
     return GridColumn(kind: kind, id: role.id, label: role.name, isBot: false);
   }
-  final member = await showAppSheet<api.UserProfile>(
-    context,
-    builder: (context) => const MemberPickerSheet(),
-  );
+  final member = await pickMember(context);
   if (member == null) return null;
   return GridColumn(
     kind: kind,

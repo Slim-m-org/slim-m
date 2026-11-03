@@ -100,7 +100,7 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
             for (final option in options)
               SettingsChoice(value: option.$2, label: option.$1),
           ],
-          sheetFootnote: 'The most people in the call at once.',
+          description: 'The most people in the call at once.',
           onChanged: (value) =>
               saving ? null : _save(current, userLimit: value),
         ),

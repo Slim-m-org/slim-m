@@ -99,7 +99,7 @@ class ShareQualityTest(unittest.TestCase):
         client = _QualityClient(stored=None)
         with self.assertRaises(AssertionError):
             e2e_video_quality.share_quality_from_the_share_menu(client)
-        self.assertIn(L.RES_1440P, client.clicked)
+        self.assertIn(L.RES_720P, client.clicked)
 
 
 if __name__ == "__main__":

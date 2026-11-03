@@ -35,3 +35,5 @@ Ink, live drafts and cursors should paint above tiles, and a personal camera sho
 
 A camera that turns off removes its tile, and turning it back on returns it to the saved slot rather than a placeholder.
 Depth between a tile and ink can no longer be chosen.
+
+A tile that appears while the viewer is zoomed or panned away stays where it is and does not pull the view; the viewer's pan and zoom are their own (decision 0073).

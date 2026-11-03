@@ -10,11 +10,14 @@
 /// so in the debug log.
 library;
 
+import '../features/canvas/providers/canvas_recent_colours.dart';
+import '../features/settings/providers/stored_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'app_lock_preference.dart';
+import '../features/background/providers/app_background_controller.dart';
 import '../features/messages/providers/attachment_preview_quality.dart';
 import '../desktop/providers/desktop_splash_preference.dart';
 import '../features/settings/providers/display_density.dart';
@@ -53,9 +56,13 @@ Future<void> restoreOrDefault(
 final Map<String, RestorablePreference Function(ProviderContainer)>
 restorablePreferences = {
   'theme': (c) => c.read(themeControllerProvider.notifier),
+  'custom theme': (c) => c.read(customThemeProvider.notifier),
+  'canvas recent colours': (c) => c.read(canvasRecentColoursProvider.notifier),
+  'space default theme': (c) => c.read(spaceDefaultThemeProvider.notifier),
   'time format': (c) => c.read(timeFormatControllerProvider.notifier),
   'motion': (c) => c.read(motionPreferenceControllerProvider.notifier),
   'high contrast': (c) => c.read(highContrastControllerProvider.notifier),
+  'background': (c) => c.read(appBackgroundControllerProvider.notifier),
   'image cache limit': (c) =>
       c.read(imageCacheLimitControllerProvider.notifier),
   'attachment preview quality': (c) =>

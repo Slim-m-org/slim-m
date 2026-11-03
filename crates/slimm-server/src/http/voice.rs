@@ -24,6 +24,7 @@ use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
+pub(super) mod voice_call_audio;
 pub(super) mod voice_calls;
 pub(super) mod voice_move;
 pub(super) mod voice_ring;

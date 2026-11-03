@@ -77,6 +77,13 @@ SHIM = r"""
       sg.fillStyle = '#fff'; sg.beginPath();
       sg.arc(patchW * (0.2 + 0.6 * Math.abs(Math.sin(t / 900))), patchH / 2, patchH / 6, 0, 7); sg.fill();
       g.drawImage(sprite, Math.round(w / 2), Math.round(h / 3));
+      if (window.__shareHeavy) {
+        // Needs a bitrate budget well past the start estimate: 15 percent of the cells change colour every frame.
+        var cell = 24;
+        for (var cy = 0; cy < h; cy += cell) for (var cx = 0; cx < w; cx += cell) {
+          if (Math.random() < 0.15) { g.fillStyle = 'hsl(' + Math.floor(Math.random() * 360) + ',80%,50%)'; g.fillRect(cx, cy, cell, cell); }
+        }
+      }
     }
     frame();
     var timer = setInterval(frame, 1000 / fps);

@@ -69,6 +69,9 @@ String? selectedChannelId(BuildContext context) =>
 class ChannelRail extends ConsumerStatefulWidget {
   const ChannelRail({super.key, this.scrollController, this.markerLayerKey});
 
+  /// The rail's own surface, whose colour lets a background picture through.
+  static const surfaceKey = Key('channel-rail-surface');
+
   /// Set only by [CompactChannelRailDrawer]: an owned controller it reads
   /// and moves directly once the drawer's first frame lands, to restore the
   /// offset a `Drawer`'s own disposal on close would otherwise reset, and to
@@ -114,7 +117,8 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     final orderController = ref.read(channelOrderControllerProvider.notifier);
 
     return Container(
-      color: tokens.surfaceSunken,
+      key: ChannelRail.surfaceKey,
+      color: AppBackgroundScope.paneColor(context, tokens.surfaceSunken),
       child: Column(
         children: [
           // On every platform, title bar included - 0012's 2026-09-25 addendum.

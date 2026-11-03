@@ -17,7 +17,8 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
-import 'package:slimm_data/data.dart' show Channel, MessageStore;
+import 'package:drift/native.dart';
+import 'package:slimm_data/data.dart' show Channel, MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
@@ -77,6 +78,9 @@ class _FakeStore implements MessageStore {
   _FakeStore(this.channels);
 
   final List<Channel> channels;
+
+  @override
+  final SlimmDatabase db = SlimmDatabase(NativeDatabase.memory());
 
   @override
   Stream<List<Channel>> watchChannels() => Stream.value(channels);
@@ -218,5 +222,8 @@ void main() {
     expect(find.text('Permission overwrites'), findsNothing);
     expect(find.text('general'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    // Drift closes its query streams on a timer after the last listener goes.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 50));
   });
 }

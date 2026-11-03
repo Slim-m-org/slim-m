@@ -57,10 +57,35 @@ bool watchCanInviteFriend(WidgetRef ref) {
   return ref.watch(serverInfoProvider).valueOrNull?.membersCanInvite ?? false;
 }
 
-/// Makes the invite and shares it. A failure opens a sheet with a retry, since
-/// an error never rides on a toast.
+/// True from the press until the link is shared or the failure sheet opens, so
+/// a second press neither mints nor shares again and the header can disable.
+final inviteInFlightProvider = StateProvider<bool>((ref) => false);
+
+/// Makes the invite and shares it, one at a time. A failure opens a sheet with
+/// a retry, since an error never rides on a toast.
 Future<void> inviteAFriend(BuildContext context) async {
   final container = ProviderScope.containerOf(context, listen: false);
+  if (container.read(inviteInFlightProvider)) return;
+  container.read(inviteInFlightProvider.notifier).state = true;
+  final failure = await _mintAndShare(container);
+  if (container.exists(inviteInFlightProvider)) {
+    container.read(inviteInFlightProvider.notifier).state = false;
+  }
+  if (failure == null || !context.mounted) return;
+  await showAppSheet<void>(
+    context,
+    builder: (sheetContext) => _InviteFailedSheet(
+      message: describeApiFailure('create the invite', failure),
+      onRetry: () {
+        Navigator.of(sheetContext).pop();
+        inviteAFriend(context);
+      },
+    ),
+  );
+}
+
+/// Returns the failure to show, or null once the link has been handed over.
+Future<api.ApiException?> _mintAndShare(ProviderContainer container) async {
   final String link;
   // A member's invite already defaults to one use and a day on the server's clock, so a skewed device clock cannot get it refused.
   final isMember = !container
@@ -82,23 +107,12 @@ Future<void> inviteAFriend(BuildContext context) async {
     );
   } on api.ApiException catch (e, stack) {
     api.reportFailure(api.LogTag.ui, 'create the invite', e, stack);
-    if (!context.mounted) return;
-    await showAppSheet<void>(
-      context,
-      builder: (sheetContext) => _InviteFailedSheet(
-        message: describeApiFailure('create the invite', e),
-        onRetry: () {
-          Navigator.of(sheetContext).pop();
-          inviteAFriend(context);
-        },
-      ),
-    );
-    return;
+    return e;
   }
   final sharer = container.read(inviteSharerProvider);
   if (sharer.canShare) {
     await sharer.share(link);
-    return;
+    return null;
   }
   await Clipboard.setData(ClipboardData(text: link));
   container
@@ -107,6 +121,7 @@ Future<void> inviteAFriend(BuildContext context) async {
         'Invite link copied. It works once, for 24 hours.',
         severity: AppToastSeverity.success,
       );
+  return null;
 }
 
 class _InviteFailedSheet extends StatelessWidget {

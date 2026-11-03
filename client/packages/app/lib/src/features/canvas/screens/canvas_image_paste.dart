@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
-import '../../../widgets/bounded_image_decode.dart';
+import '../../../providers/bounded_image_decode.dart';
 import '../../composer/widgets/composer_clipboard_image.dart';
 import '../../composer/widgets/composer_clipboard_paste.dart';
 import 'canvas_forbidden_message.dart';
@@ -84,24 +84,11 @@ class CanvasImagePaste {
 
   bool _stopped = false;
 
-  /// The toolbar's "Paste image" action: the manual poll-and-tap route that
-  /// works unconditionally on every platform, the same fallback the
-  /// composer's own "+" sheet row is.
-  Future<void> pasteFromButton() => pasteClipboardImage(_stage, onError);
-
   /// The Ctrl+V/Cmd+V route: a no-op wherever
   /// `pasteKeystrokeReadsClipboardImage` is false (iOS, which has the native
   /// route below instead).
   Future<void> pasteFromKeystroke() =>
       pasteClipboardImageFromKeystroke(_stage, onError);
-
-  /// The canvas-wide right-click menu's "Paste image" item: places at
-  /// [world] instead of the view's centre, since that menu already knows
-  /// exactly where the pointer was.
-  Future<void> pasteAt(ui.Offset world) => pasteClipboardImage(
-    (bytes, filename) => _stage(bytes, filename, at: world),
-    onError,
-  );
 
   /// Places a picked or dropped image file, the same way a paste lands.
   Future<void> placeFile(Uint8List bytes, String filename, {ui.Offset? at}) =>

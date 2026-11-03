@@ -22,6 +22,7 @@ import 'dock_hooks_card.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
+import 'dock_call_audio_card.dart';
 import 'dock_schedule_card.dart';
 import 'dock_settings_card.dart';
 import 'dock_what_it_adds.dart';
@@ -191,6 +192,13 @@ class DockManifestView extends StatelessWidget {
             onChannel: onScheduleChannel!,
             enabled: !busy,
           ),
+        if (installed != null &&
+            installed!.approvedHostCapabilities.contains('call.audio'))
+          DockCallAudioCard(
+            moduleId: installed!.id,
+            moduleName: manifest.name,
+            enabled: !busy,
+          ),
         if (installed case final it? when it.declaresSettings)
           DockSettingsCard(moduleId: it.id),
         if (installed?.runStats != null && onClearStorage != null)
@@ -307,12 +315,15 @@ class _ActionsCard extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final installed = this.installed;
     if (installed == null) {
-      return AppButton(
-        label: busy ? 'Installing...' : 'Install v${manifest.version}',
-        variant: AppButtonVariant.primary,
-        full: true,
-        disabled: busy,
-        onPressed: onInstall,
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.s16),
+        child: AppButton(
+          label: busy ? 'Installing...' : 'Install v${manifest.version}',
+          variant: AppButtonVariant.primary,
+          full: true,
+          disabled: busy,
+          onPressed: onInstall,
+        ),
       );
     }
     final outdated = installed.version != manifest.version;

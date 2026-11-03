@@ -14,7 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/emoji_add_card.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_add_dialog.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_intake.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
@@ -93,7 +93,11 @@ class EmojiHarness {
   Iterable<http.Request> get bulks =>
       requests.where((r) => r.url.path == '/emoji/bulk');
 
-  Future<ProviderContainer> pump(WidgetTester tester, {Size? size}) async {
+  Future<ProviderContainer> pump(
+    WidgetTester tester, {
+    Size? size,
+    List<EmojiPick> initial = const [],
+  }) async {
     tester.view.physicalSize = size ?? const Size(1280, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -130,8 +134,10 @@ class EmojiHarness {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(
-            body: SingleChildScrollView(child: EmojiAddCard()),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: EmojiAddDialog(initial: initial),
+            ),
           ),
         ),
       ),

@@ -43,6 +43,7 @@ import 'canvas_ops_controller.dart';
 import 'canvas_personal_layout_keeper.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_view_follower.dart';
+import 'canvas_view_memory.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_sync.dart';
 
@@ -109,6 +110,30 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());
     unawaited(_layoutKeeper.restore());
+    _restoreSharedView();
+  }
+
+  /// Resolved up front: the provider that made it is gone by [dispose].
+  late final CanvasViewMemory _viewMemory = _ref.read(canvasViewMemoryProvider);
+
+  /// Puts the camera back where this viewer left it in the shared view, once the pane has a size to hold it to.
+  void _restoreSharedView() {
+    final kept = _viewMemory.recall(channelId);
+    if (kept == null) return;
+    void apply() {
+      if (document.viewport.isEmpty) return;
+      document.removeListener(apply);
+      if (!viewMode.personal && _focusedTile == null) document.setCamera(kept);
+    }
+
+    document.addListener(apply);
+    apply();
+  }
+
+  void _rememberSharedView() {
+    final held = _focusedTile != null || _viewRelay?.following.value != null;
+    if (held || viewMode.personal || document.viewport.isEmpty) return;
+    _viewMemory.keep(channelId, document.isFitted ? null : document.camera);
   }
 
   String? _focusedTile;
@@ -461,6 +486,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   @override
   void dispose() {
     if (!mounted) return;
+    _rememberSharedView();
     _unwatch();
     hydrator.dispose();
     _loadRetry.cancel();

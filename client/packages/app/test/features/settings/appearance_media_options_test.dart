@@ -65,7 +65,7 @@ void main() {
   });
 
   group('Media and cache', () {
-    testWidgets('Auto-download media writes the controller and storage', (
+    testWidgets('Load images in chat writes the controller and storage', (
       tester,
     ) async {
       final c = await _pump(tester, const PerformanceSettingsSection());

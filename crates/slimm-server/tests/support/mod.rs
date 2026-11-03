@@ -500,3 +500,19 @@ fn literal_at(source: &str, from: usize) -> Option<String> {
     }
     None
 }
+
+/// A surface module that appends one `x` to the scene state it was handed.
+#[allow(dead_code)]
+pub mod tally_wasm;
+
+/// A launched "board" app surface and the requests that press it.
+#[allow(dead_code)]
+pub mod board_world;
+
+/// A WebSocket server standing in for the call-audio listener.
+#[allow(dead_code)]
+pub mod fake_listener;
+
+/// A deployment with a fake listener, a voice channel and a module that may hear it.
+#[allow(dead_code)]
+pub mod call_audio_world;

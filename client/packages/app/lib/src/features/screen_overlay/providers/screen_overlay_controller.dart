@@ -12,6 +12,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show localShareCapturedSize;
 
 import '../../../providers/sync_controller.dart';
+import '../../../providers/toasts.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -123,7 +124,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final monitors = _support.monitors;
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
-    final index = pickSharedMonitor(
+    final covered = pickSharedMonitors(
       monitors,
       screenNumber: isWindowsHost
           ? screenNumberFromLabel(controller.share.lastShareSource?.name ?? '')
@@ -132,12 +133,13 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
           ? null
           : Size(captured.width.toDouble(), captured.height.toDouble()),
     );
-    if (!await _ref.read(screenOverlayProvider).show(index)) return;
+    if (!await _ref.read(screenOverlayProvider).show(covered)) return;
     if (!mounted) return;
     _channelId = flags.channelId;
     _selfId = self.identity;
-    _aspect = monitors[index].aspect;
+    _aspect = sharedAspect(monitors, covered);
     state = const ScreenOverlayState(active: true);
+    _ref.read(toastsProvider.notifier).show('Viewers can draw on your screen.');
     _sendConsent(allowed: true);
     _heartbeat = Timer.periodic(
       consentHeartbeat,
@@ -195,11 +197,6 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       _frames = null;
     }
   }
-
-  /// Turns the setting off from the indicator; the listener then tears the overlay down.
-  Future<void> turnOff() => _ref
-      .read(voiceSettingsControllerProvider.notifier)
-      .setScreenShareAllowAnnotations(false);
 
   @override
   void dispose() {

@@ -459,6 +459,11 @@ See decision 0043 for why this is declared motion and not a timer you control.
 > Everyone who can see the message can still read the `state` string in the stored scene, so do not hide a secret in it (the word-guess answer, a hand of cards): obscure data in `state` is derivable by anyone.
 > For a scene that is not on a shared surface (a slash command that prints a scene, for instance), nothing is stored on the host, so `state` is whatever the client sends back.
 > Treat it as untrusted input there: validate it, and never let it grant anything.
+>
+> Presses on a shared surface are applied one at a time, each to the frame the previous press stored.
+> Two people pressing at the same moment therefore both count, and neither overwrites the other.
+> A press that names no `action` is run as `{"action":"refresh"}` once the surface has a stored frame; only a surface with nothing stored yet is launched.
+> A failed press (a host limit, a crash, or `ok: false` from the module) answers the person who pressed and never replaces the stored frame.
 
 A scene becomes interactive by offering `controls` and carrying `state`, and by drawing ops with a `tap`.
 
@@ -726,6 +731,7 @@ The host runs a command of yours on a timer, with nobody invoking it.
 - `schedule` and a `schedules` list come together; one without the other is refused.
 - The command runs with empty input and no caller: `caller.id` is the module's own principal, not a person.
 - It runs as the module's **own principal**, a bot-style account with no password and no token, whose posts carry the module's name.
+  It is managed with the module and never appears in the Bots list, so there is no token to re-issue.
   It may post only in the channel the admin chooses on the module's Dock screen, and nothing runs until they choose one.
   `message.post` from a scheduled run posts as that principal into that channel; to post anywhere else you need a bot.
 - A scheduled run is held to the same limits as any run, and the admin's Dock screen shows when it last ran and the error if it failed.

@@ -15,6 +15,9 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart'
+    show micCueSeenKey, shareHintSeenKey;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
@@ -113,6 +116,11 @@ Future<CallScreen> pumpCallScreen(
   bool share = true,
   Brightness brightness = Brightness.dark,
 }) async {
+  // The first-call tips are a one-off overlay; this harness measures the call screen after them.
+  SharedPreferences.setMockInitialValues({
+    shareHintSeenKey: true,
+    micCueSeenKey: '',
+  });
   final session = FakeSession(supportsAudioOutputSelection: false);
   final fixture = setup(
     signedIn: true,

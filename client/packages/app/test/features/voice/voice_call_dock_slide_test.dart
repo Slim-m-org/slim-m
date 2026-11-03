@@ -9,7 +9,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart'
+    show micCueSeenKey, shareHintSeenKey;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_call_dock.dart';
@@ -36,6 +39,11 @@ Future<ProviderContainer> _pump(
   ValueNotifier<VoiceFlags> voice, {
   bool reduceMotion = false,
 }) async {
+  // The first-call tips resize the dock card; this file measures the dock's own entrance.
+  SharedPreferences.setMockInitialValues({
+    shareHintSeenKey: true,
+    micCueSeenKey: '',
+  });
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),

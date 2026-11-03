@@ -203,6 +203,16 @@ pub(super) enum ServerFrame {
         role_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         seq: Option<u64>,
+        /// `created`, `updated` or `deleted`, when the publisher knows.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        change: Option<&'static str>,
+        /// The role's name after the change, or before a delete.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        before: Option<crate::hub::RoleLook>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        after: Option<crate::hub::RoleLook>,
     },
     #[serde(rename = "member.role_changed")]
     MemberRoleChanged {
@@ -210,6 +220,10 @@ pub(super) enum ServerFrame {
         role_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         seq: Option<u64>,
+        /// Whether the role was granted (true) or revoked (false).
+        granted: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        role_name: Option<String>,
     },
     #[serde(rename = "channel.created")]
     ChannelCreated { channel: ChannelDto },
@@ -221,6 +235,8 @@ pub(super) enum ServerFrame {
     OverwriteChanged { channel_id: String },
     #[serde(rename = "category.changed")]
     CategoryChanged,
+    #[serde(rename = "space.settings_changed")]
+    SpaceSettingsChanged,
     #[serde(rename = "voice.activity")]
     VoiceActivityChanged { channel_id: String },
     /// See `docs/decisions/0032-voice-participant-webhooks.md`.
@@ -245,6 +261,15 @@ pub(super) enum ServerFrame {
         channel_id: String,
         user_id: String,
         is_sharing_screen: bool,
+    },
+    /// A call-audio session changed, or ended when `state` is null; see
+    /// [`crate::hub::Event::CallAudioChanged`].
+    #[serde(rename = "voice.call_audio")]
+    VoiceCallAudio {
+        channel_id: String,
+        state: Option<Box<crate::call_audio::CallAudioView>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ended: Option<&'static str>,
     },
     /// A DM call ring started; see [`crate::hub::Event::CallRinging`].
     #[serde(rename = "call.ringing")]

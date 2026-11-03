@@ -34,15 +34,14 @@ class PerformanceSettingsSection extends ConsumerWidget {
           description: 'What loads and plays on its own.',
           children: [
             SettingsSelectRow<MediaAutoDownload>(
-              label: 'Auto-download media',
-              sheetTitle: 'Auto-download media',
+              label: 'Load images in chat',
               value: ref.watch(mediaAutoDownloadControllerProvider),
               choices: [
                 for (final value in MediaAutoDownload.values)
                   SettingsChoice(value: value, label: value.label),
               ],
-              sheetFootnote:
-                  'Whether images load as you scroll or wait for a tap.',
+              description:
+                  'Fetches images in messages as you scroll, using your data.',
               onChanged: (next) => ref
                   .read(mediaAutoDownloadControllerProvider.notifier)
                   .select(next),
@@ -55,7 +54,7 @@ class PerformanceSettingsSection extends ConsumerWidget {
                 for (final value in GifAutoplay.values)
                   SettingsChoice(value: value, label: value.label),
               ],
-              sheetFootnote: 'Whether gifs move on their own.',
+              description: 'Whether gifs move on their own.',
               onChanged: (next) =>
                   ref.read(gifAutoplayControllerProvider.notifier).select(next),
             ),
@@ -67,7 +66,7 @@ class PerformanceSettingsSection extends ConsumerWidget {
                 for (final value in LinkPreviewDisplay.values)
                   SettingsChoice(value: value, label: value.label),
               ],
-              sheetFootnote: 'Whether links get a preview card.',
+              description: 'Whether links get a preview card.',
               onChanged: (next) => ref
                   .read(linkPreviewDisplayControllerProvider.notifier)
                   .select(next),
@@ -80,7 +79,7 @@ class PerformanceSettingsSection extends ConsumerWidget {
                 for (final quality in AttachmentPreviewQuality.values)
                   SettingsChoice(value: quality, label: quality.label),
               ],
-              sheetFootnote: 'How sharply attachments are drawn in messages.',
+              description: 'How sharply attachments are drawn in messages.',
               onChanged: (next) => ref
                   .read(attachmentPreviewQualityControllerProvider.notifier)
                   .select(next),

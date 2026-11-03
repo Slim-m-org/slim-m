@@ -7,16 +7,18 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/canvas_pen_style.dart';
+import 'canvas_custom_colours.dart';
 import 'canvas_editor_layout.dart';
 import '../providers/canvas_text_props.dart';
 import 'canvas_text_content.dart';
 
-class CanvasTextEditor extends StatefulWidget {
+class CanvasTextEditor extends ConsumerStatefulWidget {
   const CanvasTextEditor({
     super.key,
     required this.document,
@@ -39,10 +41,10 @@ class CanvasTextEditor extends StatefulWidget {
   final VoidCallback onCancel;
 
   @override
-  State<CanvasTextEditor> createState() => _CanvasTextEditorState();
+  ConsumerState<CanvasTextEditor> createState() => _CanvasTextEditorState();
 }
 
-class _CanvasTextEditorState extends State<CanvasTextEditor> {
+class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
   late final _controller = TextEditingController(text: widget.initial.text)
     ..selection = TextSelection.collapsed(offset: widget.initial.text.length);
   final _focus = FocusNode();
@@ -192,8 +194,7 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
                   style: AppText.caption.copyWith(color: tokens.dangerText),
                 ),
               const SizedBox(height: AppSpacing.s4),
-              ControlSwatchRow(swatches: _sizeSwatches(tokens), close: () {}),
-              ControlSwatchRow(swatches: _colourSwatches(tokens), close: () {}),
+              _styleRow(tokens),
               const SizedBox(height: AppSpacing.s4),
               Align(
                 alignment: Alignment.centerRight,
@@ -237,7 +238,7 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
         child: TextField(
           controller: _controller,
           focusNode: _focus,
-          minLines: 2,
+          minLines: 1,
           maxLines: 6,
           keyboardType: TextInputType.multiline,
           inputFormatters: [TextBoxInputFormatter(onRefused: _markFull)],
@@ -254,6 +255,32 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Size and colour on one line, split by a hairline, so the panel stays a single compact strip.
+  Widget _styleRow(AppTokens tokens) {
+    final colours = _colourSwatches(tokens);
+    return Row(
+      children: [
+        Expanded(
+          flex: canvasTextSizeKeys.length,
+          child: ControlSwatchRow(
+            swatches: _sizeSwatches(tokens),
+            close: () {},
+          ),
+        ),
+        Container(
+          width: 1,
+          height: AppSpacing.s16,
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          color: tokens.borderSubtle,
+        ),
+        Expanded(
+          flex: colours.length,
+          child: ControlSwatchRow(swatches: colours, close: () {}),
+        ),
+      ],
     );
   }
 
@@ -284,5 +311,13 @@ class _CanvasTextEditorState extends State<CanvasTextEditor> {
         onSelected: () => setState(() => _colorKey = choice.key),
         color: choice.color,
       ),
+    ...canvasCustomColourSwatches(
+      context: context,
+      ref: ref,
+      selectedKey: _colorKey,
+      plainColour: tokens.textPrimary,
+      recentLimit: 2,
+      onChoose: (hex) => setState(() => _colorKey = hex),
+    ),
   ];
 }

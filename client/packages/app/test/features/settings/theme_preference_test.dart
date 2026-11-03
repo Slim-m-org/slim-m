@@ -57,6 +57,8 @@ String _labelOf(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.softDark => 'Soft dark',
   AppThemeChoice.forest => 'Forest',
   AppThemeChoice.halloween => 'Halloween',
+  AppThemeChoice.spaceDefault => 'Space default',
+  AppThemeChoice.custom => 'Custom',
 };
 
 Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
@@ -69,21 +71,27 @@ Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('an install with nothing stored follows the system', () async {
+  test('an install with nothing stored follows the Space default', () async {
     final container = _restartedContainer();
     await container.read(themeControllerProvider.notifier).restore();
 
-    expect(container.read(themeControllerProvider), AppThemeChoice.system);
+    expect(
+      container.read(themeControllerProvider),
+      AppThemeChoice.spaceDefault,
+    );
   });
 
   test(
-    'a stored value this build does not know falls back to the system',
+    'a stored value this build does not know falls back to the Space default',
     () async {
       SharedPreferences.setMockInitialValues({themeChoiceKey: 'solarized'});
       final container = _restartedContainer();
       await container.read(themeControllerProvider.notifier).restore();
 
-      expect(container.read(themeControllerProvider), AppThemeChoice.system);
+      expect(
+        container.read(themeControllerProvider),
+        AppThemeChoice.spaceDefault,
+      );
     },
   );
 
@@ -97,7 +105,7 @@ void main() {
     // A fresh container reads the same preference store, which is what a
     // relaunch does; nothing is carried over in memory.
     final second = _restartedContainer();
-    expect(second.read(themeControllerProvider), AppThemeChoice.system);
+    expect(second.read(themeControllerProvider), AppThemeChoice.spaceDefault);
     await second.read(themeControllerProvider.notifier).restore();
 
     expect(second.read(themeControllerProvider), AppThemeChoice.trueBlack);
@@ -129,8 +137,9 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Theme'), findsOneWidget);
-    // Theme, Clock and Motion all default to "System" now (#38's new rows).
-    expect(find.text('System'), findsNWidgets(3));
+    // Clock and Motion default to "System"; the theme to "Space default".
+    expect(find.text('System'), findsNWidgets(2));
+    expect(find.text('Space default'), findsOneWidget);
   });
 
   testWidgets('tapping a segment is what actually changes the theme', (
@@ -140,7 +149,10 @@ void main() {
     await container.read(themeControllerProvider.notifier).restore();
     await _pumpSection(tester, container);
 
-    expect(container.read(themeControllerProvider), AppThemeChoice.system);
+    expect(
+      container.read(themeControllerProvider),
+      AppThemeChoice.spaceDefault,
+    );
 
     await _choose(tester, AppThemeChoice.trueBlack);
 
@@ -168,7 +180,10 @@ void main() {
   testWidgets('every appearance option is reachable by tapping it', (
     tester,
   ) async {
-    for (final choice in AppThemeChoice.values) {
+    // Custom is listed only while a custom theme is kept on the device.
+    for (final choice in AppThemeChoice.values.where(
+      (c) => c != AppThemeChoice.custom,
+    )) {
       SharedPreferences.setMockInitialValues({});
       final container = _restartedContainer();
       await container.read(themeControllerProvider.notifier).restore();
@@ -183,6 +198,8 @@ void main() {
         choice,
         reason: 'tapping ${_labelOf(choice)} must select it',
       );
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 5));
     }
   });
 
@@ -298,6 +315,14 @@ Future<void> _choose(WidgetTester tester, AppThemeChoice choice) async {
   // The fake clock runs the menu or sheet entrance to its end; nothing real is awaited.
   await tester.pump();
   await tester.pump(const Duration(seconds: 1));
+  // More than eight choices open a searchable list, so narrow it to the one wanted.
+  final search = find.byWidgetPredicate((w) => w is TextField);
+  if (search.evaluate().isNotEmpty) {
+    await tester.enterText(search.last, _labelOf(choice));
+    await tester.pump();
+  }
   await tester.tap(find.text(_labelOf(choice)).last);
   await tester.pumpAndSettle();
+  // The search field's debounce outlives the sheet it was typed into.
+  await tester.pump(const Duration(seconds: 1));
 }

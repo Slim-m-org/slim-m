@@ -3,7 +3,7 @@
 //! `dock.rs` to hold the file budget.
 
 use super::Manifest;
-use super::manifest::NET_FETCH;
+use super::manifest::{NET_FETCH, call_audio};
 use crate::http::AppState;
 use crate::http::error::ApiError;
 use crate::http::module_host;
@@ -33,6 +33,7 @@ pub(super) async fn carried_host_capabilities(
         .all(|s| current.subscriptions.contains(s));
     let data_not_widened = data_not_widened(&current.data_schema, manifest);
     let hooks_not_widened = hooks_not_widened(state, manifest).await?;
+    let same_call_audio = same_call_audio(state, manifest).await?;
     Ok(current
         .approved_host_capabilities
         .into_iter()
@@ -42,12 +43,13 @@ pub(super) async fn carried_host_capabilities(
         .filter(|c| same_schedules || c != "schedule")
         .filter(|c| no_new_subscriptions || c != "events")
         .filter(|c| data_not_widened || c != "data.store")
+        .filter(|c| same_call_audio || c != "call.audio")
         .filter(|c| hooks_not_widened || !HOOK_CAPABILITIES.contains(&c.as_str()))
         .collect())
 }
 
 /// Capabilities whose approval does not survive a new artifact.
-const REASKED_ON_NEW_BUILD: [&str; 8] = [
+const REASKED_ON_NEW_BUILD: [&str; 9] = [
     "message.post",
     NET_FETCH,
     "schedule",
@@ -56,9 +58,17 @@ const REASKED_ON_NEW_BUILD: [&str; 8] = [
     "log.read",
     "interceptors",
     "permission.hook",
+    "call.audio",
 ];
 
 const HOOK_CAPABILITIES: [&str; 2] = ["interceptors", "permission.hook"];
+
+/// Whether the manifest's `call_audio` words and permission are the ones approved.
+async fn same_call_audio(state: &AppState, manifest: &Manifest) -> Result<bool, ApiError> {
+    let had = state.store.module_manifest_json(&manifest.id).await?;
+    let had = had.as_deref().and_then(call_audio::declared_in);
+    Ok(had == manifest.call_audio)
+}
 
 /// Whether the manifest's hooks stand where the approved ones did and read no more.
 async fn hooks_not_widened(state: &AppState, manifest: &Manifest) -> Result<bool, ApiError> {

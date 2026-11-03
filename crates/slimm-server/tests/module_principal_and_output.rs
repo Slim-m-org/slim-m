@@ -162,6 +162,33 @@ async fn reinstalling_mints_exactly_one_live_principal() {
 }
 
 #[tokio::test]
+async fn a_module_principal_is_not_listed_as_a_revoked_bot() {
+    let w = world("slimm-modprin-botlist").await;
+    let token = admin_token(&w).await;
+    w.install(Install {
+        id: "ticker",
+        wasm: canned_ok_wasm("tick"),
+        declared: &["schedule"],
+        approved_host: &["schedule"],
+    })
+    .await;
+    let principal = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    let (status, listing) =
+        send(&w, "GET", "/bots?include_removed=true", &token, Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    let ids: Vec<&str> = listing
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["user_id"].as_str().unwrap())
+        .collect();
+    assert!(!ids.contains(&principal.to_string().as_str()), "{ids:?}");
+    let path = format!("/bots/{principal}/token");
+    let (status, _) = send(&w, "POST", &path, &token, Value::Null).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn slash_output_is_posted_as_the_member_but_labelled_as_the_modules() {
     let w = world("slimm-modout-post").await;
     let channel = w.store.create_channel("general", "text").await.unwrap();

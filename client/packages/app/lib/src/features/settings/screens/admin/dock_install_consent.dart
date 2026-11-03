@@ -59,6 +59,8 @@ bool dockNeedsReapproval(
     'events' =>
       newBuild || dockNewSubscriptions(manifest, installed).isNotEmpty,
     'data.store' => newBuild || dockDataWidened(manifest, installed),
+    // The installed record does not carry the module's words, so an update always asks again.
+    'call.audio' => true,
     _ => false,
   };
 }
@@ -128,6 +130,7 @@ const _reaskedOnNewBuild = {
   'log.read',
   'interceptors',
   'permission.hook',
+  'call.audio',
 };
 
 /// The sentences for schedule entries that are new or run at another interval.
@@ -160,16 +163,30 @@ bool dockNeedsConsent({
 
 /// A "Verified" mark for a module from the official registry: the icon alone,
 /// named by its tooltip and semantics label so a row stays on one line.
+///
+/// [tapToShow] also opens the tooltip on a tap. That is an owner exception to
+/// desktop-vs-mobile.md "never a tooltip on touch" (owner, 2026-11-02): the
+/// consent sheet shows only the badge, and a finger cannot hover. The sentence
+/// is also the semantics label, so the tooltip is never the only carrier.
+/// Rows leave it off so a tap on the badge still opens the row.
 class DockVerifiedBadge extends StatelessWidget {
-  const DockVerifiedBadge({super.key});
+  const DockVerifiedBadge({
+    super.key,
+    this.message = 'Verified',
+    this.tapToShow = false,
+  });
+
+  final String message;
+  final bool tapToShow;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Tooltip(
-      message: 'Verified',
+    final badge = Tooltip(
+      message: message,
+      triggerMode: tapToShow ? TooltipTriggerMode.tap : null,
       child: Semantics(
-        label: 'Verified',
+        label: message,
         child: ExcludeSemantics(
           child: Icon(
             AppIcons.verified,
@@ -179,6 +196,8 @@ class DockVerifiedBadge extends StatelessWidget {
         ),
       ),
     );
+    if (!tapToShow) return badge;
+    return AppTouchHitArea(alignment: Alignment.centerLeft, child: badge);
   }
 }
 
@@ -233,7 +252,10 @@ class _ConsentSheet extends StatefulWidget {
 class _ConsentSheetState extends State<_ConsentSheet> {
   bool _understood = false;
 
-  bool get _needsTick => !widget.verified && widget.capabilities.isNotEmpty;
+  /// Hearing a call reaches people other than the admin, so even a verified module needs the tick (decision 0105).
+  bool get _needsTick =>
+      widget.capabilities.contains(dockCallAudioCapability) ||
+      (!widget.verified && widget.capabilities.isNotEmpty);
 
   @override
   Widget build(BuildContext context) {
@@ -318,6 +340,9 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             text: dockLocalNetworkWarning,
             verified: widget.verified,
           ),
+        if (widget.capabilities.contains(dockCallAudioCapability) &&
+            widget.manifest.callAudio != null)
+          _CallAudioWords(words: widget.manifest.callAudio!),
       ] else
         Text(
           'It runs code on your server with no access to your space.',
@@ -333,17 +358,18 @@ class _ConsentSheetState extends State<_ConsentSheet> {
 
   Widget _standing(AppTokens tokens) {
     if (widget.verified) {
-      return Wrap(
-        spacing: AppSpacing.s8,
-        runSpacing: AppSpacing.s4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          const DockVerifiedBadge(),
-          Text(
-            'From the official slim-addons registry.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+      final room = AppTouchTargets.of(context)
+          ? (AppSizes.rowTouch - AppSizes.icon16) / 2
+          : 0.0;
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: room),
+        child: const Align(
+          alignment: Alignment.centerLeft,
+          child: DockVerifiedBadge(
+            message: 'From the official slim-addons registry.',
+            tapToShow: true,
           ),
-        ],
+        ),
       );
     }
     return AppCallout(
@@ -403,6 +429,39 @@ class _CapabilityLine extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The module's own words about the calls it hears, as everyone in a call will see them.
+class _CallAudioWords extends StatelessWidget {
+  const _CallAudioWords({required this.words});
+
+  final api.DockCallAudio words;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      key: const ValueKey('call-audio-words'),
+      padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+      child: AppCallout(
+        tone: AppCalloutTone.warn,
+        icon: AppIcons.callAudio,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'In the module\'s own words. slim-m cannot check them.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.s4),
+            Text('What it does: ${words.purpose}'),
+            const SizedBox(height: AppSpacing.s4),
+            Text('What it keeps: ${words.keeps}'),
+          ],
+        ),
       ),
     );
   }

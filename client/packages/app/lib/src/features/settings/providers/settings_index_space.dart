@@ -133,7 +133,12 @@ const spaceSettingsIndex = <SettingsEntry>[
         'Read past moderation actions, without the power to take new ones.',
     keywords: ['audit log', 'modlog'],
   ),
-  SettingsEntry('emoji', 'New emoji', keywords: ['custom emoji', 'upload']),
+  SettingsEntry(
+    'emoji',
+    'Create emoji',
+    keywords: ['custom emoji', 'upload', 'add emoji', 'import'],
+    conditional: true,
+  ),
   SettingsEntry('emoji', 'Emoji (0)', conditional: true),
   SettingsEntry(
     _voicePage,
@@ -146,6 +151,18 @@ const spaceSettingsIndex = <SettingsEntry>[
     'Screen share quality',
     description: 'The tallest resolution a share may use.',
     keywords: ['stream', 'resolution'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Uplink test',
+    description: 'Measure what this server can send.',
+    keywords: ['upload', 'speed', 'bandwidth'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Test uplink',
+    description: 'Uploads about 40 MB, never during a call.',
+    keywords: ['upload', 'speed', 'bandwidth', 'screen share'],
   ),
   SettingsEntry(
     _voicePage,
@@ -243,6 +260,19 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry(_metricsPage, 'System', keywords: ['cpu', 'memory']),
   SettingsEntry(_metricsPage, 'Request volume by class'),
   SettingsEntry(_metricsPage, 'Slowest routes', keywords: ['latency']),
+  SettingsEntry('dock', 'Display'),
+  SettingsEntry(
+    'dock',
+    'Badges in member list',
+    description: 'Shows module badges beside names, for everyone.',
+    keywords: ['members', 'badge', 'modules'],
+  ),
+  SettingsEntry(
+    'dock',
+    'Sections on profiles',
+    description: 'Shows module levels and stats on profile cards.',
+    keywords: ['profile', 'level', 'xp', 'modules'],
+  ),
   SettingsEntry(
     'dock',
     'Code Blocks',

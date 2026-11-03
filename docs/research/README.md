@@ -94,6 +94,8 @@ Everything below postdates the pre-build research above by weeks and reports on 
 | [share-start-bitrate-2026-11-02.md](share-start-bitrate-2026-11-02.md) | 2026-11-02 | The screen share start-bitrate hint measured at 9000, 1000 and 3000 kbps on the web client: the estimator ignores it on a share published after join and takes about 30 s to reach 1080p; no override shipped. |
 | [voice-idle-bandwidth-2026-11-02.md](voice-idle-bandwidth-2026-11-02.md) | 2026-11-02 | Wire bandwidth of the Linux client silent behind a closed gate (66 kbps with DTX off, 3 kbps on), open and speaking, and why DTX stays off; the burst-loss worst case re-measured and holding. |
 | [screen-share-camera-real-encode-2026-11-02.md](screen-share-camera-real-encode-2026-11-02.md) | 2026-11-02 | Requested versus delivered share and camera encode read back per layer from the real Linux client: desktop capture ignored the requested size (a 4K screen on the 1080p tier encoded at 3840x2160), a post-publish scale is a no-op, the fix is native. |
+| [screen-overlay-next-2026-11-02.md](screen-overlay-next-2026-11-02.md) | 2026-11-02 | Why viewers marks did not show on the sharer screen (a primary-monitor tie-break that always chose monitor 0 on Wayland) and a ranked proposal of further overlay features. |
+| [call-audio-real-speech-2026-11-02.md](call-audio-real-speech-2026-11-02.md) | 2026-11-02 | Decision 0105 run end to end with real speech, a real listener container and the transcript module: consent held on every path, segments attributed correctly, 2.4 s p95 latency, nothing written to disk, and the 1G listener limit was too tight (964 MiB with four at once). |
 
 ## Why this corpus stays, unpruned
 

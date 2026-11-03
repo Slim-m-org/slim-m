@@ -101,7 +101,9 @@ mod sign_in_alert;
 mod space;
 mod space_landing;
 mod space_link_previews;
+mod space_module_display;
 mod space_setup;
+mod space_themes;
 mod space_welcome;
 mod storage;
 mod thread_listing;
@@ -109,6 +111,7 @@ mod threads;
 mod timeouts;
 mod totp;
 mod totp_verify;
+mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
@@ -138,6 +141,7 @@ pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use calls::CallRecord;
+pub use canvas::canvas_batch::{BatchError, BatchItem};
 pub(crate) use canvas::valid_bounds;
 pub use canvas::{
     CanvasObject, MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL,
@@ -233,7 +237,9 @@ pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
+pub use space_module_display::ModuleDisplay;
 pub use space_setup::SpaceSetup;
+pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
@@ -243,6 +249,7 @@ pub use threads::{
 pub use timeouts::{MAX_TIMEOUT_MS, MemberTimeout, TimeoutError};
 pub use totp::{RECOVERY_CODE_COUNT, TotpEnrolment, TotpError, TotpPolicy, TotpStatus};
 pub use totp_verify::{ChallengeError, TotpChallenge, TotpProof, TotpSignIn};
+pub use uplink_tests::{UPLINK_HISTORY_LEN, UplinkTest};
 pub use user_notes::UserNote;
 pub use users::ProfileUpdate;
 pub use voice_call_events::{

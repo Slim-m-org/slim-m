@@ -79,7 +79,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Dismiss'));
+    await tester.tap(find.byIcon(AppIcons.dismiss));
     await tester.pump();
 
     expect(find.textContaining('Switched to'), findsNothing);

@@ -99,6 +99,13 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     b.wait_for("Canvas,")
     print("  b opened the same channel's canvas from the voice header")
 
+    # A tile sits in the shared area, and a view left zoomed by an earlier scenario is kept per channel, so start from a bare board's fit.
+    a.click(L.MORE_CANVAS_ACTIONS)
+    a.click(L.CLEAR_CANVAS)
+    a.click(L.CLEAR_CANVAS, settle=3)  # the confirm dialog's own button
+    for c in (a, b):
+        e2e_board_frame.show_shared_area(c)
+
     a.click(CAMERA_ON, settle=3)
     a.wait_for(ALICE_SELF_LABEL)
     b.wait_for(ALICE_REMOTE_LABEL)

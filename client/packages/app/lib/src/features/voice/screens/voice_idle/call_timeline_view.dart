@@ -4,6 +4,8 @@
 /// before the end, and the call's times along the bottom.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -16,6 +18,9 @@ import '../../../members/widgets/user_avatar.dart';
 import 'call_timeline_model.dart';
 
 const double _laneHeight = 10;
+
+/// A span shorter than this would vanish, so it is drawn this wide.
+const double _minSpan = 2;
 
 class CallTimelineView extends ConsumerWidget {
   const CallTimelineView({
@@ -47,7 +52,11 @@ class CallTimelineView extends ConsumerWidget {
           ),
         Row(
           children: [
-            SizedBox(width: compact ? AppAvatarSize.s24 : _nameColumnWidth),
+            SizedBox(
+              width: compact
+                  ? AppAvatarSize.s24 + AppSpacing.s8
+                  : _nameColumnWidth,
+            ),
             Expanded(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -204,12 +213,12 @@ class _LanePainter extends CustomPainter {
       Paint()..color = track,
     );
     void span(Span s, Color color, double inset) {
-      final rect = Rect.fromLTRB(
-        _x(s.from, size),
-        inset,
-        _x(s.to, size).clamp(_x(s.from, size) + 2, size.width),
-        size.height - inset,
+      final to = math.min(
+        size.width,
+        math.max(_x(s.to, size), _x(s.from, size) + _minSpan),
       );
+      final from = math.max(0.0, math.min(_x(s.from, size), to - _minSpan));
+      final rect = Rect.fromLTRB(from, inset, to, size.height - inset);
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, Radius.circular(rect.height / 2)),
         Paint()..color = color,

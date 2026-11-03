@@ -28,7 +28,7 @@ import time
 
 import e2e_labels as L
 import e2e_png
-from e2e_canvas import at, origin, wait_for_kind_count
+from e2e_canvas import arm_tool, at, origin, wait_for_kind_count
 
 PATH = [(60, 200), (100, 230), (140, 200), (180, 230), (220, 200)]
 SETTLE = 0.8
@@ -161,6 +161,8 @@ def stroke_shows_before_release(a, b, admin_api, channel_id):
     scenarios after this one count the canvas's strokes.
     """
     already = strokes_on_server(admin_api, channel_id)
+    # Esc between scenarios puts the tool down to Pan, and a Pan drag pans the board.
+    arm_tool(a, L.PEN_TOOL)
     rect = around(origin(b), PATH)
     org = origin(a)
     a.gestures(True)

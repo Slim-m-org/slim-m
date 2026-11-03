@@ -8,12 +8,16 @@
 /// seeing which emoji exist.
 library;
 
+import 'dart:async';
+
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../format.dart';
+import '../../../../widgets/app_drop_zone.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../providers/display_preferences.dart';
 import '../../../../providers/providers.dart';
@@ -27,7 +31,8 @@ import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../../../widgets/sheet_item_list.dart';
-import 'emoji_add_card.dart';
+import 'emoji_add_dialog.dart';
+import 'emoji_intake.dart';
 
 /// Marks the sizing box around the emoji list, so a test can measure it
 /// directly rather than inferring the fix from a screenshot - the same
@@ -46,7 +51,7 @@ class EmojiScreen extends StatelessWidget {
   );
 }
 
-/// The emoji catalog and upload card, embeddable as a Space settings pane as
+/// The emoji catalog with an Add button that opens the staging dialog, embeddable as a Space settings pane as
 /// well as routed.
 ///
 /// The catalog itself sits in a bounded box handed to [SheetItemList]: a
@@ -64,6 +69,18 @@ class EmojiPane extends ConsumerStatefulWidget {
 
 class _EmojiPaneState extends ConsumerState<EmojiPane> {
   final _search = TextEditingController();
+  bool _dialogOpen = false;
+
+  Future<void> _openAdd([List<EmojiPick> initial = const []]) async {
+    setState(() => _dialogOpen = true);
+    await showEmojiAddDialog(context, initial: initial);
+    if (mounted) setState(() => _dialogOpen = false);
+  }
+
+  Future<void> _dropped(List<DropItem> files) async {
+    final picks = await readDroppedEmoji(files);
+    if (mounted && picks.isNotEmpty) unawaited(_openAdd(picks));
+  }
 
   @override
   void dispose() {
@@ -76,79 +93,96 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
     final emoji = ref.watch(customEmojiProvider);
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const EmojiAddCard(),
-        AppAsyncView<List<api.CustomEmoji>>(
-          value: AppAsyncState(data: emoji.valueOrNull, error: emoji.error),
-          center: false,
-          errorMessage: 'Could not load emoji.',
-          onRetry: () => ref.invalidate(customEmojiProvider),
-          data: (context, list) {
-            if (list.isEmpty) {
-              return const SettingsSectionCard(
-                title: 'Emoji (0)',
+    return AppDropZone(
+      enabled: !_dialogOpen,
+      label: 'Drop to add emoji',
+      icon: AppIcons.image,
+      onDrop: (files) => unawaited(_dropped(files)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppAsyncView<List<api.CustomEmoji>>(
+            value: AppAsyncState(data: emoji.valueOrNull, error: emoji.error),
+            center: false,
+            errorMessage: 'Could not load emoji.',
+            onRetry: () => ref.invalidate(customEmojiProvider),
+            data: (context, list) {
+              if (list.isEmpty) {
+                return SettingsSectionCard(
+                  title: 'Emoji (0)',
+                  children: [
+                    const SettingsEmptyState(
+                      icon: AppIcons.smile,
+                      title: 'No emoji yet.',
+                      detail: 'Add some and members can use them.',
+                    ),
+                    SettingsCardBlock(children: [_addButton()]),
+                  ],
+                );
+              }
+              final shown = [
+                for (final e in list)
+                  if (emojiNameMatches(e.name, _search.text)) e,
+              ];
+              return SettingsSectionCard(
+                title: shown.length == list.length
+                    ? 'Emoji (${list.length})'
+                    : 'Emoji (${shown.length} of ${list.length})',
                 children: [
-                  SettingsEmptyState(
-                    icon: AppIcons.smile,
-                    title: 'No emoji yet.',
-                    detail: 'Add some above and members can use them.',
+                  SettingsCardBlock(
+                    children: [
+                      Row(
+                        spacing: AppSpacing.s8,
+                        children: [
+                          Expanded(
+                            child: AppInput(
+                              controller: _search,
+                              placeholder: 'Search emoji',
+                              semanticLabel: 'Search emoji',
+                              icon: Icon(
+                                AppIcons.search,
+                                size: AppSizes.icon16,
+                                color: tokens.textSecondary,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          _addButton(),
+                        ],
+                      ),
+                    ],
                   ),
+                  if (shown.isEmpty)
+                    SettingsEmptyState(
+                      icon: AppIcons.search,
+                      title: 'No emoji match "${_search.text.trim()}".',
+                    )
+                  else
+                    ConstrainedBox(
+                      key: emojiListBodyBoxKey,
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+                      ),
+                      child: SheetItemList(
+                        padding: EdgeInsets.zero,
+                        itemCount: shown.length,
+                        itemBuilder: (context, index) => _EmojiRow(
+                          key: ValueKey(shown[index].id),
+                          emoji: shown[index],
+                        ),
+                      ),
+                    ),
                 ],
               );
-            }
-            final shown = [
-              for (final e in list)
-                if (emojiNameMatches(e.name, _search.text)) e,
-            ];
-            return SettingsSectionCard(
-              title: shown.length == list.length
-                  ? 'Emoji (${list.length})'
-                  : 'Emoji (${shown.length} of ${list.length})',
-              children: [
-                SettingsCardBlock(
-                  children: [
-                    AppInput(
-                      controller: _search,
-                      placeholder: 'Search emoji',
-                      semanticLabel: 'Search emoji',
-                      icon: Icon(
-                        AppIcons.search,
-                        size: AppSizes.icon16,
-                        color: tokens.textSecondary,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ],
-                ),
-                if (shown.isEmpty)
-                  SettingsEmptyState(
-                    icon: AppIcons.search,
-                    title: 'No emoji match "${_search.text.trim()}".',
-                  )
-                else
-                  ConstrainedBox(
-                    key: emojiListBodyBoxKey,
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-                    ),
-                    child: SheetItemList(
-                      padding: EdgeInsets.zero,
-                      itemCount: shown.length,
-                      itemBuilder: (context, index) => _EmojiRow(
-                        key: ValueKey(shown[index].id),
-                        emoji: shown[index],
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-      ],
+            },
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _addButton() =>
+      AppButton(label: 'Add', icon: AppIcons.add, onPressed: _openAdd);
 }
 
 class _EmojiRow extends ConsumerStatefulWidget {
@@ -190,6 +224,8 @@ class _EmojiRowState extends ConsumerState<_EmojiRow>
   @override
   Widget build(BuildContext context) {
     final emoji = widget.emoji;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final wide = MediaQuery.sizeOf(context).width >= kCompactWidth;
 
     return SettingsEntityRow(
       dense: true,
@@ -197,11 +233,15 @@ class _EmojiRowState extends ConsumerState<_EmojiRow>
       leading: CustomEmojiImage(emojiId: emoji.id, size: AppSizes.icon24),
       headline: emoji.shortcode,
       headlineStyle: AppText.code,
-      details: [
-        SettingsEntityDetail(
-          'Added ${formatDateTime(emoji.createdAt, use24Hour: watchUse24Hour(ref, context))}',
-        ),
-      ],
+      badge: wide
+          ? Text(
+              formatDateTime(
+                emoji.createdAt,
+                use24Hour: watchUse24Hour(ref, context),
+              ),
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            )
+          : null,
       actions: [
         AppIconButton(
           icon: AppIcons.delete,

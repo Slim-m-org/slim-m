@@ -165,6 +165,7 @@ class CanvasPaneSurface extends StatelessWidget {
           onDraftPoint: actions.onDraftPoint,
           onDraftEnded: actions.onDraftEnded,
           onDraftCancel: actions.onDraftCancel,
+          gestureController: actions.gestureController,
         ),
         CanvasObjectContextMenu(
           document: document,
@@ -175,7 +176,6 @@ class CanvasPaneSurface extends StatelessWidget {
           onBringToFront: actions.onBringToFront,
           onSendToBack: actions.onSendToBack,
           onDeleteSelected: actions.onDeleteSelected,
-          onPasteImageAt: actions.onPasteImageAt,
           onAddNoteAt: actions.onNotePlace,
           onEditNote: actions.onEditNote,
           canDraw: !canvasErrorBlocksDrawing(error),
@@ -201,7 +201,6 @@ class CanvasPaneSurface extends StatelessWidget {
               ) !=
               null,
           onToolChanged: actions.onToolChanged,
-          onPasteImageAt: actions.onPasteImageAt,
         ),
         CanvasBoardObjectSemantics(
           document: document,

@@ -213,6 +213,44 @@ async fn art_and_source_round_trip_for_a_viewer() {
 }
 
 #[tokio::test]
+async fn progress_round_trips_and_a_partial_or_out_of_range_set_is_refused() {
+    let (store, _guard) = support::new_store("slimm-presence-progress").await;
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (bob_access, _bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let alice = alice_id.to_string();
+    let _alice_ws = connect(serve(state.clone()).await, &alice_ticket).await;
+
+    let with = |extra: Value| {
+        let mut body = track("Song");
+        body.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        body
+    };
+    for bad in [
+        json!({ "duration_ms": 200000 }),
+        json!({ "duration_ms": 200000, "position_ms": 200001, "position_at": 1 }),
+        json!({ "duration_ms": 0, "position_ms": 0, "position_at": 1 }),
+    ] {
+        assert_eq!(
+            put_activity(&state, &alice_access, with(bad)).await,
+            StatusCode::BAD_REQUEST
+        );
+    }
+    let ok =
+        json!({ "duration_ms": 200000, "position_ms": 5000, "position_at": 1700000000000_i64 });
+    assert_eq!(
+        put_activity(&state, &alice_access, with(ok)).await,
+        StatusCode::NO_CONTENT
+    );
+    let seen = lookup(&state, &bob_access, &alice).await;
+    assert_eq!(seen["activity"]["duration_ms"], 200000);
+    assert_eq!(seen["activity"]["position_ms"], 5000);
+    assert_eq!(seen["activity"]["position_at"], 1700000000000_i64);
+}
+
+#[tokio::test]
 async fn art_url_outside_the_allowlist_is_refused() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();

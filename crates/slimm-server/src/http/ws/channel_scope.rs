@@ -34,6 +34,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::VoiceParticipantLeft { channel_id, .. } => *channel_id,
         Event::VoiceScreenShareChanged { channel_id, .. } => *channel_id,
         Event::WatchTick { channel_id, .. } => *channel_id,
+        Event::CallAudioChanged { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,
         Event::DmChanged { channel_id } => *channel_id,
@@ -69,6 +70,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::MemberRoleChanged { .. }
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         | Event::ReportsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }

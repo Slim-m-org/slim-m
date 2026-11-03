@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The first-time notice itself: shown once, the first time the window
 /// reopens after closing hid or minimised it rather than quitting.
-/// Persistent rather than a timed `SnackBar` - this app's own established
-/// rule for anything worth a person actually reading, not a toast that can
-/// vanish before it is seen.
+/// An info [StatusBanner]: it clears itself after a few seconds, and either way
+/// the notice is marked shown so it is not repeated.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../widgets/status_banner.dart';
 import 'close_behavior.dart';
 import 'first_run_tray_notice.dart';
 
@@ -21,19 +23,10 @@ class FirstRunTrayNoticeBanner extends ConsumerWidget {
     final action = ref.watch(firstRunTrayNoticeCloseActionProvider);
     if (action == null) return const SizedBox.shrink();
 
-    return AppCallout(
-      tone: AppCalloutTone.info,
-      child: Row(
-        children: [
-          Expanded(child: Text(_copyFor(action))),
-          AppIconButton(
-            icon: AppIcons.dismiss,
-            semanticLabel: 'Dismiss',
-            size: AppIconButtonSize.sm,
-            onPressed: () => _dismiss(ref, action),
-          ),
-        ],
-      ),
+    return StatusBanner(
+      message: _copyFor(action),
+      margin: const EdgeInsets.all(AppSpacing.s8),
+      onDismiss: () => unawaited(_dismiss(ref, action)),
     );
   }
 

@@ -84,10 +84,8 @@ services:
       # worse than no TURN: relay candidates are advertised and all time out.
       - "${LIVEKIT_TURN_RELAY_PORT_START:-30000}-${LIVEKIT_TURN_RELAY_PORT_END:-30100}:${LIVEKIT_TURN_RELAY_PORT_START:-30000}-${LIVEKIT_TURN_RELAY_PORT_END:-30100}/udp"
       - "${LIVEKIT_UDP_PORT_START:-50000}-${LIVEKIT_UDP_PORT_END:-50100}:${LIVEKIT_UDP_PORT_START:-50000}-${LIVEKIT_UDP_PORT_END:-50100}/udp"
-      # TURN/TLS gets 5349, never 443: Caddy owns 443 and TURN is not an HTTP
-      # protocol it can share it with. To enable, see deploy/README.md.
-
-      # - "5349:5349"
+      # TURN/TLS is off: LiveKit always advertises it on 443, which Caddy owns.
+      # It needs an SNI router on 443; see deploy/README.md.
     environment:
       # LiveKit's own env binding for a full config.yaml body. The key and secret
       # take `:?` and never a default, on purpose; see deploy/README.md.

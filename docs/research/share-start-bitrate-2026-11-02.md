@@ -62,7 +62,7 @@ The most likely reading is that Chrome does not re-seed an established estimator
 This note did not prove that mechanism, only the outcome: 9000, 3000 and 1000 behave the same.
 The estimator's own ramp (about 5 to 8 percent per second here, no fast probe) is what sets how long a share takes to reach full quality, about 30 s to a 1080p layer at the viewer.
 
-## Recommendation: A
+## Recommendation: A (superseded by the v123 follow-up below)
 
 Keep upstream behavior and drop the fork pin.
 The caps change nothing measurable on the web client, so they cost a maintained fork for no benefit seen.
@@ -88,3 +88,75 @@ C is not recommended: it adds a second cap to maintain and measured the same as 
 The fork override is not shipped: the hint is never consulted on the path slim-m uses (a share published after join), and lowering it would only act in the one path that was not measured.
 The fork Slim-m-org/client-sdk-flutter keeps the two branches for the day a change in livekit_client is needed; nothing pins it.
 The finding that matters is the ramp itself, about 30 s to 1080p on an unconstrained link, which has its own card (Ready, "A screen share takes about 30 s to reach 1080p").
+The v123 follow-up below found the cause of the ramp and fixed it for the web client.
+
+## Follow-up (v123): the cause, and the fix
+
+The 30 s ramp has a cause, and it is not the estimator.
+Chrome takes a sender's `x-google-start-bitrate` from the codec parameters of the remote description.
+LiveKit writes the hint into the offer it sets locally, and the SFU's answer does not repeat it, so Chrome never sees it.
+This explains why hints of 1000, 3000 and 9000 behaved the same above.
+Native libwebrtc (flutter_webrtc on Linux) does apply the hint from the local offer.
+
+### Evidence
+
+- A throwaway page script that added the hint to the answer's video codec lines before `setRemoteDescription` took the web client from 32 s to 2 s to a 1080p viewer.
+- No client or SFU change was needed to see it.
+- The native client's own libwebrtc log shows `BWE Setting start bitrate to: 9000 kbps` straight after the share's offer, a successful probe at about 2.4 Mbps, and a target of 2.0 Mbps at the first sample and 3.5 Mbps by the fifth.
+- The same native build without any change measured the same ramp, so native has no problem to fix.
+
+### Fix
+
+The web build wraps each LiveKit peer connection (`client/packages/rtc/lib/src/start_bitrate_peer_connection.dart`).
+It remembers the hint that LiveKit put in the last local offer and repeats it on the next remote answer, once.
+The value is capped at 3000 kbps because LiveKit's own hint for a 1080p60 share is about 9 Mbps, which overshoots slow links (see the table).
+The wrapper is in our code through the `peerConnectionCreate` argument of LiveKit's `Engine`, so no fork change is needed.
+Native builds keep the plain room.
+
+### Method
+
+- The `voice: a share reaches the viewer's full resolution within seconds` e2e scenario (`scripts/lib/e2e_share_ramp.py`): two headless Chrome clients, real server, real LiveKit in Docker.
+- The sender shares a fake 1920x1080 screen at the 1080p60 tier with heavy motion, and both pages sample their peer connections every second from the click.
+- A slow uplink is a `tc` ingress policer at the SFU container (`E2E_SHARE_RAMP_UPLINK_MBIT`), which drops the excess.
+- Before is the same bundle with the hint stripped from the answer, which is what Chrome saw without the fix. The unpatched bundle measured the same (32 s, 0.47 Mbps at 10 s).
+- One run per cell unless stated, so these are indications and not a statistical sample.
+
+### Web results
+
+"Full" is the first second the viewer decodes 1080 lines.
+"Target at 5 s" is the sender's summed target bitrate, in Mbps.
+"Sent at 20 s" is the megabytes the sender had put on the wire by then.
+Lost is the viewer's packets lost and freezes are its freeze count, both by 20 s.
+
+| Uplink | Variant | Full | Target at 5 s | Sent at 20 s | Lost | Freezes |
+| --- | --- | --- | --- | --- | --- | --- |
+| none | before | 32 s | 0.32 | 1.5 MB | - | - |
+| none | answer hint capped at 3000 | 1 s, 2 s (two runs) | 3.98, 3.28 | 11.7, 8.5 MB | 0, 0 | 3, 2 |
+| none | answer hint uncapped (9000) | 1 s | 4.8 | not recorded | 0 | 1 by 45 s |
+| 5 Mbit/s | before | 32 s | 0.31 | 1.5 MB | 0 | 0 |
+| 5 Mbit/s | capped at 3000 | 3 s | 1.67 | 8.6 MB | 0 | 4 |
+| 5 Mbit/s | uncapped | 1 s | 1.67 | 8.7 MB | 0 | 3 |
+| 2 Mbit/s | before | not in 20 s | 0.33 | 1.5 MB | 0 | 0 |
+| 2 Mbit/s | capped at 3000 | not in 20 s (540 at 1 s) | 0.72 | 4.3 MB | 4 | 0 |
+| 2 Mbit/s | uncapped | not in 20 s (first frame at 5 s) | 0.69 | 7.3 MB | 43 | 2 |
+| 1 Mbit/s | before | not in 20 s | 0.33 | 1.4 MB | 0 | 0 |
+| 1 Mbit/s | capped at 3000 | not in 20 s | 0.35 | 2.2 MB | 16 | 1 |
+
+On a link too slow for 1080p the cap kept the first frame at 1 s where the uncapped hint delayed it to 5 s, and cost 4 to 16 lost packets where the old behaviour lost none.
+The viewer freezes counted after the fix on an unconstrained link are most likely the layer switch from 540 to 1080 lines.
+The old low-rate stream counted none because its frame rate was too low to register a gap; this was not isolated further.
+
+### Native result
+
+The `encode readback` scenario with a 1920x1080 screen and the 1080p60 tier, release client built with the voice harness, before and after the wrapper.
+Summed target bitrate per sample, from the client's own stats: 2.0 then 3.5 Mbps (before) and 2.1 then 3.7 Mbps (after), with the step after four samples in both.
+The nested compositor's screen is static, so the sender is application limited and the target does not climb past about 3.7 Mbps.
+That run says the estimator starts high on native, not how it behaves under heavy motion.
+
+### Caveats
+
+- Loopback RTT is about 1 ms and the policer drops instead of queueing.
+- Real WAN uplinks queue differently, so the freeze counts on slow links are indicative.
+- Safari and Firefox were not measured.
+- Chrome is the only browser engine the e2e suite drives.
+- The cap of 3000 kbps is a judgement from the table: the uncapped hint reached 1080p in 1 s but lost 43 packets on a 2 Mbit/s link, the capped one lost 4.

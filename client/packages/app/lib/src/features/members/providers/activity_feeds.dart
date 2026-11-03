@@ -52,6 +52,20 @@ api.PresenceActivity? activityFromNowPlaying(NowPlaying playing) {
     subtitle: artist.isEmpty ? null : artist,
     source: source.isEmpty ? null : source,
     artUrl: playing.artUrl,
+    progress: _progressOf(playing),
+  );
+}
+
+api.ActivityProgress? _progressOf(NowPlaying playing) {
+  final position = playing.positionMs;
+  final duration = playing.durationMs;
+  final at = playing.sampledAtMs;
+  if (position == null || duration == null || at == null) return null;
+  if (duration <= 0 || position < 0 || position > duration) return null;
+  return api.ActivityProgress(
+    positionMs: position,
+    durationMs: duration,
+    sampledAtMs: at,
   );
 }
 

@@ -46,7 +46,7 @@ The binary size budget step exists because the brief treats binary size as a fir
 `scripts/check-web-bundle-budget.sh` runs right after the web release build and fails when `main.dart.js`, gzipped at level 9, is over 2,600,000 bytes.
 It was 1,906,651 when the budget landed at 2,400,000 (2026-10-07), so the budget was about a quarter of headroom: normal growth fits for a while, and something like an accidentally pulled-in heavy dependency trips it.
 v121 (2026-11-02) reached 2,400,798 with no new dependency, about 97 KB of its own call, lounge and diagnostics code, and moved the budget to 2,600,000, which is the kind of raise the next paragraph describes.
-Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's 20 MiB binary budget.
+Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's binary budget (22 MiB since v123, see docs/dependencies.md).
 Run it locally after `flutter build web --release` in `client/packages/app`.
 
 ### Native build hooks are cached, and explain their own failures

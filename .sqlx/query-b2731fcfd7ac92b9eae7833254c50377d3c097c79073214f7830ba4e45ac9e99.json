@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM voice_sessions WHERE left_at IS NULL) AS \"open!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "open!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b2731fcfd7ac92b9eae7833254c50377d3c097c79073214f7830ba4e45ac9e99"
+}

@@ -230,11 +230,12 @@ void main() {
         );
         await tester.tap(find.text('Priya'));
         await tester.pumpAndSettle();
-        expect(find.text('LISTENING ON SPOTIFY'), findsOne);
+        expect(find.text('LISTENING ON SPOTIFY'), findsNothing);
+        expect(find.byKey(const Key('activity-spotify-mark')), findsOne);
         expect(find.text('Weightless'), findsOne);
         expect(find.text('Marconi Union'), findsOne);
         final cover = tester.getSize(find.byKey(const Key('activity-cover')));
-        expect(cover, const Size(AppSpacing.s40, AppSpacing.s40));
+        expect(cover, const Size(AppSpacing.s64, AppSpacing.s64));
         expect(find.byType(Image), findsOne);
         await _finish(tester, 'activity-card-$suffix');
       });

@@ -3,6 +3,37 @@
 /// back removals, clears and restores is a sibling file, `models_canvas_ops.dart`.
 library;
 
+/// One object to place, as [SlimmApiCanvas.placeCanvasObjects] takes it.
+class CanvasPlacement {
+  const CanvasPlacement({
+    required this.id,
+    required this.kind,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+    required this.props,
+  });
+
+  final String id;
+  final String kind;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+  final Map<String, dynamic> props;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        'x': x,
+        'y': y,
+        'w': w,
+        'h': h,
+        'props': props,
+      };
+}
+
 /// One object on a channel's canvas.
 class CanvasObject {
   const CanvasObject({

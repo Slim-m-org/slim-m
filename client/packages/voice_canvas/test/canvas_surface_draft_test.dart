@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 void main() {
+  _cancelDrawingTests();
+
   testWidgets('a pen drag reports the first point on down and one per move', (
     tester,
   ) async {
@@ -243,4 +245,90 @@ void main() {
       expect(ended, 0);
     },
   );
+}
+
+void _cancelDrawingTests() {
+  testWidgets(
+      'cancelDrawing drops a stroke mid-drag and the lift commits nothing', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    final controller = CanvasGestureController();
+    var strokes = 0;
+    var ended = 0;
+    var cancelled = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          gestureController: controller,
+          onStroke: (_) => strokes++,
+          onDraftEnded: () => ended++,
+          onDraftCancel: () => cancelled++,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final gesture = await tester.startGesture(const Offset(20, 20));
+    await gesture.moveTo(const Offset(80, 60));
+    expect(controller.cancelDrawing(), isTrue);
+    await gesture.moveTo(const Offset(120, 90));
+    await gesture.up();
+    await tester.pump();
+
+    expect((strokes, ended, cancelled), (0, 0, 1));
+    expect(controller.cancelDrawing(), isFalse, reason: 'nothing left to drop');
+  });
+
+  testWidgets('cancelDrawing is false when nothing is being drawn', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    final controller = CanvasGestureController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          gestureController: controller,
+          onStroke: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(controller.cancelDrawing(), isFalse);
+  });
+
+  testWidgets('cancelDrawing drops a shape being dragged out', (tester) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    final controller = CanvasGestureController();
+    var placed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          tool: CanvasTool.shape,
+          gestureController: controller,
+          onStroke: (_) {},
+          onShapePlace: (_, __, {flipX = false, flipY = false}) => placed++,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final gesture = await tester.startGesture(const Offset(20, 20));
+    await gesture.moveTo(const Offset(120, 90));
+    expect(controller.cancelDrawing(), isTrue);
+    await gesture.up();
+    await tester.pump();
+
+    expect(placed, 0);
+  });
 }

@@ -18,6 +18,8 @@ Page<void> personalSettingsPage(BuildContext context, GoRouterState state) =>
       context,
       PersonalSettingsScreen(
         initialPaneId: state.uri.queryParameters[settingsPaneQuery],
+        focusAbout:
+            state.uri.queryParameters[settingsFocusQuery] == settingsFocusAbout,
         onPaneChanged: (id) => context.replace(
           id == null
               ? Routes.personalSettings

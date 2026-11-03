@@ -15,9 +15,11 @@ use crate::voice::CallRingOutcome;
 
 mod canvas;
 mod message;
+mod role_change;
 
 pub use canvas::CanvasEvent;
 pub use message::MessageEvent;
+pub use role_change::{RoleChange, RoleLook};
 
 /// Something that happened and should reach interested connections.
 #[derive(Debug, Clone)]
@@ -101,22 +103,33 @@ pub enum Event {
         user_id: UserId,
     },
     /// A role was created, renamed, had its permission bits changed, or was
-    /// deleted. Carries only the id, never the name or the bits: those are
-    /// gated behind MANAGE_ROLES over REST (`GET /roles`), and broadcasting
-    /// either here would hand every member a privileged answer this event has
-    /// no way to check them against. Deployment-wide like
+    /// deleted. Never carries the permission bits: those are gated behind
+    /// MANAGE_ROLES over REST (`GET /roles`), and broadcasting them here would
+    /// hand every member a privileged answer this event has no way to check
+    /// them against. The name is not secret, members see it in the member
+    /// list, and `change` adds the member-visible look
+    /// (name, colour, hoist, mentionable) either side of the change when the
+    /// publisher knows it. Deployment-wide like
     /// [`Event::MemberTimeoutChanged`] for the same reason: a role's bits feed
     /// every channel's evaluation at once, so there is no bounded per-channel
     /// audience to compute instead. A receiving client cannot resolve what
     /// changed, only that it should re-ask what it is now allowed to do.
-    RoleChanged { role_id: RoleId },
+    RoleChanged {
+        role_id: RoleId,
+        change: Option<Arc<RoleChange>>,
+    },
     /// A role was granted to or revoked from a member. Carries both ids,
     /// which leaks nothing beyond `GET /members` already does for any caller:
     /// a member's held role ids are on their public profile. Broadcast rather
     /// than gated on the receiver for the same reason [`Event::MemberRemoved`]
     /// is: the fact itself is not privileged, only a role's bits are, and
     /// those never travel here either.
-    MemberRoleChanged { user_id: UserId, role_id: RoleId },
+    MemberRoleChanged {
+        user_id: UserId,
+        role_id: RoleId,
+        granted: bool,
+        role_name: Option<String>,
+    },
     /// A channel was created. Carries the full row, the way
     /// [`Event::MessageCreated`] carries its message: a fresh channel has no
     /// prior state to reconcile against, so whoever can view it right now is
@@ -153,6 +166,8 @@ pub enum Event {
     /// client re-fetches the channel list, the same path a channel create,
     /// rename, or delete already drives.
     CategoryChanged,
+    /// A deployment-wide Space display setting changed; carries nothing, a client re-reads `/version`.
+    SpaceSettingsChanged,
     /// A channel permission overwrite was set or cleared for one role or one
     /// member. Carries only the channel id: the allow/deny mask is exactly
     /// the kind of privileged detail [`Event::RoleChanged`] withholds, and for
@@ -237,6 +252,15 @@ pub enum Event {
         channel_id: ChannelId,
         user_id: UserId,
         is_sharing_screen: bool,
+    },
+    /// A call-audio session started, changed or ended (decision 0105), for
+    /// everyone who can view the channel. `state` is `None` once it ends, and
+    /// `ended` then says how: `declined`, `lapsed`, `stopped` and so on, never
+    /// who. Never persisted and unnumbered; the REST route is the catch-up.
+    CallAudioChanged {
+        channel_id: ChannelId,
+        state: Option<Box<crate::call_audio::CallAudioView>>,
+        ended: Option<&'static str>,
     },
     /// Ringing was started for a DM call: `caller_id` is calling whoever the
     /// other side of the `channel_id` DM is. `ring_id` names this specific

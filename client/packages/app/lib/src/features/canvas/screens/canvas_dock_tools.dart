@@ -15,11 +15,13 @@ class CanvasDockToolsRow extends StatelessWidget {
     required this.canvas,
     this.part = CanvasToolsRowPart.all,
     this.overflowOpensBelow = false,
+    this.chatChannelId,
   });
 
   final CanvasDockData canvas;
   final CanvasToolsRowPart part;
   final bool overflowOpensBelow;
+  final String? chatChannelId;
 
   @override
   Widget build(BuildContext context) => CanvasToolsRow(
@@ -33,7 +35,6 @@ class CanvasDockToolsRow extends StatelessWidget {
     canManage: canvas.canManage,
     onClear: canvas.onClear,
     scopedClear: canvas.scopedClear,
-    onPasteImage: canvas.onPasteImage,
     onAddImageFile: canvas.onAddImageFile,
     selection: canvas.selection,
     onBringToFront: canvas.onBringToFront,
@@ -55,5 +56,6 @@ class CanvasDockToolsRow extends StatelessWidget {
     showTools: !canvas.activityLogOpen,
     part: part,
     overflowOpensBelow: overflowOpensBelow,
+    chatChannelId: chatChannelId,
   );
 }

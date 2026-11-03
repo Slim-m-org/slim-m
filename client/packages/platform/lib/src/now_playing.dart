@@ -16,6 +16,9 @@ class NowPlaying {
     this.artist,
     this.source,
     this.artUrl,
+    this.positionMs,
+    this.durationMs,
+    this.sampledAtMs,
   });
 
   final String title;
@@ -28,16 +31,33 @@ class NowPlaying {
   /// shares it is responsible for refusing anything but a known host.
   final String? artUrl;
 
+  /// Playback position at [sampledAtMs] and the track length, when the player
+  /// reports them. Part of equality, so a seek re-emits and a steady poll does not.
+  final int? positionMs;
+  final int? durationMs;
+  final int? sampledAtMs;
+
   @override
   bool operator ==(Object other) =>
       other is NowPlaying &&
       other.title == title &&
       other.artist == artist &&
       other.source == source &&
-      other.artUrl == artUrl;
+      other.artUrl == artUrl &&
+      other.positionMs == positionMs &&
+      other.durationMs == durationMs &&
+      other.sampledAtMs == sampledAtMs;
 
   @override
-  int get hashCode => Object.hash(title, artist, source, artUrl);
+  int get hashCode => Object.hash(
+        title,
+        artist,
+        source,
+        artUrl,
+        positionMs,
+        durationMs,
+        sampledAtMs,
+      );
 }
 
 /// A local player's playback state.

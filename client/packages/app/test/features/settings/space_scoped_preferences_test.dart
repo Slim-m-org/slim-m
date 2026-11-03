@@ -116,9 +116,17 @@ void main() {
 
 /// The device-wide counterpart of [spaceScopedKeys]; see decision 0070.
 const _deviceKeys = <String>{
+  'slimm.appearance.custom_theme',
+  'slimm.appearance.space_default_theme',
   'slimm.appearance.high_contrast',
   'slimm.appearance.motion',
   'slimm.appearance.ui_scale',
+  'slimm.appearance.background.blur',
+  'slimm.appearance.background.dim',
+  'slimm.appearance.background.has_image',
+  'slimm.appearance.background.tone',
+  'slimm.appearance.background.vignette',
+  'slimm.canvas.recent_colours',
   'slimm.canvas.self_bubble.hidden',
   'slimm.canvas.snap_to_grid',
   'slimm.database.key',
