@@ -59,7 +59,11 @@ class CallFilmstrip extends StatefulWidget {
     required this.leadingItemWidth,
     required this.participants,
     required this.tileBuilder,
+    this.channelId,
   });
+
+  /// The call's channel, so each keeps its own scroll offset.
+  final String? channelId;
 
   /// Share thumbnails shown ahead of the participant tiles, each [leadingItemWidth] wide.
   final List<Widget> leading;
@@ -205,7 +209,9 @@ class _CallFilmstripState extends State<CallFilmstrip> {
         ),
       );
 
+  /// Stored with the page, so the offset survives the stage being swapped for the canvas.
   Widget _strip() => ListView.separated(
+    key: PageStorageKey<String>('call-filmstrip-scroll-${widget.channelId}'),
     controller: _controller,
     scrollDirection: Axis.horizontal,
     shrinkWrap: true,
