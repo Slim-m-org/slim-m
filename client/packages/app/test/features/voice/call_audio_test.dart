@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/voice/providers/call_audio.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_audio_banner.dart';
+import 'package:slimm_app/src/widgets/status_banner.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_audio_prompt.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_audio_start.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -330,7 +331,12 @@ void main() {
         find.text('Not everyone agreed, so nothing is listening.'),
         findsOneWidget,
       );
-      await tester.tap(find.byKey(CallAudioBanner.dismissKey));
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('call-audio-ended')),
+          matching: find.byKey(StatusBanner.dismissKey),
+        ),
+      );
       await tester.pump();
       expect(find.byKey(const ValueKey('call-audio-ended')), findsNothing);
     });

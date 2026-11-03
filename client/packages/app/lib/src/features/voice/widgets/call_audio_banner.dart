@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
+import '../../../widgets/status_banner.dart';
 import '../providers/call_audio.dart';
 
 class CallAudioBanner extends ConsumerWidget {
@@ -23,7 +24,6 @@ class CallAudioBanner extends ConsumerWidget {
 
   static const stopKey = Key('call-audio-stop');
   static const allowKey = Key('call-audio-banner-allow');
-  static const dismissKey = Key('call-audio-ended-dismiss');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,17 +38,13 @@ class CallAudioBanner extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppCallout(
+          // Bound to the live session like a recording light, so it never times out.
+          StatusBanner(
             key: ValueKey('call-audio-${session.isOn ? 'on' : 'asking'}'),
-            tone: AppCalloutTone.info,
+            message: text,
             icon: AppIcons.callAudio,
-            child: Row(
-              children: [
-                Expanded(child: Text(text)),
-                const SizedBox(width: AppSpacing.s8),
-                ...actions,
-              ],
-            ),
+            sticky: true,
+            action: Row(mainAxisSize: MainAxisSize.min, children: actions),
           ),
           if (model.error case final message?)
             Padding(
@@ -115,26 +111,13 @@ class _Ended extends ConsumerWidget {
       _ => null,
     };
     if (text == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s12),
-      child: AppCallout(
-        key: const ValueKey('call-audio-ended'),
-        tone: AppCalloutTone.info,
-        icon: AppIcons.callAudio,
-        child: Row(
-          children: [
-            Expanded(child: Text(text)),
-            AppButton(
-              key: CallAudioBanner.dismissKey,
-              label: 'Dismiss',
-              size: AppButtonSize.sm,
-              variant: AppButtonVariant.ghost,
-              onPressed: () =>
-                  ref.read(callAudioProvider(channelId).notifier).clearEnded(),
-            ),
-          ],
-        ),
-      ),
+    return StatusBanner(
+      key: const ValueKey('call-audio-ended'),
+      message: text,
+      icon: AppIcons.callAudio,
+      margin: const EdgeInsets.only(top: AppSpacing.s12),
+      onDismiss: () =>
+          ref.read(callAudioProvider(channelId).notifier).clearEnded(),
     );
   }
 }

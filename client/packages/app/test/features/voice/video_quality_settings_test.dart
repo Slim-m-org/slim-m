@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/voice/providers/live_quality_restart.dart
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/widgets/video_quality_sections.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_call_controls_harness.dart';

@@ -56,6 +56,9 @@ class StatusBanner extends StatefulWidget {
   /// Outside space that collapses with the banner, so a hidden one reserves none.
   final EdgeInsetsGeometry margin;
 
+  /// The close button, for a caller's test to find inside its own banner.
+  static const dismissKey = Key('status-banner-dismiss');
+
   @override
   State<StatusBanner> createState() => _StatusBannerState();
 }
@@ -143,6 +146,7 @@ class _StatusBannerState extends State<StatusBanner> {
           if (widget.action != null) widget.action!,
           if (dismissible)
             AppIconButton(
+              key: StatusBanner.dismissKey,
               icon: AppIcons.dismiss,
               semanticLabel: 'Dismiss',
               size: AppIconButtonSize.sm,
