@@ -497,6 +497,8 @@ Lounge UX and canvas items are in sections 6 and 7.
 - Prove: candidateType relay and tcp in the call stats network path.
 - Lens doubts: impact lens says relay is rarely needed because TCP 7881 ICE-TCP is published.
   A relay-only client only needs the SFU's 50xxx port, so the unpublished 3xxxx range may not matter.
+- Resolved 2026-11-03: LiveKit advertises `turns:<domain>:443` whatever `tls_port` is, and Traefik only routed TURN on 5349, so a relay-only join gathered no relay candidate at all.
+  The TURN router now also listens on Traefik's 443 entrypoint by SNI, and a relay-only browser join connects in about 1.4 s (see prod-voice-topology.md).
 
 **N5. Smaller network items.**
 - TURN/TLS is only on 5349, so a 443-only network gets no media.
