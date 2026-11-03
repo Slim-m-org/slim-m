@@ -96,6 +96,30 @@ extension SlimmApiCanvas on SlimmApi {
         CanvasObject.fromJson);
   }
 
+  /// Places up to 200 objects in one request, all or nothing; see [placeCanvasObject] for each field.
+  ///
+  /// Each [CanvasPlacement.id] is an idempotency key, so a retried batch answers with the stored rows.
+  Future<List<CanvasObject>> placeCanvasObjects(
+    String channelId,
+    List<CanvasPlacement> objects,
+  ) async {
+    final json = await send(
+      'POST',
+      '/channels/$channelId/canvas/objects/batch',
+      body: {
+        'objects': [for (final o in objects) o.toJson()]
+      },
+    );
+    return decodeShape(
+      json,
+      'POST /channels/$channelId/canvas/objects/batch',
+      (map) => [
+        for (final o in map['objects'] as List<dynamic>)
+          CanvasObject.fromJson(o as Map<String, dynamic>),
+      ],
+    );
+  }
+
   /// Submits a canvas mutation, idempotent by [id] like [placeCanvasObject]: a replay answers with the stored op
   /// (`fresh: false`) and publishes nothing. Only the fields that [kind] needs are read; the server 400s the rest.
   Future<CanvasOpResult> submitCanvasOp(

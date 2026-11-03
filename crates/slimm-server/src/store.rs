@@ -141,6 +141,7 @@ pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use calls::CallRecord;
+pub use canvas::canvas_batch::{BatchError, BatchItem};
 pub(crate) use canvas::valid_bounds;
 pub use canvas::{
     CanvasObject, MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL,
