@@ -28,8 +28,11 @@ void main() {
   const sizes = {'phone': Size(390, 900), 'desktop': Size(900, 700)};
   for (final theme in const ['dark', 'light']) {
     for (final entry in sizes.entries) {
-      for (final auto in const [false, true]) {
-        final label = auto ? 'auto' : 'manual';
+      for (final (label, auto, reading) in const [
+        ('manual', false, InputGateReading(levelDb: -28, voice: true)),
+        ('auto', true, InputGateReading(levelDb: -28, voice: true)),
+        ('auto-quiet', true, InputGateReading(levelDb: -64, voice: false)),
+      ]) {
         testWidgets('input gate $label meter at ${entry.key} ($theme)', (
           tester,
         ) async {
@@ -82,9 +85,7 @@ void main() {
           final controller = container.read(voiceControllerProvider.notifier);
           await controller.join('channel-1');
           await tester.pumpAndSettle();
-          session.inputGateController.add(
-            const InputGateReading(levelDb: -28, voice: true),
-          );
+          session.inputGateController.add(reading);
           await tester.pumpAndSettle();
           if (auto) {
             await tester.tap(find.text('Advanced'));

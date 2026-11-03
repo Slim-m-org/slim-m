@@ -276,6 +276,32 @@ void main() {
       expect(tester.getSize(find.byKey(CallAudioPrompt.cardKey)).width, 400);
     });
 
+    testWidgets('puts the answer at the bottom of a phone screen', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        () => const CallAudioPrompt(),
+        session: _session(),
+        width: 400,
+      );
+      final allow = tester.getRect(find.byKey(CallAudioPrompt.allowKey));
+      expect(allow.bottom, greaterThan(900 * 0.8));
+    });
+
+    testWidgets('follows the session while it is showing', (tester) async {
+      final session = _session();
+      final rig = await _pump(
+        tester,
+        () => const CallAudioPrompt(),
+        session: session,
+      );
+      rig.events.add(_frame({...session, 'purpose': 'Takes the minutes.'}));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Takes the minutes.'), findsOneWidget);
+    });
+
     testWidgets('floats as a card on a wide window', (tester) async {
       await _pump(tester, () => const CallAudioPrompt(), session: _session());
       final card = tester.getRect(find.byKey(CallAudioPrompt.cardKey));

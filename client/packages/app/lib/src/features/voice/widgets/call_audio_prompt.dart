@@ -42,27 +42,51 @@ class CallAudioPrompt extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
-    final me = ref.watch(sessionProvider.select((s) => s.tokens?.userId));
-    if (channelId == null || me == null) return const SizedBox.shrink();
-    final session = ref.watch(
-      callAudioProvider(channelId).select((m) => m.session),
+    if (_pendingAsk(ref) == null) return const SizedBox.shrink();
+    return Material(
+      type: MaterialType.transparency,
+      child: Overlay(
+        initialEntries: [
+          // The entry's builder runs once, so the surface watches for itself.
+          OverlayEntry(builder: (context) => const _PromptSurface()),
+        ],
+      ),
     );
-    if (session == null || !session.isAsking(me)) {
-      return const SizedBox.shrink();
-    }
-    final key = _sessionKey(channelId, session);
-    if (ref.watch(callAudioDismissedProvider).contains(key)) {
-      return const SizedBox.shrink();
-    }
+  }
+}
+
+typedef _Ask = ({String channelId, api.CallAudioState session, String key});
+
+/// The question this person has yet to answer and not closed, if any.
+_Ask? _pendingAsk(WidgetRef ref) {
+  final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
+  final me = ref.watch(sessionProvider.select((s) => s.tokens?.userId));
+  if (channelId == null || me == null) return null;
+  final session = ref.watch(
+    callAudioProvider(channelId).select((m) => m.session),
+  );
+  if (session == null || !session.isAsking(me)) return null;
+  final key = _sessionKey(channelId, session);
+  if (ref.watch(callAudioDismissedProvider).contains(key)) return null;
+  return (channelId: channelId, session: session, key: key);
+}
+
+class _PromptSurface extends ConsumerWidget {
+  const _PromptSurface();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ask = _pendingAsk(ref);
+    if (ask == null) return const SizedBox.shrink();
+    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     final body = _PromptBody(
-      channelId: channelId,
-      session: session,
+      channelId: ask.channelId,
+      session: ask.session,
+      compact: compact,
       onClose: () => ref
           .read(callAudioDismissedProvider.notifier)
-          .update((keys) => {...keys, key}),
+          .update((keys) => {...keys, ask.key}),
     );
-    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     final content = compact
         ? Material(
             color: Theme.of(context).extension<AppTokens>()!.surfaceBase,
@@ -78,17 +102,7 @@ class CallAudioPrompt extends ConsumerWidget {
               ),
             ),
           );
-    return Material(
-      type: MaterialType.transparency,
-      child: Overlay(
-        initialEntries: [
-          OverlayEntry(
-            builder: (context) =>
-                AppFadeIn(key: ValueKey('call-audio-$key'), child: content),
-          ),
-        ],
-      ),
-    );
+    return AppFadeIn(key: ValueKey('call-audio-${ask.key}'), child: content);
   }
 }
 
@@ -116,11 +130,15 @@ class _PromptBody extends ConsumerWidget {
   const _PromptBody({
     required this.channelId,
     required this.session,
+    required this.compact,
     required this.onClose,
   });
 
   final String channelId;
   final api.CallAudioState session;
+
+  /// A full-screen takeover: the words centred, the answer at the bottom.
+  final bool compact;
   final VoidCallback onClose;
 
   @override
@@ -130,17 +148,19 @@ class _PromptBody extends ConsumerWidget {
     final hidden =
         ref.watch(ownVisibilityProvider) == api.PresenceVisibility.hidden;
     final controller = ref.read(callAudioProvider(channelId).notifier);
+    final buttonSize = compact ? AppButtonSize.lg : AppButtonSize.md;
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): onClose},
       child: Focus(
         autofocus: true,
         child: Padding(
           key: CallAudioPrompt.cardKey,
-          padding: const EdgeInsets.all(AppSpacing.s16),
+          padding: EdgeInsets.all(compact ? AppSpacing.s24 : AppSpacing.s16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (compact) const Spacer(),
               Row(
                 children: [
                   Icon(AppIcons.callAudio, color: tokens.accent),
@@ -185,13 +205,17 @@ class _PromptBody extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.s8),
                 _Countdown(expiresAtMs: session.expiresAtMs),
               ],
-              const SizedBox(height: AppSpacing.s16),
+              if (compact)
+                const Spacer()
+              else
+                const SizedBox(height: AppSpacing.s16),
               Row(
                 children: [
                   Expanded(
                     child: AppButton(
                       key: CallAudioPrompt.notNowKey,
                       label: 'Not now',
+                      size: buttonSize,
                       variant: AppButtonVariant.ghost,
                       full: true,
                       onPressed: () => controller.answer(allow: false),
@@ -202,6 +226,7 @@ class _PromptBody extends ConsumerWidget {
                     child: AppButton(
                       key: CallAudioPrompt.allowKey,
                       label: 'Allow',
+                      size: buttonSize,
                       variant: AppButtonVariant.primary,
                       full: true,
                       onPressed: () => controller.answer(allow: true),

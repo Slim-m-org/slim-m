@@ -315,12 +315,15 @@ class _ActionsCard extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final installed = this.installed;
     if (installed == null) {
-      return AppButton(
-        label: busy ? 'Installing...' : 'Install v${manifest.version}',
-        variant: AppButtonVariant.primary,
-        full: true,
-        disabled: busy,
-        onPressed: onInstall,
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.s16),
+        child: AppButton(
+          label: busy ? 'Installing...' : 'Install v${manifest.version}',
+          variant: AppButtonVariant.primary,
+          full: true,
+          disabled: busy,
+          onPressed: onInstall,
+        ),
       );
     }
     final outdated = installed.version != manifest.version;

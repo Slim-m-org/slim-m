@@ -21,8 +21,11 @@ class CallHistoryRows extends StatelessWidget {
     required this.selectedStartedAt,
     required this.onSelect,
     required this.now,
+    this.compact = false,
   });
 
+  /// Drops the clock range, which a phone-wide row has no room for.
+  final bool compact;
   final List<api.VoiceCall> calls;
   final int? selectedStartedAt;
   final ValueChanged<int> onSelect;
@@ -34,10 +37,12 @@ class CallHistoryRows extends StatelessWidget {
     children: [
       for (final call in calls)
         _HistoryRow(
+          key: ValueKey('call-history-row-${call.startedAt}'),
           model: CallTimelineModel.from(call, now: now),
           selected: call.startedAt == selectedStartedAt,
           onTap: () => onSelect(call.startedAt),
           now: now,
+          compact: compact,
         ),
     ],
   );
@@ -45,13 +50,16 @@ class CallHistoryRows extends StatelessWidget {
 
 class _HistoryRow extends ConsumerStatefulWidget {
   const _HistoryRow({
+    super.key,
     required this.model,
     required this.selected,
     required this.onTap,
     required this.now,
+    required this.compact,
   });
 
   final CallTimelineModel model;
+  final bool compact;
   final bool selected;
   final VoidCallback onTap;
   final int now;
@@ -112,14 +120,16 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                     style: AppText.ui.copyWith(color: tokens.textPrimary),
                   ),
                 ),
-                Text(
-                  '${clock(model.startedAt)}–${clock(model.endedAt)}',
-                  style: AppText.code.copyWith(color: tokens.textSecondary),
-                ),
-                const SizedBox(width: AppSpacing.s12),
-                Text(
-                  formatSpanShort(model.lengthMs),
-                  style: AppText.code.copyWith(color: tokens.textSecondary),
+                if (!widget.compact) ...[
+                  _Column(
+                    sample: '00:00 PM–00:00 PM',
+                    text: '${clock(model.startedAt)}–${clock(model.endedAt)}',
+                  ),
+                  const SizedBox(width: AppSpacing.s12),
+                ],
+                _Column(
+                  sample: '00 h 00',
+                  text: formatSpanShort(model.lengthMs),
                 ),
                 const SizedBox(width: AppSpacing.s12),
                 _StackedAvatars(
@@ -235,4 +245,27 @@ String callDayLabel(int epochMs, {required int now, bool short = false}) {
   if (daysAgo == 1) return short ? 'Yest.' : 'yesterday';
   if (daysAgo < 7) return weekdays[day.weekday - 1];
   return '${day.day} ${months[day.month - 1]}';
+}
+
+/// A code-font cell as wide as its widest value, so the rows' columns line up.
+class _Column extends StatelessWidget {
+  const _Column({required this.sample, required this.text});
+
+  final String sample;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final style = AppText.code.copyWith(color: tokens.textSecondary);
+    final width = (TextPainter(
+      text: TextSpan(text: sample, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout()).width;
+    return SizedBox(
+      width: width,
+      child: Text(text, style: style, maxLines: 1, softWrap: false),
+    );
+  }
 }

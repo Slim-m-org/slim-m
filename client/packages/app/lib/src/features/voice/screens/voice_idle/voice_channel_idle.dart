@@ -101,13 +101,14 @@ class VoiceChannelIdle extends ConsumerWidget {
           onOpenCanvas: onOpenCanvas,
         ),
       ],
-      if (!compact && finished.length > 1)
+      if (finished.length > 1)
         _Earlier(
           channelId: channelId,
           calls: finished,
           selectedAt: shown?.startedAt,
           retentionDays: history.valueOrNull?.retentionDays ?? 30,
           now: now,
+          compact: compact,
         ),
     ];
     return LayoutBuilder(
@@ -270,6 +271,7 @@ class _Earlier extends ConsumerWidget {
     required this.selectedAt,
     required this.retentionDays,
     required this.now,
+    required this.compact,
   });
 
   final String channelId;
@@ -277,6 +279,7 @@ class _Earlier extends ConsumerWidget {
   final int? selectedAt;
   final int retentionDays;
   final int now;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -288,9 +291,12 @@ class _Earlier extends ConsumerWidget {
       children: [
         _SectionHeader(
           title: 'Earlier in #$name',
-          detail: 'kept $retentionDays days · nothing is recorded',
+          detail: compact
+              ? null
+              : 'kept $retentionDays days · nothing is recorded',
         ),
         CallHistoryRows(
+          compact: compact,
           calls: calls,
           selectedStartedAt: selectedAt,
           now: now,

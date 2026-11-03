@@ -296,6 +296,26 @@ void main() {
     expect(find.textContaining('3 h 30 min'), findsOneWidget);
   });
 
+  testWidgets('earlier calls line their columns up', (tester) async {
+    await _pump(tester, onJoin: () {}, history: _history());
+    final wide = tester.getTopLeft(find.text('3 h 30'));
+    final narrow = tester.getTopLeft(find.text('1 h 59'));
+    expect(narrow.dx, wide.dx);
+  });
+
+  testWidgets('a phone still lists earlier calls and opens one', (
+    tester,
+  ) async {
+    await _pump(tester, onJoin: () {}, history: _history(), width: 390);
+    expect(find.text('Last call'), findsOneWidget);
+
+    await tester.tap(find.text('Sat'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Call'), findsOneWidget, reason: 'not the last call');
+    expect(find.textContaining('3 h 30'), findsWidgets);
+  });
+
   testWidgets('a failed join shows why, with a retry', (tester) async {
     var joins = 0;
     await _pump(
