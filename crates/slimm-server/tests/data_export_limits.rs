@@ -135,7 +135,11 @@ async fn a_new_archive_replaces_the_account_s_older_one() {
     let second = w.export(&alice, "member").await;
 
     assert_eq!(second["status"], "ready");
-    assert!(!w.media.export_archive_path(&first_id).exists());
+    let old_path = w.media.export_archive_path(&first_id);
+    support::wait::wait_for("the replaced archive file being removed", || async {
+        (!old_path.exists()).then_some(())
+    })
+    .await;
     let (_, old) = w
         .call("GET", &format!("/exports/{first_id}"), &alice, None)
         .await;
