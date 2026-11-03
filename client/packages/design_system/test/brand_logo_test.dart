@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,8 +20,10 @@ void main() {
           of: find.byKey(Key(service.asset)),
           matching: find.byWidgetPredicate((w) => w is SvgPicture)));
       expect(picture.width, 24);
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      expect(tester.takeException(), isNull);
+      final svg = await tester.runAsync(
+        () => rootBundle.loadString(service.assetKey),
+      );
+      expect(svg, contains('<svg'));
     });
   }
 }

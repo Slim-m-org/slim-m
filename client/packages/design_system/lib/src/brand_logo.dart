@@ -17,6 +17,12 @@ enum BrandService {
   final String asset;
   final Color colour;
   final String label;
+
+  /// The bundled file, as the asset bundle names it.
+  String get assetKey => 'packages/slimm_design_system/$path';
+
+  /// The path inside this package.
+  String get path => 'assets/brand_logos/$asset.svg';
 }
 
 class BrandLogo extends StatelessWidget {
@@ -37,7 +43,7 @@ class BrandLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return ExcludeSemantics(
       child: SvgPicture.asset(
-        'assets/brand_logos/${service.asset}.svg',
+        service.path,
         package: 'slimm_design_system',
         width: size,
         height: size,
