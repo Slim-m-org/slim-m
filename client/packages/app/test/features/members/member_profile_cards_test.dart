@@ -278,7 +278,8 @@ void main() {
     ) async {
       await _pump(tester, _harness((_) => _card(), activity: _spotify));
 
-      expect(find.text('LISTENING ON SPOTIFY'), findsOneWidget);
+      expect(find.text('LISTENING ON SPOTIFY'), findsNothing);
+      expect(find.byKey(const Key('activity-spotify-mark')), findsOneWidget);
       expect(find.text('Venom'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
@@ -432,7 +433,8 @@ void main() {
         _harness((_) => _card(), self: true, activity: _spotify),
       );
 
-      expect(find.text('LISTENING ON SPOTIFY'), findsOneWidget);
+      expect(find.text('LISTENING ON SPOTIFY'), findsNothing);
+      expect(find.byKey(const Key('activity-spotify-mark')), findsOneWidget);
     });
   });
 
