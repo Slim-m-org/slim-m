@@ -28,6 +28,7 @@ import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_row_callbacks.dart';
 import 'message_hover_toolbar.dart';
+import 'card_spacing.dart';
 import 'message_inline.dart' show extractLinkPreviewUrls;
 import 'message_row_identity.dart';
 import 'message_row_parts.dart';
@@ -97,8 +98,25 @@ class MessageRowColumn extends ConsumerWidget {
         ..._body(edited),
         ..._cards(edited),
         ..._footer(),
+        if (_endsInCard) const SizedBox(height: kCardBottomGap),
       ],
     );
+  }
+
+  /// A card as the last thing in the row; a link preview adds its own gap, since it may render nothing.
+  bool get _endsInCard {
+    final chipsAfter =
+        (!_unsent && extras.reactions.isNotEmpty) ||
+        (extras.threadReplyCount ?? 0) > 0 ||
+        message.failed;
+    if (editing || chipsAfter) return false;
+    return extras.embeds.isNotEmpty ||
+        extras.attachments.isNotEmpty ||
+        extras.poll != null ||
+        extras.call != null ||
+        extras.appSurface != null ||
+        extras.components.isNotEmpty ||
+        message.forwarded != null;
   }
 
   Widget? _editedWidget(bool isBot) {
