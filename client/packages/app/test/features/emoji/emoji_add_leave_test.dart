@@ -37,7 +37,7 @@ void main() {
       gates.add(gate);
       await gate.future;
     };
-    await tester.tap(find.text('Add 120 emoji'));
+    await tester.tap(find.text('Import 120 emoji'));
     await tester.pump(const Duration(milliseconds: 50));
     expect(bulkCalls, 1);
 

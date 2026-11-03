@@ -1137,7 +1137,7 @@
 "test/features/settings/dock_update_all_test.dart": 1.2,
 "test/features/settings/dock_update_consent_test.dart": 0.5,
 "test/features/settings/dock_what_it_adds_test.dart": 0.7,
-"test/features/settings/emoji_add_card_test.dart": 1.6,
+"test/features/settings/emoji_add_dialog_test.dart": 1.6,
 "test/features/settings/emoji_admin_screen_scale_test.dart": 1.1,
 "test/features/settings/emoji_admin_screen_test.dart": 1.4,
 "test/features/settings/emoji_bulk_plan_test.dart": 0.9,

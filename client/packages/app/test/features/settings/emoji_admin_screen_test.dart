@@ -167,20 +167,26 @@ void main() {
     );
   });
 
-  testWidgets('the screen has one add area and a count in the list header', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]),
-    );
+  testWidgets(
+    'the screen opens the add dialog from a button and counts in the list header',
+    (tester) async {
+      await _pump(
+        tester,
+        _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]),
+      );
 
-    expect(find.text('New emoji'), findsOneWidget);
-    expect(find.text('Choose files'), findsOneWidget);
+      expect(find.text('New emoji'), findsNothing);
+      expect(find.text('Choose files'), findsNothing);
+      expect(find.text('Add'), findsOneWidget);
 
-    expect(find.text('Bulk import from a zip'), findsNothing);
-    expect(find.text('Emoji (1)'), findsOneWidget);
-  });
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose files'), findsOneWidget);
+
+      expect(find.text('Bulk import from a zip'), findsNothing);
+      expect(find.text('Emoji (1)'), findsOneWidget);
+    },
+  );
 
   testWidgets('a picked image uploads with its normalised name', (
     tester,
@@ -188,11 +194,13 @@ void main() {
     final server = _Server();
     await _pump(tester, server, picked: _png);
 
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(AppInput).first, 'Party Parrot');
+    await tester.enterText(find.byType(AppInput).last, 'Party Parrot');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add 1 emoji'));
+    await tester.tap(find.text('Import 1 emoji'));
     await tester.pumpAndSettle();
 
     final posts = server.seen.where((r) => r.method == 'POST').toList();
@@ -207,13 +215,15 @@ void main() {
     final server = _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]);
     await _pump(tester, server, picked: _png);
 
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(AppInput).first, 'Party Parrot');
+    await tester.enterText(find.byType(AppInput).last, 'Party Parrot');
     await tester.pumpAndSettle();
 
     expect(find.text('Already taken.'), findsOneWidget);
-    await tester.tap(find.text('Add 1 emoji'));
+    await tester.tap(find.text('Import 1 emoji'));
     await tester.pumpAndSettle();
     expect(server.seen.where((r) => r.method == 'POST'), isEmpty);
   });

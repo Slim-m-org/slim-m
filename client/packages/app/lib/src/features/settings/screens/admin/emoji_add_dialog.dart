@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The one place custom emoji are added: drop or choose any mix of images and
-/// zips, review one list of names, and upload it in one action.
+/// The dialog custom emoji are added in: drop, paste or choose any mix of
+/// images and zips, stage them in one list of names, and import in one action.
 ///
 /// Planning is `planEmojiPicks`, so a loose image and an image inside a zip
 /// take the same name from the same file stem. Several images upload in
@@ -13,6 +13,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -24,22 +25,36 @@ import '../../../../api_failure.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../widgets/app_drop_zone.dart';
-import '../../widgets/settings_detail_row.dart';
-import '../../widgets/settings_section_header.dart';
+import '../../../composer/widgets/composer_clipboard_image.dart';
+import '../../../composer/widgets/composer_clipboard_paste.dart';
 import 'emoji_add_review.dart';
 import 'emoji_add_summary.dart';
 import 'emoji_bulk_plan.dart';
 import 'emoji_intake.dart';
 import 'emoji_name.dart';
 
-class EmojiAddCard extends ConsumerStatefulWidget {
-  const EmojiAddCard({super.key});
+/// Opens the add dialog with [initial] already staged, as a drop on the page does.
+Future<void> showEmojiAddDialog(
+  BuildContext context, {
+  List<EmojiPick> initial = const [],
+}) => showAppSheet<void>(
+  context,
+  maxWidth: 560,
+  scrolls: true,
+  semanticLabel: 'Add emoji',
+  builder: (_) => EmojiAddDialog(initial: initial),
+);
+
+class EmojiAddDialog extends ConsumerStatefulWidget {
+  const EmojiAddDialog({super.key, this.initial = const []});
+
+  final List<EmojiPick> initial;
 
   @override
-  ConsumerState<EmojiAddCard> createState() => _EmojiAddCardState();
+  ConsumerState<EmojiAddDialog> createState() => _EmojiAddDialogState();
 }
 
-class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
+class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
   final _items = <EmojiReviewItem>[];
   List<SkippedZipEntry> _skipped = const [];
   List<EmojiAddResult> _succeeded = const [];
@@ -49,9 +64,22 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
   bool _running = false;
   int _current = 0;
   int _total = 0;
+  int _pasted = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    startClipboardImagePaste(_stagePasted);
+    if (widget.initial.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ingest(widget.initial);
+      });
+    }
+  }
 
   @override
   void dispose() {
+    stopClipboardImagePaste(_stagePasted);
     for (final item in _items) {
       item.dispose();
     }
@@ -75,6 +103,32 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
     }
     if (picks.isEmpty || !mounted) return;
     _ingest(picks);
+  }
+
+  Future<void> _stagePasted(Uint8List bytes, String filename) async {
+    if (_running) return;
+    _ingest([EmojiPick(fileName: 'pasted-${++_pasted}.png', bytes: bytes)]);
+  }
+
+  Future<void> _pasteFromButton() => pasteClipboardImage(
+    (bytes, name) async => _stagePasted(bytes, name),
+    (message) {
+      if (message != null) _refuse(message);
+    },
+  );
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (isClipboardPasteChord(event) && !_running) {
+      unawaited(
+        pasteClipboardImageFromKeystroke(
+          (bytes, name) async => _stagePasted(bytes, name),
+          (message) {
+            if (message != null) _refuse(message);
+          },
+        ),
+      );
+    }
+    return KeyEventResult.ignored;
   }
 
   Future<void> _drop(List<DropItem> files) async =>
@@ -230,33 +284,72 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
       label: 'Drop to add emoji',
       icon: AppIcons.image,
       onDrop: (files) => unawaited(_drop(files)),
-      child: SettingsSectionCard(
-        title: 'New emoji',
-        children: [
-          SettingsActionRow(
-            message: dropZoneSupported()
-                ? 'Drop images or a zip, or choose files.'
-                : 'Choose images or a zip.',
-            action: AppButton(
-              label: 'Choose files',
-              icon: AppIcons.add,
-              size: AppButtonSize.sm,
-              disabled: _running,
-              onPressed: _choose,
-            ),
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s16,
+            0,
+            AppSpacing.s16,
+            AppSpacing.s16,
           ),
-          if (_refusal case final refusal?)
-            SettingsCardBlock(
-              children: [
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpacing.s12,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Add emoji',
+                      style: AppText.body.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: AppWeights.semi,
+                      ),
+                    ),
+                  ),
+                  AppIconButton(
+                    icon: AppIcons.dismiss,
+                    semanticLabel: 'Close',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ],
+              ),
+              Text(
+                dropZoneSupported()
+                    ? 'Drop, paste or choose images or a zip, then check the names.'
+                    : 'Paste or choose images or a zip, then check the names.',
+                style: AppText.caption.copyWith(color: tokens.textSecondary),
+              ),
+              Wrap(
+                spacing: AppSpacing.s8,
+                runSpacing: AppSpacing.s8,
+                children: [
+                  AppButton(
+                    label: 'Choose files',
+                    icon: AppIcons.add,
+                    size: AppButtonSize.sm,
+                    disabled: _running,
+                    onPressed: _choose,
+                  ),
+                  AppButton(
+                    label: 'Paste image',
+                    icon: AppIcons.image,
+                    size: AppButtonSize.sm,
+                    variant: AppButtonVariant.secondary,
+                    disabled: _running,
+                    onPressed: _pasteFromButton,
+                  ),
+                ],
+              ),
+              if (_refusal case final refusal?)
                 AppErrorState(
                   message: refusal,
                   onDismiss: () => setState(() => _refusal = null),
                 ),
-              ],
-            ),
-          if (sameImage != null)
-            SettingsCardBlock(
-              children: [
+              if (sameImage != null)
                 EmojiSameImageNotice(
                   added: sameImage,
                   existingName: sameImage.sameImageAs!,
@@ -264,11 +357,7 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
                   onUseExisting: () => _useExisting(sameImage),
                   onKeep: () => setState(() => _sameImage = null),
                 ),
-              ],
-            ),
-          if (_items.isNotEmpty)
-            SettingsCardBlock(
-              children: [
+              if (_items.isNotEmpty)
                 EmojiReviewList(
                   items: _items,
                   problems: problems,
@@ -276,12 +365,7 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
                   onChanged: () => setState(() {}),
                   onRemove: _remove,
                 ),
-              ],
-            ),
-          if (_running)
-            SettingsCardBlock(
-              gap: AppSpacing.s8,
-              children: [
+              if (_running) ...[
                 Semantics(
                   liveRegion: true,
                   child: Text(
@@ -295,31 +379,24 @@ class _EmojiAddCardState extends ConsumerState<EmojiAddCard> {
                   value: _total == 0 ? null : _current / _total,
                 ),
               ],
-            ),
-          if (finished)
-            SettingsCardBlock(
-              children: [
+              if (finished)
                 EmojiAddSummary(
                   succeeded: _succeeded,
                   failed: _failed,
                   skipped: _skipped,
                 ),
-              ],
-            ),
-          if (_items.isNotEmpty)
-            SettingsCardBlock(
-              children: [
+              if (_items.isNotEmpty)
                 AppButton(
-                  label: 'Add ${_items.length} emoji',
+                  label: 'Import ${_items.length} emoji',
                   icon: AppIcons.smile,
                   variant: AppButtonVariant.primary,
                   full: true,
                   disabled: _running || blocked,
                   onPressed: _upload,
                 ),
-              ],
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
