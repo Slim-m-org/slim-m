@@ -265,7 +265,7 @@ class MessageRow extends ConsumerWidget {
 
   Color _fillColor(_RowView v) {
     if (_lit(v)) return v.tokens.surfaceRaised;
-    if (extras.mentionsMe) return v.tokens.accentSoft;
+    if (extras.mentionsMe) return v.tokens.mentionRowFill;
     return Colors.transparent;
   }
 
@@ -274,7 +274,7 @@ class MessageRow extends ConsumerWidget {
       return Border(left: BorderSide(color: tokens.dangerBorder, width: 2));
     }
     if (extras.mentionsMe) {
-      return Border(left: BorderSide(color: tokens.accent, width: 2));
+      return Border(left: BorderSide(color: tokens.mentionRowBar, width: 2));
     }
     return const Border();
   }
