@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'settings_choice_picker.dart';
 import 'settings_section_header.dart';
 import 'settings_search.dart';
 
@@ -88,6 +89,14 @@ class SettingsSelectRow<T> extends StatelessWidget {
     required T? value,
     required List<SettingsChoice<T>> choices,
   }) {
+    if (choicesNeedSearch(choices.length)) {
+      return showSearchableChoiceSheet<T>(
+        context,
+        title: title,
+        value: value,
+        choices: choices,
+      );
+    }
     return showAppSheet<T>(
       context,
       bare: true,
@@ -136,6 +145,16 @@ class SettingsSelectRow<T> extends StatelessWidget {
       ),
     );
 
+    if (choicesNeedSearch(choices.length)) {
+      final picked = await showSearchableChoiceMenu<T>(
+        context,
+        position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
+        value: value,
+        choices: choices,
+      );
+      if (picked != null && picked != value) onChanged(picked);
+      return;
+    }
     final chosen = await showMenu<T>(
       context: context,
       position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
