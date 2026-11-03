@@ -56,7 +56,7 @@ class _UplinkTestSectionState extends ConsumerState<UplinkTestSection>
             SettingsDetailRow(
               icon: AppIcons.requestLatency,
               title: 'Test uplink',
-              detail: 'Uploads about 40 MB. Not while a call is live.',
+              detail: 'Uploads about 40 MB, never during a call.',
               trailing: AppButton(
                 key: const Key('uplink-test-run'),
                 size: AppButtonSize.sm,

@@ -156,7 +156,7 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     _voicePage,
     'Test uplink',
-    description: 'Uploads about 40 MB. Not while a call is live.',
+    description: 'Uploads about 40 MB, never during a call.',
     keywords: ['upload', 'speed', 'bandwidth', 'screen share'],
   ),
   SettingsEntry(
