@@ -11,11 +11,15 @@ dependencies:
     sdk: flutter
   # Lucide is the icon set of record, reached only through AppIcons.
   lucide_icons_flutter: ^3.0.0
+  flutter_svg: ^2.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 flutter:
+  assets:
+    - assets/brand_logos/spotify.svg
+    - assets/brand_logos/discord.svg
   # Bundled because IBM Plex is rarely installed on Linux or Windows and the mono fallback is proportional.
   fonts:
     - family: IBM Plex Sans

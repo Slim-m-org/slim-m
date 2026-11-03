@@ -43,7 +43,7 @@ class _SpotifyLinkRow extends ConsumerWidget {
       _ => ('Link', false, controller.connect),
     };
     return SettingsDetailRow(
-      icon: AppIcons.music,
+      leading: const SettingsBrandTile(BrandService.spotify),
       title: 'Spotify',
       detail: _detail(status),
       detailMaxLines: status is SpotifyConnected ? 1 : null,

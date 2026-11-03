@@ -50,11 +50,7 @@ class MemberProfileLinks extends ConsumerWidget {
                   userId: userId,
                   account: discord,
                   size: AppAvatarSize.s20,
-                  fallback: Icon(
-                    AppIcons.link,
-                    size: 14,
-                    color: tokens.textSecondary,
-                  ),
+                  fallback: const BrandLogo(BrandService.discord, size: 16),
                 ),
                 Flexible(
                   child: Text(
