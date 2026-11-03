@@ -127,12 +127,6 @@ class ActivityProgress {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'position_ms': positionMs,
-        'duration_ms': durationMs,
-        'position_at': sampledAtMs,
-      };
-
   /// Where playback has reached at [nowMs], held at the end of the track.
   int positionAt(int nowMs) {
     final elapsed = nowMs - sampledAtMs;
@@ -220,7 +214,9 @@ class PresenceActivity {
         if (startedAt != null) 'started_at': startedAt,
         if (source != null) 'source': source,
         if (artUrl != null) 'art_url': artUrl,
-        if (progress != null) ...progress!.toJson(),
+        if (progress != null) 'position_ms': progress!.positionMs,
+        if (progress != null) 'duration_ms': progress!.durationMs,
+        if (progress != null) 'position_at': progress!.sampledAtMs,
       };
 
   @override
