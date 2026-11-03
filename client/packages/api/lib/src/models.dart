@@ -59,6 +59,7 @@ export 'models_reactions.dart';
 export 'models_roles.dart';
 export 'models_space.dart';
 export 'models_space_analytics.dart';
+export 'models_uplink_test.dart';
 export 'models_saved.dart';
 export 'models_uploads.dart';
 export 'models_users.dart';

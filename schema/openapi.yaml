@@ -9698,6 +9698,53 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/uplink-test:
+    get:
+      operationId: getSpaceUplinkTests
+      tags: [space]
+      summary: Read the kept uplink measurements.
+      description: >
+        Gated on MANAGE_SERVER. Newest first, at most 10.
+      responses:
+        "200":
+          description: The kept results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceUplinkTests"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: runSpaceUplinkTest
+      tags: [space]
+      summary: Measure this host's uplink.
+      description: >
+        Gated on MANAGE_SERVER and audited. The server uploads about 40 MB to
+        a speed endpoint (SLIMM_UPLINK_TEST_URL, Cloudflare by default) for
+        at most 20 seconds. Refused with 409 while a call is live or another
+        test is running, and with 429 within a minute of the last result.
+        503 means the endpoint could not be reached.
+      responses:
+        "200":
+          description: The new result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceUplinkTest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /space/link-previews:
     get:
       operationId: getSpaceLinkPreviews
@@ -12646,6 +12693,35 @@ components:
             Client-advertised: a client reads this and caps its own capture
             parameters, rather than the server inspecting published tracks.
             Settable range is 360 to 2160; the default is 2160.
+    SpaceUplinkTest:
+      type: object
+      required: [id, measured_at, mbit_per_s, bytes, duration_ms]
+      properties:
+        id:
+          type: integer
+          format: int64
+        measured_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds.
+        mbit_per_s:
+          type: number
+          format: double
+        bytes:
+          type: integer
+          format: int64
+          description: Bytes sent; less than 40 MB when the time limit hit first.
+        duration_ms:
+          type: integer
+          format: int64
+    SpaceUplinkTests:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpaceUplinkTest"
     SpaceLinkPreviews:
       type: object
       required: [enabled]

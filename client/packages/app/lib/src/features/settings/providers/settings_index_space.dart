@@ -149,6 +149,18 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     _voicePage,
+    'Uplink test',
+    description: 'Measure what this server can send.',
+    keywords: ['upload', 'speed', 'bandwidth'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Test uplink',
+    description: 'Uploads about 40 MB, never during a call.',
+    keywords: ['upload', 'speed', 'bandwidth', 'screen share'],
+  ),
+  SettingsEntry(
+    _voicePage,
     'Noise suppression',
     description: 'For members who leave it on Space default.',
     keywords: ['noise', 'keyboard'],

@@ -109,6 +109,7 @@ mod threads;
 mod timeouts;
 mod totp;
 mod totp_verify;
+mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
@@ -243,6 +244,7 @@ pub use threads::{
 pub use timeouts::{MAX_TIMEOUT_MS, MemberTimeout, TimeoutError};
 pub use totp::{RECOVERY_CODE_COUNT, TotpEnrolment, TotpError, TotpPolicy, TotpStatus};
 pub use totp_verify::{ChallengeError, TotpChallenge, TotpProof, TotpSignIn};
+pub use uplink_tests::{UPLINK_HISTORY_LEN, UplinkTest};
 pub use user_notes::UserNote;
 pub use users::ProfileUpdate;
 pub use voice_call_events::{
