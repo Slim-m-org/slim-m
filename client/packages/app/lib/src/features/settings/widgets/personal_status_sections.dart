@@ -123,7 +123,7 @@ class NotificationsSection extends ConsumerWidget {
             ),
             SettingsToggleRow(
               label: 'Module badges in member list',
-              description: 'Shows a module badge beside names. Off by default.',
+              description: 'Shows module badges beside names.',
               value: moduleBadgesShown,
               onChanged: (value) => ref
                   .read(moduleMemberBadgeSettingsProvider.notifier)

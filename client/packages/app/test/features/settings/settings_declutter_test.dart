@@ -25,13 +25,13 @@ void main() {
     expect(find.text('Devices'), findsOneWidget);
   });
 
-  testWidgets('the appearance pane sits under three section headers', (
+  testWidgets('the appearance pane sits under four section headers', (
     tester,
   ) async {
     await tester.pumpWidget(wrap(const AppearanceSettingsSection()));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SettingsSectionHeader), findsNWidgets(3));
+    expect(find.byType(SettingsSectionHeader), findsNWidgets(4));
     expect(find.byKey(DisplaySettingsSection.spacingSliderKey), findsOneWidget);
     expect(find.byKey(DisplaySettingsSection.scaleSliderKey), findsOneWidget);
   });

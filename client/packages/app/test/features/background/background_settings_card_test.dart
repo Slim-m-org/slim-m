@@ -86,7 +86,8 @@ void main() {
       picked: FakePlatformFile('f.png', bytes),
     );
     await tester.tap(find.byKey(BackgroundSettingsCard.pictureRowKey));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Choose photo'));
     await tester.pump();
     await _settle(tester);
@@ -111,7 +112,8 @@ void main() {
     );
     await tester.pump();
     await tester.tap(find.byKey(BackgroundSettingsCard.pictureRowKey));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('None'));
     await tester.pump();
     await _settle(tester);
@@ -128,7 +130,8 @@ void main() {
       picked: FakePlatformFile('x.png', Uint8List.fromList(junk)),
     );
     await tester.tap(find.byKey(BackgroundSettingsCard.pictureRowKey));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Browse files'));
     await tester.pump();
     await _settle(tester);
