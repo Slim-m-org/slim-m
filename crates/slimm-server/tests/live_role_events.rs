@@ -4,9 +4,9 @@
 //! (`hub.publish` never appeared in `http/roles.rs`). See `live_channel_events.rs`
 //! for the channel and overwrite half of the same finding.
 //!
-//! Both events broadcast to every connection: neither ever carries a role's
-//! name or bits (the only privileged part of a role), matching the doc
-//! comments on `hub::Event::RoleChanged` and `hub::Event::MemberRoleChanged`.
+//! Both events broadcast to every connection: they carry a role's name and
+//! look (what the member list already shows) but never its permission bits,
+//! the only privileged part of a role. See the doc comments on `hub::Event::RoleChanged` and `hub::Event::MemberRoleChanged`.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -48,7 +48,7 @@ async fn make_admin(store: &Store, user_id: slimm_server::ids::UserId) {
 }
 
 #[tokio::test]
-async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
+async fn role_changed_reaches_everyone_with_its_look_but_not_its_bits() {
     let (store, _guard) = support::new_store("slimm-live-role-events-test").await;
     store
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
@@ -81,10 +81,14 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
         let frame = read_frame_skipping_presence_timed(ws).await;
         assert_eq!(frame["type"], "role.changed");
         assert!(frame["role_id"].is_string());
+        assert_eq!(frame["change"], "created");
+        assert_eq!(frame["name"], "editors");
+        assert_eq!(frame["after"]["name"], "editors");
+        assert!(frame.get("before").is_none());
         assert!(
-            frame.get("name").is_none() && frame.get("permissions").is_none(),
-            "a role's name and bits are gated behind MANAGE_ROLES over REST; \
-             the live frame must never carry either: {frame}"
+            !frame.to_string().contains("permissions"),
+            "a role's bits are gated behind MANAGE_ROLES over REST; \
+             the live frame must never carry them: {frame}"
         );
     }
 
@@ -93,16 +97,21 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
             "PATCH",
             &format!("/roles/{role_id}"),
             &alice_access,
-            Some(json!({ "name": "editors-renamed" })),
+            Some(json!({ "name": "editors-renamed", "color": 2, "hoist": true })),
         ))
         .await
         .unwrap();
     assert_eq!(update.status(), StatusCode::OK);
     for ws in [&mut alice_ws, &mut bob_ws] {
-        assert_eq!(
-            read_frame_skipping_presence_timed(ws).await["type"],
-            "role.changed"
-        );
+        let frame = read_frame_skipping_presence_timed(ws).await;
+        assert_eq!(frame["type"], "role.changed");
+        assert_eq!(frame["change"], "updated");
+        assert_eq!(frame["before"]["name"], "editors");
+        assert_eq!(frame["after"]["name"], "editors-renamed");
+        assert_eq!(frame["after"]["color"], 2);
+        assert_eq!(frame["before"]["hoist"], false);
+        assert_eq!(frame["after"]["hoist"], true);
+        assert!(!frame.to_string().contains("permissions"), "{frame}");
     }
 
     let delete = http::router(state.clone())
@@ -116,10 +125,11 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
         .unwrap();
     assert_eq!(delete.status(), StatusCode::NO_CONTENT);
     for ws in [&mut alice_ws, &mut bob_ws] {
-        assert_eq!(
-            read_frame_skipping_presence_timed(ws).await["type"],
-            "role.changed"
-        );
+        let frame = read_frame_skipping_presence_timed(ws).await;
+        assert_eq!(frame["type"], "role.changed");
+        assert_eq!(frame["change"], "deleted");
+        assert_eq!(frame["name"], "editors-renamed");
+        assert!(frame.get("after").is_none(), "{frame}");
     }
 }
 
@@ -159,6 +169,8 @@ async fn member_role_changed_reaches_everyone() {
         assert_eq!(frame["type"], "member.role_changed");
         assert_eq!(frame["user_id"], bob.to_string());
         assert_eq!(frame["role_id"], perk_role.to_string());
+        assert_eq!(frame["granted"], true);
+        assert_eq!(frame["role_name"], "perk");
     }
 
     let unassign = http::router(state.clone())
@@ -167,9 +179,9 @@ async fn member_role_changed_reaches_everyone() {
         .unwrap();
     assert_eq!(unassign.status(), StatusCode::NO_CONTENT);
     for ws in [&mut alice_ws, &mut carol_ws] {
-        assert_eq!(
-            read_frame_skipping_presence_timed(ws).await["type"],
-            "member.role_changed"
-        );
+        let frame = read_frame_skipping_presence_timed(ws).await;
+        assert_eq!(frame["type"], "member.role_changed");
+        assert_eq!(frame["granted"], false);
+        assert_eq!(frame["role_name"], "perk");
     }
 }

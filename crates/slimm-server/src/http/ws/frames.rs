@@ -203,6 +203,16 @@ pub(super) enum ServerFrame {
         role_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         seq: Option<u64>,
+        /// `created`, `updated` or `deleted`, when the publisher knows.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        change: Option<&'static str>,
+        /// The role's name after the change, or before a delete.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        before: Option<crate::hub::RoleLook>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        after: Option<crate::hub::RoleLook>,
     },
     #[serde(rename = "member.role_changed")]
     MemberRoleChanged {
@@ -210,6 +220,10 @@ pub(super) enum ServerFrame {
         role_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         seq: Option<u64>,
+        /// Whether the role was granted (true) or revoked (false).
+        granted: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        role_name: Option<String>,
     },
     #[serde(rename = "channel.created")]
     ChannelCreated { channel: ChannelDto },

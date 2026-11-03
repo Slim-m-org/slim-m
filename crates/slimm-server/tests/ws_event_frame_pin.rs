@@ -8,7 +8,9 @@ use std::path::Path;
 use std::time::Duration;
 
 use serde_json::Value;
-use slimm_server::hub::{CanvasEvent, Event, MessageEvent};
+use std::sync::Arc;
+
+use slimm_server::hub::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
 };
@@ -116,10 +118,30 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
         },
         Event::RoleChanged {
             role_id: RoleId(id(9)),
+            change: None,
+        },
+        Event::RoleChanged {
+            role_id: RoleId(id(9)),
+            change: Some(Arc::new(RoleChange::Updated {
+                before: RoleLook {
+                    name: "Mods".into(),
+                    color: None,
+                    hoist: false,
+                    mentionable: false,
+                },
+                after: RoleLook {
+                    name: "Moderators".into(),
+                    color: Some(3),
+                    hoist: true,
+                    mentionable: false,
+                },
+            })),
         },
         Event::MemberRoleChanged {
             user_id: bob,
             role_id: RoleId(id(9)),
+            granted: true,
+            role_name: Some("Moderators".into()),
         },
         Event::ChannelDeleted {
             channel_id: ChannelId(id(10)),

@@ -150,12 +150,15 @@ async fn each_moderation_event_carries_an_increasing_seq() {
             Event::MemberRoleChanged {
                 user_id: UserId::generate(),
                 role_id: RoleId::generate(),
+                granted: true,
+                role_name: None,
             },
         ),
         (
             "role.changed",
             Event::RoleChanged {
                 role_id: RoleId::generate(),
+                change: None,
             },
         ),
     ];
