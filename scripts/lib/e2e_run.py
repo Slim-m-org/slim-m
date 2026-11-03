@@ -49,6 +49,7 @@ import e2e_voice_join_time
 import e2e_voice_multishare
 import e2e_voice_share
 import e2e_share_quality
+import e2e_share_ramp
 import e2e_voice_noise
 import e2e_voice_desktop
 import e2e_voice_desktop_volume
@@ -346,6 +347,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: a share reaches the viewer, measured, with the sender held back",
          lambda: e2e_share_quality.share_quality_under_a_constrained_sender(
              a, b, room_id, member.me()["id"])),
+        ("voice: a share reaches the viewer's full resolution within seconds",
+         lambda: e2e_share_ramp.a_share_reaches_full_resolution_quickly(a, b, room_id)),
         ("voice: calling in a dm", lambda: e2e_dm_call.start_dm_and_call(
             a, b, admin, member)),
         ("voice: a call nobody answers shows up in the dm",
