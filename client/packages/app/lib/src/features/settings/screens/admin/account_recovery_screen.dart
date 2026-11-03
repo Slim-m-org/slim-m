@@ -24,8 +24,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'package:slimm_api/api.dart' as api;
-
 import '../../../../permissions.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../routing/routes.dart';
@@ -34,7 +32,7 @@ import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
-import '../../widgets/admin/overwrite_target_picker_sheets.dart';
+import '../../../members/widgets/member_picker.dart';
 import '../../../../action_labels.dart';
 
 const resetCodesDescription =
@@ -102,10 +100,7 @@ class AccountRecoveryPane extends ConsumerWidget {
 /// already exist and neither knows about the other, so this is the whole of
 /// the new path. A cancelled pick closes without issuing anything.
 Future<void> _pickThenIssue(BuildContext context) async {
-  final member = await showAppSheet<api.UserProfile>(
-    context,
-    builder: (context) => const MemberPickerSheet(),
-  );
+  final member = await pickMember(context);
   if (member == null || !context.mounted) return;
   await showResetCodeSheet(
     context,

@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/widgets/admin/overwrite_target_picker_sheets.dart';
+import 'package:slimm_app/src/features/members/widgets/member_picker.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_create_sheet.dart';
 import 'package:slimm_app/src/whats_new/whats_new_content.dart';
 import 'package:slimm_app/src/features/members/widgets/avatar_crop_sheet.dart';
@@ -136,10 +137,7 @@ final overlays = <String, FutureOr<void> Function(BuildContext, WidgetRef)>{
     context,
     builder: (context) => const RolePickerSheet(),
   ),
-  'member-picker-sheet': (context, ref) => showAppSheet<api.UserProfile>(
-    context,
-    builder: (context) => const MemberPickerSheet(),
-  ),
+  'member-picker-sheet': (context, ref) => pickMember(context),
 };
 
 /// The two shipped shapes an overlay must work in: a wide desktop window,
