@@ -15,7 +15,7 @@ from e2e_input import _modifier_key
 from e2e_api import wait_until
 from e2e_board_frame import (SHARED_H, SHARED_W, board_frame, board_point,
                              fit_to_board_zoom_one, set_window)
-from e2e_canvas import wait_for_summary
+from e2e_canvas import arm_tool, wait_for_summary
 
 SMALL_WINDOW = (1100, 900)
 ZIGZAG = [(300, 500), (800, 500), (300, 560), (800, 560), (300, 620),
@@ -53,6 +53,8 @@ def same_relative_position_on_different_windows(a, b, admin_api, channel_id):
     before = {c.name: c.region_png(rects[c.name]) for c in (a, b)}
     base = len(admin_api.canvas_objects(channel_id))
 
+    # Esc between scenarios puts the tool down to Pan, which would pan instead of draw.
+    arm_tool(a, L.PEN_TOOL)
     a.gestures(True)
     page = [board_point(a, p) for p in ZIGZAG]
     a.drag(page)
