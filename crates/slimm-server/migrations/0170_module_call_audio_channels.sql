@@ -1,4 +1,4 @@
--- The voice channels an admin lets a module hear (decision 0105). A module with
+-- The voice channels an admin lets a module hear (decision 0104). A module with
 -- the call.audio power hears nothing until its channel list names a call, and
 -- the list starts empty. Rows go with the module and with the channel.
 CREATE TABLE module_call_audio_channels (
