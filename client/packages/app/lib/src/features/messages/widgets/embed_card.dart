@@ -30,6 +30,8 @@ Color _accentColor(api.EmbedAccent accent) => switch (accent) {
   api.EmbedAccent.purple => AppEmbedAccents.purple,
 };
 
+const double _stripeWidth = 4;
+
 /// One card per embed, below a message's own text.
 class EmbedList extends StatelessWidget {
   const EmbedList({super.key, required this.embeds});
@@ -71,22 +73,28 @@ class EmbedCard extends StatelessWidget {
             color: tokens.surfaceRaised,
             border: Border.all(color: tokens.borderSubtle),
           ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          // Sized by the body alone: an IntrinsicHeight row priced a small image at the width of a large one and left a blank band.
+          child: SizedBox(
+            width: double.infinity,
+            child: Stack(
               children: [
-                SizedBox(
-                  width: accent == null ? 0 : 4,
-                  child: accent == null
-                      ? null
-                      : ColoredBox(
-                          key: const Key('embed-accent-stripe'),
-                          color: _accentColor(accent),
-                        ),
-                ),
-                Expanded(
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: accent == null ? 0 : _stripeWidth,
+                  ),
                   child: _EmbedBody(embed: embed, tokens: tokens),
                 ),
+                if (accent != null)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: _stripeWidth,
+                    child: ColoredBox(
+                      key: const Key('embed-accent-stripe'),
+                      color: _accentColor(accent),
+                    ),
+                  ),
               ],
             ),
           ),
