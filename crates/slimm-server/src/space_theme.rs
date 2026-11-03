@@ -297,6 +297,22 @@ mod tests {
     }
 
     #[test]
+    fn every_built_in_preset_exported_by_the_client_validates() {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/space_themes");
+        let mut seen = 0;
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            let doc: Value =
+                serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            if let Err(problems) = validate(&doc) {
+                panic!("{}: {problems:?}", path.display());
+            }
+            seen += 1;
+        }
+        assert_eq!(seen, 7);
+    }
+
+    #[test]
     fn a_complete_file_validates_and_keeps_its_name() {
         let ok = validate(&sample()).unwrap();
         assert_eq!(ok.name, "Dusk");

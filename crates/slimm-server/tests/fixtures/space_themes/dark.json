@@ -1,0 +1,29 @@
+{
+  "format": "slimm-theme",
+  "version": 1,
+  "name": "dark",
+  "author": "built-in",
+  "base": "dark",
+  "brightness": "dark",
+  "tokens": {
+    "surfaceSunken": "#0F1113",
+    "surfaceBase": "#17191C",
+    "surfaceRaised": "#1F2226",
+    "borderSubtle": "#2E333A",
+    "borderStrong": "#6C757E",
+    "textPrimary": "#ECEDEF",
+    "textSecondary": "#A7AEB6",
+    "textDisabled": "#6C757E",
+    "accent": "#58B4D8",
+    "accentFill": "#58B4D8",
+    "accentOn": "#070E12",
+    "accentSoft": "#1D2B33",
+    "accentRing": "#4058B4D8",
+    "focusRing": "#58B4D8",
+    "dangerText": "#D4756B",
+    "dangerBorder": "#C0524A",
+    "warnText": "#C08A2E",
+    "warnSoft": "#1AC08A2E",
+    "stripe": "#12A7AEB6"
+  }
+}

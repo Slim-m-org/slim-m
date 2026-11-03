@@ -1,0 +1,29 @@
+{
+  "format": "slimm-theme",
+  "version": 1,
+  "name": "catppuccin",
+  "author": "built-in",
+  "base": "catppuccin",
+  "brightness": "dark",
+  "tokens": {
+    "surfaceSunken": "#11111B",
+    "surfaceBase": "#1E1E2E",
+    "surfaceRaised": "#313244",
+    "borderSubtle": "#45475A",
+    "borderStrong": "#7F849C",
+    "textPrimary": "#CDD6F4",
+    "textSecondary": "#A6ADC8",
+    "textDisabled": "#6C7086",
+    "accent": "#CBA6F7",
+    "accentFill": "#CBA6F7",
+    "accentOn": "#11111B",
+    "accentSoft": "#38324C",
+    "accentRing": "#40CBA6F7",
+    "focusRing": "#CBA6F7",
+    "dangerText": "#F38BA8",
+    "dangerBorder": "#EBA0AC",
+    "warnText": "#F9E2AF",
+    "warnSoft": "#1AF9E2AF",
+    "stripe": "#12A6ADC8"
+  }
+}

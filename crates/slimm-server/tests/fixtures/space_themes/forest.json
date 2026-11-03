@@ -1,0 +1,29 @@
+{
+  "format": "slimm-theme",
+  "version": 1,
+  "name": "forest",
+  "author": "built-in",
+  "base": "forest",
+  "brightness": "dark",
+  "tokens": {
+    "surfaceSunken": "#0B1411",
+    "surfaceBase": "#12201B",
+    "surfaceRaised": "#1C2E27",
+    "borderSubtle": "#2B4239",
+    "borderStrong": "#6E8A7E",
+    "textPrimary": "#E6EFE9",
+    "textSecondary": "#A5B8AE",
+    "textDisabled": "#6B8277",
+    "accent": "#5FD4C4",
+    "accentFill": "#5FD4C4",
+    "accentOn": "#05130F",
+    "accentSoft": "#1B4640",
+    "accentRing": "#405FD4C4",
+    "focusRing": "#5FD4C4",
+    "dangerText": "#E58A7B",
+    "dangerBorder": "#D0675B",
+    "warnText": "#D9A441",
+    "warnSoft": "#1AD9A441",
+    "stripe": "#12A5B8AE"
+  }
+}
