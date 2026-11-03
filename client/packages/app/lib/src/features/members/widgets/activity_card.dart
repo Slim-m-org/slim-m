@@ -13,6 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/presence_activity.dart';
+import 'activity_progress.dart';
 
 /// How a cover address becomes pixels. Overridden in tests so no network is
 /// touched.
@@ -73,6 +74,11 @@ class ActivityCard extends ConsumerWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        if (boxed && activity.progress != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.s4),
+            child: ActivityProgressBar(progress: activity.progress!),
           ),
       ],
     );

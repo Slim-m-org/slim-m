@@ -99,6 +99,57 @@ bool isAllowedArtUrl(String url) {
   return id.length == _artIdLength && RegExp(r'^[0-9a-f]+$').hasMatch(id);
 }
 
+/// A track's position at a moment, from which a viewer extrapolates.
+class ActivityProgress {
+  const ActivityProgress({
+    required this.positionMs,
+    required this.durationMs,
+    required this.sampledAtMs,
+  });
+
+  final int positionMs;
+  final int durationMs;
+
+  /// Epoch milliseconds [positionMs] was read.
+  final int sampledAtMs;
+
+  /// Null unless all three fields are present and sensible.
+  static ActivityProgress? tryFromJson(Map<String, dynamic> json) {
+    final position = json['position_ms'];
+    final duration = json['duration_ms'];
+    final at = json['position_at'];
+    if (position is! int || duration is! int || at is! int) return null;
+    if (duration <= 0 || position < 0 || position > duration) return null;
+    return ActivityProgress(
+      positionMs: position,
+      durationMs: duration,
+      sampledAtMs: at,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'position_ms': positionMs,
+        'duration_ms': durationMs,
+        'position_at': sampledAtMs,
+      };
+
+  /// Where playback has reached at [nowMs], held at the end of the track.
+  int positionAt(int nowMs) {
+    final elapsed = nowMs - sampledAtMs;
+    return (positionMs + (elapsed < 0 ? 0 : elapsed)).clamp(0, durationMs);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActivityProgress &&
+      other.positionMs == positionMs &&
+      other.durationMs == durationMs &&
+      other.sampledAtMs == sampledAtMs;
+
+  @override
+  int get hashCode => Object.hash(positionMs, durationMs, sampledAtMs);
+}
+
 /// What a member is listening to or playing. Ephemeral: the server holds it
 /// only for as long as their socket is open and tells only those who may see
 /// their presence.
@@ -110,6 +161,7 @@ class PresenceActivity {
     this.startedAt,
     this.source,
     String? artUrl,
+    this.progress,
   }) : _artUrl = artUrl;
 
   /// The most characters the server accepts in [title] or [subtitle].
@@ -130,6 +182,9 @@ class PresenceActivity {
 
   final String? _artUrl;
 
+  /// Where the track was when sampled, for a progress bar; null when unknown.
+  final ActivityProgress? progress;
+
   /// Spotify cover art; null for anything the server would refuse.
   String? get artUrl {
     final url = _artUrl;
@@ -146,6 +201,7 @@ class PresenceActivity {
     final startedAt = json['started_at'];
     final source = json['source'];
     final artUrl = json['art_url'];
+    final progress = ActivityProgress.tryFromJson(json);
     return PresenceActivity(
       kind: kind,
       title: title,
@@ -153,6 +209,7 @@ class PresenceActivity {
       startedAt: startedAt is int ? startedAt : null,
       source: source is String && source.isNotEmpty ? source : null,
       artUrl: artUrl is String ? artUrl : null,
+      progress: progress,
     );
   }
 
@@ -163,6 +220,7 @@ class PresenceActivity {
         if (startedAt != null) 'started_at': startedAt,
         if (source != null) 'source': source,
         if (artUrl != null) 'art_url': artUrl,
+        if (progress != null) ...progress!.toJson(),
       };
 
   @override
@@ -173,11 +231,12 @@ class PresenceActivity {
       other.subtitle == subtitle &&
       other.startedAt == startedAt &&
       other.source == source &&
-      other.artUrl == artUrl;
+      other.artUrl == artUrl &&
+      other.progress == progress;
 
   @override
   int get hashCode =>
-      Object.hash(kind, title, subtitle, startedAt, source, artUrl);
+      Object.hash(kind, title, subtitle, startedAt, source, artUrl, progress);
 }
 
 /// One user's presence, as told to the asking caller.

@@ -55,7 +55,19 @@ pub struct Activity {
     /// Cover art on Spotify's CDN, the one host viewers are allowed to fetch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub art_url: Option<String>,
+    /// Track length, for a progress bar. Viewers extrapolate from `position_ms`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<i64>,
+    /// Where in the track playback was at `position_at`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_ms: Option<i64>,
+    /// Epoch milliseconds `position_ms` was sampled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_at: Option<i64>,
 }
+
+/// Longest track the progress fields accept, in milliseconds (24 hours).
+pub const MAX_DURATION_MS: i64 = 86_400_000;
 
 impl Activity {
     /// Refuses an empty, over-long or hidden-character text rather than
@@ -74,9 +86,26 @@ impl Activity {
             }
         }
         self.validate_source()?;
+        self.validate_progress()?;
         match self.art_url.as_deref() {
             Some(url) if !is_allowed_art_url(url) => Err("activity art must be a Spotify cover"),
             _ => Ok(()),
+        }
+    }
+
+    fn validate_progress(&self) -> Result<(), &'static str> {
+        match (self.duration_ms, self.position_ms, self.position_at) {
+            (None, None, None) => Ok(()),
+            (Some(duration), Some(position), Some(at)) => {
+                if !(1..=MAX_DURATION_MS).contains(&duration) {
+                    return Err("activity duration is out of range");
+                }
+                if !(0..=duration).contains(&position) || at < 0 {
+                    return Err("activity position is out of range");
+                }
+                Ok(())
+            }
+            _ => Err("activity progress needs duration, position and position time together"),
         }
     }
 
@@ -109,7 +138,40 @@ mod tests {
             started_at: None,
             source: None,
             art_url: None,
+            duration_ms: None,
+            position_ms: None,
+            position_at: None,
         }
+    }
+
+    #[test]
+    fn progress_is_all_or_nothing_and_bounded() {
+        let with = |d, p, a| Activity {
+            duration_ms: d,
+            position_ms: p,
+            position_at: a,
+            ..sample("t")
+        };
+        assert!(with(Some(200_000), Some(5_000), Some(1)).validate().is_ok());
+        assert!(
+            with(Some(200_000), Some(200_000), Some(1))
+                .validate()
+                .is_ok()
+        );
+        assert!(
+            with(Some(200_000), Some(200_001), Some(1))
+                .validate()
+                .is_err()
+        );
+        assert!(with(Some(200_000), Some(-1), Some(1)).validate().is_err());
+        assert!(with(Some(0), Some(0), Some(1)).validate().is_err());
+        assert!(
+            with(Some(MAX_DURATION_MS + 1), Some(0), Some(1))
+                .validate()
+                .is_err()
+        );
+        assert!(with(Some(200_000), None, Some(1)).validate().is_err());
+        assert!(with(None, Some(1), None).validate().is_err());
     }
 
     #[test]
