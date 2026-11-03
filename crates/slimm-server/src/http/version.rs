@@ -69,6 +69,10 @@ pub(super) struct Version {
     /// Whether any member may create invites, on `/version` so a member's
     /// client can offer the action without reading admin settings.
     members_can_invite: bool,
+    /// Whether module badges show beside names in the member list, for everyone.
+    module_member_badges: bool,
+    /// Whether module sections show on profile cards, for everyone.
+    module_profile_sections: bool,
     /// Whether the canvas accepts a `clear_scoped` op. Always true on a build that has this field;
     /// a client reads its absence as an older server and falls back to its version number.
     canvas_scoped_clear: bool,
@@ -162,6 +166,7 @@ pub(super) async fn version(
 ) -> Result<Json<Version>, ApiError> {
     let identity = state.store.server_identity().await?;
     let landing = state.store.space_landing().await?;
+    let display = state.store.module_display().await?;
     Ok(Json(Version {
         name: "slim-m",
         space_name: state.store.deployment_name().await?,
@@ -180,6 +185,8 @@ pub(super) async fn version(
         screen_share_max_height: state.store.screen_share_max_height().await?,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         members_can_invite: state.store.members_can_invite().await?,
+        module_member_badges: display.member_badges,
+        module_profile_sections: display.profile_sections,
         canvas_scoped_clear: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),

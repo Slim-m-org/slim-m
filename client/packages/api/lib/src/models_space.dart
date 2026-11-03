@@ -36,6 +36,8 @@ class SpaceSettings {
     this.iconUpdatedAt,
     this.strongNoiseSuppression = false,
     this.membersCanInvite = false,
+    this.moduleMemberBadges = false,
+    this.moduleProfileSections = true,
     this.welcomeEnabled = false,
     this.welcomeChannelId,
     this.welcomeMessage = '',
@@ -62,6 +64,12 @@ class SpaceSettings {
   /// Whether every member may create invites, not only holders of CREATE_INVITE.
   final bool membersCanInvite;
 
+  /// Whether module badges show beside names in the member list, for everyone.
+  final bool moduleMemberBadges;
+
+  /// Whether module sections show on profile cards, for everyone.
+  final bool moduleProfileSections;
+
   /// Whether a welcome message is posted when someone joins.
   final bool welcomeEnabled;
 
@@ -86,6 +94,8 @@ class SpaceSettings {
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
         membersCanInvite: json['members_can_invite'] as bool? ?? false,
+        moduleMemberBadges: json['module_member_badges'] as bool? ?? false,
+        moduleProfileSections: json['module_profile_sections'] as bool? ?? true,
         welcomeEnabled: json['welcome_enabled'] as bool? ?? false,
         welcomeChannelId: json['welcome_channel_id'] as String?,
         welcomeMessage: json['welcome_message'] as String? ?? '',
@@ -102,6 +112,8 @@ class SpaceSettingsUpdate {
     this.description,
     this.strongNoiseSuppression,
     this.membersCanInvite,
+    this.moduleMemberBadges,
+    this.moduleProfileSections,
     this.welcomeEnabled,
     this.welcomeChannelId,
     this.welcomeMessage,
@@ -113,6 +125,8 @@ class SpaceSettingsUpdate {
   final String? description;
   final bool? strongNoiseSuppression;
   final bool? membersCanInvite;
+  final bool? moduleMemberBadges;
+  final bool? moduleProfileSections;
   final bool? welcomeEnabled;
   final String? welcomeChannelId;
   final String? welcomeMessage;

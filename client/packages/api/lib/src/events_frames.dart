@@ -329,6 +329,11 @@ class CategoryChanged extends ServerEvent {
   const CategoryChanged();
 }
 
+/// A Space-wide display setting changed; a receiver re-reads `/version`.
+class SpaceSettingsChanged extends ServerEvent {
+  const SpaceSettingsChanged();
+}
+
 /// Someone's presence on a channel's voice call changed: a join, a clean
 /// hangup, or the stale-heartbeat sweep evicting someone. Carries only the
 /// channel id, never who - unlike [ThreadUpdated]'s reply count, a voice

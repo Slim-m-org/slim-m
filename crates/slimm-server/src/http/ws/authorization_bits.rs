@@ -71,6 +71,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::MemberRoleChanged { .. }
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         | Event::ReportsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }

@@ -20,6 +20,7 @@ use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
+use crate::hub::Event;
 use crate::ids::ChannelId;
 use crate::ratelimit::Class;
 use crate::store::{
@@ -55,6 +56,10 @@ struct SpaceSettingsDto {
     strong_noise_suppression: bool,
     /// Whether every member may create invites, not only holders of CREATE_INVITE.
     members_can_invite: bool,
+    /// Whether module badges show beside names in the member list, for everyone.
+    module_member_badges: bool,
+    /// Whether module sections show on profile cards, for everyone.
+    module_profile_sections: bool,
     /// Whether a welcome message is posted when someone joins.
     welcome_enabled: bool,
     /// Where the welcome is posted, or null for none.
@@ -72,6 +77,8 @@ struct UpdateSpaceSettingsDto {
     description: Option<String>,
     strong_noise_suppression: Option<bool>,
     members_can_invite: Option<bool>,
+    module_member_badges: Option<bool>,
+    module_profile_sections: Option<bool>,
     welcome_enabled: Option<bool>,
     /// An empty string clears the channel.
     welcome_channel_id: Option<String>,
@@ -81,6 +88,7 @@ struct UpdateSpaceSettingsDto {
 async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
     let landing = state.store.space_landing().await?;
     let welcome = state.store.space_welcome().await?;
+    let display = state.store.module_display().await?;
     Ok(SpaceSettingsDto {
         name: state.store.deployment_name().await?,
         join_policy: state.store.join_policy().await?.as_str().to_owned(),
@@ -90,6 +98,8 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         icon_updated_at: landing.icon_updated_at,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         members_can_invite: state.store.members_can_invite().await?,
+        module_member_badges: display.member_badges,
+        module_profile_sections: display.profile_sections,
         welcome_enabled: welcome.enabled,
         welcome_channel_id: welcome.channel_id.map(|id| id.to_string()),
         welcome_message: welcome.message,
@@ -247,12 +257,14 @@ async fn update(
         && body.description.is_none()
         && body.strong_noise_suppression.is_none()
         && body.members_can_invite.is_none()
+        && body.module_member_badges.is_none()
+        && body.module_profile_sections.is_none()
         && body.welcome_enabled.is_none()
         && body.welcome_channel_id.is_none()
         && body.welcome_message.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite or a welcome field",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, a module display switch or a welcome field",
         ));
     }
     let welcome = merged_welcome(&state, &body).await?;
@@ -298,6 +310,13 @@ async fn update(
         if !enabled {
             revoke_member_invites(&state, ctx.user_id).await?;
         }
+    }
+    if body.module_member_badges.is_some() || body.module_profile_sections.is_some() {
+        state
+            .store
+            .set_module_display(body.module_member_badges, body.module_profile_sections)
+            .await?;
+        state.hub.publish(Event::SpaceSettingsChanged);
     }
     if let Some(welcome) = welcome {
         state.store.set_space_welcome(&welcome).await?;

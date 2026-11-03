@@ -130,6 +130,7 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             bot_user_id: bot_user_id.to_string(),
         },
         Event::CategoryChanged => ServerFrame::CategoryChanged,
+        Event::SpaceSettingsChanged => ServerFrame::SpaceSettingsChanged,
         other => return Err(Box::new(other)),
     })
 }

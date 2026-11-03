@@ -153,6 +153,8 @@ pub enum Event {
     /// client re-fetches the channel list, the same path a channel create,
     /// rename, or delete already drives.
     CategoryChanged,
+    /// A deployment-wide Space display setting changed; carries nothing, a client re-reads `/version`.
+    SpaceSettingsChanged,
     /// A channel permission overwrite was set or cleared for one role or one
     /// member. Carries only the channel id: the allow/deny mask is exactly
     /// the kind of privileged detail [`Event::RoleChanged`] withholds, and for

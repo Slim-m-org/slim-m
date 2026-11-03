@@ -491,6 +491,7 @@ async fn channel_frame(
         | Event::MemberRoleChanged { .. }
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         | Event::ReportsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }

@@ -257,18 +257,6 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'notifications',
-    'Module badges in member list',
-    description: 'Shows module badges beside names.',
-    keywords: ['members', 'badge', 'modules'],
-  ),
-  SettingsEntry(
-    'notifications',
-    'Module sections on profiles',
-    description: 'Shows module levels and stats on profile cards.',
-    keywords: ['profile', 'level', 'xp', 'modules'],
-  ),
-  SettingsEntry(
-    'notifications',
     'Notify me for',
     keywords: ['mentions', 'all messages', 'push'],
   ),

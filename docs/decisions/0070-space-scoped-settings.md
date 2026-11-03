@@ -49,8 +49,6 @@ A Space added later starts from the same old values, which is the closest thing 
 | Message sounds | `slimm.notifications.message_sounds_enabled` | Space | sounds |
 | Desktop notification text | `slimm.notifications.desktop_message_text` | Space | notifications |
 | Module sounds | `slimm.modules.sound_enabled` | Space | modules belong to one server |
-| Module badges in the member list | `slimm.modules.member_list_badges_enabled` | Space | per user and device, not an admin switch; members cannot list modules, so one switch covers all |
-| Module sections on profile cards | `slimm.modules.profile_sections_enabled` | Space | per user and device, on by default; the same reasoning as the member-list badges |
 | Media auto-download | `slimm.performance.media_autodownload` | Space | what a community's messages show |
 | GIF autoplay | `slimm.performance.gif_autoplay` | Space | what a community's messages show |
 | Link previews | `slimm.performance.link_previews` | Space | what a community's messages show |
@@ -89,3 +87,5 @@ A key not in `spaceScopedKeys` is device-wide.
 - Haptics is Space-scoped with the sounds, though it describes the phone.
 - Media auto-download and GIF autoplay are Space-scoped as message display; the image cache, preview quality and page size stay device-wide as memory and bandwidth.
 - The first Space started from the old values and a Space added later inherits them too, rather than starting from the app defaults.
+
+Module badges in the member list and module sections on profile cards moved out of this table: they are now Space-wide admin settings (Space settings > Modules) that apply to everyone.
