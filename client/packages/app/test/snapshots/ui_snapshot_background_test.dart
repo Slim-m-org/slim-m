@@ -18,7 +18,7 @@ import '../features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController;
 import '../ui_snapshot_support.dart';
 
-const _themes = ['dark', 'light'];
+const _themes = ['dark', 'light', 'halloween', 'forest'];
 
 Future<List<Override>> _backgroundOverrides(
   WidgetTester tester, {

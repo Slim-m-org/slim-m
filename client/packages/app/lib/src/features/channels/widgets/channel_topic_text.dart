@@ -8,9 +8,12 @@ import 'package:slimm_design_system/design_system.dart';
 /// Hover shows the whole topic in a tooltip; a tap opens it in `showAppSheet`
 /// (desktop-vs-mobile rule 3: a sheet on touch, a dialog from 600 wide).
 class ChannelTopicText extends StatelessWidget {
-  const ChannelTopicText({super.key, required this.topic});
+  const ChannelTopicText({super.key, required this.topic, this.dense = false});
 
   final String topic;
+
+  /// Takes only the text's own height, for a bar too short to hold a 44 dp row; the touch reach comes from [AppTouchHitArea].
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -20,23 +23,44 @@ class ChannelTopicText extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: AppTouchHitArea(
-        child: FocusableTapTarget(
-          semanticLabel: topic,
-          ringRadius: AppRadii.control,
-          onTap: () => _showFullTopic(context),
-          builder: (context, focused, hovered) {
-            final text = Text(
-              topic,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            );
-            return touch ? text : Tooltip(message: topic, child: text);
-          },
-        ),
+        child: dense
+            ? _denseTap(context, tokens)
+            : FocusableTapTarget(
+                semanticLabel: topic,
+                ringRadius: AppRadii.control,
+                onTap: () => _showFullTopic(context),
+                builder: (context, focused, hovered) {
+                  final text = Text(
+                    topic,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: tokens.textSecondary,
+                    ),
+                  );
+                  return touch ? text : Tooltip(message: topic, child: text);
+                },
+              ),
       ),
     );
   }
+
+  Widget _denseTap(BuildContext context, AppTokens tokens) => Semantics(
+    button: true,
+    label: topic,
+    excludeSemantics: true,
+    onTap: () => _showFullTopic(context),
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showFullTopic(context),
+      child: Text(
+        topic,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppText.caption.copyWith(color: tokens.textSecondary),
+      ),
+    ),
+  );
 
   void _showFullTopic(BuildContext context) {
     showAppSheet<void>(

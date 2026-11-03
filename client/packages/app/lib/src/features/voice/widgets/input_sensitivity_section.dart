@@ -105,7 +105,7 @@ class EvenOutLoudSoundsToggle extends ConsumerWidget {
     );
     return SettingsToggleRow(
       label: 'Even out loud sounds',
-      description: 'Softens shouts and sudden bangs before others hear them.',
+      description: 'Softens shouts and sudden bangs.',
       value: enabled,
       semanticLabel: 'Even out loud sounds',
       onChanged: (value) => ref

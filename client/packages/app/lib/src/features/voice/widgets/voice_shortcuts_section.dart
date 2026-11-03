@@ -39,8 +39,7 @@ class VoiceShortcutsSection extends ConsumerWidget {
           children: [
             SettingsToggleRow(
               label: 'Hold a key to talk',
-              description:
-                  'Hold the key to talk; your mic indicator stays on in calls.',
+              description: 'Your mic indicator stays on in calls.',
               value: settings.pushToTalkEnabled,
               semanticLabel: 'Push-to-talk',
               onChanged: voice.setPushToTalkEnabled,

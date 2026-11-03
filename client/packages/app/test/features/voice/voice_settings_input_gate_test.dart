@@ -5,6 +5,7 @@
 /// unless turned off.
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +18,7 @@ import 'package:slimm_app/src/features/voice/widgets/input_level_meter.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../ui_snapshot_support.dart' show loadRealFonts;
 import 'voice_settings_screen_harness.dart';
 
 Finder _meter() => find.byKey(inputLevelMeterKey);
@@ -52,6 +54,7 @@ ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(VoiceSettingsBody)));
 
 void main() {
+  setUpAll(loadRealFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('the gate replaces the indicator-only sensitivity slider', (
@@ -203,5 +206,17 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.input_threshold_db'), -44);
     expect(session.autoInputThreshold, isFalse);
+  });
+
+  testWidgets('the loud-sounds description is one line at phone width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester);
+    final line = find.text('Softens shouts and sudden bangs.');
+    expect(line, findsOneWidget);
+    expect(tester.getSize(line).height, lessThan(20));
   });
 }
