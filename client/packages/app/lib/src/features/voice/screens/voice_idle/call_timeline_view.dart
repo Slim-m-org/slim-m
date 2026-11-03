@@ -52,7 +52,11 @@ class CallTimelineView extends ConsumerWidget {
           ),
         Row(
           children: [
-            SizedBox(width: compact ? AppAvatarSize.s24 : _nameColumnWidth),
+            SizedBox(
+              width: compact
+                  ? AppAvatarSize.s24 + AppSpacing.s8
+                  : _nameColumnWidth,
+            ),
             Expanded(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
