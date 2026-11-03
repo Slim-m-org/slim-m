@@ -55,7 +55,7 @@ void main() {
 
   for (final entry in _surfaces.entries) {
     testWidgets('theme swatches on ${entry.key}', (tester) async {
-      tester.view.physicalSize = const Size(240, 320);
+      tester.view.physicalSize = const Size(240, 400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       final (brightness, tokens) = entry.value;
@@ -66,7 +66,10 @@ void main() {
           home: Scaffold(body: Align(child: _menu(tokens))),
         ),
       );
-      expect(find.byKey(themeSwatchOutlineKey), findsNWidgets(8));
+      expect(
+        find.byKey(themeSwatchOutlineKey),
+        findsNWidgets(AppThemeChoice.values.length),
+      );
       await writeSnapshot(tester, 'theme-swatch-${entry.key}');
     });
   }

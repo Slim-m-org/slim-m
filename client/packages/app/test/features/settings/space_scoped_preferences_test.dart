@@ -116,6 +116,8 @@ void main() {
 
 /// The device-wide counterpart of [spaceScopedKeys]; see decision 0070.
 const _deviceKeys = <String>{
+  'slimm.appearance.custom_theme',
+  'slimm.appearance.space_default_theme',
   'slimm.appearance.high_contrast',
   'slimm.appearance.motion',
   'slimm.appearance.ui_scale',

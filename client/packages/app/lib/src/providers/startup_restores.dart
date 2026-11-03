@@ -10,6 +10,7 @@
 /// so in the debug log.
 library;
 
+import '../features/settings/providers/stored_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -54,6 +55,8 @@ Future<void> restoreOrDefault(
 final Map<String, RestorablePreference Function(ProviderContainer)>
 restorablePreferences = {
   'theme': (c) => c.read(themeControllerProvider.notifier),
+  'custom theme': (c) => c.read(customThemeProvider.notifier),
+  'space default theme': (c) => c.read(spaceDefaultThemeProvider.notifier),
   'time format': (c) => c.read(timeFormatControllerProvider.notifier),
   'motion': (c) => c.read(motionPreferenceControllerProvider.notifier),
   'high contrast': (c) => c.read(highContrastControllerProvider.notifier),

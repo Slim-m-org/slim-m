@@ -192,6 +192,30 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'appearance',
+    'Theme store',
+    description: 'Themes shared in this Space.',
+    keywords: ['theme', 'import', 'export', 'share', 'publish', 'default'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Publish current theme',
+    description: 'Share it with this Space.',
+    keywords: ['theme', 'store', 'share'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Export current theme',
+    description: 'Save it as a file.',
+    keywords: ['theme', 'file', 'download'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Import a theme',
+    description: 'Open a theme file.',
+    keywords: ['theme', 'file', 'upload'],
+  ),
+  SettingsEntry(
+    'appearance',
     'High contrast',
     description: 'Stronger borders and text.',
     keywords: ['accessibility', 'contrast', 'theme'],

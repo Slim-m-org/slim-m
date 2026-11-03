@@ -16,6 +16,8 @@ String themeLabel(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.softDark => 'Soft dark',
   AppThemeChoice.forest => 'Forest',
   AppThemeChoice.halloween => 'Halloween',
+  AppThemeChoice.spaceDefault => 'Space default',
+  AppThemeChoice.custom => 'Custom',
 };
 
 /// The palette a choice paints with; System shows both of its halves.
@@ -45,9 +47,12 @@ List<Color> themeSwatchColors(AppThemeChoice choice) {
 const themeSwatchOutlineKey = Key('theme_swatch_outline');
 
 class ThemeSwatch extends StatelessWidget {
-  const ThemeSwatch({super.key, required this.choice});
+  const ThemeSwatch({super.key, required this.choice, this.colors});
 
   final AppThemeChoice choice;
+
+  /// Paints these instead of the choice's own, for a theme read from a file.
+  final List<Color>? colors;
 
   static const _cell = 12.0;
 
@@ -67,7 +72,7 @@ class ThemeSwatch extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final color in themeSwatchColors(choice))
+            for (final color in colors ?? themeSwatchColors(choice))
               SizedBox.square(
                 dimension: _cell,
                 child: ColoredBox(color: color),

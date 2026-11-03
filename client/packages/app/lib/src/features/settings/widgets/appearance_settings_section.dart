@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/display_preferences.dart';
+import '../providers/stored_theme.dart';
 import '../../../providers/providers.dart';
 import 'background_settings_card.dart';
 import 'display_settings_section.dart';
@@ -18,6 +19,7 @@ import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_slider_row.dart';
 import 'settings_toggle_row.dart';
+import 'theme_store_card.dart';
 import 'theme_swatch.dart';
 
 class AppearanceSettingsSection extends ConsumerWidget {
@@ -30,6 +32,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
       children: [
         _themeCard(ref),
         const BackgroundSettingsCard(),
+        const ThemeStoreCard(),
         const DisplaySettingsSection(),
         _textAndLayoutCard(ref),
         const ModuleDisplayCard(),
@@ -39,6 +42,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
 
   static const _themeOrder = [
     AppThemeChoice.system,
+    AppThemeChoice.spaceDefault,
     AppThemeChoice.dark,
     AppThemeChoice.softDark,
     AppThemeChoice.light,
@@ -48,7 +52,22 @@ class AppearanceSettingsSection extends ConsumerWidget {
     AppThemeChoice.halloween,
   ];
 
+  static List<Color>? _swatchOf(AppThemeChoice choice, ThemeDocument? doc) {
+    if (doc == null ||
+        (choice != AppThemeChoice.custom &&
+            choice != AppThemeChoice.spaceDefault)) {
+      return null;
+    }
+    return [
+      doc.colours['surfaceBase']!,
+      doc.colours['accent']!,
+      doc.colours['textPrimary']!,
+    ];
+  }
+
   Widget _themeCard(WidgetRef ref) {
+    final custom = ref.watch(customThemeProvider);
+    final space = ref.watch(spaceDefaultThemeProvider);
     return SettingsSectionCard(
       title: 'Theme',
       children: [
@@ -60,7 +79,19 @@ class AppearanceSettingsSection extends ConsumerWidget {
               SettingsChoice(
                 value: choice,
                 label: themeLabel(choice),
-                leading: ThemeSwatch(choice: choice),
+                leading: ThemeSwatch(
+                  choice: choice,
+                  colors: _swatchOf(choice, space),
+                ),
+              ),
+            if (custom != null)
+              SettingsChoice(
+                value: AppThemeChoice.custom,
+                label: custom.name,
+                leading: ThemeSwatch(
+                  choice: AppThemeChoice.custom,
+                  colors: _swatchOf(AppThemeChoice.custom, custom),
+                ),
               ),
           ],
           onChanged: (next) =>

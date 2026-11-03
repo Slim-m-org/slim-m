@@ -160,6 +160,23 @@ class ThemeDocument {
         picture: picture,
       );
 
+  /// The same theme with the picture's bytes dropped, keeping its settings.
+  ThemeDocument withoutPictureData() => ThemeDocument(
+        name: name,
+        author: author,
+        base: base,
+        brightness: brightness,
+        colours: colours,
+        effect: effect,
+        picture: picture == null
+            ? null
+            : ThemePicture(
+                dim: picture!.dim,
+                vignette: picture!.vignette,
+                blur: picture!.blur,
+              ),
+      );
+
   Map<String, dynamic> toJson() => {
         'format': themeFileFormat,
         'version': themeFileVersion,

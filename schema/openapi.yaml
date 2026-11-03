@@ -13899,7 +13899,7 @@ components:
       additionalProperties: false
       description: >
         A theme file, decision 0106. `tokens` carries all 19 core colours as
-        `#RRGGBB` (`accentRing`, `warnSoft` and `stripe` may be `#AARRGGBB`).
+        `#RRGGBB` (only the translucent ones, accentRing, warnSoft and stripe, may be `#AARRGGBB`).
         `backdrop.picture.data` is base64 of a PNG, JPEG or WebP of at most
         2 MiB and appears in a file, never in a store listing.
       properties:
