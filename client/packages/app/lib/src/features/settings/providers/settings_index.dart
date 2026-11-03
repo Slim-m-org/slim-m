@@ -167,6 +167,19 @@ const personalSettingsIndex = <SettingsEntry>[
     description: 'Changing it signs out your other devices.',
     keywords: ['change password', 'security'],
   ),
+  SettingsEntry('appearance', 'Modules'),
+  SettingsEntry(
+    'appearance',
+    'Show module badges',
+    description: 'Next to names in the member list.',
+    keywords: ['members', 'badge', 'modules', 'level'],
+  ),
+  SettingsEntry(
+    'appearance',
+    'Show module levels',
+    description: 'On profile cards.',
+    keywords: ['profile', 'level', 'xp', 'modules'],
+  ),
   SettingsEntry(
     'appearance',
     'Theme',

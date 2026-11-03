@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/module_display_section.dart';
@@ -104,6 +105,7 @@ void main() {
   });
 
   test('a settings-changed event makes a member re-read the flags', () async {
+    SharedPreferences.setMockInitialValues({});
     var badges = false;
     final events = StreamController<api.ServerEvent>.broadcast();
     addTearDown(events.close);

@@ -106,7 +106,6 @@ void main() {
           dark,
           ProviderScope(
             overrides: [
-              moduleMemberBadgesShownProvider.overrideWithValue(true),
               moduleProfileSlotsProvider.overrideWith((ref, _) => _sections),
             ],
             child: MaterialApp(
@@ -175,6 +174,7 @@ void main() {
           dark,
           ProviderScope(
             overrides: [
+              moduleMemberBadgesShownProvider.overrideWithValue(true),
               sessionProvider.overrideWithValue(
                 api.SessionStore(tokens: _tokens),
               ),
