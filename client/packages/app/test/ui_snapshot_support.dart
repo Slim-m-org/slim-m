@@ -424,6 +424,7 @@ Future<void> renderSurface(
   bool allowNoText = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
+  List<Widget> overlays = const [],
 }) => renderSurfaceThemes(
   tester,
   route,
@@ -439,12 +440,15 @@ Future<void> renderSurface(
   allowNoText: allowNoText,
   textScaler: textScaler,
   afterSettle: afterSettle,
+  overlays: overlays,
 );
 
 /// [renderSurface] for several [themes] in one mount: the surface is built and
 /// settled in the first theme, captured, then the theme is switched in place
 /// and settled again before each further capture, so the shell, fonts and
 /// fixture are paid for once per viewport instead of once per theme.
+///
+/// [overlays] stack above the routed tree like `main.dart`'s own overlays.
 ///
 /// [snapshotNameFor] maps a theme to the capture name, so the files written
 /// are the ones a per-theme [renderSurface] would write.
@@ -461,6 +465,7 @@ Future<void> renderSurfaceThemes(
   bool allowNoText = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
+  List<Widget> overlays = const [],
 }) async {
   tester.view.physicalSize = viewports[viewportName]!;
   tester.view.devicePixelRatio = 1.0;
@@ -477,7 +482,11 @@ Future<void> renderSurfaceThemes(
       ),
       routerConfig: router,
       // The same wrapper main.dart ships, so density matches the app.
-      builder: appChromeBuilder,
+      builder: overlays.isEmpty
+          ? appChromeBuilder
+          : (context, child) => Stack(
+              children: [appChromeBuilder(context, child), ...overlays],
+            ),
     );
     return UncontrolledProviderScope(
       container: fixture.container,

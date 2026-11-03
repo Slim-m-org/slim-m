@@ -134,6 +134,18 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
     fontFamilyFallback: AppFonts.emoji,
     extensions: [tokens],
     dividerTheme: DividerThemeData(color: tokens.borderSubtle, space: 1),
+    // Opaque, so a tip over text never lets that text show through it.
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: tokens.textPrimary,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      textStyle: AppText.caption.copyWith(
+        color: tokens.surfaceBase,
+        fontFamily: AppFonts.sans,
+        fontFamilyFallback: AppFonts.emoji,
+      ),
+    ),
     // A sheet is a raised surface like every other panel; see this function's doc.
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: tokens.surfaceRaised,
