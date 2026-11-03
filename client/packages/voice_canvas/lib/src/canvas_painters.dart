@@ -24,6 +24,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+import 'canvas_ink.dart';
 import 'canvas_document.dart';
 import 'canvas_ink_cache.dart';
 import 'canvas_object_painter.dart';
@@ -328,7 +329,7 @@ class StrokePainter extends CustomPainter {
         (stroke.y - camera.y) * camera.zoom,
       );
       canvas.scale(camera.zoom);
-      final color = inkColors[stroke.colorKey] ?? ink;
+      final color = resolveCanvasInk(inkColors, stroke.colorKey, ink);
       paint
         ..color = document.unsavedInk.contains(stroke.id)
             ? color.withValues(alpha: color.a * _unsavedInkAlpha)

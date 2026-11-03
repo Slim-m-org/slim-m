@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart' show resolveCanvasInk;
 
 import '../../screen_overlay/providers/screen_annotation_board.dart';
 import '../../screen_overlay/providers/screen_annotation_mapping.dart';
@@ -31,8 +32,11 @@ class ScreenMarksPainter extends CustomPainter {
     for (final mark in marks()) {
       final alpha = mark.alphaAt(at);
       if (alpha <= 0) continue;
-      final ink =
-          canvasPenInkByKey[mark.colorKey] ?? AppCanvasColors.annotation;
+      final ink = resolveCanvasInk(
+        canvasPenInkByKey,
+        mark.colorKey,
+        AppCanvasColors.annotation,
+      );
       final paint = Paint()
         ..color = ink.withValues(alpha: alpha)
         ..style = PaintingStyle.stroke

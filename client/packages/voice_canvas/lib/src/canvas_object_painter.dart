@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 
+import 'canvas_ink.dart';
 import 'canvas_document.dart';
 import 'canvas_text_box.dart';
 import 'note_label_cache.dart';
@@ -144,7 +145,7 @@ class ObjectPainter {
           style: TextStyle(
             fontFamily: textFontFamily,
             fontSize: fontSize,
-            color: inkColors[stroke.colorKey] ?? ink,
+            color: resolveCanvasInk(inkColors, stroke.colorKey, ink),
             height: canvasTextLineHeight,
           ),
         ),

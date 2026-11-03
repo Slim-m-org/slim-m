@@ -19,8 +19,9 @@ List<ControlOptionEntry> canvasToolOptions(
   required ValueChanged<CanvasPenStyle> onPenChanged,
   required CanvasShapeKind shapeKind,
   required ValueChanged<CanvasShapeKind> onShapeKindChanged,
+  List<ControlSwatch> customColours = const [],
 }) => switch (tool) {
-  CanvasTool.pen => _penOptions(pen, onPenChanged),
+  CanvasTool.pen => _penOptions(pen, onPenChanged, customColours),
   CanvasTool.shape => _shapeOptions(shapeKind, onShapeKindChanged),
   _ => const [],
 };
@@ -36,6 +37,7 @@ const canvasShapeOptionKinds = [
 List<ControlOptionEntry> _penOptions(
   CanvasPenStyle pen,
   ValueChanged<CanvasPenStyle> onChanged,
+  List<ControlSwatch> customColours,
 ) => [
   ControlSwatchGroup(
     heading: 'Colour',
@@ -49,6 +51,8 @@ List<ControlOptionEntry> _penOptions(
         ),
     ],
   ),
+  if (customColours.isNotEmpty)
+    ControlSwatchGroup(heading: 'Custom', swatches: customColours),
   ControlSliderGroup(
     heading: 'Size',
     value: pen.width,

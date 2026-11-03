@@ -171,6 +171,24 @@ void pathColorTests() {
     expect(canvas.pathColors.map((c) => c.toARGB32()), [blue.toARGB32()]);
   });
 
+  test('a #rrggbb key paints exactly that colour, named keys unchanged', () {
+    final document = documentWithCommittedStroke(2, colorKey: '#3a7bd5');
+    addTearDown(document.dispose);
+    final canvas = RecordingCanvas();
+    StrokePainter(document: document, ink: ink, inkColors: const {'ink': blue})
+        .paint(canvas, const Size(400, 400));
+    expect(canvas.pathColors.map((c) => c.toARGB32()), [0xFF3A7BD5]);
+  });
+
+  test('a malformed hex key falls back to the default ink', () {
+    final document = documentWithCommittedStroke(2, colorKey: '#3a7bd');
+    addTearDown(document.dispose);
+    final canvas = RecordingCanvas();
+    StrokePainter(document: document, ink: ink)
+        .paint(canvas, const Size(400, 400));
+    expect(canvas.pathColors.map((c) => c.toARGB32()), [ink.toARGB32()]);
+  });
+
   test('a key the painter does not know falls back to the default ink', () {
     final document = documentWithCommittedStroke(2);
     addTearDown(document.dispose);

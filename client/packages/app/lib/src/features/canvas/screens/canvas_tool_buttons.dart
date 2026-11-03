@@ -5,19 +5,21 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
 import '../providers/canvas_pen_style.dart';
+import '../widgets/canvas_custom_colours.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_tool_options.dart';
 
 const _cannotDrawTooltip = "Can't draw right now";
 
-class CanvasToolButtons extends StatelessWidget {
+class CanvasToolButtons extends ConsumerWidget {
   const CanvasToolButtons({
     super.key,
     required this.tool,
@@ -42,14 +44,25 @@ class CanvasToolButtons extends StatelessWidget {
       onToolChanged(tool == picked ? CanvasTool.pan : picked);
 
   /// Options belong to the selected tool only, and only while it can be used.
-  List<ControlOptionEntry> _optionsFor(CanvasTool forTool) =>
-      tool == forTool && forTool.isAvailable(canDraw: canDraw)
+  List<ControlOptionEntry> _optionsFor(
+    BuildContext context,
+    WidgetRef ref,
+    CanvasTool forTool,
+  ) => tool == forTool && forTool.isAvailable(canDraw: canDraw)
       ? canvasToolOptions(
           forTool,
           pen: pen,
           onPenChanged: onPenChanged,
           shapeKind: shapeKind,
           onShapeKindChanged: onShapeKindChanged,
+          customColours: forTool == CanvasTool.pen
+              ? canvasCustomColourSwatches(
+                  context: context,
+                  ref: ref,
+                  selectedKey: pen.colorKey,
+                  onChoose: (hex) => onPenChanged(pen.copyWith(colorKey: hex)),
+                )
+              : const [],
         )
       : const [];
 
@@ -61,18 +74,23 @@ class CanvasToolButtons extends StatelessWidget {
         : '${armed}select it to choose another';
   }
 
-  Widget _withOptions(CanvasTool forTool, String label, Widget child) =>
-      ControlOptionsMenu(
-        active: true,
-        caretHeight: AppSizes.icon28,
-        opensAbove: true,
-        optionsLabel: label,
-        options: _optionsFor(forTool),
-        child: child,
-      );
+  Widget _withOptions(
+    BuildContext context,
+    WidgetRef ref,
+    CanvasTool forTool,
+    String label,
+    Widget child,
+  ) => ControlOptionsMenu(
+    active: true,
+    caretHeight: AppSizes.icon28,
+    opensAbove: true,
+    optionsLabel: label,
+    options: _optionsFor(context, ref, forTool),
+    child: child,
+  );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Six touch-sized tools plus the armed caret only fit a 360dp dock when they touch.
     final gap = SizedBox(
       width: AppTouchTargets.of(context) ? 0 : AppSpacing.s4,
@@ -92,6 +110,8 @@ class CanvasToolButtons extends StatelessWidget {
         ),
         gap,
         _withOptions(
+          context,
+          ref,
           CanvasTool.pen,
           'Pen options',
           _PenButton(
@@ -125,6 +145,8 @@ class CanvasToolButtons extends StatelessWidget {
         ),
         gap,
         _withOptions(
+          context,
+          ref,
           CanvasTool.shape,
           'Shape options',
           AppIconButton(
