@@ -180,7 +180,8 @@ To avoid it, put the file at `/models/ggml-base.bin` in that volume first.
 
 Transcription runs on the CPU, on `LISTENER_THREADS` worker threads (default 4), one utterance at a time each.
 It uses no CPU while no call is being heard.
-Plan for four cores and 1 GB of memory with the base model.
+Plan for four cores and 1.5 GB of memory with the base model.
+Four people talking at once peaked at 964 MiB, so the compose limit is 1536M.
 If it cannot keep up, it drops the oldest speech it has not transcribed, and ends the session after two minutes of that.
 `LISTENER_MAX_SESSIONS` (default 2) is how many calls it hears at once; a request past that is told the listener is busy.
 
