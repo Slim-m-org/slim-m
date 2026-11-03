@@ -7,7 +7,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart'
@@ -46,6 +45,10 @@ MessageRow _row(String id, bool grouped, List<api.Embed> embeds) => MessageRow(
   extras: MessageExtras(embeds: embeds),
 );
 
+Finder _card() => find.byWidgetPredicate((w) => w is EmbedCard);
+
+Finder _image() => find.byWidgetPredicate((w) => w is Image);
+
 void main() {
   setUpAll(loadRealFonts);
 
@@ -75,7 +78,7 @@ void main() {
       );
       await tester.pump();
 
-      final card = tester.getRect(find.byType(EmbedCard));
+      final card = tester.getRect(_card());
       final next = tester.getRect(find.byKey(const ValueKey('b')));
       expect(card.bottom, lessThanOrEqualTo(next.top));
       final footer = tester.getRect(find.textContaining('HLTV.org'));
@@ -131,13 +134,10 @@ void main() {
         );
         await tester.pump();
 
-        final card = tester.getRect(find.byType(EmbedCard));
+        final card = tester.getRect(_card());
         final next = tester.getRect(find.byKey(const ValueKey('b')));
         expect(card.bottom, lessThanOrEqualTo(next.top));
-        expect(
-          tester.getRect(find.byType(Image)).bottom,
-          lessThanOrEqualTo(card.bottom),
-        );
+        expect(tester.getRect(_image()).bottom, lessThanOrEqualTo(card.bottom));
         final footer = tester.getRect(find.textContaining('HLTV.org'));
         expect(footer.bottom, lessThanOrEqualTo(card.bottom));
         // Sized by its content: no blank band below the footer, whatever the image's size.
