@@ -239,6 +239,9 @@ impl Store {
     /// member is always included, even revoked, because it stays on the
     /// roster everywhere else and its authorship may still matter to
     /// whoever is reading this list. See `docs/decisions/0028-bot-accounts.md`.
+    ///
+    /// A module's own principal is left out: it has no token by design, so
+    /// it would read as a revoked bot with nothing the operator can do.
     pub async fn list_bots(&self, include_removed: bool) -> anyhow::Result<Vec<Bot>> {
         let include_removed = i64::from(include_removed);
         let rows = sqlx::query!(
@@ -251,6 +254,9 @@ impl Store {
                  ON t.bot_user_id = u.id AND t.revoked_at IS NULL
                LEFT JOIN roles r ON r.managed_bot_id = u.id
                WHERE u.is_bot = 1 AND u.deleted_at IS NULL
+                 AND NOT EXISTS (
+                   SELECT 1 FROM installed_modules m WHERE m.bot_user_id = u.id
+                 )
                  AND (? = 1 OR NOT EXISTS (
                    SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id
                  ))
