@@ -196,6 +196,9 @@ class CanvasPaneFixture {
   /// "the same fetch racing itself and never stopping".
   int viewportGets = 0;
 
+  /// How many of [viewportGets] have been answered, so a test can tell the pane has no read in flight.
+  int viewportAnswered = 0;
+
   /// When set, a viewport read answers from the objects as they were when it
   /// arrived but only after this completes, like a slow response in flight.
   Completer<void>? viewportGate;
@@ -433,6 +436,7 @@ class CanvasPaneFixture {
         final head = max(snapshot.length, _eventHead);
         final gate = viewportGate;
         if (gate != null) await gate.future;
+        viewportAnswered++;
         if (viewportStatus != 200) {
           return http.Response(
             jsonEncode({'error': 'no'}),
