@@ -36,6 +36,7 @@ mod read_state;
 mod refusals;
 mod space_banner;
 mod space_icon;
+mod space_themes;
 mod threads;
 mod totp_calls;
 mod upload_sessions;
@@ -56,6 +57,7 @@ use people::{moderation_calls, profile_calls, safety_calls};
 use push_invite_calls::{channel_retention_calls, invite_calls, push_calls};
 use space_banner::banner_calls;
 use space_icon::icon_calls;
+use space_themes::space_theme_calls;
 use threads::thread_calls;
 use upload_sessions::upload_session_calls;
 
@@ -300,6 +302,7 @@ pub async fn run(c: &mut Contract) {
     thread_calls(c, root, &channel, &message).await;
     channel_retention_calls(c, root, &channel).await;
     emoji_calls(c, root).await;
+    space_theme_calls(c, root).await;
     moderation_calls(c, root, bob_token, &message).await;
 
     // Turned on after real history exists, so `stats` is populated, not zeros.

@@ -103,6 +103,7 @@ mod space_landing;
 mod space_link_previews;
 mod space_module_display;
 mod space_setup;
+mod space_themes;
 mod space_welcome;
 mod storage;
 mod thread_listing;
@@ -237,6 +238,7 @@ pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HE
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;
 pub use space_setup::SpaceSetup;
+pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;

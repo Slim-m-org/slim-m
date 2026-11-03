@@ -20,6 +20,8 @@ import 'support/send_calls.dart';
 
 /// Call sites whose keys cannot be read from source, by `METHOD /path`.
 const Map<String, String> _unreadableKeys = {
+  'POST /space/themes':
+      'the body is a theme file, forwarded as the member exported it',
   'POST /space/dock/packages/preview':
       'the body is a module package file, forwarded as the admin chose it',
 };

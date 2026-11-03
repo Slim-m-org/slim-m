@@ -28,6 +28,7 @@ export 'client_direct_route.dart' show SlimmApiDirectRoute;
 export 'client_dms.dart' show SlimmApiDms;
 export 'client_dock.dart' show SlimmApiDock;
 export 'client_emoji.dart' show SlimmApiEmoji;
+export 'client_space_themes.dart' show SlimmApiSpaceThemes;
 export 'client_exports.dart' show SlimmApiExports;
 export 'client_gifs.dart' show SlimmApiGifs;
 export 'client_interactions.dart' show SlimmApiInteractions;

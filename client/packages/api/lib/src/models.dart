@@ -31,6 +31,7 @@ export 'models_bot_form.dart';
 export 'models_components.dart';
 export 'models_embeds.dart';
 export 'models_emoji.dart';
+export 'models_space_theme.dart';
 export 'models_exports.dart';
 export 'models_forwards.dart';
 export 'models_gifs.dart';

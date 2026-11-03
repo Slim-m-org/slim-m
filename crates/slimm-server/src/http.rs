@@ -130,6 +130,7 @@ mod space_banner;
 mod space_icon;
 mod space_link_previews;
 mod space_setup;
+mod space_themes;
 mod still_picture;
 mod storage;
 mod surface_lock;
@@ -230,6 +231,7 @@ pub fn router(state: AppState) -> Router {
         .merge(module_call_audio::routes())
         .merge(module_hooks::routes())
         .merge(channel_retention::routes())
+        .merge(space_themes::routes())
         .merge(apps::routes())
         .merge(auth::routes())
         .merge(canvas::routes())

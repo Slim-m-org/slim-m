@@ -10840,6 +10840,147 @@ paths:
         "503":
           description: The connection ceiling was reached.
 
+  /space/themes:
+    get:
+      operationId: listSpaceThemes
+      tags: [space]
+      summary: The Space's theme store and its default theme.
+      description: >
+        Readable by every authenticated member. Each theme is the document
+        without picture bytes; `has_picture` says whether
+        `/space/themes/{theme_id}/picture` has one. Decision 0106.
+      responses:
+        "200":
+          description: The store, oldest first, and the default theme's id if one is set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceThemeList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: publishSpaceTheme
+      tags: [space]
+      summary: Publish a theme to the Space's store.
+      description: >
+        Any member may publish. The body is the theme file; the server
+        validates it as the client does (every token, colours, the contrast
+        floors, the picture sniffed from its bytes, at most 2 MiB) and refuses
+        with 400 naming each problem. A Space holds at most 50 themes, then 409.
+        Decision 0106.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpaceThemeFile"
+      responses:
+        "201":
+          description: The theme was published.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceTheme"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/themes/{theme_id}:
+    delete:
+      operationId: deleteSpaceTheme
+      tags: [space]
+      summary: Remove a theme from the store.
+      description: >
+        The author, or a member with MANAGE_SERVER, may remove a theme; anyone
+        else gets 403. Removing the Space default clears the default.
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/themes/{theme_id}/picture:
+    get:
+      operationId: fetchSpaceThemePicture
+      tags: [space]
+      summary: A store theme's backdrop picture.
+      description: Readable by any authenticated member.
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The picture's bytes, as the type sniffed when it was published.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/default-theme:
+    put:
+      operationId: setSpaceDefaultTheme
+      tags: [space]
+      summary: Set or clear the Space's default theme.
+      description: >
+        Requires MANAGE_SERVER. New members and anyone on "Space default" get
+        this theme; a null `theme_id` clears it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetSpaceDefaultThemeRequest"
+      responses:
+        "204":
+          description: Set.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /emoji:
     get:
       operationId: listCustomEmoji
@@ -13752,6 +13893,93 @@ components:
             that named none. Absent whenever `status` is `offline`, so a
             member who chose `hidden` leaks nothing here either.
 
+    SpaceThemeFile:
+      type: object
+      required: [format, version, name, base, brightness, tokens]
+      additionalProperties: false
+      description: >
+        A theme file, decision 0106. `tokens` carries all 19 core colours as
+        `#RRGGBB` (`accentRing`, `warnSoft` and `stripe` may be `#AARRGGBB`).
+        `backdrop.picture.data` is base64 of a PNG, JPEG or WebP of at most
+        2 MiB and appears in a file, never in a store listing.
+      properties:
+        format:
+          type: string
+          enum: [slimm-theme]
+        version:
+          type: integer
+          enum: [1]
+        name:
+          type: string
+          description: 1 to 40 characters.
+        author:
+          type: string
+          description: At most 40 characters, display only.
+        base:
+          type: string
+          enum: [dark, light, trueBlack, catppuccin, softDark, forest, halloween]
+        brightness:
+          type: string
+          enum: [light, dark]
+        tokens:
+          type: object
+          additionalProperties:
+            type: string
+        backdrop:
+          type: object
+          additionalProperties: false
+          properties:
+            effect:
+              type: string
+              nullable: true
+              enum: [halloweenWebs]
+            picture:
+              type: object
+              additionalProperties: true
+              description: >
+                `data` (base64), `dim` and `blur` from 0 to 1, and `vignette`.
+                A store listing carries `present: true` instead of `data`.
+    SpaceTheme:
+      type: object
+      required: [id, name, author_name, created_at, has_picture, theme]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        author_id:
+          type: string
+          nullable: true
+          description: Null once the author's account is deleted.
+        author_name:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        has_picture:
+          type: boolean
+        theme:
+          type: object
+          additionalProperties: true
+          description: The theme document, without picture bytes.
+    SpaceThemeList:
+      type: object
+      required: [themes]
+      properties:
+        themes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpaceTheme"
+        default_theme_id:
+          type: string
+          nullable: true
+    SetSpaceDefaultThemeRequest:
+      type: object
+      required: [theme_id]
+      properties:
+        theme_id:
+          type: string
+          nullable: true
     PresenceActivity:
       type: object
       required: [type, title]

@@ -190,6 +190,18 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "invite.revoke",
         Some("code"),
     ),
+    route(
+        Method::DELETE,
+        "/space/themes/{theme_id}",
+        "theme.delete",
+        Some("theme_id"),
+    ),
+    route(
+        Method::PUT,
+        "/space/default-theme",
+        "theme.set_default",
+        None,
+    ),
     route(Method::POST, "/emoji", "emoji.create", None),
     route(Method::POST, "/emoji/bulk", "emoji.bulk_create", None),
     route(

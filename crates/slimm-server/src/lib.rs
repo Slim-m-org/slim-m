@@ -38,6 +38,7 @@ pub mod notifications;
 pub use notifications::notification_schedule;
 pub mod permissions;
 pub mod presence;
+pub mod space_theme;
 pub use presence::presence_activity;
 pub use presence::typing;
 pub use presence::viewing;
