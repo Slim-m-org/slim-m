@@ -41,6 +41,13 @@ final _selfId = Provider<String?>(
   (ref) => ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
 );
 
+/// The least width a grouped body keeps once the toolbar's reserve is taken off its right.
+const double _minBodyWidth = 280;
+
+final double _toolbarReserve = MessageHoverToolbar.clearance(
+  compact: false,
+).right;
+
 class MessageRowColumn extends ConsumerWidget {
   const MessageRowColumn({
     super.key,
@@ -184,20 +191,22 @@ class MessageRowColumn extends ConsumerWidget {
       )
     // An attachment-only message has no body; an empty one still adds a blank line above the image. A forward's own note is often empty too.
     else if (message.content.isNotEmpty)
-      Padding(
-        // A headerless row's first line is what the toolbar would sit on.
-        padding: grouped
-            ? MessageHoverToolbar.clearance(compact: compact)
-            : EdgeInsets.zero,
-        child: MessageBody(
-          content: message.content,
-          messageId: message.id,
-          knownUsernames: knownUsernames,
-          knownRoleNames: knownRoleNames,
-          customEmoji: customEmoji,
-          dim: message.pending,
-          announceSending: message.pending,
-          trailing: edited,
+      LayoutBuilder(
+        // A headerless row's first line is what the toolbar would sit on, unless that leaves the text a sliver.
+        builder: (context, box) => Padding(
+          padding: grouped && box.maxWidth - _toolbarReserve >= _minBodyWidth
+              ? MessageHoverToolbar.clearance(compact: compact)
+              : EdgeInsets.zero,
+          child: MessageBody(
+            content: message.content,
+            messageId: message.id,
+            knownUsernames: knownUsernames,
+            knownRoleNames: knownRoleNames,
+            customEmoji: customEmoji,
+            dim: message.pending,
+            announceSending: message.pending,
+            trailing: edited,
+          ),
         ),
       ),
     if (!editing &&
