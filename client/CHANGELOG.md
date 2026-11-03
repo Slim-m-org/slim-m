@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.122.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.121.0...client-v0.122.0) (2026-11-03)
+
+
+### Features
+
+* v123 - owner feedback, module call audio, theme store, canvas and share improvements ([#2333](https://github.com/Slim-m-org/slim-m/issues/2333)) ([eee82ff](https://github.com/Slim-m-org/slim-m/commit/eee82ffe1ff528f83f010dd9d68290358a060b19))
+
 ## [0.121.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.120.0...client-v0.121.0) (2026-11-02)
 
 
