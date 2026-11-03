@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
 import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../ui_snapshot_support.dart';
 

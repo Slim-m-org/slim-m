@@ -310,7 +310,8 @@ void main() {
     expect(find.text('Last call'), findsOneWidget);
 
     await tester.tap(find.text('Sat'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('Call'), findsOneWidget, reason: 'not the last call');
     expect(find.textContaining('3 h 30'), findsWidgets);
   });

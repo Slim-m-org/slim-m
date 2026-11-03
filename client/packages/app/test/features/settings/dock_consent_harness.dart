@@ -138,6 +138,7 @@ Future<List<Map<String, dynamic>>> consentPump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
   return installs;
 }

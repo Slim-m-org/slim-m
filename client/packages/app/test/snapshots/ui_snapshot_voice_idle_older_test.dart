@@ -4,7 +4,6 @@
 /// themes. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
 library;
 
-import 'package:flutter/painting.dart' show Size;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -68,13 +67,16 @@ void main() {
           dark: theme == 'dark',
           history: _history(),
         );
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
         final row = find.byKey(ValueKey('call-history-row-$_older'));
         await tester.scrollUntilVisible(row, 200);
         await tester.tap(row);
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
         await tester.drag(find.byKey(snapshotBoundary), const Offset(0, 5000));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
         await writeSnapshot(tester, 'voice-idle-older-${entry.key}-$theme');
         expect(tester.takeException(), isNull);
       });
