@@ -57,7 +57,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final bar = tester.getRect(find.byType(AppBar));
+    const bar = Rect.fromLTWH(0, 0, 390, CompactChannelAppBar.height);
     final name = tester.getRect(find.text('general'));
     final topic = tester.getRect(find.text('General chat for the whole Space'));
     expect(name.top, greaterThanOrEqualTo(bar.top));

@@ -23,10 +23,10 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         final model = CallTimelineModel.from(
-          api.VoiceCall(
+          const api.VoiceCall(
             startedAt: 0,
             endedAt: 120 * _min,
-            canvas: const [],
+            canvas: [],
             events: [
               api.VoiceCallEvent(
                 at: 0,

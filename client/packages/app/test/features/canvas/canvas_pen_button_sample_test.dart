@@ -91,12 +91,7 @@ void clearanceTests() {
     await tester.pumpWidget(
       wrapCanvasToolsRow(buildCanvasToolsRow(tool: CanvasTool.pen)),
     );
-    final button = tester.getRect(
-      find.ancestor(
-        of: find.byIcon(AppIcons.pen),
-        matching: find.byType(AppIconButton),
-      ),
-    );
+    final button = tester.getRect(find.bySemanticsLabel('Pen'));
     expect(
       button.bottom - tester.getRect(_bar).bottom,
       greaterThanOrEqualTo(4),
