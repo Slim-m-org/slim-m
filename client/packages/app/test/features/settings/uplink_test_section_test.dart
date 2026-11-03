@@ -107,6 +107,6 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('A call is live'), findsWidgets);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is SnackBar), findsNothing);
   });
 }
