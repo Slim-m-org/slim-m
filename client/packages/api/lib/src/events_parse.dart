@@ -10,6 +10,7 @@ ServerEvent? coreFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'hello' => HelloEvent(protocol: decoded['protocol'] as int? ?? 0),
     'category.changed' => const CategoryChanged(),
+    'space.settings_changed' => const SpaceSettingsChanged(),
     'reports.changed' => const ReportsChanged(),
     'pong' => const PongEvent(),
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),

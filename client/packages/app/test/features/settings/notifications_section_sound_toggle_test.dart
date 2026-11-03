@@ -64,26 +64,6 @@ void main() {
     );
   });
 
-  testWidgets('module badges in the member list start off and persist', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_wrap(const NotificationsSection()));
-    await tester.pump(const Duration(milliseconds: 100));
-    final toggle = find.byWidgetPredicate(
-      (w) =>
-          w is AppToggle &&
-          w.semanticLabel == 'Show module badges in the member list',
-    );
-    expect(tester.widget<AppToggle>(toggle).value, isFalse);
-
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pump(const Duration(milliseconds: 100));
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('slimm.modules.member_list_badges_enabled'), isTrue);
-  });
-
   testWidgets('the push status is a banner, never a bare ListTile', (
     tester,
   ) async {

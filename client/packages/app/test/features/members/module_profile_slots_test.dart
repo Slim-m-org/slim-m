@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/module_profile_slots.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_app/src/features/members/widgets/module_profile_slots.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/features/voice/providers/member_voice_channel.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -58,8 +59,9 @@ final _sections = {
 Future<List<String>> _pumpCard(
   WidgetTester tester,
   String userId,
-  Future<http.Response> Function(http.Request) answer,
-) async {
+  Future<http.Response> Function(http.Request) answer, {
+  bool showSections = true,
+}) async {
   final paths = <String>[];
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -67,6 +69,7 @@ Future<List<String>> _pumpCard(
     ProviderScope(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        moduleProfileSectionsShownProvider.overrideWithValue(showSections),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         myPermissionsProvider.overrideWithValue(0),
         membersProvider.overrideWith((ref) async => const []),
@@ -116,6 +119,12 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('the profile switch off hides the section', (tester) async {
+    await _pumpCard(tester, 'maya', _slots, showSections: false);
+
+    expect(find.text('Level'), findsNothing);
+  });
 
   testWidgets('a section with nothing to draw is not shown', (tester) async {
     await _pumpCard(tester, 'maya', _slots);

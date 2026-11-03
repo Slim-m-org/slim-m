@@ -147,6 +147,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: ChannelId(id(10)),
         },
         Event::CategoryChanged,
+        Event::SpaceSettingsChanged,
         Event::OverwriteChanged {
             channel_id: channel,
             previously_visible_to: Default::default(),

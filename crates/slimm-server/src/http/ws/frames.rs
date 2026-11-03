@@ -235,6 +235,8 @@ pub(super) enum ServerFrame {
     OverwriteChanged { channel_id: String },
     #[serde(rename = "category.changed")]
     CategoryChanged,
+    #[serde(rename = "space.settings_changed")]
+    SpaceSettingsChanged,
     #[serde(rename = "voice.activity")]
     VoiceActivityChanged { channel_id: String },
     /// See `docs/decisions/0032-voice-participant-webhooks.md`.

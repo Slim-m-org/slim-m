@@ -35,6 +35,8 @@ class Version {
     this.screenShareMaxHeight,
     this.strongNoiseSuppression = false,
     this.membersCanInvite = false,
+    this.moduleMemberBadges = false,
+    this.moduleProfileSections = true,
     this.canvasScopedClear,
     this.maxAttachmentBytes,
     this.capabilities,
@@ -107,6 +109,12 @@ class Version {
 
   /// Whether any member may create invites; absent on older servers.
   final bool membersCanInvite;
+
+  /// Whether module badges show beside names in the member list; an admin's Space-wide choice.
+  final bool moduleMemberBadges;
+
+  /// Whether module sections show on profile cards; an admin's Space-wide choice.
+  final bool moduleProfileSections;
 
   /// Whether the canvas accepts a scoped clear. Null on a server older than this field, which [supportsPartialClear] answers from the version number.
   final bool? canvasScopedClear;
@@ -185,6 +193,8 @@ class Version {
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
         membersCanInvite: json['members_can_invite'] as bool? ?? false,
+        moduleMemberBadges: json['module_member_badges'] as bool? ?? false,
+        moduleProfileSections: json['module_profile_sections'] as bool? ?? true,
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.

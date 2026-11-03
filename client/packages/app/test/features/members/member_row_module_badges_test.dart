@@ -7,10 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
-import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane_rows.dart';
 import 'package:slimm_app/src/features/members/widgets/member_row_badges.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -54,7 +53,6 @@ Future<void> _pump(
   String role = 'Mod',
   bool shown = true,
 }) async {
-  SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: shown});
   // A fresh scope each time: an override change keeps the old notifier.
   await tester.pumpWidget(const SizedBox.shrink());
   tester.view.physicalSize = Size(width, 200);
@@ -67,6 +65,7 @@ Future<void> _pump(
           const Stream<api.ServerEvent>.empty(),
         ),
         moduleBadgesProvider.overrideWith((ref) => _Badges(ref, badges)),
+        moduleMemberBadgesShownProvider.overrideWithValue(shown),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),

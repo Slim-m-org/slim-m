@@ -179,6 +179,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CallRingEnded { .. }
         // A category grants and denies nothing (docs/decisions/0006).
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         // A report being filed or resolved changes no permission's answer either.
         | Event::ReportsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
@@ -264,6 +265,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::ChannelUpdated(..)
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
+        | Event::SpaceSettingsChanged
         | Event::Canvas(CanvasEvent::ObjectPlaced { .. })
         | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
         | Event::Canvas(CanvasEvent::Cleared { .. })

@@ -7,7 +7,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
-import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 
 import '../ui_snapshot_support.dart';
 
@@ -34,11 +34,6 @@ class _Badges extends ModuleBadgesController {
   void request(String id) {}
 }
 
-class _On extends ModuleMemberBadgeSettings {
-  @override
-  bool build() => true;
-}
-
 void main() {
   setUpAll(loadRealFonts);
 
@@ -52,7 +47,7 @@ void main() {
         (t) => 'member-drawer-badges-$viewport-$t',
         overrides: [
           moduleBadgesProvider.overrideWith((ref) => _Badges(ref)),
-          moduleMemberBadgeSettingsProvider.overrideWith(_On.new),
+          moduleMemberBadgesShownProvider.overrideWithValue(true),
         ],
         afterSettle: (tester) async {
           await tester.tap(find.byTooltip('Members'));

@@ -50,5 +50,6 @@
   "{\"type\":\"join_gate.changed\",\"user_id\":\"BOB\"}",
   "{\"type\":\"member.joined\",\"user_id\":\"01900000-0000-7000-8000-000000000008\"}",
   "{\"type\":\"profile.changed\",\"user_id\":\"BOB\"}",
-  "{\"type\":\"reports.changed\"}"
+  "{\"type\":\"reports.changed\"}",
+  "{\"type\":\"space.settings_changed\"}"
 ]

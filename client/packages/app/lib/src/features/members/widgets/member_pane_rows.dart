@@ -24,7 +24,7 @@ import '../providers/status_text.dart';
 import 'member_profile.dart';
 import 'member_row_badges.dart';
 import 'module_row_badges.dart';
-import '../../modules/providers/module_member_badge_settings.dart';
+import '../../modules/providers/module_display_settings.dart';
 import '../../voice/providers/member_voice_channel.dart';
 import 'member_voice_chip.dart';
 import 'user_avatar.dart';
@@ -130,7 +130,7 @@ class MemberRow extends ConsumerWidget {
     final badge = _badgeLabel(displayed);
     ref.read(moduleBadgesProvider.notifier).request(profile.id);
     // Scoped to this member's own entry, and null while empty, so neither another member's badge nor a bare answer rebuilds this row.
-    final showModuleBadges = ref.watch(moduleMemberBadgeSettingsProvider);
+    final showModuleBadges = ref.watch(moduleMemberBadgesShownProvider);
     final moduleBadges = visibleModuleBadges(
       !showModuleBadges
           ? null

@@ -11522,6 +11522,16 @@ components:
           description: >
             Whether any member, not only holders of CREATE_INVITE, may create
             invites. Absent on older servers, which a client reads as false.
+        module_member_badges:
+          type: boolean
+          description: >
+            Whether module badges show beside names in the member list, for
+            everyone. Off by default; absent on older servers, read as false.
+        module_profile_sections:
+          type: boolean
+          description: >
+            Whether module sections show on profile cards, for everyone. On
+            by default; absent on older servers, read as true.
         canvas_scoped_clear:
           type: boolean
           description: >
@@ -12253,6 +12263,12 @@ components:
         members_can_invite:
           type: boolean
           description: Whether every member may create invites; see `/version`.
+        module_member_badges:
+          type: boolean
+          description: See `/version`.
+        module_profile_sections:
+          type: boolean
+          description: See `/version`.
         welcome_enabled:
           type: boolean
           description: Whether a welcome message is posted when someone joins. Off by default.
@@ -12325,6 +12341,10 @@ components:
         strong_noise_suppression:
           type: boolean
         members_can_invite:
+          type: boolean
+        module_member_badges:
+          type: boolean
+        module_profile_sections:
           type: boolean
         welcome_enabled:
           type: boolean
@@ -18273,6 +18293,7 @@ components:
         - $ref: "#/components/schemas/ChannelDeleted"
         - $ref: "#/components/schemas/OverwriteChanged"
         - $ref: "#/components/schemas/CategoryChanged"
+        - $ref: "#/components/schemas/SpaceSettingsChanged"
         - $ref: "#/components/schemas/VoiceActivityChanged"
         - $ref: "#/components/schemas/VoiceParticipantJoined"
         - $ref: "#/components/schemas/VoiceParticipantLeft"
@@ -19578,6 +19599,17 @@ components:
         type:
           type: string
           enum: [category.changed]
+
+    SpaceSettingsChanged:
+      type: object
+      required: [type]
+      description: >
+        A Space-wide display setting changed. Carries no fields; a receiving
+        client re-reads `/version`, which every member can read.
+      properties:
+        type:
+          type: string
+          enum: [space.settings_changed]
 
     ReportsChanged:
       type: object

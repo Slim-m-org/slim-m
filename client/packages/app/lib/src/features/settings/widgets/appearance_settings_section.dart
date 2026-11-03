@@ -13,6 +13,7 @@ import '../../../providers/providers.dart';
 import 'background_settings_card.dart';
 import 'display_settings_section.dart';
 import '../providers/display_density.dart';
+import 'module_display_card.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_slider_row.dart';
@@ -31,6 +32,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
         const BackgroundSettingsCard(),
         const DisplaySettingsSection(),
         _textAndLayoutCard(ref),
+        const ModuleDisplayCard(),
       ],
     );
   }

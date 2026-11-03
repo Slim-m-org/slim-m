@@ -27,6 +27,8 @@ extension SlimmApiSpace on SlimmApi {
       :description,
       :strongNoiseSuppression,
       :membersCanInvite,
+      :moduleMemberBadges,
+      :moduleProfileSections,
       :welcomeEnabled,
       :welcomeChannelId,
       :welcomeMessage,
@@ -38,6 +40,8 @@ extension SlimmApiSpace on SlimmApi {
           description != null ||
           strongNoiseSuppression != null ||
           membersCanInvite != null ||
+          moduleMemberBadges != null ||
+          moduleProfileSections != null ||
           welcomeEnabled != null ||
           welcomeChannelId != null ||
           welcomeMessage != null,
@@ -54,6 +58,10 @@ extension SlimmApiSpace on SlimmApi {
         if (strongNoiseSuppression != null)
           'strong_noise_suppression': strongNoiseSuppression,
         if (membersCanInvite != null) 'members_can_invite': membersCanInvite,
+        if (moduleMemberBadges != null)
+          'module_member_badges': moduleMemberBadges,
+        if (moduleProfileSections != null)
+          'module_profile_sections': moduleProfileSections,
         if (welcomeEnabled != null) 'welcome_enabled': welcomeEnabled,
         if (welcomeChannelId != null) 'welcome_channel_id': welcomeChannelId,
         if (welcomeMessage != null) 'welcome_message': welcomeMessage,

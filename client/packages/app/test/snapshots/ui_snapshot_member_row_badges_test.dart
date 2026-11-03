@@ -7,11 +7,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/module_badges.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane_rows.dart';
-import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -53,9 +52,6 @@ class _Badges extends ModuleBadgesController {
 
 void main() {
   setUpAll(loadRealFonts);
-  setUp(
-    () => SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: true}),
-  );
 
   for (final brightness in Brightness.values) {
     for (final (label, width) in [('pane', 236.0), ('phone', 390.0)]) {
@@ -69,6 +65,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              moduleMemberBadgesShownProvider.overrideWithValue(true),
               liveEventsProvider.overrideWithValue(
                 const Stream<api.ServerEvent>.empty(),
               ),

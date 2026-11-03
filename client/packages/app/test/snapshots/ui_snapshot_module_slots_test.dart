@@ -12,12 +12,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/module_profile_slots.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/features/members/widgets/module_profile_slots.dart';
-import 'package:slimm_app/src/features/modules/providers/module_member_badge_settings.dart';
+import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -94,9 +93,6 @@ Future<void> _theme(
 
 void main() {
   setUpAll(loadRealFonts);
-  setUp(
-    () => SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: true}),
-  );
 
   for (final MapEntry(key: name, value: width) in _viewports.entries) {
     for (final dark in [false, true]) {
@@ -178,6 +174,7 @@ void main() {
           dark,
           ProviderScope(
             overrides: [
+              moduleMemberBadgesShownProvider.overrideWithValue(true),
               sessionProvider.overrideWithValue(
                 api.SessionStore(tokens: _tokens),
               ),
