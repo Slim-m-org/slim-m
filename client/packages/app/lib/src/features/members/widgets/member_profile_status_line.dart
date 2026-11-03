@@ -43,53 +43,8 @@ class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final presence = widget.presence;
-    final word = presence.word;
-    final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
-    final status = widget.statusText;
+    if (!widget.editable) return _line(tokens, false);
     final touch = MediaQuery.sizeOf(context).width < kCompactWidth;
-
-    Widget line(bool showPencil) => Row(
-      spacing: AppSpacing.s8,
-      children: [
-        if (word != null)
-          PresenceIndicator(
-            presence: presence,
-            size: 8,
-            backgroundColor: tokens.surfaceRaised,
-          ),
-        Text(_sentenceCase(word), style: secondary),
-        if (status != null) Text('-', style: secondary),
-        if (status != null)
-          Flexible(
-            child: Text(
-              status,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: tokens.textPrimary),
-            ),
-          )
-        else if (widget.editable)
-          Text(
-            'Set a status',
-            style: secondary.copyWith(fontStyle: FontStyle.italic),
-          ),
-        if (widget.editable)
-          Opacity(
-            key: statusEditPencilKey,
-            opacity: showPencil ? 1 : 0,
-            child: ExcludeSemantics(
-              child: Icon(
-                AppIcons.edit,
-                size: AppSizes.icon12,
-                color: tokens.textSecondary,
-              ),
-            ),
-          ),
-      ],
-    );
-
-    if (!widget.editable) return line(false);
     return PresenceMenuAnchor(
       targetAnchor: Alignment.bottomLeft,
       followerAnchor: Alignment.topLeft,
@@ -127,7 +82,7 @@ class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   heightFactor: 1,
-                  child: line(touch || _hovered || _focused),
+                  child: _line(tokens, touch || _hovered || _focused),
                 ),
               ),
             ),
@@ -136,6 +91,62 @@ class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
       ),
     );
   }
+
+  Widget _line(AppTokens tokens, bool showPencil) {
+    final presence = widget.presence;
+    final word = presence.word;
+    final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
+    return Row(
+      spacing: AppSpacing.s8,
+      children: [
+        if (word != null)
+          PresenceIndicator(
+            presence: presence,
+            size: 8,
+            backgroundColor: tokens.surfaceRaised,
+          ),
+        Text(_sentenceCase(word), style: secondary),
+        ..._statusText(tokens, secondary),
+        if (widget.editable) _pencil(tokens, showPencil),
+      ],
+    );
+  }
+
+  List<Widget> _statusText(AppTokens tokens, TextStyle secondary) {
+    final status = widget.statusText;
+    if (status != null) {
+      return [
+        Text('-', style: secondary),
+        Flexible(
+          child: Text(
+            status,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: tokens.textPrimary),
+          ),
+        ),
+      ];
+    }
+    if (!widget.editable) return const [];
+    return [
+      Text(
+        'Set a status',
+        style: secondary.copyWith(fontStyle: FontStyle.italic),
+      ),
+    ];
+  }
+
+  Widget _pencil(AppTokens tokens, bool showPencil) => Opacity(
+    key: statusEditPencilKey,
+    opacity: showPencil ? 1 : 0,
+    child: ExcludeSemantics(
+      child: Icon(
+        AppIcons.edit,
+        size: AppSizes.icon12,
+        color: tokens.textSecondary,
+      ),
+    ),
+  );
 }
 
 String _sentenceCase(String? word) => word == null || word.isEmpty

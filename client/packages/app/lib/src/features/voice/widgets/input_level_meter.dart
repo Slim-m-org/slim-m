@@ -81,22 +81,36 @@ class InputLevelMeter extends StatelessWidget {
     );
   }
 
+  void _nudge(double db) => onChanged?.call(
+    (thresholdDb + db).clamp(kInputFloorDb, 0.0).roundToDouble(),
+  );
+
+  void _dragTo(double dx, double width) {
+    final change = onChanged;
+    if (change == null || width <= 0) return;
+    final db = kInputFloorDb - kInputFloorDb * (dx / width);
+    change(db.clamp(kInputFloorDb, 0.0).roundToDouble());
+  }
+
+  KeyEventResult _onKey(KeyEvent event) {
+    if (event is KeyUpEvent || onChanged == null) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final up =
+        key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowUp;
+    final down =
+        key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowDown;
+    if (!up && !down) return KeyEventResult.ignored;
+    _nudge(up ? 1 : -1);
+    return KeyEventResult.handled;
+  }
+
   Widget _bar(BuildContext context, AppTokens tokens) {
     return LayoutBuilder(
       builder: (context, box) {
         final width = box.maxWidth;
-        final lineX = inputLevelFraction(thresholdDb) * width;
-        void dragTo(double dx) {
-          final change = onChanged;
-          if (change == null || width <= 0) return;
-          final db = kInputFloorDb - kInputFloorDb * (dx / width);
-          change(db.clamp(kInputFloorDb, 0.0).roundToDouble());
-        }
-
-        void nudge(double db) => onChanged?.call(
-          (thresholdDb + db).clamp(kInputFloorDb, 0.0).roundToDouble(),
-        );
-
+        final adjustable = onChanged != null;
         return Semantics(
           label: semanticLabel,
           value: auto
@@ -105,70 +119,58 @@ class InputLevelMeter extends StatelessWidget {
           slider: true,
           increasedValue: '${(thresholdDb + 1).round()} dB',
           decreasedValue: '${(thresholdDb - 1).round()} dB',
-          onIncrease: onChanged == null ? null : () => nudge(1),
-          onDecrease: onChanged == null ? null : () => nudge(-1),
+          onIncrease: adjustable ? () => _nudge(1) : null,
+          onDecrease: adjustable ? () => _nudge(-1) : null,
           child: ExcludeSemantics(
             child: Focus(
-              canRequestFocus: onChanged != null,
-              onKeyEvent: (_, event) {
-                if (event is KeyUpEvent || onChanged == null) {
-                  return KeyEventResult.ignored;
-                }
-                final key = event.logicalKey;
-                if (key == LogicalKeyboardKey.arrowRight ||
-                    key == LogicalKeyboardKey.arrowUp) {
-                  nudge(1);
-                  return KeyEventResult.handled;
-                }
-                if (key == LogicalKeyboardKey.arrowLeft ||
-                    key == LogicalKeyboardKey.arrowDown) {
-                  nudge(-1);
-                  return KeyEventResult.handled;
-                }
-                return KeyEventResult.ignored;
-              },
+              canRequestFocus: adjustable,
+              onKeyEvent: (_, event) => _onKey(event),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTapDown: (d) => dragTo(d.localPosition.dx),
-                onHorizontalDragUpdate: (d) => dragTo(d.localPosition.dx),
+                onTapDown: (d) => _dragTo(d.localPosition.dx, width),
+                onHorizontalDragUpdate: (d) =>
+                    _dragTo(d.localPosition.dx, width),
                 child: SizedBox(
                   height: _hitHeight,
-                  child: Stack(
-                    alignment: Alignment.centerLeft,
-                    clipBehavior: Clip.none,
-                    children: [
-                      _Track(
-                        width: width,
-                        lineX: lineX,
-                        levelDb: levelDb,
-                        dimmed: status == InputLevelStatus.muted,
-                      ),
-                      AnimatedPositioned(
-                        duration: AppMotion.fast,
-                        curve: Curves.easeOut,
-                        left: lineX - 2,
-                        top: 0,
-                        bottom: 0,
-                        child: Container(
-                          key: const ValueKey('input-threshold-line'),
-                          width: 4,
-                          decoration: BoxDecoration(
-                            color: auto
-                                ? tokens.textSecondary
-                                : tokens.textPrimary,
-                            borderRadius: BorderRadius.circular(2),
-                            border: Border.all(color: tokens.surfaceBase),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: _trackWithLine(tokens, width),
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _trackWithLine(AppTokens tokens, double width) {
+    final lineX = inputLevelFraction(thresholdDb) * width;
+    return Stack(
+      alignment: Alignment.centerLeft,
+      clipBehavior: Clip.none,
+      children: [
+        _Track(
+          width: width,
+          lineX: lineX,
+          levelDb: levelDb,
+          dimmed: status == InputLevelStatus.muted,
+        ),
+        AnimatedPositioned(
+          duration: AppMotion.fast,
+          curve: Curves.easeOut,
+          left: lineX - 2,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            key: const ValueKey('input-threshold-line'),
+            width: 4,
+            decoration: BoxDecoration(
+              color: auto ? tokens.textSecondary : tokens.textPrimary,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: tokens.surfaceBase),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

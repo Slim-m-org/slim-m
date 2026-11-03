@@ -361,45 +361,9 @@ class _CallControlsState extends ConsumerState<CallControls> {
   List<ControlOptionEntry> _shareOptions(BuildContext context) {
     final actions = <ControlOptionEntry>[
       if (widget.voice.screenSharing && _canSwitchSource)
-        ControlOption(
-          label: 'Switch screen...',
-          icon: AppIcons.screenShareSwitch,
-          onSelected: () {
-            if (_shareRequestInFlight) return;
-            unawaited(_changeSource(context));
-          },
-        ),
-      if (widget.voice.shareAudio != ShareAudio.none)
-        ControlOption(
-          label: widget.voice.shareAudio == ShareAudio.on
-              ? 'Mute shared audio'
-              : 'Unmute shared audio',
-          icon: widget.voice.shareAudio == ShareAudio.on
-              ? AppIcons.speakerOff
-              : AppIcons.speaker,
-          onSelected: () => unawaited(
-            widget.controller.share.setScreenShareAudioOn(
-              widget.voice.shareAudio == ShareAudio.muted,
-            ),
-          ),
-        ),
-      if (ref.watch(screenOverlaySupportedProvider))
-        ControlOption(
-          label: 'Viewers draw on my screen',
-          icon: AppIcons.pen,
-          selected: ref
-              .watch(voiceSettingsControllerProvider)
-              .screenShareAllowAnnotations,
-          onSelected: () => unawaited(
-            ref
-                .read(voiceSettingsControllerProvider.notifier)
-                .setScreenShareAllowAnnotations(
-                  !ref
-                      .read(voiceSettingsControllerProvider)
-                      .screenShareAllowAnnotations,
-                ),
-          ),
-        ),
+        _switchScreenOption(context),
+      if (widget.voice.shareAudio != ShareAudio.none) _shareAudioOption(),
+      if (ref.watch(screenOverlaySupportedProvider)) _annotationOption(),
     ];
     return [
       ...actions,
@@ -407,18 +371,59 @@ class _CallControlsState extends ConsumerState<CallControls> {
       ...videoQualityOptions(ref),
       if (widget.voice.screenSharing && _canSwitchSource) ...[
         const ControlOptionDivider(),
-        ControlOption(
-          label: 'Stop sharing',
-          icon: AppIcons.screenShareStop,
-          tone: AppMenuItemTone.danger,
-          onSelected: () {
-            if (_shareRequestInFlight) return;
-            unawaited(_share(context));
-          },
-        ),
+        _stopSharingOption(context),
       ],
     ];
   }
+
+  ControlOption _switchScreenOption(BuildContext context) => ControlOption(
+    label: 'Switch screen...',
+    icon: AppIcons.screenShareSwitch,
+    onSelected: () {
+      if (_shareRequestInFlight) return;
+      unawaited(_changeSource(context));
+    },
+  );
+
+  ControlOption _shareAudioOption() {
+    final audioOn = widget.voice.shareAudio == ShareAudio.on;
+    return ControlOption(
+      label: audioOn ? 'Mute shared audio' : 'Unmute shared audio',
+      icon: audioOn ? AppIcons.speakerOff : AppIcons.speaker,
+      onSelected: () => unawaited(
+        widget.controller.share.setScreenShareAudioOn(
+          widget.voice.shareAudio == ShareAudio.muted,
+        ),
+      ),
+    );
+  }
+
+  ControlOption _annotationOption() => ControlOption(
+    label: 'Viewers draw on my screen',
+    icon: AppIcons.pen,
+    selected: ref
+        .watch(voiceSettingsControllerProvider)
+        .screenShareAllowAnnotations,
+    onSelected: () => unawaited(
+      ref
+          .read(voiceSettingsControllerProvider.notifier)
+          .setScreenShareAllowAnnotations(
+            !ref
+                .read(voiceSettingsControllerProvider)
+                .screenShareAllowAnnotations,
+          ),
+    ),
+  );
+
+  ControlOption _stopSharingOption(BuildContext context) => ControlOption(
+    label: 'Stop sharing',
+    icon: AppIcons.screenShareStop,
+    tone: AppMenuItemTone.danger,
+    onSelected: () {
+      if (_shareRequestInFlight) return;
+      unawaited(_share(context));
+    },
+  );
 
   Future<void> _share(BuildContext context) async {
     final voice = widget.voice;

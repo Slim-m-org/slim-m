@@ -23,6 +23,8 @@ import 'call_device_options.dart';
 /// The voice settings pane the menu's last row opens.
 const voiceSettingsPane = 'voice';
 
+const _noiseSuppression = 'Noise suppression';
+
 class MicOptionsMenu extends ConsumerStatefulWidget {
   const MicOptionsMenu({
     super.key,
@@ -129,9 +131,9 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
           ),
         if (controller.input.supportsInputGate) ...[
           ...collapsibleOptions(
-            heading: 'Noise suppression',
-            expanded: _expanded.contains('Noise suppression'),
-            onToggle: _toggle('Noise suppression'),
+            heading: _noiseSuppression,
+            expanded: _expanded.contains(_noiseSuppression),
+            onToggle: _toggle(_noiseSuppression),
             options: [
               for (final choice in NoiseSuppressionChoice.offered(
                 supported: ref.watch(strongestSupportedProvider),
