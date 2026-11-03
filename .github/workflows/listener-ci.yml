@@ -37,12 +37,12 @@ jobs:
         working-directory: crates/slimm-listener
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository, and cmake for whisper.cpp
+      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository, and cmake for whisper.cpp, glib for webrtc-sys
         run: |
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake clang-21 libclang-21-dev
+          sudo apt-get install -y --no-install-recommends clang-21 cmake libclang-21-dev libglib2.0-dev
           {
             echo "CC=clang-21"
             echo "CXX=clang++-21"
@@ -58,12 +58,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository, and cmake for whisper.cpp
+      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository, and cmake for whisper.cpp, glib for webrtc-sys
         run: |
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake clang-21 libclang-21-dev python3
+          sudo apt-get install -y --no-install-recommends clang-21 cmake libclang-21-dev libglib2.0-dev python3
           {
             echo "CC=clang-21"
             echo "CXX=clang++-21"
@@ -74,7 +74,7 @@ jobs:
           docker run -d --name livekit --network host livekit/livekit-server:v1.13.11 --dev --bind 127.0.0.1
       - name: the tiny English model, checked against its pinned sha256
         run: |
-          curl -fsSL -o tiny.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-tiny.en.bin
+          curl --proto '=https' --tlsv1.2 -fsSL -o tiny.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-tiny.en.bin
           echo "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f  tiny.en.bin" | sha256sum --check
       - name: the real room test
         working-directory: crates/slimm-listener

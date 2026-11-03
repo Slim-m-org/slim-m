@@ -4,11 +4,12 @@
 # a non-root user with a read-only root; the only writable place is /models,
 # where the speech model is downloaded once and checked against a pinned sha256.
 
-FROM rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS builder
+# rust 1.97.1 on bookworm, pinned by digest alone so the tag cannot disagree with it.
+FROM rust@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS builder
 # libwebrtc's build needs clang 21, newer than the base image's, so it comes from LLVM's own signed apt repository.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends cmake pkg-config libssl-dev gnupg \
-    && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
+    && apt-get install -y --no-install-recommends cmake gnupg libglib2.0-dev libssl-dev pkg-config \
+    && curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main" > /etc/apt/sources.list.d/llvm.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends clang-21 libclang-21-dev \
@@ -18,7 +19,7 @@ WORKDIR /build
 COPY crates/slimm-listener/ .
 RUN cargo build --locked --release --bin slimm-listener
 
-FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
+FROM debian@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl libssl3 libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
