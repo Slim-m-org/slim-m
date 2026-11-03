@@ -372,6 +372,7 @@ Where the build differs from, or adds to, the design above.
 - The server pings the listener every 2 s, and the listener treats 5 quiet seconds as a lost connection.
 - The listener's token comes from the server's `VoiceService`, with a `hidden` grant added.
 - Measured on the owner's machine (Ryzen 9 9950X3D, release build, base model, 4 workers): four speakers in turn, 7 s of speech each, text arrived 2.6 s after the speaker stopped at the 95th percentile (600 ms of that is the endpointer waiting for silence), and the process peaked at 582 MB resident.
+- That was speakers in turn; on 2026-11-02 four people speaking at once filled all four workers and peaked at 964 MiB (docs/research/call-audio-real-speech-2026-11-02.md), so the compose limit is 1536M, not 1G.
 - The transcript module also asks for `message.post`, since posting as itself needs it, and runs its timer every 15 minutes so a silent call is posted soon.
 
 ## Open questions for the owner
