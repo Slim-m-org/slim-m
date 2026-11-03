@@ -133,8 +133,10 @@ serve_web() {
     # Flutter copies web/ into build/web once and never re-syncs a new file into it.
     rm -rf "$web_dir"
     # Bundled canvaskit: the default fetches it from gstatic, which failed once on a runner and left a blank page.
-    ( cd "$ROOT/client/packages/app" && flutter build web --release --no-web-resources-cdn )
+    ( cd "$ROOT/client/packages/app" && flutter build web --release --no-web-resources-cdn --source-maps )
   fi
+  # Kept with the evidence so a console stack from CI can be mapped back to Dart.
+  if [[ -f "$web_dir/main.dart.js.map" ]]; then mkdir -p "$WORK/shots" && cp "$web_dir/main.dart.js.map" "$WORK/shots/"; fi
   if [[ "$web_dir" != "$tree_web" && -n "${E2E_REBUILD:-}" ]]; then
     echo "E2E_REBUILD is ignored: E2E_WEB_DIR is a prebuilt bundle and is never rebuilt"
   fi

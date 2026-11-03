@@ -77,10 +77,10 @@ Future<GoRouter> _pump(
 const _mod = api.UserProfile(
   id: 'ada',
   username: 'ada',
-  displayName: 'Bartholomew Featherstonehaugh',
+  displayName: 'Bartholomew',
   createdAt: 0,
   roleIds: ['r'],
-  roles: ['Moderator'],
+  roles: ['Mod'],
 );
 
 Future<void> _pumpAt(WidgetTester tester, double width) async {

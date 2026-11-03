@@ -22,6 +22,7 @@ import '../providers/presence_activity.dart';
 import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_profile.dart';
+import 'member_row_badges.dart';
 import 'module_row_badges.dart';
 import '../../modules/providers/module_member_badge_settings.dart';
 import '../../voice/providers/member_voice_channel.dart';
@@ -184,6 +185,10 @@ class MemberRow extends ConsumerWidget {
           moduleBadges,
           displayed.isBot,
           box.maxWidth,
+          memberRowBadgeRoom(
+            box.maxWidth,
+            _nameWidth(context, displayed.displayName),
+          ),
           inVoice: inVoice,
           chipTappable: !selecting,
         ),
@@ -227,13 +232,15 @@ class MemberRow extends ConsumerWidget {
     String? label,
     List<api.ModuleBadge> moduleBadges,
     bool isBot,
-    double rowWidth, {
+    double rowWidth,
+    double badgeRoom, {
     required bool inVoice,
     required bool chipTappable,
   }) {
+    final voiceCap = inVoice ? rowWidth * 0.25 : 0.0;
     final badge = inVoice && !isBot && rowWidth < _badgeAndChipMinRow
         ? null
-        : _badge(label, moduleBadges, isBot, rowWidth);
+        : _badge(label, moduleBadges, isBot, badgeRoom - voiceCap);
     if (!inVoice) return badge;
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -260,32 +267,32 @@ class MemberRow extends ConsumerWidget {
     String? label,
     List<api.ModuleBadge> moduleBadges,
     bool isBot,
-    double rowWidth,
+    double room,
   ) {
-    if (label == null && moduleBadges.isEmpty) return null;
+    if (room <= 0 || (label == null && moduleBadges.isEmpty)) return null;
     final variant = isBot ? AppBadgeVariant.tag : AppBadgeVariant.role;
-    final chip = label == null
-        ? null
-        : AppBadge(variant: variant, label: label);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: rowWidth * 0.4),
-      child: moduleBadges.isEmpty
-          ? chip
-          : LayoutBuilder(
-              // A non-flex child is laid out unbounded, so cap the chip to the room itself.
-              builder: (context, box) => Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (chip != null)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: box.maxWidth),
-                      child: chip,
-                    ),
-                  Flexible(child: ModuleRowBadges(moduleBadges)),
-                ],
-              ),
-            ),
+    return MemberRowBadges(
+      maxWidth: room,
+      roleLabel: label,
+      roleChip: label == null ? null : AppBadge(variant: variant, label: label),
+      moduleBadges: moduleBadges,
     );
+  }
+
+  /// The name at its widest weight, so badges only take room the name never needs.
+  double _nameWidth(BuildContext context, String name) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: name,
+        style: AppText.ui.copyWith(fontWeight: AppWeights.medium),
+      ),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
   }
 }
 

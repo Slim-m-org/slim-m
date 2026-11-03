@@ -102,7 +102,6 @@ client/packages/app/test/features/auth/sign_in_screen_test.dart 1
 client/packages/app/test/sync/sync_controller_test.dart 4
 client/packages/app/test/features/settings/theme_preference_test.dart 4
 client/packages/app/test/features/channels/touch_targets_test.dart 1
-client/packages/app/test/ui_snapshot_support.dart 3
 client/packages/app/test/ui_snapshot_test.dart 1
 client/packages/app/test/features/voice/voice_broadcast_handoff_test.dart 1
 client/packages/app/test/features/voice/voice_screen_test.dart 3
