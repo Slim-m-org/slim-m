@@ -312,6 +312,7 @@ async fn set_permissions(
         Ok(bot) => {
             state.hub.publish(Event::RoleChanged {
                 role_id: current.id,
+                change: None,
             });
             Ok(Json(bot_dto(&state, bot)))
         }

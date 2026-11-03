@@ -19419,13 +19419,14 @@ components:
       required: [type, role_id]
       description: >
         A role was created, renamed, had its permission bits changed, or was
-        deleted. Carries only the id: the name and the bits are gated behind
-        MANAGE_ROLES over `GET /roles`, and this frame reaches every
-        connection regardless of whether they hold it, since a role's effect
-        on channel visibility is deployment-wide. A receiving client cannot
-        resolve what changed, only that it should re-ask what it is now
-        allowed to do (its own permissions and channel list, and its role
-        list if it manages roles).
+        deleted. Carries the role id and, when the change came through the
+        role routes, its name and member-visible look before and after
+        (name, colour, hoist, mentionable). The permission bits are gated
+        behind MANAGE_ROLES over `GET /roles` and never travel here; this
+        frame reaches every connection regardless of whether they hold it,
+        since a role's effect on channel visibility is deployment-wide. A
+        change with no `change` field (a reorder, a module permission) says
+        only that a client should re-ask what it is now allowed to do.
       properties:
         type:
           type: string
@@ -19437,10 +19438,37 @@ components:
         role_id:
           type: string
           format: uuid
+        change:
+          type: string
+          enum: [created, updated, deleted]
+          description: What happened, when known.
+        name:
+          type: string
+          description: The role's name after the change, or before a delete.
+        before:
+          $ref: '#/components/schemas/RoleLook'
+        after:
+          $ref: '#/components/schemas/RoleLook'
+
+    RoleLook:
+      type: object
+      required: [name, hoist, mentionable]
+      description: A role as a member sees it; never its permission bits.
+      properties:
+        name:
+          type: string
+        color:
+          type: integer
+          format: int64
+          nullable: true
+        hoist:
+          type: boolean
+        mentionable:
+          type: boolean
 
     MemberRoleChanged:
       type: object
-      required: [type, user_id, role_id]
+      required: [type, user_id, role_id, granted]
       description: >
         A role was granted to or revoked from a member. Carries both ids,
         which is no more than `GET /members` already publishes for any
@@ -19461,6 +19489,12 @@ components:
         role_id:
           type: string
           format: uuid
+        granted:
+          type: boolean
+          description: True when the role was granted, false when revoked.
+        role_name:
+          type: string
+          description: The role's name.
 
     ChannelCreated:
       type: object

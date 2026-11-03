@@ -164,7 +164,10 @@ async fn grant(
         .await
     {
         Ok(()) => {
-            state.hub.publish(Event::RoleChanged { role_id });
+            state.hub.publish(Event::RoleChanged {
+                role_id,
+                change: None,
+            });
             Ok(StatusCode::NO_CONTENT)
         }
         Err(GrantModulePermissionError::UnknownPermission) => Err(ApiError::NotFound(
@@ -192,6 +195,9 @@ async fn revoke(
         .store
         .revoke_module_permission(role_id, &module_id, &perm_key)
         .await?;
-    state.hub.publish(Event::RoleChanged { role_id });
+    state.hub.publish(Event::RoleChanged {
+        role_id,
+        change: None,
+    });
     Ok(StatusCode::NO_CONTENT)
 }

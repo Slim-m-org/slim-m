@@ -108,7 +108,10 @@ async fn reorder(
     match state.store.reorder_roles(&ordered).await {
         Ok(outcome) => {
             for role_id in &outcome.moved {
-                state.hub.publish(Event::RoleChanged { role_id: *role_id });
+                state.hub.publish(Event::RoleChanged {
+                    role_id: *role_id,
+                    change: None,
+                });
             }
             let with_counts = state.store.list_roles_with_member_counts().await?;
             Ok(Json(with_counts.into_iter().map(RoleDto::from).collect()))
