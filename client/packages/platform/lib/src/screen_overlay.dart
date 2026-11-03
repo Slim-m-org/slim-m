@@ -156,9 +156,9 @@ class OverlayNote extends OverlayShape {
 abstract class ScreenOverlay {
   Future<OverlaySupport> support();
 
-  /// Covers [monitor] (an index into [OverlaySupport.monitors]); false when
-  /// the window could not be made.
-  Future<bool> show(int monitor);
+  /// Covers each of [monitors] (indexes into [OverlaySupport.monitors]); false
+  /// when the window could not be made.
+  Future<bool> show(List<int> monitors);
 
   Future<void> draw(List<OverlayShape> shapes);
 
