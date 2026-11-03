@@ -136,3 +136,72 @@ fn an_empty_origin_list_is_read_as_an_empty_string_not_dropped() {
     let config: Config = envy::from_iter(env).expect("all other fields have defaults");
     assert_eq!(config.cors_allowed_origins.as_deref(), Some(""));
 }
+
+fn listener_config(url: Option<&str>, secret: Option<&str>) -> Config {
+    Config {
+        listener_url: url.map(str::to_owned),
+        listener_secret: secret.map(str::to_owned),
+        ..Config::default()
+    }
+}
+
+const GOOD_SECRET: &str = "0123456789abcdef0123456789abcdef";
+
+#[test]
+fn an_unset_listener_url_leaves_call_audio_off() {
+    assert_eq!(
+        listener_config(None, None).listener_settings().unwrap(),
+        None
+    );
+    assert_eq!(
+        listener_config(None, Some(GOOD_SECRET))
+            .listener_settings()
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn a_listener_url_needs_a_websocket_scheme_and_a_long_secret() {
+    let ok = listener_config(Some("ws://listener:9400/v1/control"), Some(GOOD_SECRET));
+    assert!(ok.listener_settings().unwrap().is_some());
+    for bad in [
+        "http://listener:9400",
+        "ws://public.example.com",
+        "nonsense",
+    ] {
+        let err = listener_config(Some(bad), Some(GOOD_SECRET)).listener_settings();
+        assert!(err.is_err(), "{bad} should be refused");
+    }
+    assert!(
+        listener_config(Some("ws://listener:9400"), None)
+            .listener_settings()
+            .is_err(),
+        "a secret is required with the URL"
+    );
+    assert!(
+        listener_config(Some("ws://listener:9400"), Some("short"))
+            .listener_settings()
+            .is_err(),
+        "31 characters or fewer is refused"
+    );
+}
+
+#[test]
+fn the_listener_dials_the_servers_livekit_unless_told_otherwise() {
+    let mut config = listener_config(Some("ws://listener:9400"), Some(GOOD_SECRET));
+    config.livekit_url = Some("wss://lk.example.com".into());
+    config.livekit_api_key = Some("k".into());
+    config.livekit_api_secret = Some("s".into());
+    let settings = config.listener_settings().unwrap().unwrap();
+    assert_eq!(
+        settings.livekit_url.as_deref(),
+        Some("wss://lk.example.com")
+    );
+    config.listener_livekit_url = Some("ws://10.0.0.100:7880".into());
+    let settings = config.listener_settings().unwrap().unwrap();
+    assert_eq!(
+        settings.livekit_url.as_deref(),
+        Some("ws://10.0.0.100:7880")
+    );
+}

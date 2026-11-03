@@ -77,12 +77,13 @@ mod diagnostics;
 mod direct_route;
 mod metrics;
 mod module_breaker;
+pub(crate) mod module_call_audio;
 mod module_caller;
 mod module_commands;
 pub mod module_compat;
-mod module_events;
+pub(crate) mod module_events;
 pub(crate) mod module_hooks;
-mod module_host;
+pub(crate) mod module_host;
 mod module_logs;
 mod module_net;
 mod module_run;
@@ -144,7 +145,7 @@ mod users;
 mod version;
 mod viewable_message;
 mod voice;
-use voice::{voice_calls, voice_ring, voice_rooms, voice_webhook};
+use voice::{voice_call_audio, voice_calls, voice_ring, voice_rooms, voice_webhook};
 mod watch_session;
 mod webhooks;
 mod webhooks_admin;
@@ -225,6 +226,7 @@ pub fn router(state: AppState) -> Router {
         .merge(attachment_limit::routes())
         .merge(media_compression::routes())
         .merge(module_schedule::routes())
+        .merge(module_call_audio::routes())
         .merge(module_hooks::routes())
         .merge(channel_retention::routes())
         .merge(apps::routes())
@@ -293,6 +295,7 @@ pub fn router(state: AppState) -> Router {
         .merge(interaction_forms::routes())
         .merge(message_components::routes())
         .merge(voice::routes())
+        .merge(voice_call_audio::routes())
         .merge(voice_calls::routes())
         .merge(voice_ring::routes())
         .merge(voice_rooms::routes())

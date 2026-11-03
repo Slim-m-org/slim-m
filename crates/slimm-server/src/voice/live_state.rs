@@ -145,6 +145,27 @@ impl RoomLiveState {
             && participant.screen_share_tracks.is_empty()
     }
 
+    /// Who a join webhook announced on `channel_id` and no leave has since removed.
+    pub fn present(&self, channel_id: ChannelId) -> Vec<UserId> {
+        let state = lock(&self.state);
+        let mut present: Vec<UserId> = state
+            .participants
+            .iter()
+            .filter(|((channel, _), entry)| *channel == channel_id && entry.announced)
+            .map(|((_, user), _)| *user)
+            .collect();
+        present.sort_by_key(ToString::to_string);
+        present
+    }
+
+    /// Whether a join webhook announced `user_id` on `channel_id`.
+    pub fn is_present(&self, channel_id: ChannelId, user_id: UserId) -> bool {
+        lock(&self.state)
+            .participants
+            .get(&(channel_id, user_id))
+            .is_some_and(|entry| entry.announced)
+    }
+
     /// Forgets everyone in a room LiveKit reports finished, so no entry
     /// outlives the room it was about.
     pub fn forget_room(&self, channel_id: ChannelId) {

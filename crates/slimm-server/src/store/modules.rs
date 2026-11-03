@@ -18,6 +18,7 @@ use crate::ids::{ChannelId, UserId};
 
 pub(super) mod hooks;
 pub(super) mod module_artifacts;
+mod module_call_audio;
 pub(super) mod module_health;
 pub(super) mod module_kv;
 mod module_metadata;

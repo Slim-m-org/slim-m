@@ -80,6 +80,8 @@ struct RawManifest {
     permission_hooks: Vec<hooks::RawPermissionHook>,
     #[serde(default)]
     data: Option<serde_json::Value>,
+    #[serde(default)]
+    call_audio: Option<call_audio::RawCallAudio>,
 }
 
 #[derive(Deserialize)]
@@ -199,6 +201,7 @@ pub(super) struct Manifest {
     pub(super) changelog: Vec<ChangelogEntry>,
     pub(super) platform: ModulePlatform,
     pub(super) data: Option<crate::module_runtime::DataSchema>,
+    pub(super) call_audio: Option<call_audio::ManifestCallAudio>,
     /// The text it was parsed from, kept so an install can be exported unchanged.
     pub(super) raw_json: String,
 }
@@ -283,6 +286,12 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         &capabilities,
     )?;
     settings::check_hosts_declared(&platform.settings_schema, &network.hosts)?;
+    let call_audio = call_audio::validate_call_audio(
+        raw.call_audio,
+        &capabilities,
+        i64::from(platform.addon_api),
+        &seen_keys,
+    )?;
 
     Ok(Manifest {
         id: raw.id,
@@ -303,6 +312,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
             .transpose()
             .map_err(|e| malformed(&e))?,
         platform,
+        call_audio,
         capabilities,
         extension_points,
         raw_json: String::new(),
@@ -497,6 +507,7 @@ fn is_sha256_hex(value: &str) -> bool {
 }
 
 mod artifact_path;
+pub(in crate::http) mod call_audio;
 mod changelog;
 pub(in crate::http) mod hooks;
 mod index;

@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+name: listener-ci
+
+# The call-audio listener (decision 0105) is its own Cargo workspace; see docs/ci.md.
+on:
+  pull_request:
+    paths:
+      - "crates/slimm-listener/**"
+      - "docker/listener*"
+      - "scripts/lib/make_fake_voice.py"
+      - ".github/workflows/listener-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "crates/slimm-listener/**"
+      - "docker/listener*"
+      - ".github/workflows/listener-ci.yml"
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listener-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: crates/slimm-listener
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository, and cmake for whisper.cpp
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake clang-21 libclang-21-dev
+          {
+            echo "CC=clang-21"
+            echo "CXX=clang++-21"
+            echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib"
+          } >> "$GITHUB_ENV"
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+
+  real-livekit:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository, and cmake for whisper.cpp
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake clang-21 libclang-21-dev python3
+          {
+            echo "CC=clang-21"
+            echo "CXX=clang++-21"
+            echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib"
+          } >> "$GITHUB_ENV"
+      - name: a development LiveKit server
+        run: |
+          docker run -d --name livekit --network host livekit/livekit-server:v1.13.11 --dev --bind 127.0.0.1
+      - name: the tiny English model, checked against its pinned sha256
+        run: |
+          curl -fsSL -o tiny.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-tiny.en.bin
+          echo "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f  tiny.en.bin" | sha256sum --check
+      - name: the real room test
+        working-directory: crates/slimm-listener
+        env:
+          LISTENER_REAL_LIVEKIT: ws://127.0.0.1:7880
+          LISTENER_TEST_MODEL: ${{ github.workspace }}/tiny.en.bin
+          LISTENER_TEST_WAV_SCRIPT: ${{ github.workspace }}/scripts/lib/make_fake_voice.py
+        run: cargo test --locked --test real_livekit -- --nocapture
+
+  image:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: docker/listener.Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

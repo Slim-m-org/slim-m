@@ -104,10 +104,21 @@ pub(super) struct ManifestDto {
     schedules: Vec<ScheduleDto>,
     /// What each version changed, newest first; empty when none is published.
     changelog: Vec<ChangelogEntryDto>,
+    /// The module's own words about what it does with a call it hears; shown at consent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    call_audio: Option<CallAudioDto>,
     /// Sent back with the install so consent is bound to what was reviewed.
     review_digest: String,
     #[serde(flatten)]
     platform: PlatformDto,
+}
+
+#[derive(Serialize)]
+struct CallAudioDto {
+    purpose: String,
+    keeps: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    permission: Option<String>,
 }
 
 /// The module-platform sections of decision 0091, each left out when unused so
@@ -233,6 +244,11 @@ impl From<Manifest> for ManifestDto {
                     changes: e.changes,
                 })
                 .collect(),
+            call_audio: m.call_audio.map(|c| CallAudioDto {
+                purpose: c.purpose,
+                keeps: c.keeps,
+                permission: c.permission,
+            }),
             platform: PlatformDto {
                 addon_api: m.platform.addon_api,
                 addon_api_max: m.platform.addon_api_max,

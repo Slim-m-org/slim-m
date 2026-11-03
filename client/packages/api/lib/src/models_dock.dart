@@ -233,6 +233,28 @@ List<DockSchedule> _schedules(Object? json) =>
 /// A module's full manifest, as `GET /space/dock/modules/{id}` returns it: the
 /// permissions it will add and the capabilities it asks for, shown before an
 /// admin ever installs it.
+/// A module's own words about the calls it hears (decision 0105), shown word
+/// for word at install and to everyone in a call before they agree.
+class DockCallAudio {
+  const DockCallAudio({
+    required this.purpose,
+    required this.keeps,
+    this.permission,
+  });
+
+  final String purpose;
+  final String keeps;
+
+  /// A permission key of the module a member needs to start a session.
+  final String? permission;
+
+  factory DockCallAudio.fromJson(Map<String, dynamic> json) => DockCallAudio(
+        purpose: json['purpose'] as String,
+        keeps: json['keeps'] as String,
+        permission: json['permission'] as String?,
+      );
+}
+
 class DockManifest {
   const DockManifest({
     required this.id,
@@ -254,7 +276,11 @@ class DockManifest {
     this.interceptors = const [],
     this.permissionHooks = const [],
     this.reviewDigest,
+    this.callAudio,
   });
+
+  /// What it does with a call it hears, in its own words; absent without `call.audio`.
+  final DockCallAudio? callAudio;
 
   /// Where it asks to stand in front of a message, and the permission checks it can deny.
   final List<DockHookDecl> interceptors;
@@ -347,6 +373,10 @@ class DockManifest {
         interceptors: dockHooks(json['interceptors']),
         permissionHooks: dockHooks(json['permission_hooks']),
         reviewDigest: json['review_digest'] as String?,
+        callAudio: json['call_audio'] == null
+            ? null
+            : DockCallAudio.fromJson(
+                json['call_audio'] as Map<String, dynamic>),
       );
 }
 

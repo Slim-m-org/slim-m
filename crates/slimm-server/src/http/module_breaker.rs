@@ -61,6 +61,12 @@ async fn count_failure(
         return Ok(());
     }
     tracing::warn!(module = %module.id, streak, "disabled a module after repeated failed runs");
+    crate::call_audio::runtime::end_module_sessions(
+        state,
+        &module.id,
+        crate::call_audio::session::EndReason::ModuleDisabled,
+    )
+    .await;
     if let Some(actor) = module.bot_user_id {
         let detail = json!({ "consecutive_failures": streak }).to_string();
         state

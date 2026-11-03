@@ -24,6 +24,9 @@ typedef DockCapability = ({
   String Function(List<String> details) warning,
 });
 
+/// The capability that lets a module hear voice calls as text (decision 0105).
+const dockCallAudioCapability = 'call.audio';
+
 /// The host capabilities the server can grant, in the order they are listed.
 /// Adding one is one entry here.
 final dockHostCapabilities = <String, DockCapability>{
@@ -65,6 +68,13 @@ final dockHostCapabilities = <String, DockCapability>{
     label: 'See call history',
     description: 'Reads when members join and leave voice calls.',
     warning: (_) => 'Can see when members join and leave voice calls.',
+  ),
+  dockCallAudioCapability: (
+    label: 'Hear voice calls',
+    description: 'Turns speech in calls into text for this module.',
+    warning: (_) =>
+        'Can hear voice calls in the channels you choose and turn what '
+        'people say into text it keeps. Everyone in a call is asked first.',
   ),
   'interceptors': (
     label: 'Check messages',

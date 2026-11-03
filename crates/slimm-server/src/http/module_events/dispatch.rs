@@ -66,6 +66,16 @@ async fn standing(state: &AppState, job: &Job) -> Standing {
     else {
         return Standing::Gone;
     };
+    if super::call_audio::is_call_audio(job.kind) {
+        let hears = module.enabled
+            && module.bot_user_id.is_some()
+            && crate::http::module_host::call_audio_approved(&module);
+        return if hears {
+            Standing::Receives(Box::new(module))
+        } else {
+            Standing::Gone
+        };
+    }
     if !(module.enabled && events_approved(&module) && module.bot_user_id.is_some()) {
         return Standing::Gone;
     }

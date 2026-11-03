@@ -246,6 +246,15 @@ pub(super) enum ServerFrame {
         user_id: String,
         is_sharing_screen: bool,
     },
+    /// A call-audio session changed, or ended when `state` is null; see
+    /// [`crate::hub::Event::CallAudioChanged`].
+    #[serde(rename = "voice.call_audio")]
+    VoiceCallAudio {
+        channel_id: String,
+        state: Option<Box<crate::call_audio::CallAudioView>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ended: Option<&'static str>,
+    },
     /// A DM call ring started; see [`crate::hub::Event::CallRinging`].
     #[serde(rename = "call.ringing")]
     CallRinging {

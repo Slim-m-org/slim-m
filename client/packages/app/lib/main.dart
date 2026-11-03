@@ -59,6 +59,7 @@ import 'src/widgets/ui_scale_frame.dart';
 import 'src/features/auth/widgets/client_too_old_gate.dart';
 import 'src/features/auth/widgets/server_identity_change_gate.dart';
 import 'src/features/voice/providers/voice_settings_controller.dart';
+import 'src/features/voice/widgets/call_audio_prompt.dart';
 import 'src/features/voice/widgets/incoming_call_overlay.dart';
 import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
@@ -486,6 +487,7 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
                     const Positioned.fill(child: WebUpdatePill()),
                     const Positioned.fill(child: AccountCallPill()),
                     const Positioned.fill(child: IncomingCallOverlay()),
+                    const Positioned.fill(child: CallAudioPrompt()),
                   ],
                 ),
               ),

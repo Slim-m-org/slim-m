@@ -34,6 +34,7 @@ import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_health.dart';
+import 'call_audio_banner.dart';
 import 'call_filmstrip.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
@@ -149,6 +150,8 @@ class CallStageLayout extends ConsumerWidget {
             ),
           // A live share has no banner: the share control and the stage caption say it (decision 0047, point 8).
           if (voice.awaitingBroadcast) const LocalScreenSharePendingBanner(),
+          if (!isDm && voice.channelId != null)
+            CallAudioBanner(channelId: voice.channelId!),
           if (voice.error != null && !voice.rejoining && !voice.reconnecting)
             StatusBanner(
               severity: BannerSeverity.error,

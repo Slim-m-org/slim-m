@@ -377,6 +377,21 @@ class VoiceScreenShareChanged extends ServerEvent {
   final bool isSharingScreen;
 }
 
+/// A module started hearing, or asking to hear, [channelId]'s call, or the
+/// session ended when [state] is null. [ended] then says how (`declined`,
+/// `lapsed`, `stopped`, ...) and never says who declined.
+class VoiceCallAudioChanged extends ServerEvent {
+  const VoiceCallAudioChanged({
+    required this.channelId,
+    required this.state,
+    this.ended,
+  });
+
+  final String channelId;
+  final CallAudioState? state;
+  final String? ended;
+}
+
 /// A DM call ring started. [callerId] is who is calling; the receiving
 /// account is always the other participant of [channelId]'s DM, so this
 /// reaches only the two of them.

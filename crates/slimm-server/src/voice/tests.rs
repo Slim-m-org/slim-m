@@ -331,3 +331,48 @@ async fn the_room_service_client_does_not_follow_a_redirect() {
         "the token never left for the redirect target"
     );
 }
+
+#[test]
+fn the_listener_token_is_hidden_room_scoped_and_listen_only() {
+    let channel = ChannelId::generate();
+    let session = uuid::Uuid::now_v7();
+    let minted = service()
+        .mint_listener(channel, session, Some("ws://10.0.0.100:7880"))
+        .expect("an enabled service mints");
+    let claims = decode_payload(&minted.token);
+    assert_eq!(claims["sub"], format!("listener-{session}"));
+    assert_eq!(claims["video"]["room"], room_for_channel(channel));
+    assert_eq!(claims["video"]["hidden"], true);
+    assert_eq!(claims["video"]["canSubscribe"], true);
+    assert_eq!(claims["video"]["canPublish"], false);
+    assert_eq!(claims["video"]["canPublishData"], false);
+    assert_eq!(claims["video"]["roomAdmin"], false);
+    let lifetime = claims["exp"].as_u64().unwrap() - claims["nbf"].as_u64().unwrap();
+    assert_eq!(lifetime, 120);
+    assert_eq!(minted.url, "ws://10.0.0.100:7880");
+    assert!(
+        claims["sub"]
+            .as_str()
+            .unwrap()
+            .parse::<uuid::Uuid>()
+            .is_err(),
+        "never parses as a user id"
+    );
+}
+
+#[test]
+fn an_ordinary_token_is_not_hidden() {
+    let minted = service()
+        .mint(
+            ChannelId::generate(),
+            UserId::generate(),
+            Permissions::ALL,
+            "a",
+        )
+        .unwrap();
+    assert!(
+        decode_payload(&minted.token)["video"]
+            .get("hidden")
+            .is_none()
+    );
+}

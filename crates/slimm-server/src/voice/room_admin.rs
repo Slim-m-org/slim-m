@@ -172,6 +172,7 @@ impl VoiceService {
                     can_publish: false,
                     can_publish_data: false,
                     can_update_own_metadata: false,
+                    hidden: false,
                 },
             },
         )

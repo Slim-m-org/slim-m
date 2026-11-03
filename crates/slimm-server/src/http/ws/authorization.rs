@@ -197,10 +197,16 @@ async fn channel_frame(
     cache: &mut PermissionCache,
     event: Event,
 ) -> Authorization {
-    let event = match super::canvas_frames::to_frame(event) {
+    let mut event = match super::canvas_frames::to_frame(event) {
         Ok(frame) => return Authorization::Deliver(Box::new(frame)),
         Err(event) => *event,
     };
+    if let Event::CallAudioChanged {
+        state: Some(view), ..
+    } = &mut event
+    {
+        view.hide_hidden(store, hub, ctx.user_id).await;
+    }
     Authorization::Deliver(Box::new(match event {
         created @ Event::Message(MessageEvent::Created { .. }) => {
             match super::message_frames::created_from_event(
@@ -403,6 +409,15 @@ async fn channel_frame(
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
             is_sharing_screen,
+        },
+        Event::CallAudioChanged {
+            channel_id,
+            state,
+            ended,
+        } => ServerFrame::VoiceCallAudio {
+            channel_id: channel_id.to_string(),
+            state,
+            ended,
         },
         Event::WatchTick {
             channel_id,

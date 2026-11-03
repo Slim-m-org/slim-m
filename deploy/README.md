@@ -154,6 +154,47 @@ It also carries a `build_id`, the short git SHA the image was built from, which 
 A build made without one (a local `cargo run`, or `docker build` with no `SLIMM_BUILD_ID` build arg) leaves the field out.
 Without the voice overlay it simply has no SFU, which is the expected answer rather than a fault.
 
+## Call audio (optional, off by default)
+
+A module with the `call.audio` power can turn a voice call into text.
+It never gets the audio.
+A separate service, the listener, joins the call as a hidden participant that can only listen, turns the speech of people who agreed into text on this machine, and hands the text to the server (decision 0105).
+Nothing is sent to a cloud engine, and no audio is written to disk.
+
+The listener is for a server that already has voice.
+To turn it on:
+
+1. Generate a secret: `openssl rand -hex 32`. Put it in `.env` as `SLIMM_LISTENER_SECRET`.
+2. Set `SLIMM_LISTENER_URL=ws://listener:9400` in `.env`.
+3. Set `COMPOSE_PROFILES=listener` and run `docker compose up -d`.
+4. In Settings, Modules, install a module that asks for call audio, then pick the voice channels it may hear.
+
+### The speech model
+
+The first start downloads `ggml-base.bin` (about 148 MB) once from Hugging Face into the `listener_models` volume and checks it against a pinned sha256.
+That download is the only traffic the listener makes of its own, and it carries no audio.
+To avoid it, put the file at `/models/ggml-base.bin` in that volume first.
+`WHISPER_LANGUAGE` sets a language (`en`, `de`, ...); the default detects each utterance.
+
+### CPU and memory
+
+Transcription runs on the CPU, on `LISTENER_THREADS` worker threads (default 4), one utterance at a time each.
+It uses no CPU while no call is being heard.
+Plan for four cores and 1 GB of memory with the base model.
+If it cannot keep up, it drops the oldest speech it has not transcribed, and ends the session after two minutes of that.
+`LISTENER_MAX_SESSIONS` (default 2) is how many calls it hears at once; a request past that is told the listener is busy.
+
+### Pointing it at LiveKit
+
+The listener dials LiveKit itself, with a token the server mints.
+If the public LiveKit address goes through a proxy, send the listener to the LAN address instead:
+
+```
+SLIMM_LISTENER_LIVEKIT_URL=ws://livekit:7880
+```
+
+When this is unset the listener uses the address clients use.
+
 ## Backups (optional)
 
 Litestream is off by default because it needs a real S3-compatible bucket.

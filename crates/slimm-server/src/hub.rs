@@ -173,6 +173,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::VoiceParticipantLeft { .. }
         | Event::VoiceScreenShareChanged { .. }
         | Event::WatchTick { .. }
+        | Event::CallAudioChanged { .. }
         // Ringing, and how a ring ended, changes no permission's answer either.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
@@ -277,6 +278,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::VoiceParticipantJoined { .. }
         | Event::VoiceParticipantLeft { .. }
         | Event::VoiceScreenShareChanged { .. }
+        | Event::CallAudioChanged { .. }
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }

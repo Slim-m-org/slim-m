@@ -17,6 +17,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
+use slimm_server::call_audio::CallAudio;
 use slimm_server::code_runner::CodeRunner;
 use slimm_server::http::dock::Dock;
 use slimm_server::http::gifs::GifSearch;
@@ -54,6 +55,7 @@ impl StateBuilder {
     setter!(link_previews, LinkPreviews);
     setter!(dock, Dock);
     setter!(code_runner, CodeRunner);
+    setter!(call_audio, CallAudio);
 
     pub fn build(self) -> AppState {
         self.0
@@ -77,6 +79,7 @@ pub fn builder(store: Store) -> StateBuilder {
         link_previews: LinkPreviews::disabled(),
         dock: Dock::disabled(),
         code_runner: CodeRunner::disabled(),
+        call_audio: CallAudio::disabled(),
     })
 }
 
