@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
-import 'package:slimm_app/src/features/canvas/widgets/canvas_chat_toggle.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_chat_toggle.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
 import 'package:slimm_data/data.dart';

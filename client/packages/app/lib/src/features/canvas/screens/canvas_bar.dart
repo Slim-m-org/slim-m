@@ -28,7 +28,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../members/widgets/member_list_toggle.dart';
 import '../../voice/widgets/call_header_facts.dart';
-import '../widgets/canvas_chat_toggle.dart';
+import 'canvas_chat_toggle.dart';
 
 class CanvasBar extends ConsumerWidget {
   const CanvasBar({super.key, required this.channelId, this.trailing});

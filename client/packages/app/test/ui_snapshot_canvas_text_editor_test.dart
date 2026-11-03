@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_text_props.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_text_editor.dart';
@@ -26,18 +27,23 @@ Future<void> _capture(
   addTearDown(document.dispose);
   final dark = brightness == Brightness.dark;
   await tester.pumpWidget(
-    RepaintBoundary(
-      key: snapshotBoundary,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(brightness, dark ? AppTokens.dark : AppTokens.light),
-        home: Scaffold(
-          body: CanvasTextEditor(
-            document: document,
-            anchor: Offset(size.width / 4, size.height / 3),
-            initial: const CanvasTextProps(text: 'BRUH'),
-            onSave: (_) {},
-            onCancel: () {},
+    ProviderScope(
+      child: RepaintBoundary(
+        key: snapshotBoundary,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(
+            brightness,
+            dark ? AppTokens.dark : AppTokens.light,
+          ),
+          home: Scaffold(
+            body: CanvasTextEditor(
+              document: document,
+              anchor: Offset(size.width / 4, size.height / 3),
+              initial: const CanvasTextProps(text: 'BRUH'),
+              onSave: (_) {},
+              onCancel: () {},
+            ),
           ),
         ),
       ),

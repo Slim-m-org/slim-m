@@ -12,11 +12,10 @@ const canvasRecentColoursKey = 'slimm.canvas.recent_colours';
 const canvasRecentColoursMax = 5;
 
 /// `#rrggbb` strings, newest first.
-class CanvasRecentColours extends StateNotifier<List<String>>
+class CanvasRecentColours extends Notifier<List<String>>
     implements RestorablePreference {
-  CanvasRecentColours(this.ref) : super(const []);
-
-  final Ref ref;
+  @override
+  List<String> build() => const [];
 
   @override
   Future<void> restore() async {
@@ -49,6 +48,6 @@ class CanvasRecentColours extends StateNotifier<List<String>>
 }
 
 final canvasRecentColoursProvider =
-    StateNotifierProvider<CanvasRecentColours, List<String>>(
+    NotifierProvider<CanvasRecentColours, List<String>>(
       CanvasRecentColours.new,
     );

@@ -21,7 +21,7 @@ import '../../../routing/routes.dart';
 import '../widgets/compact_channel_app_bar.dart';
 import '../widgets/channel_header.dart';
 import '../../canvas/screens/canvas_pane.dart';
-import '../../canvas/widgets/canvas_chat_toggle.dart' show canvasChatDocks;
+import '../../canvas/screens/canvas_chat_toggle.dart' show canvasChatDocks;
 import 'unlisted_channel.dart';
 import 'channel_screen.dart';
 import '../../voice/screens/dm_call_pane.dart';

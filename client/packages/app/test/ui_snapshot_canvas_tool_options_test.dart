@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -24,17 +25,22 @@ Future<void> _capture(
   addTearDown(tester.view.reset);
   final dark = brightness == Brightness.dark;
   await tester.pumpWidget(
-    RepaintBoundary(
-      key: snapshotBoundary,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(brightness, dark ? AppTokens.dark : AppTokens.light),
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.s16),
-              child: buildCanvasToolsRow(tool: tool),
+    ProviderScope(
+      child: RepaintBoundary(
+        key: snapshotBoundary,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(
+            brightness,
+            dark ? AppTokens.dark : AppTokens.light,
+          ),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: buildCanvasToolsRow(tool: tool),
+              ),
             ),
           ),
         ),

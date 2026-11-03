@@ -24,7 +24,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/canvas_grid_snap.dart';
-import '../widgets/canvas_chat_toggle.dart';
+import 'canvas_chat_toggle.dart';
 import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
 import 'canvas_people_sheet.dart';
