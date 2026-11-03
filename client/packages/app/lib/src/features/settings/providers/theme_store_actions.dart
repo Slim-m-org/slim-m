@@ -15,7 +15,7 @@ import '../../background/providers/app_background_controller.dart';
 import '../../background/providers/background_image_store.dart';
 import '../../background/providers/background_tone.dart';
 import '../../../providers/providers.dart';
-import '../widgets/theme_swatch.dart';
+import 'theme_labels.dart';
 import 'resolved_theme.dart';
 import 'stored_theme.dart';
 import 'theme_store.dart';

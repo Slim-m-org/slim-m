@@ -7,18 +7,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart' show AppThemeChoice;
 
-String themeLabel(AppThemeChoice choice) => switch (choice) {
-  AppThemeChoice.system => 'System',
-  AppThemeChoice.light => 'Light',
-  AppThemeChoice.dark => 'Dark',
-  AppThemeChoice.trueBlack => 'True black',
-  AppThemeChoice.catppuccin => 'Catppuccin',
-  AppThemeChoice.softDark => 'Soft dark',
-  AppThemeChoice.forest => 'Forest',
-  AppThemeChoice.halloween => 'Halloween',
-  AppThemeChoice.spaceDefault => 'Space default',
-  AppThemeChoice.custom => 'Custom',
-};
+export '../providers/theme_labels.dart' show themeLabel;
 
 /// The palette a choice paints with; System shows both of its halves.
 List<Color> themeSwatchColors(AppThemeChoice choice) {

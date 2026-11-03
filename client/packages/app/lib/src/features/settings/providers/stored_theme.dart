@@ -13,19 +13,25 @@ import '../../../providers/providers.dart' show preferencesProvider;
 const customThemeKey = 'slimm.appearance.custom_theme';
 const spaceDefaultThemeKey = 'slimm.appearance.space_default_theme';
 
-class StoredThemeController extends StateNotifier<ThemeDocument?>
+class StoredThemeController extends Notifier<ThemeDocument?>
     implements RestorablePreference {
-  StoredThemeController(this.ref, this.storageKey) : super(null);
+  StoredThemeController(this.storageKey);
 
-  final Ref ref;
   final String storageKey;
+  var _disposed = false;
+
+  @override
+  ThemeDocument? build() {
+    ref.onDispose(() => _disposed = true);
+    return null;
+  }
 
   @override
   Future<void> restore() async {
     try {
       final prefs = await ref.read(preferencesProvider.future);
       final text = prefs.getString(storageKey);
-      if (text != null) state = parseThemeFile(text).document;
+      if (text != null && !_disposed) state = parseThemeFile(text).document;
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.data,
@@ -38,7 +44,7 @@ class StoredThemeController extends StateNotifier<ThemeDocument?>
 
   /// Keeps [document] without its picture, which lives in the personal background.
   Future<void> set(ThemeDocument? document) async {
-    if (!mounted) return;
+    if (_disposed) return;
     state = document;
     final prefs = await ref.read(preferencesProvider.future);
     if (document == null) {
@@ -53,11 +59,11 @@ class StoredThemeController extends StateNotifier<ThemeDocument?>
 }
 
 final customThemeProvider =
-    StateNotifierProvider<StoredThemeController, ThemeDocument?>(
-      (ref) => StoredThemeController(ref, customThemeKey),
+    NotifierProvider<StoredThemeController, ThemeDocument?>(
+      () => StoredThemeController(customThemeKey),
     );
 
 final spaceDefaultThemeProvider =
-    StateNotifierProvider<StoredThemeController, ThemeDocument?>(
-      (ref) => StoredThemeController(ref, spaceDefaultThemeKey),
+    NotifierProvider<StoredThemeController, ThemeDocument?>(
+      () => StoredThemeController(spaceDefaultThemeKey),
     );
