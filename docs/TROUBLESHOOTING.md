@@ -15,8 +15,8 @@ Check:
 
 - Forward all four from the internet to the host: `7881/tcp`, `3478/udp`, `30000-30100/udp` (TURN relay) and `50000-50100/udp` (media).
   These are the defaults; `LIVEKIT_TCP_PORT`, `LIVEKIT_TURN_UDP_PORT`, `LIVEKIT_TURN_RELAY_PORT_START`/`_END` and `LIVEKIT_UDP_PORT_START`/`_END` move them.
-- TURN over TLS on 5349 is not configured by default, so a network that allows only outbound 443 cannot reach the server for media.
-  [deploy/README.md](../deploy/README.md#turntls-and-why-it-is-not-on-443) says how to turn it on.
+- TURN over TLS is not configured by default, so a network that allows only outbound 443 cannot reach the server for media.
+  [deploy/README.md](../deploy/README.md#turntls-needs-443-and-a-router-that-splits-it-by-name) says how to turn it on; LiveKit only advertises it on 443, whatever `tls_port` says.
 - `docker compose ps` should show `livekit` as healthy.
 
 If LiveKit exits at startup with `could not resolve external IP`, that is the host's DNS, not the firewall; see the same section of the deploy guide.
