@@ -180,7 +180,7 @@ void main() {
       expect(find.text('Add'), findsOneWidget);
 
       await tester.tap(find.text('Add'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Choose files'), findsOneWidget);
 
       expect(find.text('Bulk import from a zip'), findsNothing);
@@ -195,7 +195,7 @@ void main() {
     await _pump(tester, server, picked: _png);
 
     await tester.tap(find.text('Add'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(AppInput).last, 'Party Parrot');
@@ -216,7 +216,7 @@ void main() {
     await _pump(tester, server, picked: _png);
 
     await tester.tap(find.text('Add'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(AppInput).last, 'Party Parrot');
