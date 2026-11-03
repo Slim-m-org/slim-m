@@ -8,7 +8,7 @@
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
 use super::signals;
-use crate::hub::{Event, Hub};
+use crate::hub::{Event, Hub, RoleChange};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
 
@@ -117,7 +117,7 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         Event::RoleChanged { role_id, change } => ServerFrame::RoleChanged {
             seq: None,
             role_id: role_id.to_string(),
-            change: change.as_deref().map(|c| c.kind()),
+            change: change.as_deref().map(RoleChange::kind),
             name: change
                 .as_deref()
                 .and_then(|c| c.after().or(c.before()))
