@@ -142,11 +142,17 @@ struct UpdateRoleRequest {
 
 // --- Handlers: role CRUD ---
 
+/// Readable by `MANAGE_ROLES`, or by the read-only `VIEW_MODERATION_HISTORY` so a log bot can show what a role change did.
 async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<RoleDto>>, ApiError> {
-    require_manage_roles(&state, ctx.user_id).await?;
+    let base = state.store.base_permissions(ctx.user_id).await?;
+    if base.contains(Permissions::MANAGE_ROLES) {
+        require_manage_roles(&state, ctx.user_id).await?;
+    } else if !base.contains(Permissions::VIEW_MODERATION_HISTORY) {
+        return Err(ApiError::Forbidden);
+    }
     let roles = state.store.list_roles_with_member_counts().await?;
     Ok(Json(roles.into_iter().map(RoleDto::from).collect()))
 }

@@ -2973,7 +2973,11 @@ paths:
     get:
       operationId: listRoles
       tags: [roles]
-      summary: List every role. Requires MANAGE_ROLES.
+      summary: List every role. Requires MANAGE_ROLES or VIEW_MODERATION_HISTORY.
+      description: >
+        VIEW_MODERATION_HISTORY is the read-only bit for moderation history; it
+        lets a log bot read a role's permission bits without being able to
+        change any role.
       responses:
         "200":
           description: All roles.
