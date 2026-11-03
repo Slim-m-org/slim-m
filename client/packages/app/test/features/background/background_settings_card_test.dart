@@ -24,6 +24,7 @@ import '../composer/composer_harness.dart' show FakePlatformFile;
 
 Future<ProviderContainer> _mount(
   WidgetTester tester, {
+  double width = 900,
   PlatformFile? picked,
   Object? failure,
 }) async {
@@ -41,7 +42,7 @@ Future<ProviderContainer> _mount(
   );
   addTearDown(container.dispose);
   await tester.runAsync(() => container.read(preferencesProvider.future));
-  tester.view.physicalSize = const Size(900, 1600);
+  tester.view.physicalSize = Size(width, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -69,6 +70,24 @@ Future<void> _settle(WidgetTester tester) async {
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  for (final (width, glyph) in [
+    (900.0, AppIcons.chevronDown),
+    (390.0, AppIcons.chevronRight),
+  ]) {
+    testWidgets('the picture row ends in a chevron that fits $width wide', (
+      tester,
+    ) async {
+      await _mount(tester, width: width);
+      expect(
+        find.descendant(
+          of: find.byKey(BackgroundSettingsCard.pictureRowKey),
+          matching: find.byIcon(glyph),
+        ),
+        findsOneWidget,
+      );
+    });
+  }
 
   testWidgets('starts at None with no controls', (tester) async {
     await _mount(tester);

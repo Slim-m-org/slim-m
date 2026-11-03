@@ -88,8 +88,11 @@ class _State extends ConsumerState<BackgroundSettingsCard>
           key: BackgroundSettingsCard.pictureRowKey,
           label: 'Picture',
           meta: settings.hasImage ? 'Custom' : 'None',
+          // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
           trailing: Icon(
-            AppIcons.chevronRight,
+            MediaQuery.sizeOf(context).width >= kCompactWidth
+                ? AppIcons.chevronDown
+                : AppIcons.chevronRight,
             size: AppSizes.icon16,
             color: tokens.textSecondary,
           ),
