@@ -12,37 +12,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/widgets/channel_kind_icon.dart';
 import 'command_palette_items.dart';
+import 'palette_highlight.dart';
+import 'palette_person_body.dart';
 import '../../messages/widgets/message_row_identity.dart' show formatMessageDay;
-import '../../members/widgets/user_avatar.dart';
 
-/// [text] with the first case-insensitive occurrence of [query] in bold.
-List<InlineSpan> paletteHighlightSpans(String text, String query) {
-  final at = query.isEmpty
-      ? -1
-      : text.toLowerCase().indexOf(query.toLowerCase());
-  if (at < 0) return [TextSpan(text: text)];
-  final end = at + query.length;
-  return [
-    if (at > 0) TextSpan(text: text.substring(0, at)),
-    TextSpan(
-      text: text.substring(at, end),
-      style: const TextStyle(fontWeight: AppWeights.semi),
-    ),
-    if (end < text.length) TextSpan(text: text.substring(end)),
-  ];
-}
-
-Widget _highlighted(
-  String text,
-  String query,
-  TextStyle style, {
-  int maxLines = 1,
-}) => Text.rich(
-  TextSpan(children: paletteHighlightSpans(text, query)),
-  style: style,
-  maxLines: maxLines,
-  overflow: TextOverflow.ellipsis,
-);
+export 'palette_highlight.dart' show paletteHighlightSpans;
 
 /// An uppercase mono section name with its right-aligned result count.
 class PaletteSectionHeader extends StatelessWidget {
@@ -201,7 +175,12 @@ class PaletteResultRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final body = switch (item.kind) {
       PaletteKind.channel => _channel(tokens),
-      PaletteKind.person => _person(tokens),
+      PaletteKind.person => PalettePersonBody(
+        member: item.member!,
+        label: item.label,
+        query: query,
+        reason: item.reason,
+      ),
       PaletteKind.message => _message(tokens),
       PaletteKind.action => _action(tokens),
     };
@@ -233,7 +212,7 @@ class PaletteResultRow extends StatelessWidget {
       children: [
         glyph,
         Expanded(
-          child: _highlighted(
+          child: paletteHighlighted(
             item.label,
             query,
             AppText.ui.copyWith(color: tokens.textPrimary),
@@ -262,55 +241,6 @@ class PaletteResultRow extends StatelessWidget {
     );
   }
 
-  Widget _person(AppTokens tokens) {
-    final member = item.member!;
-    final reason = item.reason;
-    return Row(
-      spacing: AppSpacing.s12,
-      children: [
-        UserAvatar.known(
-          userId: member.id,
-          avatarUpdatedAt: member.avatarUpdatedAt,
-          name: member.displayName,
-          size: AppAvatarSize.s28,
-          presence: true,
-        ),
-        // The name and badge take the slack, so the reason sits at the right edge.
-        Expanded(
-          child: Row(
-            spacing: AppSpacing.s12,
-            children: [
-              Flexible(
-                child: _highlighted(
-                  item.label,
-                  query,
-                  AppText.ui.copyWith(color: tokens.textPrimary),
-                ),
-              ),
-              if (member.isBot)
-                const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot'),
-            ],
-          ),
-        ),
-        if (reason != null)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: '${reason.label}: '),
-                  ...paletteHighlightSpans(reason.value, query),
-                ],
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _message(AppTokens tokens) {
     final message = item.message!;
     return Row(
@@ -329,7 +259,7 @@ class PaletteResultRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _highlighted(
+              paletteHighlighted(
                 item.label,
                 query,
                 AppText.ui.copyWith(color: tokens.textPrimary),
@@ -351,7 +281,7 @@ class PaletteResultRow extends StatelessWidget {
       if (item.leading != null)
         Icon(item.leading, size: AppSizes.icon16, color: tokens.textSecondary),
       Expanded(
-        child: _highlighted(
+        child: paletteHighlighted(
           item.label,
           query,
           AppText.ui.copyWith(color: tokens.textPrimary),
