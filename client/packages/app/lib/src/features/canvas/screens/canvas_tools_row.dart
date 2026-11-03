@@ -78,10 +78,12 @@ class CanvasToolsRow extends StatefulWidget {
     this.showTools = true,
     this.part = CanvasToolsRowPart.all,
     this.overflowOpensBelow = false,
+    this.chatChannelId,
   });
 
   /// See [CanvasOverflowMenu.opensBelow].
   final bool overflowOpensBelow;
+  final String? chatChannelId;
 
   /// Which tool a tap or drag on the surface draws with. Pen, note and shape
   /// are decision 0004's own three tool-dock tools, each dropping a new
@@ -258,6 +260,7 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           onToggleFullscreen: widget.onToggleFullscreen,
           fullscreen: widget.fullscreen,
           opensBelow: widget.overflowOpensBelow,
+          chatChannelId: widget.chatChannelId,
         ),
       ],
     );

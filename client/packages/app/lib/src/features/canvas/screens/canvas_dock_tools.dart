@@ -15,11 +15,13 @@ class CanvasDockToolsRow extends StatelessWidget {
     required this.canvas,
     this.part = CanvasToolsRowPart.all,
     this.overflowOpensBelow = false,
+    this.chatChannelId,
   });
 
   final CanvasDockData canvas;
   final CanvasToolsRowPart part;
   final bool overflowOpensBelow;
+  final String? chatChannelId;
 
   @override
   Widget build(BuildContext context) => CanvasToolsRow(
@@ -54,5 +56,6 @@ class CanvasDockToolsRow extends StatelessWidget {
     showTools: !canvas.activityLogOpen,
     part: part,
     overflowOpensBelow: overflowOpensBelow,
+    chatChannelId: chatChannelId,
   );
 }
