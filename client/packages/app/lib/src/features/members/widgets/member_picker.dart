@@ -93,7 +93,7 @@ class _MemberPickerState extends ConsumerState<MemberPicker> {
             const Padding(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.s16,
-                AppSpacing.s8,
+                0,
                 AppSpacing.s16,
                 AppSpacing.s8,
               ),
