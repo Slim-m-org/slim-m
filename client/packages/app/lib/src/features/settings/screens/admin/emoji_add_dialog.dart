@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../../action_labels.dart';
 import '../../../../api_failure.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
@@ -41,7 +42,7 @@ Future<void> showEmojiAddDialog(
   context,
   maxWidth: 560,
   scrolls: true,
-  semanticLabel: 'Add emoji',
+  semanticLabel: ActionLabels.createEmoji,
   builder: (_) => EmojiAddDialog(initial: initial),
 );
 
@@ -303,7 +304,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Add emoji',
+                      ActionLabels.createEmoji,
                       style: AppText.body.copyWith(
                         color: tokens.textPrimary,
                         fontWeight: AppWeights.semi,

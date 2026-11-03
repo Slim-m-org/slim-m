@@ -133,7 +133,12 @@ const spaceSettingsIndex = <SettingsEntry>[
         'Read past moderation actions, without the power to take new ones.',
     keywords: ['audit log', 'modlog'],
   ),
-  SettingsEntry('emoji', 'New emoji', keywords: ['custom emoji', 'upload']),
+  SettingsEntry(
+    'emoji',
+    'Create emoji',
+    keywords: ['custom emoji', 'upload', 'add emoji', 'import'],
+    conditional: true,
+  ),
   SettingsEntry('emoji', 'Emoji (0)', conditional: true),
   SettingsEntry(
     _voicePage,
