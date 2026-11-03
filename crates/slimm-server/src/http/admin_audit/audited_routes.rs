@@ -36,6 +36,12 @@ const MODULE: Option<&str> = Some("id");
 pub const AUDITED_ROUTES: &[AuditedRoute] = &[
     route(Method::PATCH, "/space/settings", "space.update", None),
     route(Method::PUT, "/space/join-gate", "space.join_gate", None),
+    route(
+        Method::POST,
+        "/space/uplink-test",
+        "space.uplink_test",
+        None,
+    ),
     route(Method::PATCH, "/space/analytics", "space.analytics", None),
     route(Method::PATCH, "/space/retention", "space.retention", None),
     route(Method::PATCH, "/space/canvas-cap", "space.canvas_cap", None),

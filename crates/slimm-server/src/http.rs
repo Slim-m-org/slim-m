@@ -32,6 +32,7 @@ pub mod build_id;
 mod canvas;
 mod proxy_hint;
 mod storage_room;
+pub mod uplink_test;
 use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;
 mod categories;
@@ -284,6 +285,7 @@ pub fn router(state: AppState) -> Router {
         .merge(space_icon::routes())
         .merge(totp::routes())
         .merge(storage::routes())
+        .merge(uplink_test::routes())
         .merge(sync::routes())
         .merge(read_states::routes())
         .merge(threads::routes())

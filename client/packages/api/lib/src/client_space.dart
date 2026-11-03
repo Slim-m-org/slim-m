@@ -210,4 +210,18 @@ extension SlimmApiSpace on SlimmApi {
     final json = await send('GET', '/space/storage');
     return SpaceStorage.fromJson(json as Map<String, dynamic>);
   }
+
+  /// The kept uplink measurements, newest first.
+  Future<List<UplinkTest>> fetchUplinkTests() async {
+    final json = await send('GET', '/space/uplink-test');
+    return ((json as Map<String, dynamic>)['results'] as List<dynamic>)
+        .map((e) => UplinkTest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Measures the server host's uplink; refused while a call is live.
+  Future<UplinkTest> runUplinkTest() async {
+    final json = await send('POST', '/space/uplink-test');
+    return UplinkTest.fromJson(json as Map<String, dynamic>);
+  }
 }

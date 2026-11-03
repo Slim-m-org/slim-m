@@ -258,6 +258,9 @@ pub async fn run(c: &mut Contract) {
     )
     .await;
 
+    c.bare("getSpaceUplinkTests", "GET", "/space/uplink-test", root)
+        .await;
+
     c.bare("getSpaceLinkPreviews", "GET", "/space/link-previews", root)
         .await;
     c.json(

@@ -48,3 +48,18 @@ There is no "use headphones" hint: echo return loss reads near zero with headpho
 
 Settings, Troubleshooting, "Last call audio" shows the pooled summary of the last call that ended in this session.
 It is kept in memory only, so it is empty after a restart; the log line is the durable record.
+
+## Uplink test
+
+An admin can measure what the server host can send, from Voice and screen share in Space settings.
+`POST /space/uplink-test` uploads about 40 MB of zeros to `SLIMM_UPLINK_TEST_URL`, which defaults to `https://speed.cloudflare.com/__up`.
+The upload stops after 20 seconds, and a slow link is then rated on the bytes the sender had taken by that point.
+It needs MANAGE_SERVER, is recorded in the audit log as `space.uplink_test`, and sits behind the write rate limit.
+It is refused with 409 while any voice session is open, because the upload would hurt the call, and with 429 within a minute of the last result.
+A second test while one runs is refused with 409.
+The last 10 results are kept in `uplink_tests`, and `GET /space/uplink-test` returns them newest first.
+The page shows the last result as "Measured <date>, <n> Mbit/s", a suggested share ceiling, and how many shares of each tier fit at once.
+Only 70% of the measured rate counts as usable, which leaves room for call audio and overhead.
+The suggested ceiling is the tallest resolution at 30 fps that still fits two shares.
+The counts use `ScreenShareQuality.bitrateTable` and assume one viewer per share, because the server sends a copy to every viewer.
+The suggestion is advice only; the ceiling itself is still set under Screen share quality.

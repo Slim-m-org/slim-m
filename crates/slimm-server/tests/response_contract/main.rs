@@ -57,6 +57,10 @@ use world::Contract;
 /// this list must be called.
 const UNCOVERED: &[(&str, &str)] = &[
     (
+        "runSpaceUplinkTest",
+        "uploads 40 MB to an external speed endpoint; tests/uplink_test.rs covers it against a local one",
+    ),
+    (
         "requestVoiceCallAudio",
         "needs a connected listener, an armed module and a member on the call; \
          tests/call_audio.rs drives every outcome of it against a fake listener.",

@@ -49,7 +49,7 @@ crypto_box = { version = "=0.10.0-pre.0", features = ["seal"] }
 crypto_secretbox = "=0.2.0-pre.0"
 # The push relay HTTP client. `rustls-tls` so the static musl binary and the
 # distroless image never need OpenSSL; see docs/dependencies.md.
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 # Transitive through reqwest; named so the relay URL's scheme and host can be
 # validated at startup without hand-rolled parsing.
 url = "2"

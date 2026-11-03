@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: i64\", measured_at, mbit_per_s, bytes, duration_ms\n               FROM uplink_tests ORDER BY id DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "measured_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "mbit_per_s",
+        "ordinal": 2,
+        "type_info": "Float"
+      },
+      {
+        "name": "bytes",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "duration_ms",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ec3915446e2735ba4e92f9cfb1a3cdbe9472529d64535fc6d54310388d5ab4e9"
+}

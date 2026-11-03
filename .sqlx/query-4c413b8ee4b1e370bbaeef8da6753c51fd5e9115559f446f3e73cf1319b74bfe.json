@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM uplink_tests WHERE id NOT IN\n             (SELECT id FROM uplink_tests ORDER BY id DESC LIMIT ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4c413b8ee4b1e370bbaeef8da6753c51fd5e9115559f446f3e73cf1319b74bfe"
+}
