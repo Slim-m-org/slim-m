@@ -16,16 +16,21 @@ const uplinkAdviceTiers = <ScreenShareQuality>[
   ScreenShareQuality(ScreenShareResolution.p2160, ScreenShareFps.fps30),
 ];
 
-/// How many shares of [quality] the uplink carries at once, one viewer each.
-int sharesThatFit(double mbitPerSecond, ScreenShareQuality quality) =>
+/// How many viewer streams of [quality] the uplink carries; the host sends one copy per viewer.
+int viewersServed(double mbitPerSecond, ScreenShareQuality quality) =>
     (mbitPerSecond * uplinkUsableShare * 1e6 / quality.maxBitrate).floor();
 
-/// The tallest resolution that still fits two 30 fps shares, never below 720p.
+/// Viewers a typical call needs served at once, across every share.
+const typicalCallViewers = 4;
+
+/// The tallest resolution at 30 fps that serves [typicalCallViewers], never below 720p.
 ScreenShareResolution suggestedCeiling(double mbitPerSecond) {
   var best = ScreenShareResolution.p720;
   for (final resolution in ScreenShareResolution.values) {
     final quality = ScreenShareQuality(resolution, ScreenShareFps.fps30);
-    if (sharesThatFit(mbitPerSecond, quality) >= 2) best = resolution;
+    if (viewersServed(mbitPerSecond, quality) >= typicalCallViewers) {
+      best = resolution;
+    }
   }
   return best;
 }
@@ -35,10 +40,6 @@ String formatMbit(double mbitPerSecond) => mbitPerSecond >= 10
     ? '${mbitPerSecond.round()} Mbit/s'
     : '${mbitPerSecond.toStringAsFixed(1)} Mbit/s';
 
-/// `8 Mbit/s`, from a bitrate in bits per second.
-String formatBitrate(int bitsPerSecond) {
-  final mbit = bitsPerSecond / 1e6;
-  return mbit == mbit.roundToDouble()
-      ? '${mbit.round()} Mbit/s'
-      : '${mbit.toStringAsFixed(1)} Mbit/s';
-}
+/// `about 8 viewers`.
+String formatViewers(int viewers) =>
+    'about $viewers ${viewers == 1 ? 'viewer' : 'viewers'}';

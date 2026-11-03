@@ -58,8 +58,9 @@ It needs MANAGE_SERVER, is recorded in the audit log as `space.uplink_test`, and
 It is refused with 409 while any voice session is open, because the upload would hurt the call, and with 429 within a minute of the last result.
 A second test while one runs is refused with 409.
 The last 10 results are kept in `uplink_tests`, and `GET /space/uplink-test` returns them newest first.
-The page shows the last result as "Measured <date>, <n> Mbit/s", a suggested share ceiling, and how many shares of each tier fit at once.
+The page shows the last result as "Measured <date>, <n> Mbit/s", a suggested share ceiling, and how many viewers each tier can serve.
 Only 70% of the measured rate counts as usable, which leaves room for call audio and overhead.
-The suggested ceiling is the tallest resolution at 30 fps that still fits two shares.
-The counts use `ScreenShareQuality.bitrateTable` and assume one viewer per share, because the server sends a copy to every viewer.
+The server sends one copy of a share to every viewer, so a share watched by 4 people costs 4 times its bitrate, and the counts cover every viewer of every share.
+The suggested ceiling is the tallest resolution at 30 fps that serves 4 viewers at once, never below 720p.
+Bitrates come from `ScreenShareQuality.bitrateTable`, and simulcast layers are not counted.
 The suggestion is advice only; the ceiling itself is still set under Screen share quality.

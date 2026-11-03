@@ -99,9 +99,8 @@ class _UplinkTestSectionState extends ConsumerState<UplinkTestSection>
       ]),
       _Lines([
         for (final tier in uplinkAdviceTiers)
-          '${tier.id}: ${formatBitrate(tier.maxBitrate)} each, '
-              '${sharesThatFit(rate, tier)} at once',
-        'One viewer per share.',
+          '${tier.id}: ${formatViewers(viewersServed(rate, tier))}',
+        'Counts every viewer of every share.',
       ]),
     ];
   }
