@@ -12,7 +12,7 @@ import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../settings/providers/settings_actions.dart';
 
-final moduleDisplayProvider = FutureProvider.autoDispose<api.Version>((ref) {
+final moduleDisplayProvider = FutureProvider<api.Version>((ref) {
   final sub = ref
       .watch(liveEventsProvider)
       .where((e) => e is api.SpaceSettingsChanged)
@@ -63,7 +63,7 @@ final personalProfileSectionsProvider =
     );
 
 /// What the Space allows, which a personal switch can only narrow.
-final spaceMemberBadgesProvider = Provider.autoDispose<bool>(
+final spaceMemberBadgesProvider = Provider<bool>(
   (ref) => ref.watch(
     moduleDisplayProvider.select(
       (v) => v.valueOrNull?.moduleMemberBadges ?? false,
@@ -71,7 +71,7 @@ final spaceMemberBadgesProvider = Provider.autoDispose<bool>(
   ),
 );
 
-final spaceProfileSectionsProvider = Provider.autoDispose<bool>(
+final spaceProfileSectionsProvider = Provider<bool>(
   (ref) => ref.watch(
     moduleDisplayProvider.select(
       (v) => v.valueOrNull?.moduleProfileSections ?? true,
@@ -80,14 +80,14 @@ final spaceProfileSectionsProvider = Provider.autoDispose<bool>(
 );
 
 /// Module badges beside names in the member list: the Space allows them and this person has not hidden them.
-final moduleMemberBadgesShownProvider = Provider.autoDispose<bool>(
+final moduleMemberBadgesShownProvider = Provider<bool>(
   (ref) =>
       ref.watch(spaceMemberBadgesProvider) &&
       ref.watch(personalMemberBadgesProvider),
 );
 
 /// Module sections on profile cards: the Space allows them and this person has not hidden them.
-final moduleProfileSectionsShownProvider = Provider.autoDispose<bool>(
+final moduleProfileSectionsShownProvider = Provider<bool>(
   (ref) =>
       ref.watch(spaceProfileSectionsProvider) &&
       ref.watch(personalProfileSectionsProvider),

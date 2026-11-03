@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
@@ -96,11 +97,17 @@ void main() {
 
     expect(container.read(highContrastControllerProvider), isFalse);
 
-    await tester.tap(find.byType(AppToggle));
+    final toggle = find.descendant(
+      of: find.byWidgetPredicate(
+        (w) => w is SettingsToggleRow && w.label == 'High contrast',
+      ),
+      matching: find.byWidgetPredicate((w) => w is AppToggle),
+    );
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(container.read(highContrastControllerProvider), isTrue);
 
-    await tester.tap(find.byType(AppToggle));
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(container.read(highContrastControllerProvider), isFalse);
   });
