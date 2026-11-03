@@ -21,8 +21,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: listener-ci-${{ github.ref }}
-  cancel-in-progress: true
+# On main, keyed per commit: a group shared across pushes lets GitHub cancel an older still-queued run outright, which cancel-in-progress cannot prevent; see docs/ci.md.
+  group: listener-ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CARGO_TERM_COLOR: always
