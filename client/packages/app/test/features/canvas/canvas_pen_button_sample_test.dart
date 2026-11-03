@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_tool_buttons.dart'
+    show penBarOutline;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -14,6 +16,7 @@ import '../../support/canvas_tools_row_fixtures.dart';
 Finder get _bar => find.byKey(const ValueKey('pen-colour-bar'));
 
 void main() {
+  clearanceTests();
   for (final width in [
     canvasPenMinWidth,
     canvasDefaultPenWidth,
@@ -80,5 +83,29 @@ void main() {
     set(() => pen = pen.copyWith(width: 8));
     await tester.pump();
     expect(tester.getSize(_bar).height, greaterThan(thin));
+  });
+}
+
+void clearanceTests() {
+  testWidgets('the pen bar keeps clear of the pill bottom', (tester) async {
+    await tester.pumpWidget(
+      wrapCanvasToolsRow(buildCanvasToolsRow(tool: CanvasTool.pen)),
+    );
+    final button = tester.getRect(
+      find.ancestor(
+        of: find.byIcon(AppIcons.pen),
+        matching: find.byType(AppIconButton),
+      ),
+    );
+    expect(
+      button.bottom - tester.getRect(_bar).bottom,
+      greaterThanOrEqualTo(4),
+    );
+  });
+
+  test('a near-black or near-white pen gets a hairline, a mid colour none', () {
+    expect(penBarOutline(const Color(0xFF0A0A0A)), isNotNull);
+    expect(penBarOutline(const Color(0xFFF8F8F8)), isNotNull);
+    expect(penBarOutline(const Color(0xFFE5604F)), isNull);
   });
 }

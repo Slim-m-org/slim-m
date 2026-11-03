@@ -168,40 +168,60 @@ class _PenButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   /// Drops the bar to just under the 20px glyph, whatever the button's own height.
-  static const double _barOffset = 22;
+  static const double _barOffset = 19;
   static const double _barLength = 14;
 
   /// Grows with the armed width, so the bar still says thin or thick.
   double get _barThickness => (pen.width / 2).clamp(2, 4).toDouble();
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      AppIconButton(
-        icon: AppIcons.pen,
-        semanticLabel: 'Pen',
-        tooltip: canDraw ? 'Pen (P)' : _cannotDrawTooltip,
-        active: active,
-        onPressed: onPressed,
-      ),
-      Positioned.fill(
-        child: IgnorePointer(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: _barOffset),
-              child: Container(
-                key: const ValueKey('pen-colour-bar'),
-                width: _barLength,
-                height: _barThickness,
-                decoration: BoxDecoration(
-                  color: pen.color,
-                  borderRadius: BorderRadius.circular(_barThickness),
+  Widget build(BuildContext context) {
+    final outline = penBarOutline(pen.color);
+    return Stack(
+      children: [
+        AppIconButton(
+          icon: AppIcons.pen,
+          semanticLabel: 'Pen',
+          tooltip: canDraw ? 'Pen (P)' : _cannotDrawTooltip,
+          active: active,
+          onPressed: onPressed,
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: _barOffset),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: outline == null
+                        ? null
+                        : Border.all(color: outline, width: 0.75),
+                    borderRadius: BorderRadius.circular(_barThickness),
+                  ),
+                  child: Container(
+                    key: const ValueKey('pen-colour-bar'),
+                    width: _barLength,
+                    height: _barThickness,
+                    decoration: BoxDecoration(
+                      color: pen.color,
+                      borderRadius: BorderRadius.circular(_barThickness),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
+}
+
+/// A hairline for a near-black or near-white pen, which would vanish into the dark or light surface.
+@visibleForTesting
+Color? penBarOutline(Color colour) {
+  final luminance = colour.computeLuminance();
+  if (luminance < 0.05) return const Color(0x99FFFFFF);
+  if (luminance > 0.85) return const Color(0x99000000);
+  return null;
 }

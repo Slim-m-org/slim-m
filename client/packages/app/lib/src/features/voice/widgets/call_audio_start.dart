@@ -102,8 +102,7 @@ class _ConfirmSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.s4),
           Text(
-            'Everyone in the call is asked first. It starts only if all of '
-            'them say yes.',
+            'Everyone is asked first. It starts only if all say yes.',
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
           for (final module in modules) ...[
@@ -125,7 +124,7 @@ class _ConfirmSheet extends StatelessWidget {
               'It keeps: ${module.keeps}',
               style: AppText.body.copyWith(color: tokens.textSecondary),
             ),
-            const SizedBox(height: AppSpacing.s8),
+            const SizedBox(height: AppSpacing.s12),
             AppButton(
               key: ValueKey('call-audio-ask-${module.moduleId}'),
               label: 'Ask everyone to turn on ${module.moduleName}',
