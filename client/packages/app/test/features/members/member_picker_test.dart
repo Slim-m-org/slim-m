@@ -15,6 +15,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 api.UserProfile? _picked;
 
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 600));
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   Size size = const Size(1280, 800),
@@ -65,7 +70,7 @@ Future<void> _pump(
     ),
   );
   await tester.tap(find.byKey(const Key('open')));
-  await tester.pumpAndSettle();
+  await _settle(tester);
 }
 
 void main() {
@@ -73,7 +78,7 @@ void main() {
     await _pump(tester);
 
     await tester.enterText(find.byKey(const Key('member-picker-input')), 'ada');
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(find.byKey(const Key('member-picker-row-ada')), findsOneWidget);
     expect(find.byKey(const Key('member-picker-row-u1')), findsNothing);
@@ -86,7 +91,7 @@ void main() {
       find.byKey(const Key('member-picker-input')),
       'lovelace',
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(find.byKey(const Key('member-picker-row-ada')), findsOneWidget);
     expect(find.textContaining('Username: '), findsOneWidget);
@@ -99,7 +104,7 @@ void main() {
       find.byKey(const Key('member-picker-input')),
       'zzzz',
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(find.text('No members match.'), findsOneWidget);
   });
@@ -107,7 +112,7 @@ void main() {
   testWidgets('bots carry the Bot chip and people do not', (tester) async {
     await _pump(tester);
     await tester.enterText(find.byKey(const Key('member-picker-input')), 'bot');
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     final row = find.byKey(const Key('member-picker-row-bot'));
     expect(
@@ -124,12 +129,12 @@ void main() {
       find.byKey(const Key('member-picker-input')),
       'Member 1',
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     final shown = ['Member 1', 'Member 10', 'Member 11'];
     expect(_picked?.displayName, shown[2]);
@@ -141,11 +146,11 @@ void main() {
       find.byKey(const Key('member-picker-input')),
       'Member 9',
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(_picked?.displayName, 'Member 99');
   });
@@ -153,10 +158,10 @@ void main() {
   testWidgets('tapping a row returns that member', (tester) async {
     await _pump(tester);
     await tester.enterText(find.byKey(const Key('member-picker-input')), 'ada');
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.tap(find.byKey(const Key('member-picker-row-ada')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(_picked?.id, 'ada');
   });
@@ -173,7 +178,7 @@ void main() {
     for (var i = 0; i < 20; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     }
-    await tester.pumpAndSettle();
+    await _settle(tester);
     final listRect = tester.getRect(
       find.byKey(const Key('member-picker-list')),
     );
