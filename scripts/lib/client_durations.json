@@ -1682,7 +1682,7 @@
 "test/ui_snapshot_canvas_tool_options_test.dart": 1.1,
 "test/ui_snapshot_canvas_tools_test.dart": 0.8,
 "test/features/voice/phone_canvas_entry_test.dart": 1.5,
-"test/ui_snapshot_phone_call_test.dart": 1.5,
+"test/snapshots/ui_snapshot_phone_call_test.dart": 1.5,
 "test/ui_snapshot_share_strip_test.dart": 1.2,
 "test/ui_snapshot_test.dart": 30.2,
 "test/visual/canvas_assembled_snapshot_test.dart": 5.8,

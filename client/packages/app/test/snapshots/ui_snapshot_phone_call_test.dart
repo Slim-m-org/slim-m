@@ -12,8 +12,8 @@ import 'package:slimm_app/src/features/voice/providers/share_watch.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import 'features/voice/voice_snapshot_fixtures.dart';
-import 'ui_snapshot_support.dart';
+import '../features/voice/voice_snapshot_fixtures.dart';
+import '../ui_snapshot_support.dart';
 
 const _me = VoiceParticipant(
   identity: 'user-nick',
