@@ -80,15 +80,20 @@ class SettingsSelectRow<T> extends StatelessWidget {
 
   String get _currentLabel => _currentChoice?.label ?? unknownLabel;
 
-  /// Opens the choice sheet standalone, for a caller that wants this row's
-  /// picker without its [AppListRow] presentation: [JoinPolicyRow] renders
-  /// as a [ListTile] to match its neighbours but still needs this sheet.
+  /// Opens the picker standalone, for a caller that wants this row's picker
+  /// without its [AppListRow] presentation: [JoinPolicyRow] renders as a
+  /// [ListTile] to match its neighbours. On desktop the choices drop down
+  /// anchored to [context]'s box, and a phone gets a sheet, where there is no
+  /// pointer to dismiss a dropdown by clicking away.
   static Future<T?> pick<T>(
     BuildContext context, {
     required String title,
     required T? value,
     required List<SettingsChoice<T>> choices,
   }) {
+    if (MediaQuery.sizeOf(context).width >= kCompactWidth) {
+      return _pickDropdown<T>(context, value: value, choices: choices);
+    }
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceSheet<T>(
         context,
@@ -118,46 +123,33 @@ class SettingsSelectRow<T> extends StatelessWidget {
     );
   }
 
-  Future<void> _open(BuildContext context) async {
-    final chosen = await pick<T>(
-      context,
-      title: sheetTitle ?? label,
-      value: value,
-      choices: choices,
-    );
-    if (chosen != null && chosen != value) onChanged(chosen);
-  }
-
-  /// The desktop presentation: the choices drop down from the row, anchored to
-  /// it, rather than a centred dialog taking focus for a choice this small. The
-  /// sheet stays on a phone, where a value dropped over a 48dp row would be
-  /// unmissable-adjacent and there is no pointer to dismiss it by clicking away.
-  Future<void> _openDropdown(BuildContext context) async {
+  static Future<T?> _pickDropdown<T>(
+    BuildContext context, {
+    required T? value,
+    required List<SettingsChoice<T>> choices,
+  }) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final anchor = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final rect = Rect.fromPoints(
-      anchor.localToGlobal(Offset.zero, ancestor: overlay),
-      anchor.localToGlobal(
-        anchor.size.bottomRight(Offset.zero),
-        ancestor: overlay,
-      ),
+    final bottomRight = anchor.localToGlobal(
+      anchor.size.bottomRight(Offset.zero),
+      ancestor: overlay,
     );
-
+    // A zero-width rect makes the menu right-align to the value side, below the row.
+    final point = Rect.fromLTWH(bottomRight.dx, bottomRight.dy + 4, 0, 0);
+    final position = RelativeRect.fromRect(point, Offset.zero & overlay.size);
     if (choicesNeedSearch(choices.length)) {
-      final picked = await showSearchableChoiceMenu<T>(
+      return showSearchableChoiceMenu<T>(
         context,
-        position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
+        position: position,
         value: value,
         choices: choices,
       );
-      if (picked != null && picked != value) onChanged(picked);
-      return;
     }
-    final chosen = await showMenu<T>(
+    return showMenu<T>(
       context: context,
-      position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
+      position: position,
       color: tokens.surfaceRaised,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -176,6 +168,15 @@ class SettingsSelectRow<T> extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _open(BuildContext context) async {
+    final chosen = await pick<T>(
+      context,
+      title: sheetTitle ?? label,
+      value: value,
+      choices: choices,
     );
     if (chosen != null && chosen != value) onChanged(chosen);
   }
@@ -211,7 +212,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
             chevron,
           ],
         ),
-        onTap: () => desktop ? _openDropdown(context) : _open(context),
+        onTap: () => _open(context),
       );
     }
     return AppListRow(
@@ -240,7 +241,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
           ],
         ),
       ),
-      onTap: () => desktop ? _openDropdown(context) : _open(context),
+      onTap: () => _open(context),
     );
   }
 }

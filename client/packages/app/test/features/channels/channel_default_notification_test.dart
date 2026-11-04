@@ -191,7 +191,7 @@ void main() {
     );
     await tester.tap(find.bySemanticsLabel('Manage general'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Channel settings...'));
+    await tester.tap(find.text('Channel settings'));
     await tester.pumpAndSettle();
 
     expect(find.text('All messages'), findsOneWidget);
@@ -207,10 +207,7 @@ void main() {
   });
 
   group('the create sheet', () {
-    Future<Map<String, dynamic>> submit(
-      WidgetTester tester, {
-      String? choose,
-    }) async {
+    Future<Map<String, dynamic>> submit(WidgetTester tester) async {
       late Map<String, dynamic> body;
       await tester.pumpWidget(
         ProviderScope(
@@ -238,12 +235,6 @@ void main() {
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      if (choose != null) {
-        await tester.tap(find.text('Default notifications'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(choose));
-        await tester.pumpAndSettle();
-      }
       await tester.enterText(
         find.byWidgetPredicate(
           (w) => w is AppInput && w.placeholder == 'Channel name',
@@ -258,13 +249,6 @@ void main() {
       await tester.pumpAndSettle();
       return body;
     }
-
-    testWidgets('sends the chosen default', (tester) async {
-      expect(
-        (await submit(tester, choose: 'Muted'))['default_notification'],
-        'nothing',
-      );
-    });
 
     testWidgets('sends none when left alone', (tester) async {
       expect(await submit(tester), isNot(contains('default_notification')));

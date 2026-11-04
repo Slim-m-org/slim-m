@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Renaming and deleting a category: the sheet the header's context menu
-/// opens for a rename, and the confirm-then-delete the same menu runs directly.
+/// Renaming a category, and the confirm-then-delete the header's context menu
+/// runs directly; the sheet is rename only, so delete has one entry point.
 /// `PATCH`/`DELETE /categories/{id}` ([api.SlimmApiChannelAdmin]).
 ///
 /// The counterpart to `manage_channel_sheet.dart` for a category, which has
@@ -29,11 +29,7 @@ const _deleteCategoryAction = 'delete the category';
 /// The one confirmation for deleting a category, asked the same way wherever
 /// the delete was started from.
 ///
-/// Shared rather than written twice: the sheet's danger zone and the header's
-/// own context menu both reach the same irreversible act, and a warning that
-/// said something different depending on which route you took would be worse
-/// than either wording alone. The point it has to make is that the channels
-/// survive - a manager who thinks a delete takes the rooms with it will not
+/// The point it has to make is that the channels survive - a manager who thinks a delete takes the rooms with it will not
 /// press the button.
 Future<bool> confirmCategoryDeletion(
   BuildContext context,
@@ -112,30 +108,29 @@ Future<void> moveCategoryAndReport(
   if (context.mounted) showAppSnackbar(context, error);
 }
 
-Future<void> showManageCategorySheet(
+Future<void> showRenameCategorySheet(
   BuildContext context,
   ChannelCategoryRow category,
 ) {
   return showAppSheet<void>(
     context,
-    builder: (context) => _ManageCategorySheet(category: category),
+    builder: (context) => _RenameCategorySheet(category: category),
   );
 }
 
-class _ManageCategorySheet extends ConsumerStatefulWidget {
-  const _ManageCategorySheet({required this.category});
+class _RenameCategorySheet extends ConsumerStatefulWidget {
+  const _RenameCategorySheet({required this.category});
 
   final ChannelCategoryRow category;
 
   @override
-  ConsumerState<_ManageCategorySheet> createState() =>
-      _ManageCategorySheetState();
+  ConsumerState<_RenameCategorySheet> createState() =>
+      _RenameCategorySheetState();
 }
 
-class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
+class _RenameCategorySheetState extends ConsumerState<_RenameCategorySheet> {
   late final _name = TextEditingController(text: widget.category.name);
   bool _saving = false;
-  bool _deleting = false;
   String? _error;
 
   @override
@@ -148,7 +143,7 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
 
   bool get _nameValid => entityNameValid(_name.text);
 
-  bool get _canSave => !_saving && !_deleting && _dirty && _nameValid;
+  bool get _canSave => !_saving && _dirty && _nameValid;
 
   Future<void> _save() async {
     setState(() {
@@ -170,29 +165,6 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
     }
   }
 
-  Future<void> _confirmDelete() async {
-    final confirmed = await confirmCategoryDeletion(context, widget.category);
-    if (confirmed) await _delete();
-  }
-
-  Future<void> _delete() async {
-    setState(() {
-      _deleting = true;
-      _error = null;
-    });
-    try {
-      await deleteCategoryAndForget(ref, widget.category);
-      if (mounted) Navigator.of(context).pop();
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, _deleteCategoryAction, e, stack);
-      if (mounted) {
-        setState(() => _error = describeApiFailure(_deleteCategoryAction, e));
-      }
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -209,7 +181,7 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Manage category',
+              'Rename category',
               style: AppText.body.copyWith(
                 color: tokens.textPrimary,
                 fontWeight: AppWeights.semi,
@@ -235,21 +207,6 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
               full: true,
               disabled: !_canSave,
               onPressed: _save,
-            ),
-            const SizedBox(height: AppSpacing.s20),
-            Container(height: 1, color: tokens.borderSubtle),
-            const SizedBox(height: AppSpacing.s12),
-            Text(
-              'DANGER ZONE',
-              style: AppText.label.copyWith(color: tokens.dangerText),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            AppButton(
-              label: _deleting ? 'Deleting...' : 'Delete category',
-              variant: AppButtonVariant.danger,
-              full: true,
-              disabled: _saving || _deleting,
-              onPressed: _confirmDelete,
             ),
           ],
         ),
