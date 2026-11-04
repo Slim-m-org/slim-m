@@ -27,7 +27,10 @@ Future<void> applyThemeDocument(
   final picture = document.picture;
   if (picture == null) return;
   final background = ref.read(appBackgroundControllerProvider.notifier);
-  if (pictureBytes != null) await background.importPicture(pictureBytes);
+  // The file's picture settings describe a picture that is not there, so a failed import applies none of them.
+  if (pictureBytes != null && !await background.importPicture(pictureBytes)) {
+    return;
+  }
   await background.setDim(picture.dim);
   await background.setVignette(picture.vignette);
   await background.setBlur(picture.blur);

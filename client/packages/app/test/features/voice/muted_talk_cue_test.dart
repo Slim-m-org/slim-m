@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart';
 import 'package:slimm_app/src/features/voice/providers/muted_talk_cue.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_app/src/features/voice/providers/voice_state.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_dock_hint.dart';
 import 'package:slimm_rtc/rtc.dart';

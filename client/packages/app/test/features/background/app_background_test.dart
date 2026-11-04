@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/background/providers/app_background_contr
 import 'package:slimm_app/src/features/background/providers/background_image_store.dart';
 import 'package:slimm_app/src/features/background/widgets/app_background_host.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
+import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Uint8List get _forest =>
@@ -30,6 +31,12 @@ Future<Uint8List> _widePng(int w, int h) async {
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
   image.dispose();
   return data!.buffer.asUint8List();
+}
+
+class _BrokenPrefs extends Fake implements SharedPreferences {
+  @override
+  Future<bool> setBool(String key, bool value) =>
+      Future.error(StateError('disk full'));
 }
 
 ProviderContainer _container(MemoryBackgroundImageStore store) {
@@ -101,6 +108,25 @@ void main() {
       final frame = await codec.getNextFrame();
       expect(frame.image.width, backgroundMaxSide);
       expect(frame.image.height, 640);
+    });
+
+    test('a failed settings write keeps no picture and says so', () async {
+      final store = MemoryBackgroundImageStore();
+      final c = ProviderContainer(
+        overrides: [
+          backgroundImageStoreProvider.overrideWithValue(store),
+          preferencesProvider.overrideWith((ref) => _BrokenPrefs()),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final ok = await c
+          .read(appBackgroundControllerProvider.notifier)
+          .importPicture(_forest);
+
+      expect(ok, isFalse);
+      expect(c.read(appBackgroundControllerProvider).hasImage, isFalse);
+      expect(await store.read(), isNull);
     });
 
     test(
