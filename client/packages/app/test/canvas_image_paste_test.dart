@@ -43,6 +43,18 @@ Future<void> _pressPaste(WidgetTester tester) async {
   await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
 }
 
+/// Pumps in real time until [done]: the paste runs a real decode and upload that a fake clock never completes.
+Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
+  await tester.runAsync(() async {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (!done() && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await tester.pump();
+    }
+  });
+  await tester.pump();
+}
+
 void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -62,11 +74,16 @@ void main() {
     await tester.pumpAndSettle();
 
     await _pressPaste(tester);
-    // A real codec decode needs real asynchrony; pumpAndSettle alone never observes it, the same trap canvas_pane_test.dart's own hydration tests already document.
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    // A real codec decode needs real asynchrony; waiting on the posted object observes it where pumpAndSettle alone never would.
+    await _pumpUntil(
+      tester,
+      () =>
+          fixture.posted.isNotEmpty &&
+          surfaceDocument(
+                tester,
+              ).objectBounds(fixture.posted.single['id'] as String) !=
+              null,
     );
-    await tester.pumpAndSettle();
 
     expect(fixture.posted, hasLength(1));
     expect(fixture.posted.single['kind'], 'image');
@@ -124,10 +141,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await _pressPaste(tester);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      await _pumpUntil(
+        tester,
+        () => find.text(refusal.value).evaluate().isNotEmpty,
       );
-      await tester.pumpAndSettle();
 
       expect(find.text(refusal.value), findsOneWidget);
       expect(fixture.posted, isEmpty);
