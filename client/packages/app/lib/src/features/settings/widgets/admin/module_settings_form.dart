@@ -281,7 +281,7 @@ class _ModuleSettingsFormState extends State<ModuleSettingsForm> {
         }),
       ),
       api.ModuleSettingType.unknown => SettingsInfoLine(
-        '${d.label} cannot be edited in this version.',
+        'Update slim-m to edit ${d.label}.',
       ),
     };
   }

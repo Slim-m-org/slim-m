@@ -84,12 +84,6 @@ abstract final class Routes {
       ? path
       : '$path?source=${Uri.encodeQueryComponent(source)}';
 
-  /// The third level of the Dock drill-down: who may use one module. A screen
-  /// rather than a sheet, so it does not scrim a Space settings modal that is
-  /// already scrimming the shell.
-  static String adminDockModuleAccess(String moduleId, {String? source}) =>
-      _withSource('$adminDock/$moduleId/access', source);
-
   /// The messages of one channel. [openChat] arrives to read them: a voice
   /// channel then opens its chat and leaves its call unjoined (see
   /// `VoiceScreen.openChat`); a text channel ignores it.

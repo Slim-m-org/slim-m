@@ -12,6 +12,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_install_consent.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_row.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/dock_page_helpers.dart';
 
 import '../../ui_snapshot_support.dart';
 
@@ -95,15 +96,16 @@ void main() {
     expect(installs, hasLength(1));
   });
 
-  testWidgets('the page keeps Install clear of the access card above it', (
+  testWidgets('the pinned Install stays clear of the access card above it', (
     tester,
   ) async {
     await consentPump(tester, asks: ['message.post']);
+    await openDockTab(tester, 'Access');
     final last = tester.getRect(
       find.textContaining('Posts as whoever runs it'),
     );
     final install = tester.getRect(find.text('Install v1.0.0'));
-    expect(install.top - last.bottom, greaterThan(32));
+    expect(install.top - last.bottom, greaterThan(16));
   });
 
   testWidgets('the registry sentence hides behind the badge until tapped', (

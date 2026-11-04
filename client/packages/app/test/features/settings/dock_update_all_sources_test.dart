@@ -155,7 +155,7 @@ void main() {
       ],
     );
     await _open(tester, world.client);
-    expect(find.text('UPDATE AVAILABLE'), findsOneWidget);
+    expect(find.text('UPDATE'), findsOneWidget);
     expect(
       find.text('Update all'),
       findsOneWidget,

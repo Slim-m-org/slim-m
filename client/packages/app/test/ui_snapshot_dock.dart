@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Dock's three levels, plus Bots and Webhooks, on the snapshot router, with the real screens.
+/// The Dock list and a module page, plus Bots and Webhooks, on the snapshot router, with the real screens.
 ///
-/// The router here lists routes by hand, and the two module levels were
+/// The router here lists routes by hand, and the module level was
 /// missing from it, so both surfaces rendered the router's own not-found page
 /// and still passed.
 library;
@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/bots_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/webhooks_screen.dart';
@@ -35,20 +34,13 @@ final dockFixtureRoutes = [
       DockModuleScreen(moduleId: state.pathParameters['moduleId']!),
     ),
   ),
-  GoRoute(
-    path: '${Routes.adminDock}/:moduleId/access',
-    pageBuilder: (context, state) => modalPage(
-      context,
-      DockModuleAccessScreen(moduleId: state.pathParameters['moduleId']!),
-    ),
-  ),
 ];
 
 final _sha = 'a' * 64;
 
 /// What the fixture server answers under `/space/dock`, or null for every
 /// path it has no module data for. One installed, enabled module, so the
-/// detail and the access screens show a real state rather than an error.
+/// detail and the module tabs show a real state rather than an error.
 Object? dockFixtureBody(String path) => switch (path) {
   '/space/dock/modules' => [
     {

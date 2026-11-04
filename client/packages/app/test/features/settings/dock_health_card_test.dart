@@ -86,7 +86,6 @@ void main() {
     final installed = _module(failures: 2, dropped: 7);
     expect(dockHasHealthNews(installed), isTrue);
     await _pump(tester, installed);
-    expect(find.text('Health'), findsOneWidget);
     expect(find.text('2 runs failed in a row.'), findsOneWidget);
     expect(
       find.text('7 events were dropped because it fell behind.'),
@@ -103,22 +102,22 @@ void main() {
       MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: DockManifestView(
-              manifest: api.DockManifest.fromJson(
-                dockManifestJson('xp', '1.0.0'),
-              ),
-              installed: _module(enabled: false, reason: 'Too many failures.'),
-              busy: false,
-              error: null,
-              onErrorDismiss: () {},
-              onInstall: () {},
-              onSetEnabled: enabled.add,
-              onUninstall: () {},
-              onChooseAccess: () {},
-              approvedHostCapabilities: const {},
-              onToggleHostCapability: (_, _) {},
+          body: DockManifestView(
+            manifest: api.DockManifest.fromJson(
+              dockManifestJson('xp', '1.0.0'),
             ),
+            installed: _module(enabled: false, reason: 'Too many failures.'),
+            busy: false,
+            error: null,
+            onErrorDismiss: () {},
+            onInstall: () {},
+            onSetEnabled: enabled.add,
+            onUninstall: () {},
+            tab: DockModuleTab.overview,
+            onTab: (_) {},
+            onDiscardAccess: () {},
+            approvedHostCapabilities: const {},
+            onToggleHostCapability: (_, _) {},
           ),
         ),
       ),

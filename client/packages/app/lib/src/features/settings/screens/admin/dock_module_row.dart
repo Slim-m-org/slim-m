@@ -18,6 +18,7 @@ class DockModuleRow extends StatelessWidget {
     required this.entry,
     required this.installed,
     this.source,
+    this.showInstalledState = true,
   });
 
   final api.DockIndexEntry entry;
@@ -29,20 +30,25 @@ class DockModuleRow extends StatelessWidget {
   /// The community source this row was listed under; null is the official one.
   final String? source;
 
+  /// False on the Installed list, where "Installed" would label every row.
+  final bool showInstalledState;
+
   /// What this space has, against what the marketplace now offers.
   ///
   /// A version that differs is the whole update affordance on this screen:
   /// the row used to show the registry's version and the word "Installed"
   /// side by side, which reads as agreement even when they disagree.
-  static AppBadge _stateBadge(
+  AppBadge? _stateBadge(
     api.DockIndexEntry entry,
     api.InstalledDockModule installed,
   ) {
     if (installed.version != entry.version) {
-      return const AppBadge(
-        variant: AppBadgeVariant.warn,
-        label: 'Update available',
-      );
+      return const AppBadge(variant: AppBadgeVariant.warn, label: 'Update');
+    }
+    if (!showInstalledState) {
+      return installed.enabled
+          ? null
+          : const AppBadge(variant: AppBadgeVariant.tag, label: 'Off');
     }
     return AppBadge(
       variant: AppBadgeVariant.role,
@@ -58,7 +64,7 @@ class DockModuleRow extends StatelessWidget {
       ? 'v${entry.version}'
       : 'Installed v${installed.version}, latest v${entry.version}';
 
-  Widget? _stateOrBlockedBadge(
+  AppBadge? _stateOrBlockedBadge(
     api.InstalledDockModule? installed,
     bool blocked,
   ) {
@@ -68,16 +74,18 @@ class DockModuleRow extends StatelessWidget {
     return installed == null ? null : _stateBadge(entry, installed);
   }
 
-  /// The Verified mark, then the install state, beside the name.
+  /// The trust badge, then the install state, beside the name.
   Widget? _badges(api.InstalledDockModule? installed, bool blocked) {
     final state = _stateOrBlockedBadge(installed, blocked);
     final verified = dockIsVerified(source);
-    if (state == null && !verified) return null;
     return Row(
       mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s8,
       children: [
-        if (verified) const DockVerifiedBadge(),
-        if (verified && state != null) const SizedBox(width: AppSpacing.s8),
+        if (verified)
+          const DockVerifiedBadge()
+        else
+          const AppBadge(variant: AppBadgeVariant.tag, label: 'Not verified'),
         ?state,
       ],
     );

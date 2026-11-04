@@ -27,7 +27,6 @@ import '../features/settings/screens/admin/bots_screen.dart';
 import 'package:slimm_data/data.dart' show Channel;
 
 import '../features/settings/screens/admin/channel_permissions_screen.dart';
-import '../features/settings/screens/admin/dock_module_access_screen.dart';
 import '../features/settings/screens/admin/dock_module_screen.dart';
 import '../features/settings/screens/admin/dock_screen.dart';
 import '../features/settings/screens/admin/emoji_screen.dart';
@@ -240,16 +239,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => modalPage(
           context,
           DockModuleScreen(
-            moduleId: state.pathParameters['moduleId']!,
-            source: state.uri.queryParameters['source'],
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '${Routes.adminDock}/:moduleId/access',
-        pageBuilder: (context, state) => modalPage(
-          context,
-          DockModuleAccessScreen(
             moduleId: state.pathParameters['moduleId']!,
             source: state.uri.queryParameters['source'],
           ),

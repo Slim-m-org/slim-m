@@ -1,26 +1,79 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Space-wide switches for where module output shows, above the module list.
+/// The Space-wide switches for where module output shows, behind a single row
+/// on the module list.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/providers.dart';
 import '../../../../widgets/optimistic_setting_state.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../../modules/providers/module_display_settings.dart';
 import '../../widgets/join_policy_row.dart' show spaceSettingsProvider;
+import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+
+/// The one row on the module list that opens [showModuleDisplaySheet].
+class ModuleDisplayRow extends StatelessWidget {
+  const ModuleDisplayRow({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingsSectionCard(
+    children: [
+      SettingsDetailRow(
+        icon: AppIcons.settings,
+        title: 'Module display',
+        detail: 'Where module badges and stats show.',
+        onTap: () => unawaited(showModuleDisplaySheet(context)),
+        onTapSemanticLabel: 'Module display',
+        trailing: const ExcludeSemantics(child: Icon(AppIcons.chevronRight)),
+      ),
+    ],
+  );
+}
+
+Future<void> showModuleDisplaySheet(BuildContext context) => showAppSheet<void>(
+  context,
+  scrolls: true,
+  builder: (context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        0,
+        AppSpacing.s16,
+        AppSpacing.s16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Module display',
+            style: AppText.heading.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.semi,
+            ),
+          ),
+          const ModuleDisplaySection(),
+        ],
+      ),
+    );
+  },
+);
 
 class ModuleDisplaySection extends StatelessWidget {
   const ModuleDisplaySection({super.key});
 
   @override
   Widget build(BuildContext context) => SettingsSectionCard(
-    title: 'Display',
     children: [
       _DisplayToggle(
         label: 'Badges in member list',

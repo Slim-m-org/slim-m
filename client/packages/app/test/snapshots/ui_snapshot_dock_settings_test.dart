@@ -16,6 +16,7 @@ import 'package:slimm_app/src/providers/providers.dart'
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../dock_manifest_fixture.dart';
+import '../support/dock_page_helpers.dart';
 import '../ui_snapshot_support.dart';
 
 final _installed = {
@@ -124,17 +125,13 @@ void main() {
         overrides: [apiProvider.overrideWith(_dock)],
         settleNestedResolve: true,
         afterSettle: (tester) async {
+          await openDockTab(tester, 'Settings');
           await tester.scrollUntilVisible(
             find.textContaining('Experimental'),
             300,
-            scrollable: find
-                .ancestor(
-                  of: find.text('Permissions this will add'),
-                  matching: find.byType(Scrollable),
-                )
-                .first,
+            scrollable: find.byType(Scrollable).first,
           );
-          await tester.pumpAndSettle();
+          await tester.pump(const Duration(milliseconds: 400));
         },
       );
     });
