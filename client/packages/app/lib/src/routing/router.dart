@@ -48,6 +48,7 @@ import '../features/channels/screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../features/messages/screens/message_deep_link.dart';
 import '../features/settings/screens/debug_log_screen.dart';
+import '../features/settings/screens/themes_screen.dart';
 import '../features/voice/screens/call_stats_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
@@ -258,6 +259,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.callStats,
         pageBuilder: (context, state) =>
             modalPage(context, const CallStatsScreen()),
+      ),
+      GoRoute(
+        path: Routes.personalThemes,
+        pageBuilder: (context, state) =>
+            modalPage(context, const ThemesScreen()),
       ),
       GoRoute(
         path: Routes.debugLog,
