@@ -54,6 +54,7 @@
 		7A11C0DE000B000000000011 /* BadgeCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000001 /* BadgeCount.swift */; };
 		7A11C0DE000B000000000012 /* BadgeCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000001 /* BadgeCount.swift */; };
 		7A11C0DE000B000000000013 /* BadgeCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000002 /* BadgeCountTests.swift */; };
+		7A11C0DE000B0000000000F2 /* RoutePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B0000000000F1 /* RoutePickerView.swift */; };
 		7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000003 /* AppBadgeChannel.swift */; };
 		7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000004 /* HoldMusicChannel.swift */; };
 		7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000002 /* callkit_ringtone.wav */; };
@@ -166,6 +167,7 @@
 		7A11C0DE000600000000000E /* NotificationSoundTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationSoundTests.swift; sourceTree = "<group>"; };
 		7A11C0DE000B000000000001 /* BadgeCount.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BadgeCount.swift; sourceTree = "<group>"; };
 		7A11C0DE000B000000000002 /* BadgeCountTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BadgeCountTests.swift; sourceTree = "<group>"; };
+		7A11C0DE000B0000000000F1 /* RoutePickerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RoutePickerView.swift; sourceTree = "<group>"; };
 		7A11C0DE000B000000000003 /* AppBadgeChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppBadgeChannel.swift; sourceTree = "<group>"; };
 		7A11C0DE000B000000000004 /* HoldMusicChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HoldMusicChannel.swift; sourceTree = "<group>"; };
 		7A11C0DE0008000000000002 /* callkit_ringtone.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/callkit_ringtone.wav"; sourceTree = "<group>"; };
@@ -315,6 +317,7 @@
 				7A11C0DE0003000000000001 /* VoiceCallReporter.swift */,
 				7A11C0DE000200000000000A /* BroadcastChannel.swift */,
 				7A11C0DE000B000000000003 /* AppBadgeChannel.swift */,
+				7A11C0DE000B0000000000F1 /* RoutePickerView.swift */,
 				7A11C0DE000B000000000004 /* HoldMusicChannel.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				7A11C0DE0009000000000001 /* AppLockWindowChannel.swift */,
@@ -562,6 +565,7 @@
 				7A11C0DE0003000000000002 /* VoiceCallReporter.swift in Sources */,
 				7A11C0DE0002000000000018 /* BroadcastChannel.swift in Sources */,
 				7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */,
+				7A11C0DE000B0000000000F2 /* RoutePickerView.swift in Sources */,
 				7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,

@@ -188,6 +188,9 @@ import UserNotifications
     }
     holdMusicChannel = holdMusic
 
+    engineBridge.applicationRegistrar.register(
+      RoutePickerFactory(), withId: RoutePickerFactory.viewType)
+
     let appLockWindow = FlutterMethodChannel(
       name: AppLockWindowChannel.name, binaryMessenger: messenger)
     appLockWindow.setMethodCallHandler { call, result in
@@ -276,7 +279,7 @@ import UserNotifications
   private static let tokenRefreshedKey = "slimm.push.tokenRefreshed.v1"
 
   private func requestPushAuthorization(_ application: UIApplication) {
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
       // A device token is worth having even if the user declines the alert:
       // the relay still needs it to seal envelopes, and a later notification
       // service extension can act on a silent push without alert permission.

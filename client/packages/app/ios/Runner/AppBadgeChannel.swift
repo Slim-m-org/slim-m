@@ -12,6 +12,12 @@ enum AppBadgeChannel {
   static let name = "top.npcserver.slimm/app_badge"
 
   static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    if call.method == "badgesAllowed" {
+      UNUserNotificationCenter.current().getNotificationSettings { settings in
+        result(settings.badgeSetting != .disabled)
+      }
+      return
+    }
     guard call.method == "sync", let args = call.arguments as? [String: Any],
       let count = args["count"] as? Int
     else {

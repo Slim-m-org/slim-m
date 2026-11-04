@@ -16,12 +16,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart' show isWindowsHost;
+import 'package:slimm_platform/platform.dart' show isIOSHost, isWindowsHost;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/sound_output_router.dart';
 import '../../settings/providers/notification_sound_controller.dart';
 import '../providers/mic_preview.dart';
+import 'audio_route_picker.dart';
 import '../providers/speaker_route_provider.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
@@ -39,7 +40,19 @@ const speakerTestRowKey = ValueKey('speaker-test-row');
 const windowsMicHelpKey = ValueKey('windows-mic-enhancements-help');
 
 class AudioDeviceSection extends ConsumerStatefulWidget {
-  const AudioDeviceSection({super.key, this.embedded = false, this.windows});
+  const AudioDeviceSection({
+    super.key,
+    this.embedded = false,
+    this.windows,
+    this.ios,
+    this.routePicker,
+  });
+
+  /// Whether to show the iOS route picker; null reads the host, tests pass it.
+  final bool? ios;
+
+  /// Stands in for the native route button in tests.
+  final Widget? routePicker;
 
   /// Whether to show the Windows-only help; null reads the host, tests pass it.
   final bool? windows;
@@ -101,17 +114,21 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         !notifier.devices.supportsAudioOutputSelection &&
         ref.watch(speakerRouteProvider).supported;
 
+    final onIOS = widget.ios ?? isIOSHost;
     final rows = [
-      _DevicePickerRow(
-        label: 'Microphone',
-        icon: AppIcons.mic,
-        supported: notifier.devices.supportsAudioInputSelection,
-        unsupportedCaption: 'This platform routes microphones automatically.',
-        devices: _inputs,
-        listed: _listed,
-        selectedId: settings.audioInputDeviceId,
-        onChanged: settingsNotifier.setAudioInputDevice,
-      ),
+      if (onIOS)
+        AudioRoutePickerRow(picker: widget.routePicker)
+      else
+        _DevicePickerRow(
+          label: 'Microphone',
+          icon: AppIcons.mic,
+          supported: notifier.devices.supportsAudioInputSelection,
+          unsupportedCaption: 'This platform routes microphones automatically.',
+          devices: _inputs,
+          listed: _listed,
+          selectedId: settings.audioInputDeviceId,
+          onChanged: settingsNotifier.setAudioInputDevice,
+        ),
       // By platform, not width: it describes an OS setting, not a layout.
       if (widget.windows ?? isWindowsHost)
         const AppListRow(
@@ -138,7 +155,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
           semanticLabel: 'Play calls through the loudspeaker',
           onChanged: settingsNotifier.setSpeakerPreferred,
         )
-      else
+      else if (!onIOS)
         _DevicePickerRow(
           label: 'Speaker',
           icon: AppIcons.speaker,

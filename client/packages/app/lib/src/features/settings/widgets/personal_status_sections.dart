@@ -16,6 +16,7 @@ import 'package:slimm_platform/platform.dart' show isDesktopHost, isLinuxHost;
 import '../../../desktop/providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
+import '../../../providers/app_badge_sync.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../voice/widgets/call_sounds_card.dart';
 import 'notification_schedule_allow_lists.dart';
@@ -42,6 +43,7 @@ class NotificationsSection extends ConsumerWidget {
   final bool? hasPushChannel;
 
   static const bannerKey = Key('notification-push-warning');
+  static const badgesOffKey = Key('notification-badges-off');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -68,6 +70,12 @@ class NotificationsSection extends ConsumerWidget {
           title: 'When to notify',
           children: [
             const NotificationPreferenceRow(),
+            if (ref.watch(badgesAllowedProvider).valueOrNull == false)
+              const AppListRow(
+                key: badgesOffKey,
+                label: 'Badges are off',
+                subtitle: 'Turn on Badges for slim-m in iOS Settings.',
+              ),
             if (isLinuxHost) const _DesktopMessageTextRow(),
             if (defaultTargetPlatform == TargetPlatform.iOS)
               const PushContentPreviewRow(),
