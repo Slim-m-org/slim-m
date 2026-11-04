@@ -5,6 +5,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:slimm_design_system/design_system.dart';
+
 import '../../../widgets/visible_hold.dart';
 import '../providers/mic_preview.dart';
 import 'level_display_hold.dart';
@@ -27,8 +29,45 @@ class MicPreviewHold extends ConsumerWidget {
         release: () {
           if (controller.mounted) controller.release();
         },
-        child: child,
+        child: _TapToTest(child: child),
       ),
     );
   }
 }
+
+/// On a phone the meter stays still until the tap, so the pane never opens the
+/// microphone by itself.
+class _TapToTest extends ConsumerWidget {
+  const _TapToTest({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final needsTap = ref.watch(micPreviewNeedsTapProvider);
+    final armed = ref.watch(micPreviewArmedProvider);
+    if (!needsTap || armed) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        child,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s16,
+            0,
+            AppSpacing.s16,
+            AppSpacing.s16,
+          ),
+          child: AppButton(
+            key: micTestButtonKey,
+            label: 'Test microphone',
+            icon: AppIcons.mic,
+            onPressed: ref.read(micPreviewProvider.notifier).arm,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+const micTestButtonKey = ValueKey('mic-test-button');

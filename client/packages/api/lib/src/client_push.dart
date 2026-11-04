@@ -54,6 +54,15 @@ extension SlimmApiPush on SlimmApi {
   Future<void> setPushPreview(bool includeContent) =>
       send('PUT', '/push/preview', body: {'include_content': includeContent});
 
+  /// The account's hold-music choice, or null if it was never made.
+  Future<bool?> holdMusic() async {
+    final json = await send('GET', '/me/hold-music');
+    return (json as Map<String, dynamic>)['enabled'] as bool?;
+  }
+
+  Future<void> setHoldMusic(bool enabled) =>
+      send('PUT', '/me/hold-music', body: {'enabled': enabled});
+
   /// Clears this device's push registration.
   Future<void> unregisterPush() =>
       send('DELETE', '/push', expectNoContent: true);

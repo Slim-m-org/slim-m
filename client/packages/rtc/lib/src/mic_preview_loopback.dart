@@ -39,6 +39,7 @@ class LoopbackMicSource implements MicPreviewSource {
   rtc.MediaStream? _stream;
   rtc.RTCPeerConnection? _sender;
   rtc.RTCPeerConnection? _receiver;
+  rtc.MediaStreamTrack? _far;
   bool _opened = false;
 
   /// Process-wide, so an old preview's close finishes before a new one opens.
@@ -70,7 +71,10 @@ class LoopbackMicSource implements MicPreviewSource {
     final receiver = _receiver = await rtc.createPeerConnection({});
     sender.onIceCandidate = (c) => unawaited(receiver.addCandidate(c));
     receiver.onIceCandidate = (c) => unawaited(sender.addCandidate(c));
-    receiver.onTrack = (event) => unawaited(silenceLoopbackTrack(event.track));
+    receiver.onTrack = (event) {
+      _far = event.track;
+      unawaited(silenceLoopbackTrack(event.track));
+    };
     for (final track in stream.getAudioTracks()) {
       await sender.addTrack(track, stream);
     }
@@ -91,6 +95,8 @@ class LoopbackMicSource implements MicPreviewSource {
       await Future<void>.delayed(wait);
       if (!_opened) return;
       await _switching.routePreviewInput(id);
+      final far = _far;
+      if (far != null) await silenceLoopbackTrack(far);
     }
   }
 
@@ -123,7 +129,7 @@ class LoopbackMicSource implements MicPreviewSource {
     final sender = _sender;
     final receiver = _receiver;
     final stream = _stream;
-    _sender = _receiver = _stream = null;
+    _sender = _receiver = _stream = _far = null;
     for (final track in stream?.getAudioTracks() ?? const []) {
       await track.stop();
     }

@@ -19,6 +19,15 @@ pub(super) async fn push_calls(c: &mut Contract, root: &str, channel: &str, bob_
         json!({ "preference": "mentions" }),
     )
     .await;
+    c.get("getHoldMusic", "/me/hold-music", root).await;
+    c.json(
+        "setHoldMusic",
+        "PUT",
+        "/me/hold-music",
+        root,
+        json!({ "enabled": true }),
+    )
+    .await;
     c.get("getPushPreview", "/push/preview", root).await;
     c.json(
         "setPushPreview",

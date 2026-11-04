@@ -10,7 +10,7 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
-import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_api/api.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/lounge_tracks.dart';
@@ -24,7 +24,7 @@ import 'voice_settings_state.dart';
 export 'voice_settings_state.dart';
 
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
-const _holdMusicKey = 'slimm.voice.hold_music_enabled';
+const holdMusicEnabledKey = 'slimm.voice.hold_music_enabled';
 const _holdMusicTrackKey = 'slimm.voice.hold_music_track';
 const _holdMusicVolumeKey = 'slimm.voice.hold_music_volume';
 const _callRingSoundKey = 'slimm.voice.call_ring_sound_enabled';
@@ -187,7 +187,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(
       joinLeaveSoundsEnabled: prefs.getBool(_soundsKey) ?? true,
       callRingSoundEnabled: prefs.getBool(_callRingSoundKey) ?? true,
-      holdMusicEnabled: prefs.getBool(_holdMusicKey) ?? false,
+      holdMusicEnabled: prefs.getBool(holdMusicEnabledKey) ?? false,
       holdMusicTrack: LoungeTrack.fromName(prefs.getString(_holdMusicTrackKey)),
       holdMusicVolume:
           (prefs.getDouble(_holdMusicVolumeKey) ?? defaultHoldMusicVolume)
@@ -239,9 +239,24 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   }
 
   Future<void> setHoldMusicEnabled(bool enabled) async {
+    await applyHoldMusicEnabled(enabled);
+    try {
+      await _ref.read(apiProvider).setHoldMusic(enabled);
+    } catch (error, stack) {
+      reportFailure(
+        LogTag.voice,
+        'save hold music to the account',
+        error,
+        stack,
+      );
+    }
+  }
+
+  /// Stores a value without sending it, for one the account already holds.
+  Future<void> applyHoldMusicEnabled(bool enabled) async {
     state = state.copyWith(holdMusicEnabled: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setBool(_holdMusicKey, enabled);
+    await prefs.setBool(holdMusicEnabledKey, enabled);
   }
 
   /// Persists the style that plays while you are alone.

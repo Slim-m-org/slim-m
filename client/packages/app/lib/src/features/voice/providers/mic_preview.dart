@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show isDesktopHost;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/app_lifecycle.dart';
@@ -18,6 +19,13 @@ import 'voice_settings_controller.dart';
 final micPreviewFactoryProvider = Provider<MicPreview Function()>(
   (ref) => systemMicPreview,
 );
+
+/// Phones open the capture only after a tap, so the pane never touches the
+/// microphone or speaker on its own. Overridden in tests.
+final micPreviewNeedsTapProvider = Provider<bool>((ref) => !isDesktopHost);
+
+/// Set by the tap, cleared when the screen closes or the app is backgrounded.
+final micPreviewArmedProvider = StateProvider<bool>((ref) => false);
 
 /// Whether a call owns the microphone, so the preview must not open a second
 /// capture.
@@ -50,6 +58,22 @@ class MicPreviewController extends StateNotifier<MicPreviewReading> {
   StreamSubscription<MicPreviewReading>? _readings;
   int _holds = 0;
 
+  bool get _armed =>
+      _ref.read(micPreviewArmedProvider) ||
+      !_ref.read(micPreviewNeedsTapProvider);
+
+  void _disarm() {
+    if (_ref.read(micPreviewArmedProvider)) {
+      _ref.read(micPreviewArmedProvider.notifier).state = false;
+    }
+  }
+
+  /// An explicit tap on a phone's "Test microphone".
+  void arm() {
+    _ref.read(micPreviewArmedProvider.notifier).state = true;
+    _sync();
+  }
+
   void acquire() {
     _holds++;
     _sync();
@@ -59,14 +83,19 @@ class MicPreviewController extends StateNotifier<MicPreviewReading> {
   /// the next [acquire] replaces it before anything is drawn.
   void release() {
     _holds--;
+    if (_holds <= 0) _disarm();
     _sync(announce: false);
   }
 
   void _sync({bool announce = true}) {
+    final resumed =
+        _ref.read(appLifecycleProvider) == AppLifecycleState.resumed;
+    if (!resumed) _disarm();
     final wanted =
         _holds > 0 &&
+        _armed &&
         !_ref.read(micPreviewBlockedProvider) &&
-        _ref.read(appLifecycleProvider) == AppLifecycleState.resumed;
+        resumed;
     if (wanted && _preview == null) {
       final preview = _preview = _ref.read(micPreviewFactoryProvider)();
       _readings = preview.readings.listen((r) => state = r);

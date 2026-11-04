@@ -225,5 +225,24 @@ void main() {
       expect(seen.requests.last.url.path, '/push/preview');
       expect(seen.body, {'include_content': false});
     });
+
+    test('the hold music choice reads from and writes to /me/hold-music',
+        () async {
+      final seen = _Seen();
+      final api = _api(
+        seen,
+        (request) => request.method == 'GET'
+            ? http.Response('{"enabled":null}', 200)
+            : http.Response('{"enabled":true}', 200),
+        session: _signedIn(),
+      );
+
+      expect(await api.holdMusic(), isNull);
+      await api.setHoldMusic(true);
+
+      expect(seen.requests.last.method, 'PUT');
+      expect(seen.requests.last.url.path, '/me/hold-music');
+      expect(seen.body, {'enabled': true});
+    });
   });
 }
