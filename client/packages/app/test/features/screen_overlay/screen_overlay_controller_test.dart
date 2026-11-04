@@ -151,6 +151,7 @@ class _Rig {
 }
 
 void main() {
+  _lateProbeTest();
   test('off by default: nothing is shown and nothing is announced', () {
     fakeAsync((async) {
       final rig = _Rig(allow: false);
@@ -329,6 +330,46 @@ void main() {
         expect(rig.overlay.shown, [
           [0, 1],
         ]);
+      });
+    },
+  );
+}
+
+void _lateProbeTest() {
+  test(
+    'a probe that read unsupported before the window was up is asked again on join',
+    () {
+      fakeAsync((async) {
+        SharedPreferences.setMockInitialValues({
+          'slimm.voice.screen_share_allow_annotations': true,
+        });
+        var probes = 0;
+        late FixedVoiceController voice;
+        final container = ProviderContainer(
+          overrides: [
+            screenOverlayProvider.overrideWithValue(_FakeOverlay()),
+            screenOverlaySupportProvider.overrideWith((ref) async {
+              probes++;
+              return probes == 1
+                  ? const OverlaySupport.unsupported()
+                  : const OverlaySupport(supported: true, monitors: _monitors);
+            }),
+            voiceControllerProvider.overrideWith(
+              (ref) => voice = FixedVoiceController(ref, const VoiceState()),
+            ),
+            syncControllerProvider.overrideWith((ref) => _Sync(ref)),
+          ],
+        );
+        container.read(voiceSettingsControllerProvider);
+        container.read(voiceControllerProvider);
+        container.read(syncControllerProvider);
+        container.read(screenOverlayControllerProvider);
+        async.flushMicrotasks();
+        expect(container.read(screenOverlaySupportedProvider), isFalse);
+        voice.set(_sharing);
+        async.elapse(const Duration(seconds: 1));
+        expect(container.read(screenOverlaySupportedProvider), isTrue);
+        expect(container.read(screenOverlayControllerProvider).active, isTrue);
       });
     },
   );

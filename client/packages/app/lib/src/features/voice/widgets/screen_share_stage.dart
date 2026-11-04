@@ -19,6 +19,7 @@ import 'share_stage_controls.dart';
 import 'stream_control_strip.dart';
 import 'stream_controls_reveal.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../canvas/widgets/screen_annotate_layer.dart';
 
 /// A dark stage with the share inside it, labelled on hover.
 ///
@@ -50,6 +51,7 @@ class ScreenShareStage extends ConsumerStatefulWidget {
     this.isLocal = false,
     this.onExpand,
     this.popOutIdentity,
+    this.annotateSharerId,
     this.onStopWatching,
     this.onFocus,
     this.focused = false,
@@ -97,6 +99,9 @@ class ScreenShareStage extends ConsumerStatefulWidget {
   /// the local share, which is never previewed back to the sharer.
   final String? popOutIdentity;
 
+  /// The remote sharer whose screen a viewer may draw on, when they allow it; null for the local share.
+  final String? annotateSharerId;
+
   @override
   ConsumerState<ScreenShareStage> createState() => _ScreenShareStageState();
 }
@@ -110,6 +115,22 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
     final at = box?.localToGlobal(Offset(0, box.size.height));
     _menu.currentState?.toggle(at: at);
   }
+
+  Widget _annotate() => Positioned.fill(
+    child: LayoutBuilder(
+      builder: (context, box) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ScreenAnnotateLayer(
+            key: const ValueKey('stage-annotate'),
+            sharerId: widget.annotateSharerId!,
+            sharerName: widget.sharerName,
+            tileRect: Offset.zero & box.biggest,
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _video(BuildContext context, AppTokens tokens) => DoubleClickDetector(
     onDoubleClick: widget.onExpand,
@@ -129,6 +150,7 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
                 child: widget.child,
               ),
             ),
+            if (widget.annotateSharerId != null) _annotate(),
             if (widget.showCaption)
               Positioned(
                 left: 6,

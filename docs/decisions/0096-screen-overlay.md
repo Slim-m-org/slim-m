@@ -135,7 +135,7 @@ The tile's pen, circle and note pill is part of the tile's own controls, so it i
 ## Not done
 
 - Window shares.
-- A viewer's marks while the viewer is not on the canvas (the pen is a canvas tile control).
+- A viewer drawing from the full-screen video view; the pen is on the canvas tile and the call stage tile.
 - Packaging gtk-layer-shell in the tarball and the flatpak; the rpm recommends it.
 - macOS, web, Android and iOS, by decision.
 - A real Windows run, an X11 run, a real GNOME run, and a real multi-monitor run.

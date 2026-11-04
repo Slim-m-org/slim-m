@@ -56,7 +56,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     : _clock = clock ?? annotationNow,
       super(const ScreenOverlayState()) {
     _ref.listen(voiceSettingsControllerProvider, (_, _) => _reconcile());
-    _ref.listen(voiceFlagsProvider, (_, _) => _reconcile());
+    _ref.listen(voiceFlagsProvider, (prev, next) {
+      if (prev?.channelId == null && next.channelId != null) _reprobe();
+      _reconcile();
+    });
     _ref.listen(screenOverlaySupportProvider, (_, _) => _reconcile());
     _events = _ref
         .read(syncControllerProvider.notifier)
@@ -94,6 +97,12 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         flags.screenSharing &&
         flags.channelId != null &&
         !(share?.isWindow ?? false);
+  }
+
+  /// A probe that ran before the window was up can read unsupported for good, so each join asks again.
+  void _reprobe() {
+    if (_support.supported) return;
+    _ref.invalidate(screenOverlaySupportProvider);
   }
 
   /// Brings the overlay in line with what is wanted; one pass at a time, rerun if the answer changed meanwhile.
