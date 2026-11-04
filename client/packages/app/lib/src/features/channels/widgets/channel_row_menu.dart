@@ -31,6 +31,7 @@ import '../../../routing/routes.dart';
 import '../screens/channel_settings_screen.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import 'channel_rail.dart' show selectedChannelId;
+import 'channel_settings_danger_zone.dart';
 import 'row_menu_notifications.dart';
 import '../../voice/widgets/voice_channel_tap.dart';
 import '../../voice/widgets/voice_room_settings_sheet.dart';
@@ -41,7 +42,8 @@ import 'channel_notifications_menu.dart';
 /// active one clears back to the account default), and "Channel
 /// settings" for a caller who holds [canManage], the deployment-wide
 /// MANAGE_ROLES bit, or both - the settings screen itself decides which
-/// sections a holder of only one of the two actually sees.
+/// sections a holder of only one of the two actually sees. A [canManage]
+/// holder also gets "Delete channel..." so deleting is not three taps deep.
 ///
 /// Read fresh every time the menu opens rather than watched, the same choice
 /// `DmRow._menuItems`'s own doc comment makes: the row itself already
@@ -120,6 +122,24 @@ List<Widget> channelRowMenuItems(
               Routes.channelSettings,
               extra: ChannelSettingsRouteArgs(
                 channel: channel,
+                wasOpen: wasOpen,
+              ),
+            );
+          },
+        ),
+      if (canManage)
+        AppMenuItem(
+          label: 'Delete channel...',
+          leading: AppIcons.delete,
+          tone: AppMenuItemTone.danger,
+          onTap: () {
+            final wasOpen = selectedChannelId(context) == channel.id;
+            close();
+            unawaited(
+              confirmAndDeleteChannel(
+                context,
+                container,
+                channel,
                 wasOpen: wasOpen,
               ),
             );

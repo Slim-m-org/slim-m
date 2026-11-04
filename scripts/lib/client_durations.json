@@ -470,6 +470,7 @@
 "test/features/channels/channel_refresher_staleness_test.dart": 0.5,
 "test/features/channels/channel_refresher_test.dart": 0.7,
 "test/features/channels/channel_row_context_menu_test.dart": 2.0,
+"test/features/channels/channel_row_menu_delete_test.dart": 1.0,
 "test/features/channels/channel_screen_attachment_send_test.dart": 1.3,
 "test/features/channels/channel_screen_dm_header_test.dart": 1.0,
 "test/features/channels/channel_screen_dm_permission_menu_test.dart": 1.2,
