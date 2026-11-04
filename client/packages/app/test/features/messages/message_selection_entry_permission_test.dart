@@ -174,8 +174,6 @@ void main() {
 
       await tester.longPress(find.byType(MessageContextMenuRegion));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('More'));
-      await tester.pumpAndSettle();
       expect(find.text('Select messages'), findsOneWidget);
 
       await tester.tap(find.text('Select messages'));

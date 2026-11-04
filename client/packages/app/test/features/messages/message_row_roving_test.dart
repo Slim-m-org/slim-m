@@ -147,18 +147,14 @@ void main() {
       'Reply',
       'Reply in thread',
       'Edit',
-      'More message actions',
+      'Message actions',
     ];
     for (final label in order) {
       await _key(tester, LogicalKeyboardKey.arrowRight);
       expect(_focusedControl(), label);
     }
     await _key(tester, LogicalKeyboardKey.arrowRight);
-    expect(
-      _focusedControl(),
-      'More message actions',
-      reason: 'stops at the end',
-    );
+    expect(_focusedControl(), 'Message actions', reason: 'stops at the end');
 
     for (final label in order.reversed.skip(1)) {
       await _key(tester, LogicalKeyboardKey.arrowLeft);

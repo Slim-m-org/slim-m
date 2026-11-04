@@ -46,14 +46,11 @@ enum CanvasClearTarget {
   api.CanvasClearScope get scope => api.CanvasClearScope(kinds: kinds);
 }
 
-/// A scoped clear picked in the sheet, with the words the confirm dialog uses.
+/// A scoped clear picked in the sheet.
 class CanvasClearChoice {
-  const CanvasClearChoice(this.scope, this.subject);
+  const CanvasClearChoice(this.scope);
 
   final api.CanvasClearScope scope;
-
-  /// What goes, as a noun phrase: "all drawings", "Ann's content".
-  final String subject;
 }
 
 /// The scoped half of the clear control: the clear itself and who has content to clear.

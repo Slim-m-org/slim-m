@@ -32,18 +32,16 @@ Future<ScreenShareSource?> showScreenSourceSheet(
   List<ScreenShareSource> sources, {
   String? selectedId,
 }) {
-  return showAppSheet<ScreenShareSource>(
+  return showDeviceChoice<ScreenShareSource>(
     context,
-    builder: (context) => DeviceChoiceSheet<ScreenShareSource>(
-      title: sources.any((s) => s.isWindow)
-          ? 'Share a screen or window'
-          : 'Share a screen',
-      caption: screenSourceCaption(sources),
-      icon: AppIcons.screenShare,
-      iconOf: (s) => s.isWindow ? AppIcons.windowRestore : AppIcons.screenShare,
-      items: sources,
-      labelOf: (source) => source.name,
-      isSelected: selectedId == null ? null : (s) => s.id == selectedId,
-    ),
+    title: sources.any((s) => s.isWindow)
+        ? 'Share a screen or window'
+        : 'Share a screen',
+    caption: screenSourceCaption(sources),
+    icon: AppIcons.screenShare,
+    iconOf: (s) => s.isWindow ? AppIcons.windowRestore : AppIcons.screenShare,
+    items: sources,
+    labelOf: (source) => source.name,
+    isSelected: selectedId == null ? null : (s) => s.id == selectedId,
   );
 }

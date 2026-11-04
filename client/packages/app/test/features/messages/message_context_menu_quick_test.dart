@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The message menu's shape: five quick reactions and a "+" across the top,
-/// the verbs under them, and report, block and select folded behind "More" so
-/// Delete is the only red row on the page.
+/// the verbs under them, and a stable trailing group of report, block and
+/// delete behind a divider.
 ///
 /// Geometry, not presence: a row of tiles that exists but stacks, overflows or
 /// sits under the verbs would pass a find and fail the design.
@@ -165,36 +165,36 @@ void main() {
     expect(find.byType(AppMenu), findsNothing);
   });
 
-  testWidgets('a member sees at most eight rows on someone else message', (
+  testWidgets('report and block trail the menu, with no More page', (
     tester,
   ) async {
-    await _open(tester, _actions());
-    expect(_items(tester).length, lessThanOrEqualTo(8));
-    expect(find.text('Report message'), findsNothing);
-    expect(find.text('Block user'), findsNothing);
-    expect(find.text('More'), findsOneWidget);
+    await _open(tester, _actions(moderator: true, selecting: true));
+
+    expect(find.text('More'), findsNothing);
+    final ys = [
+      for (final label in ['Select messages', 'Report message', 'Block user'])
+        tester.getTopLeft(find.text(label)).dy,
+    ];
+    expect(ys, [...ys]..sort());
+    expect(
+      tester.getTopLeft(find.text('Delete')).dy,
+      greaterThan(ys.last),
+      reason: 'Delete closes the list',
+    );
   });
 
-  testWidgets('a member sees at most eight rows on their own message', (
+  testWidgets('Block and Delete are the red rows, in that order', (
     tester,
   ) async {
-    await _open(tester, _actions(own: true));
-    expect(_items(tester).length, lessThanOrEqualTo(8));
-    expect(find.text('More'), findsNothing, reason: 'nothing to fold away');
-  });
-
-  testWidgets('Delete is the only red row on the page', (tester) async {
-    await _open(tester, _actions(own: true, moderator: true, selecting: true));
+    await _open(tester, _actions(moderator: true, selecting: true));
 
     final danger = _items(
       tester,
     ).where((i) => i.tone == AppMenuItemTone.danger);
-    expect(danger.map((i) => i.label), ['Delete']);
+    expect(danger.map((i) => i.label), ['Block user', 'Delete']);
   });
 
-  testWidgets('a lone extra sits on the first page instead of behind More', (
-    tester,
-  ) async {
+  testWidgets('select runs from the main list', (tester) async {
     var selecting = false;
     await _open(
       tester,
@@ -205,53 +205,27 @@ void main() {
         onSelect: () => selecting = true,
       ),
     );
-    expect(find.text('More'), findsNothing);
     await tester.tap(find.text('Select messages'));
     expect(selecting, isTrue);
   });
 
-  testWidgets('More swaps in report, block and select, and Back returns', (
-    tester,
-  ) async {
+  testWidgets('Report runs and closes the menu', (tester) async {
     var reported = false;
     await _open(
       tester,
-      _actions(
-        moderator: true,
-        selecting: true,
-        onReport: () => reported = true,
-      ),
+      _actions(moderator: true, onReport: () => reported = true),
     );
 
-    await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
-    expect(find.text('Report message'), findsOneWidget);
-    expect(find.text('Block user'), findsOneWidget);
-    expect(find.text('Select messages'), findsOneWidget);
-    expect(find.text('Reply'), findsNothing);
-    expect(find.byType(ControlSwatchRow), findsNothing);
-
-    await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
-    expect(find.text('Reply'), findsOneWidget);
-    expect(find.byType(ControlSwatchRow), findsOneWidget);
-
-    await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Report message'));
     await tester.pumpAndSettle();
     expect(reported, isTrue);
     expect(find.byType(AppMenu), findsNothing);
   });
 
-  testWidgets('Block user runs from behind More and closes the menu', (
-    tester,
-  ) async {
+  testWidgets('Block user runs and closes the menu', (tester) async {
     var blocked = false;
     await _open(tester, _actions(onBlock: () => blocked = true));
 
-    await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Block user'));
     await tester.pumpAndSettle();
 
@@ -279,13 +253,11 @@ void main() {
       );
     });
 
-    testWidgets('More works by touch and the sheet stays one surface', (
+    testWidgets('Block works by touch and the sheet stays one surface', (
       tester,
     ) async {
       await _open(tester, _actions(), window: phone);
 
-      await tester.tap(find.text('More'));
-      await tester.pumpAndSettle();
       expect(find.text('Report message'), findsOneWidget);
       expect(find.byType(AppMenu), findsNothing, reason: 'no floating card');
       for (final item in tester.widgetList(find.byType(AppMenuItem))) {

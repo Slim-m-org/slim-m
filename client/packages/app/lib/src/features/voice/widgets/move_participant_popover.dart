@@ -13,7 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../permissions.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../channels/providers/channel_permissions.dart';
-import '../../members/widgets/member_profile_popover.dart';
+import '../../../widgets/anchored_popover_or_sheet.dart';
 import '../providers/voice_roster.dart';
 import '../providers/voice_actions.dart';
 
@@ -33,28 +33,7 @@ Future<void> showMoveParticipantPopover(
     onDone: () => Navigator.of(context).pop(),
   );
 
-  if (MediaQuery.sizeOf(anchor).width < kCompactWidth) {
-    return showAppSheet<void>(anchor, builder: body);
-  }
-  final box = anchor.findRenderObject() as RenderBox?;
-  final overlay = Overlay.of(anchor).context.findRenderObject() as RenderBox?;
-  final origin = box == null || overlay == null
-      ? Offset.zero
-      : box.localToGlobal(Offset.zero, ancestor: overlay);
-  return showGeneralDialog<void>(
-    context: anchor,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    barrierColor: Colors.transparent,
-    transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
-    pageBuilder: (context, _, _) => AnchoredMemberPopover(
-      origin: origin,
-      anchorSize: box?.size ?? Size.zero,
-      child: body(context),
-    ),
-    transitionBuilder: (context, animation, _, child) =>
-        FadeTransition(opacity: animation, child: child),
-  );
+  return showAnchoredPopoverOrSheet<void>(anchor, popoverBuilder: body);
 }
 
 /// Whether [channel] can take one more person, given who is in it now.

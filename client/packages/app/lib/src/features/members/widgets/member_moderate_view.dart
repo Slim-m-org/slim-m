@@ -145,7 +145,7 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const AppMenuLabel('TIME OUT'),
+        const AppMenuLabel('Time out'),
         TimeoutDurationChips(onChosen: widget.onTimeOut),
       ],
     );
@@ -154,7 +154,7 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
   Widget _renameSection(api.UserProfile? live) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const AppMenuLabel('NAME'),
+      const AppMenuLabel('Name'),
       RenameMemberMenuItem(
         host: widget.host,
         profile: live ?? widget.profile,
@@ -166,7 +166,7 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
   Widget _accountSection() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const AppMenuLabel('ACCOUNT'),
+      const AppMenuLabel('Account'),
       ResetCodeMenuItem(
         host: widget.host,
         subjectId: widget.profile.id,

@@ -139,7 +139,7 @@ void main() {
     expect(find.text('Clear part of the canvas'), findsNothing);
   });
 
-  testWidgets('picking a kind confirms, then clears just that kind', (
+  testWidgets('tapping a kind clears just that kind, with no second step', (
     tester,
   ) async {
     final cleared = <api.CanvasClearScope>[];
@@ -153,19 +153,14 @@ void main() {
 
     await tester.tap(find.text('Clear part of the canvas'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('All images'));
-    await tester.pumpAndSettle();
-    expect(cleared, isEmpty, reason: 'a pick alone must not clear');
-    expect(find.text('Clear all images?'), findsOneWidget);
-
-    await tester.tap(find.text('Clear').last);
+    await tester.tap(find.text('Clear all images'));
     await tester.pumpAndSettle();
 
     expect(cleared.single.kinds, ['image']);
     expect(cleared.single.authorId, isNull);
   });
 
-  testWidgets('picking a person clears just their content', (tester) async {
+  testWidgets('tapping a person clears just their content', (tester) async {
     final cleared = <api.CanvasClearScope>[];
     await _pump(
       tester,
@@ -177,16 +172,14 @@ void main() {
 
     await tester.tap(find.text('Clear part of the canvas'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ann'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Clear').last);
+    await tester.tap(find.text('Ann\'s content'));
     await tester.pumpAndSettle();
 
     expect(cleared.single.authorId, 'ann');
     expect(cleared.single.kinds, isEmpty);
   });
 
-  testWidgets('declining the confirm clears nothing', (tester) async {
+  testWidgets('dismissing the sheet clears nothing', (tester) async {
     final cleared = <api.CanvasClearScope>[];
     await _pump(
       tester,
@@ -198,9 +191,8 @@ void main() {
 
     await tester.tap(find.text('Clear part of the canvas'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('All drawings'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Keep it'));
+    expect(find.text('Clear all drawings'), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
 
     expect(cleared, isEmpty);

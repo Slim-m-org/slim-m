@@ -62,7 +62,7 @@ test.describe('messaging between two people', () => {
       await bob.see(doomed);
     });
     await step('alice deletes it from the message menu and confirms', async () => {
-      await toolbar(alice, doomed, L.MENU_MORE);
+      await toolbar(alice, doomed, L.MENU_OVERFLOW);
       await alice.click(L.MENU_DELETE);
       await alice.see('Delete message?');
       await alice.click('Delete');

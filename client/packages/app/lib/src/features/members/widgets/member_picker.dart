@@ -90,14 +90,14 @@ class _MemberPickerState extends ConsumerState<MemberPicker> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
+            const AppSheetHeader(
+              'Choose a member',
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.s16,
                 0,
                 AppSpacing.s16,
                 AppSpacing.s8,
               ),
-              child: Text('Choose a member', style: AppText.heading),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),

@@ -154,7 +154,7 @@ class CanvasPersonRow extends StatelessWidget {
     final canFollow = session != null && !person.isSelf;
     return AppListRow(
       label: person.name,
-      meta: state.isEmpty ? null : state.join(', '),
+      subtitle: state.isEmpty ? null : state.join(', '),
       stateDescription: state.isEmpty ? null : state.join(', ').toLowerCase(),
       leading: FollowRing(
         color: followed ? session?.followedColor ?? tokens.accentFill : null,

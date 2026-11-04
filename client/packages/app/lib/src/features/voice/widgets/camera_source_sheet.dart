@@ -15,13 +15,11 @@ Future<CameraDevice?> showCameraDeviceSheet(
   BuildContext context,
   List<CameraDevice> devices,
 ) {
-  return showAppSheet<CameraDevice>(
+  return showDeviceChoice<CameraDevice>(
     context,
-    builder: (context) => DeviceChoiceSheet<CameraDevice>(
-      title: 'Choose a camera',
-      icon: AppIcons.camera,
-      items: devices,
-      labelOf: (device) => device.label,
-    ),
+    title: 'Choose a camera',
+    icon: AppIcons.camera,
+    items: devices,
+    labelOf: (device) => device.label,
   );
 }

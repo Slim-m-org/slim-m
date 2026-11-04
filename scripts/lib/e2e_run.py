@@ -165,9 +165,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("messaging: holding a reaction lists who left it",
          lambda: e2e_message_menu.who_reacted_lists_the_people(
              a, b, admin, member, L.TEXT_CHANNEL)),
-        ("messaging: the message menu opens on quick reactions, More holds "
-         "the rest",
-         lambda: e2e_message_menu.message_menu_quick_row_then_more(
+        ("messaging: the message menu opens on quick reactions, Report and "
+         "Block close it",
+         lambda: e2e_message_menu.message_menu_quick_row_then_trailing_group(
              a, b, admin, member, L.TEXT_CHANNEL)),
         ("composer: Tab and Shift+Tab move a list item, an empty item ends it",
          lambda: e2e_composer.list_keys_indent_outdent_and_end(

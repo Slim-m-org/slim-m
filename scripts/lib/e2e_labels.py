@@ -122,8 +122,7 @@ THREAD_SEND = "Send reply"
 
 # The message menu: reached with a right-click, see e2e_input.py.
 REPLY_IN_THREAD = "Reply in thread"
-MENU_MORE = "More"
-MENU_BACK = "Back"
+MENU_OVERFLOW = "Message actions"
 MENU_DELETE = "Delete"
 MENU_COPY_TEXT = "Copy text"
 MENU_SELECT = "Select messages"
@@ -132,7 +131,7 @@ MENU_BLOCK = "Block user"
 QUICK_REACTIONS = ("Thumbs up", "Heart", "Laughing", "Celebrate", "Eyes")
 MENU_VERBS = ("Copy text", "Copy message link", "Forward message", "Save message",
               "Pin")
-MENU_SECOND_PAGE = (MENU_SELECT, MENU_REPORT, MENU_BLOCK)
+MENU_TRAILING = (MENU_REPORT, MENU_BLOCK)
 
 # Renaming a member from the member card
 MEMBER_LIST = "Toggle member list"
