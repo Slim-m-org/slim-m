@@ -1509,6 +1509,7 @@
 "test/push/push_status_label_test.dart": 0.5,
 "test/push/reset_push_row_test.dart": 1.0,
 "test/shared/analytics_bar_chart_axis_test.dart": 0.8,
+"test/shared/anchored_menu_flip_test.dart": 0.4,
 "test/shared/animated_menu_portal_test.dart": 0.8,
 "test/shared/api_failure_test.dart": 0.4,
 "test/shared/app_badge_test.dart": 0.5,
