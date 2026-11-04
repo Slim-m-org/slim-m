@@ -113,5 +113,5 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0102](0102-call-quality-batch-v121.md) | Call quality batch for v121: Strong stays opt-in, Data saver shares use the small layer, reconnect is display only, LiveKit 1.13.11 after staging | accepted |
 | [0103](0103-level-after-suppression.md) | Strong levels the microphone after suppression: libwebrtc's auto gain goes off and the chain's leveler takes over | accepted |
 | [0104](0104-personal-background-picture.md) | A personal background picture, with panes half translucent over it and a measured contrast floor | accepted |
-| [0105](0105-module-call-audio.md) | Modules hear a call as text, from a listener the operator runs, only while everyone in it agrees | accepted (design; implementation phased) |
+| [0105](0105-module-call-audio.md) | Modules hear a call as text, from a listener the operator runs, only while everyone in it agrees | accepted (phase 1 built) |
 | [0106](0106-space-theme-store.md) | A Space theme store: full themes (colours, backdrop effect, picture) exported to a file, published by members, defaulted by admins | accepted |

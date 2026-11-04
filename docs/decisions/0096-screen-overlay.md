@@ -19,7 +19,7 @@ Decision on 2026-10-28: build it in v120 for Linux and Windows.
 - Viewers get a small pen, circle and note pill on a screen tile, and only while that sharer's consent is live.
 - Marks are ephemeral and never stored.
   They are relayed to the sharer, painted on the sharer's real screen, and fade out a few seconds later.
-- A sharer always sees "Viewers can draw on your screen" with a Turn off button in the call stage while it is up, and the share options menu shows the toggle checked.
+- When it comes up the sharer gets a short "Viewers can draw on your screen." toast, and the share options menu shows the toggle checked (no persistent banner, see Privacy).
   Turning it off closes the window at once and withdraws consent.
 
 ## A native window, not a second Flutter view

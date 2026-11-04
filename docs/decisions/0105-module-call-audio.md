@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 # 0105 - Modules hear a call as text, from a listener the operator runs, only while everyone in it agrees
 
-Status: accepted (design; implementation phased)
+Status: accepted (phase 1 built, see "Phase 1 as built"; later phases not started)
 Date: 2026-11-02
 Extends: 0090 (modules as the extension surface), 0091 (phase 1 contracts), 0100 (add-on API levels), 0067 (install consent), 0023 (mediated host capabilities)
 Keeps: 0066 (core stores no audio, transcript or speaking activity)
@@ -25,7 +25,7 @@ Checked against `v122/integration` at 682d40944 on 2026-11-02.
   A module that wanted raw audio would get it as JSON text in 1 MiB pieces, one interpreter run per piece, two at a time across every module on the server.
 - The server never touches media.
   It mints LiveKit tokens and calls the room service over HTTP (`voice/token.rs`, `voice/room_admin.rs`), and learns who is in a call from LiveKit webhooks (0032).
-- The server image is one static musl binary on distroless, and `server-ci.yml` fails it past 20 MiB.
+- The server image is one static musl binary on distroless, and `server-ci.yml` fails it past 22 MiB (20 MiB until v123).
   The LiveKit SDKs that can subscribe to a track are built on libwebrtc, which ships prebuilt for glibc and is many times that size.
 - Bots already join calls as participants with the Python LiveKit SDK, `livekit==1.1.20`, in `slim-bots` (`slimbots/voice.py`), with a fake-based suite and a real-LiveKit suite.
 - LiveKit runs as `livekit-server` 1.13.11 (0102), single node, with no Redis and no egress service deployed.
@@ -122,7 +122,7 @@ On a deployment like prod, where the public LiveKit hostname goes through a prox
 
 | Option | Why not |
 | --- | --- |
-| The server joins the room itself with the LiveKit Rust SDK | libwebrtc in the server breaks the static musl build and the 20 MiB image gate, and a crash in native media code would take down chat. The listener isolates both. |
+| The server joins the room itself with the LiveKit Rust SDK | libwebrtc in the server breaks the static musl build and the image size gate, and a crash in native media code would take down chat. The listener isolates both. |
 | LiveKit egress, track egress to a WebSocket | It can send a track as raw `pcm_s16le` over a WebSocket, but it is a separate service that needs Redis shared with `livekit-server`, and neither is deployed. It is one egress job per speaker, and it would still need a transcriber somewhere. A self-host would gain two services to get what the listener does in one. |
 | Each client transcribes its own microphone | Strong on privacy, but it needs a different engine per platform (and the browser's built-in one sends audio to a cloud), costs phone battery, and can never give a module audio later. Kept as a note, not a path. |
 | The LiveKit Agents framework (Python) | Built around cloud speech and LLM plugins and its own dispatch. The consent rules here need narrow control over exactly which tracks are subscribed, which is a small amount of our own code. |
