@@ -43,8 +43,12 @@ class _MutedTalkWatcherState extends ConsumerState<MutedTalkWatcher> {
   void dispose() {
     final container = _container;
     Future.microtask(() {
-      if (container.read(mutedTalkCueProvider)) {
-        container.read(mutedTalkCueProvider.notifier).state = false;
+      try {
+        if (container.read(mutedTalkCueProvider)) {
+          container.read(mutedTalkCueProvider.notifier).state = false;
+        }
+      } on StateError {
+        // The whole scope went first, taking the cue with it.
       }
     });
     super.dispose();
