@@ -147,7 +147,7 @@ void main() {
     final reports = await _pumpRail(tester, 390);
     await _liftAndRelease(tester, find.text('a-1'));
     expect(reports, isEmpty, reason: 'released in place moves nothing');
-    expect(find.text('Channel settings...'), findsOneWidget);
+    expect(find.text('Channel settings'), findsOneWidget);
     expect(find.text('Notifications'), findsOneWidget);
   });
 
@@ -172,7 +172,7 @@ void main() {
     await tester.tap(find.byIcon(AppIcons.moreVertical).at(1));
     await tester.pumpAndSettle();
     final kebabItems = _menuLabels(tester);
-    expect(kebabItems, contains('Channel settings...'));
+    expect(kebabItems, contains('Channel settings'));
     await tester.pumpWidget(const SizedBox());
 
     await _pumpRail(tester, 390);

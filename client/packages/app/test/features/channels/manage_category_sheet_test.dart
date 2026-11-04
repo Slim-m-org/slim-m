@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The manage-category sheet: rename sends the PATCH and updates the store,
-/// delete confirms then sends the DELETE and drops it from the store.
+/// The rename-category sheet: rename sends the PATCH and updates the store.
 library;
 
 import 'dart:convert';
@@ -23,6 +22,7 @@ ChannelCategoryRow _category() =>
 Future<({List<http.Request> requests, MessageStore store})> _pump(
   WidgetTester tester, {
   required http.Response Function(http.Request) handler,
+  bool deleteInstead = false,
 }) async {
   final requests = <http.Request>[];
   final db = SlimmDatabase(NativeDatabase.memory());
@@ -58,12 +58,14 @@ Future<({List<http.Request> requests, MessageStore store})> _pump(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: Builder(
-          builder: (context) => Scaffold(
+        home: Consumer(
+          builder: (context, ref, _) => Scaffold(
             body: Center(
               child: ElevatedButton(
-                onPressed: () => showManageCategorySheet(context, _category()),
-                child: const Text('open'),
+                onPressed: () => deleteInstead
+                    ? confirmAndDeleteCategory(context, ref, _category())
+                    : showRenameCategorySheet(context, _category()),
+                child: Text(deleteInstead ? 'delete' : 'open'),
               ),
             ),
           ),
@@ -71,8 +73,10 @@ Future<({List<http.Request> requests, MessageStore store})> _pump(
       ),
     ),
   );
-  await tester.tap(find.text('open'));
-  await tester.pumpAndSettle();
+  if (!deleteInstead) {
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
   return (requests: requests, store: store);
 }
 
@@ -109,15 +113,14 @@ void main() {
     expect(stored.single.name, 'Board games');
   });
 
-  testWidgets('delete confirms, sends a DELETE, and drops it from the store', (
-    tester,
-  ) async {
-    final r = await _pump(tester, handler: (request) => http.Response('', 204));
-
-    await tester.tap(find.text('Delete category'));
+  testWidgets('the menu path deletes after a confirmation', (tester) async {
+    final r = await _pump(
+      tester,
+      handler: (request) => http.Response('', 204),
+      deleteInstead: true,
+    );
+    await tester.tap(find.text('delete'));
     await tester.pumpAndSettle();
-    // The confirmation, not the delete yet.
-    expect(find.text('Delete "Gaming"?'), findsOneWidget);
     expect(r.requests.any((req) => req.method == 'DELETE'), isFalse);
 
     await tester.tap(find.text('Delete'));
@@ -129,8 +132,15 @@ void main() {
       ),
       isTrue,
     );
-    final stored = await r.store.allCategories();
-    expect(stored, isEmpty);
+    expect(await r.store.allCategories(), isEmpty);
+  });
+
+  testWidgets('the sheet is a pure rename with no delete', (tester) async {
+    await _pump(tester, handler: (request) => http.Response('', 204));
+
+    expect(find.text('Rename category'), findsOneWidget);
+    expect(find.text('Delete category'), findsNothing);
+    expect(find.text('DANGER ZONE'), findsNothing);
   });
 
   testWidgets('a failed rename shows an error and keeps the sheet open', (
@@ -147,6 +157,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.text('Manage category'), findsOneWidget);
+    expect(find.text('Rename category'), findsOneWidget);
   });
 }

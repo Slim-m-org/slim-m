@@ -109,7 +109,7 @@ void main() {
     expect(find.textContaining('Delete "Lounge"?'), findsOneWidget);
     expect(find.textContaining('fall back to'), findsOneWidget);
     // The sheet's own heading: if this appears, the shortcut is not a shortcut.
-    expect(find.text('Manage category'), findsNothing);
+    expect(find.text('Rename category'), findsNothing);
     // And the sheet's name field, which a rename needs and a delete does not.
     expect(find.byType(AppInput), findsNothing);
   });
@@ -123,7 +123,7 @@ void main() {
     await tester.tap(find.text('Rename category...'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Manage category'), findsOneWidget);
+    expect(find.text('Rename category'), findsOneWidget);
     expect(find.byType(AppInput), findsOneWidget);
   });
 

@@ -155,7 +155,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Open channel'), findsOneWidget);
-      expect(find.text('Channel settings...'), findsOneWidget);
+      expect(find.text('Channel settings'), findsOneWidget);
     },
   );
 
@@ -198,7 +198,7 @@ void main() {
       await _openMenu(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Channel settings...'), findsOneWidget);
+      expect(find.text('Channel settings'), findsOneWidget);
     });
 
     testWidgets('MANAGE_ROLES alone shows it, even without MANAGE_CHANNELS', (
@@ -218,7 +218,7 @@ void main() {
       await _openMenu(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Channel settings...'), findsOneWidget);
+      expect(find.text('Channel settings'), findsOneWidget);
     });
 
     testWidgets('neither capability leaves no Channel settings entry', (
@@ -237,7 +237,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Open channel'), findsOneWidget);
-      expect(find.text('Channel settings...'), findsNothing);
+      expect(find.text('Channel settings'), findsNothing);
     });
   });
 
@@ -253,7 +253,7 @@ void main() {
 
       expect(find.text('Open channel'), findsOneWidget);
       expect(
-        find.text('Channel settings...'),
+        find.text('Channel settings'),
         findsNothing,
         reason:
             'MANAGE_CHANNELS/MANAGE_ROLES is what gates the kebab; the menu '
@@ -273,7 +273,7 @@ void main() {
 
       await _openMenu(tester);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
 
       expect(find.text('channel-settings:c1:false'), findsOneWidget);
@@ -307,13 +307,13 @@ void main() {
       expect(find.text('Open channel'), findsOneWidget);
       expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Mute channel'), findsNothing);
-      expect(find.text('Channel settings...'), findsOneWidget);
+      expect(find.text('Channel settings'), findsOneWidget);
       expect(
         find.textContaining('channel-settings:'),
         findsNothing,
         reason:
             'the kebab must open the menu first, not jump straight into '
-            'the route its "Channel settings..." item leads to',
+            'the route its "Channel settings" item leads to',
       );
     },
   );
@@ -334,7 +334,7 @@ void main() {
       await tester.tap(find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
 
-      expect(find.text('Channel settings...'), findsOneWidget);
+      expect(find.text('Channel settings'), findsOneWidget);
     },
   );
 
@@ -348,7 +348,7 @@ void main() {
 
       await tester.tap(find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
 
       expect(find.text('channel-settings:c1:false'), findsOneWidget);
@@ -452,7 +452,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Open channel'), findsOneWidget);
-    expect(find.text('Channel settings...'), findsOneWidget);
+    expect(find.text('Channel settings'), findsOneWidget);
   });
 
   testWidgets(

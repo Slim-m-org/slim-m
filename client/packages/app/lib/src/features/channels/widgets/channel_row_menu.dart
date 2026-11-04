@@ -9,7 +9,7 @@
 ///
 /// "Manage channel..." (rename, topic, delete) and "Channel permissions..."
 /// used to be two separate entries into two disconnected surfaces; they are
-/// now one "Channel settings..." entry into one screen
+/// now one "Channel settings" entry into one screen
 /// (`channel_settings_screen.dart`) that gates its own sections on the same
 /// two bits this menu used to gate the two entries on.
 ///
@@ -39,7 +39,7 @@ import 'channel_notifications_menu.dart';
 /// Opening it always, muting it or narrowing it to mentions only (the same
 /// two toggles the header used to duplicate until 2026-08-13, tapping the
 /// active one clears back to the account default), and "Channel
-/// settings..." for a caller who holds [canManage], the deployment-wide
+/// settings" for a caller who holds [canManage], the deployment-wide
 /// MANAGE_ROLES bit, or both - the settings screen itself decides which
 /// sections a holder of only one of the two actually sees.
 ///
@@ -62,6 +62,12 @@ List<Widget> channelRowMenuItems(
           ?.permissions
           .hasPermission(Perm.manageRoles) ??
       false;
+
+  final canEditThisRoom = canEditRoom(
+    channel,
+    container.read(sessionProvider).tokens?.userId,
+    canManage: canManage,
+  );
 
   return [
     AppMenuItem(
@@ -91,36 +97,34 @@ List<Widget> channelRowMenuItems(
       muteLabel: 'Mute channel',
       channelDefault: channelDefaultOf(channel),
     ),
-    if (canEditRoom(
-      channel,
-      container.read(sessionProvider).tokens?.userId,
-      canManage: canManage,
-    )) ...[
+    if (canManage || canManageRoles || canEditThisRoom) ...[
       const AppMenuDivider(),
-      AppMenuItem(
-        label: 'Room settings...',
-        leading: AppIcons.settings,
-        onTap: () {
-          close();
-          unawaited(showVoiceRoomSettingsSheet(context, room: channel));
-        },
-      ),
-    ],
-    if (canManage || canManageRoles) ...[
-      const AppMenuDivider(),
-      AppMenuItem(
-        label: 'Channel settings...',
-        leading: AppIcons.settings,
-        onTap: () {
-          // Captured before push() moves the router's own location; see ChannelSettingsRouteArgs.
-          final wasOpen = selectedChannelId(context) == channel.id;
-          close();
-          context.push(
-            Routes.channelSettings,
-            extra: ChannelSettingsRouteArgs(channel: channel, wasOpen: wasOpen),
-          );
-        },
-      ),
+      if (canEditThisRoom)
+        AppMenuItem(
+          label: 'Room options...',
+          leading: AppIcons.edit,
+          onTap: () {
+            close();
+            unawaited(showVoiceRoomSettingsSheet(context, room: channel));
+          },
+        ),
+      if (canManage || canManageRoles)
+        AppMenuItem(
+          label: 'Channel settings',
+          leading: AppIcons.settings,
+          onTap: () {
+            // Captured before push() moves the router's own location; see ChannelSettingsRouteArgs.
+            final wasOpen = selectedChannelId(context) == channel.id;
+            close();
+            context.push(
+              Routes.channelSettings,
+              extra: ChannelSettingsRouteArgs(
+                channel: channel,
+                wasOpen: wasOpen,
+              ),
+            );
+          },
+        ),
     ],
   ];
 }

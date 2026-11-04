@@ -209,23 +209,13 @@ void main() {
     },
   );
 
-  testWidgets('Join muted is offered for a voice channel only, and defaults '
-      'off', (tester) async {
+  testWidgets('Join muted and default notifications live in settings, '
+      'not create', (tester) async {
     await _openSheet(tester);
-    final toggle = find.byWidgetPredicate(
-      (w) =>
-          w is AppToggle &&
-          w.semanticLabel == 'Members join this channel muted',
-    );
-    expect(toggle, findsNothing);
-
     await tester.tap(find.text('Voice'));
     await tester.pump();
 
-    expect(toggle, findsOneWidget);
-    expect(tester.widget<AppToggle>(toggle).value, isFalse);
-    await tester.tap(toggle);
-    await tester.pump();
-    expect(tester.widget<AppToggle>(toggle).value, isTrue);
+    expect(find.text('Join muted'), findsNothing);
+    expect(find.text('Default notifications'), findsNothing);
   });
 }

@@ -43,7 +43,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
@@ -94,7 +94,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.bySemanticsLabel('Channel name'), 'renamed');
@@ -131,7 +131,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
 
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -172,7 +172,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.bySemanticsLabel('Channel name'), 'renamed');
@@ -226,7 +226,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
@@ -273,7 +273,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
@@ -320,7 +320,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Manage random'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Channel settings...'));
+      await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Delete channel...'));
       await tester.pumpAndSettle();
