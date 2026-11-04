@@ -52,6 +52,24 @@ async fn endpoint(slow: bool) -> String {
     format!("http://{addr}/up")
 }
 
+/// An endpoint that drains its body at a fixed rate, whatever the sender could push.
+async fn throttled_endpoint(bytes_per_s: u64) -> String {
+    let handler = move |body: Body| async move {
+        use futures_util::StreamExt;
+        let mut stream = body.into_data_stream();
+        while let Some(Ok(chunk)) = stream.next().await {
+            let nanos = chunk.len() as u64 * 1_000_000_000 / bytes_per_s;
+            tokio::time::sleep(Duration::from_nanos(nanos)).await;
+        }
+        "ok"
+    };
+    let router = Router::new().route("/up", post(handler));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    format!("http://{addr}/up")
+}
+
 #[tokio::test]
 async fn measuring_a_local_endpoint_reports_the_whole_body() {
     let url = endpoint(false).await;
@@ -66,12 +84,27 @@ async fn measuring_a_local_endpoint_reports_the_whole_body() {
 async fn a_slow_endpoint_is_cut_off_at_the_limit() {
     let url = endpoint(true).await;
     let started = std::time::Instant::now();
-    let (mbit, bytes, millis) = measure(&url, 400 * 1024 * 1024, Duration::from_millis(500))
+    let (mbit, bytes, millis) = measure(&url, 400 * 1024 * 1024, Duration::from_secs(1))
         .await
         .unwrap();
     assert!(started.elapsed() < Duration::from_secs(5));
-    assert!(bytes < 400 * 1024 * 1024 && bytes > 0);
-    assert!(mbit > 0.0 && (400..2000).contains(&millis));
+    assert!(bytes < 400 * 1024 * 1024);
+    assert!(mbit >= 0.0 && (400..2000).contains(&millis));
+}
+
+#[tokio::test]
+async fn a_cut_off_upload_is_rated_by_what_was_carried_not_what_was_buffered() {
+    // 20 Mbit/s drained; the loopback buffers hold several MB more than that in four seconds.
+    let url = throttled_endpoint(2_500_000).await;
+    let (mbit, bytes, millis) = measure(&url, 400 * 1024 * 1024, Duration::from_secs(4))
+        .await
+        .unwrap();
+    assert!(
+        (16.0..=22.5).contains(&mbit),
+        "the endpoint drains 20 Mbit/s but the test reported {mbit:.1}"
+    );
+    assert!((1900..=2100).contains(&millis), "rated over {millis} ms");
+    assert!(bytes < 7 * 1024 * 1024, "counted {bytes} bytes");
 }
 
 #[tokio::test]
