@@ -17,6 +17,7 @@ export const L = {
   "USE_PICTURE": "Use picture",
   "THEME_ROW": "Color theme",
   "THEME_DARK": "Dark",
+  "BACK_TO_APPEARANCE": "Back to Appearance",
   "BACK_TO_CHANNELS": "Back to channels",
   "SPEAKING": ", speaking",
   "CHANGE_STATUS": "Change your status",
