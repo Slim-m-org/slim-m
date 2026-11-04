@@ -2,10 +2,14 @@
 /// Talking while muted raises one quiet cue on the mic, never while unmuted.
 library;
 
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart';
 import 'package:slimm_app/src/features/voice/providers/muted_talk_cue.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_state.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_dock_hint.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -25,6 +29,12 @@ Future<InertSession> _pump(
   WidgetTester tester,
   VoiceFlags flags, {
   Map<String, Object> prefs = const {},
+}) async => (await _pumpWith(tester, flags, prefs: prefs)).session;
+
+Future<({InertSession session, ProviderContainer container})> _pumpWith(
+  WidgetTester tester,
+  VoiceFlags flags, {
+  Map<String, Object> prefs = const {},
 }) async {
   SharedPreferences.setMockInitialValues({
     shareHintSeenKey: true,
@@ -33,11 +43,11 @@ Future<InertSession> _pump(
   });
   final session = InertSession(supportsInputGate: true);
   addTearDown(session.gateReadings.close);
-  await pumpVoiceCallDock(tester, flags, session: session);
+  final container = await pumpVoiceCallDock(tester, flags, session: session);
   for (var i = 0; i < 4; i++) {
     await tester.pump();
   }
-  return session;
+  return (session: session, container: container);
 }
 
 Future<void> _talk(WidgetTester tester, InertSession session, int ms) async {
@@ -107,5 +117,34 @@ void main() {
     await pumpVoiceCallDock(tester, _muted, session: session);
     await _talk(tester, session, 2000);
     expect(find.byKey(DockHintAnchor.bubbleKey), findsNothing);
+  });
+
+  testWidgets('the cue does not outlive the dock that raised it', (
+    tester,
+  ) async {
+    final (:session, :container) = await _pumpWith(tester, _muted);
+    await _talk(tester, session, 1200);
+    expect(container.read(mutedTalkCueProvider), isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(container.read(mutedTalkCueProvider), isFalse);
+  });
+
+  testWidgets('the cue is cleared when the call leaves connected', (
+    tester,
+  ) async {
+    final (:session, :container) = await _pumpWith(tester, _muted);
+    final controller = container.read(voiceControllerProvider.notifier);
+    controller.state = const VoiceState(state: VoiceSessionState.connected);
+    await tester.pump();
+    await _talk(tester, session, 1200);
+    expect(container.read(mutedTalkCueProvider), isTrue);
+
+    controller.state = const VoiceState();
+    await tester.pump();
+
+    expect(container.read(mutedTalkCueProvider), isFalse);
   });
 }
