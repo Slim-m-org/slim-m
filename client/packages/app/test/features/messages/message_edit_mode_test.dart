@@ -70,7 +70,7 @@ void main() {
     final tokens = Theme.of(
       tester.element(find.byType(MessageRow)),
     ).extension<AppTokens>()!;
-    expect(_fill(tester), tokens.surfaceRaised);
+    expect(_fill(tester), tokens.rowHoverFill);
     final fill = tester.getRect(find.byKey(MessageRow.hoverFillKey));
     expect(fill, tester.getRect(find.byType(MessageContextMenuRegion)));
 
