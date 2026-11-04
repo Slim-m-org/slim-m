@@ -181,9 +181,14 @@ pub(super) async fn anonymize_authored_content(
     )
     .execute(&mut **tx)
     .await?;
-    sqlx::query("UPDATE space_themes SET author_id = NULL WHERE author_id = ?")
-        .bind(user_id)
-        .execute(&mut **tx)
-        .await?;
+    // The display name and the document's own `author` field both name the person.
+    sqlx::query(
+        "UPDATE space_themes
+         SET author_id = NULL, author_name = '', doc = CASE WHEN json_valid(doc) THEN json_remove(doc, '$.author') ELSE doc END
+         WHERE author_id = ?",
+    )
+    .bind(user_id)
+    .execute(&mut **tx)
+    .await?;
     Ok(())
 }
