@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A channel row's context menu: opening it always, and reaching "Channel
+/// A channel row's context menu: Notifications always, and reaching "Channel
 /// settings..." (name, topic, permissions, delete - `channel_settings_screen.dart`)
 /// only for a caller who holds MANAGE_CHANNELS, MANAGE_ROLES, or both.
 ///
@@ -7,7 +7,7 @@
 /// right-click and a long-press - backlog item 135, "the kebab on a channel
 /// should just expose the context menu; currently outdated code". The kebab
 /// used to call `showManageChannelSheet` directly, so a manager's kebab
-/// skipped straight past "Open channel" and the mute toggles into the sheet,
+/// skipped straight past the Notifications entry into the sheet,
 /// unlike the identical row's own right-click. The `'the kebab...'` tests
 /// below pin that it now reaches the same `channelRowMenuItems` build the
 /// other two gestures do.
@@ -145,7 +145,7 @@ Future<void> _openMenu(WidgetTester tester) => tester.tapAt(
 
 void main() {
   testWidgets(
-    'a manager sees both Open channel and Channel settings on a right-click',
+    'a manager sees both Notifications and Channel settings on a right-click',
     (tester) async {
       final channel = _channel('c1', 'general');
       await tester.pumpWidget(_harness(_router(channel, canManage: true)));
@@ -154,7 +154,7 @@ void main() {
       await _openMenu(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Open channel'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Channel settings'), findsOneWidget);
     },
   );
@@ -236,13 +236,13 @@ void main() {
       await _openMenu(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Open channel'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Channel settings'), findsNothing);
     });
   });
 
   testWidgets(
-    'a plain member sees only Open channel, the same gate the kebab uses',
+    'a plain member sees only Notifications, the same gate the kebab uses',
     (tester) async {
       final channel = _channel('c1', 'general');
       await tester.pumpWidget(_harness(_router(channel, canManage: false)));
@@ -251,7 +251,7 @@ void main() {
       await _openMenu(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Open channel'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
       expect(
         find.text('Channel settings'),
         findsNothing,
@@ -280,17 +280,22 @@ void main() {
     },
   );
 
-  testWidgets('Open channel navigates to the channel route', (tester) async {
+  testWidgets('the menu does not repeat what tapping the row does', (
+    tester,
+  ) async {
     final channel = _channel('c1', 'general');
     await tester.pumpWidget(_harness(_router(channel, canManage: false)));
     await tester.pump();
 
     await _openMenu(tester);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open channel'));
-    await tester.pumpAndSettle();
 
-    expect(find.text('channel:c1'), findsOneWidget);
+    expect(find.text('Open channel'), findsNothing);
+    expect(
+      find.byWidgetPredicate((w) => w is AppMenuDivider),
+      findsNothing,
+      reason: 'no lone rule',
+    );
   });
 
   testWidgets(
@@ -304,7 +309,7 @@ void main() {
       await tester.tap(find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
 
-      expect(find.text('Open channel'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Mute channel'), findsNothing);
       expect(find.text('Channel settings'), findsOneWidget);
@@ -420,7 +425,7 @@ void main() {
       await tester.pump(kLongPressTimeout + kPressTimeout);
 
       expect(
-        find.text('Open channel'),
+        find.text('Notifications'),
         findsNothing,
         reason: 'the drag listener must win the arena, not the menu',
       );
@@ -431,7 +436,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Open channel'),
+        find.text('Notifications'),
         findsNothing,
         reason: 'a completed drag must not leave the menu open either',
       );
@@ -451,7 +456,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Open channel'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
     expect(find.text('Channel settings'), findsOneWidget);
   });
 
@@ -469,7 +474,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.text('Open channel'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
     },
   );
 }

@@ -125,7 +125,7 @@ Future<void> _openMenu(WidgetTester tester) => tester.tapAt(
 
 void main() {
   testWidgets(
-    'a right-click offers Open, Close DM, Notifications, Report user and Block',
+    'a right-click offers Close DM, Notifications, Report user and Block',
     (tester) async {
       final channel = _dm('dm-1', 'Priya', 'user-priya');
       final container = _container();
@@ -136,7 +136,7 @@ void main() {
       await _openMenu(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('Open'), findsOneWidget);
+      expect(find.text('Open'), findsNothing);
       expect(find.text('Close DM'), findsOneWidget);
       expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Mute'), findsNothing);
@@ -260,18 +260,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('Open still reaches the channel route from the menu', (
-    tester,
-  ) async {
+  testWidgets('tapping the row reaches the channel route', (tester) async {
     final channel = _dm('dm-1', 'Priya', 'user-priya');
     final container = _container();
 
     await tester.pumpWidget(_harness(container, _router(channel)));
     await tester.pump();
 
-    await _openMenu(tester);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Open'));
+    await tester.tap(find.text('Priya'));
     await tester.pumpAndSettle();
 
     expect(find.text('channel:dm-1'), findsOneWidget);

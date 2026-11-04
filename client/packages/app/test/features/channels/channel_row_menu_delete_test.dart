@@ -112,7 +112,7 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.text('Open channel'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
     expect(find.text('Delete channel...'), findsNothing);
   });
 }

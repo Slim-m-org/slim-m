@@ -28,6 +28,7 @@ import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../touch_targets.dart';
+import 'menu_cascade.dart';
 
 /// A floating container for [AppMenuItem], [AppMenuLabel] and
 /// [AppMenuDivider] children.
@@ -80,12 +81,14 @@ class AppMenu extends StatelessWidget {
             maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight!),
         child: Material(
           type: MaterialType.transparency,
-          child: maxHeight == null
-              ? Column(mainAxisSize: MainAxisSize.min, children: children)
-              : SingleChildScrollView(
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min, children: children),
-                ),
+          child: AppMenuCascade(
+            child: maxHeight == null
+                ? Column(mainAxisSize: MainAxisSize.min, children: children)
+                : SingleChildScrollView(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min, children: children),
+                  ),
+          ),
         ),
       ),
     );
@@ -125,7 +128,10 @@ class AppSheetMenu extends StatelessWidget {
         AppSpacing.s8,
         AppSpacing.s8,
       ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+      child: AppMenuCascade(
+        swap: true,
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+      ),
     );
   }
 }
@@ -210,10 +216,13 @@ class AppMenuItem extends StatefulWidget {
     this.trailing,
     this.submenu = false,
     this.selected = false,
+    this.highlighted = false,
     this.tone = AppMenuItemTone.normal,
     this.touch,
     this.onTap,
     this.semanticLabel,
+    this.onPointerEnter,
+    this.onPointerExit,
   });
 
   final String label;
@@ -232,12 +241,19 @@ class AppMenuItem extends StatefulWidget {
   /// unless a [trailing] widget takes that slot, so the choice never rests on
   /// a tint.
   final bool selected;
+
+  /// Holds the hover fill while something this row opened is showing.
+  final bool highlighted;
   final AppMenuItemTone tone;
 
   /// Null means "whatever this subtree is at", read from [AppTouchTargets].
   final bool? touch;
   final VoidCallback? onTap;
   final String? semanticLabel;
+
+  /// Replaces the default of closing the menu's open submenu, for a row that opens one.
+  final VoidCallback? onPointerEnter;
+  final VoidCallback? onPointerExit;
 
   @override
   State<AppMenuItem> createState() => _AppMenuItemState();
@@ -278,25 +294,37 @@ class _AppMenuItemState extends State<AppMenuItem> {
                   onInvoke: (_) => widget.onTap!(),
                 ),
               },
-        child: GestureDetector(
-          onTapDown: active ? (_) => setState(() => _pressed = true) : null,
-          onTapUp: active ? (_) => setState(() => _pressed = false) : null,
-          onTapCancel: active ? () => setState(() => _pressed = false) : null,
-          onTap: active
-              ? () {
-                  AppHaptics.selection();
-                  widget.onTap!();
-                }
-              : null,
-          child: _content(tokens, active),
+        child: MouseRegion(
+          onEnter: (_) => _pointerEntered(),
+          onExit: (_) => widget.onPointerExit?.call(),
+          child: GestureDetector(
+            onTapDown: active ? (_) => setState(() => _pressed = true) : null,
+            onTapUp: active ? (_) => setState(() => _pressed = false) : null,
+            onTapCancel: active ? () => setState(() => _pressed = false) : null,
+            onTap: active
+                ? () {
+                    AppHaptics.selection();
+                    widget.onTap!();
+                  }
+                : null,
+            child: _content(tokens, active),
+          ),
         ),
       ),
     );
   }
 
+  void _pointerEntered() {
+    final onEnter = widget.onPointerEnter;
+    if (onEnter != null) return onEnter();
+    AppMenuCascade.maybeOf(context, listen: false)?.closePanel();
+  }
+
   Color _fill(AppTokens tokens) {
     if (widget.selected) return tokens.accentSoft;
-    return _hovered || _pressed ? tokens.surfaceSunken : Colors.transparent;
+    return _hovered || _pressed || widget.highlighted
+        ? tokens.surfaceSunken
+        : Colors.transparent;
   }
 
   Widget? _trailingIcon(AppTokens tokens) {

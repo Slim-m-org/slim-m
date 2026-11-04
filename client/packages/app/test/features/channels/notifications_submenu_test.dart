@@ -24,6 +24,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../support/fake_api.dart';
 import '../../ui_snapshot_support.dart' show loadRealFonts;
 
+const _panel = Key('menu-submenu-panel');
+
 const _tokens = api.TokenPair(
   userId: 'u-me',
   accessToken: 'access',
@@ -270,6 +272,8 @@ void main() {
     });
   }
 
+  _cascadeTests();
+
   testWidgets('the entry opens from the keyboard and a choice is picked '
       'with Enter', (tester) async {
     final fixture = _Fixture();
@@ -309,10 +313,145 @@ void main() {
     await tester.tap(find.text('Notifications'));
     await tester.pumpAndSettle();
 
-    final popover = tester.getRect(find.byType(AppMenu));
+    final popover = tester.getRect(find.byKey(_panel));
     expect(popover.overlaps(entry), isFalse, reason: 'beside, not over');
     expect(popover.top, closeTo(entry.top, 8));
     expect(popover.overlaps(header), isFalse);
+  });
+}
+
+Future<void> _step(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+void _cascadeTests() {
+  group('the submenu cascades from the row menu', () {
+    testWidgets(
+      'the parent stays mounted, highlighted, while the child is open',
+      (tester) async {
+        final fixture = _Fixture();
+        await _pumpRow(tester, fixture, width: 1000);
+        await _openRowMenu(tester, phone: false);
+        await tester.tap(find.text('Notifications'));
+        await _step(tester);
+
+        expect(find.byKey(_panel), findsOneWidget);
+        expect(find.text('Notifications'), findsOneWidget);
+        expect(find.text('Mute channel'), findsOneWidget);
+      },
+    );
+
+    testWidgets('hovering the row opens it after a short delay', (
+      tester,
+    ) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 1000);
+      await _openRowMenu(tester, phone: false);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.moveTo(tester.getCenter(find.text('Notifications')));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byKey(_panel), findsNothing);
+
+      await _step(tester);
+      expect(find.byKey(_panel), findsOneWidget);
+    });
+
+    testWidgets('choosing a child closes the whole menu', (tester) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 1000);
+      await _openRowMenu(tester, phone: false);
+      await tester.tap(find.text('Notifications'));
+      await _step(tester);
+      await tester.tap(find.text('Mentions only'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await _step(tester);
+
+      expect(find.byKey(_panel), findsNothing);
+      expect(find.text('Notifications'), findsNothing);
+    });
+
+    testWidgets('Escape and Left close only the child', (tester) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 1000);
+      await _openRowMenu(tester, phone: false);
+      for (final key in [
+        LogicalKeyboardKey.escape,
+        LogicalKeyboardKey.arrowLeft,
+      ]) {
+        await tester.tap(find.text('Notifications'));
+        await _step(tester);
+        expect(find.byKey(_panel), findsOneWidget);
+
+        await tester.sendKeyEvent(key);
+        await _step(tester);
+        expect(find.byKey(_panel), findsNothing);
+        expect(find.text('Notifications'), findsOneWidget);
+      }
+    });
+
+    testWidgets('Right opens it from the row', (tester) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 1000);
+      await _openRowMenu(tester, phone: false);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await _step(tester);
+
+      expect(find.byKey(_panel), findsOneWidget);
+    });
+
+    testWidgets('a click outside closes everything', (tester) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 1000);
+      await _openRowMenu(tester, phone: false);
+      await tester.tap(find.text('Notifications'));
+      await _step(tester);
+      await tester.tapAt(const Offset(900, 800));
+      await _step(tester);
+
+      expect(find.byKey(_panel), findsNothing);
+      expect(find.text('Notifications'), findsNothing);
+    });
+
+    testWidgets('a click inside the child does not close the parent first', (
+      tester,
+    ) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 1000);
+      await _openRowMenu(tester, phone: false);
+      await tester.tap(find.text('Notifications'));
+      await _step(tester);
+      await tester.tapAt(
+        tester.getRect(find.byKey(_panel)).bottomCenter - const Offset(0, 3),
+      );
+      await _step(tester);
+
+      expect(find.byKey(_panel), findsOneWidget);
+    });
+
+    testWidgets('on a phone the sheet swaps to the submenu with a back row', (
+      tester,
+    ) async {
+      final fixture = _Fixture();
+      await _pumpRow(tester, fixture, width: 390);
+      await _openRowMenu(tester, phone: true);
+      await tester.tap(find.text('Notifications'));
+      await _step(tester);
+
+      expect(find.byKey(const Key('menu-submenu-back')), findsOneWidget);
+      expect(find.text('Mute channel'), findsOneWidget);
+      expect(find.byKey(_panel), findsNothing);
+
+      await tester.tap(find.byKey(const Key('menu-submenu-back')));
+      await _step(tester);
+      expect(find.byKey(const Key('menu-submenu-back')), findsNothing);
+      expect(find.text('Mute channel'), findsNothing);
+      expect(find.text('Notifications'), findsOneWidget);
+    });
   });
 }
 

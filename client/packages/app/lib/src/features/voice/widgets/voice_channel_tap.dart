@@ -28,8 +28,8 @@ import '../providers/voice_flags.dart';
 import '../../../routing/routes.dart';
 
 /// What opening a voice channel from the rail does: navigate, then rejoin on
-/// a re-click. Shared by the row's tap and its menu's "Open channel", which
-/// otherwise diverge on a channel that is already the open one.
+/// a re-click. Kept in one place so a re-click on the open voice channel
+/// behaves the same wherever it is reached from.
 void openVoiceChannel(
   BuildContext context,
   ProviderContainer container,
