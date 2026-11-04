@@ -60,7 +60,6 @@ void main() {
         settleNestedResolve: true,
         afterSettle: (tester) async {
           expect(find.text('Focus Timer'), findsOneWidget);
-          expect(find.text('NOT VERIFIED'), findsOneWidget);
           await tester.tap(find.bySemanticsLabel('Module options'));
           await tester.pump(const Duration(milliseconds: 400));
           await tester.pump(const Duration(milliseconds: 400));

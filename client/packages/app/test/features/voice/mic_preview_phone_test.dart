@@ -51,13 +51,12 @@ void main() {
     );
     await _settle(tester);
 
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(micTestButtonKey)),
+    );
     await tester.tap(find.byKey(micTestButtonKey));
     await _settle(tester);
     expect(source.opened, hasLength(1));
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(Scaffold)),
-    );
     await tester.pumpWidget(const SizedBox());
     await _settle(tester);
     expect(container.read(micPreviewArmedProvider), isFalse);
