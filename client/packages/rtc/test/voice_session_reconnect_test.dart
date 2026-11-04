@@ -196,6 +196,40 @@ void main() {
     });
   });
 
+  group('a resume, which keeps the media path', () {
+    test('keeps the roster live and the sampling running', () async {
+      final call = await JoinedCall.join(people: {'bob': FakePeer('bob')});
+      addTearDown(call.session.dispose);
+
+      call.room.emit(const lk.RoomResumingEvent());
+      call.room.people.clear();
+      call.room
+          .emit(lk.ParticipantDisconnectedEvent(participant: FakePeer('bob')));
+      await pumpEventQueue();
+
+      expect(call.session.health.reconnect.active.value, isTrue);
+      expect(_names(call.session), ['me'],
+          reason: 'a resume must not freeze a roster that is still true');
+      expect(call.session.glitchWatch.running, isTrue);
+    });
+
+    test('escalating to a restart then freezes both', () async {
+      final call = await JoinedCall.join(people: {'bob': FakePeer('bob')});
+      addTearDown(call.session.dispose);
+
+      call.room.emit(const lk.RoomResumingEvent());
+      call.room.emit(const lk.RoomReconnectingEvent());
+      await pumpEventQueue();
+      call.room.people.clear();
+      call.room
+          .emit(lk.ParticipantDisconnectedEvent(participant: FakePeer('bob')));
+      await pumpEventQueue();
+
+      expect(call.session.glitchWatch.running, isFalse);
+      expect(_names(call.session), ['me', 'bob']);
+    });
+  });
+
   group('sampling during a reconnect', () {
     test('the ping readout is cleared and sampling resumes afterwards',
         () async {
@@ -204,7 +238,7 @@ void main() {
       expect(call.session.glitchWatch.running, isTrue);
       call.session.health.pingMs.value = 42;
 
-      call.room.emit(const lk.RoomResumingEvent());
+      call.room.emit(const lk.RoomReconnectingEvent());
       await pumpEventQueue();
       expect(call.session.health.pingMs.value, isNull);
       expect(call.session.glitchWatch.running, isFalse);

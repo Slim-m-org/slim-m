@@ -71,7 +71,7 @@ extension VoiceSessionTracks on VoiceSession {
   /// Pauses what a half-repaired transport would only mislead, and rebuilds the roster from the live room once it is back.
   void _onReconnectingChanged() {
     if (_disposed) return;
-    if (health.reconnect.active.value) {
+    if (health.reconnect.restarting.value) {
       _glitchWatch.stop();
       // Tracks are forgotten so the grace period starts again once frames can flow.
       _stallWatchdog.observe(const []);
@@ -260,8 +260,8 @@ extension VoiceSessionTracks on VoiceSession {
       ),
     );
 
-    // A full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
-    if (health.reconnect.active.value) return;
+    // Only a full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
+    if (health.reconnect.restarting.value) return;
 
     final (next, recheck) = _speakingHold.apply(
       snapshotParticipants(
