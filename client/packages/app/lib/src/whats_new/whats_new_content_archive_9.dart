@@ -41,4 +41,30 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.123.0',
+    headline: 'Tidier settings, simpler modules, ten new themes',
+    points: [
+      WhatsNewPoint(
+        'Themes have their own page, and the Space store has ten new ones, '
+        'five with their own backdrop.',
+      ),
+      WhatsNewPoint(
+        'A module is one short page: on or off, who can use it, its settings '
+        'and what it may do, with the technical details folded away.',
+      ),
+      WhatsNewPoint(
+        'Account, data, sounds and shortcuts each sit where you would look '
+        'for them, and the notification checks moved to Troubleshooting.',
+      ),
+      WhatsNewPoint(
+        'Menus drop from the button you pressed and open upward near the '
+        'bottom of the window, and fewer pop-ups stack on each other.',
+      ),
+      WhatsNewPoint(
+        'On a phone the microphone test only starts when you tap it, and '
+        'music while alone follows you across devices.',
+      ),
+    ],
+  ),
 ];
