@@ -15,7 +15,7 @@ use tower::ServiceExt;
 
 mod support;
 
-use support::app::{app, json_body, register_token as register};
+use support::app::{app, json_body, json_body_or_null, register_token as register, request_json};
 
 fn theme(name: &str) -> Value {
     json!({
@@ -292,19 +292,17 @@ async fn a_picture_is_served_back_and_a_non_image_is_refused() {
 async fn the_store_is_capped() {
     let (store, _guard) = support::new_store("slimm-themes-cap").await;
     let app = app(store.clone());
-    // Three accounts, so none trips its own write limit on the way to the cap.
-    let tokens = [
-        register(&store, "one").await,
-        register(&store, "two").await,
-        register(&store, "three").await,
-    ];
-    let member = tokens[0].clone();
+    // Ten accounts, so none passes its own cap of five on the way to the Space's.
+    let mut tokens = Vec::new();
+    for i in 0..10 {
+        tokens.push(register(&store, &format!("member{i}")).await);
+    }
     for i in 0..50 {
         let (status, _) = send(
             &app,
             "POST",
             "/space/themes",
-            &tokens[i % 3],
+            &tokens[i % 10],
             Some(theme(&format!("T{i}"))),
         )
         .await;
@@ -314,9 +312,48 @@ async fn the_store_is_capped() {
         &app,
         "POST",
         "/space/themes",
-        &member,
+        &tokens[0],
         Some(theme("One too many")),
     )
     .await;
     assert_eq!(status, StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn one_member_cannot_fill_the_store() {
+    let (store, _guard) = support::new_store("slimm-themes-author-cap").await;
+    let app = app(store.clone());
+    let _admin = register(&store, "admin").await;
+    let hog = register(&store, "hog").await;
+    let other = register(&store, "other").await;
+    let mut first = None;
+    for i in 0..5 {
+        let (status, created) = send(
+            &app,
+            "POST",
+            "/space/themes",
+            &hog,
+            Some(theme(&format!("T{i}"))),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "theme {i}");
+        first.get_or_insert(created["id"].as_str().unwrap().to_owned());
+    }
+    let response = app
+        .clone()
+        .oneshot(request_json("POST", "/space/themes", &hog, theme("Sixth")))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let body = json_body_or_null(response).await.to_string();
+    assert!(body.contains("5 themes"), "message names the limit: {body}");
+
+    let (status, _) = send(&app, "POST", "/space/themes", &other, Some(theme("Mine"))).await;
+    assert_eq!(status, StatusCode::CREATED, "another member is unaffected");
+
+    let uri = format!("/space/themes/{}", first.unwrap());
+    let (status, _) = send(&app, "DELETE", &uri, &hog, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = send(&app, "POST", "/space/themes", &hog, Some(theme("Again"))).await;
+    assert_eq!(status, StatusCode::CREATED, "removing one frees a slot");
 }

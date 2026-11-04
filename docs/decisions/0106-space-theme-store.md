@@ -42,7 +42,7 @@ Any member can publish one to the Space, anyone can apply any of them for themse
 
 The picture is a BLOB on the store row, not an `attachments` row.
 The emoji path (0016, 0017) shows what sharing the attachments table costs: the orphan sweep, the export and the account deletion each need an exclusion for it.
-A theme picture is capped at 2 MiB and 50 themes, at most 100 MiB, and belongs to nothing else, so a column keeps it out of all three.
+A theme picture is capped at 2 MiB and 50 themes (5 per author), at most 100 MiB, and belongs to nothing else, so a column keeps it out of all three.
 It is served by `GET /space/themes/{id}/picture` with an immutable cache header, keyed by the theme id.
 Applying a theme with a picture hands the bytes to the personal background of 0104 on that device, so dim, vignette, blur and the contrast floor work as they already do.
 

@@ -10965,7 +10965,7 @@ paths:
         Any member may publish. The body is the theme file; the server
         validates it as the client does (every token, colours, the contrast
         floors, the picture sniffed from its bytes, at most 2 MiB) and refuses
-        with 400 naming each problem. A Space holds at most 50 themes, then 409.
+        with 400 naming each problem. A Space holds at most 50 themes and one member at most 5, then 409.
         Decision 0106.
       requestBody:
         required: true

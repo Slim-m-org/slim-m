@@ -19,6 +19,8 @@ pub const MAX_NAME_CHARS: usize = 40;
 pub const MAX_PICTURE_BYTES: usize = 2 * 1024 * 1024;
 pub const MAX_PICTURE_SIDE: u32 = 4096;
 pub const MAX_STORE_THEMES: i64 = 50;
+/// One member cannot fill the store alone.
+pub const MAX_AUTHOR_THEMES: i64 = 5;
 
 const BASES: &[&str] = &[
     "dark",
