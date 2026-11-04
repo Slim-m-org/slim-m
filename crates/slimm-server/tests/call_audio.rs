@@ -342,3 +342,19 @@ async fn taking_a_channel_off_the_list_stops_its_session() {
     rig.wait_session(None).await;
     wait_frames(&rig, "stop", 1).await;
 }
+
+#[tokio::test]
+async fn an_ask_whose_listener_cannot_start_is_not_answered_with_a_session() {
+    let rig = Rig::start_without_voice("call-audio-unstartable", 1).await;
+    let a = &rig.people[0];
+    rig.state
+        .voice
+        .live_state()
+        .mark_joined(rig.channel, a.id, "sid-a");
+
+    let (status, body) = rig.ask(a).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert_eq!(body.get("session"), None);
+    rig.wait_session(None).await;
+    assert!(rig.listener.of_type("start").is_empty());
+}

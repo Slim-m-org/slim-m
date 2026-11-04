@@ -67,6 +67,21 @@ impl Rig {
     }
 
     pub async fn start_with(name: &str, how_many: usize, max_sessions: u32, armed: bool) -> Self {
+        let voice = VoiceService::for_test("wss://livekit.example.com", API_KEY, API_SECRET);
+        Self::start_on(name, how_many, (max_sessions, armed), voice).await
+    }
+
+    /// A deployment whose LiveKit cannot mint the listener's token.
+    pub async fn start_without_voice(name: &str, how_many: usize) -> Self {
+        Self::start_on(name, how_many, (2, true), VoiceService::disabled()).await
+    }
+
+    async fn start_on(
+        name: &str,
+        how_many: usize,
+        (max_sessions, armed): (u32, bool),
+        voice: VoiceService,
+    ) -> Self {
         let (path, db_guard) = super::TestDbGuard::new(name);
         let (dir, dir_guard) = super::TestDirGuard::new("slimm-call-audio-data");
         let config = Config {
@@ -104,11 +119,7 @@ impl Rig {
             livekit_url: Some("ws://lan-livekit:7880".into()),
         }));
         let state = super::app::builder(store.clone())
-            .voice(VoiceService::for_test(
-                "wss://livekit.example.com",
-                API_KEY,
-                API_SECRET,
-            ))
+            .voice(voice)
             .call_audio(call_audio)
             .build();
         std::mem::forget(slimm_server::call_audio::runtime::spawn(state.clone()));

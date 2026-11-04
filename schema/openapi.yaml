@@ -7420,7 +7420,8 @@ paths:
         "busy" otherwise). Their request counts as their own yes; everyone
         else in the call is asked and has 60 seconds. After a decline, a
         lapse or a stop the channel answers 429 with `Retry-After` for 60
-        seconds. 501 without a listener configured.
+        seconds. 501 without a listener configured, and 503 when the listener
+        is away or its room token cannot be minted.
       requestBody:
         required: true
         content:
@@ -7450,6 +7451,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
     delete:
       operationId: stopVoiceCallAudio
       tags: [voice]
