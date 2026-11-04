@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The two-factor section under Account & security: what it offers in each
+/// The two-factor section under Account and security: what it offers in each
 /// state, that enrolment cannot be completed without a code, and that the codes
 /// a person gets are actually shown to them.
 ///

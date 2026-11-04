@@ -51,8 +51,8 @@ NEW_ROLE = "Create role"
 ROLE_NAME = "Role name"
 CREATE_ROLE = "Create role"
 
-# Account & security > Password (change_password_section.dart, change_password_sheet.dart)
-ACCOUNT_PANE = "Account & security"
+# Account and security > Password (change_password_section.dart, change_password_sheet.dart)
+ACCOUNT_PANE = "Account and security"
 CHANGE_PASSWORD = "Change password"
 CURRENT_PASSWORD = "Current password"
 NEW_PASSWORD = "New password"

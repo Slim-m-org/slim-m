@@ -11,6 +11,13 @@ import '../features/settings/screens/space_settings_screen.dart';
 import 'modal_page.dart';
 import 'routes.dart';
 
+/// Space pane ids that were renamed, so a saved link to the old one still opens.
+const _spacePaneAliases = {'performance': 'retention'};
+
+/// The Space pane a `?pane=` value names, after [_spacePaneAliases].
+@visibleForTesting
+String? resolveSpacePaneId(String? id) => _spacePaneAliases[id] ?? id;
+
 /// `replace` rather than `go`: it keeps the page, so picking a pane neither
 /// replays the transition nor drops the shell the modal sits over.
 Page<void> personalSettingsPage(BuildContext context, GoRouterState state) =>
@@ -32,7 +39,9 @@ Page<void> spaceSettingsPage(BuildContext context, GoRouterState state) =>
     modalPage(
       context,
       SpaceSettingsScreen(
-        initialPaneId: state.uri.queryParameters[settingsPaneQuery],
+        initialPaneId: resolveSpacePaneId(
+          state.uri.queryParameters[settingsPaneQuery],
+        ),
         onPaneChanged: (id) => context.replace(
           id == null ? Routes.spaceSettings : Routes.spaceSettingsPane(id),
         ),

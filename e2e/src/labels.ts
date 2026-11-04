@@ -30,7 +30,7 @@ export const L = {
   "NEW_ROLE": "Create role",
   "ROLE_NAME": "Role name",
   "CREATE_ROLE": "Create role",
-  "ACCOUNT_PANE": "Account & security",
+  "ACCOUNT_PANE": "Account and security",
   "CHANGE_PASSWORD": "Change password",
   "CURRENT_PASSWORD": "Current password",
   "NEW_PASSWORD": "New password",

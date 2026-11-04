@@ -221,4 +221,10 @@ void main() {
     await _resize(tester, _wide);
     expect(find.text('taps 1'), findsOneWidget);
   });
+
+  test('an old Space pane id still resolves to its renamed pane', () {
+    expect(resolveSpacePaneId('performance'), 'retention');
+    expect(resolveSpacePaneId('storage'), 'storage');
+    expect(resolveSpacePaneId(null), isNull);
+  });
 }

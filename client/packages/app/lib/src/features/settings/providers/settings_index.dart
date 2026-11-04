@@ -144,6 +144,7 @@ const personalSettingsIndex = <SettingsEntry>[
     yourDataPane,
     'Your data',
     description: 'A copy of what you wrote and uploaded.',
+    conditional: true,
     keywords: [
       'export',
       'download my data',

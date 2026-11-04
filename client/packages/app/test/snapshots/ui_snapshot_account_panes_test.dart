@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Captures of the Account & security, Blocked and Report status panes in the
+/// Captures of the Account and security, Blocked and Report status panes in the
 /// states the design frames show: stale devices, two-factor off and on, and
 /// the empty and populated block list.
 library;
@@ -73,11 +73,11 @@ void main() {
 
   final surfaces = <String, ({String pane, Map<String, Object> paths})>{
     'sr-account-totp-off': (
-      pane: 'Account & security',
+      pane: 'Account and security',
       paths: {'/devices': _devices, '/auth/totp': _totp(on: false)},
     ),
     'sr-account-totp-on': (
-      pane: 'Account & security',
+      pane: 'Account and security',
       paths: {'/devices': _devices, '/auth/totp': _totp(on: true)},
     ),
     'sr-blocked-empty': (pane: 'Blocked', paths: {'/blocks': <Object>[]}),

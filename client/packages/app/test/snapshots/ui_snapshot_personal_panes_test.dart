@@ -20,7 +20,7 @@ import 'package:slimm_app/src/action_labels.dart';
 
 const _panes = <String, String>{
   'profile': 'Profile',
-  'account-devices': 'Account & security',
+  'account-devices': 'Account and security',
   'your-data': 'Your data',
   'desktop': 'Desktop',
   'appearance': 'Appearance',

@@ -89,7 +89,7 @@ class PersonalSettingsScreen extends ConsumerWidget {
             ),
             SettingsPane(
               id: accountDevicesPane,
-              label: 'Account & security',
+              label: 'Account and security',
               icon: AppIcons.shield,
               builder: (context) => const Column(
                 children: [

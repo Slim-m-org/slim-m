@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Account & security app-lock toggle: absent on an unsupported platform
+/// The Account and security app-lock toggle: absent on an unsupported platform
 /// rather than shown disabled, and actually wired to the preference
 /// controller when it is shown.
 library;

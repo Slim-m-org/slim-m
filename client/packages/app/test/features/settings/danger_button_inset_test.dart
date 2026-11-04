@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Both destructive buttons on Account & security sit the same distance from
+/// Both destructive buttons on Account and security sit the same distance from
 /// their card's edge.
 library;
 

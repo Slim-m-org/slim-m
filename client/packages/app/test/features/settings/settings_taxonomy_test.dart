@@ -26,7 +26,7 @@ import 'settings_harness.dart';
 /// Every nav entry the personal screen offers, and the group it sits under.
 const List<(String?, String)> _panes = [
   ('You', 'Profile'),
-  ('You', 'Account & security'),
+  ('You', 'Account and security'),
   ('You', 'Your data'),
   ('App', 'Appearance'),
   ('App', 'Desktop'),
@@ -91,7 +91,7 @@ void main() {
     useTallViewport(tester);
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
     expect(find.text('Devices'), findsNothing, reason: 'no nav row');
-    await tester.tap(find.text('Account & security'));
+    await tester.tap(find.text('Account and security'));
     await tester.pumpAndSettle();
     expect(find.text('Devices'), findsOneWidget, reason: 'a section header');
   });
