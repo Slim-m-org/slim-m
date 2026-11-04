@@ -42,13 +42,16 @@ class CameraJoin {
   Stream<CameraJoinOpen> get events => _events.stream;
 
   /// Opens the camera through [enable], reporting the outcome only while [current] still holds.
+  ///
+  /// A timeout is reported as a failure, so a camera that opens after it is turned off again through [abandon]: the person was told it failed.
   Future<void> open({
     required Future<CameraToggleResult> Function() enable,
     required bool Function() current,
     void Function(Object error)? noteFailure,
+    Future<void> Function()? abandon,
   }) async {
     _set(const CameraJoinOpen.started());
-    final result = await _enableWithin(enable);
+    final result = await _enableWithin(enable, abandon);
     if (!current()) return;
     final error = result.error;
     if (error != null) noteFailure?.call(error);
@@ -57,17 +60,32 @@ class CameraJoin {
 
   Future<CameraToggleResult> _enableWithin(
     Future<CameraToggleResult> Function() enable,
+    Future<void> Function()? abandon,
   ) async {
     try {
-      return await enable().timeout(
+      final pending = enable();
+      return await pending.timeout(
         timeout,
-        onTimeout: () =>
-            const CameraToggleResult.failed(CameraOpenTimedOut(), null),
+        onTimeout: () {
+          unawaited(_abandonLate(pending, abandon));
+          return const CameraToggleResult.failed(CameraOpenTimedOut(), null);
+        },
       );
     } catch (error, stack) {
       reportFailure(
           LogTag.voice, 'open the camera after joining', error, stack);
       return CameraToggleResult.failed(error, null);
+    }
+  }
+
+  Future<void> _abandonLate(
+    Future<CameraToggleResult> pending,
+    Future<void> Function()? abandon,
+  ) async {
+    try {
+      if ((await pending).ok) await abandon?.call();
+    } catch (error, stack) {
+      reportFailure(LogTag.voice, 'close a late camera', error, stack);
     }
   }
 

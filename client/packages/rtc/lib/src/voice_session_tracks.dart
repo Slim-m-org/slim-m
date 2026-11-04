@@ -237,6 +237,10 @@ extension VoiceSessionTracks on VoiceSession {
         current: () =>
             !_disposed && identical(_room, room) && generation == _generation,
         noteFailure: (error) => _lastError = error,
+        abandon: () async {
+          if (_disposed || !identical(_room, room)) return;
+          await _setCamera(room, false);
+        },
       );
 
   /// Moved here from the main class body for its 500-line hard ceiling:
