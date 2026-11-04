@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The density, group spacing and thread line controls with their live
-/// preview (decision 0062), grouped under Appearance.
+/// preview (decision 0062) and the personal module display switches.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/display_density.dart';
 import 'display_density_preview.dart';
+import 'personal_module_toggle.dart';
 import 'settings_section_header.dart';
 import 'settings_segmented_row.dart';
 import 'settings_select_row.dart';
@@ -28,7 +29,6 @@ class DisplaySettingsSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       title: 'Messages',
-      description: 'How tight messages sit, and how far apart groups are.',
       children: [
         DisplayDensityPreview(
           density: density,
@@ -61,7 +61,6 @@ class DisplaySettingsSection extends ConsumerWidget {
         ),
         SettingsSegmentedRow<ContinuationMarker>(
           label: 'Thread lines',
-          description: 'Join a run of messages from one person with a line.',
           value: marker,
           choices: [
             for (final option in ContinuationMarker.values)
@@ -71,6 +70,8 @@ class DisplaySettingsSection extends ConsumerWidget {
               .read(continuationMarkerControllerProvider.notifier)
               .select(next),
         ),
+        const PersonalModuleToggle(ModuleDisplayKind.memberBadges),
+        const PersonalModuleToggle(ModuleDisplayKind.profileSections),
       ],
     );
   }

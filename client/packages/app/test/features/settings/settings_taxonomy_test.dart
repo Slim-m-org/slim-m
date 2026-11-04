@@ -15,6 +15,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_app/src/action_labels.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
@@ -25,11 +26,12 @@ import 'settings_harness.dart';
 /// Every nav entry the personal screen offers, and the group it sits under.
 const List<(String?, String)> _panes = [
   ('You', 'Profile'),
-  ('You', 'Account & devices'),
+  ('You', 'Account and security'),
+  ('You', 'Your data'),
   ('App', 'Appearance'),
   ('App', 'Desktop'),
   ('App', 'Notifications'),
-  ('App', 'Voice & screen share'),
+  ('App', 'Voice and screen share'),
   ('Safety', 'Blocked'),
   ('Safety', 'Report status'),
   ('Help', 'Troubleshooting'),
@@ -89,7 +91,7 @@ void main() {
     useTallViewport(tester);
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
     expect(find.text('Devices'), findsNothing, reason: 'no nav row');
-    await tester.tap(find.text('Account & devices'));
+    await tester.tap(find.text('Account and security'));
     await tester.pumpAndSettle();
     expect(find.text('Devices'), findsOneWidget, reason: 'a section header');
   });
@@ -133,7 +135,7 @@ void main() {
   testWidgets('the delete warning survives, above the action', (tester) async {
     useTallViewport(tester);
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
-    await tester.tap(find.text('Account & devices'));
+    await tester.tap(find.text('Your data'));
     await tester.pumpAndSettle();
 
     expect(
@@ -206,6 +208,8 @@ void main() {
     await pumpSpaceSettings(tester, allPermissionBits);
 
     for (final (_, pane) in _panes) {
+      // Both nav lists name the call defaults the same, by design.
+      if (pane == ActionLabels.spaceVoice) continue;
       expect(find.text(pane), findsNothing, reason: '$pane leaked onto Space');
     }
     expect(find.text('Version'), findsNothing);

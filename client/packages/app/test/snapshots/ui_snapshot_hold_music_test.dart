@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Voice & screen share pane, with the hold music row, at phone and
+/// The call sounds card, with the hold music row, at phone and
 /// desktop width in both themes. The PNGs are written only under
 /// SLIMM_UI_SNAPSHOTS=1; otherwise this asserts the pane lays out without
 /// overflow.
@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_sounds_card.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -53,7 +53,7 @@ void main() {
                     ? buildTheme(Brightness.dark, AppTokens.dark)
                     : buildTheme(Brightness.light, AppTokens.light),
                 home: const Scaffold(
-                  body: SingleChildScrollView(child: VoiceSettingsBody()),
+                  body: SingleChildScrollView(child: CallSoundsCard()),
                 ),
               ),
             ),

@@ -473,7 +473,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
       if (widget.scopedClear case final control?)
         AppMenuItem(
           label: 'Clear part of the canvas',
-          leading: AppIcons.delete,
+          leading: AppIcons.eraser,
           tone: AppMenuItemTone.danger,
           onTap: () => _requestScopedClear(control),
         ),

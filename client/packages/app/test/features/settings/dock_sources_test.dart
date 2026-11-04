@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
+import '../../support/dock_page_helpers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -215,8 +216,7 @@ void main() {
     tester,
   ) async {
     final upstream = await _pump(tester);
-    await tester.tap(find.text('Add a community source'));
-    await tester.pumpAndSettle();
+    await tapDockMenuItem(tester, 'Add a community source');
     await tester.enterText(find.byType(EditableText).last, 'acme/mods');
     await tester.pump();
     await tester.tap(find.text('Add source'));
@@ -236,8 +236,7 @@ void main() {
           },
         }, 400);
       await _pump(tester, upstream: upstream);
-      await tester.tap(find.text('Add a community source'));
-      await tester.pumpAndSettle();
+      await tapDockMenuItem(tester, 'Add a community source');
       await tester.enterText(
         find.byType(EditableText).last,
         'https://evil.example/x',
@@ -255,9 +254,10 @@ void main() {
     tester,
   ) async {
     final upstream = await _pump(tester);
+    await tapDockMenuItem(tester, 'Manage sources');
     await tester.tap(find.bySemanticsLabel('Remove source acme/mods'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('stay installed and enabled'), findsOneWidget);
+    expect(find.textContaining('stay installed'), findsOneWidget);
     await tester.tap(find.text('Remove source').last);
     await tester.pumpAndSettle();
     expect(upstream.requests, contains('DELETE /space/dock/sources/s1'));

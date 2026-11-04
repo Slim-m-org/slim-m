@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_health_card.dart';
@@ -86,7 +87,6 @@ void main() {
     final installed = _module(failures: 2, dropped: 7);
     expect(dockHasHealthNews(installed), isTrue);
     await _pump(tester, installed);
-    expect(find.text('Health'), findsOneWidget);
     expect(find.text('2 runs failed in a row.'), findsOneWidget);
     expect(
       find.text('7 events were dropped because it fell behind.'),
@@ -100,11 +100,11 @@ void main() {
   ) async {
     final enabled = <bool>[];
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: DockManifestView(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: DockManifestView(
               manifest: api.DockManifest.fromJson(
                 dockManifestJson('xp', '1.0.0'),
               ),
@@ -115,7 +115,7 @@ void main() {
               onInstall: () {},
               onSetEnabled: enabled.add,
               onUninstall: () {},
-              onChooseAccess: () {},
+              onDiscardAccess: () {},
               approvedHostCapabilities: const {},
               onToggleHostCapability: (_, _) {},
             ),

@@ -15,11 +15,11 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/dock_page_helpers.dart';
 import '../../ui_snapshot_support.dart';
 
 const _tokens = api.TokenPair(
@@ -145,12 +145,6 @@ Future<List<Map<String, dynamic>>> _pump(
                   moduleId: state.pathParameters['moduleId']!,
                 ),
               ),
-              GoRoute(
-                path: '${Routes.adminDock}/:moduleId/access',
-                builder: (context, state) => DockModuleAccessScreen(
-                  moduleId: state.pathParameters['moduleId']!,
-                ),
-              ),
             ],
           ),
         ),
@@ -163,7 +157,7 @@ Future<List<Map<String, dynamic>>> _pump(
 
 List<bool> _switches(WidgetTester tester) => [
   for (final toggle in tester.widgetList<AppToggle>(find.byType(AppToggle)))
-    toggle.value,
+    if (toggle.semanticLabel?.endsWith(' for Ladder') ?? false) toggle.value,
 ];
 
 void main() {
@@ -171,9 +165,10 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(find.text('Access to approve'), findsOneWidget);
+    expect(find.text('Access'), findsOneWidget);
     expect(find.text('Remember data'), findsOneWidget);
     expect(find.text('Post messages'), findsOneWidget);
+    await openDockFold(tester, 'details');
     expect(
       find.text('SURFACE.RENDER'),
       findsOneWidget,
@@ -206,14 +201,14 @@ void main() {
   ) async {
     final installs = await _pump(tester, installedApproved: ['kv.store']);
     expect(_switches(tester).sublist(0, 2), [true, false]);
-    expect(find.text('Save access'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
 
-    await tester.tap(find.byType(AppToggle).at(1));
+    await tester.tap(find.bySemanticsLabel('Post messages for Ladder'));
     await tester.pumpAndSettle();
-    expect(find.text('Save access'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
     await writeSnapshot(tester, 'dock-host-access-installed-changed-phone');
 
-    await tester.tap(find.text('Save access'));
+    await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], [
       'kv.store',
@@ -230,8 +225,20 @@ void main() {
     expect(_switches(tester).sublist(0, 2), [true, false]);
     expect(find.textContaining('approved again'), findsOneWidget);
 
-    await tester.tap(find.text('Save access'));
+    await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['kv.store']);
+  });
+
+  testWidgets('desktop: Overview and a changed Access tab', (tester) async {
+    await _pump(
+      tester,
+      installedApproved: ['kv.store'],
+      size: const Size(1100, 1000),
+    );
+    await writeSnapshot(tester, 'dock-module-overview-desktop');
+    await tester.tap(find.bySemanticsLabel('Post messages for Ladder'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await writeSnapshot(tester, 'dock-module-access-changed-desktop');
   });
 }

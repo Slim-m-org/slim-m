@@ -36,6 +36,7 @@ class ComposerActionBar extends ConsumerWidget {
     required this.onSend,
     required this.onTyping,
     required this.onOpenActions,
+    this.onLaunchApps,
     required this.onPickFile,
     required this.onSendPressed,
     required this.onInsertCode,
@@ -73,6 +74,9 @@ class ComposerActionBar extends ConsumerWidget {
   final Future<void> Function() onSend;
   final ValueChanged<String> onTyping;
   final VoidCallback onOpenActions;
+
+  /// Null when the deployment has no apps to launch, so no dead button shows.
+  final VoidCallback? onLaunchApps;
   final VoidCallback onPickFile;
   final VoidCallback onSendPressed;
   final VoidCallback onInsertCode;
@@ -166,6 +170,13 @@ class ComposerActionBar extends ConsumerWidget {
       tooltip: 'Insert code',
       onPressed: onInsertCode,
     ),
+    if (onLaunchApps case final launch?)
+      AppIconButton(
+        icon: AppIcons.dock,
+        semanticLabel: 'Launch an app',
+        tooltip: 'Launch an app',
+        onPressed: launch,
+      ),
     ComposerPickerButton(
       controller: pickerController,
       gifSearchEnabled: gifSearchEnabled,

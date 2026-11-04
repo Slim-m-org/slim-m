@@ -92,6 +92,7 @@ mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
+mod hold_music;
 mod login_throttle;
 mod media_compression;
 mod safety;

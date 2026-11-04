@@ -39,7 +39,6 @@ class ComposerAttachmentActions {
 
   void openActions({
     required String channelId,
-    required bool gifSearchEnabled,
     required List<App> apps,
     required VoidCallback onInsertCode,
     required void Function(String) onCommandError,
@@ -64,32 +63,16 @@ class ComposerAttachmentActions {
             unawaited(pasteClipboardImage(stageAttachment, setError)),
         onPoll: () => showPollComposerSheet(context, channelId),
         onCode: onInsertCode,
-        onGif: gifSearchEnabled ? () => pickGif(channelId) : null,
         // Only when there is something to launch; an empty menu entry would dead-end.
         onApps: apps.isEmpty
             ? null
-            : () => unawaited(
-                showAppLauncherSheet(
-                  context,
-                  ref,
-                  channelId,
-                  onError: onCommandError,
-                ),
-              ),
+            : () => launchApps(channelId, onCommandError),
       ),
     );
   }
 
-  /// Touch density only: the flow is `gif_picker.dart`'s `pickGif`; desktop
-  /// reaches [stageGif] through the same anchored panel as emoji.
-  void pickGif(String channelId) => unawaited(
-    gif.pickGif(
-      channelId: channelId,
-      context: context(),
-      ref: ref,
-      attachments: attachments(),
-      onError: setError,
-    ),
+  void launchApps(String channelId, void Function(String) onError) => unawaited(
+    showAppLauncherSheet(context(), ref, channelId, onError: onError),
   );
 
   /// Focus comes back to the field, so Enter sends the GIF without the mouse.

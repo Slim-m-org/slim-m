@@ -15,25 +15,25 @@ import '../voice/voice_settings_screen_harness.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('the voice pane has six section headers', (tester) async {
+  testWidgets('the voice pane has four section headers', (tester) async {
     await tester.pumpWidget(
       wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(SettingsSectionHeader), findsNWidgets(6));
+    expect(find.byType(SettingsSectionHeader), findsNWidgets(4));
     expect(find.text('Devices'), findsOneWidget);
   });
 
-  testWidgets('the appearance pane sits under six section headers', (
+  testWidgets('the appearance pane sits under four section headers', (
     tester,
   ) async {
     await tester.pumpWidget(wrap(const AppearanceSettingsSection()));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SettingsSectionHeader), findsNWidgets(6));
-    expect(find.text('Theme store'), findsOneWidget);
-    expect(find.text('Modules'), findsOneWidget);
+    expect(find.byType(SettingsSectionHeader), findsNWidgets(4));
+    expect(find.text('Theme store'), findsNothing);
+    expect(find.text('Badges in member list'), findsOneWidget);
     expect(find.byKey(DisplaySettingsSection.spacingSliderKey), findsOneWidget);
     expect(find.byKey(DisplaySettingsSection.scaleSliderKey), findsOneWidget);
   });

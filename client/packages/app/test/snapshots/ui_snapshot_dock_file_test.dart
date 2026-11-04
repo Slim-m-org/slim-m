@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Modules list with one module installed from a file: its card, the
-/// install action, and the unverified label, at phone and desktop in both themes.
+/// The Modules list with one module installed from a file: its row with the
+/// unverified badge, and the overflow menu holding the install action, at
+/// phone and desktop in both themes.
 library;
 
 import 'dart:convert';
@@ -48,7 +49,7 @@ void main() {
   setUpAll(loadRealFonts);
 
   for (final viewport in phoneAndDesktop) {
-    testWidgets('dock-file at $viewport shows the file card', (tester) async {
+    testWidgets('dock-file at $viewport shows the file row', (tester) async {
       await renderSurface(
         tester,
         '/settings/dock',
@@ -58,8 +59,10 @@ void main() {
         overrides: [apiProvider.overrideWith(_dock)],
         settleNestedResolve: true,
         afterSettle: (tester) async {
-          expect(find.text('Module files'), findsOneWidget);
           expect(find.text('Focus Timer'), findsOneWidget);
+          await tester.tap(find.bySemanticsLabel('Module options'));
+          await tester.pump(const Duration(milliseconds: 400));
+          await tester.pump(const Duration(milliseconds: 400));
           expect(find.text('Install from a file'), findsOneWidget);
           final button = tester.getRect(find.text('Install from a file'));
           final width = tester.view.physicalSize.width;

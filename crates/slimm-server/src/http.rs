@@ -118,6 +118,7 @@ mod reports;
 mod roles;
 use roles::role_reorder;
 mod data_exports;
+mod hold_music;
 mod media_compression;
 mod route_timing;
 mod safety;
@@ -271,6 +272,7 @@ pub fn router(state: AppState) -> Router {
         .merge(notification_schedule::routes())
         .merge(link_preview_removal::routes())
         .merge(pins::routes())
+        .merge(hold_music::routes())
         .merge(saved_messages::routes())
         .merge(recovery::routes())
         .merge(reports::routes())

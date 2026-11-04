@@ -63,7 +63,7 @@ Future<void> _pump(
   double width = 1100,
   List<Override> extraOverrides = const [],
 }) async {
-  tester.view.physicalSize = Size(width, 800);
+  tester.view.physicalSize = Size(width, 1600);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
@@ -104,10 +104,8 @@ void main() {
     expect(find.text('MODERATION'), findsOneWidget);
     expect(find.text('ACCESS'), findsOneWidget);
     expect(find.text('CONFIGURATION'), findsOneWidget);
-    expect(
-      find.text(ActionLabels.operationsGroup.toUpperCase()),
-      findsOneWidget,
-    );
+    expect(find.text(ActionLabels.limitsGroup.toUpperCase()), findsOneWidget);
+    expect(find.text(ActionLabels.insightGroup.toUpperCase()), findsOneWidget);
     for (final label in [
       'Reports',
       'Removed members',
@@ -130,7 +128,7 @@ void main() {
     // Geometry, not just text: the four panes sit under SERVER, between CONFIGURATION and ADDONS.
     final configurationY = tester.getTopLeft(find.text('CONFIGURATION')).dy;
     final serverY = tester
-        .getTopLeft(find.text(ActionLabels.operationsGroup.toUpperCase()))
+        .getTopLeft(find.text(ActionLabels.limitsGroup.toUpperCase()))
         .dy;
     final performanceY = tester
         .getTopLeft(find.text(ActionLabels.retentionAndLimits))
@@ -148,10 +146,7 @@ void main() {
       // Emoji stays MANAGE_SERVER, same as before the split, so Configuration survives on that pane alone.
       await _pump(tester, permissions: Perm.manageServer);
 
-      expect(
-        find.text(ActionLabels.operationsGroup.toUpperCase()),
-        findsOneWidget,
-      );
+      expect(find.text(ActionLabels.limitsGroup.toUpperCase()), findsOneWidget);
       for (final label in [
         ActionLabels.retentionAndLimits,
         'Analytics',

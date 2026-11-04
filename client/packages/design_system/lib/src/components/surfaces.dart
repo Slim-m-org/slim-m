@@ -14,4 +14,5 @@ export 'surfaces/list_row.dart';
 export 'surfaces/menu.dart';
 export 'surfaces/reveal_band.dart';
 export 'surfaces/sheet.dart';
+export 'surfaces/sheet_header.dart';
 export 'surfaces/toast.dart';

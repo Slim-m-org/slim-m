@@ -60,7 +60,7 @@ Future<List<http.Request>> _open(
   );
   await tester.tap(find.bySemanticsLabel('Manage general'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Channel settings...'));
+  await tester.tap(find.text('Channel settings'));
   await tester.pumpAndSettle();
   return requests;
 }

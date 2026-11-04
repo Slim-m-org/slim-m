@@ -37,7 +37,7 @@
  "messaging: a thread stays off the ordinary channel list": 23.0,
  "messaging: an attachment": 5.2,
  "messaging: holding a reaction lists who left it": 9.7,
- "messaging: the message menu opens on quick reactions, More holds the rest": 6.5,
+ "messaging: the message menu opens on quick reactions, Report and Block close it": 6.5,
  "moderation: blocking a member": 0.0,
  "moderation: reporting a message": 0.0,
  "moderation: the capability handshake is honest": 0.0,

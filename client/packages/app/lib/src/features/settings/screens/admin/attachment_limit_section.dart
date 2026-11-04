@@ -101,7 +101,6 @@ class _AttachmentLimitSectionState extends ConsumerState<AttachmentLimitSection>
       children: [
         SettingsSectionCard(
           title: 'Attachment size limit',
-          description: 'Largest file a member can upload.',
           children: [
             if (options.isNotEmpty)
               SettingsSegmentedBlock(

@@ -16,11 +16,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_limits_card.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
@@ -89,6 +89,7 @@ Future<void> _pump(
     'fuel': 2000000000,
   },
   String location = Routes.adminDock,
+  String? tab,
 }) async {
   tester.view.physicalSize = Size(width, 1400);
   tester.view.devicePixelRatio = 1;
@@ -150,36 +151,33 @@ Future<void> _pump(
               builder: (context, state) =>
                   DockModuleScreen(moduleId: state.pathParameters['moduleId']!),
             ),
-            GoRoute(
-              path: '${Routes.adminDock}/:moduleId/access',
-              builder: (context, state) => DockModuleAccessScreen(
-                moduleId: state.pathParameters['moduleId']!,
-              ),
-            ),
           ],
         ),
       ),
     ),
   );
   await tester.pumpAndSettle();
+  if (tab != null) {
+    await openDockFold(tester, 'details');
+  }
 }
 
 const _modulePage = '${Routes.adminDock}/dice';
 
 void main() {
-  testWidgets('the badge says an update is available, the row says which', (
+  testWidgets('the row says Update and leaves the version to the page', (
     tester,
   ) async {
     await _pump(tester, width: 800, installedVersion: '0.1.0');
-    expect(find.text('UPDATE AVAILABLE'), findsOneWidget);
-    expect(find.text('V0.1.0 · UPDATE'), findsNothing);
-    expect(find.text('Installed v0.1.0, latest v0.3.1'), findsOneWidget);
+    expect(find.text('UPDATE'), findsOneWidget);
+    expect(find.textContaining('v0.'), findsNothing);
+    expect(find.textContaining('0.3.1'), findsNothing);
   });
 
   testWidgets('the install screen shows memory, time and CPU limits', (
     tester,
   ) async {
-    await _pump(tester, width: 800, location: _modulePage);
+    await _pump(tester, width: 800, location: _modulePage, tab: 'Details');
     expect(find.text('Memory'), findsOneWidget);
     expect(find.text('64 MB'), findsOneWidget);
     expect(find.text('Time'), findsOneWidget);
@@ -191,14 +189,20 @@ void main() {
   testWidgets('a limit the manifest leaves out is the host default', (
     tester,
   ) async {
-    await _pump(tester, width: 800, location: _modulePage, limits: const {});
+    await _pump(
+      tester,
+      width: 800,
+      location: _modulePage,
+      limits: const {},
+      tab: 'Details',
+    );
     expect(find.text('host default'), findsNWidgets(3));
   });
 
   testWidgets('command.register is not listed as something to approve', (
     tester,
   ) async {
-    await _pump(tester, width: 800, location: _modulePage);
+    await _pump(tester, width: 800, location: _modulePage, tab: 'Details');
     expect(find.text('COMMAND.REGISTER'), findsNothing);
     expect(find.text(dockNoAccessNote), findsOneWidget);
   });
@@ -211,6 +215,7 @@ void main() {
       width: 800,
       location: _modulePage,
       capabilities: const ['command.register', 'message.post'],
+      tab: 'Details',
     );
     expect(find.text('Post messages'), findsOneWidget);
     expect(find.text('MESSAGE.POST'), findsNothing);
@@ -239,11 +244,13 @@ void main() {
         location: _modulePage,
         capabilities: const ['command.register', 'message.post'],
       );
-      final lefts = {
-        for (final label in ['Roll dice', 'Remember data', 'Memory', 'Enabled'])
-          if (find.text(label).evaluate().isNotEmpty)
-            label: tester.getTopLeft(find.text(label)).dx,
-      };
+      final lefts = <String, double>{};
+      await openDockFold(tester, 'details');
+      for (final label in ['Roll dice', 'Remember data', 'Memory', 'Enabled']) {
+        if (find.text(label).evaluate().isNotEmpty) {
+          lefts[label] = tester.getTopLeft(find.text(label)).dx;
+        }
+      }
       expect(lefts.keys, containsAll(['Roll dice', 'Memory', 'Enabled']));
       expect(lefts.values.toSet(), hasLength(1), reason: '$lefts');
     });

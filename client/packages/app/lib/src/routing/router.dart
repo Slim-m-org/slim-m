@@ -27,7 +27,6 @@ import '../features/settings/screens/admin/bots_screen.dart';
 import 'package:slimm_data/data.dart' show Channel;
 
 import '../features/settings/screens/admin/channel_permissions_screen.dart';
-import '../features/settings/screens/admin/dock_module_access_screen.dart';
 import '../features/settings/screens/admin/dock_module_screen.dart';
 import '../features/settings/screens/admin/dock_screen.dart';
 import '../features/settings/screens/admin/emoji_screen.dart';
@@ -48,6 +47,7 @@ import '../features/channels/screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../features/messages/screens/message_deep_link.dart';
 import '../features/settings/screens/debug_log_screen.dart';
+import '../features/settings/screens/themes_screen.dart';
 import '../features/voice/screens/call_stats_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
@@ -245,19 +245,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '${Routes.adminDock}/:moduleId/access',
-        pageBuilder: (context, state) => modalPage(
-          context,
-          DockModuleAccessScreen(
-            moduleId: state.pathParameters['moduleId']!,
-            source: state.uri.queryParameters['source'],
-          ),
-        ),
-      ),
-      GoRoute(
         path: Routes.callStats,
         pageBuilder: (context, state) =>
             modalPage(context, const CallStatsScreen()),
+      ),
+      GoRoute(
+        path: Routes.personalThemes,
+        pageBuilder: (context, state) =>
+            modalPage(context, const ThemesScreen()),
       ),
       GoRoute(
         path: Routes.debugLog,

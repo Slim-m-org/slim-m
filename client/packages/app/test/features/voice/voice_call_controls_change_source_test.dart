@@ -164,7 +164,7 @@ void main() {
     await _switchScreen(tester);
 
     final rows = tester
-        .widgetList<AppListRow>(find.byType(AppListRow))
+        .widgetList<AppMenuItem>(find.byType(AppMenuItem))
         .toList();
     final highlighted = rows.where((r) => r.selected).toList();
     expect(highlighted, hasLength(1));

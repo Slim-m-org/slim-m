@@ -139,13 +139,7 @@ class _BotFormSheetState extends ConsumerState<_BotFormSheet> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  form.title,
-                  style: AppText.heading.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
-                ),
+                child: AppSheetHeader(form.title, padding: EdgeInsets.zero),
               ),
               AppIconButton(
                 icon: AppIcons.dismiss,

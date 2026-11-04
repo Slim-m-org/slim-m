@@ -1146,6 +1146,49 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /me/hold-music:
+    get:
+      operationId: getHoldMusic
+      tags: [users]
+      summary: Read the caller's hold-music choice.
+      description: >
+        Account-wide, so every device agrees. `enabled` is null until the
+        caller has chosen, and a client with a local value then uploads it.
+      responses:
+        "200":
+          description: The choice now in effect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HoldMusic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: setHoldMusic
+      tags: [users]
+      summary: Choose whether hold music plays while alone in a call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetHoldMusicRequest"
+      responses:
+        "200":
+          description: The choice now in effect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HoldMusic"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /me/links:
     get:
       operationId: listMyLinkedAccounts
@@ -17644,6 +17687,21 @@ components:
             unmarked `false` is ignored, because a client that predates this
             field sends `false` whenever the member never toggled; an unmarked
             `true` is always saved. A marked value is always saved.
+
+    HoldMusic:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: [boolean, "null"]
+          description: The caller's choice, or null if never made.
+
+    SetHoldMusicRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
 
     PushPreview:
       type: object

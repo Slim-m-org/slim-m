@@ -127,14 +127,9 @@ void main() {
           await tester.scrollUntilVisible(
             find.textContaining('Experimental'),
             300,
-            scrollable: find
-                .ancestor(
-                  of: find.text('Permissions this will add'),
-                  matching: find.byType(Scrollable),
-                )
-                .first,
+            scrollable: find.byType(Scrollable).first,
           );
-          await tester.pumpAndSettle();
+          await tester.pump(const Duration(milliseconds: 400));
         },
       );
     });

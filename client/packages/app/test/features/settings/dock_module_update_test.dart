@@ -25,10 +25,10 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
@@ -166,12 +166,6 @@ Future<List<String>> _pumpDock(
               builder: (context, state) =>
                   DockModuleScreen(moduleId: state.pathParameters['moduleId']!),
             ),
-            GoRoute(
-              path: '${Routes.adminDock}/:moduleId/access',
-              builder: (context, state) => DockModuleAccessScreen(
-                moduleId: state.pathParameters['moduleId']!,
-              ),
-            ),
           ],
         ),
       ),
@@ -229,7 +223,7 @@ void main() {
   testWidgets('an outdated module says so on its row', (tester) async {
     await _pumpDock(tester, offered: '0.3.0', installedVersion: '0.2.0');
     // AppBadge paints its label uppercased, whatever the variant.
-    expect(find.text('UPDATE AVAILABLE'), findsOneWidget);
+    expect(find.text('UPDATE'), findsOneWidget);
     expect(
       find.text('INSTALLED'),
       findsNothing,
@@ -239,6 +233,7 @@ void main() {
 
   testWidgets('a current module says installed, not update', (tester) async {
     await _pumpDock(tester, offered: '0.3.0', installedVersion: '0.3.0');
+    await openDockTab(tester, 'Browse');
     expect(find.text('INSTALLED'), findsOneWidget);
     expect(find.textContaining('UPDATE'), findsNothing);
   });

@@ -95,7 +95,7 @@ void main() {
     expect(installs, hasLength(1));
   });
 
-  testWidgets('the page keeps Install clear of the access card above it', (
+  testWidgets('the pinned Install stays clear of the access card above it', (
     tester,
   ) async {
     await consentPump(tester, asks: ['message.post']);
@@ -103,7 +103,7 @@ void main() {
       find.textContaining('Posts as whoever runs it'),
     );
     final install = tester.getRect(find.text('Install v1.0.0'));
-    expect(install.top - last.bottom, greaterThan(32));
+    expect(install.top - last.bottom, greaterThan(16));
   });
 
   testWidgets('the registry sentence hides behind the badge until tapped', (

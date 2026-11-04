@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The camera and screen-source sheets used a bare Material `ListTile` for
-/// each device row: a taller, differently-inset row than every other picker
-/// sheet in the app, which builds on `AppListRow` instead.
+/// The camera and screen-source pickers are an anchored dropdown of
+/// `AppMenuItem` rows on a wide window, never a bare Material `ListTile`.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,35 +11,36 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 void main() {
-  testWidgets('the camera picker rows are AppListRow, not a bare ListTile', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showCameraDeviceSheet(context, const [
-                CameraDevice(id: 'cam-0', label: 'FaceTime HD Camera'),
-              ]),
-              child: const Text('open'),
+  testWidgets(
+    'the camera picker rows are AppMenuItem dropdown rows, not a bare ListTile',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showCameraDeviceSheet(context, const [
+                  CameraDevice(id: 'cam-0', label: 'FaceTime HD Camera'),
+                ]),
+                child: const Text('open'),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('FaceTime HD Camera'), findsOneWidget);
-    expect(find.byType(AppListRow), findsOneWidget);
-    expect(find.byType(ListTile), findsNothing);
-  });
+      expect(find.text('FaceTime HD Camera'), findsOneWidget);
+      expect(find.byType(AppMenuItem), findsOneWidget);
+      expect(find.byType(ListTile), findsNothing);
+    },
+  );
 
   testWidgets(
-    'the screen-source picker rows are AppListRow, not a bare ListTile',
+    'the screen-source picker rows are AppMenuItem dropdown rows, not a bare ListTile',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -62,7 +62,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Screen 1'), findsOneWidget);
-      expect(find.byType(AppListRow), findsOneWidget);
+      expect(find.byType(AppMenuItem), findsOneWidget);
       expect(find.byType(ListTile), findsNothing);
     },
   );
@@ -125,7 +125,7 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Share a screen or window'), findsOneWidget);
+    expect(find.text('SHARE A SCREEN OR WINDOW'), findsOneWidget);
     expect(find.text('Screen 1'), findsOneWidget);
 
     await tester.tap(find.text('Notepad'));

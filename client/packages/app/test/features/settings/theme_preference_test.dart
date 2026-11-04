@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/settings/screens/themes_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -29,8 +30,8 @@ ProviderContainer _restartedContainer() {
 ThemeData _paintedTheme(WidgetTester tester) =>
     Theme.of(tester.element(find.byType(Scaffold).first));
 
-/// The section on its own, in the list that settings puts it in.
-Future<void> _pumpSection(
+/// The Themes page, where the theme is actually picked.
+Future<void> _pumpThemes(
   WidgetTester tester,
   ProviderContainer container,
 ) async {
@@ -39,11 +40,11 @@ Future<void> _pumpSection(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: ListView(children: const [AppearanceSettingsSection()]),
+        home: const ThemesScreen(),
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 /// The labels the section draws, spelled out here rather than imported: they
@@ -147,7 +148,7 @@ void main() {
   ) async {
     final container = _restartedContainer();
     await container.read(themeControllerProvider.notifier).restore();
-    await _pumpSection(tester, container);
+    await _pumpThemes(tester, container);
 
     expect(
       container.read(themeControllerProvider),
@@ -180,16 +181,16 @@ void main() {
   testWidgets('every appearance option is reachable by tapping it', (
     tester,
   ) async {
-    // Custom is listed only while a custom theme is kept on the device.
+    // Custom and the followed Space default are listed only while one exists.
     for (final choice in AppThemeChoice.values.where(
-      (c) => c != AppThemeChoice.custom,
+      (c) => c != AppThemeChoice.custom && c != AppThemeChoice.spaceDefault,
     )) {
       SharedPreferences.setMockInitialValues({});
       final container = _restartedContainer();
       await container.read(themeControllerProvider.notifier).restore();
       container.read(themeControllerProvider.notifier).state =
           AppThemeChoice.light;
-      await _pumpSection(tester, container);
+      await _pumpThemes(tester, container);
 
       await _choose(tester, choice);
 
@@ -203,24 +204,18 @@ void main() {
     }
   });
 
-  testWidgets('on a phone the Theme row lifts a sheet with swatches', (
-    tester,
-  ) async {
+  testWidgets('on a phone the Themes page lists swatches', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
     final container = _restartedContainer();
     await container.read(themeControllerProvider.notifier).restore();
-    await _pumpSection(tester, container);
+    await _pumpThemes(tester, container);
 
     await _choose(tester, AppThemeChoice.halloween);
 
     expect(container.read(themeControllerProvider), AppThemeChoice.halloween);
-    expect(
-      find.bySemanticsLabel(RegExp(r'^Color theme, currently Halloween')),
-      findsOneWidget,
-    );
   });
 
   testWidgets('a chosen light theme wins over a dark operating system', (
@@ -308,21 +303,8 @@ void main() {
   });
 }
 
-/// Opens the Theme row and picks [choice] from the dropdown or sheet that
-/// opens, so a tap proves the row is wired to the controller.
+/// Taps [choice] on the Themes page, so a tap proves the row is wired to the controller.
 Future<void> _choose(WidgetTester tester, AppThemeChoice choice) async {
-  await tester.tap(find.bySemanticsLabel(RegExp(r'^Color theme, currently')));
-  // The fake clock runs the menu or sheet entrance to its end; nothing real is awaited.
-  await tester.pump();
-  await tester.pump(const Duration(seconds: 1));
-  // More than eight choices open a searchable list, so narrow it to the one wanted.
-  final search = find.byWidgetPredicate((w) => w is TextField);
-  if (search.evaluate().isNotEmpty) {
-    await tester.enterText(search.last, _labelOf(choice));
-    await tester.pump();
-  }
-  await tester.tap(find.text(_labelOf(choice)).last);
-  await tester.pumpAndSettle();
-  // The search field's debounce outlives the sheet it was typed into.
-  await tester.pump(const Duration(seconds: 1));
+  await tester.tap(find.byKey(Key('theme-builtin-${choice.name}')));
+  await tester.pump(const Duration(milliseconds: 100));
 }

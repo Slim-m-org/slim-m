@@ -23,6 +23,8 @@ const _panes = <String>[
   ActionLabels.retentionAndLimits,
   'Analytics',
   'Storage',
+  'Export',
+  'Audit log',
   'Server metrics',
   'Modules',
   'Bots',

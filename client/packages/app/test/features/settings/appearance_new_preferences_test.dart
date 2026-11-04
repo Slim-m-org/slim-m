@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/background_settings_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -43,17 +43,31 @@ Future<void> _pumpSection(
   await tester.pumpAndSettle();
 }
 
-Future<void> _chooseFrom<T>(WidgetTester tester, String label) async {
-  await tester.ensureVisible(find.byType(SettingsSelectRow<T>));
-  await tester.pumpAndSettle();
-  await tester.tap(find.byType(SettingsSelectRow<T>));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(label).last);
-  await tester.pumpAndSettle();
+Future<void> _chooseFrom(WidgetTester tester, String label) async {
+  await tester.ensureVisible(find.text(label));
+  await tester.tap(find.text(label));
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('the pane is short: the theme row names the theme, and the '
+      'background controls wait for a picture', (tester) async {
+    final container = _container();
+    container.read(themeControllerProvider.notifier).state =
+        AppThemeChoice.forest;
+    await _pumpSection(tester, container);
+
+    final row = find.byKey(AppearanceSettingsSection.themeRowKey);
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.text('Forest')),
+      findsOneWidget,
+    );
+    expect(find.text('Theme store'), findsNothing);
+    expect(find.byKey(BackgroundSettingsCard.dimSliderKey), findsNothing);
+  });
 
   testWidgets('picking 24-hour is what actually changes the clock '
       'controller', (tester) async {
@@ -66,7 +80,7 @@ void main() {
       TimeFormatPreference.system,
     );
 
-    await _chooseFrom<TimeFormatPreference>(tester, '24-hour');
+    await _chooseFrom(tester, '24-hour');
 
     expect(
       container.read(timeFormatControllerProvider),
@@ -81,7 +95,7 @@ void main() {
     await container.read(motionPreferenceControllerProvider.notifier).restore();
     await _pumpSection(tester, container);
 
-    await _chooseFrom<MotionOverride>(tester, 'Always reduce');
+    await _chooseFrom(tester, 'Reduced');
 
     expect(
       container.read(motionPreferenceControllerProvider),

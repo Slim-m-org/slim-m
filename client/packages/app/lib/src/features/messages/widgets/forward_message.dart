@@ -193,10 +193,7 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: _headingPadding,
-            child: Text('Forward message', style: AppText.heading),
-          ),
+          const AppSheetHeader('Forward message', padding: _headingPadding),
           // Before the destinations, not after: tapping a destination is what sends, so anything meant to ride along has to already be written.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),

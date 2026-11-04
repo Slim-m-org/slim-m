@@ -55,7 +55,7 @@ void main() {
     expect(_fillColor(tester), Colors.transparent);
   });
 
-  testWidgets('hovering shifts the row to the same fill AppListRow uses', (
+  testWidgets('hovering shifts the row to the translucent row hover fill', (
     tester,
   ) async {
     await tester.pumpWidget(_row());
@@ -67,7 +67,7 @@ void main() {
     await mouse.moveTo(tester.getCenter(find.byType(MessageRow)));
     await tester.pumpAndSettle();
 
-    expect(_fillColor(tester), AppTokens.light.surfaceRaised);
+    expect(_fillColor(tester), AppTokens.light.rowHoverFill);
   });
 
   testWidgets('the pointer leaving un-hovers the row again', (tester) async {
@@ -98,7 +98,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(_fillColor(tester), AppTokens.light.surfaceRaised);
+      expect(_fillColor(tester), AppTokens.light.rowHoverFill);
     },
   );
 
@@ -111,7 +111,7 @@ void main() {
           const Offset(30, 30),
     );
     await tester.pumpAndSettle();
-    expect(_fillColor(tester), AppTokens.light.surfaceRaised);
+    expect(_fillColor(tester), AppTokens.light.rowHoverFill);
 
     // Tapping outside dismisses it, the same way any overlay here closes.
     await tester.tapAt(const Offset(5, 5));

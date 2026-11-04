@@ -62,7 +62,7 @@ class _MemberModerateRolesState extends State<MemberModerateRoles> {
     if (!widget.compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [const AppMenuLabel('ROLES'), _toggles()],
+        children: [const AppMenuLabel('Roles'), _toggles()],
       );
     }
     final held = [

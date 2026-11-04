@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
 import '../../../members/widgets/role_color.dart';
+import '../../widgets/settings_tab_strip.dart';
 import 'role_display_tab.dart';
 import 'role_members_tab.dart';
 import 'role_permissions_tab.dart';
@@ -79,31 +80,14 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             ],
           ),
         ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
-          ),
-          child: Padding(
-            // The pane inset less the focus ring's 4 per side, so the labels line up with the cards below.
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s20),
-            // Scrolls rather than wraps: three tab labels plus a live count may not fit a phone's width.
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _tabLabel(context, 'Permissions', _RoleDetailTab.permissions),
-                  const SizedBox(width: AppSpacing.s12),
-                  _tabLabel(
-                    context,
-                    'Members · ${role.memberCount}',
-                    _RoleDetailTab.members,
-                  ),
-                  const SizedBox(width: AppSpacing.s12),
-                  _tabLabel(context, 'Display', _RoleDetailTab.display),
-                ],
-              ),
-            ),
-          ),
+        SettingsTabStrip<_RoleDetailTab>(
+          selected: _tab,
+          onSelected: (tab) => setState(() => _tab = tab),
+          tabs: [
+            (_RoleDetailTab.permissions, 'Permissions'),
+            (_RoleDetailTab.members, 'Members · ${role.memberCount}'),
+            (_RoleDetailTab.display, 'Display'),
+          ],
         ),
         Expanded(
           child: AppFadeIn(
@@ -118,37 +102,6 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _tabLabel(BuildContext context, String label, _RoleDetailTab tab) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final selected = _tab == tab;
-    return FocusableTapTarget(
-      onTap: () => setState(() => _tab = tab),
-      semanticLabel: label,
-      selected: selected,
-      builder: (context, focused, hovered) => DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? tokens.accent : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Padding(
-          // The focus ring's own gap and stroke take the other four.
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
-          child: Text(
-            label,
-            style: AppText.ui.copyWith(
-              color: selected ? tokens.textPrimary : tokens.textSecondary,
-              fontWeight: selected ? AppWeights.medium : AppWeights.regular,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

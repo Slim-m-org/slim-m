@@ -155,7 +155,6 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     if (widget.embedded) return SettingsRowGroup(children: rows);
     return SettingsSectionCard(
       title: 'Input and output devices',
-      description: 'Which microphone and speaker a call uses.',
       children: rows,
     );
   }

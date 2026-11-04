@@ -88,7 +88,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
         leading: AppIcons.edit,
         onTap: () {
           close();
-          showManageCategorySheet(context, category);
+          showRenameCategorySheet(context, category);
         },
       ),
       if (categoryIndex > 0) _moveItem(context, ref, close, up: true),
@@ -106,7 +106,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
       ),
       if (ref.watch(myPermissionsProvider).hasPermission(Perm.manageRoles))
         AppMenuItem(
-          label: 'Category permissions...',
+          label: 'Permissions...',
           leading: AppIcons.permissions,
           onTap: () {
             close();

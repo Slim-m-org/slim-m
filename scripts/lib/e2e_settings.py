@@ -54,6 +54,7 @@ def change_theme(client):
         "return k.indexOf('flutter.')===0&&k.endsWith('slimm.appearance.theme');});"
         "return k?JSON.parse(localStorage.getItem(k)):null;})()")
     assert stored == 'dark', f'nothing durable recorded the choice: {stored!r}'
+    client.click(L.BACK_TO_APPEARANCE, settle=2)
     print('  theme changed to Dark, and it was actually written to storage')
 
 

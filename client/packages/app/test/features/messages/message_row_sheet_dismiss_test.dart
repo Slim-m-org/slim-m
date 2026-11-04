@@ -63,7 +63,7 @@ Future<void> _openSheet(WidgetTester tester) async {
   await tester.longPressAt(_rowPoint(tester));
   await tester.pumpAndSettle();
   expect(find.text('Copy text'), findsOneWidget, reason: 'sheet is up');
-  expect(_fill(tester), AppTokens.light.surfaceRaised, reason: 'row marked');
+  expect(_fill(tester), AppTokens.light.rowHoverFill, reason: 'row marked');
 }
 
 void main() {
@@ -171,6 +171,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Copy text'), findsOneWidget);
-    expect(_fill(tester), AppTokens.light.surfaceRaised);
+    expect(_fill(tester), AppTokens.light.rowHoverFill);
   });
 }

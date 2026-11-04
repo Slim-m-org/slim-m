@@ -44,6 +44,7 @@ abstract final class Routes {
   /// [spaceSettings] opened on one pane; see [settingsPaneQuery].
   static String spaceSettingsPane(String paneId) =>
       '$spaceSettings?$settingsPaneQuery=$paneId';
+  static const personalThemes = '/settings/themes';
   static const adminReports = '/settings/reports';
   static const adminInvites = '/settings/invites';
   static const adminCustomize = '/settings/customize';
@@ -82,12 +83,6 @@ abstract final class Routes {
   static String _withSource(String path, String? source) => source == null
       ? path
       : '$path?source=${Uri.encodeQueryComponent(source)}';
-
-  /// The third level of the Dock drill-down: who may use one module. A screen
-  /// rather than a sheet, so it does not scrim a Space settings modal that is
-  /// already scrimming the shell.
-  static String adminDockModuleAccess(String moduleId, {String? source}) =>
-      _withSource('$adminDock/$moduleId/access', source);
 
   /// The messages of one channel. [openChat] arrives to read them: a voice
   /// channel then opens its chat and leaves its call unjoined (see

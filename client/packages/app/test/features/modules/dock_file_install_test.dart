@@ -14,6 +14,7 @@ import 'package:slimm_app/src/providers/providers.dart'
     show apiProvider, sessionProvider;
 import 'package:slimm_test_support/slimm_test_support.dart';
 
+import '../../support/dock_page_helpers.dart';
 import '../../ui_snapshot_support.dart';
 
 const Map<String, Object> _manifest = {
@@ -82,7 +83,7 @@ void main() {
       ],
       settleNestedResolve: true,
       afterSettle: (tester) async {
-        await tester.tap(find.text('Install from a file'));
+        await tapDockMenuItem(tester, 'Install from a file');
         await tester.pump(const Duration(milliseconds: 400));
         await tester.pump(const Duration(milliseconds: 400));
         expect(seen, contains('POST /space/dock/packages/preview'));
@@ -106,7 +107,7 @@ void main() {
       ],
       settleNestedResolve: true,
       afterSettle: (tester) async {
-        await tester.tap(find.text('Install from a file'));
+        await tapDockMenuItem(tester, 'Install from a file');
         await tester.pump(const Duration(milliseconds: 400));
         await tester.pump(const Duration(milliseconds: 400));
         expect(find.textContaining('too large'), findsOneWidget);

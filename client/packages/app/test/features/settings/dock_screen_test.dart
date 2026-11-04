@@ -15,11 +15,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
@@ -121,12 +121,6 @@ Widget _app(ProviderContainer container) => UncontrolledProviderScope(
           builder: (context, state) =>
               DockModuleScreen(moduleId: state.pathParameters['moduleId']!),
         ),
-        GoRoute(
-          path: '${Routes.adminDock}/:moduleId/access',
-          builder: (context, state) => DockModuleAccessScreen(
-            moduleId: state.pathParameters['moduleId']!,
-          ),
-        ),
       ],
     ),
   ),
@@ -139,34 +133,37 @@ Future<void> _openModule(WidgetTester tester, String name) async {
 }
 
 void main() {
-  testWidgets('browsing lists a module with its version, summary and state', (
-    tester,
-  ) async {
-    final client = MockClient((request) async {
-      if (request.url.path == '/space/dock/modules') {
-        return _json([_indexEntry]);
-      }
-      if (request.url.path == '/space/dock/installed') {
-        return _json(<Map<String, dynamic>>[]);
-      }
-      throw StateError('unexpected request: ${request.method} ${request.url}');
-    });
-    final container = _containerFor(client);
-    addTearDown(container.dispose);
+  testWidgets(
+    'browsing lists a module with its summary and state, not its version',
+    (tester) async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/space/dock/modules') {
+          return _json([_indexEntry]);
+        }
+        if (request.url.path == '/space/dock/installed') {
+          return _json(<Map<String, dynamic>>[]);
+        }
+        throw StateError(
+          'unexpected request: ${request.method} ${request.url}',
+        );
+      });
+      final container = _containerFor(client);
+      addTearDown(container.dispose);
 
-    await tester.pumpWidget(_app(container));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(container));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Code Blocks'), findsOneWidget);
-    expect(find.text('v1.2.0'), findsOneWidget);
-    expect(
-      find.text('Run code snippets in a channel and post the output.'),
-      findsOneWidget,
-    );
-    // Not installed anywhere yet, so no state badge is drawn.
-    expect(find.text('Enabled'), findsNothing);
-    expect(find.text('Disabled'), findsNothing);
-  });
+      expect(find.text('Code Blocks'), findsOneWidget);
+      expect(find.text('v1.2.0'), findsNothing);
+      expect(
+        find.text('Run code snippets in a channel and post the output.'),
+        findsOneWidget,
+      );
+      // Not installed anywhere yet, so no state badge is drawn.
+      expect(find.text('Enabled'), findsNothing);
+      expect(find.text('Disabled'), findsNothing);
+    },
+  );
 
   testWidgets('opening a module and installing it shows the install as done', (
     tester,
@@ -193,6 +190,7 @@ void main() {
         installed = true;
         return _json(_installedRow(enabled: false));
       }
+      if (path == '/roles') return _json(<Object>[]);
       throw StateError('unexpected request: ${request.method} ${request.url}');
     });
     final container = _containerFor(client);
@@ -203,11 +201,12 @@ void main() {
 
     await _openModule(tester, 'Code Blocks');
 
-    // Before install, its manifest shows the permission it adds and the capability it asks for.
+    // Before install, Details shows the permission it adds and the capability it asks for.
+    await openDockFold(tester, 'details');
     expect(find.text('Execute code blocks'), findsOneWidget);
     expect(find.text('COMMAND.REGISTER'), findsNothing);
-    expect(find.text('about 500 million instructions'), findsOneWidget);
     expect(find.text('Install v1.2.0'), findsOneWidget);
+    expect(find.text('about 500 million instructions'), findsOneWidget);
 
     await tester.tap(find.text('Install v1.2.0'));
     await tester.pumpAndSettle();
@@ -216,11 +215,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(installedPath, '/space/dock/modules/code-exec/install');
-    // A module declaring a permission lands on the access screen; see its doc.
-    expect(find.text('Who can use this'), findsOneWidget);
+    // A module declaring a permission opens its role switches; see the role access card's doc.
+    expect(find.text('Who can use it'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Back to the module'));
-    await tester.pumpAndSettle();
     // Installed (disabled by default): the screen now offers enable/disable and uninstall, not "Install".
     expect(find.text('Install v1.2.0'), findsNothing);
     expect(find.text('Enabled'), findsOneWidget);
@@ -270,6 +267,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await _openModule(tester, 'Code Blocks');
+      await openDockFold(tester, 'details');
 
       expect(find.text('Runs a snippet.'), findsOneWidget);
 
@@ -326,6 +324,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await _openModule(tester, 'Code Blocks');
+      await openDockFold(tester, 'details');
 
       await tester.ensureVisible(find.byType(TextField));
       await tester.enterText(find.byType(TextField), 'console.log(1)');

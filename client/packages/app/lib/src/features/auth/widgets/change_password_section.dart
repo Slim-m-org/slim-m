@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Changing your own password, under Account & devices. Needs the current
+/// Changing your own password, under Account and security. Needs the current
 /// password, and a current code while two-factor is on; signs the other
 /// devices out and keeps this one.
 library;

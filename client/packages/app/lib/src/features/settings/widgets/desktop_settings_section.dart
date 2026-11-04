@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Desktop pane: how the desktop app behaves around the window, kept apart from what it shows.
+/// The Desktop pane: how the desktop app behaves around the window, kept apart from what it shows, and its call shortcuts.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../desktop/providers/desktop_splash_preference.dart';
+import '../../voice/widgets/voice_shortcuts_section.dart';
 import 'start_on_login_row.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
@@ -15,9 +16,14 @@ class DesktopSettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SettingsSectionCard(
-      title: 'Startup',
-      children: [StartOnLoginRow(), _StartupSplashRow()],
+    return const Column(
+      children: [
+        SettingsSectionCard(
+          title: 'Startup',
+          children: [StartOnLoginRow(), _StartupSplashRow()],
+        ),
+        VoiceShortcutsSection(),
+      ],
     );
   }
 }

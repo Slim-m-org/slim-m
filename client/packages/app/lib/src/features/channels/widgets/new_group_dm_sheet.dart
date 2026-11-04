@@ -140,7 +140,10 @@ class _NewGroupDmSheetState extends ConsumerState<NewGroupDmSheet> {
             const SizedBox(height: AppSpacing.s12),
             AppButton(
               label: _buttonLabel,
-              variant: AppButtonVariant.primary,
+              // A dimmed primary leaves its dark label low-contrast on the dark theme.
+              variant: _canSubmit
+                  ? AppButtonVariant.primary
+                  : AppButtonVariant.secondary,
               full: true,
               disabled: !_canSubmit,
               onPressed: _submit,

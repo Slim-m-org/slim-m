@@ -7,21 +7,17 @@
 /// status text, right where a person looks to change them.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart'
-    show LocalAlertChannel, isAndroidHost, isDesktopHost, isLinuxHost;
+import 'package:slimm_platform/platform.dart' show isDesktopHost, isLinuxHost;
 
 import '../../../desktop/providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../../../push/providers/push_controller.dart';
-import '../../../push/providers/push_reset.dart';
-import '../../../providers/toasts.dart';
+import '../../voice/widgets/call_sounds_card.dart';
 import 'notification_schedule_allow_lists.dart';
 import '../providers/ui_sound_settings.dart';
 import 'notification_schedule_section.dart';
@@ -37,14 +33,15 @@ bool get isPhoneHaptics =>
     (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.android);
 
-/// Whether this device is registered for push, read plainly off the state
-/// [PushController] tracks: this is what makes a registration problem
-/// diagnosable from the device itself, instead of guessing from server logs.
+/// The Notifications pane; a push registration problem shows as a warning at
+/// the top and is silent while push works.
 class NotificationsSection extends ConsumerWidget {
   const NotificationsSection({super.key, this.hasPushChannel});
 
   /// Null asks the host; a desktop shows its own notifications and has no push to report on.
   final bool? hasPushChannel;
+
+  static const bannerKey = Key('notification-push-warning');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,9 +55,10 @@ class NotificationsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hasPushChannel ?? !isDesktopHost) ...[
+        if ((hasPushChannel ?? !isDesktopHost) && style.warn) ...[
           const SizedBox(height: AppSpacing.s16),
           NotificationStatusBanner(
+            key: bannerKey,
             label: status.label,
             warn: style.warn,
             bell: style.bell,
@@ -74,9 +72,6 @@ class NotificationsSection extends ConsumerWidget {
             if (defaultTargetPlatform == TargetPlatform.iOS)
               const PushContentPreviewRow(),
             const NotificationScheduleSection(),
-            const _TestNotificationRow(),
-            if (defaultTargetPlatform == TargetPlatform.iOS && !kIsWeb)
-              const _ResetPushRow(),
           ],
         ),
         const NotificationAlwaysLetThroughSection(),
@@ -121,6 +116,7 @@ class NotificationsSection extends ConsumerWidget {
             ),
           ],
         ),
+        const CallSoundsCard(),
       ],
     );
   }
@@ -138,83 +134,6 @@ class _DesktopMessageTextRow extends ConsumerWidget {
       semanticLabel: 'Show message text in notifications',
       onChanged: (value) =>
           ref.read(desktopMessageTextProvider.notifier).setEnabled(value),
-    );
-  }
-}
-
-/// A button that posts a local notification straight away, so someone can
-/// confirm slim-m's notifications reach their OS - most useful on the Linux
-/// desktop, where there is no remote push to fall back on and a silent
-/// failure is otherwise invisible.
-class _TestNotificationRow extends ConsumerWidget {
-  const _TestNotificationRow();
-
-  // Only where a local notification actually displays (Android, Linux desktop); a pipe test via the same LocalNotifications.show path a real alert uses.
-  static bool get _supported => isAndroidHost || isLinuxHost;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return AppListRow(
-      label: 'Test notification',
-      subtitle: 'Check that notifications reach you.',
-      trailing: AppButton(
-        label: 'Send test',
-        size: AppButtonSize.sm,
-        variant: AppButtonVariant.secondary,
-        onPressed: _supported
-            ? () {
-                unawaited(
-                  ref
-                      .read(localNotificationsProvider)
-                      .show(
-                        'Test notification - if you can see this, slim-m can '
-                        'reach your notifications.',
-                        channel: LocalAlertChannel.messages,
-                      ),
-                );
-                ref
-                    .read(toastsProvider.notifier)
-                    .show('Test notification sent.');
-              }
-            : null,
-      ),
-    );
-  }
-}
-
-/// Re-registers this iPhone for push from scratch, for a phone that stopped
-/// getting notifications while every setting says they are on.
-class _ResetPushRow extends ConsumerStatefulWidget {
-  const _ResetPushRow();
-
-  @override
-  ConsumerState<_ResetPushRow> createState() => _ResetPushRowState();
-}
-
-class _ResetPushRowState extends ConsumerState<_ResetPushRow> {
-  bool _resetting = false;
-
-  Future<void> _reset() async {
-    setState(() => _resetting = true);
-    final reset = await resetPushRegistration(ref);
-    if (!mounted) return;
-    setState(() => _resetting = false);
-    ref
-        .read(toastsProvider.notifier)
-        .show(reset ? 'Notifications reset.' : 'Nothing to reset here.');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AppListRow(
-      label: 'Reset notifications',
-      subtitle: 'Try this if notifications stopped arriving on this phone.',
-      trailing: AppButton(
-        label: _resetting ? 'Resetting' : 'Reset',
-        size: AppButtonSize.sm,
-        variant: AppButtonVariant.secondary,
-        onPressed: _resetting ? null : _reset,
-      ),
     );
   }
 }

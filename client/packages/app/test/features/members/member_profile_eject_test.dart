@@ -146,7 +146,7 @@ void _giveCompactSheetRoom(WidgetTester tester) {
 
 /// The default test window (800x600) is shorter than the call section plus
 /// the moderation section plus the private-note row can fit without
-/// scrolling; a real desktop window is taller, and `AnchoredMemberPopover`
+/// scrolling; a real desktop window is taller, and `AnchoredPopover`
 /// clamps and scrolls its own content, so this is a test-harness fix rather
 /// than production behavior changing. Every test here pumps
 /// `MemberProfileBody` directly, bypassing that popover, so it needs the

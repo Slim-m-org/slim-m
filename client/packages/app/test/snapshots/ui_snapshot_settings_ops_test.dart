@@ -84,7 +84,7 @@ List<Override> _overrides() => [
 
 const _panes = <({String id, String label, String route})>[
   (
-    id: 'performance',
+    id: 'retention',
     label: ActionLabels.retentionAndLimits,
     route: '/settings/performance',
   ),

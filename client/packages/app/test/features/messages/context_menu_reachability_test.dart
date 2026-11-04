@@ -197,7 +197,7 @@ void main() {
   testWidgets('invoking that action really opens the menu', (tester) async {
     final handle = await _pump(tester);
 
-    expect(find.text('More'), findsNothing);
+    expect(find.text('Report message'), findsNothing);
     final node = tester.getSemantics(find.byKey(_anchor));
     tester.binding.performSemanticsAction(
       SemanticsActionEvent(
@@ -210,7 +210,7 @@ void main() {
 
     // Publishing the action and honouring it are two different things, and a
     // published action nothing answers is worse than none.
-    expect(find.text('More'), findsOneWidget);
+    expect(find.text('Report message'), findsOneWidget);
     expect(find.text('Copy text'), findsOneWidget);
     handle.dispose();
   });
@@ -237,12 +237,12 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
-    expect(find.text('More'), findsNothing);
+    expect(find.text('Report message'), findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
     await tester.pumpAndSettle();
 
-    expect(find.text('More'), findsOneWidget);
+    expect(find.text('Report message'), findsOneWidget);
     expect(find.text('Copy text'), findsOneWidget);
     handle.dispose();
   });
@@ -260,7 +260,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pumpAndSettle();
 
-    expect(find.text('More'), findsOneWidget);
+    expect(find.text('Report message'), findsOneWidget);
     handle.dispose();
   });
 
@@ -276,19 +276,19 @@ void main() {
     // Answered from the moment it opens, before anything inside has been tabbed to: an intent goes upward from whatever holds focus.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    expect(find.text('More'), findsNothing);
+    expect(find.text('Report message'), findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
     await tester.pumpAndSettle();
     // A menu that opens and cannot then be operated is half a route, so focus has to reach the items inside the overlay.
-    expect(await _tabTo(tester, 'More'), isTrue);
+    expect(await _tabTo(tester, 'Report message'), isTrue);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
-    expect(find.text('More'), findsNothing);
+    expect(find.text('Report message'), findsNothing);
     handle.dispose();
   });
 
-  testWidgets('More is opened from the keyboard and focus follows into it', (
+  testWidgets('Report and Block sit in the one menu, reachable by keyboard', (
     tester,
   ) async {
     final handle = await _pump(tester);
@@ -296,18 +296,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
     await tester.pumpAndSettle();
-    expect(await _tabTo(tester, 'More'), isTrue);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pumpAndSettle();
-
+    expect(find.text('More'), findsNothing);
     expect(find.text('Report message'), findsOneWidget);
-    expect(
-      _focusedMenuItem(),
-      isNotNull,
-      reason:
-          'the focused row was swapped out; focus must land on the new page',
-    );
+    expect(await _tabTo(tester, 'Report message'), isTrue);
     expect(await _tabTo(tester, 'Block user'), isTrue);
     handle.dispose();
   });

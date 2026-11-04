@@ -216,12 +216,9 @@ class _SelectSheetState extends State<_SelectSheet> {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: AppSheetHeader(
                   _select.placeholder ?? 'Choose an option',
-                  style: AppText.heading.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
+                  padding: EdgeInsets.zero,
                 ),
               ),
               AppIconButton(

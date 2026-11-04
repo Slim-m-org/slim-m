@@ -56,7 +56,7 @@ void main() {
     });
 
     test('a label prefix ranks first, and nonsense finds nothing', () {
-      expect(_labels('color').first, 'Color theme');
+      expect(_labels('theme').first, 'Theme');
       expect(_labels('qqzx'), isEmpty);
       expect(_labels('   '), isEmpty);
     });
@@ -121,13 +121,13 @@ void main() {
     );
     await tester.enterText(_field, 'theme');
     await tester.pump();
-    expect(_result('Color theme'), findsOneWidget);
+    expect(_result('Theme'), findsOneWidget);
 
     await tester.tap(_field);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
 
-    expect(_result('Color theme'), findsNothing);
+    expect(_result('Theme'), findsNothing);
     expect(find.text('Appearance'), findsWidgets);
     await teardownFixture(tester, fixture.container, fixture.db);
   });

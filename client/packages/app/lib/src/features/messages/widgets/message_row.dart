@@ -264,7 +264,7 @@ class MessageRow extends ConsumerWidget {
       !v.compact && (v.hovered || v.focusWithin) && !_unsent && !editing;
 
   Color _fillColor(_RowView v) {
-    if (_lit(v)) return v.tokens.surfaceRaised;
+    if (_lit(v)) return v.tokens.rowHoverFill;
     if (extras.mentionsMe) return v.tokens.mentionRowFill;
     return Colors.transparent;
   }
@@ -281,7 +281,7 @@ class MessageRow extends ConsumerWidget {
 
   Color? _railBacking(_RowView v) {
     if (!v.marked) return null;
-    return _lit(v) ? v.tokens.surfaceRaised : v.tokens.surfaceBase;
+    return _lit(v) ? v.tokens.rowHoverFillOnBase : v.tokens.surfaceBase;
   }
 
   Widget _rowContents(_RowView v) {

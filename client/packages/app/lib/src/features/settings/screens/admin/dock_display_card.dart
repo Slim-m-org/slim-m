@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Space-wide switches for where module output shows, above the module list.
+/// Where a module's badges and profile sections show, on the page of a module
+/// that declares them. The server keeps one Space-wide flag per kind, so the
+/// switch here is shared by every module of that kind and says so.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,39 +17,47 @@ import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 
-class ModuleDisplaySection extends StatelessWidget {
-  const ModuleDisplaySection({super.key});
+/// Draws nothing when [installed] declares neither slot kind.
+class DockDisplayCard extends StatelessWidget {
+  const DockDisplayCard({super.key, required this.installed});
+
+  final InstalledDockModule installed;
+
+  static bool shows(InstalledDockModule installed) =>
+      installed.declaresMemberBadge || installed.declaresProfileSection;
 
   @override
-  Widget build(BuildContext context) => SettingsSectionCard(
-    title: 'Display',
-    children: [
-      _DisplayToggle(
-        label: 'Badges in member list',
-        description: 'Shows module badges beside names, for everyone.',
-        valueOf: (s) => s.moduleMemberBadges,
-        update: (v) => SpaceSettingsUpdate(moduleMemberBadges: v),
-      ),
-      _DisplayToggle(
-        label: 'Sections on profiles',
-        description: 'Shows module levels and stats on profile cards.',
-        valueOf: (s) => s.moduleProfileSections,
-        update: (v) => SpaceSettingsUpdate(moduleProfileSections: v),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    if (!shows(installed)) return const SizedBox.shrink();
+    return SettingsSectionCard(
+      title: 'Display',
+      description: 'Applies to every module that shows these.',
+      children: [
+        if (installed.declaresMemberBadge)
+          _DisplayToggle(
+            label: 'Show its badges in the member list',
+            valueOf: (s) => s.moduleMemberBadges,
+            update: (v) => SpaceSettingsUpdate(moduleMemberBadges: v),
+          ),
+        if (installed.declaresProfileSection)
+          _DisplayToggle(
+            label: 'Show its sections on profiles',
+            valueOf: (s) => s.moduleProfileSections,
+            update: (v) => SpaceSettingsUpdate(moduleProfileSections: v),
+          ),
+      ],
+    );
+  }
 }
 
 class _DisplayToggle extends ConsumerStatefulWidget {
   const _DisplayToggle({
     required this.label,
-    required this.description,
     required this.valueOf,
     required this.update,
   });
 
   final String label;
-  final String description;
   final bool Function(SpaceSettings) valueOf;
   final SpaceSettingsUpdate Function(bool) update;
 
@@ -62,7 +72,7 @@ class _DisplayToggleState extends ConsumerState<_DisplayToggle>
   Future<void> _set(bool value) async {
     await saveOptimistic(
       value,
-      whatFailed: 'change ${widget.label.toLowerCase()}',
+      whatFailed: 'change where module output shows',
       action: () =>
           ref.read(apiProvider).setSpaceSettings(widget.update(value)),
       refresh: spaceSettingsProvider,
@@ -81,7 +91,6 @@ class _DisplayToggleState extends ConsumerState<_DisplayToggle>
       children: [
         SettingsToggleRow(
           label: widget.label,
-          description: widget.description,
           value: current ?? false,
           semanticLabel: widget.label,
           onChanged: current == null || saving ? null : _set,

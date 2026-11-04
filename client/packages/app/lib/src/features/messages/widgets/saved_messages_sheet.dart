@@ -70,14 +70,14 @@ class _SavedMessagesSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          const AppSheetHeader(
+            'Saved messages',
             padding: EdgeInsets.fromLTRB(
               AppSpacing.s16,
               0,
               AppSpacing.s16,
               AppSpacing.s8,
             ),
-            child: Text('Saved messages', style: AppText.heading),
           ),
           ConstrainedBox(
             key: savedMessagesBodyBoxKey,

@@ -24,6 +24,7 @@ import '../../members/providers/blocks_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
 import '../../settings/providers/notification_sound_controller.dart';
 import '../../voice/providers/hold_music_controller.dart';
+import '../../voice/providers/hold_music_sync.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../../providers/admin_providers.dart';
 
@@ -42,6 +43,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(roleChangeWatcherProvider, (_, _) {});
   container.listen(notificationSoundControllerProvider, (_, _) {});
   container.listen(holdMusicControllerProvider, (_, _) {});
+  container.listen(holdMusicSyncProvider, (_, _) {});
   container.listen(activityPublisherProvider, (_, _) {});
   container.listen(voiceMoveFollowerProvider, (_, _) {});
   container.listen(screenOverlayControllerProvider, (_, _) {});

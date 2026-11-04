@@ -4,11 +4,13 @@ library;
 
 import 'package:slimm_platform/platform.dart';
 
+import '../../../routing/routes.dart' show desktopPane;
+
 import 'settings_index.dart';
 
 const voiceSettingsIndex = <SettingsEntry>[
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Hold a key to talk',
     description: 'Your mic indicator stays on in calls.',
     keywords: ['push to talk', 'ptt', 'keybind', 'hotkey'],
@@ -16,49 +18,49 @@ const voiceSettingsIndex = <SettingsEntry>[
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Shortcuts',
     keywords: ['keybind', 'hotkey', 'keyboard'],
     conditional: true,
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Mute shortcut',
     keywords: ['mute', 'hotkey', 'keybind', 'global', 'remap'],
     conditional: true,
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Deafen shortcut',
     keywords: ['deafen', 'hotkey', 'keybind', 'global', 'remap'],
     conditional: true,
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Camera shortcut',
     keywords: ['camera', 'video', 'hotkey', 'keybind', 'remap'],
     conditional: true,
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Share shortcut',
     keywords: ['screen share', 'hotkey', 'keybind', 'remap'],
     conditional: true,
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Leave shortcut',
     keywords: ['hang up', 'call', 'hotkey', 'keybind', 'remap'],
     conditional: true,
     available: _desktop,
   ),
   SettingsEntry(
-    'voice',
+    desktopPane,
     'Reset shortcuts',
     keywords: ['default', 'keybind', 'hotkey'],
     conditional: true,
@@ -88,13 +90,22 @@ const voiceSettingsIndex = <SettingsEntry>[
     description: 'Stops receiving video while the window is minimised.',
   ),
   SettingsEntry(
-    'voice',
+    'notifications',
     'Join and leave sounds',
     description: 'Off automatically in busy calls.',
-    keywords: ['sound', 'chime'],
+    keywords: ['sound', 'chime', 'voice', 'call'],
   ),
-  SettingsEntry('voice', 'Incoming call sound', keywords: ['ring', 'ringtone']),
-  SettingsEntry('voice', 'Music while alone', keywords: ['hold music']),
+  SettingsEntry(
+    'notifications',
+    'Incoming call sound',
+    keywords: ['ring', 'ringtone', 'voice'],
+  ),
+  SettingsEntry(
+    'notifications',
+    'Music while alone',
+    keywords: ['hold music', 'voice'],
+  ),
+  SettingsEntry('notifications', 'Call sounds', keywords: ['voice', 'audio']),
   SettingsEntry(
     'voice',
     'Microphone',
@@ -148,7 +159,6 @@ const voiceSettingsIndex = <SettingsEntry>[
     description: 'Lower it to save data, raise it to see more.',
   ),
   SettingsEntry('voice', 'Sharing and preview', keywords: ['screen share']),
-  SettingsEntry('voice', 'Sounds', keywords: ['audio', 'chime']),
   SettingsEntry(
     'voice',
     'Noise suppression',

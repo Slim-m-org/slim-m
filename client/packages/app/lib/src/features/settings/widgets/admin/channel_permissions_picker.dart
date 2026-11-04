@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The two-step "add a role or member" flow for the permissions grid: pick the
-/// kind, then the principal. Split out of `channel_permissions_grid.dart`.
+/// The "add a role or member" flow for the permissions grid: one sheet of
+/// roles with a member row that opens the member search. Split out of
+/// `channel_permissions_grid.dart`.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -11,26 +12,26 @@ import 'channel_permissions_grid_rows.dart';
 import 'overwrite_target_picker_sheets.dart';
 import '../../../members/widgets/member_picker.dart';
 
-/// Resolves to the chosen column, or null when the user backs out at either
-/// step or [context] is gone by then.
+/// Resolves to the chosen column, or null when the user backs out or
+/// [context] is gone by then.
 Future<GridColumn?> pickGridColumn(BuildContext context) async {
-  final kind = await showAppSheet<api.OverwriteTarget>(
+  final picked = await showAppSheet<Object>(
     context,
-    builder: (context) => const AddColumnKindSheet(),
+    builder: (context) => const RolePickerSheet(offerMember: true),
   );
-  if (kind == null || !context.mounted) return null;
-  if (kind == api.OverwriteTarget.role) {
-    final role = await showAppSheet<api.Role>(
-      context,
-      builder: (context) => const RolePickerSheet(),
+  if (picked is api.Role) {
+    return GridColumn(
+      kind: api.OverwriteTarget.role,
+      id: picked.id,
+      label: picked.name,
+      isBot: false,
     );
-    if (role == null) return null;
-    return GridColumn(kind: kind, id: role.id, label: role.name, isBot: false);
   }
+  if (picked == null || !context.mounted) return null;
   final member = await pickMember(context);
   if (member == null) return null;
   return GridColumn(
-    kind: kind,
+    kind: api.OverwriteTarget.member,
     id: member.id,
     label: member.displayName,
     isBot: member.isBot,

@@ -308,7 +308,6 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _openActions() => _actions.openActions(
     channelId: widget.channelId,
-    gifSearchEnabled: _gifSearchEnabled,
     apps: _apps,
     onInsertCode: _insertCodeFence,
     onCommandError: _reportCommandError,
@@ -455,6 +454,12 @@ class _ComposerState extends ConsumerState<Composer> {
               onSend: _send,
               onTyping: _onTyping,
               onOpenActions: _openActions,
+              onLaunchApps: _apps.isEmpty
+                  ? null
+                  : () => _actions.launchApps(
+                      widget.channelId,
+                      _reportCommandError,
+                    ),
               onPickFile: _actions.pickFileFromButton,
               onSendPressed: _sendFromButton,
               onInsertCode: _insertCodeFence,

@@ -51,7 +51,6 @@ class _UplinkTestSectionState extends ConsumerState<UplinkTestSection>
       children: [
         SettingsSectionCard(
           title: 'Uplink test',
-          description: 'Measure what this server can send.',
           children: [
             SettingsDetailRow(
               icon: AppIcons.requestLatency,

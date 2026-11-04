@@ -24,7 +24,6 @@ import '../../../modules/providers/code_block_runner.dart';
 import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../routing/routes.dart';
-import '../../../../widgets/confirm_dialog.dart';
 import '../../../voice/widgets/ring_flush.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_detail_row.dart';
@@ -32,10 +31,10 @@ import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'dock_file_install.dart';
-import 'dock_file_section.dart';
 import 'dock_install_consent.dart';
+import 'dock_manage_sources.dart';
 import 'dock_module_row.dart';
-import 'module_display_section.dart';
+import 'dock_pane_header.dart';
 import 'dock_sources_section.dart';
 
 class DockScreen extends StatelessWidget {
@@ -68,6 +67,9 @@ class DockPane extends ConsumerStatefulWidget {
 class _DockPaneState extends ConsumerState<DockPane>
     with GuardedActionState<DockPane> {
   final _query = TextEditingController();
+
+  /// Null until the admin picks one; then Installed if anything is, else Browse.
+  DockListFilter? _filter;
 
   /// True while [_updateAll] is working through the outdated modules, so the
   /// button cannot be pressed twice and says what it is doing.
@@ -199,22 +201,11 @@ class _DockPaneState extends ConsumerState<DockPane>
     );
   }
 
-  Future<void> _removeSource(api.DockSource source) async {
-    final confirmed = await confirmDangerousAction(
-      context,
-      title: 'Remove ${source.repo}?',
-      message:
-          'Modules already installed from it stay installed and enabled, but '
-          'they cannot be updated until you add this source again.',
-      confirmLabel: 'Remove source',
-    );
-    if (!confirmed || !mounted) return;
-    final ok = await guard(
-      whatFailed: 'remove ${source.repo}',
-      action: () => ref.read(apiProvider).removeDockSource(source.id),
-    );
-    if (ok && mounted) ref.invalidate(dockCatalogProvider);
-  }
+  DockListFilter _filterFor(DockCatalog catalog) =>
+      _filter ??
+      (catalog.installed.isEmpty
+          ? DockListFilter.browse
+          : DockListFilter.installed);
 
   @override
   Widget build(BuildContext context) {
@@ -225,17 +216,23 @@ class _DockPaneState extends ConsumerState<DockPane>
       center: false,
       errorMessage: 'Could not reach the module marketplace.',
       onRetry: () => ref.invalidate(dockCatalogProvider),
-      // No section title: this screen is one group, matching Roles' own choice.
       data: (context, catalog) {
-        final shown = [
-          for (final entry in catalog.entries)
-            if (needle.isEmpty || _matches(entry, needle)) entry,
-        ];
+        final filter = _filterFor(catalog);
         final outdated = _outdated(catalog);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const ModuleDisplaySection(),
+            DockPaneHeader(
+              filter: filter,
+              onFilter: (f) => setState(() => _filter = f),
+              onInstallFile: () => unawaited(
+                installDockModuleFromFile(context, ref, guard, setActionError),
+              ),
+              onAddSource: () => unawaited(showAddDockSourceSheet(context)),
+              onManageSources: () =>
+                  unawaited(showManageDockSourcesSheet(context)),
+            ),
+            const SizedBox(height: AppSpacing.s12),
             if (actionError case final message?) ...[
               AppErrorState(message: message, onDismiss: clearActionError),
               const SizedBox(height: AppSpacing.s12),
@@ -255,45 +252,101 @@ class _DockPaneState extends ConsumerState<DockPane>
               ),
             ),
             const SizedBox(height: AppSpacing.s12),
-            _officialModules(catalog, shown),
-            for (final section in catalog.sections)
-              DockCommunitySection(
-                section: section,
-                catalog: catalog,
-                needle: needle,
-                onRemove: () => unawaited(_removeSource(section.source)),
-              ),
-            if (catalog.sourcesFailed) ...[
-              const SizedBox(height: AppSpacing.s12),
-              const AppErrorState(
-                message: 'Could not load the community sources.',
-              ),
-            ],
-            const SizedBox(height: AppSpacing.s12),
-            DockFileSection(
-              catalog: catalog,
-              onInstall: () => unawaited(
-                installDockModuleFromFile(context, ref, guard, setActionError),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: AppButton(
-                label: 'Add a community source',
-                icon: AppIcons.add,
-                onPressed: () => unawaited(showAddDockSourceSheet(context)),
-              ),
-            ),
+            if (filter == DockListFilter.installed)
+              ..._installedView(catalog, needle)
+            else
+              ..._browseView(catalog, needle),
           ],
         );
       },
     );
   }
 
+  List<Widget> _installedView(DockCatalog catalog, String needle) {
+    final rows = [
+      for (final m in catalog.installed)
+        if (needle.isEmpty || _matches(_entryFor(catalog, m), needle))
+          DockModuleRow(
+            entry: _entryFor(catalog, m),
+            installed: m,
+            source: _sourceIdOf(catalog, m),
+            showInstalledState: false,
+          ),
+    ];
+    return [
+      SettingsSectionCard(
+        topGap: 0,
+        children: [
+          if (rows.isEmpty)
+            SettingsEmptyState(
+              icon: AppIcons.dock,
+              title: catalog.installed.isEmpty
+                  ? 'No modules installed yet.'
+                  : 'No module matches "${_query.text.trim()}".',
+              detail: catalog.installed.isEmpty ? 'Browse to add one.' : null,
+            )
+          else
+            ...rows,
+        ],
+      ),
+    ];
+  }
+
+  /// The marketplace listing for [m], or one built from what is installed
+  /// when its source no longer lists it (a file, a removed source).
+  static api.DockIndexEntry _entryFor(
+    DockCatalog catalog,
+    api.InstalledDockModule m,
+  ) {
+    final listed = [
+      ...catalog.entries,
+      for (final s in catalog.sections) ...s.entries,
+    ];
+    return listed.where((e) => e.id == m.id).firstOrNull ??
+        api.DockIndexEntry(
+          id: m.id,
+          name: m.name,
+          version: m.version,
+          summary: '',
+        );
+  }
+
+  /// The route's `source` for [m]: null for the official source.
+  static String? _sourceIdOf(DockCatalog catalog, api.InstalledDockModule m) {
+    final repo = m.sourceRepo;
+    if (repo == null) return null;
+    if (repo == api.kFileDockRepo) return api.kFileDockSource;
+    return catalog.sections
+        .where((s) => s.source.repo == repo)
+        .firstOrNull
+        ?.source
+        .id;
+  }
+
+  List<Widget> _browseView(DockCatalog catalog, String needle) {
+    final shown = [
+      for (final entry in catalog.entries)
+        if (needle.isEmpty || _matches(entry, needle)) entry,
+    ];
+    return [
+      _officialModules(catalog, shown),
+      for (final section in catalog.sections)
+        DockCommunitySection(
+          section: section,
+          catalog: catalog,
+          needle: needle,
+        ),
+      if (catalog.sourcesFailed) ...[
+        const SizedBox(height: AppSpacing.s12),
+        const AppErrorState(message: 'Could not load the community sources.'),
+      ],
+    ];
+  }
+
   Widget _officialModules(DockCatalog catalog, List<api.DockIndexEntry> shown) {
     if (shown.isEmpty) {
       return SettingsSectionCard(
+        topGap: 0,
         children: [
           SettingsEmptyState(
             icon: AppIcons.dock,
@@ -306,6 +359,7 @@ class _DockPaneState extends ConsumerState<DockPane>
     }
     return SettingsSectionCard(
       title: catalog.sections.isEmpty ? null : 'Official modules',
+      topGap: catalog.sections.isEmpty ? 0 : kSettingsSectionTopGap,
       children: [
         for (final entry in shown)
           DockModuleRow(

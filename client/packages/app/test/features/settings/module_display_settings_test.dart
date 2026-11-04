@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Space-wide module display switches: an admin patches only the one
-/// touched, and every member's client re-reads `/version` when told.
+/// The Space-wide module display switches, on the page of a module that has
+/// badges or profile sections: an admin patches only the one touched, a module
+/// with neither shows no switch, and every member re-reads `/version` when told.
 library;
 
 import 'dart:async';
@@ -14,7 +15,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/module_display_section.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_display_card.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -27,6 +28,24 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 0,
 );
+
+api.InstalledDockModule _module(List<String> slotKinds) =>
+    api.InstalledDockModule.fromJson({
+      'id': 'xp',
+      'name': 'xp',
+      'version': '1.0.0',
+      'artifact_sha256': 'a' * 64,
+      'approved_capabilities': <String>[],
+      'extension_points': <Object>[],
+      'enabled': true,
+      'installed_at': 1,
+      'slots': [
+        for (final kind in slotKinds) {'kind': kind, 'name': 'level'},
+      ],
+    });
+
+const _badges = 'Show its badges in the member list';
+const _sections = 'Show its sections on profiles';
 
 ProviderContainer _container(
   Map<String, Object?> Function(http.Request) answer,
@@ -82,7 +101,11 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(body: ModuleDisplaySection()),
+          home: Scaffold(
+            body: DockDisplayCard(
+              installed: _module(['member.badge', 'profile.section']),
+            ),
+          ),
         ),
       ),
     );
@@ -91,16 +114,50 @@ void main() {
     SettingsToggleRow row(String label) => tester.widget<SettingsToggleRow>(
       find.byWidgetPredicate((w) => w is SettingsToggleRow && w.label == label),
     );
-    expect(row('Badges in member list').value, isFalse);
-    expect(row('Sections on profiles').value, isTrue);
+    expect(row(_badges).value, isFalse);
+    expect(row(_sections).value, isTrue);
 
-    row('Badges in member list').onChanged!(true);
+    row(_badges).onChanged!(true);
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(patches, [
       {'module_member_badges': true},
     ]);
-    expect(row('Badges in member list').value, isTrue);
+    expect(row(_badges).value, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('each switch shows only for a module that has that slot', (
+    tester,
+  ) async {
+    final container = _container(
+      (_) => {'join_policy': 'invite'},
+      const Stream.empty(),
+    );
+    addTearDown(container.dispose);
+    Future<void> show(List<String> kinds) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AppTokens.light),
+            home: Scaffold(body: DockDisplayCard(installed: _module(kinds))),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    await show(['member.badge']);
+    expect(find.text(_badges), findsOneWidget);
+    expect(find.text(_sections), findsNothing);
+
+    await show(['profile.section']);
+    expect(find.text(_badges), findsNothing);
+    expect(find.text(_sections), findsOneWidget);
+
+    await show(const []);
+    expect(find.text('Display'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The read side of [DockManifestView]: a manifest's own summary, the
-/// permissions it will add, the capabilities it asks for, and the
-/// install/enable-disable/uninstall controls - split out of
-/// `dock_module_sheet.dart` purely for that file's line budget, the same
-/// reasoning `analytics_charts.dart` split off `analytics_screen.dart` on.
+/// A module's page, one list for an admin rather than a developer: what it is,
+/// whether it runs and who may use it, its own settings, what it may do, then
+/// a folded Details section and Uninstall at the foot.
+///
+/// One page, not tabs: with the developer detail folded away the page fits a
+/// phone in a scroll or two, and tabs hid who may use it a layer down.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,36 +12,20 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../widgets/settings_info_line.dart';
-import '../../widgets/settings_detail_row.dart';
+import '../../widgets/settings_save_bar.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/settings_toggle_row.dart';
-import 'dock_activity_card.dart';
+import 'dock_call_audio_card.dart';
 import 'dock_changelog_card.dart';
-import 'dock_command_panel_group.dart';
+import 'dock_display_card.dart';
 import 'dock_health_card.dart';
-import 'dock_hooks_card.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
-import 'dock_call_audio_card.dart';
+import 'dock_module_actions.dart';
+import 'dock_module_details.dart';
 import 'dock_schedule_card.dart';
 import 'dock_settings_card.dart';
-import 'dock_what_it_adds.dart';
 
-/// A module's manifest, plus the lifecycle action appropriate to
-/// [installed]'s state: install when null, otherwise an enable/disable
-/// toggle and an uninstall button, with an update above them when this space
-/// is on an older version than the marketplace now offers.
-///
-/// An update is a re-install at the new version, with no separate route. The
-/// server upserts the row, leaves `enabled` alone, and only drops permission
-/// rows the new manifest stops declaring, so grants for surviving keys and the
-/// enabled state both come through untouched. See `store/modules.rs`.
-///
-/// No title row of its own. This was a sheet once and carried a header with
-/// the module's name and a Close button; as a routed screen the app bar
-/// already names the module and already has a back arrow, so the header was
-/// the module's name printed twice under two ways out.
 class DockManifestView extends StatelessWidget {
   const DockManifestView({
     super.key,
@@ -52,9 +37,10 @@ class DockManifestView extends StatelessWidget {
     required this.onInstall,
     required this.onSetEnabled,
     required this.onUninstall,
-    required this.onChooseAccess,
+    this.rolesOpen = false,
     required this.approvedHostCapabilities,
     required this.onToggleHostCapability,
+    required this.onDiscardAccess,
     this.reapprove = const [],
     this.localNetworkApproved = false,
     this.onLocalNetworkChanged,
@@ -76,6 +62,9 @@ class DockManifestView extends StatelessWidget {
   final bool verified;
   final api.InstalledDockModule? installed;
 
+  /// Opens the role switches, right after a first install.
+  final bool rolesOpen;
+
   /// The host capabilities currently switched on, applied on the next install
   /// or save.
   final Set<String> approvedHostCapabilities;
@@ -92,12 +81,15 @@ class DockManifestView extends StatelessWidget {
   final List<api.Channel> scheduleChannels;
   final ValueChanged<String?>? onScheduleChannel;
 
-  /// Empties the module's stored data; the card offers it when there is some.
+  /// Empties the module's stored data; offered when it keeps some.
   final VoidCallback? onClearStorage;
 
   /// Saves the module as a package file.
   final VoidCallback? onExport;
   final void Function(String capability, bool approved) onToggleHostCapability;
+
+  /// Puts the switches back to what this space approved.
+  final VoidCallback onDiscardAccess;
   final bool busy;
   final String? error;
   final VoidCallback onErrorDismiss;
@@ -105,301 +97,196 @@ class DockManifestView extends StatelessWidget {
   final ValueChanged<bool> onSetEnabled;
   final VoidCallback onUninstall;
 
-  /// Opens the who-can-use-this sheet. Present whether or not the module is
-  /// installed; the action card only offers it once it is.
-  final VoidCallback onChooseAccess;
+  /// How many switches differ from what this space approved at its last
+  /// install, which is when a Save is needed for them to take effect.
+  int get _accessChanges {
+    final it = installed;
+    if (it == null) return 0;
+    final current = it.approvedHostCapabilities.toSet();
+    return current.difference(approvedHostCapabilities).length +
+        approvedHostCapabilities.difference(current).length +
+        (it.localNetworkApproved != localNetworkApproved ? 1 : 0);
+  }
+
+  bool get _updatePending =>
+      installed != null && installed!.version != manifest.version;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = DockPrimaryAction(
+      manifest: manifest,
+      installed: installed,
+      busy: busy,
+      onPressed: onInstall,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.s16),
+            children: [
+              if (installed case final it? when dockHasHealthNews(it)) ...[
+                DockHealthCard(
+                  installed: it,
+                  onTurnOn: () => onSetEnabled(true),
+                  enabled: !busy,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+              ],
+              if (error != null) ...[
+                AppErrorState(message: error!, onDismiss: onErrorDismiss),
+                const SizedBox(height: AppSpacing.s12),
+              ],
+              _DockModuleHeader(
+                manifest: manifest,
+                sourceRepo: sourceRepo,
+                verified: verified,
+              ),
+              if (installed case final it?) ...[
+                DockModuleControls(
+                  manifest: manifest,
+                  installed: it,
+                  busy: busy,
+                  onSetEnabled: onSetEnabled,
+                  rolesOpen: rolesOpen,
+                ),
+                if (it.declaresSettings) DockSettingsCard(moduleId: it.id),
+                DockDisplayCard(installed: it),
+              ],
+              ..._access(),
+              if (_updatePending)
+                DockChangelogCard(
+                  manifest: manifest,
+                  installedVersion: installed!.version,
+                ),
+              DockModuleDetails(
+                manifest: manifest,
+                installed: installed,
+                busy: busy,
+                showChangelog: !_updatePending,
+                onExport: onExport,
+                onClearStorage:
+                    installed != null &&
+                        installed!.approvedHostCapabilities.contains('kv.store')
+                    ? onClearStorage
+                    : null,
+              ),
+              if (installed != null)
+                DockUninstallRow(busy: busy, onUninstall: onUninstall),
+            ],
+          ),
+        ),
+        if (primary.visible)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s16,
+            ),
+            child: primary,
+          ),
+      ],
+    );
+  }
+
+  /// What it may do, with the Save for those switches right under them.
+  List<Widget> _access() {
+    final it = installed;
+    final changes = _accessChanges;
+    final asks = grantableHostCapabilities(manifest.capabilities).isNotEmpty;
+    return [
+      if (asks)
+        DockHostAccessCard(
+          manifest: manifest,
+          approved: approvedHostCapabilities,
+          onChanged: onToggleHostCapability,
+          moduleName: manifest.name,
+          localNetworkApproved: localNetworkApproved,
+          onLocalNetworkChanged: onLocalNetworkChanged,
+          reapprove: reapprove,
+          enabled: !busy,
+        )
+      else
+        const SettingsSectionCard(
+          title: 'Access',
+          children: [SettingsInfoLine(dockNoAccessNote)],
+        ),
+      if (changes > 0 && !_updatePending) ...[
+        const SizedBox(height: AppSpacing.s12),
+        SettingsSaveBar(
+          changeCount: changes,
+          saving: busy,
+          onDiscard: onDiscardAccess,
+          onSave: onInstall,
+        ),
+      ],
+      if (it != null &&
+          it.approvedHostCapabilities.contains('schedule') &&
+          onScheduleChannel != null)
+        DockScheduleCard(
+          schedules: it.schedules,
+          channels: scheduleChannels,
+          channelId: it.scheduleChannelId,
+          onChannel: onScheduleChannel!,
+          enabled: !busy,
+        ),
+      if (it != null && it.approvedHostCapabilities.contains('call.audio'))
+        DockCallAudioCard(
+          moduleId: it.id,
+          moduleName: manifest.name,
+          enabled: !busy,
+        ),
+    ];
+  }
+}
+
+/// The summary, then the version, author and trust marks under it. The app
+/// bar already names the module.
+class _DockModuleHeader extends StatelessWidget {
+  const _DockModuleHeader({
+    required this.manifest,
+    required this.sourceRepo,
+    required this.verified,
+  });
+
+  final api.DockManifest manifest;
+  final String? sourceRepo;
+  final bool verified;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // No title row: the app bar already names the module; see this class's doc.
-        Row(
-          children: [
-            Flexible(
-              child: Text(
-                manifest.author == null
-                    ? 'v${manifest.version}'
-                    : 'v${manifest.version} · ${manifest.author}',
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(
-                  color: tokens.textSecondary,
-                  fontFamily: AppFonts.mono,
-                ),
-              ),
-            ),
-            if (verified) ...[
-              const SizedBox(width: AppSpacing.s8),
-              const DockVerifiedBadge(),
-            ],
-          ],
-        ),
-        if (sourceRepo != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppBadge(
-            variant: AppBadgeVariant.warn,
-            label: switch (sourceRepo) {
-              'local/dev' => 'Not verified, local',
-              api.kFileDockRepo => 'Not verified, from a file',
-              _ => 'Community source: $sourceRepo',
-            },
-          ),
-        ],
-        const SizedBox(height: AppSpacing.s12),
         Text(
           manifest.summary,
           style: AppText.body.copyWith(color: tokens.textPrimary),
         ),
-        if (installed case final it? when dockHasHealthNews(it))
-          DockHealthCard(
-            installed: it,
-            onTurnOn: () => onSetEnabled(true),
-            enabled: !busy,
-          ),
-        if (installed != null &&
-            (manifest.interceptors.isNotEmpty ||
-                manifest.permissionHooks.isNotEmpty))
-          DockHooksCard(moduleId: manifest.id),
-        DockChangelogCard(
-          manifest: manifest,
-          installedVersion: installed?.version,
-        ),
-        _PermissionsCard(permissions: manifest.permissions),
-        if (manifest.extensionPoints.any((ep) => ep.kind != 'command'))
-          DockWhatItAddsCard(extensionPoints: manifest.extensionPoints),
-        DockLimitsCard(manifest: manifest),
-        if (grantableHostCapabilities(manifest.capabilities).isNotEmpty)
-          DockHostAccessCard(
-            manifest: manifest,
-            approved: approvedHostCapabilities,
-            onChanged: onToggleHostCapability,
-            moduleName: manifest.name,
-            localNetworkApproved: localNetworkApproved,
-            onLocalNetworkChanged: onLocalNetworkChanged,
-            reapprove: reapprove,
-            enabled: !busy,
-          ),
-        if (installed != null &&
-            installed!.approvedHostCapabilities.contains('schedule') &&
-            onScheduleChannel != null)
-          DockScheduleCard(
-            schedules: installed!.schedules,
-            channels: scheduleChannels,
-            channelId: installed!.scheduleChannelId,
-            onChannel: onScheduleChannel!,
-            enabled: !busy,
-          ),
-        if (installed != null &&
-            installed!.approvedHostCapabilities.contains('call.audio'))
-          DockCallAudioCard(
-            moduleId: installed!.id,
-            moduleName: manifest.name,
-            enabled: !busy,
-          ),
-        if (installed case final it? when it.declaresSettings)
-          DockSettingsCard(moduleId: it.id),
-        if (installed?.runStats != null && onClearStorage != null)
-          DockActivityCard(
-            stats: installed!.runStats!,
-            storage: installed!.storage,
-            fuelLimit: installed!.fuelLimit,
-            keepsData: installed!.approvedHostCapabilities.contains('kv.store'),
-            onClearStorage: onClearStorage!,
-            enabled: !busy,
-          ),
-        _ActionsCard(
-          manifest: manifest,
-          installed: installed,
-          hostAccessChanged: _hostAccessChanged(),
-          busy: busy,
-          onInstall: onInstall,
-          onSetEnabled: onSetEnabled,
-          onUninstall: onUninstall,
-          onChooseAccess: onChooseAccess,
-          onExport: onExport,
-        ),
-        if (error != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: error!, onDismiss: onErrorDismiss),
-        ],
-        if (_runnableCommands(installed) case final commands
-            when commands.isNotEmpty)
-          DockCommandPanelGroup(
-            moduleId: installed!.id,
-            extensionPoints: commands,
-          ),
-      ],
-    );
-  }
-
-  /// Whether the switches differ from what this space approved at its last
-  /// install, which is when a Save is needed for them to take effect.
-  bool _hostAccessChanged() {
-    final current = installed?.approvedHostCapabilities.toSet() ?? const {};
-    return installed != null &&
-        (current.length != approvedHostCapabilities.length ||
-            !current.containsAll(approvedHostCapabilities) ||
-            installed!.localNetworkApproved != localNetworkApproved);
-  }
-
-  /// Every `command` extension point [installed] declares, or none at all
-  /// while the module is not installed or is disabled - a command only
-  /// reaches the host under those two conditions (`http::module_commands`),
-  /// so this panel offers nothing a Run could not possibly answer.
-  static List<api.DockExtensionPoint> _runnableCommands(
-    api.InstalledDockModule? installed,
-  ) {
-    if (installed == null || !installed.enabled) return const [];
-    return installed.extensionPoints
-        .where((ep) => ep.kind == 'command')
-        .toList(growable: false);
-  }
-}
-
-/// What installing registers into this space's role editor, shown before
-/// install rather than discovered afterward - see decision 0021's "Dynamic
-/// permissions".
-class _PermissionsCard extends StatelessWidget {
-  const _PermissionsCard({required this.permissions});
-
-  final List<api.DockPermission> permissions;
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsSectionCard(
-      title: 'Permissions this will add',
-      children: [
-        if (permissions.isEmpty)
-          const SettingsInfoLine(
-            'None. This module adds no grantable permission.',
-          )
-        else
-          for (final p in permissions)
-            SettingsDetailRow(title: p.name, detail: p.description),
-      ],
-    );
-  }
-}
-
-class _ActionsCard extends StatelessWidget {
-  const _ActionsCard({
-    required this.manifest,
-    required this.installed,
-    required this.hostAccessChanged,
-    required this.busy,
-    required this.onInstall,
-    required this.onSetEnabled,
-    required this.onUninstall,
-    required this.onChooseAccess,
-    required this.onExport,
-  });
-
-  final api.DockManifest manifest;
-  final api.InstalledDockModule? installed;
-  final bool hostAccessChanged;
-  final VoidCallback? onExport;
-  final bool busy;
-  final VoidCallback onInstall;
-  final ValueChanged<bool> onSetEnabled;
-  final VoidCallback onUninstall;
-
-  /// Opens the who-can-use-this sheet. Present whether or not the module is
-  /// installed; the action card only offers it once it is.
-  final VoidCallback onChooseAccess;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final installed = this.installed;
-    if (installed == null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.s16),
-        child: AppButton(
-          label: busy ? 'Installing...' : 'Install v${manifest.version}',
-          variant: AppButtonVariant.primary,
-          full: true,
-          disabled: busy,
-          onPressed: onInstall,
-        ),
-      );
-    }
-    final outdated = installed.version != manifest.version;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (outdated) ...[
-          // Re-installing at the new version is the update; see the class doc.
-          AppButton(
-            label: busy ? 'Updating...' : 'Update to v${manifest.version}',
-            variant: AppButtonVariant.primary,
-            full: true,
-            disabled: busy,
-            onPressed: onInstall,
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            'This space is on v${installed.version}. Updating keeps who can '
-            'use it, and whether it is on.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-        ],
-        if (hostAccessChanged && !outdated) ...[
-          AppButton(
-            label: busy ? 'Saving...' : 'Save access',
-            variant: AppButtonVariant.primary,
-            full: true,
-            disabled: busy,
-            onPressed: onInstall,
-          ),
-        ],
-        SettingsSectionCard(
+        const SizedBox(height: AppSpacing.s8),
+        Wrap(
+          spacing: AppSpacing.s8,
+          runSpacing: AppSpacing.s4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            SettingsToggleRow(
-              label: 'Enabled',
-              description: 'Off keeps it installed but inactive.',
-              value: installed.enabled,
-              onChanged: busy ? null : onSetEnabled,
-              semanticLabel: installed.enabled
-                  ? '${manifest.name} enabled'
-                  : '${manifest.name} disabled',
+            if (verified) const DockVerifiedBadge(),
+            Text(
+              manifest.author == null
+                  ? 'v${manifest.version}'
+                  : 'v${manifest.version} · ${manifest.author}',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
-            // Installed grants nothing, so this is the step to it appearing at all.
-            if (manifest.permissions.isNotEmpty)
-              SettingsActionRow(
-                message: 'Which roles may use it.',
-                action: AppButton(
-                  label: 'Choose who can use this',
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  disabled: busy,
-                  onPressed: onChooseAccess,
-                ),
+            if (sourceRepo case final repo?)
+              AppBadge(
+                variant: AppBadgeVariant.warn,
+                label: switch (repo) {
+                  'local/dev' => 'Not verified, local',
+                  api.kFileDockRepo => 'Not verified, from a file',
+                  _ => 'Community source: $repo',
+                },
               ),
-            if (onExport != null)
-              SettingsActionRow(
-                message: 'Save it as a file, without its settings or data.',
-                action: AppButton(
-                  label: 'Export',
-                  icon: AppIcons.download,
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  disabled: busy,
-                  onPressed: onExport,
-                ),
-              ),
-            SettingsActionRow(
-              message: 'Remove it from this space.',
-              action: AppButton(
-                label: 'Uninstall',
-                variant: AppButtonVariant.danger,
-                size: AppButtonSize.sm,
-                disabled: busy,
-                onPressed: onUninstall,
-              ),
-            ),
           ],
         ),
       ],

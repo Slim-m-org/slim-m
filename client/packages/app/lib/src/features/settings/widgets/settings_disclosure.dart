@@ -14,9 +14,17 @@ class SettingsDisclosure extends StatefulWidget {
     required this.title,
     required this.summary,
     required this.children,
+    this.initiallyExpanded = false,
+    this.toggleKey,
   });
 
   final String title;
+
+  /// Open on first build, for a step the admin should answer now.
+  final bool initiallyExpanded;
+
+  /// On the folded row, for tests and snapshots to open it by.
+  final Key? toggleKey;
 
   /// What is currently chosen inside, so the folded row still answers.
   final String summary;
@@ -27,7 +35,7 @@ class SettingsDisclosure extends StatefulWidget {
 }
 
 class _SettingsDisclosureState extends State<SettingsDisclosure> {
-  bool _expanded = false;
+  late bool _expanded = widget.initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +43,7 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
     return SettingsRowGroup(
       children: [
         AppListRow(
+          key: widget.toggleKey,
           label: widget.title,
           semanticLabel:
               '${widget.title}, ${widget.summary}, '

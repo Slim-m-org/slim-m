@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Renaming the Space from the landing page section: what goes over the wire,
+/// Renaming the Space from the Customize profile card: what goes over the wire,
 /// what the preview and the channel list header show after, and the failure.
 library;
 
@@ -12,7 +12,6 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
-import 'package:slimm_app/src/features/members/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/features/members/widgets/invite_landing_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -111,7 +110,7 @@ Future<void> _pump(WidgetTester tester, _Server server, double width) async {
   await tester.pumpAndSettle();
 }
 
-Finder get _rename => find.widgetWithText(AppButton, 'Rename');
+Finder get _rename => find.widgetWithText(AppButton, 'Save changes');
 
 Finder get _field => find.descendant(
   of: find.bySemanticsLabel('Space name'),
@@ -124,7 +123,7 @@ void main() {
         '$width', (tester) async {
       final server = _Server();
       await _pump(tester, server, width);
-      expect(tester.widget<AppButton>(_rename).disabled, isTrue);
+      expect(_rename, findsNothing);
       expect(
         find.descendant(
           of: find.byType(RailHeader),
@@ -149,20 +148,20 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        tester.widget<InviteLandingCard>(find.byType(InviteLandingCard)).name,
-        "Nick's place",
-      );
-      expect(tester.widget<AppButton>(_rename).disabled, isTrue);
+      expect(_rename, findsNothing);
     });
   }
 
-  testWidgets('a blank name cannot be sent', (tester) async {
+  testWidgets('a blank name is refused before anything is sent', (
+    tester,
+  ) async {
     final server = _Server();
     await _pump(tester, server, 1280);
     await tester.enterText(_field, '   ');
     await tester.pump();
-    expect(tester.widget<AppButton>(_rename).disabled, isTrue);
+    await tester.tap(_rename);
+    await tester.pump();
+    expect(find.text('Give the Space a name.'), findsOneWidget);
     expect(server.patches, isEmpty);
   });
 

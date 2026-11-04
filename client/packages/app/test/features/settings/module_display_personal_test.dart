@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/modules/providers/module_display_settings.dart';
-import 'package:slimm_app/src/features/settings/widgets/module_display_card.dart';
+import 'package:slimm_app/src/features/settings/widgets/personal_module_toggle.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -62,11 +62,18 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(body: ModuleDisplayCard()),
+          home: const Scaffold(
+            body: Column(
+              children: [
+                PersonalModuleToggle(ModuleDisplayKind.memberBadges),
+                PersonalModuleToggle(ModuleDisplayKind.profileSections),
+              ],
+            ),
+          ),
         ),
       ),
     );
-    _row(tester, 'Show module levels').onChanged!(false);
+    _row(tester, 'Sections on profiles').onChanged!(false);
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(container.read(moduleProfileSectionsShownProvider), isFalse);
@@ -85,14 +92,21 @@ void main() {
           container: container,
           child: MaterialApp(
             theme: buildTheme(Brightness.light, AppTokens.light),
-            home: const Scaffold(body: ModuleDisplayCard()),
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  PersonalModuleToggle(ModuleDisplayKind.memberBadges),
+                  PersonalModuleToggle(ModuleDisplayKind.profileSections),
+                ],
+              ),
+            ),
           ),
         ),
       );
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(_row(tester, 'Show module badges').onChanged, isNull);
-      expect(_row(tester, 'Show module levels').onChanged, isNull);
+      expect(_row(tester, 'Badges in member list').onChanged, isNull);
+      expect(_row(tester, 'Sections on profiles').onChanged, isNull);
       expect(find.text('Turned off for this Space.'), findsNWidgets(2));
       await tester.pumpWidget(const SizedBox());
     },

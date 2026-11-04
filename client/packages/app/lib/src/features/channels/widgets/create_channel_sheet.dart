@@ -36,9 +36,7 @@ import '../../../routing/routes.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
 import 'private_audience_picker.dart';
-import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
-import 'channel_default_notification_choices.dart';
 import '../providers/channel_actions.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
@@ -89,9 +87,6 @@ class _CreateChannelSheet extends ConsumerStatefulWidget {
 class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   late String _kind = widget.initialKind;
   bool _restricted = false;
-  bool _joinMuted = false;
-  api.NotificationPreference _defaultNotification =
-      api.NotificationPreference.everything;
   final Set<String> _audience = {};
   final _createId = newChannelId();
 
@@ -103,8 +98,6 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           kind: _kind,
           categoryId: widget.categoryId,
           restricted: _restricted,
-          joinMuted: _kind == 'voice' && _joinMuted,
-          defaultNotification: _defaultNotification,
           id: _createId,
         );
     if (_restricted) await _grantAudience(created.id);
@@ -186,22 +179,6 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
               if (!_audience.remove(key)) _audience.add(key);
             }),
           ),
-        if (_kind == 'voice')
-          SettingsToggleRow(
-            label: 'Join muted',
-            description: 'Members start with their mic off and can unmute.',
-            value: _joinMuted,
-            onChanged: (v) => setState(() => _joinMuted = v),
-            semanticLabel: 'Members join this channel muted',
-          ),
-        SettingsSelectRow<api.NotificationPreference>(
-          label: channelDefaultNotificationLabel,
-          description: channelDefaultNotificationHint,
-          sheetTitle: channelDefaultNotificationLabel,
-          value: _defaultNotification,
-          choices: channelDefaultNotificationChoices,
-          onChanged: (v) => setState(() => _defaultNotification = v),
-        ),
       ],
     );
   }

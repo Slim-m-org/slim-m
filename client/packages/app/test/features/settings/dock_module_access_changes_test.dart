@@ -14,10 +14,11 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/providers/slash_command.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/dock_page_helpers.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -144,11 +145,12 @@ Future<ProviderContainer> _open(WidgetTester tester, _Server server) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const DockModuleAccessScreen(moduleId: 'game-of-life'),
+        home: const DockModuleScreen(moduleId: 'game-of-life'),
       ),
     ),
   );
   await tester.pumpAndSettle();
+  await openDockFold(tester, 'roles');
   return container;
 }
 

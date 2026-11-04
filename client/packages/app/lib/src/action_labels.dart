@@ -28,6 +28,9 @@ abstract final class ActionLabels {
   /// The Space's call defaults: screen-share quality and noise suppression.
   static const spaceVoice = 'Voice and screen share';
 
-  /// The Space settings group for how the Space is running.
-  static const operationsGroup = 'Operations';
+  /// The Space settings group for what bounds the Space: calls, retention, storage.
+  static const limitsGroup = 'Limits';
+
+  /// The Space settings group for what happened in the Space and how it is running.
+  static const insightGroup = 'Insight';
 }

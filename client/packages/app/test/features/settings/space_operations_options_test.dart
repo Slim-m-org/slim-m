@@ -239,10 +239,12 @@ void main() {
     testWidgets('without it none of the four panes is offered', (tester) async {
       await openSettings(tester, Perm.manageRoles);
 
-      expect(
-        find.text(ActionLabels.operationsGroup.toUpperCase()),
-        findsNothing,
-      );
+      for (final group in [
+        ActionLabels.limitsGroup,
+        ActionLabels.insightGroup,
+      ]) {
+        expect(find.text(group.toUpperCase()), findsNothing);
+      }
       for (final label in [
         ActionLabels.retentionAndLimits,
         'Analytics',

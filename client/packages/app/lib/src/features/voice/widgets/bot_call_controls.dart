@@ -268,6 +268,9 @@ class _ControlChip extends StatefulWidget {
 class _ControlChipState extends State<_ControlChip> {
   final _menu = GlobalKey<ContextMenuRegionState>();
 
+  /// The wire carries no current value, so the menu marks the last pick made here.
+  String? _lastPicked;
+
   @override
   Widget build(BuildContext context) {
     final control = widget.control;
@@ -299,8 +302,10 @@ class _ControlChipState extends State<_ControlChip> {
         for (final option in control.options)
           AppMenuItem(
             label: option.label,
+            selected: option.id == _lastPicked,
             onTap: () {
               close();
+              setState(() => _lastPicked = option.id);
               widget.onUse(control, option.id);
             },
           ),

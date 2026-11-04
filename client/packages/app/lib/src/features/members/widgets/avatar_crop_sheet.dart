@@ -223,7 +223,6 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     // The viewport is square, so it has to fit the shorter side as well.
     // Sized on width alone it was 1248pt tall in a 900pt window, which pushed
     // Cancel and Use picture off the bottom of the screen on every desktop.
@@ -270,11 +269,10 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Crop your picture', style: AppText.title),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              'Drag to move, pinch to zoom.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            const AppSheetHeader(
+              'Crop your picture',
+              caption: 'Drag to move, pinch to zoom.',
+              padding: EdgeInsets.zero,
             ),
             const SizedBox(height: AppSpacing.s16),
             picture,

@@ -232,6 +232,7 @@ class Client:
                 return n
             time.sleep(POLL_SECONDS)
         self.shot(f"missing-{label[:20].replace(' ', '-')}")
+        print(f"  {self.name}: elements holding {label!r}: {self.ev(e2e_js.holders(label))}")
         raise AssertionError(f"{self.name}: never saw {label!r}")
 
     def wheel_until(self, anchor, target, step=300, tries=8):

@@ -45,8 +45,6 @@ const _nestedResolveSurfaces = {
   'admin-reports',
   // Wide space settings embeds the reports pane and its nested resolve.
   'space-settings',
-  // The access screen resolves roles after the module itself mounts.
-  'admin-dock-module-access',
 };
 
 /// A real, benign difference between two valid loading states rather than

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/notification_troubleshooting_card.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/push/providers/push_channel_providers.dart';
@@ -48,7 +48,7 @@ Future<ProviderContainer> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: const Scaffold(
-          body: SingleChildScrollView(child: NotificationsSection()),
+          body: SingleChildScrollView(child: NotificationTroubleshootingCard()),
         ),
       ),
     ),

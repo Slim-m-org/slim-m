@@ -18,6 +18,7 @@ class DockModuleRow extends StatelessWidget {
     required this.entry,
     required this.installed,
     this.source,
+    this.showInstalledState = true,
   });
 
   final api.DockIndexEntry entry;
@@ -29,59 +30,37 @@ class DockModuleRow extends StatelessWidget {
   /// The community source this row was listed under; null is the official one.
   final String? source;
 
-  /// What this space has, against what the marketplace now offers.
-  ///
-  /// A version that differs is the whole update affordance on this screen:
-  /// the row used to show the registry's version and the word "Installed"
-  /// side by side, which reads as agreement even when they disagree.
-  static AppBadge _stateBadge(
-    api.DockIndexEntry entry,
-    api.InstalledDockModule installed,
-  ) {
-    if (installed.version != entry.version) {
-      return const AppBadge(
-        variant: AppBadgeVariant.warn,
-        label: 'Update available',
-      );
-    }
-    return AppBadge(
-      variant: AppBadgeVariant.role,
-      label: installed.enabled ? 'Installed' : 'Installed · Off',
-    );
-  }
+  /// False on the Installed list, where "Installed" would label every row.
+  /// The version is not on the row: it lives on the module's page.
+  final bool showInstalledState;
 
-  /// Both versions when they differ, so the badge never has to carry one.
-  static String _versionLine(
-    api.DockIndexEntry entry,
-    api.InstalledDockModule? installed,
-  ) => installed == null || installed.version == entry.version
-      ? 'v${entry.version}'
-      : 'Installed v${installed.version}, latest v${entry.version}';
-
-  Widget? _stateOrBlockedBadge(
-    api.InstalledDockModule? installed,
-    bool blocked,
-  ) {
-    if (blocked) {
+  /// Update when this space is behind its source, else Installed, or Off on
+  /// the Installed list where Installed would label every row.
+  AppBadge? _stateBadge(api.InstalledDockModule? installed) {
+    if (entry.shadowed) {
       return const AppBadge(variant: AppBadgeVariant.tag, label: 'Id taken');
     }
-    return installed == null ? null : _stateBadge(entry, installed);
+    if (installed == null) return null;
+    if (installed.version != entry.version) {
+      return const AppBadge(variant: AppBadgeVariant.warn, label: 'Update');
+    }
+    if (!installed.enabled) {
+      return const AppBadge(variant: AppBadgeVariant.tag, label: 'Off');
+    }
+    return showInstalledState
+        ? const AppBadge(variant: AppBadgeVariant.role, label: 'Installed')
+        : null;
   }
 
-  /// The Verified mark, then the install state, beside the name.
-  Widget? _badges(api.InstalledDockModule? installed, bool blocked) {
-    final state = _stateOrBlockedBadge(installed, blocked);
-    final verified = dockIsVerified(source);
-    if (state == null && !verified) return null;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (verified) const DockVerifiedBadge(),
-        if (verified && state != null) const SizedBox(width: AppSpacing.s8),
-        ?state,
-      ],
-    );
-  }
+  /// The verified mark, then the install state, beside the name.
+  Widget _badges(api.InstalledDockModule? installed) => Row(
+    mainAxisSize: MainAxisSize.min,
+    spacing: AppSpacing.s8,
+    children: [
+      if (dockIsVerified(source)) const DockVerifiedBadge(),
+      ?_stateBadge(installed),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -91,11 +70,10 @@ class DockModuleRow extends StatelessWidget {
     return SettingsDetailRow(
       icon: AppIcons.dock,
       title: entry.name,
-      badge: _badges(installed, blocked),
-      meta: _versionLine(entry, installed),
+      badge: _badges(installed),
+      detailMaxLines: 1,
       detail: blocked
-          ? 'Another source already provides a module with this id, so it '
-                'cannot be installed from here.'
+          ? 'Another source already has a module with this id.'
           : entry.summary,
       onTap: blocked
           ? null

@@ -60,8 +60,8 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    final aliceFinder = find.widgetWithText(AppListRow, 'Alice');
-    final zackFinder = find.widgetWithText(AppListRow, 'Zack');
+    final aliceFinder = find.widgetWithText(AppMenuItem, 'Alice\'s content');
+    final zackFinder = find.widgetWithText(AppMenuItem, 'Zack\'s content');
     expect(aliceFinder, findsOneWidget);
     expect(zackFinder, findsOneWidget);
 

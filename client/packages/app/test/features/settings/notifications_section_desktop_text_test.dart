@@ -45,15 +45,6 @@ void main() {
     expect(find.text('Shown while slim-m is running'), findsNothing);
   });
 
-  testWidgets('a phone still shows whether push reaches it', (tester) async {
-    await tester.pumpWidget(
-      _wrap(const NotificationsSection(hasPushChannel: true)),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byType(NotificationStatusBanner), findsOneWidget);
-  });
-
   testWidgets('message text starts on, and turning it off persists', (
     tester,
   ) async {

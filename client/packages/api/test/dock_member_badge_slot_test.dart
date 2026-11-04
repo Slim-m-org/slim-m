@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// An installed module says whether it declares a `member.badge` slot.
+/// An installed module says whether it declares a `member.badge` or `profile.section` slot.
 library;
 
 import 'package:slimm_api/api.dart';
@@ -28,6 +28,7 @@ void main() {
       }),
     );
     expect(m.declaresMemberBadge, isTrue);
+    expect(m.declaresProfileSection, isTrue);
   });
 
   test('a module with other slots or none declares no member badge', () {
@@ -39,9 +40,9 @@ void main() {
       }),
     );
     expect(profileOnly.declaresMemberBadge, isFalse);
-    expect(
-      InstalledDockModule.fromJson(_installed()).declaresMemberBadge,
-      isFalse,
-    );
+    expect(profileOnly.declaresProfileSection, isTrue);
+    final none = InstalledDockModule.fromJson(_installed());
+    expect(none.declaresMemberBadge, isFalse);
+    expect(none.declaresProfileSection, isFalse);
   });
 }

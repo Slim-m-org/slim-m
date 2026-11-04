@@ -8,8 +8,8 @@ import 'package:slimm_api/api.dart' as api;
 class DataExportCopy {
   const DataExportCopy({
     required this.kind,
-    required this.title,
-    required this.description,
+    this.title,
+    this.description,
     required this.rowTitle,
     required this.rowDetail,
     required this.startLabel,
@@ -18,8 +18,10 @@ class DataExportCopy {
   });
 
   final api.ExportKind kind;
-  final String title;
-  final String description;
+
+  /// Null when the pane heading already names the card.
+  final String? title;
+  final String? description;
   final String rowTitle;
   final String rowDetail;
   final String startLabel;
@@ -30,8 +32,6 @@ class DataExportCopy {
 
   static const member = DataExportCopy(
     kind: api.ExportKind.member,
-    title: 'Your data',
-    description: 'A copy of what you wrote and uploaded.',
     rowTitle: 'Download my data',
     rowDetail: 'Messages, reactions, saved items, notes and uploads.',
     startLabel: 'Prepare download...',

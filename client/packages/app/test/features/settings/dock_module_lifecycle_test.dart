@@ -13,7 +13,6 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -137,12 +136,6 @@ Future<void> _open(WidgetTester tester, _Harness harness) async {
               builder: (context, state) =>
                   DockModuleScreen(moduleId: state.pathParameters['moduleId']!),
             ),
-            GoRoute(
-              path: '${Routes.adminDock}/:moduleId/access',
-              builder: (context, state) => DockModuleAccessScreen(
-                moduleId: state.pathParameters['moduleId']!,
-              ),
-            ),
           ],
         ),
       ),
@@ -214,20 +207,22 @@ void main() {
     },
   );
 
-  testWidgets('a module with permissions offers choosing who can use it', (
-    tester,
-  ) async {
-    await _open(tester, _Harness(enabled: true));
-    await tester.tap(find.widgetWithText(AppButton, 'Choose who can use this'));
-    await tester.pumpAndSettle();
-    expect(find.text('Who can use this'), findsOneWidget);
-  });
+  testWidgets(
+    'a module with permissions folds its roles under Who can use it',
+    (tester) async {
+      await _open(tester, _Harness(enabled: true));
+      expect(find.text('Who can use it'), findsOneWidget);
+      expect(find.text('Nobody yet'), findsOneWidget);
+      expect(find.byKey(const Key('dock-roles-toggle')), findsOneWidget);
+    },
+  );
 
   testWidgets('a module without permissions has nobody to choose', (
     tester,
   ) async {
     await _open(tester, _Harness(enabled: true, withPermission: false));
-    expect(find.text('Choose who can use this'), findsNothing);
-    expect(find.widgetWithText(AppButton, 'Uninstall'), findsOneWidget);
+    expect(find.text('Who can use it'), findsOneWidget);
+    expect(find.text('Everyone'), findsOneWidget);
+    expect(find.byKey(const Key('dock-roles-toggle')), findsNothing);
   });
 }

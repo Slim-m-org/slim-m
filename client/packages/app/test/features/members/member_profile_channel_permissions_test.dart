@@ -110,7 +110,7 @@ Future<void> _joinShared(
 /// The default test window (800x600) is shorter than the call section plus
 /// the moderation section plus the private-note row plus the off-hours
 /// notification row can fit without scrolling; a real desktop window is
-/// taller, and `AnchoredMemberPopover` clamps and scrolls its own content,
+/// taller, and `AnchoredPopover` clamps and scrolls its own content,
 /// so this is a test-harness fix rather than production behavior changing.
 /// `_harness` pumps `MemberProfileBody` directly, bypassing that popover, so
 /// it needs the room itself.

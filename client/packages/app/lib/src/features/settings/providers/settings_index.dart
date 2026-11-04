@@ -17,6 +17,9 @@ export 'settings_index_voice.dart';
 
 const _devicesPage = 'account-devices';
 
+/// The pane holding the data export and account deletion.
+const yourDataPane = 'your-data';
+
 /// One searchable setting.
 class SettingsEntry {
   const SettingsEntry(
@@ -102,7 +105,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['game', 'steam', 'playing'],
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Connections',
     description: 'Accounts shown on your profile.',
     keywords: ['discord', 'link', 'linked accounts'],
@@ -111,20 +114,20 @@ const personalSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Discord',
     keywords: ['connections', 'link', 'unlink'],
     conditional: true,
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Spotify',
     keywords: ['connections', 'link', 'unlink', 'music'],
     gate: SettingsGate.spotifyConfigured,
     conditional: true,
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Show my Spotify track',
     description: 'Shows your track even when you play on another device.',
     keywords: ['listening', 'music', 'now playing', 'song', 'spotify'],
@@ -138,9 +141,10 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['sessions', 'sign out', 'logout', 'version'],
   ),
   SettingsEntry(
-    _devicesPage,
+    yourDataPane,
     'Your data',
     description: 'A copy of what you wrote and uploaded.',
+    conditional: true,
     keywords: [
       'export',
       'download my data',
@@ -150,10 +154,24 @@ const personalSettingsIndex = <SettingsEntry>[
     ],
   ),
   SettingsEntry(
-    _devicesPage,
+    yourDataPane,
     'Download my data',
     description: 'Messages, reactions, saved items, notes and uploads.',
     keywords: ['export', 'archive', 'backup', 'portability'],
+  ),
+  SettingsEntry(
+    yourDataPane,
+    'Delete account',
+    description: 'Permanently removes you and signs out every device.',
+    keywords: ['remove account', 'close account', 'erase'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    _devicesPage,
+    'App lock',
+    description: 'Locks slim-m on this device.',
+    keywords: ['face id', 'fingerprint', 'biometric', 'passcode'],
+    conditional: true,
   ),
   SettingsEntry(
     _devicesPage,
@@ -167,52 +185,29 @@ const personalSettingsIndex = <SettingsEntry>[
     description: 'Changing it signs out your other devices.',
     keywords: ['change password', 'security'],
   ),
-  SettingsEntry('appearance', 'Modules'),
   SettingsEntry(
     'appearance',
-    'Show module badges',
-    description: 'Next to names in the member list.',
+    'Badges in member list',
     keywords: ['members', 'badge', 'modules', 'level'],
   ),
   SettingsEntry(
     'appearance',
-    'Show module levels',
-    description: 'On profile cards.',
+    'Sections on profiles',
     keywords: ['profile', 'level', 'xp', 'modules'],
   ),
   SettingsEntry(
     'appearance',
     'Theme',
-    keywords: ['dark', 'light', 'colors', 'colours', 'mode'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Color theme',
-    keywords: ['dark', 'light', 'colors', 'colours', 'halloween'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Theme store',
-    description: 'Themes shared in this Space.',
-    keywords: ['theme', 'import', 'export', 'share', 'publish', 'default'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Publish current theme',
-    description: 'Share it with this Space.',
-    keywords: ['theme', 'store', 'share'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Export current theme',
-    description: 'Save it as a file.',
-    keywords: ['theme', 'file', 'download'],
-  ),
-  SettingsEntry(
-    'appearance',
-    'Import a theme',
-    description: 'Open a theme file.',
-    keywords: ['theme', 'file', 'upload'],
+    keywords: [
+      'dark',
+      'light',
+      'colors',
+      'colours',
+      'mode',
+      'halloween',
+      'store',
+      'default',
+    ],
   ),
   SettingsEntry(
     'appearance',
@@ -229,33 +224,22 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'appearance',
     'Clock',
-    description: 'System follows your device clock.',
     keywords: ['time', '24 hour', '12 hour'],
   ),
   SettingsEntry(
     'appearance',
     'Motion',
-    description: 'System follows your device motion setting.',
     keywords: ['animation', 'reduce motion', 'accessibility'],
   ),
   SettingsEntry('appearance', 'Density', keywords: ['compact', 'spacing']),
-  SettingsEntry(
-    'appearance',
-    'Thread lines',
-    description: 'Join a run of messages from one person with a line.',
-  ),
+  SettingsEntry('appearance', 'Thread lines'),
   SettingsEntry('appearance', 'Space between groups', keywords: ['spacing']),
   SettingsEntry(
     'appearance',
     'Interface scale',
     keywords: ['zoom', 'size', 'font size', 'text size', 'bigger', 'smaller'],
   ),
-  SettingsEntry(
-    'appearance',
-    'Messages',
-    description: 'How tight messages sit, and how far apart groups are.',
-    keywords: ['compact', 'density'],
-  ),
+  SettingsEntry('appearance', 'Messages', keywords: ['compact', 'density']),
   SettingsEntry('appearance', 'Text and layout', keywords: ['font']),
   SettingsEntry(
     'notifications',
@@ -422,6 +406,26 @@ const personalSettingsIndex = <SettingsEntry>[
     'Last call audio',
     description: 'How the audio held up.',
     keywords: ['voice', 'static', 'jitter', 'packet loss', 'quality', 'call'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Notifications',
+    description: 'Send a test alert or reset push on this phone.',
+    keywords: ['push', 'alert', 'test'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Test notification',
+    description: 'Check that notifications reach you.',
+    keywords: ['notifications', 'push', 'alert', 'send test'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Reset notifications',
+    description: 'Try this if notifications stopped arriving on this phone.',
+    keywords: ['notifications', 'push', 'register', 'ios', 'iphone'],
+    conditional: true,
   ),
   SettingsEntry(
     'troubleshooting',

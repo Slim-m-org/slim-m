@@ -34,7 +34,7 @@ void main() {
   for (final viewport in const ['desktop', 'phone-portrait']) {
     for (final pane in const {
       'notifications': 'Notifications',
-      'voice': 'Voice & screen share',
+      'voice': 'Voice and screen share',
     }.entries) {
       for (final end in const [false, true]) {
         testWidgets('${pane.key} with a schedule at $viewport $end', (
@@ -63,9 +63,7 @@ void main() {
               if (end) {
                 await tester.ensureVisible(
                   find.text(
-                    pane.key == 'voice'
-                        ? 'Music while alone'
-                        : 'Dock module sounds',
+                    pane.key == 'voice' ? 'Video quality' : 'Music while alone',
                   ),
                 );
                 await tester.pump();

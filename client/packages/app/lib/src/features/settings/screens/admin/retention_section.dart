@@ -163,7 +163,7 @@ class _RetentionSectionState extends ConsumerState<RetentionSection>
       children: [
         SettingsSectionCard(
           title: 'Message retention',
-          description: 'How long messages are kept before they are deleted.',
+          description: 'Older messages are deleted.',
           children: [
             SettingsSegmentedBlock(
               semanticLabel: 'Message retention window',

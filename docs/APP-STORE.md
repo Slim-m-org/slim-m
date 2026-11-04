@@ -89,7 +89,7 @@ Whether the US export rules need anything further is the owner's call, since App
 >
 > Canvas: in a call, the canvas button opens a shared drawing board.
 >
-> Account deletion: Settings, then Account & devices, then Delete account. It's permanent. If you delete the account above, a spare one is `appreview2`, with its password on the last line of these notes.
+> Account deletion: Settings, then Your data, then Delete account. It's permanent. If you delete the account above, a spare one is `appreview2`, with its password on the last line of these notes.
 >
 > User-generated content: there's no anonymous sign-up, since every account needs an invite from a space's admins. Every message has Report message and every profile has Report user and Block user. Reports go to the space's admins, who can delete messages, time members out, or remove them, and admin actions are written to an audit log. Admins can also turn on rules for listed words, links, message floods and mention spam through an optional automod bot, and every rule is off until an admin turns it on. The developer can be reached through https://github.com/Slim-m-org/slim-m/issues.
 >
