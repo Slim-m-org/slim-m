@@ -77,9 +77,11 @@ Future<void> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: child?.call() ?? const DockSettingsCard(moduleId: 'xp'),
-          ),
+          body:
+              child?.call() ??
+              const SingleChildScrollView(
+                child: DockSettingsCard(moduleId: 'xp'),
+              ),
         ),
       ),
     ),
@@ -182,7 +184,9 @@ void main() {
       onInstall: () {},
       onSetEnabled: (_) {},
       onUninstall: () {},
-      onChooseAccess: () {},
+      tab: DockModuleTab.settings,
+      onTab: (_) {},
+      onDiscardAccess: () {},
       approvedHostCapabilities: const {},
       onToggleHostCapability: (_, _) {},
     );

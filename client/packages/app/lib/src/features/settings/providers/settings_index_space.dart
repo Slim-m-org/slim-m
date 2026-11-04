@@ -260,18 +260,25 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry(_metricsPage, 'System', keywords: ['cpu', 'memory']),
   SettingsEntry(_metricsPage, 'Request volume by class'),
   SettingsEntry(_metricsPage, 'Slowest routes', keywords: ['latency']),
-  SettingsEntry('dock', 'Display'),
+  SettingsEntry(
+    'dock',
+    'Module display',
+    keywords: ['badges', 'profiles'],
+    conditional: true,
+  ),
   SettingsEntry(
     'dock',
     'Badges in member list',
     description: 'Shows module badges beside names, for everyone.',
     keywords: ['members', 'badge', 'modules'],
+    conditional: true,
   ),
   SettingsEntry(
     'dock',
     'Sections on profiles',
     description: 'Shows module levels and stats on profile cards.',
     keywords: ['profile', 'level', 'xp', 'modules'],
+    conditional: true,
   ),
   SettingsEntry(
     'dock',
@@ -282,8 +289,9 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'dock',
-    'Module files',
+    'Install from a file',
     keywords: ['install module', 'export module', 'addons'],
+    conditional: true,
   ),
   SettingsEntry('bots', 'Create bot', keywords: ['bot token']),
   SettingsEntry('bots', 'Bots in this Space'),

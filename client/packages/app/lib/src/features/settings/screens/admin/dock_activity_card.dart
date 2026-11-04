@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Activity": how an installed module's commands have run lately, and how
-/// much of its stored-data allowance it is using, with a way to empty it. A
+/// "Activity": how an installed module's commands have run lately. A
 /// scheduled module that has stopped posting shows up here as failing, with
 /// the error, instead of looking like one with nothing to say.
 library;
@@ -47,11 +46,7 @@ class DockActivityCard extends StatelessWidget {
   const DockActivityCard({
     super.key,
     required this.stats,
-    required this.storage,
-    required this.onClearStorage,
     this.fuelLimit = 0,
-    this.keepsData = false,
-    this.enabled = true,
     this.now,
   });
 
@@ -59,41 +54,18 @@ class DockActivityCard extends StatelessWidget {
   final int fuelLimit;
 
   final List<api.DockRunStat> stats;
-  final api.DockStorage? storage;
-
-  /// Whether the module is approved to store data at all.
-  final bool keepsData;
-  final VoidCallback onClearStorage;
-  final bool enabled;
 
   /// The clock the ages are read against; tests pin it.
   final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
-    final storage = this.storage;
     return SettingsSectionCard(
       title: 'Activity',
       children: [
         if (stats.isEmpty) const SettingsInfoLine('It has not run yet.'),
         for (final stat in stats)
           _StatRow(stat: stat, fuelLimit: fuelLimit, now: now),
-        if (keepsData && storage != null)
-          SettingsDetailRow(
-            icon: AppIcons.storage,
-            title: 'Stored data',
-            detail:
-                '${storage.entries} of ${storage.maxEntries} entries, '
-                '${dockBytes(storage.bytes)} of ${dockBytes(storage.maxBytes)}',
-            trailing: AppButton(
-              label: 'Clear',
-              variant: AppButtonVariant.secondary,
-              size: AppButtonSize.sm,
-              semanticLabel: 'Clear stored data',
-              disabled: !enabled || storage.entries == 0,
-              onPressed: onClearStorage,
-            ),
-          ),
       ],
     );
   }

@@ -18,6 +18,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_host_access_card.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../dock_manifest_fixture.dart';
@@ -175,6 +176,7 @@ Future<_Harness> _pump(
     ),
   );
   await tester.pumpAndSettle();
+  await openDockTab(tester, 'Access');
   return h;
 }
 

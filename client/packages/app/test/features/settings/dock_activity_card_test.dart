@@ -33,22 +33,12 @@ api.DockRunStat _stat({
 Future<void> _pump(
   WidgetTester tester, {
   List<api.DockRunStat> stats = const [],
-  api.DockStorage? storage,
-  bool keepsData = true,
-  VoidCallback? onClear,
   int fuelLimit = 0,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
     home: Scaffold(
-      body: DockActivityCard(
-        stats: stats,
-        storage: storage,
-        keepsData: keepsData,
-        onClearStorage: onClear ?? () {},
-        fuelLimit: fuelLimit,
-        now: _now,
-      ),
+      body: DockActivityCard(stats: stats, fuelLimit: fuelLimit, now: _now),
     ),
   ),
 );
@@ -151,44 +141,6 @@ void main() {
       findsOneWidget,
     );
     expect(_badge('Failing'), findsOneWidget);
-  });
-
-  testWidgets('stored data shows usage and Clear empties it', (tester) async {
-    var cleared = 0;
-    await _pump(
-      tester,
-      storage: const api.DockStorage(
-        entries: 12,
-        bytes: 3100,
-        maxEntries: 256,
-        maxBytes: 65536,
-      ),
-      onClear: () => cleared++,
-    );
-    expect(find.text('12 of 256 entries, 3.0 KB of 64 KB'), findsOneWidget);
-    await tester.tap(find.widgetWithText(AppButton, 'Clear'));
-    expect(cleared, 1);
-  });
-
-  testWidgets('Clear is off when nothing is stored, and absent without kv', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      storage: const api.DockStorage(
-        entries: 0,
-        bytes: 0,
-        maxEntries: 256,
-        maxBytes: 65536,
-      ),
-    );
-    final button = tester.widget<AppButton>(
-      find.widgetWithText(AppButton, 'Clear'),
-    );
-    expect(button.disabled, isTrue);
-
-    await _pump(tester, keepsData: false);
-    expect(find.text('Stored data'), findsNothing);
   });
 
   test('bytes read in the coarsest true unit', () {

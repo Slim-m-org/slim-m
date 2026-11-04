@@ -12,20 +12,18 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../../api_failure.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
-import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_module_row.dart';
 
-/// One community source: its label, a remove control, and its modules or the
-/// reason they could not be listed.
+/// One community source: its label, and its modules or the reason they could
+/// not be listed. Removing one lives behind "Manage sources".
 class DockCommunitySection extends StatelessWidget {
   const DockCommunitySection({
     super.key,
     required this.section,
     required this.catalog,
     required this.needle,
-    required this.onRemove,
   });
 
   final DockSourceSection section;
@@ -33,7 +31,6 @@ class DockCommunitySection extends StatelessWidget {
 
   /// The lowercase search text; empty shows every module.
   final String needle;
-  final VoidCallback onRemove;
 
   bool _matches(api.DockIndexEntry e) =>
       needle.isEmpty ||
@@ -76,18 +73,6 @@ class DockCommunitySection extends StatelessWidget {
               installed: _installedHere(entry),
               source: section.source.id,
             ),
-        if (!local)
-          SettingsActionRow(
-            message: 'Modules already installed from it stay installed.',
-            action: AppButton(
-              label: 'Remove this source',
-              icon: AppIcons.delete,
-              variant: AppButtonVariant.danger,
-              size: AppButtonSize.sm,
-              semanticLabel: 'Remove source $repo',
-              onPressed: onRemove,
-            ),
-          ),
       ],
     );
   }

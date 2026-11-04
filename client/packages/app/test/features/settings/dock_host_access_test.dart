@@ -15,9 +15,9 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../ui_snapshot_support.dart';
@@ -145,12 +145,6 @@ Future<List<Map<String, dynamic>>> _pump(
                   moduleId: state.pathParameters['moduleId']!,
                 ),
               ),
-              GoRoute(
-                path: '${Routes.adminDock}/:moduleId/access',
-                builder: (context, state) => DockModuleAccessScreen(
-                  moduleId: state.pathParameters['moduleId']!,
-                ),
-              ),
             ],
           ),
         ),
@@ -158,6 +152,7 @@ Future<List<Map<String, dynamic>>> _pump(
     ),
   );
   await tester.pumpAndSettle();
+  await openDockTab(tester, 'Access');
   return installs;
 }
 
@@ -206,14 +201,14 @@ void main() {
   ) async {
     final installs = await _pump(tester, installedApproved: ['kv.store']);
     expect(_switches(tester).sublist(0, 2), [true, false]);
-    expect(find.text('Save access'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
 
     await tester.tap(find.byType(AppToggle).at(1));
     await tester.pumpAndSettle();
-    expect(find.text('Save access'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
     await writeSnapshot(tester, 'dock-host-access-installed-changed-phone');
 
-    await tester.tap(find.text('Save access'));
+    await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], [
       'kv.store',
@@ -230,7 +225,7 @@ void main() {
     expect(_switches(tester).sublist(0, 2), [true, false]);
     expect(find.textContaining('approved again'), findsOneWidget);
 
-    await tester.tap(find.text('Save access'));
+    await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['kv.store']);
   });

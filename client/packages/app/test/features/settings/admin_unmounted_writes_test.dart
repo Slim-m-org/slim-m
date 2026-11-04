@@ -21,6 +21,7 @@ import 'package:drift/native.dart';
 import 'package:slimm_data/data.dart' show Channel, MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/dock_page_helpers.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -140,6 +141,7 @@ void main() {
     final container = _container(upstream);
     await tester.pumpWidget(_dock(container));
     await tester.pumpAndSettle();
+    await tapDockMenuItem(tester, 'Manage sources');
     await tester.tap(find.bySemanticsLabel('Remove source acme/mods'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove source').last);
@@ -161,8 +163,7 @@ void main() {
     final container = _container(upstream);
     await tester.pumpWidget(_dock(container));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add a community source'));
-    await tester.pumpAndSettle();
+    await tapDockMenuItem(tester, 'Add a community source');
     await tester.enterText(find.byType(EditableText).last, 'acme/mods');
     await tester.pump();
     await tester.tap(find.text('Add source'));

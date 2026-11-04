@@ -13,11 +13,11 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_module_access_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/dock_page_helpers.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -137,12 +137,6 @@ Future<void> _open(WidgetTester tester, _Harness harness) async {
               builder: (context, state) =>
                   DockModuleScreen(moduleId: state.pathParameters['moduleId']!),
             ),
-            GoRoute(
-              path: '${Routes.adminDock}/:moduleId/access',
-              builder: (context, state) => DockModuleAccessScreen(
-                moduleId: state.pathParameters['moduleId']!,
-              ),
-            ),
           ],
         ),
       ),
@@ -214,20 +208,21 @@ void main() {
     },
   );
 
-  testWidgets('a module with permissions offers choosing who can use it', (
+  testWidgets('a module with permissions lists the roles on its Access tab', (
     tester,
   ) async {
     await _open(tester, _Harness(enabled: true));
-    await tester.tap(find.widgetWithText(AppButton, 'Choose who can use this'));
-    await tester.pumpAndSettle();
-    expect(find.text('Who can use this'), findsOneWidget);
+    expect(find.text('Who can use it'), findsNothing);
+    await openDockTab(tester, 'Access');
+    expect(find.text('Who can use it'), findsOneWidget);
   });
 
   testWidgets('a module without permissions has nobody to choose', (
     tester,
   ) async {
     await _open(tester, _Harness(enabled: true, withPermission: false));
-    expect(find.text('Choose who can use this'), findsNothing);
-    expect(find.widgetWithText(AppButton, 'Uninstall'), findsOneWidget);
+    await openDockTab(tester, 'Access');
+    expect(find.textContaining('No permission of its own'), findsOneWidget);
+    expect(find.widgetWithText(AppButton, 'Uninstall'), findsNothing);
   });
 }
