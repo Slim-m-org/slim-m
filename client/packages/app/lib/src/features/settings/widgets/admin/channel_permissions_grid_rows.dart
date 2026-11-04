@@ -249,29 +249,6 @@ class GridRow extends StatelessWidget {
   );
 }
 
-class AddColumnKindSheet extends StatelessWidget {
-  const AddColumnKindSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AppListRow(
-          leading: const Icon(AppIcons.shield),
-          label: 'Add a role',
-          onTap: () => Navigator.of(context).pop(api.OverwriteTarget.role),
-        ),
-        AppListRow(
-          leading: const Icon(AppIcons.account),
-          label: 'Add a member',
-          onTap: () => Navigator.of(context).pop(api.OverwriteTarget.member),
-        ),
-      ],
-    ),
-  );
-}
-
 class _EditedKey extends StatelessWidget {
   const _EditedKey();
 

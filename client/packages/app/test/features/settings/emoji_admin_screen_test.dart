@@ -180,6 +180,7 @@ void main() {
       expect(find.text('Add'), findsOneWidget);
 
       await tester.tap(find.text('Add'));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Choose files'), findsOneWidget);
 
@@ -195,6 +196,7 @@ void main() {
     await _pump(tester, server, picked: _png);
 
     await tester.tap(find.text('Add'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();
@@ -216,6 +218,7 @@ void main() {
     await _pump(tester, server, picked: _png);
 
     await tester.tap(find.text('Add'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Choose files'));
     await tester.pumpAndSettle();

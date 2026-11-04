@@ -22,6 +22,7 @@ import '../providers/notification_sound_settings.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../../push/providers/push_reset.dart';
 import '../../../providers/toasts.dart';
+import '../../voice/widgets/call_sounds_card.dart';
 import 'notification_schedule_allow_lists.dart';
 import '../providers/ui_sound_settings.dart';
 import 'notification_schedule_section.dart';
@@ -121,6 +122,7 @@ class NotificationsSection extends ConsumerWidget {
             ),
           ],
         ),
+        const CallSoundsCard(),
       ],
     );
   }

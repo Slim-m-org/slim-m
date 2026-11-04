@@ -166,6 +166,13 @@ class TroubleshootingHeading extends ConsumerWidget {
             iconSize: AppSizes.icon16,
             onPressed: empty ? null : ref.read(debugLogProvider.notifier).clear,
           ),
+          if (onClose != null)
+            AppIconButton(
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Close settings',
+              tooltip: 'Close settings',
+              onPressed: onClose,
+            ),
         ],
       ),
     );

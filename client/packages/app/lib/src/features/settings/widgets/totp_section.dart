@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Two-factor authentication, under Account & devices: turn it on, replace the
+/// Two-factor authentication, under Account and security: turn it on, replace the
 /// recovery codes, turn it off.
 ///
 /// Absent entirely when the operator has set the policy to `off` and the member

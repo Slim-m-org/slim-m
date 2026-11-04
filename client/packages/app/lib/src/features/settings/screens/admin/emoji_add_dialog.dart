@@ -34,16 +34,36 @@ import 'emoji_bulk_plan.dart';
 import 'emoji_intake.dart';
 import 'emoji_name.dart';
 
-/// Opens the add dialog with [initial] already staged, as a drop on the page does.
+/// Opens the add page with [initial] already staged, as a drop on the pane does.
+///
+/// A page rather than a sheet: staging, name review and the import summary are
+/// three steps of one task, which outgrow a modal.
 Future<void> showEmojiAddDialog(
   BuildContext context, {
   List<EmojiPick> initial = const [],
-}) => showAppSheet<void>(
-  context,
-  maxWidth: 560,
-  scrolls: true,
-  semanticLabel: ActionLabels.createEmoji,
-  builder: (_) => EmojiAddDialog(initial: initial),
+}) => Navigator.of(context).push<void>(
+  MaterialPageRoute(
+    builder: (_) => Scaffold(
+      appBar: AppBar(
+        title: const Text(ActionLabels.createEmoji),
+        leading: IconButton(
+          icon: const Icon(AppIcons.back),
+          tooltip: 'Back to Emoji',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: AppContentColumn(
+          maxWidth: 560,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: AppSpacing.s16),
+            child: EmojiAddDialog(initial: initial),
+          ),
+        ),
+      ),
+    ),
+  ),
 );
 
 class EmojiAddDialog extends ConsumerStatefulWidget {
@@ -300,24 +320,6 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: AppSpacing.s12,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      ActionLabels.createEmoji,
-                      style: AppText.body.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: AppWeights.semi,
-                      ),
-                    ),
-                  ),
-                  AppIconButton(
-                    icon: AppIcons.dismiss,
-                    semanticLabel: 'Close',
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                ],
-              ),
               Text(
                 dropZoneSupported()
                     ? 'Drop, paste or choose images or a zip, then check the names.'

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Voice call preferences: microphone level, camera-on-join, screen share
-/// quality, input/output device choice, and join/leave sounds.
+/// quality and input/output device choice. Call sounds live under Notifications, shortcuts under Desktop.
 ///
 /// The state these widgets read and write lives in
 /// `providers/voice_settings_controller.dart`, split out once the
@@ -24,11 +24,6 @@ import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
 import '../widgets/voice_processing_section.dart';
-import '../../../audio/hold_music_player.dart' show holdMusicAvailableProvider;
-import '../../../audio/lounge_tracks.dart';
-import '../widgets/voice_shortcuts_section.dart';
-import '../../settings/widgets/settings_select_row.dart';
-import '../../settings/widgets/settings_toggle_row.dart';
 
 /// Everything about a call this device controls, as a pane body.
 ///
@@ -41,19 +36,12 @@ class VoiceSettingsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Column(
-    children: [
-      _MicrophoneSection(),
-      VoiceShortcutsSection(),
-      _DevicesSection(),
-      VideoQualitySection(),
-      _SoundsSection(),
-    ],
+    children: [_MicrophoneSection(), _DevicesSection(), VideoQualitySection()],
   );
 }
 
 /// Said under the slider: it never changes what anyone else hears.
-const sensitivityDescription =
-    'Only changes when speaking rings light on your screen.';
+const sensitivityDescription = 'Only changes your own speaking ring.';
 
 /// How readily the speaking indicator lights, over and above whatever the
 /// SFU itself already decided; see `passesActivationThreshold` in the rtc
@@ -136,7 +124,6 @@ class _MicrophoneSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       title: 'Microphone',
-      description: 'Your input level.',
       children: [
         MicPreviewHold(
           child: SettingsCardBlock(
@@ -179,70 +166,10 @@ class _DevicesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SettingsSectionCard(
       title: 'Devices',
-      description: 'What a call uses to hear, speak and show you.',
       children: [
         AudioDeviceSection(embedded: true),
         CameraOnJoinSection(embedded: true),
         MirrorSelfViewRow(),
-      ],
-    );
-  }
-}
-
-class _SoundsSection extends ConsumerWidget {
-  const _SoundsSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(voiceSettingsControllerProvider);
-
-    return SettingsSectionCard(
-      title: 'Sounds',
-      children: [
-        SettingsToggleRow(
-          label: 'Join and leave sounds',
-          description: 'Off automatically in busy calls.',
-          value: settings.joinLeaveSoundsEnabled,
-          semanticLabel: 'Play join and leave sounds',
-          onChanged: (value) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setJoinLeaveSoundsEnabled(value),
-        ),
-        SettingsToggleRow(
-          label: 'Incoming call sound',
-          value: settings.callRingSoundEnabled,
-          semanticLabel: 'Play a sound for an incoming call',
-          onChanged: (value) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setCallRingSoundEnabled(value),
-        ),
-        if (ref.watch(holdMusicAvailableProvider)) ...[
-          SettingsToggleRow(
-            label: 'Music while alone',
-            value: settings.holdMusicEnabled,
-            semanticLabel: 'Play hold music while alone in a call',
-            onChanged: (value) => ref
-                .read(voiceSettingsControllerProvider.notifier)
-                .setHoldMusicEnabled(value),
-          ),
-          if (settings.holdMusicEnabled)
-            SettingsSelectRow<LoungeTrack>(
-              sub: true,
-              label: 'Music style',
-              value: settings.holdMusicTrack,
-              sheetTitle: 'Music style',
-              choices: [
-                for (final track in LoungeTrack.values)
-                  SettingsChoice(
-                    value: track,
-                    label: '${track.style} - ${track.title}',
-                  ),
-              ],
-              onChanged: (track) => ref
-                  .read(voiceSettingsControllerProvider.notifier)
-                  .setHoldMusicTrack(track),
-            ),
-        ],
       ],
     );
   }

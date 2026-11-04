@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
 import '../../../routing/routes.dart';
+import '../providers/settings_index.dart' show yourDataPane;
 import '../widgets/settings_section_header.dart';
 import '../../members/widgets/activity_sharing_section.dart';
 import '../widgets/app_info_section.dart';
@@ -82,19 +83,28 @@ class PersonalSettingsScreen extends ConsumerWidget {
                   const AvatarSettingsSection(),
                   ProfileFieldsSection(focusAbout: focusAbout),
                   const ActivitySharingSection(),
+                  const ConnectionsSection(),
                 ],
               ),
             ),
             SettingsPane(
               id: accountDevicesPane,
-              label: 'Account & devices',
-              icon: AppIcons.devices,
+              label: 'Account and security',
+              icon: AppIcons.shield,
               builder: (context) => const Column(
                 children: [
-                  DevicesSection(),
-                  ConnectionsSection(),
                   _SignInSection(),
                   AppLockSection(),
+                  DevicesSection(),
+                ],
+              ),
+            ),
+            SettingsPane(
+              id: yourDataPane,
+              label: 'Your data',
+              icon: AppIcons.download,
+              builder: (context) => const Column(
+                children: [
                   DataExportCard(copy: DataExportCopy.member),
                   AccountSection(),
                 ],
@@ -126,7 +136,7 @@ class PersonalSettingsScreen extends ConsumerWidget {
             ),
             SettingsPane(
               id: 'voice',
-              label: 'Voice & screen share',
+              label: 'Voice and screen share',
               icon: AppIcons.voice,
               builder: (context) => const VoiceSettingsBody(),
             ),

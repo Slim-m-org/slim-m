@@ -80,7 +80,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Attachment size limit'), findsWidgets);
-    expect(find.text('Largest file a member can upload.'), findsOneWidget);
     for (final label in ['25 MB', '100 MB', '500 MB', '1 GB']) {
       expect(find.text(label), findsOneWidget);
     }

@@ -41,9 +41,9 @@ def admin_sets_the_landing_page(admin_client, admin_api, picture):
     text = f"A small corner for e2e {int(time.time())}"
     _open_customize(admin_client)
     # The Space profile card opens the Customize pane, so the field is already in view.
-    admin_client.wait_for(L.SAVE_DESCRIPTION)
+    admin_client.wait_for(L.DESCRIPTION_FIELD)
     admin_client.type_into(L.DESCRIPTION_FIELD, text)
-    admin_client.click(L.SAVE_DESCRIPTION, settle=3)
+    admin_client.click(L.SAVE_CHANGES, settle=3)
     wait_until(admin_api.space_settings,
                lambda s: s.get("description") == text,
                "the server did not store the description")

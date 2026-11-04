@@ -71,7 +71,8 @@ void main() {
       ActionLabels.removeMembers,
       ActionLabels.mediaAndCache,
       ActionLabels.retentionAndLimits,
-      ActionLabels.operationsGroup,
+      ActionLabels.limitsGroup,
+      ActionLabels.insightGroup,
     ]) {
       expect(table, contains(label));
     }

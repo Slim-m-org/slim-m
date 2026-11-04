@@ -103,7 +103,6 @@ class _MediaCompressionSectionState
       children: [
         SettingsSectionCard(
           title: 'Photo compression',
-          description: 'Shrink photos when they are uploaded.',
           children: [
             SettingsToggleRow(
               label: 'Compress photos',

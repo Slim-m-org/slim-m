@@ -21,14 +21,14 @@ import 'avatar_crop_sheet.dart';
 import '../../messages/widgets/image_downscale.dart';
 import '../../messages/widgets/image_drop_zone.dart';
 import 'invite_landing_card.dart';
-import 'invite_landing_view.dart';
 import '../../settings/widgets/join_policy_row.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_field.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../../widgets/space_icon.dart';
-import '../../settings/widgets/space_name_field.dart';
+import '../../settings/widgets/settings_save_bar.dart';
+import 'invite_landing_preview_page.dart';
 import '../providers/member_actions.dart';
 import '../../settings/providers/settings_actions.dart';
 
@@ -60,13 +60,16 @@ class InviteLandingSection extends ConsumerStatefulWidget {
 
 class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     with GuardedActionState<InviteLandingSection> {
+  final _name = TextEditingController();
   final _description = TextEditingController();
+  String _savedName = '';
   String _saved = '';
   bool _seeded = false;
   bool _busy = false;
 
   @override
   void dispose() {
+    _name.dispose();
     _description.dispose();
     super.dispose();
   }
@@ -74,6 +77,8 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   void _seed(api.SpaceSettings settings) {
     if (_seeded) return;
     _seeded = true;
+    _savedName = settings.name;
+    _name.text = settings.name;
     _saved = settings.description;
     _description.text = settings.description;
   }
@@ -87,15 +92,41 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     if (ok) ref.invalidate(spaceSettingsProvider);
   }
 
-  Future<void> _saveDescription() async {
-    final text = _description.text.trim();
-    await _run('save the description', () async {
+  bool get _nameChanged => _name.text.trim() != _savedName;
+  bool get _descriptionChanged => _description.text.trim() != _saved;
+  int get _changeCount =>
+      (_nameChanged ? 1 : 0) + (_descriptionChanged ? 1 : 0);
+
+  void _discard() => setState(() {
+    _name.text = _savedName;
+    _description.text = _saved;
+    clearActionError();
+  });
+
+  Future<void> _saveProfile() async {
+    final name = _name.text.trim();
+    if (_nameChanged && name.isEmpty) {
+      setActionError('Give the Space a name.');
+      return;
+    }
+    final nameChanged = _nameChanged;
+    await _run('save the Space profile', () async {
       final updated = await ref
           .read(settingsActionsProvider)
-          .setSpaceSettings(api.SpaceSettingsUpdate(description: text));
+          .setSpaceSettings(
+            api.SpaceSettingsUpdate(
+              name: nameChanged ? name : null,
+              description: _descriptionChanged
+                  ? _description.text.trim()
+                  : null,
+            ),
+          );
+      _savedName = updated.name;
+      _name.text = updated.name;
       _saved = updated.description;
       _description.text = updated.description;
     });
+    if (nameChanged) ref.invalidate(serverInfoProvider);
   }
 
   Future<void> _chooseBanner() async {
@@ -191,14 +222,18 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       children: [
         SettingsSectionCard(
           title: 'Space profile',
-          description: 'How the Space looks in invites and setup.',
+          description: 'How the Space looks in invites.',
           children: _profileRows(loaded),
         ),
-        SettingsSectionCard(
-          title: 'Landing page',
-          description: 'What an invite link shows before sign-in.',
-          children: _landingRows(loaded),
-        ),
+        if (_changeCount > 0) ...[
+          const SizedBox(height: AppSpacing.s8),
+          SettingsSaveBar(
+            changeCount: _changeCount,
+            saving: _busy,
+            onDiscard: _discard,
+            onSave: _saveProfile,
+          ),
+        ],
       ],
     );
   }
@@ -264,18 +299,15 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
 
   Future<void> _previewAsVisitor(api.SpaceSettings loaded) {
     final me = ref.read(meProvider).valueOrNull?.displayName;
-    return showAppSheet<void>(
-      context,
-      builder: (sheetContext) => InviteLandingView(
-        card: _card(loaded, invitedBy: me),
-        onBack: () => Navigator.of(sheetContext).pop(),
-        note: 'This is what someone opening one of your invites sees.',
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) =>
+            InviteLandingPreviewPage(card: _card(loaded, invitedBy: me)),
       ),
     );
   }
 
   List<Widget> _profileRows(api.SpaceSettings loaded) {
-    final changed = _description.text.trim() != _saved;
     final bannerSet = loaded.bannerUpdatedAt != null;
     final iconSet = loaded.iconUpdatedAt != null;
     return [
@@ -283,7 +315,14 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
         children: [
           SettingsField(
             label: 'Name',
-            child: SpaceNameField(saved: loaded.name),
+            child: AppInput(
+              controller: _name,
+              placeholder: 'Space name',
+              semanticLabel: 'Space name',
+              enabled: !_busy,
+              maxLength: api.InputLimits.name,
+              onChanged: (_) => setState(() {}),
+            ),
           ),
           SettingsField(
             label: 'Description',
@@ -299,16 +338,6 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
                 LengthLimitingTextInputFormatter(kInviteDescriptionMaxChars),
               ],
               onChanged: (_) => setState(() {}),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: AppButton(
-              label: 'Save description',
-              variant: AppButtonVariant.primary,
-              size: AppButtonSize.sm,
-              disabled: _busy || !changed,
-              onPressed: _saveDescription,
             ),
           ),
         ],
@@ -336,20 +365,11 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           onRemove: _removeIcon,
         ),
       ),
-      if (actionError != null)
-        SettingsCardBlock(
-          children: [
-            AppErrorState(message: actionError!, onDismiss: clearActionError),
-          ],
-        ),
-    ];
-  }
-
-  List<Widget> _landingRows(api.SpaceSettings loaded) {
-    return [
       SettingsDetailRow(
         icon: AppIcons.preview,
-        title: 'Preview',
+        title: 'Landing page',
+        detail: 'What an invite link shows before sign-in.',
+        stackTrailingWhenNarrow: true,
         trailing: AppButton(
           label: 'Preview as a visitor',
           variant: AppButtonVariant.secondary,
@@ -357,18 +377,12 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           onPressed: () => unawaited(_previewAsVisitor(loaded)),
         ),
       ),
-      SettingsCardBlock(
-        children: [
-          // The width the join sheet gives it, so the preview is not larger than the real thing.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: _card(loaded),
-            ),
-          ),
-        ],
-      ),
+      if (actionError != null)
+        SettingsCardBlock(
+          children: [
+            AppErrorState(message: actionError!, onDismiss: clearActionError),
+          ],
+        ),
     ];
   }
 }

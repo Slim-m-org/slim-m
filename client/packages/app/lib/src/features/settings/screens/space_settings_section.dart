@@ -11,12 +11,10 @@
 /// each still names its route as [SettingsPane.compactRoute], so a phone
 /// keeps the real, deep-linkable screens and the routes stay reachable.
 ///
-/// Configuration used to also carry Performance, Analytics, Storage and
-/// Server metrics, which mixed what the Space *is* with how it is *running*
-/// under one heading (owner backlog request). Those four now sit under
-/// their own `Server` heading instead; every one of them is gated on
-/// MANAGE_SERVER, so the group appears and disappears as a unit exactly the
-/// way Addons already does.
+/// Configuration used to also carry the running-server panes, which mixed what
+/// the Space *is* with how it is *running*. Those sit under `Limits` (what
+/// bounds the Space) and `Insight` (what happened in it); both are gated on
+/// MANAGE_SERVER, so each appears and disappears as a unit like Addons.
 library;
 
 import 'package:flutter/material.dart';
@@ -83,7 +81,8 @@ List<SettingsPaneGroup> spaceSettingsPaneGroups(
     _moderationGroup(access),
     _accessGroup(access),
     _configurationGroup(access),
-    _operationsGroup(access),
+    _limitsGroup(access),
+    _insightGroup(access),
     _addonsGroup(access),
   ];
   return [
@@ -212,10 +211,10 @@ SettingsPaneGroup _configurationGroup(_SpaceAccess access) {
   );
 }
 
-// What the Space is above; how it is running below - see the library doc.
-SettingsPaneGroup _operationsGroup(_SpaceAccess access) {
+// What bounds the Space; Export closes it because it is ADMINISTRATOR only, unlike its MANAGE_SERVER neighbours.
+SettingsPaneGroup _limitsGroup(_SpaceAccess access) {
   return SettingsPaneGroup(
-    label: ActionLabels.operationsGroup,
+    label: ActionLabels.limitsGroup,
     panes: [
       if (access.canManageServer)
         SettingsPane(
@@ -227,19 +226,11 @@ SettingsPaneGroup _operationsGroup(_SpaceAccess access) {
         ),
       if (access.canManageServer)
         SettingsPane(
-          id: 'performance',
+          id: 'retention',
           label: ActionLabels.retentionAndLimits,
           icon: AppIcons.performance,
           compactRoute: Routes.adminPerformance,
           builder: (_) => const PerformancePane(),
-        ),
-      if (access.canManageServer)
-        SettingsPane(
-          id: 'analytics',
-          label: 'Analytics',
-          icon: AppIcons.analytics,
-          compactRoute: Routes.adminAnalytics,
-          builder: (_) => const AnalyticsPane(),
         ),
       if (access.canManageServer)
         SettingsPane(
@@ -258,14 +249,21 @@ SettingsPaneGroup _operationsGroup(_SpaceAccess access) {
           compactRoute: Routes.adminExport,
           builder: (_) => const ExportPane(),
         ),
+    ],
+  );
+}
+
+SettingsPaneGroup _insightGroup(_SpaceAccess access) {
+  return SettingsPaneGroup(
+    label: ActionLabels.insightGroup,
+    panes: [
       if (access.canManageServer)
         SettingsPane(
-          id: 'audit-log',
-          label: 'Audit log',
-          icon: AppIcons.activityLog,
-          compactRoute: Routes.adminAuditLog,
-          scrollable: false,
-          builder: (_) => const AuditLogPane(),
+          id: 'analytics',
+          label: 'Analytics',
+          icon: AppIcons.analytics,
+          compactRoute: Routes.adminAnalytics,
+          builder: (_) => const AnalyticsPane(),
         ),
       if (access.canManageServer)
         SettingsPane(
@@ -274,6 +272,15 @@ SettingsPaneGroup _operationsGroup(_SpaceAccess access) {
           icon: AppIcons.requestLatency,
           compactRoute: Routes.adminServerMetrics,
           builder: (_) => const ServerMetricsPane(),
+        ),
+      if (access.canManageServer)
+        SettingsPane(
+          id: 'audit-log',
+          label: 'Audit log',
+          icon: AppIcons.activityLog,
+          compactRoute: Routes.adminAuditLog,
+          scrollable: false,
+          builder: (_) => const AuditLogPane(),
         ),
     ],
   );

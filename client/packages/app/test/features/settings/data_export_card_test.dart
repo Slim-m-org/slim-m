@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The data export cards: a member's own data in Account & devices, and the
+/// The data export cards: a member's own data in Account and security, and the
 /// whole Space for an administrator. Idle, building, ready, saving, failed and
 /// expired, and the proof sheet that says exactly what an archive holds.
 library;
