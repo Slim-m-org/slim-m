@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Who may use a module, answered where the module is: the Access tab.
+/// Who may use a module, answered at the top of its page.
 ///
 /// Installing a module registers its permissions into the role editor and
 /// grants them to nobody - deliberately, per decision 0021, since installing
 /// something is not a decision about who may use it. But an administrator who
 /// installs a module and then finds it appears nowhere has no reason to guess
 /// that a role grant is the missing step, and ADMINISTRATOR deliberately does
-/// not bypass a module's own permission. So the first install lands on the
-/// Access tab, and the question stays reachable from there.
+/// not bypass a module's own permission. So the first install opens this row,
+/// and the question stays reachable from there.
 ///
 /// One switch per role, covering every permission the module declares: a
 /// module usually declares exactly one, and a role holding some but not all
 /// of a multi-permission module's keys reads as off until it holds them all.
 /// The per-key control still lives in the role editor for anyone who wants it.
-/// Each switch applies at once; it is not part of the tab's Save.
+/// Each switch applies at once; it is not part of the Access Save.
 library;
 
 import 'package:flutter/material.dart';
@@ -27,15 +27,24 @@ import '../../../modules/providers/code_block_runner.dart';
 import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
 import '../../../../widgets/run_guarded.dart';
-import '../../widgets/settings_info_line.dart';
+import '../../widgets/settings_disclosure.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+import '../../widgets/settings_value_row.dart';
 
-/// The switches themselves, one per role.
+/// A folded row naming who holds the module, opening to one switch per role.
+/// Inline rather than a sheet: the module page already sits in a settings modal.
 class DockRoleAccessCard extends ConsumerStatefulWidget {
-  const DockRoleAccessCard({super.key, required this.manifest});
+  const DockRoleAccessCard({
+    super.key,
+    required this.manifest,
+    this.initiallyExpanded = false,
+  });
 
   final api.DockManifest manifest;
+
+  /// Open at once after a first install, when nobody can use it yet.
+  final bool initiallyExpanded;
 
   @override
   ConsumerState<DockRoleAccessCard> createState() => _DockRoleAccessCardState();
@@ -120,47 +129,61 @@ class _DockRoleAccessCardState extends ConsumerState<DockRoleAccessCard>
     if (ok && mounted) ref.invalidate(dockCatalogProvider);
   }
 
+  /// The roles that hold every key, named on the folded row.
+  String _summary(List<api.Role> roles) {
+    final holding = [
+      for (final role in roles)
+        if (_holdsAll(
+          ref.watch(roleModulePermissionsProvider(role.id)).valueOrNull ??
+              const [],
+        ))
+          role.isEveryone ? 'Everyone' : role.name,
+    ];
+    if (holding.isEmpty) return 'Nobody yet';
+    if (holding.contains('Everyone')) return 'Everyone';
+    return holding.length <= 2 ? holding.join(', ') : '${holding.length} roles';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final roles = ref.watch(rolesProvider);
     if (widget.manifest.permissions.isEmpty) {
-      return const SettingsSectionCard(
-        title: 'Who can use it',
-        children: [
-          SettingsInfoLine(
-            'No permission of its own. Anyone who can see a '
-            'channel can use it.',
-          ),
-        ],
-      );
+      return const SettingsValueRow(label: 'Who can use it', value: 'Everyone');
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final roles = ref.watch(rolesProvider);
+    final list = roles.valueOrNull;
+    return SettingsDisclosure(
+      title: 'Who can use it',
+      summary: list == null ? '' : _summary(list),
+      initiallyExpanded: widget.initiallyExpanded,
+      toggleKey: const Key('dock-roles-toggle'),
       children: [
-        AppAsyncView<List<api.Role>>(
-          value: AppAsyncState(data: roles.valueOrNull, error: roles.error),
-          center: false,
-          errorMessage: 'Could not load the roles.',
-          onRetry: () => ref.invalidate(rolesProvider),
-          data: (context, list) => SettingsSectionCard(
-            title: 'Who can use it',
-            description: 'Applies as you switch.',
+        if (list == null)
+          SettingsCardBlock(
             children: [
-              for (final role in list)
-                _RoleSwitch(
-                  role: role,
-                  busy: _pending.contains(role.id),
-                  keysDeclared: true,
-                  holdsAll: _holdsAll,
-                  onChanged: (value) => _set(role, value),
-                ),
+              AppAsyncView<List<api.Role>>(
+                value: AppAsyncState(data: list, error: roles.error),
+                center: false,
+                errorMessage: 'Could not load the roles.',
+                onRetry: () => ref.invalidate(rolesProvider),
+                data: (context, _) => const SizedBox.shrink(),
+              ),
+            ],
+          )
+        else
+          for (final role in list)
+            _RoleSwitch(
+              role: role,
+              busy: _pending.contains(role.id),
+              keysDeclared: true,
+              holdsAll: _holdsAll,
+              onChanged: (value) => _set(role, value),
+            ),
+        if (actionError != null)
+          SettingsCardBlock(
+            children: [
+              AppErrorState(message: actionError!, onDismiss: clearActionError),
             ],
           ),
-        ),
-        if (actionError != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(message: actionError!, onDismiss: clearActionError),
-        ],
       ],
     );
   }

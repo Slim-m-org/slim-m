@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../modules/providers/module_display_settings.dart';
 import 'settings_toggle_row.dart';
 
-/// Labelled like the Space-wide switch it narrows, in Space settings > Modules.
+/// Narrows the Space-wide switch an admin sets on a module's page.
 enum ModuleDisplayKind {
   memberBadges('Badges in member list'),
   profileSections('Sections on profiles');

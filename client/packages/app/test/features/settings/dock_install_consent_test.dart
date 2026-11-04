@@ -12,7 +12,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_install_consent.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_row.dart';
 import 'package:slimm_design_system/design_system.dart';
-import '../../support/dock_page_helpers.dart';
 
 import '../../ui_snapshot_support.dart';
 
@@ -100,7 +99,6 @@ void main() {
     tester,
   ) async {
     await consentPump(tester, asks: ['message.post']);
-    await openDockTab(tester, 'Access');
     final last = tester.getRect(
       find.textContaining('Posts as whoever runs it'),
     );

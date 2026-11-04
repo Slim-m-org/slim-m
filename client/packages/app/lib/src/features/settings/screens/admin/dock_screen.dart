@@ -35,7 +35,6 @@ import 'dock_install_consent.dart';
 import 'dock_manage_sources.dart';
 import 'dock_module_row.dart';
 import 'dock_pane_header.dart';
-import 'module_display_section.dart';
 import 'dock_sources_section.dart';
 
 class DockScreen extends StatelessWidget {
@@ -276,6 +275,7 @@ class _DockPaneState extends ConsumerState<DockPane>
     ];
     return [
       SettingsSectionCard(
+        topGap: 0,
         children: [
           if (rows.isEmpty)
             SettingsEmptyState(
@@ -289,7 +289,6 @@ class _DockPaneState extends ConsumerState<DockPane>
             ...rows,
         ],
       ),
-      if (catalog.installed.isNotEmpty) const ModuleDisplayRow(),
     ];
   }
 
@@ -347,6 +346,7 @@ class _DockPaneState extends ConsumerState<DockPane>
   Widget _officialModules(DockCatalog catalog, List<api.DockIndexEntry> shown) {
     if (shown.isEmpty) {
       return SettingsSectionCard(
+        topGap: 0,
         children: [
           SettingsEmptyState(
             icon: AppIcons.dock,
@@ -359,6 +359,7 @@ class _DockPaneState extends ConsumerState<DockPane>
     }
     return SettingsSectionCard(
       title: catalog.sections.isEmpty ? null : 'Official modules',
+      topGap: catalog.sections.isEmpty ? 0 : kSettingsSectionTopGap,
       children: [
         for (final entry in shown)
           DockModuleRow(

@@ -12,7 +12,7 @@
 /// A routed screen rather than a sheet: the Dock is itself a modal, and a
 /// sheet opened from it stacked a second scrim and a second panel over the
 /// first. This is the same drill-down every other settings screen uses, so
-/// the way back is the app bar's own back arrow. Who may use it is a tab here,
+/// the way back is the app bar's own back arrow. Who may use it is a row here,
 /// not a further screen.
 library;
 
@@ -57,7 +57,9 @@ class DockModuleScreen extends ConsumerStatefulWidget {
 class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     with GuardedActionState<DockModuleScreen> {
   bool _busy = false;
-  var _tab = DockModuleTab.overview;
+
+  /// Set by a first install, so the role switches open at once.
+  bool _rolesOpen = false;
 
   /// The switches the admin has flipped, or null to show what is installed.
   Set<String>? _hostApproved;
@@ -223,7 +225,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     if (wasInstalled || !mounted) return;
     // Installed is not usable until somebody is granted it; see the role access card's doc.
     if (manifest.permissions.isNotEmpty) {
-      setState(() => _tab = DockModuleTab.access);
+      setState(() => _rolesOpen = true);
     } else {
       // Nothing to grant, so there is no later moment to turn it on at.
       await _setEnabled(manifest.name, true);
@@ -365,8 +367,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           scheduleChannels: textChannels,
           onScheduleChannel: _setScheduleChannel,
           onClearStorage: () => _clearStorage(m.name),
-          tab: _tab,
-          onTab: (t) => setState(() => _tab = t),
+          rolesOpen: _rolesOpen,
           onDiscardAccess: () => setState(() {
             _hostApproved = null;
             _localNetwork = null;

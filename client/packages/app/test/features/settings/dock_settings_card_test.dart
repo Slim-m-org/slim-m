@@ -184,8 +184,6 @@ void main() {
       onInstall: () {},
       onSetEnabled: (_) {},
       onUninstall: () {},
-      tab: DockModuleTab.settings,
-      onTab: (_) {},
       onDiscardAccess: () {},
       approvedHostCapabilities: const {},
       onToggleHostCapability: (_, _) {},

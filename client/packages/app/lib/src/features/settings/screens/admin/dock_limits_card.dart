@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The ceilings every run of a module is held to, and the plain fact that it
-/// asks for no access when the access card has nothing to show.
+/// The ceilings every run of a module is held to, in Details.
 ///
 /// `command.register` is not listed: it grants nothing, the module's commands
 /// are registered whether or not it is declared, so a chip for it read as a
@@ -11,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_section_header.dart';
 import 'dock_host_access_card.dart';
@@ -26,13 +24,9 @@ class DockLimitsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final limits = manifest.runtime.limits;
-    final asksForAccess = grantableHostCapabilities(
-      manifest.capabilities,
-    ).isNotEmpty;
     return SettingsSectionCard(
-      title: 'Limits on every run',
+      title: 'Limits per run',
       children: [
-        if (!asksForAccess) const SettingsInfoLine(dockNoAccessNote),
         if (_ungranted(manifest.capabilities) case final names
             when names.isNotEmpty)
           SettingsCardBlock(

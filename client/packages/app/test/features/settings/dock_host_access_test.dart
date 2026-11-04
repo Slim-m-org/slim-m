@@ -17,9 +17,9 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/dock_page_helpers.dart';
 import '../../ui_snapshot_support.dart';
 
 const _tokens = api.TokenPair(
@@ -152,13 +152,12 @@ Future<List<Map<String, dynamic>>> _pump(
     ),
   );
   await tester.pumpAndSettle();
-  await openDockTab(tester, 'Access');
   return installs;
 }
 
 List<bool> _switches(WidgetTester tester) => [
   for (final toggle in tester.widgetList<AppToggle>(find.byType(AppToggle)))
-    toggle.value,
+    if (toggle.semanticLabel?.endsWith(' for Ladder') ?? false) toggle.value,
 ];
 
 void main() {
@@ -166,9 +165,10 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(find.text('Access to approve'), findsOneWidget);
+    expect(find.text('Access'), findsOneWidget);
     expect(find.text('Remember data'), findsOneWidget);
     expect(find.text('Post messages'), findsOneWidget);
+    await openDockFold(tester, 'details');
     expect(
       find.text('SURFACE.RENDER'),
       findsOneWidget,
@@ -203,7 +203,7 @@ void main() {
     expect(_switches(tester).sublist(0, 2), [true, false]);
     expect(find.text('Save changes'), findsNothing);
 
-    await tester.tap(find.byType(AppToggle).at(1));
+    await tester.tap(find.bySemanticsLabel('Post messages for Ladder'));
     await tester.pumpAndSettle();
     expect(find.text('Save changes'), findsOneWidget);
     await writeSnapshot(tester, 'dock-host-access-installed-changed-phone');
@@ -236,9 +236,7 @@ void main() {
       installedApproved: ['kv.store'],
       size: const Size(1100, 1000),
     );
-    await openDockTab(tester, 'Overview');
     await writeSnapshot(tester, 'dock-module-overview-desktop');
-    await openDockTab(tester, 'Access');
     await tester.tap(find.bySemanticsLabel('Post messages for Ladder'));
     await tester.pump(const Duration(milliseconds: 400));
     await writeSnapshot(tester, 'dock-module-access-changed-desktop');

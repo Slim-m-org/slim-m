@@ -403,6 +403,7 @@ class InstalledDockModule {
     this.storage,
     this.declaresSettings = false,
     this.declaresMemberBadge = false,
+    this.declaresProfileSection = false,
     this.subscriptions = const [],
     this.dataSchema,
     this.consecutiveFailures = 0,
@@ -438,6 +439,9 @@ class InstalledDockModule {
 
   /// Whether it declares a `member.badge` slot, shown beside names in the member list.
   final bool declaresMemberBadge;
+
+  /// Whether it declares a `profile.section` slot, shown on profile cards.
+  final bool declaresProfileSection;
 
   /// How each command has run lately; only `GET /space/dock/installed` fills it.
   final List<DockRunStat>? runStats;
@@ -518,6 +522,7 @@ class InstalledDockModule {
             : DockStorage.fromJson(json['storage'] as Map<String, dynamic>),
         declaresSettings: dockDeclaresSettings(json['settings']),
         declaresMemberBadge: dockDeclaresMemberBadge(json['slots']),
+        declaresProfileSection: dockDeclaresProfileSection(json['slots']),
         subscriptions: dockSubscriptions(json['subscriptions']),
         dataSchema: dockDataSchema(json['data']),
         consecutiveFailures: json['consecutive_failures'] as int? ?? 0,
