@@ -132,6 +132,28 @@ The overlay repaints about 30 times a second only while a mark is alive and goes
 This follows `docs/design/desktop-vs-mobile.md` rule 2 for the share options toggle (a value on a control that stays on screen) and rule 6 for the status line, which was a banner and is now one info toast.
 The tile's pen, circle and note pill is part of the tile's own controls, so it is sized by width: hidden on a tile narrower than 220 logical pixels.
 
+## Call overlay (2026-11-04)
+
+The same native window also lists who is in the call, like Discord's overlay.
+Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do like discord where she show the people in call and voice activty top left or whatever position just to give me a second source of it working".
+
+- Its own setting, "Call overlay", off by default, with a corner choice (top left by default) shown once it is on.
+  Like the drawing overlay it is absent, never disabled, where the desktop cannot host it.
+- It shows whenever you are in a call and hides while you share a whole screen.
+  Linux cannot keep a window out of the capture, and the owner does not want the panel in his stream.
+  A window share leaves it up, since the share does not include it.
+- One row per person: you first, then the call's own order so rows do not jump, at most 8 rows and then "+N more".
+  Each row has a dot that lights in the accent colour (with a soft ring) while they talk, the name, and a struck-through microphone or headphones when muted or deafened.
+  It is always the dark tokens at 88% opacity with a hairline border and the 10 radius, so it reads over any background.
+- The protocol gains `panel` (rows, corner, monitor index, colours; null clears it) and `appMonitor` (the index of the monitor the app window is on, or -1).
+  Dart decides the rows and the colours; the runner only draws, and it repaints only when `panel` is called.
+  Dart sends `panel` only when the panel differs from the last one it sent, so a speaking flicker that changes no row costs nothing, and the runner has no timer.
+- The window belongs to one owner at a time.
+  The drawing overlay needs a whole-screen share and the panel needs there to be none, so they are never wanted together; the controller hands the window from one to the other.
+- Monitor: the one the app window is on when the runner can tell (GDK `monitor_at_window` on Linux, `MonitorFromWindow` on Windows), otherwise the primary.
+  It is chosen when the panel opens and does not follow the window to another monitor mid-call.
+- Windows draws the same panel with GDI+ and, like the drawing overlay, is excluded from capture; it is compiled for syntax only.
+
 ## Not done
 
 - Window shares.

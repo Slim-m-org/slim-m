@@ -9,7 +9,6 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_board.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_consent.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
@@ -21,140 +20,14 @@ import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../support/fake_sync.dart';
 import '../voice/voice_controller_harness.dart';
-
-class _Sync extends NoopSyncController {
-  _Sync(super.ref);
-
-  final events = StreamController<api.ServerEvent>.broadcast();
-  final sent = <({String kind, bool allowed, double? aspect, String target})>[];
-
-  @override
-  Stream<api.ServerEvent> get liveEvents => events.stream;
-
-  @override
-  void notifyCanvasScreenAnnotation(
-    String channelId,
-    String targetUserId,
-    String kind, {
-    String? annotationId,
-    List<double> points = const [],
-    String? color,
-    String? text,
-    bool ended = false,
-    bool allowed = false,
-    double? aspect,
-  }) => sent.add((
-    kind: kind,
-    allowed: allowed,
-    aspect: aspect,
-    target: targetUserId,
-  ));
-}
-
-class _FakeOverlay implements ScreenOverlay {
-  final shown = <List<int>>[];
-  final draws = <List<OverlayShape>>[];
-  var hides = 0;
-
-  @override
-  Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
-  @override
-  Future<bool> show(List<int> monitors) async {
-    shown.add(monitors);
-    return true;
-  }
-
-  @override
-  Future<void> draw(List<OverlayShape> shapes) async => draws.add(shapes);
-  @override
-  Future<void> hide() async => hides++;
-}
-
-VoiceParticipant _me() => const VoiceParticipant(
-  identity: 'me',
-  name: 'me',
-  isSpeaking: false,
-  isMuted: false,
-  isLocal: true,
-  isScreenSharing: true,
-);
-
-final _sharing = VoiceState(
-  channelId: 'call',
-  state: VoiceSessionState.connected,
-  screenSharing: true,
-  participants: [_me()],
-);
-
-const _monitors = [
-  OverlayMonitor(x: 0, y: 0, width: 1920, height: 1080, primary: true),
-  OverlayMonitor(x: 1920, y: 0, width: 1280, height: 800, primary: false),
-];
-
-class _Rig {
-  _Rig({
-    bool allow = true,
-    bool supported = true,
-    VoiceState? initial,
-    ScreenShareSource? source,
-  }) {
-    SharedPreferences.setMockInitialValues({
-      'slimm.voice.screen_share_allow_annotations': allow,
-    });
-    container = ProviderContainer(
-      overrides: [
-        screenOverlayProvider.overrideWithValue(overlay),
-        screenOverlaySupportProvider.overrideWith(
-          (ref) async => supported
-              ? const OverlaySupport(supported: true, monitors: _monitors)
-              : const OverlaySupport.unsupported(),
-        ),
-        voiceControllerProvider.overrideWith(
-          (ref) => voice = FixedVoiceController(ref, initial ?? _sharing),
-        ),
-        syncControllerProvider.overrideWith((ref) => sync = _Sync(ref)),
-      ],
-    );
-    container.read(voiceSettingsControllerProvider);
-    container.read(voiceControllerProvider);
-    voice.share.lastShareSource = source;
-    container.read(syncControllerProvider);
-    container.read(screenOverlayControllerProvider);
-  }
-
-  final overlay = _FakeOverlay();
-  late final ProviderContainer container;
-  late final FixedVoiceController voice;
-  late final _Sync sync;
-
-  bool get active => container.read(screenOverlayControllerProvider).active;
-
-  void annotate({
-    String target = 'me',
-    List<double> points = const [0.1, 0.1, 0.5, 0.5],
-    bool ended = true,
-  }) => sync.events.add(
-    api.CanvasScreenAnnotation(
-      channelId: 'call',
-      userId: 'viewer',
-      targetUserId: target,
-      kind: 'stroke',
-      annotationId: 'a1',
-      points: points,
-      color: 'blue',
-      ended: ended,
-      allowed: false,
-    ),
-  );
-}
+import 'overlay_rig.dart';
 
 void main() {
   _lateProbeTest();
   test('off by default: nothing is shown and nothing is announced', () {
     fakeAsync((async) {
-      final rig = _Rig(allow: false);
+      final rig = OverlayRig(allow: false);
       async.flushMicrotasks();
       async.elapse(const Duration(seconds: 30));
       expect(rig.active, isFalse);
@@ -167,7 +40,7 @@ void main() {
     'allowed and sharing a screen: the overlay opens and consent is announced',
     () {
       fakeAsync((async) {
-        final rig = _Rig();
+        final rig = OverlayRig();
         async.flushMicrotasks();
         expect(rig.active, isTrue);
         expect(rig.overlay.shown, [
@@ -187,7 +60,7 @@ void main() {
     fakeAsync((async) {
       localShareCapturedSize.value = (width: 1280, height: 800);
       addTearDown(() => localShareCapturedSize.value = null);
-      final rig = _Rig();
+      final rig = OverlayRig();
       async.flushMicrotasks();
       expect(rig.overlay.shown, [
         [1],
@@ -198,7 +71,7 @@ void main() {
 
   test('consent is repeated while the overlay stays up', () {
     fakeAsync((async) {
-      final rig = _Rig();
+      final rig = OverlayRig();
       async.flushMicrotasks();
       async.elapse(consentHeartbeat * 3);
       expect(rig.sync.sent.length, 4);
@@ -207,7 +80,7 @@ void main() {
 
   test('an unsupported desktop never opens it', () {
     fakeAsync((async) {
-      final rig = _Rig(supported: false);
+      final rig = OverlayRig(supported: false);
       async.flushMicrotasks();
       expect(rig.active, isFalse);
       expect(rig.overlay.shown, isEmpty);
@@ -216,7 +89,7 @@ void main() {
 
   test('a window share never opens it', () {
     fakeAsync((async) {
-      final rig = _Rig(
+      final rig = OverlayRig(
         source: const ScreenShareSource(
           id: 'w',
           name: 'Editor',
@@ -231,7 +104,9 @@ void main() {
 
   test('not sharing: nothing is shown', () {
     fakeAsync((async) {
-      final rig = _Rig(initial: _sharing.copyWith(screenSharing: false));
+      final rig = OverlayRig(
+        initial: rigSharing.copyWith(screenSharing: false),
+      );
       async.flushMicrotasks();
       expect(rig.active, isFalse);
     });
@@ -239,7 +114,7 @@ void main() {
 
   test('opening the overlay says so in one toast and no banner', () {
     fakeAsync((async) {
-      final rig = _Rig();
+      final rig = OverlayRig();
       async.flushMicrotasks();
       final toasts = rig.container.read(toastsProvider);
       expect(toasts.map((t) => t.message), [
@@ -252,9 +127,9 @@ void main() {
 
   test('stopping the share closes the overlay and withdraws consent', () {
     fakeAsync((async) {
-      final rig = _Rig();
+      final rig = OverlayRig();
       async.flushMicrotasks();
-      rig.voice.set(_sharing.copyWith(screenSharing: false));
+      rig.voice.set(rigSharing.copyWith(screenSharing: false));
       async.flushMicrotasks();
       expect(rig.active, isFalse);
       expect(rig.overlay.hides, 1);
@@ -264,7 +139,7 @@ void main() {
 
   test('turning the setting off closes the overlay', () {
     fakeAsync((async) {
-      final rig = _Rig();
+      final rig = OverlayRig();
       async.flushMicrotasks();
       unawaited(
         rig.container
@@ -282,7 +157,7 @@ void main() {
     'a viewer mark over my screen is painted, then fades to an empty overlay',
     () {
       fakeAsync((async) {
-        final rig = _Rig();
+        final rig = OverlayRig();
         async.flushMicrotasks();
         rig.annotate();
         async.elapse(overlayFrameInterval * 2);
@@ -301,7 +176,7 @@ void main() {
 
   test('a mark over somebody else\'s screen paints nothing', () {
     fakeAsync((async) {
-      final rig = _Rig();
+      final rig = OverlayRig();
       async.flushMicrotasks();
       rig.annotate(target: 'someone-else');
       async.elapse(const Duration(seconds: 1));
@@ -311,7 +186,7 @@ void main() {
 
   test('a mark that arrives while the setting is off paints nothing', () {
     fakeAsync((async) {
-      final rig = _Rig(allow: false);
+      final rig = OverlayRig(allow: false);
       async.flushMicrotasks();
       rig.annotate();
       async.elapse(const Duration(seconds: 1));
@@ -323,7 +198,7 @@ void main() {
     'off Windows a capturer screen number is not trusted, so every monitor is covered',
     () {
       fakeAsync((async) {
-        final rig = _Rig(
+        final rig = OverlayRig(
           source: const ScreenShareSource(id: 's', name: 'Screen 2'),
         );
         async.flushMicrotasks();
@@ -347,17 +222,20 @@ void _lateProbeTest() {
         late FixedVoiceController voice;
         final container = ProviderContainer(
           overrides: [
-            screenOverlayProvider.overrideWithValue(_FakeOverlay()),
+            screenOverlayProvider.overrideWithValue(FakeOverlay()),
             screenOverlaySupportProvider.overrideWith((ref) async {
               probes++;
               return probes == 1
                   ? const OverlaySupport.unsupported()
-                  : const OverlaySupport(supported: true, monitors: _monitors);
+                  : const OverlaySupport(
+                      supported: true,
+                      monitors: rigMonitors,
+                    );
             }),
             voiceControllerProvider.overrideWith(
               (ref) => voice = FixedVoiceController(ref, const VoiceState()),
             ),
-            syncControllerProvider.overrideWith((ref) => _Sync(ref)),
+            syncControllerProvider.overrideWith((ref) => RigSync(ref)),
           ],
         );
         container.read(voiceSettingsControllerProvider);
@@ -366,7 +244,7 @@ void _lateProbeTest() {
         container.read(screenOverlayControllerProvider);
         async.flushMicrotasks();
         expect(container.read(screenOverlaySupportedProvider), isFalse);
-        voice.set(_sharing);
+        voice.set(rigSharing);
         async.elapse(const Duration(seconds: 1));
         expect(container.read(screenOverlaySupportedProvider), isTrue);
         expect(container.read(screenOverlayControllerProvider).active, isTrue);

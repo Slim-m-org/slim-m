@@ -66,6 +66,51 @@ slimm_overlay::Shape ShapeFrom(FlValue* map) {
   return shape;
 }
 
+std::string Text(FlValue* value) {
+  if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_STRING) {
+    return "";
+  }
+  return fl_value_get_string(value);
+}
+
+bool Flag(FlValue* value) {
+  return value != nullptr && fl_value_get_type(value) == FL_VALUE_TYPE_BOOL &&
+         fl_value_get_bool(value);
+}
+
+uint32_t Argb(FlValue* map, const char* key, uint32_t fallback) {
+  FlValue* value = Field(map, key);
+  if (value == nullptr) return fallback;
+  return static_cast<uint32_t>(static_cast<int64_t>(Number(value, fallback)));
+}
+
+slimm_overlay::Panel PanelFrom(FlValue* map) {
+  using slimm_overlay::Panel;
+  Panel panel;
+  panel.present = true;
+  panel.monitor = static_cast<int>(Number(Field(map, "monitor")));
+  panel.more = static_cast<int>(Number(Field(map, "more")));
+  std::string corner = Text(Field(map, "corner"));
+  if (corner == "topRight") panel.corner = Panel::Corner::kTopRight;
+  else if (corner == "bottomLeft") panel.corner = Panel::Corner::kBottomLeft;
+  else if (corner == "bottomRight") panel.corner = Panel::Corner::kBottomRight;
+  panel.surface = Argb(map, "surface", panel.surface);
+  panel.border = Argb(map, "border", panel.border);
+  panel.text = Argb(map, "text", panel.text);
+  panel.text_muted = Argb(map, "textMuted", panel.text_muted);
+  panel.accent = Argb(map, "accent", panel.accent);
+  panel.danger = Argb(map, "danger", panel.danger);
+  FlValue* rows = Field(map, "rows");
+  if (rows != nullptr && fl_value_get_type(rows) == FL_VALUE_TYPE_LIST) {
+    for (size_t i = 0; i < fl_value_get_length(rows); i++) {
+      FlValue* row = fl_value_get_list_value(rows, i);
+      panel.rows.push_back({Text(Field(row, "name")), Flag(Field(row, "speaking")),
+                            Flag(Field(row, "muted")), Flag(Field(row, "deafened"))});
+    }
+  }
+  return panel;
+}
+
 FlValue* SupportReply() {
   std::vector<slimm_overlay::Monitor> monitors;
   g_autoptr(FlValue) reply = fl_value_new_map();
@@ -113,6 +158,14 @@ void OnMethodCall(FlMethodChannel*, FlMethodCall* call, gpointer) {
     }
     slimm_overlay::Draw(std::move(shapes));
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(method, "panel") == 0) {
+    slimm_overlay::SetPanel(args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP
+                                ? slimm_overlay::Panel()
+                                : PanelFrom(args));
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(method, "appMonitor") == 0) {
+    g_autoptr(FlValue) reply = fl_value_new_int(slimm_overlay::AppMonitor());
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(reply));
   } else if (g_strcmp0(method, "hide") == 0) {
     slimm_overlay::Hide();
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));

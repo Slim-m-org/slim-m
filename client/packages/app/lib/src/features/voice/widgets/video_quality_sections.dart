@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../screen_overlay/providers/screen_overlay_controller.dart'
@@ -115,6 +116,26 @@ class VideoQualitySection extends ConsumerWidget {
                 semanticLabel: 'Let viewers draw on the screen I share',
                 onChanged: notifier.setScreenShareAllowAnnotations,
               ),
+            if (ref.watch(screenOverlaySupportedProvider)) ...[
+              SettingsToggleRow(
+                label: 'Call overlay',
+                description:
+                    'Lists who is in the call over your other windows.',
+                value: settings.callOverlayEnabled,
+                semanticLabel: 'Show the call over my other windows',
+                onChanged: notifier.setCallOverlayEnabled,
+              ),
+              if (settings.callOverlayEnabled)
+                SettingsSegmentedRow<OverlayCorner>(
+                  label: 'Overlay position',
+                  value: settings.callOverlayCorner,
+                  choices: [
+                    for (final c in OverlayCorner.values)
+                      SettingsChoice(value: c, label: c.label),
+                  ],
+                  onChanged: notifier.setCallOverlayCorner,
+                ),
+            ],
             if (ref.watch(pauseOnUnfocusedAppliesProvider))
               const PauseVideoRow(),
           ],

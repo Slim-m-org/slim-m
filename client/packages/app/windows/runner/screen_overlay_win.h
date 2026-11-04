@@ -31,6 +31,29 @@ struct Shape {
   std::wstring text;
 };
 
+struct PanelRow {
+  std::wstring name;
+  bool speaking = false;
+  bool muted = false;
+  bool deafened = false;
+};
+
+// The call panel: one row per person, in one corner of one monitor.
+struct Panel {
+  bool present = false;
+  int monitor = 0;
+  enum class Corner { kTopLeft, kTopRight, kBottomLeft, kBottomRight };
+  Corner corner = Corner::kTopLeft;
+  std::vector<PanelRow> rows;
+  int more = 0;
+  uint32_t surface = 0xE01F2226;
+  uint32_t border = 0xFF2E333A;
+  uint32_t text = 0xFFECEDEF;
+  uint32_t text_muted = 0xFFA7AEB6;
+  uint32_t accent = 0xFF58B4D8;
+  uint32_t danger = 0xFFD4756B;
+};
+
 // False when this Windows cannot exclude a window from capture (before
 // Windows 10 version 2004), because an overlay that lands in the share is
 // worse than none.
@@ -43,6 +66,12 @@ bool Show(int monitor);
 void Draw(std::vector<Shape> shapes);
 
 void Hide();
+
+// Paints the panel on the overlay window when it is over the panel's monitor; a panel that is not present clears it.
+void SetPanel(Panel panel);
+
+// The index of the monitor the app's own window is on, or -1 when that cannot be told.
+int AppMonitor();
 
 }  // namespace slimm_overlay
 

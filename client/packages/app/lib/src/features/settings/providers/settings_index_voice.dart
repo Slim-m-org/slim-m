@@ -86,6 +86,13 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Call overlay',
+    description: 'Lists who is in the call over your other windows.',
+    keywords: ['overlay', 'who is talking', 'speaking', 'corner', 'position'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'voice',
     'Pause video when minimised',
     description: 'Stops receiving video while the window is minimised.',
   ),

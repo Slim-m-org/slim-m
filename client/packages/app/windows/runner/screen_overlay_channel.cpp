@@ -78,6 +78,56 @@ slimm_overlay::Shape ShapeOf(const EncodableMap& map) {
   return shape;
 }
 
+std::string TextOf(const EncodableValue* value) {
+  if (value == nullptr) return std::string();
+  const auto* s = std::get_if<std::string>(value);
+  return s == nullptr ? std::string() : *s;
+}
+
+bool FlagOf(const EncodableValue* value) {
+  if (value == nullptr) return false;
+  const auto* b = std::get_if<bool>(value);
+  return b != nullptr && *b;
+}
+
+uint32_t ArgbOf(const EncodableMap& map, const char* key, uint32_t fallback) {
+  const EncodableValue* value = Field(map, key);
+  if (value == nullptr) return fallback;
+  return static_cast<uint32_t>(
+      static_cast<int64_t>(NumberOf(value, static_cast<double>(fallback))));
+}
+
+slimm_overlay::Panel PanelOf(const EncodableMap& map) {
+  using slimm_overlay::Panel;
+  Panel panel;
+  panel.present = true;
+  panel.monitor = static_cast<int>(NumberOf(Field(map, "monitor"), 0));
+  panel.more = static_cast<int>(NumberOf(Field(map, "more"), 0));
+  std::string corner = TextOf(Field(map, "corner"));
+  if (corner == "topRight") panel.corner = Panel::Corner::kTopRight;
+  else if (corner == "bottomLeft") panel.corner = Panel::Corner::kBottomLeft;
+  else if (corner == "bottomRight") panel.corner = Panel::Corner::kBottomRight;
+  panel.surface = ArgbOf(map, "surface", panel.surface);
+  panel.border = ArgbOf(map, "border", panel.border);
+  panel.text = ArgbOf(map, "text", panel.text);
+  panel.text_muted = ArgbOf(map, "textMuted", panel.text_muted);
+  panel.accent = ArgbOf(map, "accent", panel.accent);
+  panel.danger = ArgbOf(map, "danger", panel.danger);
+  const EncodableValue* rows = Field(map, "rows");
+  const auto* list = rows == nullptr ? nullptr : std::get_if<EncodableList>(rows);
+  if (list != nullptr) {
+    for (const auto& item : *list) {
+      const auto* row = std::get_if<EncodableMap>(&item);
+      if (row == nullptr) continue;
+      panel.rows.push_back({WideFromUtf8(TextOf(Field(*row, "name"))),
+                            FlagOf(Field(*row, "speaking")),
+                            FlagOf(Field(*row, "muted")),
+                            FlagOf(Field(*row, "deafened"))});
+    }
+  }
+  return panel;
+}
+
 EncodableValue SupportReply() {
   std::vector<slimm_overlay::Monitor> monitors;
   bool supported = slimm_overlay::Supported(&monitors);
@@ -133,6 +183,12 @@ void RegisterScreenOverlayChannel(flutter::BinaryMessenger* messenger) {
           }
           slimm_overlay::Draw(std::move(shapes));
           result->Success();
+        } else if (method == "panel") {
+          slimm_overlay::SetPanel(args == nullptr ? slimm_overlay::Panel()
+                                                  : PanelOf(*args));
+          result->Success();
+        } else if (method == "appMonitor") {
+          result->Success(EncodableValue(slimm_overlay::AppMonitor()));
         } else if (method == "hide") {
           slimm_overlay::Hide();
           result->Success();

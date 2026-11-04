@@ -17,6 +17,7 @@ add_executable(${BINARY_NAME}
   "ext-idle-notify-v1-protocol.c"
   "linux_screen_overlay_channel.cc"
   "screen_overlay.cc"
+  "screen_overlay_panel.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 

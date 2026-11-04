@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Runs the sharer's overlay: it is up only while the person allows it, is
-/// sharing a whole screen, and the desktop can host it (decision 0096).
+/// Runs the overlay window (decision 0096). It is up for the drawing overlay
+/// (allowed, sharing a whole screen) or for the call panel (allowed, in a call,
+/// not sharing a whole screen); the two are never wanted together.
 library;
 
 import 'dart:async';
@@ -9,7 +10,8 @@ import 'dart:ui' show Size;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart' show localShareCapturedSize;
+import 'package:slimm_rtc/rtc.dart'
+    show VoiceSessionState, localShareCapturedSize;
 
 import '../../../providers/sync_controller.dart';
 import '../../../providers/toasts.dart';
@@ -17,6 +19,7 @@ import '../../members/providers/blocks_controller.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/providers/voice_settings_controller.dart';
+import 'call_overlay_panel.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
 import 'screen_annotation_mapping.dart';
@@ -61,6 +64,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       _reconcile();
     });
     _ref.listen(screenOverlaySupportProvider, (_, _) => _reconcile());
+    _ref.listen(voiceParticipantsProvider, (_, _) => _syncPanel());
     _events = _ref
         .read(syncControllerProvider.notifier)
         .liveEvents
@@ -79,24 +83,38 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   String? _channelId;
   String? _selfId;
   double? _aspect;
+  bool _panelUp = false;
+  int _panelMonitor = 0;
+  OverlayPanel? _lastPanel;
 
   OverlaySupport get _support =>
       _ref.read(screenOverlaySupportProvider).valueOrNull ??
       const OverlaySupport.unsupported();
 
-  bool get _wanted {
+  bool get _sharingWholeScreen {
     final flags = _ref.read(voiceFlagsProvider);
     final share = _ref
         .read(voiceControllerProvider.notifier)
         .share
         .lastShareSource;
-    return _support.supported &&
-        _ref
-            .read(voiceSettingsControllerProvider)
-            .screenShareAllowAnnotations &&
-        flags.screenSharing &&
+    return flags.screenSharing &&
         flags.channelId != null &&
         !(share?.isWindow ?? false);
+  }
+
+  bool get _wanted =>
+      _support.supported &&
+      _ref.read(voiceSettingsControllerProvider).screenShareAllowAnnotations &&
+      _sharingWholeScreen;
+
+  /// Hidden while a whole screen is shared, since Linux cannot keep the panel out of the stream.
+  bool get _panelWanted {
+    final flags = _ref.read(voiceFlagsProvider);
+    return _support.supported &&
+        _ref.read(voiceSettingsControllerProvider).callOverlayEnabled &&
+        flags.channelId != null &&
+        flags.state == VoiceSessionState.connected &&
+        !_sharingWholeScreen;
   }
 
   /// A probe that ran before the window was up can read unsupported for good, so each join asks again.
@@ -117,7 +135,11 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         _again = false;
         if (_wanted && !state.active) await _start();
         if (!_wanted && state.active) await _stop();
+        final panel = !state.active && _panelWanted;
+        if (panel && !_panelUp) await _startPanel();
+        if (!panel && _panelUp) await _stopPanel();
       } while (_again && mounted);
+      _syncPanel();
     } finally {
       _busy = false;
     }
@@ -142,6 +164,9 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
           ? null
           : Size(captured.width.toDouble(), captured.height.toDouble()),
     );
+    // Showing replaces any panel window, which is why the panel is forgotten rather than hidden.
+    _panelUp = false;
+    _lastPanel = null;
     if (!await _ref.read(screenOverlayProvider).show(covered)) return;
     if (!mounted) return;
     _channelId = flags.channelId;
@@ -154,6 +179,34 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       consentHeartbeat,
       (_) => _sendConsent(allowed: true),
     );
+  }
+
+  Future<void> _startPanel() async {
+    final overlay = _ref.read(screenOverlayProvider);
+    final monitor = callOverlayMonitor(_support, await overlay.appMonitor());
+    if (!await overlay.show([monitor]) || !mounted) return;
+    _panelMonitor = monitor;
+    _panelUp = true;
+    _lastPanel = null;
+  }
+
+  Future<void> _stopPanel() async {
+    _panelUp = false;
+    _lastPanel = null;
+    await _ref.read(screenOverlayProvider).hide();
+  }
+
+  /// Sends the panel only when what it says changed, so a speaking flicker that changes no row costs nothing.
+  void _syncPanel() {
+    if (!_panelUp || !mounted) return;
+    final panel = callOverlayPanel(
+      _ref.read(voiceParticipantsProvider),
+      monitor: _panelMonitor,
+      corner: _ref.read(voiceSettingsControllerProvider).callOverlayCorner,
+    );
+    if (panel == _lastPanel) return;
+    _lastPanel = panel;
+    unawaited(_ref.read(screenOverlayProvider).panel(panel));
   }
 
   Future<void> _stop() async {
@@ -212,8 +265,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _heartbeat?.cancel();
     _frames?.cancel();
     unawaited(_events?.cancel());
-    if (state.active) {
-      _sendConsent(allowed: false);
+    if (state.active) _sendConsent(allowed: false);
+    if (state.active || _panelUp) {
       unawaited(_ref.read(screenOverlayProvider).hide());
     }
     super.dispose();
