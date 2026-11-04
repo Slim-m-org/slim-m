@@ -31,6 +31,9 @@ impl Transcriber for Silent {
 struct Fake {
     launched: Mutex<Vec<(String, Vec<String>)>>,
     commands: Mutex<Vec<(String, SessionCommand)>>,
+    /// A session told to stop keeps leaving until `release` is notified.
+    linger: AtomicBool,
+    release: tokio::sync::Notify,
     panic_on_launch: AtomicBool,
 }
 
@@ -60,6 +63,9 @@ impl Launcher for Arc<Fake> {
                     .unwrap()
                     .push((session.clone(), command));
                 if stop {
+                    if fake.linger.load(Ordering::Acquire) {
+                        fake.release.notified().await;
+                    }
                     return;
                 }
             }
@@ -255,6 +261,16 @@ fn secrets_compare_whole() {
     assert!(!same_secret("", "abc"));
 }
 
+async fn wait_for(what: &str, mut ready: impl FnMut() -> bool) {
+    for _ in 0..200 {
+        if ready() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("timed out waiting for {what}");
+}
+
 #[tokio::test]
 async fn a_launcher_that_panics_does_not_lock_the_server_out() {
     let (url, fake) = start(2).await;
@@ -285,4 +301,74 @@ fn a_slot_whose_upgrade_never_runs_is_released() {
     };
     drop(never_polled);
     assert!(ControlSlot::take(&flag).is_some());
+}
+
+#[tokio::test]
+async fn a_stopped_session_counts_until_it_has_left() {
+    let (url, fake) = start(1).await;
+    fake.linger.store(true, Ordering::Release);
+    let mut client = connect(&url, SECRET).await.unwrap();
+    next_json(&mut client).await;
+    client.send(start_frame("s1", &["u1"])).await.unwrap();
+    next_json(&mut client).await;
+    client
+        .send(Wire::text(r#"{"v":1,"type":"stop","session":"s1"}"#))
+        .await
+        .unwrap();
+    wait_for("the stop to arrive", || {
+        !fake.commands.lock().unwrap().is_empty()
+    })
+    .await;
+
+    client.send(start_frame("s2", &["u1"])).await.unwrap();
+    let refused = next_json(&mut client).await;
+    assert_eq!(
+        (refused["session"].as_str(), refused["reason"].as_str()),
+        (Some("s2"), Some("overload")),
+        "the room s1 is still leaving is not free yet"
+    );
+
+    fake.release.notify_one();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    client.send(start_frame("s3", &["u1"])).await.unwrap();
+    let started = next_json(&mut client).await;
+    assert_eq!(
+        (started["type"].as_str(), started["session"].as_str()),
+        (Some("started"), Some("s3"))
+    );
+}
+
+#[tokio::test]
+async fn shutdown_waits_for_a_session_that_is_still_leaving() {
+    let (url, fake) = start(2).await;
+    fake.linger.store(true, Ordering::Release);
+    let mut client = connect(&url, SECRET).await.unwrap();
+    next_json(&mut client).await;
+    client.send(start_frame("s1", &["u1"])).await.unwrap();
+    next_json(&mut client).await;
+    client
+        .send(Wire::text(r#"{"v":1,"type":"stop","session":"s1"}"#))
+        .await
+        .unwrap();
+    wait_for("the stop to arrive", || {
+        !fake.commands.lock().unwrap().is_empty()
+    })
+    .await;
+    drop(client);
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(
+        connect(&url, SECRET).await.is_err(),
+        "the old connection is still waiting on s1 to leave"
+    );
+    fake.release.notify_one();
+    let mut reconnected = false;
+    for _ in 0..100 {
+        if connect(&url, SECRET).await.is_ok() {
+            reconnected = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(reconnected, "the slot frees once s1 has left");
 }
