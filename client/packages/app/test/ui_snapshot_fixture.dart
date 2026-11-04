@@ -15,6 +15,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'support/fake_mic_preview.dart' show quietMicPreview;
+import 'package:slimm_app/src/features/settings/screens/themes_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/account_recovery_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/analytics_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
@@ -134,6 +135,10 @@ GoRouter fixtureRouter(String location) => GoRouter(
     ),
     GoRoute(path: '/settings', pageBuilder: personalSettingsPage),
     GoRoute(path: '/settings/space', pageBuilder: spaceSettingsPage),
+    GoRoute(
+      path: '/settings/themes',
+      pageBuilder: (context, state) => modalPage(context, const ThemesScreen()),
+    ),
     GoRoute(
       path: '/settings/reports',
       pageBuilder: (context, state) =>

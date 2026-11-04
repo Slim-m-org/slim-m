@@ -1,25 +1,28 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The appearance pane: the theme cards and high contrast, the message
-/// density controls, then interface scale, clock format and reduce-motion.
+/// The appearance pane: the theme and high contrast, the background, text and
+/// layout, then the message display controls.
 ///
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/providers.dart';
+import '../../../routing/routes.dart';
+import '../providers/display_density.dart';
 import '../providers/display_preferences.dart';
 import '../providers/stored_theme.dart';
-import '../../../providers/providers.dart';
 import 'background_settings_card.dart';
 import 'display_settings_section.dart';
-import '../providers/display_density.dart';
-import 'module_display_card.dart';
 import 'settings_section_header.dart';
+import 'settings_segmented_row.dart';
 import 'settings_select_row.dart';
 import 'settings_slider_row.dart';
 import 'settings_toggle_row.dart';
-import 'theme_store_card.dart';
 import 'theme_swatch.dart';
 
 class AppearanceSettingsSection extends ConsumerWidget {
@@ -30,72 +33,35 @@ class AppearanceSettingsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _themeCard(ref),
+        _themeCard(context, ref),
         const BackgroundSettingsCard(),
-        const ThemeStoreCard(),
-        const DisplaySettingsSection(),
         _textAndLayoutCard(ref),
-        const ModuleDisplayCard(),
+        const DisplaySettingsSection(),
       ],
     );
   }
 
-  static const _themeOrder = [
-    AppThemeChoice.system,
-    AppThemeChoice.spaceDefault,
-    AppThemeChoice.dark,
-    AppThemeChoice.softDark,
-    AppThemeChoice.light,
-    AppThemeChoice.trueBlack,
-    AppThemeChoice.catppuccin,
-    AppThemeChoice.forest,
-    AppThemeChoice.halloween,
-  ];
+  static const themeRowKey = Key('appearance_theme_row');
 
-  static List<Color>? _swatchOf(AppThemeChoice choice, ThemeDocument? doc) {
-    if (doc == null ||
-        (choice != AppThemeChoice.custom &&
-            choice != AppThemeChoice.spaceDefault)) {
-      return null;
-    }
-    return [
-      doc.colours['surfaceBase']!,
-      doc.colours['accent']!,
-      doc.colours['textPrimary']!,
-    ];
-  }
-
-  Widget _themeCard(WidgetRef ref) {
+  Widget _themeCard(BuildContext context, WidgetRef ref) {
+    final choice = ref.watch(themeControllerProvider);
     final custom = ref.watch(customThemeProvider);
-    final space = ref.watch(spaceDefaultThemeProvider);
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return SettingsSectionCard(
       title: 'Theme',
       children: [
-        SettingsSelectRow<AppThemeChoice>(
+        AppListRow(
+          key: themeRowKey,
           label: 'Color theme',
-          value: ref.watch(themeControllerProvider),
-          choices: [
-            for (final choice in _themeOrder)
-              SettingsChoice(
-                value: choice,
-                label: themeLabel(choice),
-                leading: ThemeSwatch(
-                  choice: choice,
-                  colors: _swatchOf(choice, space),
-                ),
-              ),
-            if (custom != null)
-              SettingsChoice(
-                value: AppThemeChoice.custom,
-                label: custom.name,
-                leading: ThemeSwatch(
-                  choice: AppThemeChoice.custom,
-                  colors: _swatchOf(AppThemeChoice.custom, custom),
-                ),
-              ),
-          ],
-          onChanged: (next) =>
-              ref.read(themeControllerProvider.notifier).select(next),
+          meta: choice == AppThemeChoice.custom && custom != null
+              ? custom.name
+              : themeLabel(choice),
+          trailing: Icon(
+            AppIcons.chevronRight,
+            size: AppSizes.icon16,
+            color: tokens.textSecondary,
+          ),
+          onTap: () => unawaited(context.push(Routes.personalThemes)),
         ),
         SettingsToggleRow(
           label: 'High contrast',
@@ -130,27 +96,23 @@ class AppearanceSettingsSection extends ConsumerWidget {
           onChanged: (v) =>
               ref.read(uiScaleControllerProvider.notifier).select(v.round()),
         ),
-        SettingsSelectRow<TimeFormatPreference>(
+        SettingsSegmentedRow<TimeFormatPreference>(
           label: 'Clock',
-          sheetTitle: 'Time format',
           value: timeFormat,
           choices: [
             for (final option in TimeFormatPreference.values)
               SettingsChoice(value: option, label: _timeFormatLabel(option)),
           ],
-          description: 'System follows your device clock.',
           onChanged: (next) =>
               ref.read(timeFormatControllerProvider.notifier).select(next),
         ),
-        SettingsSelectRow<MotionOverride>(
+        SettingsSegmentedRow<MotionOverride>(
           label: 'Motion',
-          sheetTitle: 'Reduce motion',
           value: motion,
           choices: [
             for (final option in MotionOverride.values)
               SettingsChoice(value: option, label: _motionLabel(option)),
           ],
-          description: 'System follows your device motion setting.',
           onChanged: (next) => ref
               .read(motionPreferenceControllerProvider.notifier)
               .select(next),
@@ -167,7 +129,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
 
   String _motionLabel(MotionOverride choice) => switch (choice) {
     MotionOverride.system => 'System',
-    MotionOverride.alwaysReduce => 'Always reduce',
-    MotionOverride.neverReduce => 'Never reduce',
+    MotionOverride.alwaysReduce => 'Reduced',
+    MotionOverride.neverReduce => 'Full',
   };
 }

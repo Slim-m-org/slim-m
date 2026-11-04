@@ -44,6 +44,7 @@ abstract final class Routes {
   /// [spaceSettings] opened on one pane; see [settingsPaneQuery].
   static String spaceSettingsPane(String paneId) =>
       '$spaceSettings?$settingsPaneQuery=$paneId';
+  static const personalThemes = '/settings/themes';
   static const adminReports = '/settings/reports';
   static const adminInvites = '/settings/invites';
   static const adminCustomize = '/settings/customize';
