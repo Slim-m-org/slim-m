@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The share stage's control strip, the full screen controls and the row that
-/// offers a stopped share back, at desktop and phone width. PNGs are written
+/// The share stage's control strip, the full screen controls and the stage
+/// with a stopped share hidden (no banner), at desktop and phone width. PNGs are written
 /// only under SLIMM_UI_SNAPSHOTS=1; otherwise this asserts no overflow.
 library;
 
@@ -197,7 +197,7 @@ void main() {
     });
   }
 
-  testWidgets('a stopped share is offered back', (tester) async {
+  testWidgets('a stopped share leaves no banner', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -231,7 +231,7 @@ void main() {
     await tester.pump();
     session.emitParticipants(const [_ada, _bo]);
     harness.container.read(shareWatchProvider.notifier).stop('u-ada');
-    await _shoot(tester, 'share-stopped-row-desktop-light');
+    await _shoot(tester, 'share-stopped-desktop-light');
     await controller.leave();
     await tester.pumpWidget(const SizedBox.shrink());
     harness.dispose();

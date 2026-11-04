@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A share the viewer stopped watching is not lost: a slim row above the stage
-/// offers it back, the sharer's tile says it is hidden, and a share that
-/// direct play stands in for is left alone.
+/// A share the viewer stopped watching is not lost: the sharer's tile says it
+/// is hidden and its menu (right-click, long-press) shows it again, with no
+/// banner on the stage. A share that direct play stands in for is left alone.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,10 +13,10 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
-import 'package:slimm_app/src/features/voice/widgets/stopped_shares_banner.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/menu_gestures.dart';
 import 'voice_controller_harness.dart';
 
 VoiceParticipant _p(String id, {bool sharing = true, bool local = false}) =>
@@ -72,8 +72,6 @@ Future<void> _leave(VoiceHarness h) =>
 ShareWatchController _watch(VoiceHarness h) =>
     h.container.read(shareWatchProvider.notifier);
 
-final _watchButton = find.widgetWithText(AppButton, 'Watch');
-
 // A fixed run of frames long enough for a menu or fade to finish, without waiting on a ticker that may never stop.
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
@@ -81,44 +79,33 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
 }
 
+typedef MenuOpener = Future<void> Function(WidgetTester, Finder);
+
 void main() {
-  test('a held or ended share is not offered back', () {
-    const watch = ShareWatchState(stopped: {'a', 'b', 'c'}, held: {'b'});
-    final offered = stoppedSharers([
-      _p('a'),
-      _p('b'),
-      _p('c', sharing: false),
-      _p('d'),
-    ], watch);
-    expect([for (final p in offered) p.identity], ['a']);
-  });
+  for (final (label, open) in <(String, MenuOpener)>[
+    ('right-click', rightClickMenu),
+    ('long-press', longPressMenu),
+  ]) {
+    testWidgets('$label on a hidden share tile offers Watch stream', (
+      tester,
+    ) async {
+      final h = await _call(tester, [_p('a'), _p('b')]);
+      expect(find.text('a is sharing'), findsNothing);
 
-  testWidgets('a stopped share gets a row above the stage that restores it', (
-    tester,
-  ) async {
-    final h = await _call(tester, [_p('a'), _p('b')]);
-    expect(find.text('a is sharing'), findsNothing);
+      _watch(h).stop('a');
+      await _settle(tester);
+      expect(find.text('a is sharing'), findsNothing, reason: 'no banner');
+      expect(find.byKey(const Key('fake-share-view-a')), findsNothing);
 
-    _watch(h).stop('a');
-    await _settle(tester);
-
-    final row = find.text('a is sharing');
-    expect(row, findsOneWidget);
-    final stage = find.byKey(const Key('fake-share-view-b'));
-    expect(
-      tester.getRect(row).bottom,
-      lessThanOrEqualTo(tester.getRect(stage).top),
-      reason: 'a banner pushes the stage down instead of covering it',
-    );
-    expect(tester.takeException(), isNull);
-
-    await tester.tap(_watchButton);
-    await _settle(tester);
-    expect(find.text('a is sharing'), findsNothing);
-    expect(find.byKey(const Key('fake-share-view-a')), findsOneWidget);
-    expect(_watch(h).state.stopped, isEmpty);
-    await _leave(h);
-  });
+      await open(tester, find.byKey(hiddenShareBadgeKey));
+      expect(find.text('Watch stream'), findsOneWidget);
+      await tester.tap(find.text('Watch stream'));
+      await _settle(tester);
+      expect(find.byKey(const Key('fake-share-view-a')), findsOneWidget);
+      expect(_watch(h).state.stopped, isEmpty);
+      await _leave(h);
+    });
+  }
 
   testWidgets('the sharer tile shows a hidden state until it is watched', (
     tester,
@@ -152,43 +139,23 @@ void main() {
     _watch(h).hold('a');
     await _settle(tester);
     expect(find.text('a is sharing'), findsNothing);
-    expect(_watchButton, findsNothing);
     expect(find.byKey(hiddenShareBadgeKey), findsNothing);
     await _leave(h);
   });
 
-  testWidgets('three hidden shares fold into one row that restores them all', (
-    tester,
-  ) async {
-    final h = await _call(tester, [_p('a'), _p('b'), _p('c'), _p('d')]);
-    for (final id in ['a', 'b', 'c']) {
-      _watch(h).stop(id);
-    }
-    await _settle(tester);
-    expect(find.text('3 shares are hidden'), findsOneWidget);
-    expect(_watchButton, findsNothing);
-
-    await tester.tap(find.widgetWithText(AppButton, 'Watch all'));
-    await _settle(tester);
-    expect(find.text('3 shares are hidden'), findsNothing);
-    expect(_watch(h).state.stopped, isEmpty);
-    await _leave(h);
-  });
-
-  testWidgets('on a phone the row fits and its button is a touch target', (
+  testWidgets('on a phone a hidden share stays reachable by long-press', (
     tester,
   ) async {
     final h = await _call(tester, [
-      _p('a-very-long-sharer-name-that-cannot-fit-on-one-line'),
+      _p('a'),
       _p('b'),
     ], size: const Size(390, 844));
-    _watch(h).stop('a-very-long-sharer-name-that-cannot-fit-on-one-line');
+    _watch(h).stop('a');
     await _settle(tester);
 
     expect(tester.takeException(), isNull);
-    final button = tester.getRect(_watchButton);
-    expect(button.height, greaterThanOrEqualTo(AppSizes.rowTouch));
-    expect(button.right, lessThanOrEqualTo(390));
+    await longPressMenu(tester, find.byKey(hiddenShareBadgeKey));
+    expect(find.text('Watch stream'), findsOneWidget);
     await _leave(h);
   });
 }

@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -220,7 +221,7 @@ void main() {
   });
 
   testWidgets(
-    'stop watching removes the share and blocks it, and a row offers it back',
+    'stop watching removes the share and blocks it, and the tile menu offers it back',
     (tester) async {
       final call = await _connected(tester, [_p('a'), _p('b')], _wide);
 
@@ -230,19 +231,20 @@ void main() {
       expect(find.byType(ScreenShareStage), findsOneWidget);
       expect(find.byKey(const Key('fake-share-view-a')), findsNothing);
       expect(call.session.videoBlocked.last, {'screen:a'});
-      expect(find.text('a is sharing'), findsOneWidget);
+      expect(find.byKey(hiddenShareBadgeKey), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(AppButton, 'Watch'));
+      await rightClickMenu(tester, find.byKey(hiddenShareBadgeKey));
+      await tester.tap(find.text('Watch stream'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byKey(const Key('fake-share-view-a')), findsOneWidget);
       expect(call.session.videoBlocked.last, isEmpty);
-      expect(find.text('a is sharing'), findsNothing);
+      expect(find.byKey(hiddenShareBadgeKey), findsNothing);
       await _leave(call);
     },
   );
 
-  testWidgets('stopping the only share leaves the grid and a row to watch it', (
+  testWidgets('stopping the only share leaves the grid and a hidden tile', (
     tester,
   ) async {
     final call = await _connected(tester, [
@@ -253,7 +255,7 @@ void main() {
     await tester.tap(find.text('Stop watching'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsNothing);
-    expect(find.text('a is sharing'), findsOneWidget);
+    expect(find.byKey(hiddenShareBadgeKey), findsOneWidget);
     await _leave(call);
   });
 
@@ -265,7 +267,7 @@ void main() {
     await tester.tap(find.text('Stop watching'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsOneWidget);
-    expect(find.text('a is sharing'), findsOneWidget);
+    expect(find.byKey(hiddenShareBadgeKey), findsOneWidget);
     await _leave(call);
   });
 
@@ -279,7 +281,7 @@ void main() {
 
     call.session.emitParticipants([_p('a', sharing: false), _p('b')]);
     await tester.pumpAndSettle();
-    expect(find.text('a is sharing'), findsNothing);
+    expect(find.byKey(hiddenShareBadgeKey), findsNothing);
 
     call.session.emitParticipants([_p('a'), _p('b')]);
     await tester.pumpAndSettle();

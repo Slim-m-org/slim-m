@@ -40,6 +40,8 @@ import '../../members/widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
+import '../../canvas/widgets/canvas_open_button.dart'
+    show callDockOmitsCanvasToggle;
 import '../widgets/hold_music_badge.dart';
 import '../widgets/lounge_backdrop.dart';
 import 'voice_idle/voice_channel_idle.dart';
@@ -429,7 +431,9 @@ class _InCallState extends ConsumerState<_InCall> {
                 child: VoiceCallDock(
                   controller: controller,
                   voice: voice,
-                  canvasChannelId: isDm ? null : channelId,
+                  canvasChannelId: isDm || callDockOmitsCanvasToggle(context)
+                      ? null
+                      : channelId,
                   botControls: botControls,
                 ),
               ),
