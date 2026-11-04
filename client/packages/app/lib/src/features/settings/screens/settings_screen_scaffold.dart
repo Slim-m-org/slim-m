@@ -48,6 +48,9 @@ class SettingsScreenScaffold extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(title),
+      // Tight to the back button, like the Settings rail's own header.
+      titleSpacing: 0,
+      leadingWidth: 48,
       leading: BackToButton(tooltip: backTooltip, fallback: backFallback),
       actions: actions,
     ),

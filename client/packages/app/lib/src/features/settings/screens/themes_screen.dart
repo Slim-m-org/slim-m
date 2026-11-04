@@ -183,7 +183,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
         children: [
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s16),
+              padding: const EdgeInsets.only(top: AppSpacing.s8),
               child: AppErrorState(
                 message: _error!,
                 onDismiss: () => setState(() => _error = null),
@@ -191,7 +191,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
             ),
           if (_problems.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s16),
+              padding: const EdgeInsets.only(top: AppSpacing.s8),
               child: AppErrorState(
                 key: const Key('theme-import-problems'),
                 message:
@@ -217,6 +217,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
         : ref.watch(themeControllerProvider);
     return SettingsSectionCard(
       title: 'Built in',
+      topGap: _error == null && _problems.isEmpty ? 0 : kSettingsSectionTopGap,
       children: [
         for (final choice in _builtIn)
           ThemeListRow(
@@ -291,21 +292,33 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
                   .select(AppThemeChoice.spaceDefault),
             ),
           ),
-        for (final theme in themes) _storeRow(theme, theme.id == defaultId),
+        for (final theme in themes)
+          _storeRow(
+            theme,
+            theme.id == defaultId,
+            reserveThumbnail: themes.any((t) => t.hasPicture),
+          ),
       ],
     );
   }
 
-  Widget _storeRow(api.SpaceTheme theme, bool isDefault) {
+  Widget _storeRow(
+    api.SpaceTheme theme,
+    bool isDefault, {
+    required bool reserveThumbnail,
+  }) {
     final document = parseThemeJson(theme.theme).document;
     return ThemeListRow(
       key: Key('theme-store-${theme.id}'),
       label: theme.name,
       preview: document == null
-          ? const SizedBox(width: themePreviewWidth)
+          ? SizedBox(
+              width: reserveThumbnail ? themePreviewWidth : themeSwatchWidth,
+            )
           : ThemePreview(
               colours: themeStrip(document),
               pictureId: theme.hasPicture ? theme.id : null,
+              reserveThumbnail: reserveThumbnail,
             ),
       selected: false,
       isSpaceDefault: isDefault,

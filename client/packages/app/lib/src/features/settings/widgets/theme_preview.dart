@@ -10,8 +10,11 @@ import '../../../providers/providers.dart' show AppThemeChoice;
 import '../providers/theme_store.dart';
 import 'theme_swatch.dart';
 
-/// The swatch, a gap and a thumbnail, so every row's text starts at one edge.
+/// The swatch, a gap and a thumbnail, so every row's text starts at one edge when any has a picture.
 const themePreviewWidth = 36.0 + AppSpacing.s8 + AppSizes.icon32;
+
+/// Just the swatch, for a list where no theme has a picture.
+const themeSwatchWidth = 36.0;
 
 /// The three colours a swatch paints for [document].
 List<Color> themeStrip(ThemeDocument document) => [
@@ -21,10 +24,18 @@ List<Color> themeStrip(ThemeDocument document) => [
 ];
 
 class ThemePreview extends ConsumerWidget {
-  const ThemePreview({super.key, required this.colours, this.pictureId});
+  const ThemePreview({
+    super.key,
+    required this.colours,
+    this.pictureId,
+    this.reserveThumbnail = true,
+  });
 
   final List<Color> colours;
   final String? pictureId;
+
+  /// False when no row beside this one has a picture, so the swatch is all the room it takes.
+  final bool reserveThumbnail;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +44,7 @@ class ThemePreview extends ConsumerWidget {
         ? null
         : ref.watch(spaceThemePictureProvider(pictureId!)).valueOrNull;
     return SizedBox(
-      width: themePreviewWidth,
+      width: reserveThumbnail ? themePreviewWidth : themeSwatchWidth,
       child: Row(
         spacing: AppSpacing.s8,
         children: [
