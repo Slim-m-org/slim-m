@@ -13,7 +13,6 @@ import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dar
 import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/testing.dart';
 
 import '../ui_snapshot_support.dart';
 
