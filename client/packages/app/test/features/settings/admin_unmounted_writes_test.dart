@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
+import 'package:slimm_app/src/features/settings/widgets/admin/channel_permissions_heading.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:drift/native.dart';
 import 'package:slimm_data/data.dart' show Channel, MessageStore, SlimmDatabase;
@@ -133,6 +134,16 @@ Widget _blank(ProviderContainer container) => UncontrolledProviderScope(
   ),
 );
 
+/// Lets drift's real stream deliver, then rebuilds; the list renders from it.
+Future<void> _flush(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 void main() {
   testWidgets('removing a source then leaving before the answer does not '
       'throw', (tester) async {
@@ -183,48 +194,100 @@ void main() {
     expect(upstream.count('GET /space/dock/sources'), greaterThan(readsBefore));
   });
 
-  testWidgets('every channel is listed, and a tap opens its grid', (
-    tester,
-  ) async {
-    await _size(tester);
-    const channel = Channel(
-      id: 'c-general',
-      name: 'general',
-      kind: 'text',
-      createdAt: 0,
-      position: 0,
-      cursor: 0,
-      lastReadSeq: 0,
-      mentionedSeq: 0,
-      slowModeSeconds: 0,
-      joinMuted: false,
-      isPersonalSpace: false,
-    );
-    final container = _container(_Upstream(), store: _FakeStore([channel]));
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(body: ChannelPermissionsPane()),
+  testWidgets(
+    'every channel is listed, a tap opens its grid, and back returns to the list',
+    (tester) async {
+      await _size(tester);
+      const channel = Channel(
+        id: 'c-general',
+        name: 'general',
+        kind: 'text',
+        createdAt: 0,
+        position: 0,
+        cursor: 0,
+        lastReadSeq: 0,
+        mentionedSeq: 0,
+        slowModeSeconds: 0,
+        joinMuted: false,
+        isPersonalSpace: false,
+      );
+      final container = _container(_Upstream(), store: _FakeStore([channel]));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AppTokens.light),
+            home: const ChannelPermissionsScreen(),
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('general'), findsOneWidget, reason: 'no picker first');
+      );
+      await _flush(tester);
+      expect(find.text('general'), findsOneWidget, reason: 'no picker first');
 
-    await tester.tap(find.text('general'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('general'));
+      await _flush(tester);
 
-    expect(find.text('Permission overwrites'), findsOneWidget);
-    expect(find.text('general'), findsOneWidget);
-    await tester.tap(find.text('All channels'));
-    await tester.pumpAndSettle();
-    expect(find.text('Permission overwrites'), findsNothing);
-    expect(find.text('general'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    // Drift closes its query streams on a timer after the last listener goes.
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump(const Duration(milliseconds: 50));
-  });
+      expect(find.text('All channels'), findsNothing);
+      expect(find.byTooltip('Back to Space settings'), findsNothing);
+      await tester.tap(find.byTooltip('Back to channels'));
+      await _flush(tester);
+      expect(find.byTooltip('Back to Space settings'), findsOneWidget);
+      expect(find.text('general'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      // Drift closes its query streams on a timer after the last listener goes.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    },
+  );
+
+  testWidgets(
+    'beside a nav the heading steps back from a channel to the list',
+    (tester) async {
+      await _size(tester);
+      const channel = Channel(
+        id: 'c-general',
+        name: 'general',
+        kind: 'text',
+        createdAt: 0,
+        position: 0,
+        cursor: 0,
+        lastReadSeq: 0,
+        mentionedSeq: 0,
+        slowModeSeconds: 0,
+        joinMuted: false,
+        isPersonalSpace: false,
+      );
+      final container = _container(_Upstream(), store: _FakeStore([channel]));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AppTokens.light),
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  ChannelPermissionsHeading(),
+                  Expanded(child: ChannelPermissionsPane()),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await _flush(tester);
+      expect(find.byTooltip('Back to channels'), findsNothing);
+
+      await tester.tap(find.text('general'));
+      await _flush(tester);
+      expect(find.byTooltip('Back to channels'), findsOneWidget);
+      expect(find.text('All channels'), findsNothing);
+
+      await tester.tap(find.byTooltip('Back to channels'));
+      await _flush(tester);
+      expect(find.byTooltip('Back to channels'), findsNothing);
+      expect(find.text('general'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    },
+  );
 }

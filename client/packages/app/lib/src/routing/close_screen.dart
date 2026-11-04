@@ -32,6 +32,7 @@ class BackToButton extends StatelessWidget {
     super.key,
     required this.tooltip,
     required this.fallback,
+    this.onBack,
   });
 
   /// Names the destination ("Back to Space settings"), not just "Back": the
@@ -41,13 +42,16 @@ class BackToButton extends StatelessWidget {
   /// Where to land when there is nothing to pop; see [closeScreen].
   final String fallback;
 
+  /// Runs instead of [closeScreen].
+  final VoidCallback? onBack;
+
   @override
   Widget build(BuildContext context) {
     final button = AppIconButton(
       icon: AppIcons.back,
       semanticLabel: tooltip,
       tooltip: tooltip,
-      onPressed: () => closeScreen(context, fallback),
+      onPressed: onBack ?? () => closeScreen(context, fallback),
     );
     // The 56pt leading slot cannot hold a 44pt button plus the 8pt gutter, which squeezed it to 40.
     return AppTouchTargets.of(context)

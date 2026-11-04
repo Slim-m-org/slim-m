@@ -23,6 +23,7 @@ import 'call_health_row.dart';
 import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import '../../voice/widgets/media_capability_section.dart';
+import 'notification_troubleshooting_card.dart';
 import 'settings_detail_row.dart';
 import 'troubleshooting_rows.dart';
 import 'settings_panes_chrome.dart';
@@ -45,15 +46,21 @@ class TroubleshootingPane extends ConsumerWidget {
         // Offstage keeps the check's result while the log is open.
         Offstage(
           offstage: open,
-          child: const MediaCapabilitySection(
-            extraRows: [
-              ConnectionTestRow(),
-              CallHealthRow(),
-              CallDiagnosticsRow(),
-              _DebugLogRow(),
-              CallStatsRow(),
-              RunSetupAgainRow(),
-              RunAdminSetupRow(),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MediaCapabilitySection(
+                extraRows: [
+                  ConnectionTestRow(),
+                  CallHealthRow(),
+                  CallDiagnosticsRow(),
+                  _DebugLogRow(),
+                  CallStatsRow(),
+                  RunSetupAgainRow(),
+                  RunAdminSetupRow(),
+                ],
+              ),
+              NotificationTroubleshootingCard(),
             ],
           ),
         ),

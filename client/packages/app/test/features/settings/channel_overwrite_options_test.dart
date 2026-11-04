@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Each overwrite cell, for a role and for a member, reaches allow, deny and
 /// inherit and saves exactly that (allow, deny) pair for that principal; and
-/// the pane's own chrome: the chosen channel with a way to change it.
+/// the locked pane's chrome.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,7 +14,6 @@ import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/settings/widgets/admin/channel_permissions_grid.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
 import 'package:slimm_data/data.dart' show Channel;
-import 'package:slimm_design_system/design_system.dart';
 
 import '../members/roles_config_harness.dart';
 
@@ -167,23 +166,14 @@ void main() {
     expect(edit['deny'], 0);
   });
 
-  testWidgets('the pane shows the chosen channel with an All channels button', (
-    tester,
-  ) async {
-    await _open(tester, const ChannelPermissionsPane(initialChannel: _channel));
-    expect(find.text('general'), findsWidgets);
-    expect(find.text('Permission overwrites'), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'All channels'), findsOneWidget);
-  });
-
-  testWidgets('a locked pane has no header or All channels button', (
+  testWidgets('a locked pane shows the grid with no All channels button', (
     tester,
   ) async {
     await _open(
       tester,
       const ChannelPermissionsPane(initialChannel: _channel, lockChannel: true),
     );
-    expect(find.text('Permission overwrites'), findsNothing);
+    expect(_cell('role:mod', _send), findsOneWidget);
     expect(find.text('All channels'), findsNothing);
   });
 

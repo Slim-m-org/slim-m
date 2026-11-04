@@ -9,11 +9,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart' show Channel;
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../routing/routes.dart';
-import '../../widgets/settings_detail_row.dart';
-import '../../widgets/settings_section_header.dart';
+import '../../providers/channel_permissions_selection.dart';
 import '../settings_screen_scaffold.dart';
 import '../../widgets/admin/channel_permissions_grid.dart';
 import '../../widgets/admin/channel_permissions_list.dart';
@@ -26,13 +24,35 @@ class ChannelPermissionsScreen extends StatelessWidget {
   final Channel? initialChannel;
 
   @override
-  Widget build(BuildContext context) => SettingsScreenScaffold(
-    title: 'Channel permissions',
-    backTooltip: 'Back to Space settings',
-    backFallback: Routes.spaceSettings,
-    scrollable: false,
-    child: ChannelPermissionsPane(initialChannel: initialChannel),
+  Widget build(BuildContext context) => ProviderScope(
+    overrides: [
+      channelPermissionsSelectionProvider.overrideWith((ref) => initialChannel),
+    ],
+    child: _ChannelPermissionsFrame(opensOnList: initialChannel == null),
   );
+}
+
+class _ChannelPermissionsFrame extends ConsumerWidget {
+  const _ChannelPermissionsFrame({required this.opensOnList});
+
+  final bool opensOnList;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inChannel =
+        opensOnList && ref.watch(channelPermissionsSelectionProvider) != null;
+    return SettingsScreenScaffold(
+      title: 'Channel permissions',
+      backTooltip: inChannel ? 'Back to channels' : 'Back to Space settings',
+      backFallback: Routes.spaceSettings,
+      onBack: inChannel
+          ? () => ref.read(channelPermissionsSelectionProvider.notifier).state =
+                null
+          : null,
+      scrollable: false,
+      child: const ChannelPermissionsPane(),
+    );
+  }
 }
 
 /// The picker-and-grid pane itself, embeddable as a Space settings pane as
@@ -47,6 +67,7 @@ class ChannelPermissionsPane extends ConsumerStatefulWidget {
          'lockChannel requires an initialChannel',
        );
 
+  /// Only read when [lockChannel]; otherwise the selection provider decides.
   final Channel? initialChannel;
 
   /// True when embedded in a specific channel's own settings, where the
@@ -61,41 +82,19 @@ class ChannelPermissionsPane extends ConsumerStatefulWidget {
 
 class _ChannelPermissionsPaneState
     extends ConsumerState<ChannelPermissionsPane> {
-  Channel? _channel;
-
-  @override
-  void initState() {
-    super.initState();
-    _channel = widget.initialChannel;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final channel = _channel;
+    final channel = widget.lockChannel
+        ? widget.initialChannel
+        : ref.watch(channelPermissionsSelectionProvider);
     if (channel == null) {
       return ChannelPermissionsList(
-        onPick: (picked) => setState(() => _channel = picked),
+        onPick: (picked) =>
+            ref.read(channelPermissionsSelectionProvider.notifier).state =
+                picked,
       );
     }
 
-    final header = widget.lockChannel
-        ? null
-        : SettingsSectionCard(
-            children: [
-              SettingsDetailRow(
-                icon: channel.kind == 'voice' ? AppIcons.voice : AppIcons.hash,
-                title: channel.name,
-                detail: 'Permission overwrites',
-                trailing: AppButton(
-                  label: 'All channels',
-                  semanticLabel: 'Back to all channels',
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  onPressed: () => setState(() => _channel = null),
-                ),
-              ),
-            ],
-          );
     final grid = ChannelPermissionsGrid(
       key: ValueKey(channel.id),
       channel: channel,
@@ -103,16 +102,8 @@ class _ChannelPermissionsPaneState
 
     // A Column never tells a plain (non-Expanded) child how much height it actually has, so a genuinely bounded ambient (the modal panel, a phone screen) still reached the grid's own MediaQuery-based guess and overflowed a shorter modal; see channel_permissions_grid.dart's own LayoutBuilder for that guess. Expanded restores the real number here, and only here, where this LayoutBuilder can see the ambient is actually bounded; the Space settings pane's own scrolling embed stays unbounded and keeps the guess.
     return LayoutBuilder(
-      builder: (context, constraints) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (header != null) ...[
-            header,
-            const SizedBox(height: AppSpacing.s12),
-          ],
-          constraints.hasBoundedHeight ? Expanded(child: grid) : grid,
-        ],
-      ),
+      builder: (context, constraints) =>
+          constraints.hasBoundedHeight ? SizedBox.expand(child: grid) : grid,
     );
   }
 }

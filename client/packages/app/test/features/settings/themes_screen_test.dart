@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/providers/resolved_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
-import 'package:slimm_app/src/features/settings/providers/theme_store_actions.dart';
 import 'package:slimm_app/src/features/settings/screens/themes_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_list_row.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -51,7 +50,6 @@ class _Rig {
   _Rig({
     this.permissions = 0,
     this.defaultId,
-    this.picker,
     this.storeFails = false,
     List<Map<String, dynamic>>? themes,
   }) : themes =
@@ -63,7 +61,6 @@ class _Rig {
 
   final int permissions;
   final String? defaultId;
-  final Future<ThemeParse?> Function()? picker;
   final bool storeFails;
   final List<Map<String, dynamic>> themes;
   final calls = <String>[];
@@ -72,7 +69,6 @@ class _Rig {
   late final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      if (picker != null) themeFilePickerProvider.overrideWithValue(picker!),
       apiProvider.overrideWith(
         (ref) => testApi((request) async {
           calls.add('${request.method} ${request.url.path}');
@@ -141,11 +137,6 @@ Future<void> _openRowMenu(WidgetTester tester, String id) async {
   await _settle(tester);
 }
 
-Future<void> _openPageMenu(WidgetTester tester) async {
-  await tester.tap(find.byKey(const Key('themes-menu')));
-  await _settle(tester);
-}
-
 Future<void> _pickMenu(WidgetTester tester, String label) async {
   await tester.tap(find.text(label));
   await _settle(tester);
@@ -161,11 +152,8 @@ void main() {
     expect(find.byKey(const Key('theme-store-t1')), findsOneWidget);
     expect(find.byKey(const Key('theme-store-t2')), findsOneWidget);
 
-    await _openRowMenu(tester, 't1');
-    expect(find.text('Remove'), findsNothing);
     expect(find.text('Set as Space default'), findsNothing);
-    expect(find.text('Export'), findsOneWidget);
-    await _pickMenu(tester, 'Export');
+    expect(_menuOf('t1'), findsNothing);
 
     await _openRowMenu(tester, 't2');
     expect(find.text('Remove'), findsOneWidget);
@@ -233,89 +221,14 @@ void main() {
     expect(rig.calls, contains('GET /space/themes/p1/picture'));
   });
 
-  testWidgets('publishing the current theme posts a valid theme file', (
-    tester,
-  ) async {
-    final rig = _Rig();
-    await _pump(tester, rig);
-
-    await _openPageMenu(tester);
-    await _pickMenu(tester, 'Publish current theme');
-
-    expect(rig.calls, contains('POST /space/themes'));
-    final body = rig.lastBody! as Map<String, dynamic>;
-    expect(parseThemeJson(body).problems, isEmpty);
-    expect(body['author'], 'Self');
-  });
-
-  testWidgets('an unusable import shows its problems and applies nothing', (
-    tester,
-  ) async {
-    final bad = _file('Bad');
-    (bad['tokens'] as Map<String, dynamic>)['textPrimary'] = '#12151A';
-    final rig = _Rig(picker: () async => parseThemeJson(bad));
-    await _pump(tester, rig);
-
-    await _openPageMenu(tester);
-    await _pickMenu(tester, 'Import file');
-
-    expect(find.byKey(const Key('theme-import-problems')), findsOneWidget);
-    expect(find.textContaining('textPrimary on surfaceBase'), findsOneWidget);
-    expect(find.byKey(const Key('theme-import-ready')), findsNothing);
-    expect(
-      rig.container.read(themeControllerProvider),
-      isNot(AppThemeChoice.custom),
-    );
-  });
-
-  testWidgets('a good import asks first, and applying keeps it', (
-    tester,
-  ) async {
-    final rig = _Rig(picker: () async => parseThemeJson(_file('Imported')));
-    await _pump(tester, rig);
-
-    await _openPageMenu(tester);
-    await _pickMenu(tester, 'Import file');
-    expect(find.byKey(const Key('theme-import-ready')), findsOneWidget);
-    expect(find.text('Use this theme?'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(AppButton, 'Apply'));
-    await _settle(tester);
-
-    expect(rig.container.read(themeControllerProvider), AppThemeChoice.custom);
-    expect(rig.container.read(customThemeProvider)!.name, 'Imported');
-    expect(find.byKey(const Key('theme-import-ready')), findsNothing);
-    final prefs = await SharedPreferences.getInstance();
-    expect(
-      parseThemeFile(prefs.getString(customThemeKey)!).document!.name,
-      'Imported',
-    );
-  });
-
-  testWidgets('cancelling an import leaves the theme alone', (tester) async {
-    final rig = _Rig(picker: () async => parseThemeJson(_file('Imported')));
-    await _pump(tester, rig);
-
-    await _openPageMenu(tester);
-    await _pickMenu(tester, 'Import file');
-    await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
-    await _settle(tester);
-
-    expect(rig.container.read(customThemeProvider), isNull);
-    expect(rig.calls.where((c) => c.startsWith('POST')), isEmpty);
-  });
-
-  testWidgets('a store that will not load shows one error and no publish', (
+  testWidgets('a store that will not load shows one error and no page menu', (
     tester,
   ) async {
     final rig = _Rig(storeFails: true);
     await _pump(tester, rig);
 
     expect(find.byKey(const Key('themes-store-error')), findsOneWidget);
-    await _openPageMenu(tester);
-    expect(find.text('Publish current theme'), findsNothing);
-    expect(find.text('Import file'), findsOneWidget);
-    expect(find.text('Export current theme'), findsOneWidget);
+    expect(find.byKey(const Key('themes-menu')), findsNothing);
   });
 
   test('a custom or Space default document is what the choice paints with', () {
