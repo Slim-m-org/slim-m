@@ -1,6 +1,6 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.13)
-project(runner LANGUAGES CXX)
+project(runner LANGUAGES C CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
@@ -54,6 +54,8 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 pkg_check_modules(PANGOCAIRO REQUIRED IMPORTED_TARGET pangocairo)
+# The idle channel binds ext_idle_notifier_v1 on GTK's own wl_display, see runner/linux_idle_channel.cc.
+pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")

@@ -53,4 +53,23 @@ void main() {
       idle.dispose();
     });
   });
+
+  test('Linux idle prefers the first source that answers, even with zero', () {
+    fakeAsync((async) {
+      var laterAsked = false;
+      final idle = LinuxSystemIdle(
+        probes: [
+          () async => Duration.zero,
+          () async {
+            laterAsked = true;
+            return const Duration(hours: 1);
+          },
+        ],
+      );
+      async.flushMicrotasks();
+      expect(idle.idleTime(), Duration.zero);
+      expect(laterAsked, isFalse);
+      idle.dispose();
+    });
+  });
 }

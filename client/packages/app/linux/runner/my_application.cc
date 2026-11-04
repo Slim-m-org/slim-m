@@ -10,6 +10,7 @@
 #include "linux_screen_overlay_channel.h"
 #include "linux_second_instance_channel.h"
 #include "linux_tray_probe_channel.h"
+#include "linux_idle_channel.h"
 #include "linux_window_mapped_channel.h"
 
 struct _MyApplication {
@@ -118,6 +119,7 @@ static void my_application_activate(GApplication* application) {
 
   // Lets the splash-to-real-window handoff wait for the splash to be mapped; see linux_window_mapped_channel.h.
   linux_window_mapped_channel_register(self->messenger, window);
+  linux_idle_channel_register(self->messenger);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Linux system idle time over D-Bus: the freedesktop ScreenSaver where it
-/// answers, GNOME's IdleMonitor otherwise, and the screen lock as a last resort.
+/// Linux system idle time: the runner's Wayland ext-idle-notify-v1 channel
+/// first, then D-Bus (freedesktop ScreenSaver, GNOME's IdleMonitor) and the
+/// screen lock as a last resort.
 ///
 /// [SystemIdle.idleTime] is synchronous, so a poll keeps a cached sample that is
-/// aged by the clock between polls. KDE Wayland answers none of the idle calls,
-/// which leaves only the lock state there.
+/// aged by the clock between polls. KDE Wayland answers no D-Bus idle call, and
+/// the runner channel only reports idle past its notification timeout.
 library;
 
 import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:dbus/dbus.dart';
+import 'package:flutter/services.dart';
 
 import 'system_idle.dart';
 
@@ -77,11 +79,20 @@ SystemIdle? createLinuxSystemIdle() {
   final locked = _LockedSince();
   return LinuxSystemIdle(
     probes: [
+      _runnerIdle,
       () => _screenSaverIdle(client),
       () => _mutterIdle(client),
       () => locked.probe(client),
     ],
   );
+}
+
+const _runnerChannel = MethodChannel('top.npcserver.slimm/linux_idle');
+
+/// Null where the runner has no Wayland idle notifier (X11, other compositors, or a build without it).
+Future<Duration?> _runnerIdle() async {
+  final ms = await _runnerChannel.invokeMethod<int>('idleMs');
+  return ms == null ? null : Duration(milliseconds: ms);
 }
 
 Future<Duration?> _screenSaverIdle(DBusClient client) async {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(runner LANGUAGES CXX)
+project(runner LANGUAGES C CXX)
 
 # Define the application target. To change its name, change BINARY_NAME in the
 # top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
@@ -13,6 +13,8 @@ add_executable(${BINARY_NAME}
   "linux_tray_probe_channel.cc"
   "linux_second_instance_channel.cc"
   "linux_window_mapped_channel.cc"
+  "linux_idle_channel.cc"
+  "ext-idle-notify-v1-protocol.c"
   "linux_screen_overlay_channel.cc"
   "screen_overlay.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -27,7 +29,7 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
-target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK PkgConfig::PANGOCAIRO)
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK PkgConfig::PANGOCAIRO PkgConfig::WAYLAND_CLIENT)
 # dlopen of the optional gtk-layer-shell, see screen_overlay.cc.
 target_link_libraries(${BINARY_NAME} PRIVATE ${CMAKE_DL_LIBS})
 
