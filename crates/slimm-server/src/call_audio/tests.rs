@@ -318,3 +318,23 @@ async fn the_requester_leaving_during_the_ask_starts_no_wait() {
         "somebody leaving is not somebody refusing"
     );
 }
+
+#[tokio::test]
+async fn a_cooldown_is_forgotten_once_it_has_run_out() {
+    let call_audio = service(2);
+    let channel = ChannelId::generate();
+    let who = people(2);
+    call_audio
+        .begin((channel, subject()), who[0], &who, 1_000)
+        .unwrap();
+    call_audio
+        .consent(channel, who[1], false, 2_000)
+        .unwrap()
+        .unwrap();
+    assert_eq!(call_audio.cooldown_count(), 1);
+
+    call_audio.tick(2_000 + COOLDOWN_MS - 1);
+    assert_eq!(call_audio.cooldown_count(), 1, "still waiting");
+    call_audio.tick(2_000 + COOLDOWN_MS);
+    assert_eq!(call_audio.cooldown_count(), 0);
+}
