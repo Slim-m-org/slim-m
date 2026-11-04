@@ -17,6 +17,9 @@ import '../../../routing/routes.dart';
 import '../../voice/screens/dm_call_pane.dart';
 import '../../voice/widgets/call_participant_tiles.dart';
 
+/// The summary's root, for tests to find it without matching its type.
+const railCallSummaryKey = Key('rail_call_summary');
+
 /// The call's channel and duration, standing in for [RailUserFooter]'s
 /// name line while a call elsewhere is live, so the footer stays one bar.
 ///

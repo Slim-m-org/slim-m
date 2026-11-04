@@ -244,7 +244,7 @@ List<Widget> railVoiceToggleButtons({
   MicStatus micStatus = MicStatus.ok,
   String? listenOnly,
 }) {
-  final inCall = voice.state == VoiceSessionState.connected;
+  final inCall = voice.callLive;
   final trouble = voice.microphoneEnabled ? micStatus.trouble : null;
   return [
     AppIconButton(
@@ -375,7 +375,7 @@ class RailUserFooter extends ConsumerWidget {
     final voice = ref.watch(voiceFlagsProvider);
     final voiceController = ref.read(voiceControllerProvider.notifier);
     final micStatus = ref.watch(micStatusProvider).valueOrNull ?? MicStatus.ok;
-    final inCall = voice.state == VoiceSessionState.connected;
+    final inCall = voice.callLive;
     // A call in the channel already on screen has its own full call UI.
     final callChannelId = voice.channelId;
     final inCallElsewhere =
@@ -438,6 +438,7 @@ class RailUserFooter extends ConsumerWidget {
                   else if (inCallElsewhere)
                     Expanded(
                       child: RailCallSummary(
+                        key: railCallSummaryKey,
                         channelId: callChannelId,
                         connectedAt: voice.connectedAt,
                         screenSharing: voice.screenSharing,

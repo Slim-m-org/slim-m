@@ -17,7 +17,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -332,18 +331,22 @@ class HomeShell extends ConsumerWidget {
     _ShellFacts facts,
     String channelId,
   ) {
-    // No rail here to carry the strip, so a call elsewhere gets its own row.
-    final (voiceState, voiceChannelId) = ref.watch(
-      voiceControllerProvider.select((s) => (s.state, s.channelId)),
+    // No rail here to carry the strip, so a call not on screen gets its own row.
+    final (callLive, voiceChannelId) = ref.watch(
+      voiceControllerProvider.select((s) => (s.callLive, s.channelId)),
     );
-    final showVoiceStrip =
-        voiceState == VoiceSessionState.connected &&
-        voiceChannelId != channelId;
+    final chatOverCall = voiceChatOverCall(ref, channelId);
     // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
     return withChannelKind(ref, channelId, (isDm) {
       // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
       final replacesHeader = facts.canvasOpen || (facts.dmCallOpen && isDm);
+      // The call's own UI is on screen only on its channel's call stage; a DM's chat or a voice channel's chat has none.
+      final callOnScreen =
+          voiceChannelId == channelId &&
+          !chatOverCall &&
+          (!isDm || facts.dmCallOpen);
+      final showVoiceStrip = callLive && !callOnScreen;
       return CompactDrawerScaffold(
         channelId: channelId,
         onBack: facts.canvasFullscreen

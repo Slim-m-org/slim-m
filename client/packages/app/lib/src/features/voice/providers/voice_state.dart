@@ -71,6 +71,10 @@ class VoiceState {
   /// "you left" would be showing an error nobody had been asked to act on.
   final bool rejoining;
 
+  /// Whether a call is still ours to show: connected, or inside its bounded auto-rejoin.
+  bool get callLive =>
+      channelId != null && (state == VoiceSessionState.connected || rejoining);
+
   /// True once the SDK's own resume or restart has gone on past the banner's debounce; the session stays [VoiceSessionState.connected] throughout.
   final bool reconnecting;
 
