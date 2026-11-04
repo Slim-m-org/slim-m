@@ -239,7 +239,7 @@ void main() {
     await openDockTab(tester, 'Overview');
     await writeSnapshot(tester, 'dock-module-overview-desktop');
     await openDockTab(tester, 'Access');
-    await tester.tap(find.byType(AppToggle).at(1));
+    await tester.tap(find.bySemanticsLabel('Post messages for Ladder'));
     await tester.pump(const Duration(milliseconds: 400));
     await writeSnapshot(tester, 'dock-module-access-changed-desktop');
   });
