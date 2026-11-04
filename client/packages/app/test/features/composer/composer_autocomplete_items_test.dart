@@ -389,4 +389,59 @@ void main() {
       expect(rows('', const []), isEmpty);
     });
   });
+
+  group('people, roles and bots in one ranking', () {
+    List<String> labels(String term, List<api.UserProfile> roster) => [
+      for (final r in autocompleteSuggestions(
+        query: _q(AutocompleteKind.mention, term),
+        custom: const [],
+        members: roster,
+      ))
+        r.label,
+    ];
+
+    api.UserProfile bot(String id, String username) => api.UserProfile(
+      id: id,
+      username: username,
+      displayName: username,
+      createdAt: 0,
+      isBot: true,
+    );
+
+    test('a person whose name starts with the term beats a role that '
+        'only contains it', () {
+      final roster = [
+        const api.UserProfile(
+          id: 'u-mod',
+          username: 'modlog',
+          displayName: 'modlog',
+          createdAt: 0,
+          isBot: true,
+          roles: ['bot-moderator'],
+        ),
+        _member('u-ingot', 'ModernIngot', 'ingot'),
+      ];
+      expect(labels('moder', roster), ['ingot', '@bot-moderator']);
+    });
+
+    test('on an equal match a person leads a role, and a role a bot', () {
+      final roster = [
+        bot('u-b', 'modbot'),
+        _member('u-p', 'moddy'),
+        const api.UserProfile(
+          id: 'u-r',
+          username: 'zed',
+          displayName: 'zed',
+          createdAt: 0,
+          roles: ['mods'],
+        ),
+      ];
+      expect(labels('mod', roster), ['moddy', '@mods', 'modbot']);
+    });
+
+    test('a better match still wins across kinds', () {
+      final roster = [bot('u-b', 'modbot'), _member('u-p', 'cosmodrome')];
+      expect(labels('mod', roster), ['modbot', 'cosmodrome']);
+    });
+  });
 }

@@ -25,18 +25,21 @@ String foldForMatch(String text) {
 
 /// Lower is better; null is no match. Exact, then prefix, then the start of a
 /// later word in a multi-word name, then anywhere.
-int? mentionRank(String term, api.UserProfile member) {
+int? mentionRank(String term, api.UserProfile member) =>
+    nameRank(term, [member.displayName, member.username]);
+
+/// [mentionRank] over any set of names, so a role scores on the same scale
+/// as a person.
+int? nameRank(String term, List<String> names) {
   final needle = foldForMatch(term);
   if (needle.isEmpty) return 0;
-  final user = foldForMatch(member.username);
-  final name = foldForMatch(member.displayName);
-  if (user == needle || name == needle) return 0;
-  if (user.startsWith(needle) || name.startsWith(needle)) return 1;
-  if (_wordStarts(name).any((w) => w.startsWith(needle)) ||
-      _wordStarts(user).any((w) => w.startsWith(needle))) {
+  final folded = [for (final n in names) foldForMatch(n)];
+  if (folded.any((n) => n == needle)) return 0;
+  if (folded.any((n) => n.startsWith(needle))) return 1;
+  if (folded.any((n) => _wordStarts(n).any((w) => w.startsWith(needle)))) {
     return 2;
   }
-  if (user.contains(needle) || name.contains(needle)) return 3;
+  if (folded.any((n) => n.contains(needle))) return 3;
   return null;
 }
 
