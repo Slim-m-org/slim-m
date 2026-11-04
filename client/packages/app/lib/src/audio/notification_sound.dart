@@ -70,6 +70,9 @@ abstract class SoundPlayer {
   /// Stops whatever [loop] started. A no-op if nothing is looping.
   Future<void> stopLoop();
 
+  /// Stops every sound and loop and waits for the plugin to let go of the audio session.
+  Future<void> stopAll();
+
   Future<void> dispose();
 }
 
@@ -162,6 +165,12 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   @override
   Future<void> stopLoop() => _loopPlayer.release();
+
+  @override
+  Future<void> stopAll() async {
+    await _loopPlayer.release();
+    await _createdPlayer?.stop();
+  }
 
   @override
   Future<void> dispose() async {

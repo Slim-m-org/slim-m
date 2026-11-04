@@ -48,6 +48,9 @@ class _Player implements SoundPlayer {
   }
 
   @override
+  Future<void> stopAll() async => looping = null;
+
+  @override
   Future<void> dispose() async {}
 }
 

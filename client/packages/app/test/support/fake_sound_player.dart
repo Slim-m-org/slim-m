@@ -16,6 +16,9 @@ class SilentSoundPlayer implements SoundPlayer {
   Future<void> stopLoop() async {}
 
   @override
+  Future<void> stopAll() async {}
+
+  @override
   Future<void> dispose() async {}
 }
 

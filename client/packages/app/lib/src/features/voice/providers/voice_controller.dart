@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import 'call_foreground_keeper.dart';
 import 'call_recap.dart';
@@ -241,6 +242,9 @@ class VoiceController extends StateNotifier<VoiceState> {
       rejoining: _rejoin.autoAttemptChannel == channelId,
       clearJustLeft: true,
     );
+    // Awaited before the connect: a ring stopping later would deactivate the call's audio session.
+    await _ref.read(soundSessionReleaseProvider)();
+    if (superseded()) return;
     await _sfu.run(channelId, mutedByCaller, superseded);
   }
 

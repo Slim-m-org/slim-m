@@ -286,6 +286,12 @@ class NotificationSoundController {
     _haptic(_callRingHaptic);
   }
 
+  /// Silences every sound before a call connects, so a stopping player cannot deactivate the call's session.
+  Future<void> stopAllForCall() {
+    _ringbackPlaying = false;
+    return _player.stopAll();
+  }
+
   void dispose() {
     unawaited(_messages.cancel());
     _voiceSub.close();
