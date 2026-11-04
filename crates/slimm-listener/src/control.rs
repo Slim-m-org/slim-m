@@ -60,6 +60,24 @@ pub struct Control {
     silence: Duration,
 }
 
+/// Holds the single control slot; dropping it frees the slot, however the
+/// connection ended, including an upgrade that never ran or a panic in `serve`.
+struct ControlSlot(Arc<AtomicBool>);
+
+impl ControlSlot {
+    fn take(flag: &Arc<AtomicBool>) -> Option<Self> {
+        flag.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .ok()
+            .map(|_| Self(Arc::clone(flag)))
+    }
+}
+
+impl Drop for ControlSlot {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
 impl Control {
     pub fn new(config: Arc<Config>, pool: Arc<Pool>, launcher: Arc<dyn Launcher>) -> Self {
         Self {
@@ -98,12 +116,12 @@ async fn upgrade(
     if !same_secret(presented, &control.config.secret) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    if control.connected.swap(true, Ordering::AcqRel) {
+    let Some(slot) = ControlSlot::take(&control.connected) else {
         return StatusCode::CONFLICT.into_response();
-    }
+    };
     ws.on_upgrade(move |socket| async move {
+        let _slot = slot;
         serve(&control, socket).await;
-        control.connected.store(false, Ordering::Release);
     })
 }
 

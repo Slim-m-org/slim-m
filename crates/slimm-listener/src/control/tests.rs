@@ -2,6 +2,7 @@
 //! The control endpoint over a real WebSocket, with sessions faked.
 
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
 
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::tungstenite::Message as Wire;
@@ -30,10 +31,15 @@ impl Transcriber for Silent {
 struct Fake {
     launched: Mutex<Vec<(String, Vec<String>)>>,
     commands: Mutex<Vec<(String, SessionCommand)>>,
+    panic_on_launch: AtomicBool,
 }
 
 impl Launcher for Arc<Fake> {
     fn launch(&self, launch: Launch) -> Running {
+        assert!(
+            !self.panic_on_launch.load(Ordering::Acquire),
+            "the launcher was told to fail"
+        );
         let mut include: Vec<String> = launch.include.iter().cloned().collect();
         include.sort();
         self.launched
@@ -247,4 +253,36 @@ fn secrets_compare_whole() {
     assert!(!same_secret("abc", "abd"));
     assert!(!same_secret("abc", "abcd"));
     assert!(!same_secret("", "abc"));
+}
+
+#[tokio::test]
+async fn a_launcher_that_panics_does_not_lock_the_server_out() {
+    let (url, fake) = start(2).await;
+    let mut client = connect(&url, SECRET).await.unwrap();
+    next_json(&mut client).await;
+    fake.panic_on_launch.store(true, Ordering::Release);
+    client.send(start_frame("s1", &["u1"])).await.unwrap();
+    drop(client);
+    fake.panic_on_launch.store(false, Ordering::Release);
+    let mut reconnected = false;
+    for _ in 0..100 {
+        if connect(&url, SECRET).await.is_ok() {
+            reconnected = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(reconnected, "the control slot stayed taken after a panic");
+}
+
+#[test]
+fn a_slot_whose_upgrade_never_runs_is_released() {
+    let flag = Arc::new(AtomicBool::new(false));
+    let slot = ControlSlot::take(&flag).expect("free");
+    assert!(ControlSlot::take(&flag).is_none());
+    let never_polled = async move {
+        let _slot = slot;
+    };
+    drop(never_polled);
+    assert!(ControlSlot::take(&flag).is_some());
 }
