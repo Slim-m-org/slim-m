@@ -94,6 +94,31 @@ void main() {
     }, initialTime: DateTime(2026, 10, 19));
   });
 
+  test('a call left running on an idle machine stops counting as here', () {
+    fakeAsync((async) {
+      var speaking = false;
+      final r = PresenceActivityReporter(
+        send: () {
+          sent++;
+          return true;
+        },
+        inCall: () => true,
+        speaking: () => speaking,
+        systemIdle: systemIdle,
+      )..start();
+      systemIdle.idle = const Duration(minutes: 3);
+      async.elapse(const Duration(minutes: 2));
+      expect(sent, 2, reason: 'a short quiet spell in a call is still here');
+      systemIdle.idle = const Duration(minutes: 11);
+      async.elapse(const Duration(minutes: 3));
+      expect(sent, 2, reason: 'idle for 11 minutes and silent is away');
+      speaking = true;
+      async.elapse(const Duration(minutes: 2));
+      expect(sent, 4, reason: 'speaking in the call keeps the person here');
+      r.dispose();
+    }, initialTime: DateTime(2026, 10, 19));
+  });
+
   test('here() answers the hello after a wake from sleep', () {
     withClock(Clock.fixed(DateTime(2026, 10, 19)), () {
       final r = PresenceActivityReporter(send: () => true, inCall: () => false);

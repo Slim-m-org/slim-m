@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Tells the server when the person is really at this device, so an untouched or sleeping machine shows away instead of online.
-/// Here means app input, host-wide input where known ([SystemIdle]), or being in a call; every account container reports.
+/// Here means app input, host-wide input where known ([SystemIdle]), or being in a call that is not left running unattended; every account container reports.
 library;
 
 import 'dart:async';
@@ -22,20 +22,26 @@ const presenceActiveInterval = Duration(minutes: 1);
 /// the server's ten-minute idle window, so a reconnect does not flip a reader to away.
 const presenceHelloWindow = Duration(minutes: 9);
 
+/// How long the machine may sit untouched before a call alone stops counting as here; speaking in it still does.
+const presenceCallIdleLimit = Duration(minutes: 10);
+
 class PresenceActivityReporter implements InputListener {
   PresenceActivityReporter({
     required bool Function() send,
     required bool Function() inCall,
+    bool Function()? speaking,
     SystemIdle? systemIdle,
     Duration interval = presenceActiveInterval,
   }) : _send = send,
        _inCall = inCall,
+       _speaking = speaking,
        _systemIdle = systemIdle,
        _interval = interval;
 
   /// Whether a live connection took the frame.
   final bool Function() _send;
   final bool Function() _inCall;
+  final bool Function()? _speaking;
   final SystemIdle? _systemIdle;
   final Duration _interval;
   Timer? _timer;
@@ -58,8 +64,10 @@ class PresenceActivityReporter implements InputListener {
     final now = clock.now();
     final input = _lastInput;
     if (input != null && now.difference(input) < window) return true;
+    if (_speaking?.call() ?? false) return true;
     final idle = _systemIdle?.idleTime();
     if (idle != null && idle < window) return true;
+    if (idle != null && idle >= presenceCallIdleLimit) return false;
     return _inCall();
   }
 
@@ -81,6 +89,14 @@ class PresenceActivityReporter implements InputListener {
   void dispose() => _timer?.cancel();
 }
 
+final _localSpeakingProvider = Provider<bool>(
+  (ref) => ref.watch(
+    voiceParticipantsProvider.select(
+      (all) => all.any((p) => p.isLocal && p.isSpeaking),
+    ),
+  ),
+);
+
 final presenceActivityReporterProvider = Provider<PresenceActivityReporter>((
   ref,
 ) {
@@ -89,6 +105,7 @@ final presenceActivityReporterProvider = Provider<PresenceActivityReporter>((
     send: sync.notifyActive,
     inCall: () =>
         ref.read(voiceFlagsProvider).state == VoiceSessionState.connected,
+    speaking: () => ref.read(_localSpeakingProvider),
     systemIdle: createSystemIdle(),
   );
   sync.activeAtHello = reporter.hereAtHello;
