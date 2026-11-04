@@ -94,15 +94,15 @@ void main() {
     expect(shareGridColumns(355, 4), 1);
   });
 
-  testWidgets('your own share is a small preview and a remote one is not', (
+  testWidgets('your own share fills the stage like a remote one', (
     tester,
   ) async {
     final call = await _connected(tester, [
       _p('me', local: true),
       _p('a', sharing: false),
     ], _wide);
-    final preview = find.byKey(const ValueKey('local-share-preview'));
-    expect(tester.getSize(preview).width, localSharePreviewWidth);
+    final mine = tester.getSize(find.byKey(const Key('fake-share-view-me')));
+    expect(mine.width, greaterThan(640));
     expect(find.text('You are sharing your screen'), findsOneWidget);
 
     call.session.emitParticipants([
@@ -110,11 +110,7 @@ void main() {
       _p('a'),
     ]);
     await tester.pump(const Duration(seconds: 1));
-    expect(preview, findsNothing);
-    expect(
-      tester.getSize(find.byKey(const Key('fake-share-view-a'))).width,
-      greaterThan(localSharePreviewWidth * 2),
-    );
+    expect(tester.getSize(find.byKey(const Key('fake-share-view-a'))), mine);
     await _leave(call);
   });
 
