@@ -80,23 +80,19 @@ class _InboxSheetState extends ConsumerState<_InboxSheet>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
+          AppSheetHeader(
+            'Inbox',
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s16,
               0,
               AppSpacing.s16,
               AppSpacing.s8,
             ),
-            child: Row(
-              children: [
-                const Expanded(child: Text('Inbox', style: AppText.heading)),
-                AppButton(
-                  label: 'Mark all read',
-                  variant: AppButtonVariant.ghost,
-                  icon: AppIcons.check,
-                  onPressed: entries.isEmpty || _busy ? null : _markAllRead,
-                ),
-              ],
+            trailing: AppButton(
+              label: 'Mark all read',
+              variant: AppButtonVariant.ghost,
+              icon: AppIcons.check,
+              onPressed: entries.isEmpty || _busy ? null : _markAllRead,
             ),
           ),
           if (actionError case final error?)

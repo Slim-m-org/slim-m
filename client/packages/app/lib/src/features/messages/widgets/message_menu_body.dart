@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// What a message's context menu holds: the quick reactions, the verbs people
-/// use, and a second page for the rare and the destructive-to-someone-else.
-///
-/// "More" swaps the page in place rather than opening a second surface: a
-/// floating submenu under a thumb is what `desktop-vs-mobile.md` forbids, and
-/// one swap behaves the same under a pointer, a finger and the keyboard. A
-/// second page holding a single item is a wasted click, so that item sits on
-/// the first page instead.
+/// use, and a trailing group for report, block and delete that never moves.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,7 +11,7 @@ import '../../members/widgets/bot_menu_sections.dart';
 import 'message_context_menu.dart';
 import '../../emoji/widgets/quick_reactions.dart';
 
-class MessageMenuBody extends StatefulWidget {
+class MessageMenuBody extends StatelessWidget {
   const MessageMenuBody({
     super.key,
     required this.actions,
@@ -35,43 +29,30 @@ class MessageMenuBody extends StatefulWidget {
   final ValueChanged<String> onPickReaction;
   final VoidCallback close;
 
-  @override
-  State<MessageMenuBody> createState() => _MessageMenuBodyState();
-}
-
-class _MessageMenuBodyState extends State<MessageMenuBody> {
-  bool _more = false;
-
-  MessageActions get _a => widget.actions;
+  MessageActions get _a => actions;
 
   void _run(VoidCallback action) {
-    widget.close();
+    close();
     action();
   }
 
-  void _showMore(bool more) => setState(() => _more = more);
-
   @override
   Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: _more ? _morePage() : _primaryPage(context),
+      children: [
+        QuickReactionRow(
+          reacted: reacted,
+          onPick: onPickReaction,
+          onMore: onAddReaction,
+          close: close,
+        ),
+        for (final group in [_replyGroup(tokens), _keepGroup(), _lastGroup()])
+          if (group.isNotEmpty) ...[const AppMenuDivider(), ...group],
+        ...botMenuItems(_a.botSections, close),
+      ],
     );
-  }
-
-  List<Widget> _primaryPage(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return [
-      QuickReactionRow(
-        reacted: widget.reacted,
-        onPick: widget.onPickReaction,
-        onMore: widget.onAddReaction,
-        close: widget.close,
-      ),
-      for (final group in [_replyGroup(tokens), _keepGroup(), _lastGroup()])
-        if (group.isNotEmpty) ...[const AppMenuDivider(), ...group],
-      ...botMenuItems(_a.botSections, widget.close),
-    ];
   }
 
   List<Widget> _replyGroup(AppTokens tokens) {
@@ -116,7 +97,7 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
         label: 'Copy text',
         leading: AppIcons.copy,
         onTap: () =>
-            _run(() => Clipboard.setData(ClipboardData(text: widget.content))),
+            _run(() => Clipboard.setData(ClipboardData(text: content))),
       ),
       if (_a.canCopyLink)
         AppMenuItem(
@@ -151,63 +132,42 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
           leading: AppIcons.pin,
           onTap: () => _run(_a.onTogglePin),
         ),
+      if (_a.canDelete)
+        if (_a.onStartSelecting case final VoidCallback start)
+          AppMenuItem(
+            label: 'Select messages',
+            leading: AppIcons.check,
+            onTap: () => _run(start),
+          ),
     ];
   }
 
   List<Widget> _lastGroup() {
-    final more = _moreItems();
     return [
-      if (more.length == 1)
-        more.single
-      else if (more.isNotEmpty)
+      if (_a.canReport)
         AppMenuItem(
-          label: 'More',
-          leading: AppIcons.moreHorizontal,
-          submenu: true,
-          onTap: () => _showMore(true),
+          label: 'Report message',
+          leading: AppIcons.report,
+          onTap: () => _run(_a.onReport),
         ),
-      if (_a.canDelete)
+      if (_a.canBlockAuthor)
+        AppMenuItem(
+          label: 'Block user',
+          leading: AppIcons.revoke,
+          tone: AppMenuItemTone.danger,
+          onTap: () => _run(_a.onBlockAuthor),
+        ),
+      if (_a.canDelete) ...[
+        if (_a.canReport || _a.canBlockAuthor) const AppMenuDivider(),
         AppMenuItem(
           label: 'Delete',
           leading: AppIcons.delete,
           tone: AppMenuItemTone.danger,
           onTap: () => _run(_a.onDelete),
         ),
+      ],
     ];
   }
-
-  List<Widget> _morePage() => [
-    AppMenuItem(
-      label: 'Back',
-      leading: AppIcons.back,
-      onTap: () => _showMore(false),
-    ),
-    const AppMenuDivider(),
-    ..._moreItems(),
-  ];
-
-  List<Widget> _moreItems() => [
-    if (_a.canDelete)
-      if (_a.onStartSelecting case final VoidCallback start)
-        AppMenuItem(
-          label: 'Select messages',
-          leading: AppIcons.check,
-          onTap: () => _run(start),
-        ),
-    if (_a.canReport)
-      AppMenuItem(
-        label: 'Report message',
-        leading: AppIcons.report,
-        onTap: () => _run(_a.onReport),
-      ),
-    if (_a.canBlockAuthor)
-      AppMenuItem(
-        label: 'Block user',
-        leading: AppIcons.revoke,
-        tone: AppMenuItemTone.danger,
-        onTap: () => _run(_a.onBlockAuthor),
-      ),
-  ];
 }
 
 String _hostOf(String url) => Uri.tryParse(url)?.host ?? url;

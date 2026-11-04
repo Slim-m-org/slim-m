@@ -78,8 +78,7 @@ export const L = {
   "THREAD_COMPOSER": "Thread composer",
   "THREAD_SEND": "Send reply",
   "REPLY_IN_THREAD": "Reply in thread",
-  "MENU_MORE": "More",
-  "MENU_BACK": "Back",
+  "MENU_OVERFLOW": "Message actions",
   "MENU_DELETE": "Delete",
   "MENU_COPY_TEXT": "Copy text",
   "MENU_SELECT": "Select messages",
@@ -99,8 +98,7 @@ export const L = {
     "Save message",
     "Pin"
   ],
-  "MENU_SECOND_PAGE": [
-    "Select messages",
+  "MENU_TRAILING": [
     "Report message",
     "Block user"
   ],

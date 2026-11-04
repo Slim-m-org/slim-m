@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The sheet behind "Clear part of the canvas": pick a kind of content or one
-/// person's, then confirm.
+/// The sheet behind "Clear part of the canvas": one danger row per kind of
+/// content or person, each clearing on tap.
 library;
 
 import 'package:flutter/material.dart';
@@ -8,12 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/confirm_dialog.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/user_avatar.dart';
 import 'canvas_clear_scope.dart';
 
-/// Offers the scopes, confirms, and answers whether the clear ran.
+/// Offers the scopes and clears the one tapped; the sheet is the confirmation.
 Future<void> requestScopedCanvasClear(
   BuildContext context,
   CanvasScopedClear control,
@@ -25,17 +24,7 @@ Future<void> requestScopedCanvasClear(
     builder: (_) => _CanvasClearSheet(authorIds: control.authorIds().toList()),
   );
   if (choice == null || !context.mounted) return;
-  final confirmed = await confirmDangerousAction(
-    context,
-    title: 'Clear ${choice.subject}?',
-    message:
-        'This removes ${choice.subject} for everyone in this channel, '
-        'including anything outside your current view. You can undo this '
-        'with Undo until you close the canvas or take many more actions.',
-    confirmLabel: 'Clear',
-    cancelLabel: 'Keep it',
-  );
-  if (confirmed) await control.clear(choice.scope);
+  await control.clear(choice.scope);
 }
 
 class _CanvasClearSheet extends ConsumerWidget {
@@ -75,17 +64,12 @@ class _CanvasClearSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Clear part of the canvas',
-              style: AppText.body.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
+          const AppSheetHeader(
+            'Clear part of the canvas',
+            caption:
+                'Removes it for everyone in this channel. Undo works until you close the canvas.',
+            padding: EdgeInsets.only(bottom: AppSpacing.s8),
           ),
-          const SizedBox(height: AppSpacing.s8),
           // The sheet is bounded (scrolls: true), so the choices scroll under the pinned heading.
           Flexible(
             child: SingleChildScrollView(
@@ -94,19 +78,13 @@ class _CanvasClearSheet extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final target in CanvasClearTarget.values)
-                    AppListRow(
-                      label: 'All ${target.label.toLowerCase()}',
-                      leading: Icon(
-                        AppIcons.delete,
-                        size: AppSizes.icon16,
-                        color: tokens.textSecondary,
-                      ),
-                      onTap: () => Navigator.of(context).pop(
-                        CanvasClearChoice(
-                          target.scope,
-                          'all ${target.label.toLowerCase()}',
-                        ),
-                      ),
+                    AppMenuItem(
+                      label: 'Clear all ${target.label.toLowerCase()}',
+                      leading: AppIcons.eraser,
+                      tone: AppMenuItemTone.danger,
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pop(CanvasClearChoice(target.scope)),
                     ),
                   if (sortedAuthorIds.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.s12),
@@ -138,19 +116,17 @@ class _AuthorRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider(authorId)).valueOrNull;
     final name = profile?.displayName ?? profile?.username ?? 'Unknown member';
-    return AppListRow(
-      label: name,
-      leading: UserAvatar(
+    return AppMenuItem(
+      label: '$name\'s content',
+      tone: AppMenuItemTone.danger,
+      leadingWidget: UserAvatar(
         name: name,
         userId: authorId,
         size: AppAvatarSize.s24,
       ),
-      onTap: () => Navigator.of(context).pop(
-        CanvasClearChoice(
-          api.CanvasClearScope(authorId: authorId),
-          '$name\'s content',
-        ),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).pop(CanvasClearChoice(api.CanvasClearScope(authorId: authorId))),
     );
   }
 }

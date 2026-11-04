@@ -11,8 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../members/widgets/member_profile_popover.dart'
-    show AnchoredMemberPopover;
+import '../../../widgets/anchored_popover_or_sheet.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import 'row_menu_notifications.dart';
 
@@ -95,24 +94,10 @@ Future<void> _showNotificationsMenu(
     channelDefault: channelDefault,
   );
 
-  if (MediaQuery.sizeOf(anchor).width < kCompactWidth) {
-    return showAppSheet<void>(
-      anchor,
-      builder: (context) => AppSheetMenu(children: items(context)),
-    );
-  }
-  return showGeneralDialog<void>(
-    context: anchor,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    barrierColor: Colors.transparent,
-    transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
-    pageBuilder: (context, _, _) => AnchoredMemberPopover(
-      origin: entry?.topLeft ?? Offset.zero,
-      anchorSize: entry?.size ?? Size.zero,
-      child: AppMenu(children: items(context)),
-    ),
-    transitionBuilder: (context, animation, _, child) =>
-        FadeTransition(opacity: animation, child: child),
+  return showAnchoredPopoverOrSheet<void>(
+    anchor,
+    anchorRect: entry,
+    sheetBuilder: (context) => AppSheetMenu(children: items(context)),
+    popoverBuilder: (context) => AppMenu(children: items(context)),
   );
 }

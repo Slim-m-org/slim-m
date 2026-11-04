@@ -119,8 +119,8 @@ class _OverflowSlot extends StatelessWidget {
         key: MessageHoverToolbar.overflowKey,
         focusNode: node,
         icon: AppIcons.moreHorizontal,
-        semanticLabel: 'More message actions',
-        tooltip: 'More',
+        semanticLabel: 'Message actions',
+        tooltip: 'Message actions',
         iconSize: AppSizes.icon16,
         onPressed: () {
           final box = context.findRenderObject() as RenderBox?;

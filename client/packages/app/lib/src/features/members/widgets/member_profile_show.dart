@@ -5,10 +5,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_design_system/design_system.dart';
 
 import 'member_profile.dart';
-import 'member_profile_popover.dart';
+import '../../../widgets/anchored_popover_or_sheet.dart';
 
 /// The popover's width on a pointer layout, from the design.
 const double memberPopoverWidth = 300;
@@ -39,78 +38,25 @@ Future<void> showMemberProfile(
 }) {
   // Read before anything pops: a popped context has no navigator above it.
   final host = Navigator.of(anchor, rootNavigator: true).context;
-  final compact = MediaQuery.sizeOf(anchor).width < kCompactWidth;
   final memberPaneScaffold = Scaffold.maybeOf(anchor);
 
-  if (compact) {
-    // Its own controller reads the platform's own reduce-motion feature, never this app's MotionOverride; see sheet.dart's library doc.
-    final animation = AppMotion.sheet(anchor);
-    return showModalBottomSheet<void>(
-      context: anchor,
-      isScrollControlled: true,
-      showDragHandle: true,
-      sheetAnimationStyle: animation,
-      builder: (context) => SafeArea(
-        top: false,
-        child: MemberProfileBody(
-          profile: profile,
-          callChannelName: callChannelName,
-          compact: true,
-          host: host,
-          memberPaneScaffold: memberPaneScaffold,
-          initiallyModerating: initiallyModerating,
-          channelId: channelId,
-          onDone: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
-
-  final box = anchor.findRenderObject() as RenderBox?;
-  final overlay = Overlay.of(anchor).context.findRenderObject() as RenderBox?;
-  final origin = box == null || overlay == null
-      ? Offset.zero
-      : box.localToGlobal(Offset.zero, ancestor: overlay);
-  final anchorSize = box?.size ?? Size.zero;
-
-  return showGeneralDialog<void>(
-    context: anchor,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    barrierColor: Colors.transparent,
-    transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
-    pageBuilder: (context, _, __) => AnchoredMemberPopover(
-      origin: origin,
-      anchorSize: anchorSize,
-      child: MemberProfileBody(
+  Widget body(BuildContext context, {required bool compact}) =>
+      MemberProfileBody(
         profile: profile,
         callChannelName: callChannelName,
-        compact: false,
+        compact: compact,
         host: host,
         memberPaneScaffold: memberPaneScaffold,
         initiallyModerating: initiallyModerating,
         channelId: channelId,
-        profileOnly: profileOnly,
+        profileOnly: compact ? false : profileOnly,
         onDone: () => Navigator.of(context).pop(),
-      ),
-    ),
-    transitionBuilder: (context, animation, _, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.entrance,
-        reverseCurve: AppMotion.exit,
       );
-      return FadeTransition(
-        opacity: curved,
-        child: AnimatedBuilder(
-          animation: curved,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(0, (1 - curved.value) * 8),
-            child: child,
-          ),
-          child: child,
-        ),
-      );
-    },
+
+  return showAnchoredPopoverOrSheet<void>(
+    anchor,
+    sheetScrolls: true,
+    popoverBuilder: (context) => body(context, compact: false),
+    sheetBuilder: (context) => body(context, compact: true),
   );
 }

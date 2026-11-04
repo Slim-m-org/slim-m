@@ -44,7 +44,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(tester.takeException(), isNull, reason: 'sheet overflowed');
-    final last = find.text('Unknown member').last;
+    final last = find.text('Unknown member\'s content').last;
     await tester.scrollUntilVisible(
       last,
       200,

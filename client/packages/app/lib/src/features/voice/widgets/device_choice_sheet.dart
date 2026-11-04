@@ -11,6 +11,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/anchored_popover_or_sheet.dart';
+
 /// Renders [items] as a column of [AppListRow]s under [title], returning
 /// whichever one the caller taps through [Navigator.pop]. [caption], when
 /// given, sits between the title and the rows as a one-line explanation.
@@ -46,28 +48,16 @@ class DeviceChoiceSheet<T> extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
+          AppSheetHeader(
+            title,
+            caption: caption,
+            padding: const EdgeInsets.fromLTRB(
               AppSpacing.s16,
               0,
               AppSpacing.s16,
-              caption == null ? AppSpacing.s12 : AppSpacing.s4,
+              AppSpacing.s12,
             ),
-            child: Text(title, style: AppText.heading),
           ),
-          if (caption case final caption?)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s16,
-                0,
-                AppSpacing.s16,
-                AppSpacing.s12,
-              ),
-              child: Text(
-                caption,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-            ),
           for (final item in items)
             AppListRow(
               label: labelOf(item),
@@ -84,4 +74,48 @@ class DeviceChoiceSheet<T> extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks which of [items] to use: a sheet on a phone, a dropdown beside the
+/// control on a wide window, so a camera or screen pick matches the caret
+/// menus beside it. The sources carry only a name, so nothing needs the room
+/// of a dialog.
+Future<T?> showDeviceChoice<T>(
+  BuildContext context, {
+  required String title,
+  String? caption,
+  required IconData icon,
+  IconData Function(T item)? iconOf,
+  required List<T> items,
+  required String Function(T item) labelOf,
+  bool Function(T item)? isSelected,
+}) {
+  return showAnchoredPopoverOrSheet<T>(
+    context,
+    sheetScrolls: true,
+    sheetBuilder: (_) => DeviceChoiceSheet<T>(
+      title: title,
+      caption: caption,
+      icon: icon,
+      iconOf: iconOf,
+      items: items,
+      labelOf: labelOf,
+      isSelected: isSelected,
+    ),
+    popoverBuilder: (context) => AppMenu(
+      width: 280,
+      maxHeight: 360,
+      children: [
+        AppMenuLabel(title),
+        for (final item in items)
+          AppMenuItem(
+            label: labelOf(item),
+            leading: iconOf?.call(item) ?? icon,
+            selected: isSelected?.call(item) ?? false,
+            onTap: () => Navigator.of(context).pop(item),
+          ),
+        if (caption case final caption?) AppMenuFootnote(caption),
+      ],
+    ),
+  );
 }

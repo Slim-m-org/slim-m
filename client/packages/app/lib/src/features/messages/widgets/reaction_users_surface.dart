@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../members/widgets/member_profile_popover.dart';
+import '../../../widgets/anchored_popover_or_sheet.dart';
 import 'reaction_users_list.dart';
 
 const double _popoverWidth = 280;
@@ -25,42 +25,17 @@ Future<void> showReactionUsers(
     customEmoji: customEmoji,
   );
 
-  if (MediaQuery.sizeOf(anchor).width < kCompactWidth) {
-    return showAppSheet<void>(anchor, scrolls: true, builder: (_) => body());
-  }
-
-  final box = anchor.findRenderObject() as RenderBox?;
-  final overlay =
-      Overlay.of(anchor, rootOverlay: true).context.findRenderObject()
-          as RenderBox?;
-  final origin = box == null || overlay == null
-      ? Offset.zero
-      : box.localToGlobal(Offset.zero, ancestor: overlay);
-  return showGeneralDialog<void>(
-    context: anchor,
-    barrierDismissible: true,
-    barrierLabel: 'Dismiss',
-    barrierColor: Colors.transparent,
-    transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
-    pageBuilder: (context, _, _) => AnchoredMemberPopover(
-      origin: origin,
-      anchorSize: box?.size ?? Size.zero,
-      child: AppMenu(
-        width: _popoverWidth,
-        children: [
-          const SizedBox(height: AppSpacing.s8),
-          body(),
-          const SizedBox(height: AppSpacing.s4),
-        ],
-      ),
-    ),
-    transitionBuilder: (context, animation, _, child) => FadeTransition(
-      opacity: CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.entrance,
-        reverseCurve: AppMotion.exit,
-      ),
-      child: child,
+  return showAnchoredPopoverOrSheet<void>(
+    anchor,
+    sheetScrolls: true,
+    sheetBuilder: (_) => body(),
+    popoverBuilder: (_) => AppMenu(
+      width: _popoverWidth,
+      children: [
+        const SizedBox(height: AppSpacing.s8),
+        body(),
+        const SizedBox(height: AppSpacing.s4),
+      ],
     ),
   );
 }

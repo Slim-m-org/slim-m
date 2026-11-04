@@ -214,7 +214,7 @@ void main() {
   );
 
   testWidgets(
-    'touch density folds GIF into the actions sheet only when a provider is configured',
+    'touch density keeps GIF out of the actions sheet; the smile button owns it',
     (tester) async {
       // Touch density, and so the sheet at all, follows width; see AppTouchTargets.of.
       tester.view.physicalSize = const Size(390, 844);
@@ -233,7 +233,7 @@ void main() {
 
       await tester.tap(moreActionsButton);
       await tester.pumpAndSettle();
-      expect(find.text('GIF'), findsOneWidget);
+      expect(find.text('GIF'), findsNothing);
     },
   );
 

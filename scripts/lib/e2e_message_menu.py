@@ -107,17 +107,17 @@ def _menu_ys(client, labels):
 
 QUICK = L.QUICK_REACTIONS
 VERBS = L.MENU_VERBS
-SECOND_PAGE = L.MENU_SECOND_PAGE
+TRAILING = L.MENU_TRAILING
 
 
-def message_menu_quick_row_then_more(alice, bob, admin_api, member_api,
-                                     channel):
-    """The menu opens on quick reactions and verbs, and More swaps the page.
+def message_menu_quick_row_then_trailing_group(alice, bob, admin_api,
+                                               member_api, channel):
+    """The menu opens on quick reactions and verbs, and Report, Block and
+    Delete close it in that order.
 
     Bob's message is the target because Alice, an administrator, can report
-    and block its author, which is what More holds. Order is checked by
-    position: the quick row above the verbs, Delete the last row, and Report
-    and Block absent from the first page so Delete is the only red row there.
+    and block its author. Order is checked by position: the quick row above
+    the verbs, then Select, Report, Block, with Delete the last row.
     """
     stamp = str(int(time.time()))
     text = f"menu target {stamp}"
@@ -129,31 +129,19 @@ def message_menu_quick_row_then_more(alice, bob, admin_api, member_api,
     row = alice.wait_for(text)
     I.right_click(alice, row["x"], row["y"])
 
-    first = _menu_ys(alice, set(QUICK) | set(VERBS) | {L.MENU_MORE, L.MENU_DELETE})
-    missing = (set(QUICK) | set(VERBS) | {L.MENU_MORE, L.MENU_DELETE}) - set(first)
-    assert not missing, f"the menu's first page lacks {sorted(missing)}"
+    wanted = set(QUICK) | set(VERBS) | set(TRAILING) | {L.MENU_DELETE}
+    first = _menu_ys(alice, wanted)
+    missing = wanted - set(first)
+    assert not missing, f"the menu lacks {sorted(missing)}"
     assert max(first[q] for q in QUICK) < min(first[v] for v in VERBS), \
         f"the quick reactions are not above the verbs: {first}"
-    assert first[L.MENU_MORE] < first[L.MENU_DELETE] and \
-        max(first[v] for v in VERBS) < first[L.MENU_MORE], \
-        f"More and Delete do not close the list in that order: {first}"
-    for hidden in SECOND_PAGE:
-        assert not I.exact(alice, hidden), \
-            f"{hidden!r} is on the first page, which More should hold"
+    assert max(first[v] for v in VERBS) < first[L.MENU_REPORT] < \
+        first[L.MENU_BLOCK] < first[L.MENU_DELETE], \
+        f"Report, Block and Delete do not close the list in that order: {first}"
     alice.shot("message-menu")
     print("  the menu opens on five quick reactions above the verbs, "
-          "with More then Delete last")
+          "with Report, Block and Delete last")
 
-    alice.click(L.MENU_MORE, settle=1.5)
-    for label in SECOND_PAGE:
-        I.wait_exact(alice, label)
-    assert not I.exact(alice, L.MENU_DELETE), "Delete is still on the second page"
-    assert not I.exact(alice, QUICK[0]), "the quick row is still showing"
-    alice.shot("message-menu-more")
-    print("  More swapped the page in place: Select, Report and Block")
-
-    alice.click(L.MENU_BACK, settle=1.0)
-    I.wait_exact(alice, L.MENU_COPY_TEXT)
     alice.click(QUICK[0], settle=2)
     deadline = time.time() + 20
     while time.time() < deadline:
@@ -163,4 +151,4 @@ def message_menu_quick_row_then_more(alice, bob, admin_api, member_api,
         time.sleep(0.25)
     assert [r["emoji"] for r in reactions] == [THUMBS_UP], \
         f"the quick reaction did not reach the server: {reactions}"
-    print("  Back returned to the first page, and a quick reaction landed")
+    print("  a quick reaction landed")

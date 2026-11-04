@@ -69,9 +69,9 @@ class _ModerationSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          AppSheetHeader(
             count == 1 ? '1 member selected' : '$count members selected',
-            style: AppText.heading.copyWith(color: tokens.textPrimary),
+            padding: EdgeInsets.zero,
           ),
           if (canTimeOut) ...[
             const SizedBox(height: AppSpacing.s16),
