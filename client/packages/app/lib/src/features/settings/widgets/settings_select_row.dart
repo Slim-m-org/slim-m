@@ -132,14 +132,13 @@ class SettingsSelectRow<T> extends StatelessWidget {
     final anchor = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final rect = Rect.fromPoints(
-      anchor.localToGlobal(Offset.zero, ancestor: overlay),
-      anchor.localToGlobal(
-        anchor.size.bottomRight(Offset.zero),
-        ancestor: overlay,
-      ),
+    final bottomRight = anchor.localToGlobal(
+      anchor.size.bottomRight(Offset.zero),
+      ancestor: overlay,
     );
-    final position = RelativeRect.fromRect(rect, Offset.zero & overlay.size);
+    // A zero-width rect makes the menu right-align to the value side, below the row.
+    final point = Rect.fromLTWH(bottomRight.dx, bottomRight.dy + 4, 0, 0);
+    final position = RelativeRect.fromRect(point, Offset.zero & overlay.size);
     if (choicesNeedSearch(choices.length)) {
       return showSearchableChoiceMenu<T>(
         context,

@@ -81,8 +81,14 @@ Future<void> _mount(WidgetTester tester, String size, Widget home) async {
   await tester.pump();
 }
 
+/// A route needs a frame to start its animation before a long pump can finish it.
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 1500));
+}
+
 Future<void> _shoot(WidgetTester tester, String name) async {
-  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pump(const Duration(milliseconds: 1500));
   await expectSettled(tester, name, allowNoText: true);
   await writeSnapshot(tester, name);
   expect(tester.takeException(), isNull);
@@ -125,7 +131,7 @@ void main() {
         _opener('open', (c) => showCreateChannelSheet(c, initialKind: 'text')),
       );
       await tester.tap(find.byKey(const Key('open')));
-      await tester.pump(const Duration(milliseconds: 500));
+      await _settle(tester);
       await _shoot(tester, 'channels-create-$size');
     });
 
@@ -143,7 +149,7 @@ void main() {
         _opener('open', (c) => showRenameCategorySheet(c, _category)),
       );
       await tester.tap(find.byKey(const Key('open')));
-      await tester.pump(const Duration(milliseconds: 500));
+      await _settle(tester);
       await _shoot(tester, 'channels-rename-category-$size');
     });
 
@@ -179,9 +185,9 @@ void main() {
         ),
       );
       await tester.tap(find.byKey(const Key('open')));
-      await tester.pump(const Duration(milliseconds: 500));
+      await _settle(tester);
       await tester.tap(find.text('1 day'));
-      await tester.pump(const Duration(milliseconds: 500));
+      await _settle(tester);
       await _shoot(tester, 'channels-select-row-$size');
     });
   }
