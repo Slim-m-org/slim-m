@@ -185,7 +185,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
 
   Future<void> _pickTarget() async {
     if (_saving) return;
-    final column = await pickGridColumn(context);
+    final column = await pickGridColumn(context, taken: _pending.keys.toSet());
     if (column != null && mounted) _addColumn(column);
   }
 

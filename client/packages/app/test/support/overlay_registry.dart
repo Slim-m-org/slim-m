@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/widgets/admin/overwrite_target_picker_sheets.dart';
+import 'package:slimm_app/src/features/settings/widgets/admin/overwrite_target_picker.dart';
 import 'package:slimm_app/src/features/members/widgets/member_picker.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_create_sheet.dart';
 import 'package:slimm_app/src/whats_new/whats_new_content.dart';
@@ -133,9 +134,9 @@ final overlays = <String, FutureOr<void> Function(BuildContext, WidgetRef)>{
     context,
     builder: (context) => const ChannelPickerSheet(channels: [_localChannel]),
   ),
-  'role-picker-sheet': (context, ref) => showAppSheet<api.Role>(
+  'role-picker-sheet': (context, ref) => showAppSheet<Object>(
     context,
-    builder: (context) => const RolePickerSheet(),
+    builder: (context) => const OverwriteTargetPicker(),
   ),
   'member-picker-sheet': (context, ref) => pickMember(context),
 };

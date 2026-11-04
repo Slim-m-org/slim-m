@@ -12,8 +12,12 @@ import 'package:slimm_design_system/design_system.dart';
 import '../support/overlay_registry.dart';
 import '../ui_snapshot_support.dart';
 
-/// Open with their own first row or search field, so only the floor applies.
-const _ownLayout = {'composer-actions-sheet', 'emoji-picker-sheet'};
+/// Open with their own first row, search field or header button, so only the floor applies.
+const _ownLayout = {
+  'composer-actions-sheet',
+  'emoji-picker-sheet',
+  'role-picker-sheet',
+};
 
 /// Longer than the card, so the last row is wherever the scroll left it.
 const _scrolls = {'whats-new-sheet'};
