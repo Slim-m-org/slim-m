@@ -214,7 +214,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add role or member'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add a member'));
+    await tester.tap(find.text('A member...'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('m-nadia'));
     await tester.pumpAndSettle();

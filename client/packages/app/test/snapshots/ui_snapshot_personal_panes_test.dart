@@ -20,11 +20,13 @@ import 'package:slimm_app/src/action_labels.dart';
 
 const _panes = <String, String>{
   'profile': 'Profile',
-  'account-devices': 'Account & devices',
+  'account-devices': 'Account & security',
+  'your-data': 'Your data',
+  'desktop': 'Desktop',
   'appearance': 'Appearance',
   'performance': ActionLabels.mediaAndCache,
   'notifications': 'Notifications',
-  'voice': 'Voice & screen share',
+  'voice': 'Voice and screen share',
   'blocked': 'Blocked',
   'report-status': 'Report status',
   'about': 'About slim-m',

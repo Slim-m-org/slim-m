@@ -51,8 +51,8 @@ NEW_ROLE = "Create role"
 ROLE_NAME = "Role name"
 CREATE_ROLE = "Create role"
 
-# Account & devices > Password (change_password_section.dart, change_password_sheet.dart)
-ACCOUNT_PANE = "Account & devices"
+# Account & security > Password (change_password_section.dart, change_password_sheet.dart)
+ACCOUNT_PANE = "Account & security"
 CHANGE_PASSWORD = "Change password"
 CURRENT_PASSWORD = "Current password"
 NEW_PASSWORD = "New password"
@@ -69,7 +69,7 @@ COPY_CODE = "Copy code"
 
 # Space settings > Customize > Space profile (invite_landing_section.dart)
 DESCRIPTION_FIELD = "Description"
-SAVE_DESCRIPTION = "Save description"
+SAVE_CHANGES = "Save changes"
 
 # The signed-out invite flow (onboarding_screen.dart, onboarding_dialogs.dart)
 I_HAVE_AN_INVITE = "I have an invite"
@@ -85,7 +85,7 @@ SHARE_RESOLUTION_ROW = "Screen share resolution"
 RES_720P = "720p"
 FPS_30 = "30 fps"
 FPS_60 = "60 fps"
-VOICE_PANE = "Voice & screen share"
+VOICE_PANE = "Voice and screen share"
 
 # Voice
 IN_CALL = "in call"

@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/widgets/troubleshooting_rows.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_sounds_card.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -86,7 +87,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      wrap(const CallSoundsCard(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
     expect(find.text('Music style'), findsNothing);
@@ -118,7 +119,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       wrap(
-        const VoiceSettingsBody(),
+        const CallSoundsCard(),
         overrides: [
           ...ungatedSession(),
           holdMusicAvailableProvider.overrideWithValue(false),

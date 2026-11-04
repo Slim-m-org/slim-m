@@ -91,7 +91,6 @@ class _CanvasCapSectionState extends ConsumerState<CanvasCapSection>
       children: [
         SettingsSectionCard(
           title: 'Canvas object cap',
-          description: 'The most objects one channel canvas can hold.',
           children: [
             if (current != null) ...[
               SettingsSegmentedBlock(

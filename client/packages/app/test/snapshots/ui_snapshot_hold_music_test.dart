@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Voice & screen share pane, with the hold music row, at phone and
+/// The Voice and screen share pane, with the hold music row, at phone and
 /// desktop width in both themes. The PNGs are written only under
 /// SLIMM_UI_SNAPSHOTS=1; otherwise this asserts the pane lays out without
 /// overflow.

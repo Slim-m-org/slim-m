@@ -55,7 +55,7 @@ class AuditLogPane extends ConsumerWidget {
         children: [
           SettingsSectionCard(
             title: 'Audit log',
-            description: 'Changes admins made to this space, newest first.',
+            description: 'Newest first.',
             children: [
               if (list.isEmpty)
                 const SettingsEmptyState(

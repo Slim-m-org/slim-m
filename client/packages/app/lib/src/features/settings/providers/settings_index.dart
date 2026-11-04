@@ -17,6 +17,9 @@ export 'settings_index_voice.dart';
 
 const _devicesPage = 'account-devices';
 
+/// The pane holding the data export and account deletion.
+const yourDataPane = 'your-data';
+
 /// One searchable setting.
 class SettingsEntry {
   const SettingsEntry(
@@ -102,7 +105,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['game', 'steam', 'playing'],
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Connections',
     description: 'Accounts shown on your profile.',
     keywords: ['discord', 'link', 'linked accounts'],
@@ -111,20 +114,20 @@ const personalSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Discord',
     keywords: ['connections', 'link', 'unlink'],
     conditional: true,
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Spotify',
     keywords: ['connections', 'link', 'unlink', 'music'],
     gate: SettingsGate.spotifyConfigured,
     conditional: true,
   ),
   SettingsEntry(
-    _devicesPage,
+    'profile',
     'Show my Spotify track',
     description: 'Shows your track even when you play on another device.',
     keywords: ['listening', 'music', 'now playing', 'song', 'spotify'],
@@ -138,7 +141,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['sessions', 'sign out', 'logout', 'version'],
   ),
   SettingsEntry(
-    _devicesPage,
+    yourDataPane,
     'Your data',
     description: 'A copy of what you wrote and uploaded.',
     keywords: [
@@ -150,10 +153,24 @@ const personalSettingsIndex = <SettingsEntry>[
     ],
   ),
   SettingsEntry(
-    _devicesPage,
+    yourDataPane,
     'Download my data',
     description: 'Messages, reactions, saved items, notes and uploads.',
     keywords: ['export', 'archive', 'backup', 'portability'],
+  ),
+  SettingsEntry(
+    yourDataPane,
+    'Delete account',
+    description: 'Permanently removes you and signs out every device.',
+    keywords: ['remove account', 'close account', 'erase'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    _devicesPage,
+    'App lock',
+    description: 'Locks slim-m on this device.',
+    keywords: ['face id', 'fingerprint', 'biometric', 'passcode'],
+    conditional: true,
   ),
   SettingsEntry(
     _devicesPage,

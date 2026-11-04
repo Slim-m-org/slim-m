@@ -185,7 +185,7 @@ If your build predates a change, the pull request number is there so you can ski
   Sign the same account in on a second device.
   Expected: the first device shows a banner reading "New sign-in: ... signed in to your account at ...", with "This wasn't me" and "This was me".
   Tap "This wasn't me".
-  Expected: the banner closes and Account & devices opens, where you can sign the other device out.
+  Expected: the banner closes and Account & security opens, where you can sign the other device out.
 
 ### Local data and upgrade
 

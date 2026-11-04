@@ -39,6 +39,7 @@ final _png = base64Decode(
 const _json = {'content-type': 'application/json'};
 
 class _Server {
+  String name = 'Hearth Home';
   String description = '';
   int? banner;
   int? icon;
@@ -53,7 +54,9 @@ class _Server {
         return http.Response(_settings(), 200, headers: _json);
       case ('PATCH', '/space/settings'):
         lastPatch = jsonDecode(r.body);
-        description = (lastPatch as Map)['description'] as String;
+        final patch = lastPatch as Map;
+        name = (patch['name'] as String?) ?? name;
+        description = (patch['description'] as String?) ?? description;
         return http.Response(_settings(), 200, headers: _json);
       case ('POST', '/space/banner'):
         if (uploadStatus != 200) {
@@ -98,6 +101,7 @@ class _Server {
   }
 
   String _settings() => jsonEncode({
+    'name': name,
     'join_policy': 'invite',
     'totp_policy': 'optional',
     'description': description,
@@ -141,6 +145,13 @@ Finder get _descriptionInput => find.byWidgetPredicate(
   (w) => w is AppInput && w.semanticLabel == 'Description',
 );
 
+Finder get _nameField => find.descendant(
+  of: find.byWidgetPredicate(
+    (w) => w is AppInput && w.semanticLabel == 'Space name',
+  ),
+  matching: find.byType(TextField),
+);
+
 Finder get _descriptionField =>
     find.descendant(of: _descriptionInput, matching: find.byType(TextField));
 
@@ -169,28 +180,46 @@ Future<void> _untilCalled(
 void main() {
   for (final width in [390.0, 1280.0]) {
     testWidgets(
-      'saving a description sends only it and previews it at $width',
+      'saving a description sends only it, behind one save bar at $width',
       (tester) async {
         final server = _Server();
         await _pump(tester, server, width);
-        expect(find.byType(InviteLandingCard), findsOneWidget);
-        final save = find.widgetWithText(AppButton, 'Save description');
-        expect(tester.widget<AppButton>(save).disabled, isTrue);
+        expect(find.text('Save changes'), findsNothing);
+        expect(find.byType(InviteLandingCard), findsNothing);
 
         await tester.enterText(_descriptionField, '  A small home server. ');
         await tester.pump();
-        expect(find.text('A small home server.'), findsWidgets);
-        await tester.tap(save);
+        expect(find.text('1 unsaved change'), findsOneWidget);
+        await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
         await tester.pumpAndSettle();
 
         expect(server.lastPatch, {'description': 'A small home server.'});
-        expect(tester.widget<AppButton>(save).disabled, isTrue);
-        final card = tester.getRect(find.byType(InviteLandingCard));
-        expect(card.right, lessThanOrEqualTo(width));
+        expect(find.text('Save changes'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
   }
+
+  testWidgets('name and description save together from the one bar', (
+    tester,
+  ) async {
+    final server = _Server();
+    await _pump(tester, server, 1280);
+    await tester.enterText(_nameField, 'Hearth');
+    await tester.enterText(_descriptionField, 'Cosy.');
+    await tester.pump();
+    expect(find.text('2 unsaved changes'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(server.lastPatch, {'name': 'Hearth', 'description': 'Cosy.'});
+
+    await tester.enterText(_nameField, 'Other');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Discard'));
+    await tester.pump();
+    expect(find.text('Save changes'), findsNothing);
+  });
 
   testWidgets('choosing a banner uploads it and offers to remove it', (
     tester,
@@ -244,7 +273,6 @@ void main() {
     await _untilCalled(tester, server, 'POST /space/icon');
     expect(server.calls, contains('POST /space/icon'));
     expect(_button('Replace icon'), findsOneWidget);
-    expect(find.byType(SpaceIcon), findsOneWidget);
 
     await tester.tap(_button('Remove icon'));
     await tester.pumpAndSettle();
@@ -269,11 +297,6 @@ void main() {
           expect(remove.right, field.right);
           expect(remove.width, lessThan(choose.width), reason: 'a compact X');
         }
-        final save = tester.getRect(
-          find.widgetWithText(AppButton, 'Save description'),
-        );
-        expect(save.right, field.right);
-        expect(save.top, greaterThan(field.bottom));
         expect(
           tester.getRect(_button('Replace banner')).left,
           tester.getRect(_button('Replace icon')).left,

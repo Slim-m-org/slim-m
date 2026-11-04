@@ -77,8 +77,14 @@ class ChannelPickerSheet extends StatelessWidget {
   }
 }
 
+/// What [RolePickerSheet] pops when the member row is chosen instead of a role.
+const chooseMemberInstead = Object();
+
 class RolePickerSheet extends ConsumerWidget {
-  const RolePickerSheet({super.key});
+  const RolePickerSheet({super.key, this.offerMember = false});
+
+  /// Adds a leading "A member..." row, so adding to the grid is one sheet.
+  final bool offerMember;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -88,9 +94,12 @@ class RolePickerSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: _headingPadding,
-            child: Text('Choose a role', style: AppText.heading),
+            child: Text(
+              offerMember ? 'Add a role or member' : 'Choose a role',
+              style: AppText.heading,
+            ),
           ),
           AppAsyncView(
             value: AppAsyncState(data: roles.valueOrNull, error: roles.error),
@@ -100,6 +109,12 @@ class RolePickerSheet extends ConsumerWidget {
             isEmpty: (list) => list.isEmpty,
             data: (context, list) => _PickerList(
               children: [
+                if (offerMember)
+                  AppListRow(
+                    leading: const Icon(AppIcons.account),
+                    label: 'A member...',
+                    onTap: () => Navigator.of(context).pop(chooseMemberInstead),
+                  ),
                 for (final role in list)
                   AppListRow(
                     leading: const Icon(AppIcons.shield),

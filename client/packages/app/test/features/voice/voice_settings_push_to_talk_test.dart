@@ -17,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogRecord, LogSink;
 import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart'
     show remappableActions;
-import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_shortcuts_section.dart';
 import 'package:slimm_app/src/features/voice/widgets/push_to_talk_key_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -43,7 +43,7 @@ void main() {
     final records = _Records();
     AppLog.install(records);
     await tester.pumpWidget(
-      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      wrap(const VoiceShortcutsSection(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
     expect(
@@ -70,7 +70,7 @@ void main() {
 
   testWidgets('turning on push-to-talk persists it', (tester) async {
     await tester.pumpWidget(
-      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      wrap(const VoiceShortcutsSection(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
 
@@ -94,7 +94,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      wrap(const VoiceShortcutsSection(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
 
@@ -117,7 +117,7 @@ void main() {
 
   testWidgets('picking a push-to-talk key persists its keyId', (tester) async {
     await tester.pumpWidget(
-      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+      wrap(const VoiceShortcutsSection(), overrides: ungatedSession()),
     );
     await tester.pumpAndSettle();
 
@@ -164,7 +164,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+        wrap(const VoiceShortcutsSection(), overrides: ungatedSession()),
       );
       await tester.pumpAndSettle();
 
