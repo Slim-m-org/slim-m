@@ -13,7 +13,7 @@ class ThemeListRow extends StatelessWidget {
     required this.selected,
     required this.onApply,
     this.isSpaceDefault = false,
-    this.onMenu,
+    this.menu,
   });
 
   final String label;
@@ -23,10 +23,9 @@ class ThemeListRow extends StatelessWidget {
   final VoidCallback onApply;
 
   /// Null for a theme with nothing to do beyond applying it.
-  final VoidCallback? onMenu;
+  final Widget? menu;
 
   static const Key defaultBadgeKey = Key('theme-store-default-badge');
-  static const Key menuButtonKey = Key('theme-row-menu');
 
   @override
   Widget build(BuildContext context) => AppListRow(
@@ -40,15 +39,7 @@ class ThemeListRow extends StatelessWidget {
             label: 'Space default',
           )
         : null,
-    trailingExtra: onMenu == null
-        ? null
-        : AppIconButton(
-            key: menuButtonKey,
-            icon: AppIcons.moreVertical,
-            semanticLabel: 'More for $label',
-            tooltip: 'More',
-            onPressed: onMenu,
-          ),
+    trailingExtra: menu,
     onTap: onApply,
   );
 }

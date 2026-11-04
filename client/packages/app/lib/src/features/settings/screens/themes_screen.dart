@@ -19,6 +19,7 @@ import '../providers/theme_store_actions.dart';
 import '../widgets/settings_empty.dart';
 import '../widgets/settings_section_header.dart';
 import '../widgets/theme_list_row.dart';
+import '../widgets/theme_menu_button.dart';
 import '../widgets/theme_menus.dart';
 import '../widgets/theme_preview.dart';
 import '../widgets/theme_swatch.dart';
@@ -112,18 +113,8 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     });
   }
 
-  Future<void> _rowMenu(api.SpaceTheme theme, {required bool isDefault}) async {
-    final me = ref.read(meProvider).valueOrNull;
-    final isAdmin = me?.permissions.hasPermission(Perm.manageServer) ?? false;
-    final action = await showThemeRowMenu(
-      context,
-      isDefault: isDefault,
-      canSetDefault: isAdmin,
-      canRemove: isAdmin || (me != null && theme.authorId == me.id),
-      canExport: parseThemeJson(theme.theme).document != null,
-    );
-    if (action == null) return;
-    await _run(() async {
+  Future<void> _rowAction(api.SpaceTheme theme, ThemeRowAction action) {
+    return _run(() async {
       switch (action) {
         case ThemeRowAction.setDefault:
           await setSpaceDefaultTheme(ref, theme.id);
@@ -138,18 +129,37 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     });
   }
 
-  Future<void> _mineMenu(ThemeDocument document) async {
-    final action = await showThemeRowMenu(
-      context,
+  Widget _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
+    final me = ref.read(meProvider).valueOrNull;
+    final isAdmin = me?.permissions.hasPermission(Perm.manageServer) ?? false;
+    return ThemeMenuButton<ThemeRowAction>(
+      key: Key('theme-menu-${theme.id}'),
+      semanticLabel: 'More for ${theme.name}',
+      enabled: !_busy,
+      onSelected: (action) => unawaited(_rowAction(theme, action)),
+      items: (pick) => themeRowMenuItems(
+        pick,
+        isDefault: isDefault,
+        canSetDefault: isAdmin,
+        canRemove: isAdmin || (me != null && theme.authorId == me.id),
+        canExport: parseThemeJson(theme.theme).document != null,
+      ),
+    );
+  }
+
+  Widget _mineMenu(ThemeDocument document) => ThemeMenuButton<ThemeRowAction>(
+    key: const Key('theme-menu-mine'),
+    semanticLabel: 'More for ${document.name}',
+    enabled: !_busy,
+    onSelected: (_) => unawaited(_run(() => saveThemeFile(document))),
+    items: (pick) => themeRowMenuItems(
+      pick,
       isDefault: false,
       canSetDefault: false,
       canRemove: false,
       canExport: true,
-    );
-    if (action == ThemeRowAction.export) {
-      await _run(() => saveThemeFile(document));
-    }
-  }
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -162,20 +172,13 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
       backTooltip: 'Back to Appearance',
       backFallback: Routes.personalSettingsPane('appearance'),
       actions: [
-        AppIconButton(
+        ThemeMenuButton<ThemePageAction>(
           key: const Key('themes-menu'),
-          icon: AppIcons.moreVertical,
           semanticLabel: 'Theme actions',
-          tooltip: 'Theme actions',
-          onPressed: _busy
-              ? null
-              : () async {
-                  final action = await showThemePageMenu(
-                    context,
-                    storeAvailable: !storeFailed,
-                  );
-                  if (action != null) unawaited(_pageAction(action));
-                },
+          enabled: !_busy,
+          onSelected: (action) => unawaited(_pageAction(action)),
+          items: (pick) =>
+              themePageMenuItems(pick, storeAvailable: !storeFailed),
         ),
       ],
       child: Column(
@@ -251,7 +254,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
                   .read(themeControllerProvider.notifier)
                   .select(AppThemeChoice.custom),
             ),
-            onMenu: () => unawaited(_mineMenu(custom)),
+            menu: _mineMenu(custom),
           ),
         ],
       ),
@@ -325,7 +328,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
       onApply: document == null || _busy
           ? () {}
           : () => unawaited(_run(() => applyStoreTheme(ref, theme))),
-      onMenu: () => unawaited(_rowMenu(theme, isDefault: isDefault)),
+      menu: _rowMenu(theme, isDefault: isDefault),
     );
   }
 }

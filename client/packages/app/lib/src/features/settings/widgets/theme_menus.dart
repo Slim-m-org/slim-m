@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The menus and the import confirmation on the Themes page.
+/// The menu items and the import confirmation on the Themes page.
 ///
-/// Each is one `showAppSheet`, a bottom sheet under `kCompactWidth` and a
-/// dialog above it (rule 3 of `docs/design/desktop-vs-mobile.md`).
+/// The import confirmation is one `showAppSheet`, a bottom sheet under
+/// `kCompactWidth` and a dialog above it (rule 3 of `docs/design/desktop-vs-mobile.md`).
 library;
 
 import 'package:flutter/material.dart';
@@ -16,79 +16,57 @@ enum ThemePageAction { import, publish, export }
 
 enum ThemeImportChoice { apply, publish }
 
-Future<T?> _menu<T>(
-  BuildContext context,
-  List<Widget> Function(void Function(T)) items,
-) {
-  return showAppSheet<T>(
-    context,
-    bare: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: AppSheetMenu(
-        children: items((value) => Navigator.of(sheetContext).pop(value)),
-      ),
-    ),
-  );
-}
-
-Future<ThemeRowAction?> showThemeRowMenu(
-  BuildContext context, {
+List<Widget> themeRowMenuItems(
+  void Function(ThemeRowAction) pick, {
   required bool isDefault,
   required bool canSetDefault,
   required bool canRemove,
   required bool canExport,
-}) => _menu<ThemeRowAction>(
-  context,
-  (pick) => [
-    if (canSetDefault)
-      AppMenuItem(
-        label: isDefault ? 'Clear default' : 'Set as Space default',
-        leading: AppIcons.pin,
-        onTap: () => pick(
-          isDefault ? ThemeRowAction.clearDefault : ThemeRowAction.setDefault,
-        ),
-      ),
-    if (canExport)
-      AppMenuItem(
-        label: 'Export',
-        leading: AppIcons.download,
-        onTap: () => pick(ThemeRowAction.export),
-      ),
-    if (canRemove)
-      AppMenuItem(
-        label: 'Remove',
-        leading: AppIcons.delete,
-        tone: AppMenuItemTone.danger,
-        onTap: () => pick(ThemeRowAction.remove),
-      ),
-  ],
-);
-
-Future<ThemePageAction?> showThemePageMenu(
-  BuildContext context, {
-  required bool storeAvailable,
-}) => _menu<ThemePageAction>(
-  context,
-  (pick) => [
+}) => [
+  if (canSetDefault)
     AppMenuItem(
-      label: 'Import file',
-      leading: AppIcons.attachFile,
-      onTap: () => pick(ThemePageAction.import),
+      label: isDefault ? 'Clear default' : 'Set as Space default',
+      leading: AppIcons.pin,
+      onTap: () => pick(
+        isDefault ? ThemeRowAction.clearDefault : ThemeRowAction.setDefault,
+      ),
     ),
-    if (storeAvailable)
-      AppMenuItem(
-        label: 'Publish current theme',
-        leading: AppIcons.share,
-        onTap: () => pick(ThemePageAction.publish),
-      ),
+  if (canExport)
     AppMenuItem(
-      label: 'Export current theme',
+      label: 'Export',
       leading: AppIcons.download,
-      onTap: () => pick(ThemePageAction.export),
+      onTap: () => pick(ThemeRowAction.export),
     ),
-  ],
-);
+  if (canRemove)
+    AppMenuItem(
+      label: 'Remove',
+      leading: AppIcons.delete,
+      tone: AppMenuItemTone.danger,
+      onTap: () => pick(ThemeRowAction.remove),
+    ),
+];
+
+List<Widget> themePageMenuItems(
+  void Function(ThemePageAction) pick, {
+  required bool storeAvailable,
+}) => [
+  AppMenuItem(
+    label: 'Import file',
+    leading: AppIcons.attachFile,
+    onTap: () => pick(ThemePageAction.import),
+  ),
+  if (storeAvailable)
+    AppMenuItem(
+      label: 'Publish current theme',
+      leading: AppIcons.share,
+      onTap: () => pick(ThemePageAction.publish),
+    ),
+  AppMenuItem(
+    label: 'Export current theme',
+    leading: AppIcons.download,
+    onTap: () => pick(ThemePageAction.export),
+  ),
+];
 
 /// Null when cancelled.
 Future<ThemeImportChoice?> showThemeImportSheet(

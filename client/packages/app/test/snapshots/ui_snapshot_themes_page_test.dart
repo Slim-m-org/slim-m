@@ -89,13 +89,16 @@ void main() {
         'dark',
         'settings-themes-row-menu-$viewport-dark',
         overrides: _populated,
-        afterSettle: (tester) => _tapIn(
-          tester,
-          find.descendant(
-            of: find.byKey(const Key('theme-store-t2')),
-            matching: find.byKey(const Key('theme-row-menu')),
-          ),
-        ),
+        afterSettle: (tester) async {
+          await tester.ensureVisible(find.byKey(const Key('theme-store-t3')));
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.drag(
+            find.byKey(const Key('theme-store-t3')),
+            const Offset(0, -300),
+          );
+          await tester.pump(const Duration(milliseconds: 350));
+          await _tapIn(tester, find.byKey(const Key('theme-menu-t2')));
+        },
       );
     });
     testWidgets('themes page header menu at $viewport', (tester) async {

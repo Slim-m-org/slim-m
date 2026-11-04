@@ -129,10 +129,7 @@ Future<void> _pump(WidgetTester tester, _Rig rig) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
-Finder _menuOf(String id) => find.descendant(
-  of: find.byKey(Key('theme-store-$id')),
-  matching: find.byKey(ThemeListRow.menuButtonKey),
-);
+Finder _menuOf(String id) => find.byKey(Key('theme-menu-$id'));
 
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
