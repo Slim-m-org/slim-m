@@ -18,8 +18,8 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/mid_flight_capture.dart';
-import 'ui_snapshot_support.dart';
+import '../support/mid_flight_capture.dart';
+import '../ui_snapshot_support.dart';
 
 const _sizes = {'desktop': Size(1100, 760), 'phone': Size(390, 760)};
 
