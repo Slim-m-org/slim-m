@@ -229,4 +229,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['kv.store']);
   });
+
+  testWidgets('desktop: Overview and a changed Access tab', (tester) async {
+    await _pump(
+      tester,
+      installedApproved: ['kv.store'],
+      size: const Size(1100, 1000),
+    );
+    await openDockTab(tester, 'Overview');
+    await writeSnapshot(tester, 'dock-module-overview-desktop');
+    await openDockTab(tester, 'Access');
+    await tester.tap(find.byType(AppToggle).at(1));
+    await tester.pump(const Duration(milliseconds: 400));
+    await writeSnapshot(tester, 'dock-module-access-changed-desktop');
+  });
 }
