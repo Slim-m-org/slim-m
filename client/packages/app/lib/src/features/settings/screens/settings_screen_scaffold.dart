@@ -48,6 +48,19 @@ class SettingsScreenScaffold extends StatelessWidget {
   final bool scrollable;
   final EdgeInsets padding;
 
+  // The home-indicator inset is scroll padding, so content passes under it instead of stopping at an empty band.
+  Widget _body(BuildContext context) {
+    final inset =
+        padding + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom);
+    return scrollable
+        ? ListView(
+            key: const Key('settings-scaffold-list'),
+            padding: inset,
+            children: [child],
+          )
+        : Padding(padding: inset, child: child);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -61,12 +74,7 @@ class SettingsScreenScaffold extends StatelessWidget {
     ),
     body: AppContentColumn(
       // top: false because the AppBar already clears the status bar.
-      child: SafeArea(
-        top: false,
-        child: scrollable
-            ? ListView(padding: padding, children: [child])
-            : Padding(padding: padding, child: child),
-      ),
+      child: SafeArea(top: false, bottom: false, child: _body(context)),
     ),
   );
 }

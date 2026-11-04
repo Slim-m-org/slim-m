@@ -54,10 +54,14 @@ Future<void> showEmojiAddDialog(
       ),
       body: SafeArea(
         top: false,
+        bottom: false,
         child: AppContentColumn(
           maxWidth: 560,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.only(top: AppSpacing.s16),
+            padding: EdgeInsets.only(
+              top: AppSpacing.s16,
+              bottom: MediaQuery.paddingOf(context).bottom,
+            ),
             child: EmojiAddDialog(initial: initial),
           ),
         ),

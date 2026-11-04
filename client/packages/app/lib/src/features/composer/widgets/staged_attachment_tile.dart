@@ -288,6 +288,7 @@ class _TileButtonState extends State<_TileButton> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final slot = AppTouchTargets.of(context) ? AppSizes.rowTouch : 20.0;
     final button = Semantics(
       button: true,
       toggled: widget.tooltip == null ? null : widget.active,
@@ -298,8 +299,11 @@ class _TileButtonState extends State<_TileButton> {
         onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
           onTap: _handleTap,
+          behavior: HitTestBehavior.opaque,
           child: Container(
-            padding: const EdgeInsets.all(2),
+            // A fixed slot that never shrinks: 44 at touch density, the drawn 20 otherwise.
+            constraints: BoxConstraints.tightFor(width: slot, height: slot),
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: _hovered ? tokens.surfaceSunken : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadii.control),
