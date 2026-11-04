@@ -293,3 +293,28 @@ async fn a_segment_for_a_session_that_is_not_on_is_ignored() {
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn the_requester_leaving_during_the_ask_starts_no_wait() {
+    let call_audio = service(2);
+    let channel = ChannelId::generate();
+    let who = people(2);
+    call_audio
+        .begin((channel, subject()), who[0], &who, 1_000)
+        .unwrap();
+
+    let left = call_audio.left(channel, who[0], 2_000).expect("a session");
+    assert!(matches!(
+        left.effects[..],
+        [Effect::Ended {
+            reason: EndReason::RequesterLeft,
+            ..
+        }]
+    ));
+    assert!(
+        call_audio
+            .begin((channel, subject()), who[1], &who, 3_000)
+            .is_ok(),
+        "somebody leaving is not somebody refusing"
+    );
+}
