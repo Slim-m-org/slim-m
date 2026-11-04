@@ -30,6 +30,7 @@ import 'admin/analytics_screen.dart';
 import 'admin/audit_log_screen.dart';
 import 'admin/bots_screen.dart';
 import 'admin/channel_permissions_screen.dart';
+import '../widgets/admin/channel_permissions_heading.dart';
 import 'admin/dock_screen.dart';
 import 'admin/emoji_screen.dart';
 import 'admin/export_screen.dart';
@@ -197,6 +198,8 @@ SettingsPaneGroup _configurationGroup(_SpaceAccess access) {
           compactRoute: Routes.adminOverwrites,
           scrollable: false,
           builder: (_) => const ChannelPermissionsPane(),
+          headingBuilder: (context, onClose) =>
+              ChannelPermissionsHeading(onClose: onClose),
         ),
       if (access.canManageServer)
         SettingsPane(

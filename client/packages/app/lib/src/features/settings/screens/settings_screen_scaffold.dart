@@ -25,6 +25,7 @@ class SettingsScreenScaffold extends StatelessWidget {
     required this.backFallback,
     required this.child,
     this.actions,
+    this.onBack,
     this.scrollable = true,
     this.padding = const EdgeInsets.all(AppSpacing.s16),
   });
@@ -38,6 +39,9 @@ class SettingsScreenScaffold extends StatelessWidget {
 
   final List<Widget>? actions;
 
+  /// Replaces leaving the screen, for a screen with an inner page to step out of first.
+  final VoidCallback? onBack;
+
   /// The body. Wrapped in a scrolling list by default, since these screens
   /// are lists of rows; false for a body that scrolls itself (or must not).
   final Widget child;
@@ -48,7 +52,11 @@ class SettingsScreenScaffold extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(title),
-      leading: BackToButton(tooltip: backTooltip, fallback: backFallback),
+      leading: BackToButton(
+        tooltip: backTooltip,
+        fallback: backFallback,
+        onBack: onBack,
+      ),
       actions: actions,
     ),
     body: AppContentColumn(

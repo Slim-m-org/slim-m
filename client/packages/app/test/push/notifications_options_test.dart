@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Notifications pane rows that had no operating test: the dock module
-/// sounds toggle and the Linux/Android test notification button.
+/// The Troubleshooting test notification button on Linux and Android.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/features/modules/providers/module_sound_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
-import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
+import 'package:slimm_app/src/features/settings/widgets/notification_troubleshooting_card.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
@@ -55,7 +53,7 @@ Future<ProviderContainer> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: const Scaffold(
-          body: SingleChildScrollView(child: NotificationsSection()),
+          body: SingleChildScrollView(child: NotificationTroubleshootingCard()),
         ),
       ),
     ),
@@ -66,28 +64,6 @@ Future<ProviderContainer> _pump(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
-
-  testWidgets('the dock module sounds toggle persists, both ways', (
-    tester,
-  ) async {
-    final container = await _pump(tester, _FakeNotifications());
-    final toggle = find.byWidgetPredicate(
-      (w) =>
-          w is AppToggle && w.semanticLabel == 'Let modules play sound effects',
-    );
-    expect(container.read(moduleSoundSettingsProvider), isTrue);
-
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    final prefs = await SharedPreferences.getInstance();
-    expect(container.read(moduleSoundSettingsProvider), isFalse);
-    expect(prefs.getBool(moduleSoundEnabledKey), isFalse);
-
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-    expect(prefs.getBool(moduleSoundEnabledKey), isTrue);
-  });
 
   testWidgets('Send test posts a local notification and a confirming toast', (
     tester,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Settings > Appearance > Themes: built-in, personal and Space themes, with
-/// import, export and publishing in the header menu (decision 0106).
+/// Settings > Appearance > Themes: built-in, personal and Space themes
+/// (decision 0106).
 library;
 
 import 'dart:async';
@@ -44,7 +44,6 @@ class ThemesScreen extends ConsumerStatefulWidget {
 }
 
 class _ThemesScreenState extends ConsumerState<ThemesScreen> {
-  List<String> _problems = const [];
   String? _error;
   bool _busy = false;
 
@@ -53,7 +52,6 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     setState(() {
       _busy = true;
       _error = null;
-      _problems = const [];
     });
     try {
       await action();
@@ -65,54 +63,6 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _pageAction(ThemePageAction action) async {
-    final brightness = Theme.of(context).brightness;
-    switch (action) {
-      case ThemePageAction.import:
-        return _import();
-      case ThemePageAction.publish:
-        return _run(
-          () async => publishThemeDocument(
-            ref,
-            await currentThemeDocument(ref, brightness),
-          ),
-        );
-      case ThemePageAction.export:
-        return _run(
-          () async =>
-              saveThemeFile(await currentThemeDocument(ref, brightness)),
-        );
-    }
-  }
-
-  Future<void> _import() async {
-    final parsed = await ref.read(themeFilePickerProvider)();
-    final document = parsed?.document;
-    if (parsed == null || !mounted) return;
-    if (document == null) {
-      setState(() => _problems = parsed.problems);
-      return;
-    }
-    final canPublish = !ref.read(spaceThemesProvider).hasError;
-    final choice = await showThemeImportSheet(
-      context,
-      document: document,
-      canPublish: canPublish,
-    );
-    if (choice == null) return;
-    await _run(() async {
-      if (choice == ThemeImportChoice.publish) {
-        await publishThemeDocument(ref, document);
-        return;
-      }
-      await applyThemeDocument(
-        ref,
-        document,
-        pictureBytes: document.picture?.data,
-      );
-    });
-  }
-
   Future<void> _rowAction(api.SpaceTheme theme, ThemeRowAction action) {
     return _run(() async {
       switch (action) {
@@ -122,16 +72,15 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
           await setSpaceDefaultTheme(ref, null);
         case ThemeRowAction.remove:
           await removeStoreTheme(ref, theme.id);
-        case ThemeRowAction.export:
-          final document = parseThemeJson(theme.theme).document;
-          if (document != null) await saveThemeFile(document);
       }
     });
   }
 
-  Widget _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
+  Widget? _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
     final me = ref.read(meProvider).valueOrNull;
     final isAdmin = me?.permissions.hasPermission(Perm.manageServer) ?? false;
+    final canRemove = isAdmin || (me != null && theme.authorId == me.id);
+    if (!isAdmin && !canRemove) return null;
     return ThemeMenuButton<ThemeRowAction>(
       key: Key('theme-menu-${theme.id}'),
       semanticLabel: 'More for ${theme.name}',
@@ -141,25 +90,10 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
         pick,
         isDefault: isDefault,
         canSetDefault: isAdmin,
-        canRemove: isAdmin || (me != null && theme.authorId == me.id),
-        canExport: parseThemeJson(theme.theme).document != null,
+        canRemove: canRemove,
       ),
     );
   }
-
-  Widget _mineMenu(ThemeDocument document) => ThemeMenuButton<ThemeRowAction>(
-    key: const Key('theme-menu-mine'),
-    semanticLabel: 'More for ${document.name}',
-    enabled: !_busy,
-    onSelected: (_) => unawaited(_run(() => saveThemeFile(document))),
-    items: (pick) => themeRowMenuItems(
-      pick,
-      isDefault: false,
-      canSetDefault: false,
-      canRemove: false,
-      canExport: true,
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -171,16 +105,6 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
       title: 'Themes',
       backTooltip: 'Back to Appearance',
       backFallback: Routes.personalSettingsPane('appearance'),
-      actions: [
-        ThemeMenuButton<ThemePageAction>(
-          key: const Key('themes-menu'),
-          semanticLabel: 'Theme actions',
-          enabled: !_busy,
-          onSelected: (action) => unawaited(_pageAction(action)),
-          items: (pick) =>
-              themePageMenuItems(pick, storeAvailable: !storeFailed),
-        ),
-      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -190,16 +114,6 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
               child: AppErrorState(
                 message: _error!,
                 onDismiss: () => setState(() => _error = null),
-              ),
-            ),
-          if (_problems.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s8),
-              child: AppErrorState(
-                key: const Key('theme-import-problems'),
-                message:
-                    'That file is not a usable theme.\n${_problems.join('\n')}',
-                onDismiss: () => setState(() => _problems = const []),
               ),
             ),
           _builtInCard(),
@@ -220,7 +134,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
         : ref.watch(themeControllerProvider);
     return SettingsSectionCard(
       title: 'Built in',
-      topGap: _error == null && _problems.isEmpty ? 0 : kSettingsSectionTopGap,
+      topGap: _error == null ? 0 : kSettingsSectionTopGap,
       children: [
         for (final choice in _builtIn)
           ThemeListRow(
@@ -254,7 +168,6 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
                   .read(themeControllerProvider.notifier)
                   .select(AppThemeChoice.custom),
             ),
-            menu: _mineMenu(custom),
           ),
         ],
       ),

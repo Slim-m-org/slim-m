@@ -12,14 +12,24 @@ import 'package:flutter/foundation.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_sound_settings.dart';
 import 'package:slimm_app/src/features/settings/providers/ui_sound_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/settings/widgets/notification_status_banner.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
+import 'package:slimm_app/src/features/modules/providers/module_sound_settings.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
-Widget _wrap(Widget child) => UncontrolledProviderScope(
+class _FailedPush extends PushController {
+  _FailedPush(super.ref) {
+    state = PushStatus.serverError;
+  }
+}
+
+Widget _wrap(Widget child, {bool failed = false}) => UncontrolledProviderScope(
   container: ProviderContainer(
-    overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    overrides: [
+      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      if (failed) pushControllerProvider.overrideWith(_FailedPush.new),
+    ],
   )..read(preferencesProvider),
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
@@ -64,27 +74,35 @@ void main() {
     );
   });
 
-  testWidgets('the push status is a banner, never a bare ListTile', (
+  testWidgets('a healthy or pending push state shows no banner', (
     tester,
   ) async {
     await tester.pumpWidget(
       _wrap(const NotificationsSection(hasPushChannel: true)),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(ListTile), findsNothing);
-    expect(find.byType(NotificationStatusBanner), findsOneWidget);
+    expect(find.byKey(NotificationsSection.bannerKey), findsNothing);
   });
 
-  testWidgets('a host without a push channel shows no push status', (
+  testWidgets('a push failure shows the banner, a host without push never', (
     tester,
   ) async {
     await tester.pumpWidget(
-      _wrap(const NotificationsSection(hasPushChannel: false)),
+      _wrap(const NotificationsSection(hasPushChannel: true), failed: true),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(NotificationsSection.bannerKey), findsOneWidget);
+    expect(find.text('Could not reach the server'), findsOneWidget);
 
-    expect(find.byType(NotificationStatusBanner), findsNothing);
+    await tester.pumpWidget(
+      _wrap(const NotificationsSection(hasPushChannel: false), failed: true),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(NotificationsSection.bannerKey), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 60));
   });
 
   Finder toggleLabelled(String label) =>
@@ -140,5 +158,26 @@ void main() {
 
     expect(toggleLabelled('Vibrate for taps, holds and alerts'), findsNothing);
     debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('the dock module sounds toggle persists, both ways', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_wrap(const NotificationsSection()));
+    await tester.pump(const Duration(milliseconds: 300));
+    final toggle = find.byWidgetPredicate(
+      (w) =>
+          w is AppToggle && w.semanticLabel == 'Let modules play sound effects',
+    );
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(prefs.getBool(moduleSoundEnabledKey), isFalse);
+
+    await tester.tap(toggle);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(prefs.getBool(moduleSoundEnabledKey), isTrue);
   });
 }

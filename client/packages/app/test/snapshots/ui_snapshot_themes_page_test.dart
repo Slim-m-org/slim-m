@@ -101,18 +101,6 @@ void main() {
         },
       );
     });
-    testWidgets('themes page header menu at $viewport', (tester) async {
-      await renderSurface(
-        tester,
-        '/settings/themes',
-        viewport,
-        'dark',
-        'settings-themes-header-menu-$viewport-dark',
-        overrides: _populated,
-        afterSettle: (tester) =>
-            _tapIn(tester, find.byKey(const Key('themes-menu'))),
-      );
-    });
     testWidgets('themes page store error at $viewport', (tester) async {
       await renderSurface(
         tester,
