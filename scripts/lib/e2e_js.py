@@ -5,6 +5,7 @@ Flutter web has no scripting surface of its own, so everything here reads or
 drives its accessibility projection directly. Kept apart from the Python so
 each is legible on its own, and so the client stays inside the line budget.
 """
+import json
 
 # Every leaf widget on screen, plus the fields.
 #
@@ -12,9 +13,9 @@ each is legible on its own, and so the client stays inside the line budget.
 # not on the wrapping semantics node, so both are collected or every field on
 # every screen looks unlabelled. A row that names itself (a channel, a member)
 # keeps its label on the node wrapping its icon and text, so leaves alone miss
-# it either. A Semantics(header: true) node renders as <header>, not
-# flt-semantics, so every sheet title would be invisible without it.
-_SEMANTIC_NODES = "flt-semantics,header"
+# it either. A Semantics(header: true) node renders as <h2> (or <header>),
+# not flt-semantics, so every sheet title would be invisible without them.
+_SEMANTIC_NODES = "flt-semantics,header,h1,h2,h3,h4,h5,h6"
 
 NODES = """
 (function(){
@@ -241,3 +242,20 @@ def paste_image(payload_json, name_json, mime_json):
       document.dispatchEvent(ev);
       return 'ok';
     })()""" % (payload_json, name_json, mime_json)
+
+
+def holders(label):
+    """Where a label the tree walk missed actually sits: each match's tag path, role and aria-label."""
+    return """
+    (function(){
+      var want=%s.toLowerCase(), out=[];
+      document.querySelectorAll('*').forEach(function(e){
+        var own=(e.getAttribute('aria-label')||'')+' '+Array.from(e.childNodes).filter(function(n){return n.nodeType===3;}).map(function(n){return n.textContent;}).join('');
+        if (own.toLowerCase().indexOf(want)<0) return;
+        var path=[], p=e;
+        for (var i=0;p&&i<5;i++,p=p.parentElement) path.push(p.tagName.toLowerCase()+(p.getAttribute('role')?'['+p.getAttribute('role')+']':''));
+        var r=e.getBoundingClientRect();
+        out.push(path.join('<')+' aria='+JSON.stringify(e.getAttribute('aria-label'))+' '+Math.round(r.width)+'x'+Math.round(r.height));
+      });
+      return JSON.stringify(out.slice(0,8));
+    })()""" % json.dumps(label)
