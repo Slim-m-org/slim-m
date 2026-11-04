@@ -13,6 +13,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'pulse_audio_parse.dart';
 import 'voice_models.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -22,14 +24,30 @@ typedef PactlRunner = Future<ProcessResult> Function(List<String> args);
 /// The lines `pactl subscribe` prints for as long as it is listened to.
 typedef PactlSubscriber = Stream<String> Function();
 
-Stream<String> _subscribePactl() {
+typedef ProcessStarter = Future<Process> Function(
+    String executable, List<String> arguments);
+
+/// Runs `pactl subscribe` while listened to; [start] is a seam for tests.
+@visibleForTesting
+Stream<String> subscribePactl({ProcessStarter start = Process.start}) {
   Process? process;
+  var cancelled = false;
   late final StreamController<String> lines;
   lines = StreamController<String>(
     onListen: () async {
       try {
-        final started = process = await Process.start('pactl', ['subscribe']);
+        final started = await start('pactl', ['subscribe']);
+        if (cancelled) {
+          started.kill();
+          return;
+        }
+        process = started;
         unawaited(started.stderr.drain<void>());
+        unawaited(started.exitCode.then((code) {
+          if (cancelled) return;
+          AppLog.warning(LogTag.voice,
+              'pactl subscribe exited with code $code; device changes are no longer followed');
+        }));
         started.stdout
             .transform(utf8.decoder)
             .transform(const LineSplitter())
@@ -40,7 +58,10 @@ Stream<String> _subscribePactl() {
         await lines.close();
       }
     },
-    onCancel: () => process?.kill(),
+    onCancel: () {
+      cancelled = true;
+      process?.kill();
+    },
   );
   return lines.stream;
 }
@@ -54,7 +75,7 @@ class PulseAudio {
 
   PulseAudio({PactlRunner? run, PactlSubscriber? subscribe, int? processId})
       : _run = run ?? _runPactl,
-        _subscribe = subscribe ?? _subscribePactl,
+        _subscribe = subscribe ?? subscribePactl,
         _pid = processId ?? pid,
         _enabled = run != null || supported;
 
