@@ -106,7 +106,6 @@ void main() {
     await _pump(tester);
     expect(find.text('Module a'), findsOneWidget);
     expect(find.text('Module b'), findsOneWidget);
-    expect(find.text('Module display'), findsNothing);
   });
 
   testWidgets('with something installed it opens on Installed only', (
@@ -159,15 +158,11 @@ void main() {
     expect(find.text('Manage sources'), findsOneWidget);
   });
 
-  testWidgets('Module display is one row that opens the two switches', (
+  testWidgets('the Installed list carries no Space-wide display row', (
     tester,
   ) async {
     await _pump(tester, installed: ['a']);
+    expect(find.text('Module display'), findsNothing);
     expect(find.text('Badges in member list'), findsNothing);
-    await tester.tap(find.text('Module display'));
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Badges in member list'), findsOneWidget);
-    expect(find.text('Sections on profiles'), findsOneWidget);
   });
 }

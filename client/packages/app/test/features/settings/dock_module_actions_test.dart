@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Overview tab's Actions card: each action is a labelled row, and the
-/// stored-data row exists only when the module keeps data.
+/// A module page's actions: Uninstall alone at the foot, Install or Update
+/// pinned, and Export and stored data folded into Details.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_actions.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_module_details.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../dock_manifest_fixture.dart';
@@ -34,40 +36,60 @@ const _storage = {
   'max_bytes': 65536,
 };
 
+/// Pumps the folded Details section and opens it.
 Future<void> _pump(
   WidgetTester tester,
   api.InstalledDockModule? installed, {
   VoidCallback? onClear,
-  VoidCallback? onUninstall,
-}) => tester.pumpWidget(
-  MaterialApp(
-    theme: buildTheme(Brightness.light, AppTokens.light),
-    home: Scaffold(
-      body: SingleChildScrollView(
-        child: DockModuleActions(
-          manifest: api.DockManifest.fromJson(dockManifestJson('xp', '1.0.0')),
-          installed: installed,
-          busy: false,
-          onSetEnabled: (_) {},
-          onUninstall: onUninstall ?? () {},
-          onExport: () {},
-          onClearStorage: onClear,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: DockModuleDetails(
+              manifest: api.DockManifest.fromJson(
+                dockManifestJson('xp', '1.0.0'),
+              ),
+              installed: installed,
+              busy: false,
+              showChangelog: true,
+              onExport: () {},
+              onClearStorage: onClear,
+            ),
+          ),
         ),
       ),
     ),
-  ),
-);
+  );
+  await tester.tap(find.byKey(const Key('dock-details-toggle')));
+  await tester.pump();
+}
 
 void main() {
-  testWidgets('an installed module lists its actions as labelled rows', (
+  testWidgets('Details holds Export once installed, not before', (
     tester,
   ) async {
     await _pump(tester, _installed());
-    expect(find.text('Actions'), findsOneWidget);
-    expect(find.text('Enabled'), findsOneWidget);
     expect(find.text('Package file'), findsOneWidget);
+    await _pump(tester, null);
+    expect(find.text('Package file'), findsNothing);
+  });
+
+  testWidgets('Uninstall is one danger row', (tester) async {
+    var removed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: DockUninstallRow(busy: false, onUninstall: () => removed++),
+        ),
+      ),
+    );
     expect(find.text('Remove from this space'), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'Uninstall'), findsOneWidget);
+    await tester.tap(find.widgetWithText(AppButton, 'Uninstall'));
+    expect(removed, 1);
   });
 
   testWidgets('install shows only for a missing or outdated module', (

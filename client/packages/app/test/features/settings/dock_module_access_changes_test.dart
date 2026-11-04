@@ -150,7 +150,7 @@ Future<ProviderContainer> _open(WidgetTester tester, _Server server) async {
     ),
   );
   await tester.pumpAndSettle();
-  await openDockTab(tester, 'Access');
+  await openDockFold(tester, 'roles');
   return container;
 }
 

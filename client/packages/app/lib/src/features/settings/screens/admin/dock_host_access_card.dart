@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Access to approve": the host capabilities a module asks for, each with a
+/// "Access": the host capabilities a module asks for, each with a
 /// switch, so the admin decides what a module may do before it runs
 /// (docs/decisions/0023-mediated-host-capabilities.md).
 ///
@@ -222,15 +222,14 @@ class DockHostAccessCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final grantable = grantableHostCapabilities(manifest.capabilities);
     if (grantable.isEmpty) return const SizedBox.shrink();
-    final access = SettingsSectionCard(
-      title: 'Access to approve',
+    return SettingsSectionCard(
+      title: 'Access',
       children: [
-        SettingsInfoLine(
-          reapprove.isEmpty
-              ? 'Off unless you turn it on.'
-              : 'A new build needs ${_labels(reapprove)} approved again.',
-        ),
-        for (final capability in grantable)
+        if (reapprove.isNotEmpty)
+          SettingsInfoLine(
+            'A new build needs ${_labels(reapprove)} approved again.',
+          ),
+        for (final capability in grantable) ...[
           SettingsToggleRow(
             label: dockHostCapabilities[capability]!.label,
             description: _description(capability),
@@ -239,16 +238,7 @@ class DockHostAccessCard extends StatelessWidget {
             semanticLabel:
                 '${dockHostCapabilities[capability]!.label} for $moduleName',
           ),
-      ],
-    );
-    if (!showsLocalNetwork) return access;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        access,
-        SettingsSectionCard(
-          title: 'Second approval',
-          children: [
+          if (capability == api.kNetFetchCapability && showsLocalNetwork)
             SettingsToggleRow(
               label: dockLocalNetworkLabel,
               description: dockLocalNetworkWarning,
@@ -256,8 +246,7 @@ class DockHostAccessCard extends StatelessWidget {
               onChanged: enabled ? onLocalNetworkChanged : null,
               semanticLabel: '$dockLocalNetworkLabel for $moduleName',
             ),
-          ],
-        ),
+        ],
       ],
     );
   }

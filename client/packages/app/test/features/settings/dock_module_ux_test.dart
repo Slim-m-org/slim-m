@@ -158,26 +158,26 @@ Future<void> _pump(
   );
   await tester.pumpAndSettle();
   if (tab != null) {
-    await openDockTab(tester, tab);
+    await openDockFold(tester, 'details');
   }
 }
 
 const _modulePage = '${Routes.adminDock}/dice';
 
 void main() {
-  testWidgets('the chip says there is an update, the row says which', (
+  testWidgets('the row says Update and leaves the version to the page', (
     tester,
   ) async {
     await _pump(tester, width: 800, installedVersion: '0.1.0');
     expect(find.text('UPDATE'), findsOneWidget);
-    expect(find.text('V0.1.0 · UPDATE'), findsNothing);
-    expect(find.text('Installed v0.1.0, latest v0.3.1'), findsOneWidget);
+    expect(find.textContaining('v0.'), findsNothing);
+    expect(find.textContaining('0.3.1'), findsNothing);
   });
 
   testWidgets('the install screen shows memory, time and CPU limits', (
     tester,
   ) async {
-    await _pump(tester, width: 800, location: _modulePage, tab: 'Access');
+    await _pump(tester, width: 800, location: _modulePage, tab: 'Details');
     expect(find.text('Memory'), findsOneWidget);
     expect(find.text('64 MB'), findsOneWidget);
     expect(find.text('Time'), findsOneWidget);
@@ -194,7 +194,7 @@ void main() {
       width: 800,
       location: _modulePage,
       limits: const {},
-      tab: 'Access',
+      tab: 'Details',
     );
     expect(find.text('host default'), findsNWidgets(3));
   });
@@ -202,7 +202,7 @@ void main() {
   testWidgets('command.register is not listed as something to approve', (
     tester,
   ) async {
-    await _pump(tester, width: 800, location: _modulePage, tab: 'Access');
+    await _pump(tester, width: 800, location: _modulePage, tab: 'Details');
     expect(find.text('COMMAND.REGISTER'), findsNothing);
     expect(find.text(dockNoAccessNote), findsOneWidget);
   });
@@ -215,7 +215,7 @@ void main() {
       width: 800,
       location: _modulePage,
       capabilities: const ['command.register', 'message.post'],
-      tab: 'Access',
+      tab: 'Details',
     );
     expect(find.text('Post messages'), findsOneWidget);
     expect(find.text('MESSAGE.POST'), findsNothing);
@@ -245,17 +245,10 @@ void main() {
         capabilities: const ['command.register', 'message.post'],
       );
       final lefts = <String, double>{};
-      for (final tab in ['Overview', 'Access']) {
-        await openDockTab(tester, tab);
-        for (final label in [
-          'Roll dice',
-          'Remember data',
-          'Memory',
-          'Enabled',
-        ]) {
-          if (find.text(label).evaluate().isNotEmpty) {
-            lefts[label] = tester.getTopLeft(find.text(label)).dx;
-          }
+      await openDockFold(tester, 'details');
+      for (final label in ['Roll dice', 'Remember data', 'Memory', 'Enabled']) {
+        if (find.text(label).evaluate().isNotEmpty) {
+          lefts[label] = tester.getTopLeft(find.text(label)).dx;
         }
       }
       expect(lefts.keys, containsAll(['Roll dice', 'Memory', 'Enabled']));

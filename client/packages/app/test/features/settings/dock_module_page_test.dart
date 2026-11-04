@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A module's page is three tabs, a health banner above them, and a Save that
-/// belongs to the Access tab.
+/// A module's page is one list: controls, Access with its Save, a folded
+/// Details section and Uninstall last.
 library;
 
 import 'dart:convert';
@@ -18,7 +18,6 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../dock_manifest_fixture.dart';
-import '../../support/dock_page_helpers.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -33,6 +32,7 @@ Map<String, dynamic> _installed({
   bool enabled = true,
   String? reason,
   List<Map<String, dynamic>>? runStats,
+  List<Map<String, dynamic>> extensionPoints = const [],
 }) => {
   'id': 'xp',
   'name': 'xp',
@@ -40,7 +40,7 @@ Map<String, dynamic> _installed({
   'artifact_sha256': 'a' * 64,
   'approved_capabilities': host,
   'approved_host_capabilities': host,
-  'extension_points': <Object>[],
+  'extension_points': extensionPoints,
   'enabled': enabled,
   'installed_at': 1,
   'disabled_reason': ?reason,
@@ -115,59 +115,107 @@ Future<List<Map<String, dynamic>>> _pump(
   return installs;
 }
 
+Future<void> _openDetails(WidgetTester tester) async {
+  final toggle = find.byKey(const Key('dock-details-toggle'));
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+double _top(WidgetTester tester, String text) =>
+    tester.getTopLeft(find.text(text)).dy;
+
 void main() {
-  testWidgets('a module not installed has Overview and Access only', (
+  testWidgets('a module not installed shows Access and Install, no controls', (
     tester,
   ) async {
     await _pump(tester);
-    expect(find.text('Overview'), findsOneWidget);
+    expect(find.text('Overview'), findsNothing);
+    expect(find.text('Enabled'), findsNothing);
     expect(find.text('Access'), findsOneWidget);
-    expect(find.text('Settings'), findsNothing);
     expect(find.text('Install v1.0.0'), findsOneWidget);
-    await openDockTab(tester, 'Access');
-    expect(
-      find.text('Install v1.0.0'),
-      findsOneWidget,
-      reason: 'Install stays under every tab, so switches can be set first',
-    );
+    expect(find.text('Remove from this space'), findsNothing);
   });
 
-  testWidgets('Overview holds the actions and Access holds the grants', (
+  testWidgets('an installed module reads top to bottom for an admin', (
     tester,
   ) async {
     await _pump(tester, installed: _installed());
-    expect(find.text('Actions'), findsOneWidget);
-    expect(find.text('Access to approve'), findsNothing);
-    await openDockTab(tester, 'Access');
-    expect(find.text('Actions'), findsNothing);
-    expect(find.text('Access to approve'), findsOneWidget);
-    expect(find.text('Limits on every run'), findsOneWidget);
+    final order = [
+      'Enabled',
+      'Who can use it',
+      'Access',
+      'Details',
+      'Remove from this space',
+    ];
+    for (var i = 1; i < order.length; i++) {
+      expect(
+        _top(tester, order[i]),
+        greaterThan(_top(tester, order[i - 1])),
+        reason: '${order[i]} sits below ${order[i - 1]}',
+      );
+    }
   });
 
-  testWidgets('Settings appears once the module has something to show', (
+  testWidgets('Details folds the limits, activity and export away', (
     tester,
   ) async {
     await _pump(tester, installed: _installed(runStats: const []));
-    expect(find.text('Settings'), findsOneWidget);
-    await openDockTab(tester, 'Settings');
+    expect(find.text('Limits per run'), findsNothing);
+    expect(find.text('Activity'), findsNothing);
+    expect(find.text('Export'), findsNothing);
+    await _openDetails(tester);
+    expect(find.text('Limits per run'), findsOneWidget);
     expect(find.text('Activity'), findsOneWidget);
-    expect(find.text('Actions'), findsNothing);
+    expect(find.text('Export'), findsOneWidget);
   });
 
-  testWidgets('a switch raises a save bar on Access, and Discard drops it', (
+  testWidgets('the command runner is only for commands nothing else reaches', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      installed: _installed(
+        extensionPoints: [
+          {'kind': 'app', 'name': 'Board', 'command': 'play'},
+          {'kind': 'command', 'name': 'play'},
+        ],
+      ),
+    );
+    await _openDetails(tester);
+    expect(find.text('Run'), findsNothing);
+  });
+
+  testWidgets('a module of bare commands keeps its runner in Details', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      installed: _installed(
+        extensionPoints: [
+          {'kind': 'command', 'name': 'play'},
+        ],
+      ),
+    );
+    expect(find.text('Run'), findsNothing);
+    await _openDetails(tester);
+    expect(find.text('Run'), findsOneWidget);
+  });
+
+  testWidgets('a switch raises a save bar under Access, and Discard drops it', (
     tester,
   ) async {
     await _pump(tester, installed: _installed(host: ['kv.store']));
-    await openDockTab(tester, 'Access');
     expect(find.text('Save changes'), findsNothing);
 
     await tester.tap(find.bySemanticsLabel('Post messages for xp'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('1 unsaved change'), findsOneWidget);
-    await openDockTab(tester, 'Overview');
-    expect(find.text('Save changes'), findsNothing);
-    await openDockTab(tester, 'Access');
-    expect(find.text('1 unsaved change'), findsOneWidget);
+    expect(
+      _top(tester, '1 unsaved change'),
+      lessThan(_top(tester, 'Details')),
+      reason: 'the Save belongs to the Access switches above it',
+    );
 
     await tester.tap(find.text('Discard'));
     await tester.pump(const Duration(milliseconds: 400));
@@ -179,7 +227,6 @@ void main() {
       tester,
       installed: _installed(host: ['kv.store']),
     );
-    await openDockTab(tester, 'Access');
     await tester.tap(find.bySemanticsLabel('Post messages for xp'));
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Save changes'));
@@ -194,14 +241,16 @@ void main() {
     ]);
   });
 
-  testWidgets('the health banner stays above every tab', (tester) async {
+  testWidgets('the health banner leads the page', (tester) async {
     await _pump(
       tester,
       installed: _installed(enabled: false, reason: 'Too many failures.'),
     );
     expect(find.text('Too many failures.'), findsOneWidget);
-    await openDockTab(tester, 'Access');
-    expect(find.text('Too many failures.'), findsOneWidget);
     expect(find.text('Turn on'), findsOneWidget);
+    expect(
+      _top(tester, 'Too many failures.'),
+      lessThan(_top(tester, 'Enabled')),
+    );
   });
 }

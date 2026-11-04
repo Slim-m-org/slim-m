@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_health_card.dart';
@@ -99,25 +100,25 @@ void main() {
   ) async {
     final enabled = <bool>[];
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
-          body: DockManifestView(
-            manifest: api.DockManifest.fromJson(
-              dockManifestJson('xp', '1.0.0'),
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: DockManifestView(
+              manifest: api.DockManifest.fromJson(
+                dockManifestJson('xp', '1.0.0'),
+              ),
+              installed: _module(enabled: false, reason: 'Too many failures.'),
+              busy: false,
+              error: null,
+              onErrorDismiss: () {},
+              onInstall: () {},
+              onSetEnabled: enabled.add,
+              onUninstall: () {},
+              onDiscardAccess: () {},
+              approvedHostCapabilities: const {},
+              onToggleHostCapability: (_, _) {},
             ),
-            installed: _module(enabled: false, reason: 'Too many failures.'),
-            busy: false,
-            error: null,
-            onErrorDismiss: () {},
-            onInstall: () {},
-            onSetEnabled: enabled.add,
-            onUninstall: () {},
-            tab: DockModuleTab.overview,
-            onTab: (_) {},
-            onDiscardAccess: () {},
-            approvedHostCapabilities: const {},
-            onToggleHostCapability: (_, _) {},
           ),
         ),
       ),

@@ -28,7 +28,14 @@ bool dockDeclaresSettings(Object? json) => json is List && json.isNotEmpty;
 
 /// Whether a module's `slots` array declares a `member.badge` slot.
 bool dockDeclaresMemberBadge(Object? json) =>
-    json is List && json.any((s) => s is Map && s['kind'] == 'member.badge');
+    _declaresSlot(json, 'member.badge');
+
+/// Whether a module's `slots` array declares a `profile.section` slot.
+bool dockDeclaresProfileSection(Object? json) =>
+    _declaresSlot(json, 'profile.section');
+
+bool _declaresSlot(Object? json, String kind) =>
+    json is List && json.any((s) => s is Map && s['kind'] == kind);
 
 /// One column of a module's data table: its type and the index flags it asks for.
 class DockDataColumn {

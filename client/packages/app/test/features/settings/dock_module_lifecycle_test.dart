@@ -17,7 +17,6 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen
 import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
-import '../../support/dock_page_helpers.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -208,21 +207,22 @@ void main() {
     },
   );
 
-  testWidgets('a module with permissions lists the roles on its Access tab', (
-    tester,
-  ) async {
-    await _open(tester, _Harness(enabled: true));
-    expect(find.text('Who can use it'), findsNothing);
-    await openDockTab(tester, 'Access');
-    expect(find.text('Who can use it'), findsOneWidget);
-  });
+  testWidgets(
+    'a module with permissions folds its roles under Who can use it',
+    (tester) async {
+      await _open(tester, _Harness(enabled: true));
+      expect(find.text('Who can use it'), findsOneWidget);
+      expect(find.text('Nobody yet'), findsOneWidget);
+      expect(find.byKey(const Key('dock-roles-toggle')), findsOneWidget);
+    },
+  );
 
   testWidgets('a module without permissions has nobody to choose', (
     tester,
   ) async {
     await _open(tester, _Harness(enabled: true, withPermission: false));
-    await openDockTab(tester, 'Access');
-    expect(find.textContaining('No permission of its own'), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'Uninstall'), findsNothing);
+    expect(find.text('Who can use it'), findsOneWidget);
+    expect(find.text('Everyone'), findsOneWidget);
+    expect(find.byKey(const Key('dock-roles-toggle')), findsNothing);
   });
 }
