@@ -60,8 +60,10 @@ void main() {
     await _open(tester);
 
     final clear = tester.getRect(find.byTooltip('Clear'));
+    final close = tester.getRect(find.byTooltip('Close settings'));
     final toolbar = tester.getRect(find.byType(DebugLogToolbar));
-    expect(clear.right, moreOrLessEquals(toolbar.right, epsilon: 1));
+    expect(close.right, moreOrLessEquals(toolbar.right, epsilon: 1));
+    expect(clear.right, lessThanOrEqualTo(close.left));
   });
 
   testWidgets('the filter narrows the list and counts each level', (

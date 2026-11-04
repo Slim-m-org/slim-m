@@ -37,6 +37,8 @@ import '../../support/code_only.dart';
 /// by hand rather than by inheritance.
 const _exceptions = {
   'lib/src/features/settings/screens/admin/reports_screen.dart',
+  // Its tab strip runs edge to edge; each tab body takes the frame inset itself.
+  'lib/src/features/settings/screens/admin/dock_module_screen.dart',
 };
 
 /// The file the widget itself is declared in: its own default parameter

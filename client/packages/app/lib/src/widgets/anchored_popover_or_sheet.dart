@@ -6,7 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../features/members/widgets/member_profile_popover.dart';
+import 'anchored_popover.dart';
 
 /// Opens [popoverBuilder] anchored to [anchor] (or [anchorRect], in overlay
 /// coordinates) on a wide window, and [sheetBuilder] (default: the popover's
@@ -35,7 +35,7 @@ Future<T?> showAnchoredPopoverOrSheet<T>(
     barrierLabel: 'Dismiss',
     barrierColor: Colors.transparent,
     transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
-    pageBuilder: (context, _, _) => AnchoredMemberPopover(
+    pageBuilder: (context, _, _) => AnchoredPopover(
       origin: rect.topLeft,
       anchorSize: rect.size,
       child: popoverBuilder(context),

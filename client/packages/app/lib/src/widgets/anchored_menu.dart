@@ -51,6 +51,8 @@ class _AnchoredMenuState extends State<AnchoredMenu> {
   /// A trigger near the window's bottom opens its menu upward rather than
   /// letting the window edge clip it.
   bool _opensUpward() {
+    final opensDownward = widget.followerAnchor.y < widget.targetAnchor.y;
+    if (!opensDownward) return false;
     final trigger = context.findRenderObject();
     final overlay = Overlay.maybeOf(context)?.context.findRenderObject();
     if (trigger is! RenderBox || overlay is! RenderBox) return false;

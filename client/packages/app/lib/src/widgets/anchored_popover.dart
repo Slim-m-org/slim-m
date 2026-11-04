@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The anchored placement half of the member profile popover, split out of
-/// `member_profile.dart` to keep that file under the review budget.
+/// Places a popover beside the control that opened it, shared by every
+/// anchored popover (member profile, reaction users, move participant).
 library;
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../widgets/message_context_menu_layout.dart'
-    show menuScreenMargin;
+import 'message_context_menu_layout.dart' show menuScreenMargin;
 
 /// Places [child] beside [origin]/[anchorSize]: right of the anchor unless
 /// that would overhang, then left; below the anchor unless there is no room,
@@ -18,8 +17,8 @@ import '../../../widgets/message_context_menu_layout.dart'
 /// menu never needs. Neither direction fitting (a very tall popover in a
 /// short window) falls back to the innermost [SingleChildScrollView], which
 /// shrinks the visible slice rather than letting the popover run off an edge.
-class AnchoredMemberPopover extends StatelessWidget {
-  const AnchoredMemberPopover({
+class AnchoredPopover extends StatelessWidget {
+  const AnchoredPopover({
     super.key,
     required this.origin,
     required this.anchorSize,
@@ -39,7 +38,7 @@ class AnchoredMemberPopover extends StatelessWidget {
       children: [
         Positioned.fill(
           child: CustomSingleChildLayout(
-            delegate: _MemberPopoverLayout(
+            delegate: _AnchoredPopoverLayout(
               origin: origin,
               anchorSize: anchorSize,
               padding: padding,
@@ -56,8 +55,8 @@ class AnchoredMemberPopover extends StatelessWidget {
 /// fixed-height reserve this replaced: that guess left a popover taller than
 /// the guess scrolled past the bottom of the window instead of flipping
 /// above the row.
-class _MemberPopoverLayout extends SingleChildLayoutDelegate {
-  const _MemberPopoverLayout({
+class _AnchoredPopoverLayout extends SingleChildLayoutDelegate {
+  const _AnchoredPopoverLayout({
     required this.origin,
     required this.anchorSize,
     required this.padding,
@@ -95,7 +94,7 @@ class _MemberPopoverLayout extends SingleChildLayoutDelegate {
   }
 
   @override
-  bool shouldRelayout(_MemberPopoverLayout oldDelegate) =>
+  bool shouldRelayout(_AnchoredPopoverLayout oldDelegate) =>
       origin != oldDelegate.origin ||
       anchorSize != oldDelegate.anchorSize ||
       padding != oldDelegate.padding;
