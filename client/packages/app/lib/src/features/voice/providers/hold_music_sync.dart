@@ -12,19 +12,25 @@ import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
 import 'voice_settings_controller.dart';
 
-/// The account's value wins; with none yet, this device's own choice is uploaded.
+/// The account's value wins, unless this device holds a toggle the account never
+/// received; with no account value yet, this device's own choice is uploaded.
 Future<void> syncHoldMusic(
   T Function<T>(ProviderListenable<T> provider) read,
 ) async {
   try {
-    final served = await read(apiProvider).holdMusic();
     final prefs = await read(preferencesProvider.future);
+    final local = prefs.getBool(holdMusicEnabledKey);
+    if (local != null && (prefs.getBool(holdMusicUnsentKey) ?? false)) {
+      await read(apiProvider).setHoldMusic(local);
+      await prefs.remove(holdMusicUnsentKey);
+      return;
+    }
+    final served = await read(apiProvider).holdMusic();
     final controller = read(voiceSettingsControllerProvider.notifier);
     if (served != null) {
       await controller.applyHoldMusicEnabled(served);
       return;
     }
-    final local = prefs.getBool(holdMusicEnabledKey);
     if (local != null) await read(apiProvider).setHoldMusic(local);
   } catch (error, stack) {
     reportFailure(

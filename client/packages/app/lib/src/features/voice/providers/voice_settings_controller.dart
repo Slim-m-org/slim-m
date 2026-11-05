@@ -26,6 +26,9 @@ export 'voice_settings_state.dart';
 
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
 const holdMusicEnabledKey = 'slimm.voice.hold_music_enabled';
+
+/// Set while a toggle has not reached the account, so a resume sends it rather than overwriting it.
+const holdMusicUnsentKey = 'slimm.voice.hold_music_unsent';
 const _holdMusicTrackKey = 'slimm.voice.hold_music_track';
 const _holdMusicVolumeKey = 'slimm.voice.hold_music_volume';
 const _callRingSoundKey = 'slimm.voice.call_ring_sound_enabled';
@@ -249,8 +252,11 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
 
   Future<void> setHoldMusicEnabled(bool enabled) async {
     await applyHoldMusicEnabled(enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(holdMusicUnsentKey, true);
     try {
       await _ref.read(apiProvider).setHoldMusic(enabled);
+      await prefs.remove(holdMusicUnsentKey);
     } catch (error, stack) {
       reportFailure(
         LogTag.voice,
