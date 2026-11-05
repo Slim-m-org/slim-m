@@ -165,6 +165,8 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
+    expect(find.text('Access'), findsNothing, reason: 'asked when installing');
+    await openInstallAccess(tester);
     expect(find.text('Access'), findsOneWidget);
     expect(find.text('Remember data'), findsOneWidget);
     expect(find.text('Post messages'), findsOneWidget);
@@ -185,12 +187,12 @@ void main() {
 
   testWidgets('install sends only the switches that are on', (tester) async {
     final installs = await _pump(tester);
+    await openInstallAccess(tester);
     await tester.tap(find.byType(AppToggle).at(1));
     await tester.pumpAndSettle();
     expect(_switches(tester), [false, true]);
 
-    await tester.tap(find.text('Install v0.1.0'));
-    await tester.pumpAndSettle();
+    await confirmInstallAccess(tester);
     await tester.tap(find.text('Install'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['message.post']);

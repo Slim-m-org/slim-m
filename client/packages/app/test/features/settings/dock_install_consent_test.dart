@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_install_access_sheet.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_install_consent.dart';
@@ -18,6 +19,23 @@ import '../../ui_snapshot_support.dart';
 import 'dock_consent_harness.dart';
 
 Finder _pageButton(String label) => find.text(label);
+
+/// Presses the page's Install and, on a first install that asks for access, confirms that sheet with its switches as they are.
+Future<void> _pressInstall(WidgetTester tester) async {
+  await tester.tap(_pageButton('Install v1.0.0'));
+  await _settleSheet(tester);
+  final confirm = find.byKey(dockInstallAccessConfirmKey);
+  if (confirm.evaluate().isNotEmpty) {
+    await tester.tap(confirm);
+    await _settleSheet(tester);
+  }
+}
+
+Future<void> _settleSheet(WidgetTester tester) async {
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+}
 
 bool _sheetButtonDisabled(WidgetTester tester, String label) =>
     tester.widget<AppButton>(find.widgetWithText(AppButton, label)).disabled;
@@ -39,7 +57,7 @@ void main() {
       community: true,
       asks: ['kv.store', 'message.post'],
     );
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Not verified'), findsOneWidget);
@@ -63,7 +81,7 @@ void main() {
       community: true,
       asks: ['kv.store', 'message.post'],
     );
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
     expect(
       find.text('Can keep its own private data on your server.'),
@@ -83,7 +101,7 @@ void main() {
     tester,
   ) async {
     final installs = await consentPump(tester, asks: ['message.post']);
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
 
     expect(find.text('I understand what this module can do'), findsNothing);
@@ -95,22 +113,22 @@ void main() {
     expect(installs, hasLength(1));
   });
 
-  testWidgets('the pinned Install stays clear of the access card above it', (
+  testWidgets('the install sheet asks what the module may do first', (
     tester,
   ) async {
     await consentPump(tester, asks: ['message.post']);
-    final last = tester.getRect(
-      find.textContaining('Posts as whoever runs it'),
-    );
-    final install = tester.getRect(find.text('Install v1.0.0'));
-    expect(install.top - last.bottom, greaterThan(16));
+    expect(find.textContaining('Posts as whoever runs it'), findsNothing);
+    await tester.tap(_pageButton('Install v1.0.0'));
+    await _settleSheet(tester);
+    expect(find.textContaining('Posts as whoever runs it'), findsOneWidget);
+    expect(find.byKey(dockInstallAccessConfirmKey), findsOneWidget);
   });
 
   testWidgets('the registry sentence hides behind the badge until tapped', (
     tester,
   ) async {
     await consentPump(tester, asks: ['message.post']);
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
 
@@ -126,7 +144,7 @@ void main() {
 
   testWidgets('the badge has a 44dp touch target on a phone', (tester) async {
     await consentPump(tester, asks: ['message.post']);
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
 
@@ -148,7 +166,7 @@ void main() {
       asks: ['message.post'],
       size: const Size(1400, 1000),
     );
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
 
@@ -164,7 +182,7 @@ void main() {
       community: true,
       asks: ['kv.store'],
     );
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -176,7 +194,7 @@ void main() {
     tester,
   ) async {
     await consentPump(tester, community: true);
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
     expect(find.textContaining('Not verified'), findsOneWidget);
     expect(
@@ -191,7 +209,7 @@ void main() {
     tester,
   ) async {
     final installs = await consentPump(tester);
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
     expect(installs, hasLength(1));
   });
@@ -333,7 +351,7 @@ void main() {
           size: size,
           brightness: brightness,
         );
-        await tester.tap(_pageButton('Install v1.0.0'));
+        await _pressInstall(tester);
         await tester.pumpAndSettle();
         // The sheet is the topmost route, so its badge is the last one built.
         final badge = find.byIcon(AppIcons.verified).last;
@@ -359,7 +377,7 @@ void main() {
       asks: ['kv.store', 'message.post'],
       size: const Size(1100, 900),
     );
-    await tester.tap(_pageButton('Install v1.0.0'));
+    await _pressInstall(tester);
     await tester.pumpAndSettle();
     await writeSnapshot(tester, 'dock-consent-unverified-desktop');
   });
@@ -382,7 +400,7 @@ void main() {
         asks: ['events', 'data.store', 'log.read'],
         extras: extras,
       );
-      await tester.tap(_pageButton('Install v1.0.0'));
+      await _pressInstall(tester);
       await tester.pumpAndSettle();
       expect(
         _inSheet(

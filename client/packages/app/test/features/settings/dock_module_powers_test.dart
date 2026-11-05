@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_install_access_sheet.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -191,10 +192,24 @@ Future<void> _flip(WidgetTester tester, String label) async {
 bool _on(WidgetTester tester, String label) =>
     tester.widget<AppToggle>(_toggle(label)).value;
 
-/// Presses Install on the page, then the consent sheet's own Install.
-Future<void> _install(WidgetTester tester) async {
+/// Presses Install on the page, which opens the access sheet on a first install.
+Future<void> _openAccess(WidgetTester tester) async {
   await tester.tap(find.text('Install v1.0.0'));
   await tester.pumpAndSettle();
+}
+
+/// Confirms the access sheet as it stands, opening it first if needed.
+Future<void> _confirmAccess(WidgetTester tester) async {
+  if (find.byKey(dockInstallAccessConfirmKey).evaluate().isEmpty) {
+    await _openAccess(tester);
+  }
+  await tester.tap(find.byKey(dockInstallAccessConfirmKey));
+  await tester.pumpAndSettle();
+}
+
+/// Confirms the access sheet, then the consent sheet's own Install.
+Future<void> _install(WidgetTester tester) async {
+  await _confirmAccess(tester);
   await tester.tap(find.widgetWithText(AppButton, 'Install'));
   await tester.pumpAndSettle();
 }
@@ -229,6 +244,7 @@ void main() {
       network: _lanFree,
       schedules: _schedules,
     );
+    await _openAccess(tester);
     expect(find.text('Reach the internet'), findsOneWidget);
     expect(
       find.text(
@@ -244,6 +260,7 @@ void main() {
     'Private network shows only with network.local and net.fetch on',
     (tester) async {
       await _pump(tester, asks: ['net.fetch'], network: _localNetwork);
+      await _openAccess(tester);
       expect(_toggle('Private network'), findsNothing);
       await _flip(tester, 'Reach the internet');
       expect(_toggle('Private network'), findsOneWidget);
@@ -264,6 +281,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester, asks: ['net.fetch'], network: _lanFree);
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
     expect(_toggle('Private network'), findsNothing);
   });
@@ -280,6 +298,7 @@ void main() {
     tester,
   ) async {
     final h = await _pump(tester, asks: ['net.fetch'], network: _localNetwork);
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
     await _install(tester);
     expect(h.installs.single['approve_local_network'], false);
@@ -289,6 +308,7 @@ void main() {
     tester,
   ) async {
     final on = await _pump(tester, asks: ['net.fetch'], network: _localNetwork);
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
     await _flip(tester, 'Private network');
     await _install(tester);
@@ -302,6 +322,7 @@ void main() {
       asks: ['net.fetch', 'kv.store'],
       network: _localNetwork,
     );
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
     await _flip(tester, 'Private network');
     await _flip(tester, 'Reach the internet');
@@ -323,12 +344,16 @@ void main() {
       network: _localNetwork,
       community: true,
     );
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
     await _flip(tester, 'Private network');
-    await tester.tap(find.text('Install v1.0.0'));
-    await tester.pumpAndSettle();
+    await _confirmAccess(tester);
     expect(find.text('This module can:'), findsOneWidget);
-    expect(find.textContaining('private network'), findsNWidgets(2));
+    expect(
+      find.textContaining('private network'),
+      findsOneWidget,
+      reason: 'its own line in the consent sheet',
+    );
     await writeSnapshot(tester, 'dock-consent-network-local-phone');
   });
 
@@ -341,10 +366,11 @@ void main() {
       network: _localNetwork,
       community: true,
     );
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
-    await tester.tap(find.text('Install v1.0.0'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('private network'), findsOneWidget);
+    await _confirmAccess(tester);
+    expect(find.text('This module can:'), findsOneWidget);
+    expect(find.textContaining('private network'), findsNothing);
   });
 
   testWidgets('the consent sheet at desktop width', (tester) async {
@@ -355,10 +381,10 @@ void main() {
       community: true,
       size: const Size(1100, 900),
     );
+    await _openAccess(tester);
     await _flip(tester, 'Reach the internet');
     await _flip(tester, 'Private network');
-    await tester.tap(find.text('Install v1.0.0'));
-    await tester.pumpAndSettle();
+    await _confirmAccess(tester);
     await writeSnapshot(tester, 'dock-consent-network-local-desktop');
   });
 

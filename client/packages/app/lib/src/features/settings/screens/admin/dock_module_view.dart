@@ -154,7 +154,10 @@ class DockManifestView extends StatelessWidget {
                 if (it.declaresSettings) DockSettingsCard(moduleId: it.id),
                 DockDisplayCard(installed: it),
               ],
-              ..._access(),
+              // Before install the switches are asked in the Install sheet, so the page reads like a store page.
+              if (installed != null ||
+                  grantableHostCapabilities(manifest.capabilities).isEmpty)
+                ..._access(),
               if (_updatePending)
                 DockChangelogCard(
                   manifest: manifest,
@@ -165,6 +168,7 @@ class DockManifestView extends StatelessWidget {
                 installed: installed,
                 busy: busy,
                 showChangelog: !_updatePending,
+                folded: installed != null,
                 onExport: onExport,
                 onClearStorage:
                     installed != null &&

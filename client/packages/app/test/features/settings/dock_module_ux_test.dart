@@ -217,6 +217,7 @@ void main() {
       capabilities: const ['command.register', 'message.post'],
       tab: 'Details',
     );
+    await openInstallAccess(tester);
     expect(find.text('Post messages'), findsOneWidget);
     expect(find.text('MESSAGE.POST'), findsNothing);
     expect(find.text(dockNoAccessNote), findsNothing);
