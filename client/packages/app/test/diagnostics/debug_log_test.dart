@@ -46,6 +46,16 @@ void main() {
     expect(log.state.map((e) => e.message), ['m4', 'm3', 'm2']);
   });
 
+  test('a record written after dispose is dropped, not thrown', () {
+    final log = DebugLog()..write(_record('before'));
+    AppLog.install(log);
+    log.dispose();
+    expect(
+      () => AppLog.info(LogTag.voice, 'from a late dispose'),
+      returnsNormally,
+    );
+  });
+
   test('folds identical consecutive records into one counted entry', () {
     final log = DebugLog();
     for (var i = 0; i < 4; i++) {
