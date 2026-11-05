@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../providers/providers.dart' show apiProvider;
@@ -54,11 +55,21 @@ class VoiceShareResume {
         ? _share.lastShareSourceId
         : null;
     if (sourceId != null) {
-      final sources = await _session.screenShareSources();
-      if (!sameCall()) return;
-      if (sources.any((s) => s.id == sourceId)) {
-        await _restart(sourceId, sameCall);
-        return;
+      try {
+        final sources = await _session.screenShareSources();
+        if (!sameCall()) return;
+        if (sources.any((s) => s.id == sourceId)) {
+          await _restart(sourceId, sameCall);
+          return;
+        }
+      } catch (error, stack) {
+        reportFailure(
+          LogTag.voice,
+          'restart a dropped screen share',
+          error,
+          stack,
+        );
+        if (!sameCall()) return;
       }
     }
     _access.state = _access.state.copyWith(error: shareEndedByDropNotice);
