@@ -9,11 +9,11 @@
 /// not bypass a module's own permission. So the first install opens this row,
 /// and the question stays reachable from there.
 ///
-/// One switch per role, covering every permission the module declares: a
+/// One tick per role, covering every permission the module declares: a
 /// module usually declares exactly one, and a role holding some but not all
-/// of a multi-permission module's keys reads as off until it holds them all.
+/// of a multi-permission module's keys reads as unticked until it holds them all.
 /// The per-key control still lives in the role editor for anyone who wants it.
-/// Each switch applies at once; it is not part of the Access Save.
+/// Each tick applies at once; it is not part of the Access Save.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,14 +26,14 @@ import '../../../modules/providers/app_launch.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import '../../../../providers/providers.dart';
 import '../../../composer/providers/slash_command.dart';
+import '../../../../widgets/anchored_menu.dart';
+import '../../../../widgets/animated_menu_portal.dart';
 import '../../../../widgets/run_guarded.dart';
-import '../../widgets/settings_disclosure.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../widgets/settings_toggle_row.dart';
 import '../../widgets/settings_value_row.dart';
 
-/// A folded row naming who holds the module, opening to one switch per role.
-/// Inline rather than a sheet: the module page already sits in a settings modal.
+/// A row naming who holds the module, which drops the app's usual menu of
+/// roles to tick, the same dropdown the rest of the app uses for a choice.
 class DockRoleAccessCard extends ConsumerStatefulWidget {
   const DockRoleAccessCard({
     super.key,
@@ -43,7 +43,7 @@ class DockRoleAccessCard extends ConsumerStatefulWidget {
 
   final api.DockManifest manifest;
 
-  /// Open at once after a first install, when nobody can use it yet.
+  /// Drop the menu at once after a first install, when nobody can use it yet.
   final bool initiallyExpanded;
 
   @override
@@ -53,6 +53,17 @@ class DockRoleAccessCard extends ConsumerStatefulWidget {
 class _DockRoleAccessCardState extends ConsumerState<DockRoleAccessCard>
     with GuardedActionState<DockRoleAccessCard> {
   final Set<String> _pending = {};
+  final _menu = AnimatedMenuController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initiallyExpanded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _menu.show();
+      });
+    }
+  }
 
   List<String> get _permKeys => [
     for (final p in widget.manifest.permissions) p.key,
@@ -151,33 +162,56 @@ class _DockRoleAccessCardState extends ConsumerState<DockRoleAccessCard>
     }
     final roles = ref.watch(rolesProvider);
     final list = roles.valueOrNull;
-    return SettingsDisclosure(
-      title: 'Who can use it',
-      summary: list == null ? '' : _summary(list),
-      initiallyExpanded: widget.initiallyExpanded,
-      toggleKey: const Key('dock-roles-toggle'),
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final summary = list == null ? '' : _summary(list);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (list == null)
-          SettingsCardBlock(
+        AnchoredMenu(
+          controller: _menu,
+          menu: AppMenu(
+            width: 240,
             children: [
-              AppAsyncView<List<api.Role>>(
-                value: AppAsyncState(data: list, error: roles.error),
-                center: false,
-                errorMessage: 'Could not load the roles.',
-                onRetry: () => ref.invalidate(rolesProvider),
-                data: (context, _) => const SizedBox.shrink(),
-              ),
+              if (list == null)
+                AppAsyncView<List<api.Role>>(
+                  value: AppAsyncState(data: list, error: roles.error),
+                  center: false,
+                  errorMessage: 'Could not load the roles.',
+                  onRetry: () => ref.invalidate(rolesProvider),
+                  data: (context, _) => const SizedBox.shrink(),
+                )
+              else
+                for (final role in list)
+                  _RoleItem(
+                    role: role,
+                    busy: _pending.contains(role.id),
+                    holdsAll: _holdsAll,
+                    onChanged: (value) => _set(role, value),
+                  ),
             ],
-          )
-        else
-          for (final role in list)
-            _RoleSwitch(
-              role: role,
-              busy: _pending.contains(role.id),
-              keysDeclared: true,
-              holdsAll: _holdsAll,
-              onChanged: (value) => _set(role, value),
+          ),
+          child: AppListRow(
+            key: const Key('dock-roles-toggle'),
+            label: 'Who can use it',
+            semanticLabel: 'Who can use it, currently $summary',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 6,
+              children: [
+                Text(
+                  summary,
+                  style: AppText.ui.copyWith(color: tokens.textPrimary),
+                ),
+                Icon(
+                  AppIcons.chevronDown,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
+              ],
             ),
+            onTap: _menu.toggle,
+          ),
+        ),
         if (actionError != null)
           SettingsCardBlock(
             children: [
@@ -189,30 +223,30 @@ class _DockRoleAccessCardState extends ConsumerState<DockRoleAccessCard>
   }
 }
 
-class _RoleSwitch extends ConsumerWidget {
-  const _RoleSwitch({
+/// One role in the menu, ticked while it holds every key; a tap applies at once and leaves the menu open.
+class _RoleItem extends ConsumerWidget {
+  const _RoleItem({
     required this.role,
     required this.busy,
-    required this.keysDeclared,
     required this.holdsAll,
     required this.onChanged,
   });
 
   final api.Role role;
   final bool busy;
-  final bool keysDeclared;
   final bool Function(List<api.GrantedModulePermission>) holdsAll;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final granted = ref.watch(roleModulePermissionsProvider(role.id));
-    final ready = granted.hasValue && !busy && keysDeclared;
-    return SettingsToggleRow(
-      label: role.name,
+    final held = holdsAll(granted.valueOrNull ?? const []);
+    final ready = granted.hasValue && !busy;
+    return AppMenuItem(
+      label: role.isEveryone ? 'Everyone' : role.name,
       semanticLabel: 'Let ${role.name} use this module',
-      value: holdsAll(granted.valueOrNull ?? const []),
-      onChanged: ready ? onChanged : null,
+      selected: held,
+      onTap: ready ? () => onChanged(!held) : null,
     );
   }
 }
