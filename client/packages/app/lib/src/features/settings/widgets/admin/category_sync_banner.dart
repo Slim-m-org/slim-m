@@ -56,36 +56,36 @@ class _CategorySyncBannerState extends ConsumerState<CategorySyncBanner>
     if (synced == null) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final error = actionError;
+    final message = Text(
+      synced
+          ? "Follows its category's permissions."
+          : 'Has its own permissions.',
+      style: AppText.caption.copyWith(color: tokens.textSecondary),
+    );
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(
-                synced ? AppIcons.check : AppIcons.info,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: Text(
-                  synced
-                      ? "Follows its category's permissions."
-                      : 'Has its own permissions.',
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ),
-              if (!synced)
-                AppButton(
-                  label: 'Sync with category',
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  busy: _syncing,
-                  onPressed: _sync,
-                ),
-            ],
+          AppCallout(
+            tone: AppCalloutTone.info,
+            icon: synced ? AppIcons.check : AppIcons.info,
+            centred: true,
+            child: Row(
+              children: [
+                Expanded(child: message),
+                if (!synced) ...[
+                  const SizedBox(width: AppSpacing.s8),
+                  AppButton(
+                    label: 'Sync with category',
+                    variant: AppButtonVariant.secondary,
+                    size: AppButtonSize.sm,
+                    busy: _syncing,
+                    onPressed: _sync,
+                  ),
+                ],
+              ],
+            ),
           ),
           if (error != null)
             AppErrorState(message: error, onDismiss: clearActionError),

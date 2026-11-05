@@ -208,8 +208,8 @@ void main() {
     expect(find.text('Install v1.2.0'), findsOneWidget);
     expect(find.text('about 500 million instructions'), findsOneWidget);
 
-    await tester.tap(find.text('Install v1.2.0'));
-    await tester.pumpAndSettle();
+    await openInstallAccess(tester);
+    await confirmInstallAccess(tester);
     // It asks the host for access, so the consent step comes first.
     await tester.tap(find.text('Install'));
     await tester.pumpAndSettle();

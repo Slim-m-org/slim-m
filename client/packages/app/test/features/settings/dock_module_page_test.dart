@@ -126,13 +126,18 @@ double _top(WidgetTester tester, String text) =>
     tester.getTopLeft(find.text(text)).dy;
 
 void main() {
-  testWidgets('a module not installed shows Access and Install, no controls', (
+  testWidgets('a module not installed reads like a store page with Install', (
     tester,
   ) async {
     await _pump(tester);
     expect(find.text('Overview'), findsNothing);
     expect(find.text('Enabled'), findsNothing);
-    expect(find.text('Access'), findsOneWidget);
+    expect(find.text('Access'), findsNothing, reason: 'asked when installing');
+    expect(
+      find.byKey(const Key('dock-details-toggle')),
+      findsNothing,
+      reason: 'the details are the page, not a fold',
+    );
     expect(find.text('Install v1.0.0'), findsOneWidget);
     expect(find.text('Remove from this space'), findsNothing);
   });

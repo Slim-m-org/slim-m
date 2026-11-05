@@ -7,6 +7,8 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,6 +58,49 @@ void main() {
     await pumpCanvasPane(tester, container);
 
     expect(find.textContaining('Scroll to pan'), findsOneWidget);
+  });
+
+  testWidgets('a mouse on a narrow window gets the mouse wording', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: const Offset(195, 400));
+    await mouse.moveTo(const Offset(200, 410));
+    await tester.pump();
+
+    expect(find.textContaining('Scroll to pan'), findsOneWidget);
+  });
+
+  testWidgets('a finger on a wide window gets the touch wording', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container);
+
+    final finger = await tester.startGesture(
+      const Offset(640, 400),
+      kind: PointerDeviceKind.touch,
+    );
+    addTearDown(finger.cancel);
+    await tester.pump();
+
+    expect(find.textContaining('Drag with two fingers to pan'), findsOneWidget);
   });
 
   testWidgets(

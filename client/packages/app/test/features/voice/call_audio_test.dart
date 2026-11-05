@@ -66,6 +66,7 @@ Future<_Rig> _pump(
   List<Map<String, dynamic>> startable = const [],
   double width = 1000,
   bool hidden = false,
+  bool consentFails = false,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -84,6 +85,13 @@ Future<_Rig> _pump(
         final client = testApi((request) async {
           requests.add('${request.method} ${request.url.path} ${request.body}');
           if (request.method == 'DELETE') return http.Response('', 204);
+          if (consentFails && request.method == 'PUT') {
+            return http.Response(
+              jsonEncode({'error': 'The question already closed.'}),
+              409,
+              headers: {'content-type': 'application/json'},
+            );
+          }
           final allowed =
               request.method == 'PUT' &&
               jsonDecode(request.body)['allow'] == false;
@@ -286,6 +294,35 @@ void main() {
         rig.requests,
         contains('PUT /channels/c1/voice/call-audio/consent {"allow":false}'),
       );
+    });
+
+    testWidgets('a refused Allow says why on the prompt', (tester) async {
+      await _pump(
+        tester,
+        () => const CallAudioPrompt(),
+        session: _session(),
+        consentFails: true,
+      );
+      await tester.tap(find.byKey(CallAudioPrompt.allowKey));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(CallAudioPrompt.cardKey), findsOneWidget);
+      expect(find.textContaining('already closed'), findsOneWidget);
+    });
+
+    testWidgets('closing a prompt keeps only that session closed', (
+      tester,
+    ) async {
+      final rig = await _pump(
+        tester,
+        () => const CallAudioPrompt(),
+        session: _session(),
+      );
+      rig.container.read(callAudioDismissedProvider.notifier).state = 'old';
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(rig.container.read(callAudioDismissedProvider), isNot('old'));
+      expect(find.byKey(CallAudioPrompt.cardKey), findsNothing);
     });
 
     testWidgets('Escape leaves them out without answering no', (tester) async {

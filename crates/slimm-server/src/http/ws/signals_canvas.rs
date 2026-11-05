@@ -84,23 +84,12 @@ pub(super) struct StrokePreviewFrame {
     pub(super) width: Option<f64>,
 }
 
-/// Longest colour key a preview may carry.
-const MAX_PREVIEW_COLOR_LEN: usize = 32;
-
 /// Widest pen, in world units, a preview may claim.
 const MAX_PREVIEW_WIDTH: f64 = 256.0;
 
-/// A colour key made only of identifier characters, a `#rrggbb`, or none.
+/// A colour the canvas would store, or none.
 pub(super) fn valid_preview_color(color: Option<String>) -> Option<String> {
-    color.filter(|c| {
-        if let Some(hex) = c.strip_prefix('#') {
-            return hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit());
-        }
-        !c.is_empty()
-            && c.len() <= MAX_PREVIEW_COLOR_LEN
-            && c.chars()
-                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
-    })
+    color.filter(|c| crate::canvas_text::is_colour(c))
 }
 
 /// A finite, positive width within the pen range, or none.

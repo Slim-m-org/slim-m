@@ -158,8 +158,8 @@ void main() {
     api.Attachment? picked;
     final container = await _pump(tester, server, onPicked: (a) => picked = a);
 
-    expect(find.text('Favorites'), findsOneWidget);
-    expect(find.text('Search GIFs'), findsNothing);
+    expect(_tile('a'), findsOneWidget);
+    expect(find.text('Favorites'), findsNothing, reason: 'no second tab row');
     await tester.tap(_tile('a'));
     await _until(tester, () => picked != null);
 
@@ -168,19 +168,37 @@ void main() {
     expect(container.read(favoritesProvider).requireValue, hasLength(2));
   });
 
-  testWidgets(
-    'the Search tab is still reachable and the search field is back',
-    (tester) async {
-      final server = _Server([_gif('a')]);
-      await _pump(tester, server, onPicked: (_) {});
+  testWidgets('the star beside search switches between favorites and results', (
+    tester,
+  ) async {
+    final server = _Server([_gif('a')]);
+    await _pump(tester, server, onPicked: (_) {});
+    final search = tester.getRect(find.text('Search GIFs'));
+    final star = tester.getRect(find.byKey(GifPickerBody.favoritesToggleKey));
+    expect(star.center.dy, closeTo(search.center.dy, 1), reason: 'one row');
 
-      await tester.tap(find.text('Search'));
-      await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byKey(GifPickerBody.favoritesToggleKey));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_tile('a'), findsNothing);
 
-      expect(find.text('Search GIFs'), findsOneWidget);
-      expect(_tile('a'), findsNothing);
-    },
-  );
+    await tester.tap(find.byKey(GifPickerBody.favoritesToggleKey));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_tile('a'), findsOneWidget);
+  });
+
+  testWidgets('typing a search leaves favorites for the results', (
+    tester,
+  ) async {
+    final server = _Server([_gif('a')]);
+    await _pump(tester, server, onPicked: (_) {});
+
+    await tester.enterText(
+      find.widgetWithText(AppInput, 'Search GIFs'),
+      'cats',
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_tile('a'), findsNothing);
+  });
 
   testWidgets('an unavailable favorite cannot be sent', (tester) async {
     final server = _Server([_kept('k', available: false)]);

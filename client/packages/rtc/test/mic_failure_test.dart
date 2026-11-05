@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Telling a blocked, busy, missing and silent microphone apart.
+/// Telling a blocked, busy, missing and stalled microphone apart.
 library;
 
 import 'dart:io';
@@ -44,7 +44,7 @@ void main() {
     test('silence or an unknown cause becomes a block when the OS says so',
         () async {
       for (final reason in [
-        MicFailureReason.silent,
+        MicFailureReason.stalled,
         MicFailureReason.unknown
       ]) {
         expect(await refineMicFailure(reason, () async => true),
@@ -61,8 +61,8 @@ void main() {
     test('a probe that throws leaves the reason alone', () async {
       expect(
         await refineMicFailure(
-            MicFailureReason.silent, () async => throw StateError('no reg')),
-        MicFailureReason.silent,
+            MicFailureReason.stalled, () async => throw StateError('no reg')),
+        MicFailureReason.stalled,
       );
     });
   });

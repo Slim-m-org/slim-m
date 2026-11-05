@@ -15,7 +15,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/providers/slash_command.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
-import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/dock_page_helpers.dart';
@@ -154,13 +153,12 @@ Future<ProviderContainer> _open(WidgetTester tester, _Server server) async {
   return container;
 }
 
-Finder _modsToggle() => find.descendant(
-  of: find.byWidgetPredicate(
-    (w) =>
-        w is SettingsToggleRow && w.semanticLabel == 'Let mods use this module',
-  ),
-  matching: find.byType(AppToggle),
+Finder _modsToggle() => find.byWidgetPredicate(
+  (w) => w is AppMenuItem && w.semanticLabel == 'Let mods use this module',
 );
+
+bool _ticked(WidgetTester tester) =>
+    tester.widget<AppMenuItem>(_modsToggle()).selected;
 
 void main() {
   testWidgets('switching a role off revokes every key the module declares', (
@@ -168,7 +166,7 @@ void main() {
   ) async {
     final server = _Server(holdsBoth: true);
     await _open(tester, server);
-    expect(tester.widget<AppToggle>(_modsToggle()).value, isTrue);
+    expect(_ticked(tester), isTrue);
 
     server.holdsBoth = false;
     await tester.tap(_modsToggle());
@@ -178,7 +176,7 @@ void main() {
       '/roles/r-mods/module-permissions/game-of-life/play',
       '/roles/r-mods/module-permissions/game-of-life/edit',
     ]);
-    expect(tester.widget<AppToggle>(_modsToggle()).value, isFalse);
+    expect(_ticked(tester), isFalse);
   });
 
   testWidgets('a revoke that fails halfway re-reads what the server holds', (
@@ -194,7 +192,7 @@ void main() {
 
     expect(server.permissionReads, greaterThan(readsBefore));
     expect(find.byType(AppErrorState), findsOneWidget);
-    expect(tester.widget<AppToggle>(_modsToggle()).value, isFalse);
+    expect(_ticked(tester), isFalse);
   });
 
   testWidgets('a grant refetches discovery only once the module is enabled', (

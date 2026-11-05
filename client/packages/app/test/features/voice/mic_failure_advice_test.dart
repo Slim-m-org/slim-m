@@ -64,21 +64,24 @@ void main() {
       expect(advice.settings, isNull);
     });
 
-    test('busy, missing and silent have their own words, unknown has none', () {
-      expect(
-        micAdviceFor(MicFailureReason.busy)!.message,
-        contains('Another app'),
-      );
-      expect(
-        micAdviceFor(MicFailureReason.notFound)!.message,
-        contains('No microphone'),
-      );
-      expect(
-        micAdviceFor(MicFailureReason.silent)!.message,
-        contains('no sound'),
-      );
-      expect(micAdviceFor(MicFailureReason.unknown), isNull);
-    });
+    test(
+      'busy, missing and stalled have their own words, unknown has none',
+      () {
+        expect(
+          micAdviceFor(MicFailureReason.busy)!.message,
+          contains('Another app'),
+        );
+        expect(
+          micAdviceFor(MicFailureReason.notFound)!.message,
+          contains('No microphone'),
+        );
+        expect(
+          micAdviceFor(MicFailureReason.stalled)!.message,
+          contains('no sound'),
+        );
+        expect(micAdviceFor(MicFailureReason.unknown), isNull);
+      },
+    );
   });
 
   group('MicFailureBanner', () {

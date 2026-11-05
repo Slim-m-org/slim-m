@@ -17,8 +17,8 @@ enum MicFailureReason {
   /// No microphone is connected.
   notFound,
 
-  /// It opened but sent nothing through every restart.
-  silent,
+  /// Its capture stopped delivering frames through every restart; a quiet room never counts.
+  stalled,
 
   unknown,
 }
@@ -54,7 +54,8 @@ Future<MicFailureReason> refineMicFailure(
   MicFailureReason reason,
   OsMicBlockProbe probe,
 ) async {
-  if (reason != MicFailureReason.silent && reason != MicFailureReason.unknown) {
+  if (reason != MicFailureReason.stalled &&
+      reason != MicFailureReason.unknown) {
     return reason;
   }
   try {

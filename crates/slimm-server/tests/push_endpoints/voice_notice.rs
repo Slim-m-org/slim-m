@@ -74,8 +74,8 @@ async fn a_join_wakes_an_opted_in_device_with_a_sealed_voice_envelope() {
     );
     assert_eq!(sent[0]["token"], "bob-phone");
     assert_eq!(
-        sent[0]["kind"], "message",
-        "the relay refuses a kind it does not know"
+        sent[0]["kind"], "voice",
+        "android shows its own line only for its own kind"
     );
     let sealed = BASE64.decode(sent[0]["payload"].as_str().unwrap()).unwrap();
     assert!(alice_secret.unseal(&sealed).is_err(), "sealed to bob alone");

@@ -25,6 +25,7 @@ class DockModuleDetails extends StatefulWidget {
     required this.installed,
     required this.busy,
     required this.showChangelog,
+    this.folded = true,
     this.onExport,
     this.onClearStorage,
   });
@@ -35,6 +36,9 @@ class DockModuleDetails extends StatefulWidget {
 
   /// False when the page already shows the changelog beside an update.
   final bool showChangelog;
+
+  /// Folded behind a Details row; unfolded on a module not yet installed, where the detail is the point.
+  final bool folded;
   final VoidCallback? onExport;
   final VoidCallback? onClearStorage;
 
@@ -68,22 +72,24 @@ class _DockModuleDetailsState extends State<DockModuleDetails> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsSectionCard(
-          children: [
-            AppListRow(
-              key: const Key('dock-details-toggle'),
-              label: 'Details',
-              semanticLabel: 'Details, ${_expanded ? 'expanded' : 'collapsed'}',
-              trailing: Icon(
-                _expanded ? AppIcons.chevronDown : AppIcons.chevronRight,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
+        if (widget.folded)
+          SettingsSectionCard(
+            children: [
+              AppListRow(
+                key: const Key('dock-details-toggle'),
+                label: 'Details',
+                semanticLabel:
+                    'Details, ${_expanded ? 'expanded' : 'collapsed'}',
+                trailing: Icon(
+                  _expanded ? AppIcons.chevronDown : AppIcons.chevronRight,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
+                onTap: () => setState(() => _expanded = !_expanded),
               ),
-              onTap: () => setState(() => _expanded = !_expanded),
-            ),
-          ],
-        ),
-        if (_expanded) ...[
+            ],
+          ),
+        if (_expanded || !widget.folded) ...[
           if (widget.manifest.extensionPoints.any((ep) => ep.kind != 'command'))
             DockWhatItAddsCard(
               extensionPoints: widget.manifest.extensionPoints,

@@ -39,3 +39,5 @@ export 'src/screen_overlay.dart';
 export 'src/screen_overlay_channel.dart';
 export 'src/shortcuts.dart';
 export 'src/system_idle.dart';
+export 'src/kwin_keep_above_stub.dart'
+    if (dart.library.io) 'src/kwin_keep_above.dart';

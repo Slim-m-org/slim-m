@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -22,7 +23,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
-import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -186,7 +186,7 @@ void main() {
       reason: 'a sheet here scrims a settings modal that already scrims',
     );
 
-    expect(find.text('everyone'), findsOneWidget);
+    expect(find.text('Everyone'), findsOneWidget);
     expect(find.text('mods'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Let mods use this module'));
@@ -284,13 +284,10 @@ void main() {
     expect(enabled, isFalse, reason: 'an install alone must not turn it on');
 
     await tester.tap(
-      find.descendant(
-        of: find.byWidgetPredicate(
-          (w) =>
-              w is SettingsToggleRow &&
-              w.semanticLabel == 'Let everyone use this module',
-        ),
-        matching: find.byType(AppToggle),
+      find.byWidgetPredicate(
+        (w) =>
+            w is AppMenuItem &&
+            w.semanticLabel == 'Let everyone use this module',
       ),
     );
     await tester.pumpAndSettle();

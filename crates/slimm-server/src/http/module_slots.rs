@@ -253,7 +253,7 @@ fn slot_input(
 }
 
 /// Runs the module for `members` in the slot lane; a failure yields nothing to cache.
-/// `None` means it never ran (the lane was full), so nothing is cached either.
+/// `None` means it never ran (the lane was full, or who is a bot could not be read), so nothing is cached either.
 async fn run_slot(
     state: &AppState,
     module: &InstalledModule,
@@ -261,7 +261,13 @@ async fn run_slot(
     viewer: UserId,
     members: &[UserId],
 ) -> Option<HashMap<UserId, SlotItem>> {
-    let bots = state.store.bot_user_ids(members).await.unwrap_or_default();
+    let bots = match state.store.bot_user_ids(members).await {
+        Ok(bots) => bots,
+        Err(err) => {
+            tracing::warn!(%err, module = %module.id, "could not tell which slot members are bots");
+            return None;
+        }
+    };
     let input = slot_input(slot, members, &bots, viewer);
     let surface = super::module_host::surface_for(state, module, viewer, None);
     let request = RunRequest {

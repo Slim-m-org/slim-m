@@ -6,6 +6,8 @@
 /// closes the window behind it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -76,14 +78,29 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
       final factory = ref.read(popOutWindowFactoryProvider);
       if (factory == null) return;
       final handle = factory(
-        title: 'slim-m',
+        title: popOutWindowTitle,
         size: _windowSize,
         decorated: false,
         onCloseRequested: _close,
       );
       setState(() => _handle = handle);
+      _keepAbove(handle);
     }
     setState(() => _feed = next);
+  }
+
+  /// Asked once the window has drawn, since a window manager only finds a mapped window, and once more in case it was slow to map.
+  void _keepAbove(PopOutWindowHandle handle) {
+    for (final wait in const [
+      Duration(milliseconds: 300),
+      Duration(seconds: 1),
+    ]) {
+      Timer(wait, () {
+        if (mounted && identical(_handle, handle)) {
+          unawaited(handle.keepAbove());
+        }
+      });
+    }
   }
 
   @override
@@ -97,11 +114,13 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
           : handle.host(
               PopOutWindowView(
                 feed: feed,
-                frame: PopOutFrame(
-                  onMoveStart: handle.beginMove,
-                  onResizeStart: handle.beginResize,
-                  onClose: _close,
-                ),
+                frame: handle.drawsOwnFrame
+                    ? PopOutFrame(
+                        onMoveStart: handle.beginMove,
+                        onResizeStart: handle.beginResize,
+                        onClose: _close,
+                      )
+                    : null,
               ),
             ),
       child: widget.child,

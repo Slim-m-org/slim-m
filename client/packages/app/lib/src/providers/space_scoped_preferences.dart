@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Every key whose value is kept per Space. A key not listed here is device-wide.
 const Set<String> spaceScopedKeys = {
   'slimm.appearance.theme',
+  'slimm.appearance.space_default_theme',
   'slimm.appearance.time_format',
   'slimm.appearance.message_density',
   'slimm.appearance.group_spacing',
@@ -30,6 +31,7 @@ const Set<String> spaceScopedKeys = {
   'slimm.voice.hold_music_enabled',
   'slimm.voice.hold_music_track',
   'slimm.voice.hold_music_volume',
+  'slimm.voice.hold_music_unsent',
   'slimm.voice.call_ring_sound_enabled',
 };
 

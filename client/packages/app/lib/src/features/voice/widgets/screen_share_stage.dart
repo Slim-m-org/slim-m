@@ -220,10 +220,7 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final popOutId = widget.popOutIdentity;
-    final canPopOut =
-        popOutId != null &&
-        !widget.isLocal &&
-        ref.watch(popOutSupportedProvider);
+    final canPopOut = popOutId != null && ref.watch(popOutSupportedProvider);
     return StreamControlsReveal(
       builder: (context, shown, hold) => ContextMenuRegion(
         key: _menu,

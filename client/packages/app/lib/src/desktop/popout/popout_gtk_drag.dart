@@ -28,9 +28,17 @@ class GtkWindowDrag {
   /// window first maps, since GTK only announces the mode then.
   void claimFrame() {
     if (!_gdk.providesSymbol('gdk_wayland_window_announce_csd')) return;
-    if (_isInstanceOf(_defaultDisplay(), _waylandDisplayType()) == 0) return;
+    if (!onWayland) return;
     _announceCsd(_widgetWindow(_window));
   }
+
+  /// Asks the window manager to keep the window above others; X11 honours it, Wayland ignores it.
+  void keepAbove() => _setKeepAbove(_window, 1);
+
+  /// Whether this session runs on Wayland, where [keepAbove] does nothing.
+  bool get onWayland =>
+      _gdk.providesSymbol('gdk_wayland_display_get_type') &&
+      _isInstanceOf(_defaultDisplay(), _waylandDisplayType()) != 0;
 
   void resize(ResizeEdge edge) {
     final at = _PointerState.read();
@@ -91,6 +99,11 @@ final _beginResize = _gtk
       ),
       void Function(_Ptr, int, int, int, int, int)
     >('gtk_window_begin_resize_drag');
+final _setKeepAbove = _gtk
+    .lookupFunction<
+      ffi.Void Function(_Ptr, ffi.Int32),
+      void Function(_Ptr, int)
+    >('gtk_window_set_keep_above');
 final _widgetWindow = _gtk
     .lookupFunction<_Ptr Function(_Ptr), _Ptr Function(_Ptr)>(
       'gtk_widget_get_window',

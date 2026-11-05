@@ -56,7 +56,7 @@ mod security;
 mod voice_notice;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU32, AtomicU64, Ordering};
 
 use crate::config::Config;
 use crate::ids::{CallRingId, ChannelId, MessageId, Seq, UserId};
@@ -94,6 +94,8 @@ struct Enabled {
     forbidden: AtomicU64,
     /// Sends in a row that did not reach the relay at all; any answer resets it.
     relay_failures: AtomicU32,
+    /// Until when (epoch ms) to send the kinds an older relay knows, after one refused the new ones.
+    legacy_kinds_until: AtomicI64,
 }
 
 impl PushSender {
@@ -133,6 +135,7 @@ impl PushSender {
                     key: key.clone(),
                     forbidden: AtomicU64::new(0),
                     relay_failures: AtomicU32::new(0),
+                    legacy_kinds_until: AtomicI64::new(0),
                 }))
             }
             _ => {

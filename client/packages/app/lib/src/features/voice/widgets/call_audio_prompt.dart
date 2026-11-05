@@ -25,8 +25,8 @@ import '../../members/providers/user_profiles.dart';
 import '../providers/call_audio.dart';
 import '../providers/voice_flags.dart';
 
-/// The prompts the person closed with Escape, by session, so it stays closed.
-final callAudioDismissedProvider = StateProvider<Set<String>>((ref) => {});
+/// The session whose prompt the person closed with Escape, so it stays closed; only one call asks at a time.
+final callAudioDismissedProvider = StateProvider<String?>((ref) => null);
 
 String _sessionKey(String channelId, api.CallAudioState session) =>
     '$channelId/${session.moduleId}/${session.expiresAtMs}';
@@ -67,7 +67,7 @@ _Ask? _pendingAsk(WidgetRef ref) {
   );
   if (session == null || !session.isAsking(me)) return null;
   final key = _sessionKey(channelId, session);
-  if (ref.watch(callAudioDismissedProvider).contains(key)) return null;
+  if (ref.watch(callAudioDismissedProvider) == key) return null;
   return (channelId: channelId, session: session, key: key);
 }
 
@@ -83,9 +83,8 @@ class _PromptSurface extends ConsumerWidget {
       channelId: ask.channelId,
       session: ask.session,
       compact: compact,
-      onClose: () => ref
-          .read(callAudioDismissedProvider.notifier)
-          .update((keys) => {...keys, ask.key}),
+      onClose: () =>
+          ref.read(callAudioDismissedProvider.notifier).state = ask.key,
     );
     final content = compact
         ? Material(
@@ -148,6 +147,7 @@ class _PromptBody extends ConsumerWidget {
     final hidden =
         ref.watch(ownVisibilityProvider) == api.PresenceVisibility.hidden;
     final controller = ref.read(callAudioProvider(channelId).notifier);
+    final model = ref.watch(callAudioProvider(channelId));
     final buttonSize = compact ? AppButtonSize.lg : AppButtonSize.md;
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): onClose},
@@ -205,6 +205,10 @@ class _PromptBody extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.s8),
                 _Countdown(expiresAtMs: session.expiresAtMs),
               ],
+              if (model.error case final error?) ...[
+                const SizedBox(height: AppSpacing.s8),
+                AppErrorState(message: error),
+              ],
               if (compact)
                 const Spacer()
               else
@@ -218,6 +222,7 @@ class _PromptBody extends ConsumerWidget {
                       size: buttonSize,
                       variant: AppButtonVariant.ghost,
                       full: true,
+                      disabled: model.busy,
                       onPressed: () => controller.answer(allow: false),
                     ),
                   ),
@@ -229,6 +234,7 @@ class _PromptBody extends ConsumerWidget {
                       size: buttonSize,
                       variant: AppButtonVariant.primary,
                       full: true,
+                      disabled: model.busy,
                       onPressed: () => controller.answer(allow: true),
                     ),
                   ),

@@ -24,10 +24,14 @@ class _Session extends FakeSession {
   _Session({super.needsSource, super.sourcePickerUseful});
 
   List<ScreenShareSource> listed = const [_screen];
+  bool listingFails = false;
   int joins = 0;
 
   @override
-  Future<List<ScreenShareSource>> screenShareSources() async => listed;
+  Future<List<ScreenShareSource>> screenShareSources() async {
+    if (listingFails) throw StateError('portal gone');
+    return listed;
+  }
 
   @override
   Future<void> join({
@@ -160,6 +164,19 @@ void main() {
 
     expect(session.shareCalls, isEmpty);
     expect(controller.state.error, shareEndedByDropNotice);
+  });
+
+  test('a restart that throws still says the share ended', () async {
+    final (controller, session) = await sharing();
+    session.listingFails = true;
+    await drop(session);
+    await until(
+      () => controller.state.error != null,
+      reason: 'the failed restart was never reported',
+    );
+
+    expect(controller.state.error, shareEndedByDropNotice);
+    expect(controller.state.screenSharing, isFalse);
   });
 
   test('a call that was not sharing when it dropped says nothing', () async {

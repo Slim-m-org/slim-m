@@ -9,7 +9,7 @@ use super::envelope::SealedMessage;
 use super::relay::{self, RelayResult, RelayStatus};
 use super::sealing::TokenSlot;
 use crate::ids::UserId;
-use crate::store::Store;
+use crate::store::{Store, now_ms};
 
 /// What the relay said about a batch, resolved from its bare echoed tokens back to this
 /// batch's devices.
@@ -23,6 +23,8 @@ pub(super) struct Triage<'a> {
     pub(super) forbidden: usize,
     /// How many results carried a status this server does not recognize.
     pub(super) unrecognized: usize,
+    /// Messages the relay answered `error` for.
+    pub(super) refused: Vec<&'a SealedMessage>,
 }
 
 impl<'a> Triage<'a> {
@@ -38,7 +40,8 @@ impl<'a> Triage<'a> {
                 }
                 Some(RelayStatus::Unregistered) => triage.dead.push(message),
                 Some(RelayStatus::Forbidden) => triage.forbidden += 1,
-                Some(RelayStatus::Error | RelayStatus::NotAttempted) => {}
+                Some(RelayStatus::Error) => triage.refused.push(message),
+                Some(RelayStatus::NotAttempted) => {}
                 None => triage.unrecognized += 1,
             }
         }
@@ -46,16 +49,79 @@ impl<'a> Triage<'a> {
     }
 }
 
+/// How long to keep sending the older kinds after a relay refused the newer ones.
+const LEGACY_KINDS_FOR_MS: i64 = 60 * 60 * 1000;
+
+/// The kind a relay older than `voice` and `admin_alert` knows in their place, or `None`.
+fn legacy_kind(kind: &str) -> Option<&'static str> {
+    match kind {
+        "voice" => Some("message"),
+        "admin_alert" => Some("security"),
+        _ => None,
+    }
+}
+
+fn with_legacy_kind(message: &SealedMessage) -> SealedMessage {
+    SealedMessage {
+        kind: legacy_kind(message.kind).unwrap_or(message.kind),
+        ..message.clone()
+    }
+}
+
 /// Sends `messages`, prunes every token the relay reports dead and warns on a status it does
 /// not recognize. Returns the users the relay delivered to, or `None` when it was unreachable.
+///
+/// A relay that predates a kind answers `error` for it, so those are sent again under the kind
+/// it knows, and for a while after every new kind in a batch was refused they go out that way.
 pub(super) async fn send_and_prune(
     enabled: &Enabled,
     store: &Store,
     messages: &[SealedMessage],
     what: &'static str,
 ) -> Option<HashSet<UserId>> {
+    if enabled.legacy_kinds_until.load(Ordering::Relaxed) > now_ms() {
+        let legacy: Vec<_> = messages.iter().map(with_legacy_kind).collect();
+        return send_once(enabled, store, &legacy, what)
+            .await
+            .map(|(d, _)| d);
+    }
+    let (mut delivered, refused) = send_once(enabled, store, messages, what).await?;
+    let retry: Vec<_> = refused
+        .iter()
+        .filter(|m| legacy_kind(m.kind).is_some())
+        .map(|m| with_legacy_kind(m))
+        .collect();
+    if retry.is_empty() {
+        return Some(delivered);
+    }
+    let new_kinds = messages
+        .iter()
+        .filter(|m| legacy_kind(m.kind).is_some())
+        .count();
+    if retry.len() == new_kinds {
+        enabled
+            .legacy_kinds_until
+            .store(now_ms() + LEGACY_KINDS_FOR_MS, Ordering::Relaxed);
+        tracing::info!(
+            what,
+            "push: the relay refused its newer kinds; sending the older ones for now"
+        );
+    }
+    if let Some((again, _)) = send_once(enabled, store, &retry, what).await {
+        delivered.extend(again);
+    }
+    Some(delivered)
+}
+
+/// One send: the delivered users and the messages the relay answered `error` for.
+async fn send_once<'a>(
+    enabled: &Enabled,
+    store: &Store,
+    messages: &'a [SealedMessage],
+    what: &'static str,
+) -> Option<(HashSet<UserId>, Vec<&'a SealedMessage>)> {
     if messages.is_empty() {
-        return Some(HashSet::new());
+        return Some((HashSet::new(), Vec::new()));
     }
     let results = match relay::send(&enabled.http, &enabled.send_url, &enabled.key, messages).await
     {
@@ -88,7 +154,7 @@ pub(super) async fn send_and_prune(
             "push: relay reported a status this server does not recognize"
         );
     }
-    Some(triage.delivered)
+    Some((triage.delivered, triage.refused))
 }
 
 /// Clears the one token the relay reported dead, never the device's other one.

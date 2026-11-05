@@ -24,7 +24,8 @@ import 'relaunch.dart';
 import 'rpm_updater.dart';
 import 'self_update/self_update_controller.dart';
 import 'self_update/self_update_failure.dart';
-import 'self_update/windows_adopt.dart' show canAdoptWindowsInstall;
+import 'self_update/windows_adopt.dart'
+    show canAdoptWindowsInstall, installedLauncherFor;
 import 'startup_screen.dart';
 import 'startup_state.dart';
 import 'update_check.dart';
@@ -55,6 +56,7 @@ class StartupUpdateDeps {
     this.selfApplies,
     this.adoptable,
     this.deadline = startupUpdateDeadline,
+    this.installedLauncher = _installedLauncher,
   });
 
   final CheckForClientUpdate check;
@@ -68,7 +70,17 @@ class StartupUpdateDeps {
   /// layout; defaults to asking the running executable.
   final bool? adoptable;
   final Duration deadline;
+
+  /// The per-user launcher this bare copy should hand over to, if one holds this version or newer.
+  final File? Function(String version) installedLauncher;
 }
+
+File? _installedLauncher(String version) => Platform.isWindows
+    ? installedLauncherFor(
+        executable: Platform.resolvedExecutable,
+        version: version,
+      )
+    : null;
 
 /// The splash's whole update pass. [container] carries the providers the
 /// splash renders from; [deps] holds the seams for tests.
@@ -85,16 +97,25 @@ Future<void> runStartupUpdates(
     :selfApplies,
     :adoptable,
     :deadline,
+    :installedLauncher,
   ) = deps;
   if (!isDesktopHost || updateChecksDisabled()) return;
   try {
+    final version =
+        currentVersion ?? (await PackageInfo.fromPlatform()).version;
+    // Switching to the copy an earlier "Move and update" installed is not an update, so it ignores the setting.
+    if (installedLauncher(version) case final launcher?) {
+      container.read(startupStatusProvider.notifier).state =
+          'Opening the installed slim-m';
+      relaunchLauncherOverride = launcher.path;
+      await relaunch();
+      return;
+    }
     final prefs = await container.read(preferencesProvider.future);
     if (!loadAutoUpdatePreference(prefs)) return;
 
     container.read(startupStatusProvider.notifier).state =
         'Checking for updates';
-    final version =
-        currentVersion ?? (await PackageInfo.fromPlatform()).version;
     final update = await check(
       currentVersion: version,
       format: format,

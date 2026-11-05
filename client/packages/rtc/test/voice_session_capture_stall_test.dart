@@ -164,7 +164,7 @@ void main() {
     await _until(() => rig.mic.restarts == 2);
     await _until(() => rig.session.micStatus == MicStatus.unavailable);
 
-    expect(rig.session.micFailure, MicFailureReason.silent);
+    expect(rig.session.micFailure, MicFailureReason.stalled);
     expect(rig.mic.restarts, 2);
   });
 

@@ -227,6 +227,6 @@ class MicFallback {
 
   void _fail() {
     _host.setStatus(MicStatus.unavailable);
-    unawaited(_host.noteFailure(MicFailureReason.silent));
+    unawaited(_host.noteFailure(MicFailureReason.stalled));
   }
 }

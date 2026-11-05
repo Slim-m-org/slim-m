@@ -23,11 +23,23 @@ import '../../ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
 class _FakeWindow implements PopOutWindowHandle {
-  _FakeWindow(this.onCloseRequested, {required this.decorated});
+  _FakeWindow(
+    this.onCloseRequested, {
+    required this.decorated,
+    required this.title,
+  });
 
   final VoidCallback onCloseRequested;
   final bool decorated;
+  final String title;
   bool destroyed = false;
+  int keptAbove = 0;
+
+  @override
+  Future<void> keepAbove() async => keptAbove++;
+
+  @override
+  bool get drawsOwnFrame => !decorated;
   int moves = 0;
   final resizes = <ResizeEdge>[];
 
@@ -91,7 +103,11 @@ Future<_Rig> _pump(WidgetTester tester, {required bool supported}) async {
                 required decorated,
                 required onCloseRequested,
               }) {
-                final w = _FakeWindow(onCloseRequested, decorated: decorated);
+                final w = _FakeWindow(
+                  onCloseRequested,
+                  decorated: decorated,
+                  title: title,
+                );
                 rig.windows.add(w);
                 return w;
               }
@@ -174,6 +190,18 @@ void main() {
     await tester.tap(_popOutButton);
     await tester.pump();
     expect(rig.windows.single.decorated, isFalse);
+    await teardownFixture(tester, rig.container, rig.db);
+  });
+
+  testWidgets('the window stays above the others under its own title', (
+    tester,
+  ) async {
+    final rig = await _pump(tester, supported: true);
+    await tester.tap(_popOutButton);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(rig.windows.single.title, popOutWindowTitle);
+    expect(rig.windows.single.keptAbove, greaterThan(0));
     await teardownFixture(tester, rig.container, rig.db);
   });
 

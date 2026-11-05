@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Which microphone to try when the one in use has gone silent for good.
+/// Which microphone to try when the one in use has stopped capturing for good.
 library;
 
 import 'voice_models.dart';

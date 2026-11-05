@@ -12,12 +12,12 @@ import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_pointer_gate.dart';
 import 'canvas_presence_geometry.dart' show presenceScreenRect;
 import 'canvas_presence_tile_camera.dart';
 import 'canvas_presence_tile_context_menu.dart';
 import 'canvas_presence_tile_controls.dart';
 import 'canvas_presence_tile_metrics.dart';
+import 'canvas_presence_tile_reveal.dart';
 
 export 'canvas_presence_tile_metrics.dart';
 
@@ -355,39 +355,14 @@ class _CanvasPresenceManipulableTileState
     return _controlsWidget!;
   }
 
-  /// Hides [child] from pointers and sight until the tile is revealed. It stays
-  /// in the semantics tree so a screen reader keeps the controls, and focus
-  /// within it reveals them so a keyboard user never operates an unseen one.
-  Widget _revealable(
-    BuildContext context,
-    Widget child, {
-    bool needsRoom = true,
-  }) {
+  Widget _revealable(Widget child, {bool needsRoom = true}) {
     final room = !needsRoom || _controlCapacity > 0;
-    final shown = _controlsVisible && room;
-    return CanvasPointerGate(
-      ignoring: !shown,
-      child: AnimatedOpacity(
-        opacity: shown ? 1 : 0,
-        duration: AppMotion.reduced(context, AppMotion.fast),
-        alwaysIncludeSemantics: true,
-        // A control with no room never shows, so keyboard focus must not land on it unseen.
-        child: ExcludeFocus(
-          excluding: !room,
-          // The tile's own menu carries these actions, so a no-room control publishes no node over the tile.
-          child: ExcludeSemantics(
-            excluding: !room,
-            child: Focus(
-              canRequestFocus: false,
-              skipTraversal: true,
-              onFocusChange: (hasFocus) =>
-                  setState(() => _focusedWithin = hasFocus),
-              onKeyEvent: (_, event) => _fullscreenKey(event),
-              child: child,
-            ),
-          ),
-        ),
-      ),
+    return TileRevealGate(
+      shown: _controlsVisible && room,
+      room: room,
+      onFocusChange: (hasFocus) => setState(() => _focusedWithin = hasFocus),
+      onKeyEvent: _fullscreenKey,
+      child: child,
     );
   }
 
@@ -484,12 +459,12 @@ class _CanvasPresenceManipulableTileState
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: _revealable(context, _grip, needsRoom: false),
+                    child: _revealable(_grip, needsRoom: false),
                   ),
                 Positioned(
                   right: canvasPresenceTileControlsInset,
                   top: canvasPresenceTileControlsInset,
-                  child: _revealable(context, _controls()),
+                  child: _revealable(_controls()),
                 ),
               ],
             ),

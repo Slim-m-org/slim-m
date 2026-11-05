@@ -25,11 +25,32 @@ Future<void> openDockTab(WidgetTester tester, String tab) async {
 }
 
 /// Opens a module page's folded [fold]: `roles` (who can use it) or `details`.
+///
+/// A module not yet installed shows its details unfolded, so there is nothing to open.
 Future<void> openDockFold(WidgetTester tester, String fold) async {
   final toggle = find.byKey(Key('dock-$fold-toggle'));
+  if (toggle.evaluate().isEmpty) return;
   await tester.ensureVisible(toggle);
   await tester.tap(toggle);
   for (var i = 0; i < 2; i++) {
+    await tester.pump(_settle);
+  }
+}
+
+/// Presses the pinned Install, which on a first install opens the sheet asking what the module may do.
+Future<void> openInstallAccess(WidgetTester tester) async {
+  final install = find.textContaining(RegExp(r'^Install v'));
+  await tester.ensureVisible(install);
+  await tester.tap(install);
+  for (var i = 0; i < 3; i++) {
+    await tester.pump(_settle);
+  }
+}
+
+/// Confirms the install access sheet with whatever its switches show.
+Future<void> confirmInstallAccess(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('dock-install-access-confirm')));
+  for (var i = 0; i < 3; i++) {
     await tester.pump(_settle);
   }
 }

@@ -27,9 +27,11 @@ class _Account {
   _Account(this.value);
 
   bool? value;
+  bool offline = false;
   final puts = <bool>[];
 
   MockClient get client => MockClient((request) async {
+    if (offline) throw http.ClientException('offline');
     if (request.url.path != '/me/hold-music') return http.Response('', 404);
     if (request.method == 'PUT') {
       value = (jsonDecode(request.body) as Map)['enabled'] as bool;
@@ -115,5 +117,51 @@ void main() {
         .setHoldMusicEnabled(true);
 
     expect(account.puts, [true]);
+  });
+
+  test(
+    'a toggle made offline is uploaded on resume, not overwritten',
+    () async {
+      SharedPreferences.setMockInitialValues({holdMusicEnabledKey: true});
+      final account = _Account(true);
+      final container = _container(account);
+      addTearDown(container.dispose);
+      await _syncOn(container);
+
+      account.offline = true;
+      await container
+          .read(voiceSettingsControllerProvider.notifier)
+          .setHoldMusicEnabled(false);
+      account.offline = false;
+      await syncHoldMusic(container.read);
+
+      expect(
+        container.read(voiceSettingsControllerProvider).holdMusicEnabled,
+        isFalse,
+      );
+      expect(account.value, isFalse);
+    },
+  );
+
+  test('once uploaded, the account value wins again', () async {
+    SharedPreferences.setMockInitialValues({holdMusicEnabledKey: true});
+    final account = _Account(true);
+    final container = _container(account);
+    addTearDown(container.dispose);
+    await _syncOn(container);
+    account.offline = true;
+    await container
+        .read(voiceSettingsControllerProvider.notifier)
+        .setHoldMusicEnabled(false);
+    account.offline = false;
+    await syncHoldMusic(container.read);
+
+    account.value = true;
+    await syncHoldMusic(container.read);
+
+    expect(
+      container.read(voiceSettingsControllerProvider).holdMusicEnabled,
+      isTrue,
+    );
   });
 }

@@ -25,7 +25,7 @@ final micFailureProvider = StreamProvider<MicFailureReason?>((ref) {
   });
 });
 
-/// The microphone the call switched to after the first went silent; null once dismissed.
+/// The microphone the call switched to after the first stopped capturing; null once dismissed.
 final micFallbackNoticeProvider = StreamProvider<String?>((ref) {
   final controller = ref.watch(voiceControllerProvider.notifier);
   return Stream<String?>.multi((out) {
@@ -39,9 +39,9 @@ final micFallbackNoticeProvider = StreamProvider<String?>((ref) {
 final micPreviewAdviceProvider = FutureProvider<MicAdvice?>((ref) async {
   final status = ref.watch(micPreviewProvider.select((r) => r.status));
   if (status != MicPreviewStatus.unavailable) return null;
-  // A browser always names a refusal; elsewhere it shows up as silence.
+  // A browser always names a refusal; elsewhere it shows up as a capture that never starts.
   const base = kIsWeb
       ? MicFailureReason.permissionDenied
-      : MicFailureReason.silent;
+      : MicFailureReason.stalled;
   return micAdviceFor(await refineMicFailure(base, osBlocksMicrophone));
 });

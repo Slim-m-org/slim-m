@@ -39,6 +39,7 @@ import '../settings_screen_scaffold.dart';
 import 'dock_module_view.dart';
 import 'dock_host_access_card.dart';
 import 'dock_file_install.dart';
+import 'dock_install_access_sheet.dart';
 import 'dock_install_consent.dart';
 
 class DockModuleScreen extends ConsumerStatefulWidget {
@@ -148,6 +149,21 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
         .read(dockCatalogProvider)
         .valueOrNull
         ?.installedFor(manifest.id);
+    if (!wasInstalled &&
+        grantableHostCapabilities(manifest.capabilities).isNotEmpty) {
+      final initial = _approvedFor(manifest, current);
+      final choice = await showDockInstallAccessSheet(
+        context,
+        manifest: manifest,
+        approved: initial,
+        localNetwork: _localFor(manifest, current, initial),
+      );
+      if (choice == null || !mounted) return;
+      setState(() {
+        _hostApproved = choice.approved;
+        _localNetwork = choice.localNetwork;
+      });
+    }
     final approved = _approvedFor(manifest, current);
     if (!await _consented(manifest, current, approved, wasInstalled)) return;
     setState(() => _busy = true);

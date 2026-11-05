@@ -14,7 +14,7 @@ import 'package:flutter/src/foundation/_features.dart' show isWindowingEnabled;
 import 'package:flutter/src/widgets/_window.dart';
 import 'package:flutter/src/widgets/_window_linux.dart';
 import 'package:flutter/widgets.dart';
-import 'package:slimm_platform/platform.dart' show isLinuxHost;
+import 'package:slimm_platform/platform.dart' show isLinuxHost, kwinKeepAbove;
 
 import '../desktop_window_port.dart' show ResizeEdge;
 import 'popout_gtk_drag.dart';
@@ -23,8 +23,8 @@ import 'popout_windowing.dart' show PopOutWindowFactory, PopOutWindowHandle;
 /// Null wherever a pop-out cannot be offered: web, every platform whose build
 /// does not carry the windowing flag, and a Linux build made without it.
 PopOutWindowFactory? nativePopOutWindowFactory() {
-  if (kIsWeb || !isLinuxHost || !isWindowingEnabled) return null;
-  return _NativePopOutWindow.new;
+  if (kIsWeb || !isWindowingEnabled) return null;
+  return isLinuxHost ? _NativePopOutWindow.new : null;
 }
 
 const _minSize = Size(240, 160);
@@ -37,7 +37,8 @@ class _NativePopOutWindow
     required Size size,
     required bool decorated,
     required this.onCloseRequested,
-  }) {
+  }) : _title = title,
+       _decorated = decorated {
     // The public factory has no decorated option; the Linux controller does.
     _controller = RegularWindowControllerLinux(
       owner: WidgetsBinding.instance.windowingOwner as WindowingOwnerLinux,
@@ -54,6 +55,8 @@ class _NativePopOutWindow
   }
 
   final VoidCallback onCloseRequested;
+  final String _title;
+  final bool _decorated;
   late final RegularWindowControllerLinux _controller;
   late final _drag = GtkWindowDrag(_controller.windowHandle);
 
@@ -73,4 +76,13 @@ class _NativePopOutWindow
 
   @override
   void beginResize(ResizeEdge edge) => _drag.resize(edge);
+
+  @override
+  bool get drawsOwnFrame => !_decorated;
+
+  @override
+  Future<void> keepAbove() async {
+    _drag.keepAbove();
+    if (_drag.onWayland) await kwinKeepAbove(_title);
+  }
 }
