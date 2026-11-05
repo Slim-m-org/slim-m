@@ -167,6 +167,8 @@ struct RelayState {
     /// How many of the next calls should fail outright at the transport
     /// level (a 500), simulating a relay that is briefly unreachable.
     fail_next_calls: usize,
+    /// Kinds answered `error`, as a relay that predates them does.
+    refused_kinds: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -203,6 +205,15 @@ impl MockRelay {
             .unwrap()
             .status_overrides
             .insert(token.to_owned(), status.to_owned());
+    }
+
+    /// Answers `error` for every message of `kind`, as a relay that predates it does.
+    pub(crate) fn refuse_kind(&self, kind: &str) {
+        self.state
+            .lock()
+            .unwrap()
+            .refused_kinds
+            .push(kind.to_owned());
     }
 
     /// The next `count` calls to `/v1/send` fail at the transport level
@@ -245,11 +256,19 @@ async fn handle_send(
         .iter()
         .map(|m| {
             let token = m["token"].as_str().unwrap_or_default().to_owned();
-            let status = state
-                .status_overrides
-                .get(&token)
-                .cloned()
-                .unwrap_or_else(|| "delivered".to_owned());
+            let refused = state
+                .refused_kinds
+                .iter()
+                .any(|k| m["kind"].as_str() == Some(k.as_str()));
+            let status = if refused {
+                "error".to_owned()
+            } else {
+                state
+                    .status_overrides
+                    .get(&token)
+                    .cloned()
+                    .unwrap_or_else(|| "delivered".to_owned())
+            };
             json!({ "token": token, "status": status })
         })
         .collect();

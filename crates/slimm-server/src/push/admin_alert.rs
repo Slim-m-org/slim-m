@@ -12,9 +12,12 @@ use crate::ids::UserId;
 use crate::store::{Store, now_ms};
 
 use super::deliver::is_foreground_and_recent;
-use super::envelope::{DOMAIN, ENVELOPE_VERSION, PushKind, truncate};
+use super::envelope::{DOMAIN, ENVELOPE_VERSION, PushKind, SealedMessage, truncate};
 use super::sealing::{TokenSlot, seal_to};
 use super::{Enabled, dispatch};
+
+/// The relay kind an admin alert travels under; inside the seal it stays a security event.
+const ADMIN_ALERT_KIND: &str = "admin_alert";
 
 const MAX_TITLE_CHARS: usize = 60;
 const MAX_BODY_CHARS: usize = 160;
@@ -69,6 +72,10 @@ pub(super) async fn deliver(
         .iter()
         .filter(|target| !is_foreground_and_recent(target, now))
         .filter_map(|target| seal_to(target, TokenSlot::Push, PushKind::Security, &plaintext))
+        .map(|message| SealedMessage {
+            kind: ADMIN_ALERT_KIND,
+            ..message
+        })
         .collect();
     dispatch::send_and_prune(&enabled, &store, &messages, "admin alert").await;
 }

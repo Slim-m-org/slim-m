@@ -74,11 +74,45 @@ async fn an_alert_reaches_the_admin_and_not_the_member() {
     assert!(wait_until(|| world.mock.all_messages().len() == 1, WAIT_TIMEOUT).await);
     let messages = world.mock.all_messages();
     assert_eq!(messages[0]["token"], "root-apns");
-    assert_eq!(messages[0]["kind"], "security");
+    assert_eq!(messages[0]["kind"], "admin_alert");
     let envelope = unseal(&world, &messages[0]);
     assert_eq!(envelope["event"], "admin_alert");
     assert_eq!(envelope["title"], "Disk space is low");
     assert_eq!(envelope["body"], "Only 90 MB are free.");
+}
+
+#[tokio::test]
+async fn a_relay_without_the_admin_alert_kind_still_delivers_it_as_security() {
+    let world = world().await;
+    world.mock.refuse_kind("admin_alert");
+
+    world
+        .notifier
+        .raise(AlertKind::DiskLow, "", "Only 90 MB are free.")
+        .await;
+    assert!(wait_until(|| world.mock.all_messages().len() == 2, WAIT_TIMEOUT).await);
+    let kinds: Vec<_> = world
+        .mock
+        .all_messages()
+        .iter()
+        .map(|m| m["kind"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        kinds,
+        ["admin_alert", "security"],
+        "refused, then sent as the older kind"
+    );
+
+    world
+        .notifier
+        .raise(AlertKind::Backup, "", "The backup failed.")
+        .await;
+    assert!(wait_until(|| world.mock.all_messages().len() == 3, WAIT_TIMEOUT).await);
+    assert_eq!(
+        world.mock.all_messages()[2]["kind"],
+        "security",
+        "after a refusal the older kind goes first"
+    );
 }
 
 #[tokio::test]

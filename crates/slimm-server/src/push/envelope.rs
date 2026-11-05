@@ -116,8 +116,7 @@ impl PushKind {
             PushKind::Mention => "mention",
             PushKind::Call => "call",
             PushKind::CallEnd => "call_end",
-            // The relay refuses a kind it does not know, so this rides as a plain message.
-            PushKind::Voice => "message",
+            PushKind::Voice => "voice",
             PushKind::Security => "security",
         }
     }
@@ -226,6 +225,7 @@ impl<'a> PushEnvelope<'a> {
 /// back to the exact device it was actually sent to, for per-recipient
 /// debounce bookkeeping and for scoping a dead-token clear to that device
 /// rather than trusting the token string alone.
+#[derive(Clone)]
 pub(super) struct SealedMessage {
     pub(super) user_id: UserId,
     pub(super) device_id: DeviceId,
