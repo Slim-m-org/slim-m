@@ -6,6 +6,7 @@
 /// are self-contained `Positioned.fill` overlays with no state of their own.
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:slimm_design_system/design_system.dart';
@@ -63,9 +64,12 @@ class CanvasLoadingHint extends StatelessWidget {
 /// "erase the failed stroke, then show the pen tool as though nothing
 /// happened" reopens the same refusal.
 class CanvasEmptyHint extends StatelessWidget {
-  const CanvasEmptyHint({super.key, required this.tokens});
+  const CanvasEmptyHint({super.key, required this.tokens, this.touch});
 
   final AppTokens tokens;
+
+  /// Whether the last pointer seen was a finger or a pen; null before any, which falls back to [AppTouchTargets].
+  final bool? touch;
 
   @override
   Widget build(BuildContext context) => Positioned.fill(
@@ -97,7 +101,9 @@ class CanvasEmptyHint extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.s4),
                 Text(
-                  panZoomHint(context),
+                  touch == null
+                      ? panZoomHint(context)
+                      : panZoomHintForTouch(touch!),
                   style: AppText.caption.copyWith(color: tokens.textSecondary),
                   textAlign: TextAlign.center,
                 ),
@@ -112,7 +118,7 @@ class CanvasEmptyHint extends StatelessWidget {
 
 /// Labels the surface for a screen reader and lays the loading or empty hint
 /// over it, never over an error banner or a call's participant tiles.
-class CanvasSurfaceStatus extends StatelessWidget {
+class CanvasSurfaceStatus extends StatefulWidget {
   const CanvasSurfaceStatus({
     super.key,
     required this.document,
@@ -138,28 +144,55 @@ class CanvasSurfaceStatus extends StatelessWidget {
   final Widget child;
 
   @override
+  State<CanvasSurfaceStatus> createState() => _CanvasSurfaceStatusState();
+}
+
+class _CanvasSurfaceStatusState extends State<CanvasSurfaceStatus> {
+  bool? _touch;
+
+  void _saw(PointerEvent event) {
+    final touch = switch (event.kind) {
+      PointerDeviceKind.touch ||
+      PointerDeviceKind.stylus ||
+      PointerDeviceKind.invertedStylus => true,
+      PointerDeviceKind.mouse || PointerDeviceKind.trackpad => false,
+      _ => _touch,
+    };
+    if (touch != _touch) setState(() => _touch = touch);
+  }
+
+  @override
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
-    valueListenable: document.objectCount,
+    valueListenable: widget.document.objectCount,
     builder: (context, count, child) => Semantics(
       container: true,
-      label: loading ? 'Canvas, loading' : 'Canvas, ${canvasSummary(document)}',
+      label: widget.loading
+          ? 'Canvas, loading'
+          : 'Canvas, ${canvasSummary(widget.document)}',
       customSemanticsActions: {
-        if (onAddNote case final add?) _addNote: add,
-        if (onAddShape case final add?) _addShape: add,
+        if (widget.onAddNote case final add?) _addNote: add,
+        if (widget.onAddShape case final add?) _addShape: add,
       },
-      child: Stack(
-        children: [
-          child!,
-          // A blank canvas otherwise looks identical to a broken one; this is the sighted half of the screen-reader label above.
-          if (loading)
-            CanvasLoadingHint(tokens: tokens)
-          // Not over an error banner, nor over a call's tiles, where "nothing here yet" contradicts the video already on screen.
-          else if (count == 0 && !hasError && !hasCallParticipants)
-            CanvasEmptyHint(tokens: tokens),
-        ],
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _saw,
+        onPointerHover: _saw,
+        child: Stack(
+          children: [
+            child!,
+            // A blank canvas otherwise looks identical to a broken one; this is the sighted half of the screen-reader label above.
+            if (widget.loading)
+              CanvasLoadingHint(tokens: widget.tokens)
+            // Not over an error banner, nor over a call's tiles, where "nothing here yet" contradicts the video already on screen.
+            else if (count == 0 &&
+                !widget.hasError &&
+                !widget.hasCallParticipants)
+              CanvasEmptyHint(tokens: widget.tokens, touch: _touch),
+          ],
+        ),
       ),
     ),
-    child: child,
+    child: widget.child,
   );
 }
 
