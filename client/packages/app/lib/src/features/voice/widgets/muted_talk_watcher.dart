@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../providers/muted_talk_cue.dart';
@@ -47,8 +48,13 @@ class _MutedTalkWatcherState extends ConsumerState<MutedTalkWatcher> {
         if (container.read(mutedTalkCueProvider)) {
           container.read(mutedTalkCueProvider.notifier).state = false;
         }
-      } on StateError {
-        // The whole scope went first, taking the cue with it.
+      } on StateError catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.voice,
+          'The scope went before the muted-talk cue could be cleared',
+          error,
+          stack,
+        );
       }
     });
     super.dispose();
