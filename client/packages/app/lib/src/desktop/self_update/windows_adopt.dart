@@ -9,6 +9,7 @@ import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 
+import '../update_check.dart' show isNewer;
 import 'install_fs.dart';
 import 'linux_layout.dart' show LayoutNames;
 import 'self_update_failure.dart';
@@ -32,6 +33,25 @@ bool canAdoptWindowsInstall(String executable) =>
     !isSystemInstallPath(executable) &&
     detectWindowsLayout(executable) == null &&
     File(p.join(p.dirname(executable), WindowsNames.launcher)).existsSync();
+
+/// The per-user launcher a bare copy at [executable] should hand over to: one
+/// that already holds [version] or newer, as a "Move and update" leaves behind.
+/// Without this an old shortcut or taskbar pin keeps opening the old copy,
+/// which asks to update again as though nothing had happened.
+File? installedLauncherFor({
+  required String executable,
+  required String version,
+  Directory? root,
+}) {
+  if (!canAdoptWindowsInstall(executable)) return null;
+  final base = root ?? defaultWindowsLayoutRoot();
+  if (base == null) return null;
+  final layout = WindowsInstallLayout(base);
+  final installed = layout.pointedVersion(LayoutNames.current);
+  if (installed == null || isNewer(version, installed)) return null;
+  if (!isWindowsVersionComplete(layout.versionDir(installed))) return null;
+  return layout.launcher.existsSync() ? layout.launcher : null;
+}
 
 /// Copies the running bundle into `app-<version>` under [root], installs its
 /// launcher beside it and points `current` at it. The pointers go last, so a
