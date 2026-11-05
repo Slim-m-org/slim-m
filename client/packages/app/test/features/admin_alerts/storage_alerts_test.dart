@@ -113,7 +113,7 @@ void main() {
         ),
         now: now,
       );
-      expect(line.detail, 'drill: FAIL Last verified 14h ago.');
+      expect(line.detail, 'drill: FAIL. Last verified 14h ago.');
       expect(line.warn, isTrue);
     });
 

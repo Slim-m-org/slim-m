@@ -41,14 +41,20 @@ class VoiceNoticeItem {
   final String text;
 }
 
-class VoiceNoticeController extends StateNotifier<VoiceNoticeItem?> {
-  VoiceNoticeController(this._ref) : super(null) {
-    _sub = _ref.read(liveEventsProvider).listen(_onEvent);
-  }
-
-  final Ref _ref;
-  late final StreamSubscription<api.ServerEvent> _sub;
+class VoiceNoticeController extends Notifier<VoiceNoticeItem?> {
+  var _disposed = false;
   Timer? _timer;
+
+  @override
+  VoiceNoticeItem? build() {
+    final sub = ref.read(liveEventsProvider).listen(_onEvent);
+    ref.onDispose(() {
+      _disposed = true;
+      _timer?.cancel();
+      unawaited(sub.cancel());
+    });
+    return null;
+  }
 
   void _onEvent(api.ServerEvent event) {
     if (event is api.VoiceNotice) unawaited(_show(event));
@@ -56,10 +62,10 @@ class VoiceNoticeController extends StateNotifier<VoiceNoticeItem?> {
 
   Future<void> _show(api.VoiceNotice notice) async {
     final text = await _textFor(notice);
-    if (!mounted) return;
+    if (_disposed) return;
     final foreground =
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
-        _ref.read(accountActiveProvider);
+        ref.read(accountActiveProvider);
     if (foreground) {
       _timer?.cancel();
       state = VoiceNoticeItem(channelId: notice.channelId, text: text);
@@ -73,10 +79,10 @@ class VoiceNoticeController extends StateNotifier<VoiceNoticeItem?> {
     var actor = 'Someone';
     var channel = 'voice';
     try {
-      final members = await _ref.read(membersProvider.future);
+      final members = await ref.read(membersProvider.future);
       final match = members.where((m) => m.id == notice.actorId);
       if (match.isNotEmpty) actor = match.first.displayName;
-      final row = await (await _ref.read(
+      final row = await (await ref.read(
         storeProvider.future,
       )).channelRow(notice.channelId);
       if (row != null) channel = row.name;
@@ -92,13 +98,13 @@ class VoiceNoticeController extends StateNotifier<VoiceNoticeItem?> {
   }
 
   void _notifyDesktop(String channelId, String text) {
-    final origin = _ref.read(accountSlotProvider)?.account?.origin;
+    final origin = ref.read(accountSlotProvider)?.account?.origin;
     final payload = origin == null
         ? null
         : NotificationTarget(origin: origin, channelId: channelId).encode();
     // Fire-and-forget: a failed notification must never break event handling.
     unawaited(
-      _ref
+      ref
           .read(localNotificationsProvider)
           .show(text, channel: LocalAlertChannel.voice, payload: payload),
     );
@@ -106,18 +112,11 @@ class VoiceNoticeController extends StateNotifier<VoiceNoticeItem?> {
 
   void dismiss() {
     _timer?.cancel();
-    if (mounted) state = null;
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    unawaited(_sub.cancel());
-    super.dispose();
+    if (!_disposed) state = null;
   }
 }
 
 final voiceNoticeProvider =
-    StateNotifierProvider<VoiceNoticeController, VoiceNoticeItem?>(
-      (ref) => VoiceNoticeController(ref),
+    NotifierProvider<VoiceNoticeController, VoiceNoticeItem?>(
+      VoiceNoticeController.new,
     );

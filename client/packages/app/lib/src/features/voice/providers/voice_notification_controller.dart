@@ -28,19 +28,20 @@ class VoiceNotificationState {
       );
 }
 
-class VoiceNotificationController
-    extends StateNotifier<VoiceNotificationState> {
-  VoiceNotificationController(this._ref)
-    : super(const VoiceNotificationState()) {
-    unawaited(refresh());
-  }
+class VoiceNotificationController extends Notifier<VoiceNotificationState> {
+  var _disposed = false;
 
-  final Ref _ref;
+  @override
+  VoiceNotificationState build() {
+    ref.onDispose(() => _disposed = true);
+    unawaited(Future.microtask(refresh));
+    return const VoiceNotificationState();
+  }
 
   Future<void> refresh() async {
     try {
-      final choices = await _ref.read(apiProvider).listVoiceNotifications();
-      if (!mounted) return;
+      final choices = await ref.read(apiProvider).listVoiceNotifications();
+      if (_disposed) return;
       state = VoiceNotificationState(
         byChannel: {for (final c in choices) c.channelId: c},
       );
@@ -80,7 +81,7 @@ class VoiceNotificationController
     }
     state = VoiceNotificationState(byChannel: after);
     try {
-      await _ref
+      await ref
           .read(apiProvider)
           .setVoiceNotification(
             channelId,
@@ -88,7 +89,7 @@ class VoiceNotificationController
             streams: next.streams,
           );
     } catch (_) {
-      if (mounted) state = VoiceNotificationState(byChannel: before);
+      if (!_disposed) state = VoiceNotificationState(byChannel: before);
       rethrow;
     }
   }
@@ -96,6 +97,6 @@ class VoiceNotificationController
 
 /// Session-long, like the channel overrides it sits beside.
 final voiceNotificationProvider =
-    StateNotifierProvider<VoiceNotificationController, VoiceNotificationState>(
-      (ref) => VoiceNotificationController(ref),
+    NotifierProvider<VoiceNotificationController, VoiceNotificationState>(
+      VoiceNotificationController.new,
     );
