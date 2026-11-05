@@ -159,4 +159,60 @@ void main() {
     expect(session.videoBlocked.last, isEmpty, reason: 'shown is unblocked');
     await controller.leave();
   });
+
+  testWidgets('your own share and camera can be popped out', (tester) async {
+    const me = VoiceParticipant(
+      identity: 'u-me',
+      name: 'Me',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: true,
+      isScreenSharing: true,
+      isCameraOn: true,
+    );
+    final harness = VoiceHarness();
+    addTearDown(harness.dispose);
+    final session = FakeSession();
+    final controller = harness.controllerWith(
+      session,
+      voiceApi(),
+      extraOverrides: [
+        membersProvider.overrideWith((ref) async => const <api.UserProfile>[]),
+        popOutSupportedProvider.overrideWithValue(true),
+      ],
+    );
+    await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
+    session.emitParticipants(const [me]);
+    await tester.pump();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: harness.container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: Consumer(
+              builder: (context, ref, _) => AppMenu(
+                width: 240,
+                children: participantCallMenuItems(
+                  context,
+                  ref,
+                  participant: me,
+                  close: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Pop out stream'), findsOneWidget);
+    expect(find.text('Pop out camera'), findsOneWidget);
+
+    await tester.tap(find.text('Pop out camera'));
+    await tester.pump();
+    expect(harness.container.read(popOutFeedProvider)?.identity, 'u-me');
+    await controller.leave();
+  });
 }

@@ -49,7 +49,7 @@ List<Widget> participantStreamMenuItems(
 }
 
 VoidCallback? _popOut(WidgetRef ref, VoiceParticipant p, FeedKind kind) {
-  if (p.isLocal || !ref.read(popOutSupportedProvider)) return null;
+  if (!ref.read(popOutSupportedProvider)) return null;
   return () => ref.read(popOutFeedProvider.notifier).state = (
     identity: p.identity,
     name: p.name,
