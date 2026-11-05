@@ -1,0 +1,1 @@
+{"$slim":"event/1","event":"poll.voted","id":"poll-vote:01a1a929-1827-7e11-b45f-fa9aa9f12513:1760000400000","at_ms":1760000400000,"data":{"message_id":"01a1a929-1827-7e11-b45f-fa9aa9f12513","channel_id":"01a1a929-1827-7e11-b45f-fa8008c5ac06","options":[{"position":0,"votes":2},{"position":1,"votes":1}],"ranked":false,"winner":null}}

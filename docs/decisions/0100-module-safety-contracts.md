@@ -15,7 +15,7 @@ This record fixes the exact contracts, and records four smaller safety decisions
 It is the oldest level the module needs.
 This record adds the other end and the rules around both.
 
-- The host publishes its level as `addon_api` on `GET /version`. It is 3 here: 1 is the platform, 2 adds private scenes, 3 adds interceptors and the permission hook.
+- The host publishes its level as `addon_api` on `GET /version`. It is 5 here: 1 is the platform, 2 adds private scenes, 3 adds interceptors and the permission hook, 4 adds call audio, 5 adds more events.
 - A manifest may add `addon_api_max`, the newest level it declares it works with. It names no upper bound by default.
 - A module runs only when the host's level is inside `[addon_api, addon_api_max]`. This is checked at install (the manifest is refused with the reason), when the server starts (an installed module outside the range is turned off, with the reason shown in the admin's health card), when an admin enables it (refused with the reason), and before every run (a module outside the range is never started, so it is never half-run).
 - Levels only add. A level never removes a field or changes what one means. If a removal is ever needed it ships as a new level, announced in `docs/modules/api-changelog.md` at least 180 days and two server releases earlier, and the old behaviour keeps working through that window. A module that wants to be locked out of anything it has not been tested against sets `addon_api_max`.

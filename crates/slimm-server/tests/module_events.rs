@@ -119,6 +119,8 @@ async fn each_event_kind_reaches_a_subscribed_module_with_its_documented_fields(
             "channel_id": general.id.to_string(),
             "emoji": THUMBS_UP,
             "count": 1,
+            "user_id": w.user.id.to_string(),
+            "added": true,
         })
     );
 

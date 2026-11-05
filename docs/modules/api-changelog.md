@@ -3,6 +3,14 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 5
+
+- Adds six events in the `event/1` envelope, each needing a `subscriptions` entry and `"addon_api": 5`: `message.edited`, `voice.participant.joined`, `voice.participant.left`, `voice.screen_share.changed`, `member.roles.changed` and `poll.voted` (decision [0107](../decisions/0107-more-module-events.md)).
+- `reaction.changed` gains `user_id` and `added` in `data`, and is now sent once for each reactor who moved rather than once for each emoji. Its `id` gains a trailing `:<user id>`.
+- Nothing is removed or changed in meaning. `event/1` stays `event/1`: a module that reads only the fields it already knew is unaffected.
+- A module that declares `addon_api_max` of 4 must be updated to run on a level 5 server, as at every level.
+- Fixtures for the new events are in `docs/modules/event-fixtures/`.
+
 ## Level 4
 
 - Adds the `call.audio` capability (decision [0105](../decisions/0105-module-call-audio.md)): a module hears a voice call as text, only in channels an admin chose and only while everyone in the call agrees.
