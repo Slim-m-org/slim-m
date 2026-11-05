@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
-# 0107 - Modules hear six more events, and who reacted
+# 0109 - Modules hear six more events, and who reacted
 
 Status: accepted
 Date: 2026-11-04

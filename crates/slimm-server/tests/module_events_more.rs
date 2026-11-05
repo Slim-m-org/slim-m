@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The events add-on API 5 added (decision 0107): edits, voice participants,
+//! The events add-on API 5 added (decision 0109): edits, voice participants,
 //! screen shares, role changes, poll tallies and who reacted.
 
 use std::sync::Arc;
