@@ -93,6 +93,13 @@ void main() {
     expect(_position, findsNothing);
   });
 
+  testWidgets('drawing stays offered where the overlay cannot be hosted', (
+    tester,
+  ) async {
+    await _pump(tester, supported: false);
+    expect(find.text('Viewers draw on my screen'), findsOneWidget);
+  });
+
   test('the settings index finds it', () {
     final hit = searchSettings('call overlay', personalSettingsIndex);
     expect(hit.map((e) => e.label), contains('Call overlay'));

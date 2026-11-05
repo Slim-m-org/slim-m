@@ -13,9 +13,9 @@ Decision on 2026-10-28: build it in v120 for Linux and Windows.
 ## Decision
 
 - The overlay is off by default and per user: "Viewers draw on my screen", in Voice settings under "Sharing and preview" and in the share options menu while sharing.
-  It only exists on a desktop that can host it; elsewhere the control is absent, never disabled.
+  The overlay window only exists on a desktop that can host it; the setting itself is offered everywhere (see "In-app preview and window shares").
 - It is up only while all of these hold: the setting is on, a whole screen is being shared, and the desktop can host it.
-  A window share never opens it (see "What it covers").
+  A window share never opens the overlay window (see "What it covers"), though viewers may still draw on it.
 - Viewers get a small pen, circle and note pill on a screen tile, and only while that sharer's consent is live.
 - Marks are ephemeral and never stored.
   They are relayed to the sharer, painted on the sharer's real screen, and fade out a few seconds later.
@@ -154,10 +154,40 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
   It is chosen when the panel opens and does not follow the window to another monitor mid-call.
 - Windows draws the same panel with GDI+ and, like the drawing overlay, is excluded from capture; it is compiled for syntax only.
 
+## In-app preview and window shares (2026-11-04)
+
+Consent no longer waits for the overlay window.
+Viewers may draw whenever the setting is on and the sharer is sharing anything, a window included, so a window share, a GNOME sharer, an iPhone sharer and a desktop whose probe says unsupported are all drawable.
+The consent frame carries the shape of what is shared: the covered monitor when the overlay is up, otherwise the size of the first captured frame, sent again when it arrives.
+
+The marks viewers draw also show over the sharer's own preview of their share (the local tile on the call stage and the canvas), read-only and on the same fade clock.
+That preview is the one place a window share, a GNOME sharer or a phone sees the marks, since only a whole-screen share on a capable desktop gets the overlay window.
+It is gated the same way as the overlay: it paints nothing unless the sharer's own consent is live, and a mark from a blocked viewer is dropped before it reaches either.
+The toast "Viewers can draw on your screen." now comes with consent, not with the overlay window.
+
+On a whole-screen share with the overlay up, viewers' marks therefore appear on the real screen and in the preview.
+That is intended: the preview is what the sharer is looking at when the app is in front.
+
+## Zoom and pan on a watched share (2026-11-04)
+
+A viewer can zoom a remote share with the wheel (ctrl+wheel on the canvas, where a plain wheel moves the board), a trackpad pinch, a two-finger pinch on touch (not on the canvas, where two fingers already move the board), the + / - / 0 keys while the share has focus, then drag to pan.
+A small indicator with a reset shows while zoomed.
+Double click toggles fit and 200% on the full-screen view; on the stage and canvas tiles a double click still opens full screen, and resets the zoom first when one is active.
+It works on the call stage tile, the full-screen view and the canvas tile.
+
+- The percentage is relative to fit, not to the stream's pixels, because a viewer is never told the sender's resolution.
+- Zoom is kept as the picture's origin and scale as fractions of the viewport, so it means the same in any tile size.
+- A tile's zoom is dropped when its share ends, so the next share starts at fit.
+- Marks stay normalised to the video: the annotate layer maps through the content rect after the zoom is applied, so a stroke drawn while zoomed lands where it was aimed, and marks are clipped to the tile.
+- A wheel still zooms while a pen is picked.
+  Pinch and pan wait until the pen is put down, since the pen's catcher owns the drag.
+
 ## Not done
 
-- Window shares.
+- A window share's own overlay window.
+  The in-app preview carries window-share marks.
 - A viewer drawing from the full-screen video view; the pen is on the canvas tile and the call stage tile.
+- Pinch zoom on a canvas tile; use ctrl+wheel there, or open the share full screen.
 - Packaging gtk-layer-shell in the tarball and the flatpak; the rpm recommends it.
 - macOS, web, Android and iOS, by decision.
 - A real Windows run, an X11 run, a real GNOME run, and a real multi-monitor run.

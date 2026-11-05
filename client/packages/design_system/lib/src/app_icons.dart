@@ -221,6 +221,11 @@ abstract final class AppIcons {
   /// Leaving full screen playback - the shrink counterpart to [expand].
   static const IconData collapse = LucideIcons.shrink300;
 
+  /// Zooming a watched share in or out, and back to fit.
+  static const IconData zoomIn = LucideIcons.zoomIn300;
+  static const IconData zoomOut = LucideIcons.zoomOut300;
+  static const IconData zoomFit = LucideIcons.scan300;
+
   /// Starting or joining a DM call, distinct from [voice] (a voice channel's
   /// own icon) since a DM has no channel kind of its own to draw.
   static const IconData startCall = LucideIcons.phone300;

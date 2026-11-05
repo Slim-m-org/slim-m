@@ -65,4 +65,23 @@ void main() {
       },
     );
   }
+
+  testWidgets('the share menu offers drawing where no overlay can be hosted', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 880);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpVoiceCallDock(
+      tester,
+      _sharing,
+      width: 900,
+      scoped: false,
+      extraOverrides: [screenOverlaySupportedProvider.overrideWithValue(false)],
+    );
+    await tester.tap(find.byTooltip('Screen share options'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Viewers draw on my screen'), findsOneWidget);
+  });
 }

@@ -40,8 +40,6 @@ import '../providers/camera_switch.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
-import '../../screen_overlay/providers/screen_overlay_controller.dart'
-    show screenOverlaySupportedProvider;
 import '../providers/voice_state.dart' show ShareAudio;
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
@@ -363,7 +361,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       if (widget.voice.screenSharing && _canSwitchSource)
         _switchScreenOption(context),
       if (widget.voice.shareAudio != ShareAudio.none) _shareAudioOption(),
-      if (ref.watch(screenOverlaySupportedProvider)) _annotationOption(),
+      _annotationOption(),
     ];
     return [
       ...actions,

@@ -8,6 +8,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../voice/widgets/call_roster_motion.dart';
+import '../../voice/widgets/share_zoom_view.dart' show ShareZoomTransform;
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';
@@ -159,7 +160,12 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
     final identity = participant.identity;
     final built = CallTilePop(
       child: isScreen
-          ? CanvasScreenShareBubble(view: widget.screenShareViewFor(identity))
+          ? CanvasScreenShareBubble(
+              view: ShareZoomTransform(
+                zoom: _resolver.zooms.of(key),
+                child: widget.screenShareViewFor(identity),
+              ),
+            )
           : CanvasPresenceBubble(cameraView: widget.cameraViewFor(identity)),
     );
     _contents[key] = (live: live, widget: built);

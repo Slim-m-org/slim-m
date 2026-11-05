@@ -310,7 +310,12 @@ class _CanvasPresenceManipulableTileState
 
   /// Forwarded to [TileCameraForwarder.signal] unless in pass-through mode.
   void _onPointerSignal(PointerSignalEvent event) {
-    if (!_passThrough) _camera.signal(event);
+    // Registered, not called, so a zoom control deeper in the tile that claimed this wheel wins.
+    if (_passThrough) return;
+    GestureBinding.instance.pointerSignalResolver.register(
+      event,
+      _camera.signal,
+    );
   }
 
   @override

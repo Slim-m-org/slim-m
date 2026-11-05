@@ -19,7 +19,10 @@ import 'share_stage_controls.dart';
 import 'stream_control_strip.dart';
 import 'stream_controls_reveal.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../canvas/widgets/local_share_marks.dart';
 import '../../canvas/widgets/screen_annotate_layer.dart';
+import '../providers/share_zoom_controller.dart';
+import 'share_zoom_view.dart';
 
 /// A dark stage with the share inside it, labelled on hover.
 ///
@@ -52,6 +55,7 @@ class ScreenShareStage extends ConsumerStatefulWidget {
     this.onExpand,
     this.popOutIdentity,
     this.annotateSharerId,
+    this.previewMarksOf,
     this.onStopWatching,
     this.onFocus,
     this.focused = false,
@@ -102,6 +106,9 @@ class ScreenShareStage extends ConsumerStatefulWidget {
   /// The remote sharer whose screen a viewer may draw on, when they allow it; null for the local share.
   final String? annotateSharerId;
 
+  /// The local sharer, whose own preview shows the marks viewers draw while they may; null for a remote share.
+  final String? previewMarksOf;
+
   @override
   ConsumerState<ScreenShareStage> createState() => _ScreenShareStageState();
 }
@@ -109,12 +116,41 @@ class ScreenShareStage extends ConsumerStatefulWidget {
 class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
   final _menu = GlobalKey<ContextMenuRegionState>();
   final _menuGroup = Object();
+  final _zoom = ShareZoomController();
+
+  @override
+  void dispose() {
+    _zoom.dispose();
+    super.dispose();
+  }
 
   void _toggleMenu(BuildContext button) {
     final box = button.findRenderObject() as RenderBox?;
     final at = box?.localToGlobal(Offset(0, box.size.height));
     _menu.currentState?.toggle(at: at);
   }
+
+  void _doubleClick() {
+    if (_zoom.zoomed) return _zoom.reset();
+    widget.onExpand?.call();
+  }
+
+  Widget _preview(String sharerId) => Positioned.fill(
+    child: LayoutBuilder(
+      builder: (context, box) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          LocalShareMarks(
+            key: const ValueKey('stage-preview-marks'),
+            sharerId: sharerId,
+            sharerName: widget.sharerName,
+            tileRect: Offset.zero & box.biggest,
+            zoom: _zoom,
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _annotate() => Positioned.fill(
     child: LayoutBuilder(
@@ -126,54 +162,59 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
             sharerId: widget.annotateSharerId!,
             sharerName: widget.sharerName,
             tileRect: Offset.zero & box.biggest,
+            zoom: _zoom,
           ),
         ],
       ),
     ),
   );
 
-  Widget _video(BuildContext context, AppTokens tokens) => DoubleClickDetector(
-    onDoubleClick: widget.onExpand,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      child: PointerRevealed(
-        builder: (context, revealed) => Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF000000),
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.card),
+  Widget _video(BuildContext context, AppTokens tokens) {
+    return DoubleClickDetector(
+      onDoubleClick: _doubleClick,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        child: PointerRevealed(
+          builder: (context, revealed) => Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF000000),
+                    border: Border.all(color: tokens.borderSubtle),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                  ),
+                  child: ShareZoomView(zoom: _zoom, child: widget.child),
                 ),
-                child: widget.child,
               ),
-            ),
-            if (widget.annotateSharerId != null) _annotate(),
-            if (widget.showCaption)
-              Positioned(
-                left: 6,
-                bottom: 6,
-                right: 6,
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: RevealFade(
-                    revealed: revealed || widget.isLocal,
-                    child: MediaLabelChip(
-                      icon: AppIcons.screenShare,
-                      label: widget.isLocal
-                          ? 'You are sharing your screen'
-                          : "${widget.sharerName}'s screen",
+              if (widget.annotateSharerId != null) _annotate(),
+              if (widget.previewMarksOf != null)
+                _preview(widget.previewMarksOf!),
+              if (widget.showCaption)
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  right: 6,
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: RevealFade(
+                      revealed: revealed || widget.isLocal,
+                      child: MediaLabelChip(
+                        icon: AppIcons.screenShare,
+                        label: widget.isLocal
+                            ? 'You are sharing your screen'
+                            : "${widget.sharerName}'s screen",
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -6,6 +6,7 @@
 /// real screen, and fade here a few seconds later. Nothing is stored.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
@@ -18,8 +19,10 @@ import '../../screen_overlay/providers/screen_annotation_board.dart';
 import '../../screen_overlay/providers/screen_annotation_feed.dart';
 import '../../screen_overlay/providers/screen_annotation_mapping.dart';
 import '../../screen_overlay/providers/screen_annotation_sender.dart';
+import '../../voice/providers/share_zoom_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../providers/canvas_pen_style.dart';
+import '../../voice/widgets/share_zoom_view.dart';
 import 'screen_annotate_painter.dart';
 import 'screen_annotate_toolbar.dart';
 
@@ -35,6 +38,9 @@ class ScreenAnnotateLayer extends ConsumerStatefulWidget {
     required this.sharerId,
     required this.sharerName,
     required this.tileRect,
+    this.zoom,
+    this.readOnly = false,
+    this.fallbackAspect,
   });
 
   final String sharerId;
@@ -42,6 +48,15 @@ class ScreenAnnotateLayer extends ConsumerStatefulWidget {
 
   /// The tile's rectangle in the board's screen coordinates.
   final Rect tileRect;
+
+  /// The tile's zoom, so marks follow the video and not the viewport; null where it cannot zoom.
+  final ShareZoomController? zoom;
+
+  /// Shows the marks without a toolbar or consent, as on the sharer's own preview of their share.
+  final bool readOnly;
+
+  /// The shared screen's shape when no consent frame says it, as on the sharer's own preview.
+  final double? fallbackAspect;
 
   @override
   ConsumerState<ScreenAnnotateLayer> createState() =>
@@ -66,12 +81,22 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   void initState() {
     super.initState();
     _feed.addListener(_onFeed);
+    widget.zoom?.addListener(_onFeed);
     _onFeed();
+  }
+
+  @override
+  void didUpdateWidget(ScreenAnnotateLayer old) {
+    super.didUpdateWidget(old);
+    if (old.zoom == widget.zoom) return;
+    old.zoom?.removeListener(_onFeed);
+    widget.zoom?.addListener(_onFeed);
   }
 
   @override
   void dispose() {
     _feed.removeListener(_onFeed);
+    widget.zoom?.removeListener(_onFeed);
     _ticker.dispose();
     _frame.dispose();
     _noteText.dispose();
@@ -87,9 +112,13 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     setState(() {});
   }
 
-  Rect _content() => _aspect == null
-      ? Offset.zero & widget.tileRect.size
-      : fitContent(widget.tileRect.size, _aspect!);
+  Rect _content() {
+    final aspect = _aspect ?? widget.fallbackAspect;
+    final fitted = aspect == null
+        ? Offset.zero & widget.tileRect.size
+        : fitContent(widget.tileRect.size, aspect);
+    return widget.zoom?.apply(fitted, widget.tileRect.size) ?? fitted;
+  }
 
   void _setTool(ScreenAnnotateTool? tool) {
     _sender?.dispose();
@@ -167,7 +196,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
 
   @override
   Widget build(BuildContext context) {
-    final consent = _feed.consentFor(widget.sharerId);
+    final consent = widget.readOnly ? null : _feed.consentFor(widget.sharerId);
     if (consent?.aspect != null) _aspect = consent!.aspect;
     final marks = _feed.marksFor(widget.sharerId);
     // Still a Positioned: a loose child would shrink the all-positioned Stack this lives in.
@@ -180,62 +209,79 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     final content = _content();
     final showToolbar =
         consent != null && widget.tileRect.width >= screenAnnotateMinTileWidth;
+    final zoomed = widget.zoom?.zoomed ?? false;
     return Positioned.fromRect(
       rect: widget.tileRect,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IgnorePointer(
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: ScreenMarksPainter(
-                marks: () => _feed.marksFor(widget.sharerId),
-                content: content,
-                now: () => _feed.now,
-                repaint: _frame,
-              ),
-            ),
-          ),
-          IgnorePointer(
-            child: ValueListenableBuilder<int>(
-              valueListenable: _frame,
-              builder: (_, _, _) => Stack(children: _notes(content)),
-            ),
-          ),
-          if (_tool != null && consent != null)
-            Positioned.fill(child: _catcher()),
-          if (_pendingNote != null) _noteField(),
-          if (showToolbar)
-            Positioned(
-              bottom: AppSpacing.s8,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ScreenAnnotateToolbar(
-                  sharerName: widget.sharerName,
-                  tool: _tool,
-                  onChanged: _setTool,
+      child: ClipRect(
+        clipBehavior: zoomed ? Clip.hardEdge : Clip.none,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: ScreenMarksPainter(
+                  marks: () => _feed.marksFor(widget.sharerId),
+                  content: content,
+                  now: () => _feed.now,
+                  repaint: _frame,
                 ),
               ),
             ),
-        ],
+            IgnorePointer(
+              child: ValueListenableBuilder<int>(
+                valueListenable: _frame,
+                builder: (_, _, _) => Stack(children: _notes(content)),
+              ),
+            ),
+            if (_tool != null && consent != null)
+              Positioned.fill(child: _catcher()),
+            if (_pendingNote != null) _noteField(),
+            if (showToolbar)
+              Positioned(
+                bottom: AppSpacing.s8,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: ScreenAnnotateToolbar(
+                    sharerName: widget.sharerName,
+                    tool: _tool,
+                    onChanged: _setTool,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _catcher() => MouseRegion(
     cursor: SystemMouseCursors.precise,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: _panStart,
-      onPanUpdate: _panUpdate,
-      onPanEnd: (_) => _panEnd(),
-      onPanCancel: _panEnd,
-      onTapUp: _tool == ScreenAnnotateTool.note
-          ? (d) => setState(() => _pendingNote = d.localPosition)
-          : null,
+    child: Listener(
+      onPointerSignal: _wheel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: _panStart,
+        onPanUpdate: _panUpdate,
+        onPanEnd: (_) => _panEnd(),
+        onPanCancel: _panEnd,
+        onTapUp: _tool == ScreenAnnotateTool.note
+            ? (d) => setState(() => _pendingNote = d.localPosition)
+            : null,
+      ),
     ),
   );
+
+  // A wheel still zooms while a pen is picked, since the catcher sits above the video.
+  void _wheel(PointerSignalEvent event) {
+    final zoom = widget.zoom;
+    if (zoom == null) return;
+    GestureBinding.instance.pointerSignalResolver.register(
+      event,
+      (e) => applyShareZoomSignal(zoom, e, widget.tileRect.size),
+    );
+  }
 
   List<Widget> _notes(Rect content) {
     final now = _feed.now;

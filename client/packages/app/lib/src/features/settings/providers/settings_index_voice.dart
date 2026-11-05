@@ -86,6 +86,12 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Viewers draw on my screen',
+    description: 'Their marks show on the screen you share for a few seconds.',
+    keywords: ['annotate', 'draw', 'marks', 'screen share'],
+  ),
+  SettingsEntry(
+    'voice',
     'Call overlay',
     description: 'Lists who is in the call over your other windows.',
     keywords: ['overlay', 'who is talking', 'speaking', 'corner', 'position'],

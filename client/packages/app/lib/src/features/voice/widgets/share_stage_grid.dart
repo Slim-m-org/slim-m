@@ -91,6 +91,7 @@ Widget _stageTile(
   isLocal: sharer.isLocal,
   popOutIdentity: sharer.identity,
   annotateSharerId: sharer.isLocal ? null : sharer.identity,
+  previewMarksOf: sharer.isLocal ? sharer.identity : null,
   onStopWatching: onStopWatching,
   onFocus: onFocus,
   focused: focused,
