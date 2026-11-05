@@ -228,7 +228,7 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
     return SettingsSelectRow<String>(
       key: const Key('theme-editor-start-from'),
       label: 'Start from',
-      description: 'Replaces the colours below and keeps the name.',
+      description: 'Keeps your name.',
       value: null,
       unknownLabel: 'Choose a theme',
       choices: [
@@ -299,7 +299,8 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
       label: 'Save',
       variant: AppButtonVariant.primary,
       size: AppButtonSize.sm,
-      disabled: _busy,
+      touch: false,
+      disabled: _busy || !_draft.canSave,
       onPressed: () => unawaited(_save()),
     ),
     ThemeMenuButton<ThemeEditorAction>(

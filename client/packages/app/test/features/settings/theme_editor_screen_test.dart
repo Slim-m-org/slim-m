@@ -98,8 +98,11 @@ void main() {
     expect(_key('theme-contrast-ok'), findsNothing);
     expect(_key('theme-check-textPrimary-surfaceBase'), findsOneWidget);
 
-    await _tap(tester, _key('theme-editor-save'));
-    expect(_key('theme-editor-error'), findsOneWidget);
+    expect(
+      tester.widget<AppButton>(_key('theme-editor-save')).disabled,
+      isTrue,
+    );
+    await _menu(tester, 'Save and apply');
     expect(find.text('Fix the failing contrast checks first.'), findsOneWidget);
     expect(rig.container.read(myThemesProvider), isEmpty);
 
@@ -126,7 +129,11 @@ void main() {
 
     await tester.enterText(_key('theme-editor-name'), '   ');
     await tester.pump();
-    await _tap(tester, _key('theme-editor-save'));
+    expect(
+      tester.widget<AppButton>(_key('theme-editor-save')).disabled,
+      isTrue,
+    );
+    await _menu(tester, 'Save and apply');
     expect(find.textContaining('Give the theme a name'), findsOneWidget);
     expect(rig.container.read(myThemesProvider), isEmpty);
   });
