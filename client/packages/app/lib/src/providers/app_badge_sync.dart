@@ -16,6 +16,11 @@ final appBadgeChannelProvider = Provider<AppBadgeChannel>(
   (ref) => AppBadgeChannel(),
 );
 
+/// False when iOS Settings has Badges off for this app, so badge writes do nothing.
+final badgesAllowedProvider = FutureProvider.autoDispose<bool>(
+  (ref) => ref.watch(appBadgeChannelProvider).badgesAllowed(),
+);
+
 /// What the icon should show: unread channels across every signed-in account.
 int appBadgeCount(Iterable<AccountUnread> accounts) =>
     accounts.fold(0, (sum, unread) => sum + unread.channels);

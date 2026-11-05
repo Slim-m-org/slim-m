@@ -27,7 +27,10 @@ import '../providers/fullscreen_video.dart';
 import '../../../providers/phone_landscape.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import '../providers/share_zoom_controller.dart';
+import '../../../widgets/double_click_detector.dart';
 import 'fullscreen_video_controls.dart';
+import 'share_zoom_view.dart';
 import 'stream_controls_reveal.dart';
 
 /// Which live view a tile was showing when it was expanded.
@@ -93,6 +96,8 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
 
   late final VoidCallback _releaseEnlarged;
 
+  final _zoom = ShareZoomController();
+
   @override
   void initState() {
     super.initState();
@@ -133,6 +138,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     _releaseEnlarged();
     _windowHold.release();
     _landscape.release();
+    _zoom.dispose();
     super.dispose();
   }
 
@@ -176,7 +182,16 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                   fit: CameraFit.contain,
                   child: controller.cameraViewFor(widget.identity),
                 )
-              : controller.screenShareViewFor(widget.identity))
+              : ShareZoomView(
+                  zoom: _zoom,
+                  pillInset: const EdgeInsets.fromLTRB(
+                    AppSpacing.s8,
+                    AppSpacing.s8,
+                    AppSpacing.s8,
+                    96,
+                  ),
+                  child: controller.screenShareViewFor(widget.identity),
+                ))
         : const SizedBox.shrink();
     final remoteSound =
         widget.kind == FullscreenVideoKind.screenShare &&
@@ -192,7 +207,11 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
       tapToggles: true,
       builder: (context, shown, hold) => Stack(
         children: [
-          Positioned.fill(child: video),
+          Positioned.fill(
+            child: widget.kind == FullscreenVideoKind.screenShare
+                ? DoubleClickDetector(onDoubleClick: _zoom.toggle, child: video)
+                : video,
+          ),
           Positioned(
             top: 0,
             left: 0,
@@ -230,6 +249,9 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _exit},
       child: Focus(
         autofocus: true,
+        onKeyEvent: (_, event) => widget.kind == FullscreenVideoKind.screenShare
+            ? _zoom.handleKey(event)
+            : KeyEventResult.ignored,
         child: Theme(
           data: buildTheme(Brightness.dark, AppTokens.dark),
           child: Material(

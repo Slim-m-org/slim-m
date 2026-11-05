@@ -13,13 +13,13 @@ Decision on 2026-10-28: build it in v120 for Linux and Windows.
 ## Decision
 
 - The overlay is off by default and per user: "Viewers draw on my screen", in Voice settings under "Sharing and preview" and in the share options menu while sharing.
-  It only exists on a desktop that can host it; elsewhere the control is absent, never disabled.
+  The overlay window only exists on a desktop that can host it; the setting itself is offered everywhere (see "In-app preview and window shares").
 - It is up only while all of these hold: the setting is on, a whole screen is being shared, and the desktop can host it.
-  A window share never opens it (see "What it covers").
+  A window share never opens the overlay window (see "What it covers"), though viewers may still draw on it.
 - Viewers get a small pen, circle and note pill on a screen tile, and only while that sharer's consent is live.
 - Marks are ephemeral and never stored.
   They are relayed to the sharer, painted on the sharer's real screen, and fade out a few seconds later.
-- A sharer always sees "Viewers can draw on your screen" with a Turn off button in the call stage while it is up, and the share options menu shows the toggle checked.
+- When it comes up the sharer gets a short "Viewers can draw on your screen." toast, and the share options menu shows the toggle checked (no persistent banner, see Privacy).
   Turning it off closes the window at once and withdraws consent.
 
 ## A native window, not a second Flutter view
@@ -132,10 +132,62 @@ The overlay repaints about 30 times a second only while a mark is alive and goes
 This follows `docs/design/desktop-vs-mobile.md` rule 2 for the share options toggle (a value on a control that stays on screen) and rule 6 for the status line, which was a banner and is now one info toast.
 The tile's pen, circle and note pill is part of the tile's own controls, so it is sized by width: hidden on a tile narrower than 220 logical pixels.
 
+## Call overlay (2026-11-04)
+
+The same native window also lists who is in the call, like Discord's overlay.
+Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do like discord where she show the people in call and voice activty top left or whatever position just to give me a second source of it working".
+
+- Its own setting, "Call overlay", off by default, with a corner choice (top left by default) shown once it is on.
+  Like the drawing overlay it is absent, never disabled, where the desktop cannot host it.
+- It shows whenever you are in a call and hides while you share a whole screen.
+  Linux cannot keep a window out of the capture, and the owner does not want the panel in his stream.
+  A window share leaves it up, since the share does not include it.
+- One row per person: you first, then the call's own order so rows do not jump, at most 8 rows and then "+N more".
+  Each row has a dot that lights in the accent colour (with a soft ring) while they talk, the name, and a struck-through microphone or headphones when muted or deafened.
+  It is always the dark tokens at 88% opacity with a hairline border and the 10 radius, so it reads over any background.
+- The protocol gains `panel` (rows, corner, monitor index, colours; null clears it) and `appMonitor` (the index of the monitor the app window is on, or -1).
+  Dart decides the rows and the colours; the runner only draws, and it repaints only when `panel` is called.
+  Dart sends `panel` only when the panel differs from the last one it sent, so a speaking flicker that changes no row costs nothing, and the runner has no timer.
+- The window belongs to one owner at a time.
+  The drawing overlay needs a whole-screen share and the panel needs there to be none, so they are never wanted together; the controller hands the window from one to the other.
+- Monitor: the one the app window is on when the runner can tell (GDK `monitor_at_window` on Linux, `MonitorFromWindow` on Windows), otherwise the primary.
+  It is chosen when the panel opens and does not follow the window to another monitor mid-call.
+- Windows draws the same panel with GDI+ and, like the drawing overlay, is excluded from capture; it is compiled for syntax only.
+
+## In-app preview and window shares (2026-11-04)
+
+Consent no longer waits for the overlay window.
+Viewers may draw whenever the setting is on and the sharer is sharing anything, a window included, so a window share, a GNOME sharer, an iPhone sharer and a desktop whose probe says unsupported are all drawable.
+The consent frame carries the shape of what is shared: the covered monitor when the overlay is up, otherwise the size of the first captured frame, sent again when it arrives.
+
+The marks viewers draw also show over the sharer's own preview of their share (the local tile on the call stage and the canvas), read-only and on the same fade clock.
+That preview is the one place a window share, a GNOME sharer or a phone sees the marks, since only a whole-screen share on a capable desktop gets the overlay window.
+It is gated the same way as the overlay: it paints nothing unless the sharer's own consent is live, and a mark from a blocked viewer is dropped before it reaches either.
+The toast "Viewers can draw on your screen." now comes with consent, not with the overlay window.
+
+On a whole-screen share with the overlay up, viewers' marks therefore appear on the real screen and in the preview.
+That is intended: the preview is what the sharer is looking at when the app is in front.
+
+## Zoom and pan on a watched share (2026-11-04)
+
+A viewer can zoom a remote share with the wheel (ctrl+wheel on the canvas, where a plain wheel moves the board), a trackpad pinch, a two-finger pinch on touch (not on the canvas, where two fingers already move the board), the + / - / 0 keys while the share has focus, then drag to pan.
+A small indicator with a reset shows while zoomed.
+Double click toggles fit and 200% on the full-screen view; on the stage and canvas tiles a double click still opens full screen, and resets the zoom first when one is active.
+It works on the call stage tile, the full-screen view and the canvas tile.
+
+- The percentage is relative to fit, not to the stream's pixels, because a viewer is never told the sender's resolution.
+- Zoom is kept as the picture's origin and scale as fractions of the viewport, so it means the same in any tile size.
+- A tile's zoom is dropped when its share ends, so the next share starts at fit.
+- Marks stay normalised to the video: the annotate layer maps through the content rect after the zoom is applied, so a stroke drawn while zoomed lands where it was aimed, and marks are clipped to the tile.
+- A wheel still zooms while a pen is picked.
+  Pinch and pan wait until the pen is put down, since the pen's catcher owns the drag.
+
 ## Not done
 
-- Window shares.
-- A viewer's marks while the viewer is not on the canvas (the pen is a canvas tile control).
+- A window share's own overlay window.
+  The in-app preview carries window-share marks.
+- A viewer drawing from the full-screen video view; the pen is on the canvas tile and the call stage tile.
+- Pinch zoom on a canvas tile; use ctrl+wheel there, or open the share full screen.
 - Packaging gtk-layer-shell in the tarball and the flatpak; the rpm recommends it.
 - macOS, web, Android and iOS, by decision.
 - A real Windows run, an X11 run, a real GNOME run, and a real multi-monitor run.

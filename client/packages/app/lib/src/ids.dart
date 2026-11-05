@@ -45,6 +45,9 @@ String newChannelId() => _uuidV7();
 /// The same generator for a category create, minted once per sheet.
 String newCategoryId() => _uuidV7();
 
+/// The same generator for a theme kept in "Mine", which only names it on this device.
+String newThemeId() => _uuidV7();
+
 String _uuidV7() =>
     uuidV7At(DateTime.now().millisecondsSinceEpoch, Random.secure());
 
@@ -69,3 +72,6 @@ String uuidV7At(int now, Random random) {
   return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}'
       '-${hex.substring(16, 20)}-${hex.substring(20)}';
 }
+
+/// The same generator for a favorite, idempotent by id like a message send.
+String newFavoriteId() => _uuidV7();

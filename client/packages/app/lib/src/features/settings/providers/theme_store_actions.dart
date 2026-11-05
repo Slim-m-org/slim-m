@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What the theme store and the theme file do: apply, remove, set default.
+/// What the theme store and the theme file do: apply, publish, remove, set default.
 library;
 
 import 'dart:typed_data';
@@ -27,7 +27,10 @@ Future<void> applyThemeDocument(
   final picture = document.picture;
   if (picture == null) return;
   final background = ref.read(appBackgroundControllerProvider.notifier);
-  if (pictureBytes != null) await background.importPicture(pictureBytes);
+  // The file's picture settings describe a picture that is not there, so a failed import applies none of them.
+  if (pictureBytes != null && !await background.importPicture(pictureBytes)) {
+    return;
+  }
   await background.setDim(picture.dim);
   await background.setVignette(picture.vignette);
   await background.setBlur(picture.blur);
@@ -41,6 +44,16 @@ Future<void> applyStoreTheme(WidgetRef ref, api.SpaceTheme theme) async {
     bytes = await ref.read(spaceThemePictureProvider(theme.id).future);
   }
   await applyThemeDocument(ref, document, pictureBytes: bytes);
+}
+
+/// Publishes [document] to the Space under the signed-in member's name.
+Future<void> publishTheme(WidgetRef ref, ThemeDocument document) async {
+  final me = ref.read(meProvider).valueOrNull;
+  final shown = (me?.displayName ?? me?.username ?? '').trim();
+  final author = String.fromCharCodes(shown.runes.take(themeNameMaxChars));
+  final file = document.copyWith(author: author, dropPicture: true);
+  await ref.read(apiProvider).publishSpaceTheme(file.toJson());
+  ref.invalidate(spaceThemesProvider);
 }
 
 Future<void> removeStoreTheme(WidgetRef ref, String id) async {

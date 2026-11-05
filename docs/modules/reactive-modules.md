@@ -51,12 +51,28 @@ The events:
 | --- | --- | --- |
 | `message.created` | `message_id`, `channel_id`, `author_id` (null when there is none), `content` (the stored text), `created_at_ms`, `is_bot` | `message:<message id>` |
 | `message.deleted` | `message_id`, `channel_id` | `message-deleted:<message id>` |
-| `reaction.changed` | `message_id`, `channel_id`, `emoji`, `count` | `reaction:<message id>:<emoji>:<ms>` |
+| `reaction.changed` | `message_id`, `channel_id`, `emoji`, `count`, `user_id`, `added` | `reaction:<message id>:<emoji>:<ms>:<user id>` |
 | `member.joined` | `user_id` | `member-join:<user id>:<ms>` |
 | `member.left` | `user_id` | `member-leave:<user id>:<ms>` |
 | `voice.session.closed` | `session_id`, `user_id`, `channel_id`, `joined_at_ms`, `left_at_ms`, `alone_ms` | `voice-session:<session id>` |
+| `message.edited` | `message_id`, `channel_id`, `author_id` (null when there is none), `content` (the new text), `edited_at_ms`, `is_bot` | `message-edit:<message id>:<edit number>` |
+| `voice.participant.joined` | `channel_id`, `user_id` | `voice-join:<user id>:<ms>` |
+| `voice.participant.left` | `channel_id`, `user_id` | `voice-leave:<user id>:<ms>` |
+| `voice.screen_share.changed` | `channel_id`, `user_id`, `sharing` | `voice-share:<user id>:<ms>` |
+| `member.roles.changed` | `user_id`, `role_id`, `granted`, `role_name` (null when the role has no name to give) | `member-roles:<user id>:<role id>:<ms>` |
+| `poll.voted` | `message_id`, `channel_id`, `options` (`position` and `votes` for each), `ranked`, `winner` (the instant-runoff winner on a ranked poll, otherwise null) | `poll-vote:<message id>:<ms>` |
 
-`reaction.changed` is sent once for each emoji whose count moved, with the new count (0 when the last reaction was removed).
+The last six need `"addon_api": 5`; naming one with a lower level is refused at install.
+A copy of each as the host sends it is in [`event-fixtures/`](event-fixtures/), one file per event, named for it.
+
+`reaction.changed` is sent once for each reactor whose reaction appeared or went away, with the emoji's new count (0 when the last reaction was removed), `user_id` of who moved and `added` true or false.
+A reactor the module's own principal has blocked is not reported.
+The count includes every reactor, blocked or not.
+`voice.participant.*` and `voice.screen_share.changed` come from the voice server while the call is live, so they are best-effort; `voice.session.closed` is the record to count on.
+They are not sent for a member who chose to appear hidden.
+`poll.voted` is the whole tally after a vote and never says who voted; polls have no public-voter option.
+`member.roles.changed` is one event per role granted or taken, for the whole community rather than a channel.
+`message.edited` is not sent for an edit made by the module's own principal.
 `id` is minted once per delivered event and the host never redelivers, so it names that delivery.
 `at_ms` is the occurrence time where the event has one and the time the host saw it otherwise.
 
@@ -518,7 +534,7 @@ The slot answer reads the totals for the asked `user_ids` with one `query` using
 
 ## Testing a reactive module
 
-`run-module` in slim-addons simulates `kv.store`, `data.store`, `log.read`, `net.fetch`, `message.post`, settings and the clock, and can deliver an event (`--event`) or ask a slot (`--slot`).
+`run-module` in slim-addons simulates `kv.store`, `data.store`, `log.read`, `net.fetch`, `message.post`, settings and the clock, and can deliver an event (`--event`; the files in [`event-fixtures/`](event-fixtures/) are ready inputs) or ask a slot (`--slot`).
 `scripts/play-modules.py` plays a game module through the scripted scenarios in its `play.json`.
 Keep the host behind a small trait in your module, run the logic against an in-memory fake in unit tests, and cover the real thing by installing on a dev deployment (see Testing in [building-modules.md](building-modules.md)).
 `modules/xp` does both, with `fake.rs` for the unit tests and an end-to-end script that plays signed webhooks against a real server.

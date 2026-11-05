@@ -6,6 +6,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+use anyhow::Context;
+
 use axum::Router;
 use axum::extract::State;
 use axum::routing::get;
@@ -112,30 +114,48 @@ async fn run(
     Ok(Json(stored.into()))
 }
 
-/// Uploads `total` bytes to `url` and returns (Mbit/s, bytes sent, milliseconds).
+/// Uploads `total` bytes to `url` and returns (Mbit/s, bytes counted, milliseconds counted).
 ///
-/// Past `limit` the upload stops and the rate is the bytes the sender had taken by then.
+/// A finished upload counts every byte over the whole time. The sender takes bytes
+/// before the network has carried them, so past `limit` its count overstates what was
+/// delivered by whatever sits in socket and hyper buffers. That surplus is about the
+/// same at the midpoint and at the limit, so a cut-off upload is rated over the second
+/// half only, where it cancels out and the rate is a steady-state one; an
+/// upload slower than a chunk per half-window rates as 0.
 pub async fn measure(url: &str, total: u64, limit: Duration) -> anyhow::Result<(f64, u64, i64)> {
     let sent = Arc::new(AtomicU64::new(0));
     let body = reqwest::Body::wrap_stream(zero_chunks(total, sent.clone()));
     let client = reqwest::Client::builder().build()?;
     let started = Instant::now();
     let request = client.post(url).body(body).send();
-    let finished = tokio::time::timeout(limit, request).await;
-    let elapsed = started.elapsed();
-    let bytes = match finished {
-        Ok(response) => {
-            response?.error_for_status()?;
-            total
+    tokio::pin!(request);
+    let midpoint = tokio::time::sleep(limit / 2);
+    tokio::pin!(midpoint);
+    let deadline = tokio::time::sleep(limit);
+    tokio::pin!(deadline);
+    let mut mark: Option<(u64, Instant)> = None;
+    let (bytes, window) = loop {
+        tokio::select! {
+            response = &mut request => {
+                response?.error_for_status()?;
+                break (total, started.elapsed());
+            }
+            () = &mut midpoint, if mark.is_none() => {
+                mark = Some((sent.load(Ordering::Acquire), Instant::now()));
+            }
+            () = &mut deadline => {
+                let (at_mark, marked) = mark.context("the limit is too short to rate")?;
+                let now = sent.load(Ordering::Acquire);
+                anyhow::ensure!(now > 0, "no bytes were sent");
+                break (now.saturating_sub(at_mark), marked.elapsed());
+            }
         }
-        Err(_) => sent.load(Ordering::Acquire),
     };
-    anyhow::ensure!(bytes > 0, "no bytes were sent");
-    let secs = elapsed.as_secs_f64().max(0.001);
+    let secs = window.as_secs_f64().max(0.001);
     Ok((
         bytes as f64 * 8.0 / secs / 1_000_000.0,
         bytes,
-        elapsed.as_millis() as i64,
+        window.as_millis() as i64,
     ))
 }
 

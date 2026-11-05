@@ -123,6 +123,8 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
 
   @override
   void write(LogRecord record) {
+    // AppLog keeps this as its sink after the container goes, and a widget's dispose can still log.
+    if (!mounted) return;
     final event = DiagnosticEvent(
       at: record.at,
       level: record.level,

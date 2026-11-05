@@ -60,6 +60,62 @@ pub struct Control {
     silence: Duration,
 }
 
+/// Holds the single control slot; dropping it frees the slot, however the
+/// connection ended, including an upgrade that never ran or a panic in `serve`.
+struct ControlSlot(Arc<AtomicBool>);
+
+impl ControlSlot {
+    fn take(flag: &Arc<AtomicBool>) -> Option<Self> {
+        flag.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .ok()
+            .map(|_| Self(Arc::clone(flag)))
+    }
+}
+
+impl Drop for ControlSlot {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+/// The sessions of one connection. A stopped or ended session keeps counting
+/// against `max_sessions` and shutdown until its task has finished leaving.
+#[derive(Default)]
+struct Sessions {
+    running: HashMap<String, Running>,
+    leaving: Vec<Running>,
+}
+
+impl Sessions {
+    fn occupied(&mut self) -> usize {
+        self.leaving.retain(|found| !found.task.is_finished());
+        self.running.len() + self.leaving.len()
+    }
+
+    fn retire(&mut self, session: &str) -> Option<&Running> {
+        let found = self.running.remove(session)?;
+        self.leaving.push(found);
+        self.leaving.last()
+    }
+
+    async fn leave_everything(self) {
+        let all = self.running.into_values().chain(self.leaving);
+        let all: Vec<Running> = all.collect();
+        for found in &all {
+            let _ = found.commands.send(SessionCommand::Stop);
+        }
+        for found in all {
+            let abort = found.task.abort_handle();
+            if tokio::time::timeout(LEAVE_WITHIN, found.task)
+                .await
+                .is_err()
+            {
+                abort.abort();
+            }
+        }
+    }
+}
+
 impl Control {
     pub fn new(config: Arc<Config>, pool: Arc<Pool>, launcher: Arc<dyn Launcher>) -> Self {
         Self {
@@ -98,12 +154,12 @@ async fn upgrade(
     if !same_secret(presented, &control.config.secret) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    if control.connected.swap(true, Ordering::AcqRel) {
+    let Some(slot) = ControlSlot::take(&control.connected) else {
         return StatusCode::CONFLICT.into_response();
-    }
+    };
     ws.on_upgrade(move |socket| async move {
+        let _slot = slot;
         serve(&control, socket).await;
-        control.connected.store(false, Ordering::Release);
     })
 }
 
@@ -132,14 +188,14 @@ async fn serve(control: &Control, mut socket: WebSocket) {
     {
         return;
     }
-    let mut running: HashMap<String, Running> = HashMap::new();
+    let mut sessions = Sessions::default();
     loop {
         tokio::select! {
             incoming = tokio::time::timeout(control.silence, socket.recv()) => {
                 let Ok(Some(Ok(frame))) = incoming else { break };
                 match frame {
                     Message::Text(text) => {
-                        if !handle(control, text.as_str(), &reports, &mut running, &mut socket).await {
+                        if !handle(control, text.as_str(), &reports, &mut sessions, &mut socket).await {
                             break;
                         }
                     }
@@ -149,7 +205,7 @@ async fn serve(control: &Control, mut socket: WebSocket) {
             }
             Some(report) = outgoing.recv() => {
                 if let Report::Ended { session, .. } = &report {
-                    running.remove(session);
+                    sessions.retire(session);
                 }
                 if socket.send(Message::text(protocol::encode(&report))).await.is_err() {
                     break;
@@ -157,7 +213,7 @@ async fn serve(control: &Control, mut socket: WebSocket) {
             }
         }
     }
-    leave_everything(running).await;
+    sessions.leave_everything().await;
 }
 
 /// Applies one command; false closes the connection.
@@ -165,7 +221,7 @@ async fn handle(
     control: &Control,
     text: &str,
     reports: &UnboundedSender<Report>,
-    running: &mut HashMap<String, Running>,
+    sessions: &mut Sessions,
     socket: &mut WebSocket,
 ) -> bool {
     let command = match protocol::decode(text) {
@@ -192,10 +248,10 @@ async fn handle(
             include,
             language,
         } => {
-            if running.contains_key(&session) {
+            if sessions.running.contains_key(&session) {
                 return true;
             }
-            if running.len() >= control.config.max_sessions as usize {
+            if sessions.occupied() >= control.config.max_sessions as usize {
                 let _ = reports.send(Report::Ended {
                     session,
                     reason: "overload".into(),
@@ -211,37 +267,22 @@ async fn handle(
                 reports: reports.clone(),
                 pool: Arc::clone(&control.pool),
             });
-            running.insert(session, launched);
+            sessions.running.insert(session, launched);
         }
         Command::Include { session, include } => {
-            if let Some(found) = running.get(&session) {
+            if let Some(found) = sessions.running.get(&session) {
                 let _ = found
                     .commands
                     .send(SessionCommand::Include(include.into_iter().collect()));
             }
         }
         Command::Stop { session } => {
-            if let Some(found) = running.remove(&session) {
+            if let Some(found) = sessions.retire(&session) {
                 let _ = found.commands.send(SessionCommand::Stop);
             }
         }
     }
     true
-}
-
-async fn leave_everything(running: HashMap<String, Running>) {
-    for found in running.values() {
-        let _ = found.commands.send(SessionCommand::Stop);
-    }
-    for (_, found) in running {
-        let abort = found.task.abort_handle();
-        if tokio::time::timeout(LEAVE_WITHIN, found.task)
-            .await
-            .is_err()
-        {
-            abort.abort();
-        }
-    }
 }
 
 #[cfg(test)]

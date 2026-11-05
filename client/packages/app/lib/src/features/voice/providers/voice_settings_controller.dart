@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_platform/platform.dart' show OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/lounge_tracks.dart';
@@ -45,6 +46,8 @@ const _receiveQualityKey = 'slimm.voice.receive_video_quality';
 const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
 const _shareAnnotationsKey = 'slimm.voice.screen_share_allow_annotations';
+const _callOverlayKey = 'slimm.voice.call_overlay_enabled';
+const _callOverlayCornerKey = 'slimm.voice.call_overlay_corner';
 const _audioInputDeviceIdKey = 'slimm.voice.audio_input_device_id';
 const _audioOutputDeviceIdKey = 'slimm.voice.audio_output_device_id';
 
@@ -218,6 +221,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       screenShareAllowAnnotations: prefs.getBool(_shareAnnotationsKey) ?? false,
+      callOverlayEnabled: prefs.getBool(_callOverlayKey) ?? false,
+      callOverlayCorner: _byName(
+        OverlayCorner.values,
+        prefs.getString(_callOverlayCornerKey),
+        OverlayCorner.topLeft,
+      ),
       pauseVideoWhenMinimised: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
       micFallbackEnabled: prefs.getBool(_micFallbackKey) ?? true,
       speakerPreferred: prefs.getBool(_speakerPreferredKey) ?? true,
@@ -317,6 +326,18 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(screenShareAllowAnnotations: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_shareAnnotationsKey, enabled);
+  }
+
+  Future<void> setCallOverlayEnabled(bool enabled) async {
+    state = state.copyWith(callOverlayEnabled: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_callOverlayKey, enabled);
+  }
+
+  Future<void> setCallOverlayCorner(OverlayCorner corner) async {
+    state = state.copyWith(callOverlayCorner: corner);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(_callOverlayCornerKey, corner.name);
   }
 
   Future<void> setMirrorSelfView(bool enabled) async {

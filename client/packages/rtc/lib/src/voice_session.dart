@@ -171,7 +171,7 @@ class VoiceSession
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
     health.reconnect
       ..log = _diag
-      ..active.addListener(_onReconnectingChanged);
+      ..restarting.addListener(_onReconnectingChanged);
   }
 
   /// The room a fresh call publishes into: only what is on screen is

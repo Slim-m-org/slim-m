@@ -8,6 +8,8 @@ environment:
   flutter: ">=3.27.0"
 dependencies:
   slimm_api:
+  # Ambient, so the Linux idle sample ages against a test's fake clock.
+  clock: ^1.1.0
   cryptography: ^2.9.0
   device_info_plus: ^13.2.0
   # MPRIS for rich presence; linux only, and web never compiles it (now_playing.dart).
@@ -25,6 +27,7 @@ dependencies:
   # The browser clipboard write in clipboard_image_writer_web.dart; web only.
   web: ^1.1.0
 dev_dependencies:
+  fake_async: ^1.3.3
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter

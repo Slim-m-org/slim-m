@@ -135,6 +135,7 @@ class ThreadParentCard extends ConsumerWidget {
                     child: AttachmentView(
                       attachment: attachment,
                       siblings: openableImages(parent.parentAttachments),
+                      messageId: parent.parentMessageId,
                     ),
                   ),
               ],

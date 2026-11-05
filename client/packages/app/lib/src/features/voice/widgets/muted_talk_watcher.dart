@@ -5,6 +5,8 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../providers/muted_talk_cue.dart';
 import '../providers/call_dock_hint.dart' show dockHintEpochProvider;
@@ -29,6 +31,34 @@ class MutedTalkWatcher extends ConsumerStatefulWidget {
 
 class _MutedTalkWatcherState extends ConsumerState<MutedTalkWatcher> {
   final _tracker = MutedTalkTracker();
+  late final ProviderContainer _container;
+
+  @override
+  void initState() {
+    super.initState();
+    _container = ProviderScope.containerOf(context, listen: false);
+  }
+
+  /// Deferred because the cue's listeners rebuild, and a provider must not change while the tree is being torn down.
+  @override
+  void dispose() {
+    final container = _container;
+    Future.microtask(() {
+      try {
+        if (container.read(mutedTalkCueProvider)) {
+          container.read(mutedTalkCueProvider.notifier).state = false;
+        }
+      } on StateError catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.voice,
+          'The scope went before the muted-talk cue could be cleared',
+          error,
+          stack,
+        );
+      }
+    });
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(MutedTalkWatcher old) {
@@ -49,6 +79,10 @@ class _MutedTalkWatcherState extends ConsumerState<MutedTalkWatcher> {
         .input
         .supportsInputGate;
     final active = widget.watching && gated;
+    // A cue raised in one call must not greet the next one.
+    ref.listen(voiceFlagsProvider.select((f) => f.state), (_, state) {
+      if (state != VoiceSessionState.connected) _show(ref, false);
+    });
     // Listening only while watching keeps the gate stream out of every unmuted call.
     if (active) {
       ref.listen(inputGateReadingProvider, (_, next) {

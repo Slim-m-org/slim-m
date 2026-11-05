@@ -182,6 +182,54 @@ void main() {
         );
       },
     );
+
+    test(
+      'a read that left before a newer frame does not overwrite it',
+      () async {
+        final events = StreamController<api.ServerEvent>.broadcast();
+        addTearDown(events.close);
+        final reply = Completer<void>();
+        final firstRead = Completer<void>();
+        var reads = 0;
+        final container = ProviderContainer(
+          overrides: [
+            liveEventsProvider.overrideWithValue(events.stream),
+            apiProvider.overrideWith((ref) {
+              final client = testApi((request) async {
+                reads++;
+                if (reads == 1) {
+                  firstRead.complete();
+                  await reply.future;
+                }
+                return http.Response(
+                  jsonEncode({'session': null, 'startable': <Object>[]}),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }, session: api.SessionStore(tokens: _tokens));
+              ref.onDispose(client.close);
+              return client;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+        final sub = container.listen(callAudioProvider('c1'), (_, __) {});
+        addTearDown(sub.close);
+        await firstRead.future;
+
+        events.add(_frame(_session(on: true)));
+        await Future<void>.delayed(Duration.zero);
+        expect(sub.read().session!.isOn, isTrue);
+        reply.complete();
+        await pumpEventQueue();
+
+        expect(
+          sub.read().session,
+          isNotNull,
+          reason: 'the older read must not wipe what the frame said',
+        );
+      },
+    );
   });
 
   group('CallAudioPrompt', () {

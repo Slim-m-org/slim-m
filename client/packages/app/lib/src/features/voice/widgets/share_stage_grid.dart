@@ -57,12 +57,7 @@ Widget shareStripQuality(
   onHold: hold,
 );
 
-/// How wide the sharer's own preview draws, beside the pane it sits in.
-const double localSharePreviewWidth = 320;
-const double localSharePreviewCompactWidth = 200;
-
 /// One share's stage tile, with the opt-out and focus controls bound to it.
-/// The sharer's own share is a small centred preview, never the full stage.
 Widget shareStageTile(
   BuildContext context,
   VoiceParticipant sharer,
@@ -72,7 +67,7 @@ Widget shareStageTile(
   bool focused = false,
   bool showCaption = true,
 }) {
-  final tile = _stageTile(
+  return _stageTile(
     context,
     sharer,
     controller,
@@ -80,23 +75,6 @@ Widget shareStageTile(
     onFocus: onFocus,
     focused: focused,
     showCaption: showCaption,
-  );
-  if (!sharer.isLocal) return tile;
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      final cap = constraints.maxWidth < kCompactWidth
-          ? localSharePreviewCompactWidth
-          : localSharePreviewWidth;
-      final width = constraints.maxWidth < cap ? constraints.maxWidth : cap;
-      return Center(
-        child: SizedBox(
-          key: const ValueKey('local-share-preview'),
-          width: width,
-          height: width / _shareAspect,
-          child: tile,
-        ),
-      );
-    },
   );
 }
 
@@ -112,6 +90,8 @@ Widget _stageTile(
   sharerName: sharer.name,
   isLocal: sharer.isLocal,
   popOutIdentity: sharer.identity,
+  annotateSharerId: sharer.isLocal ? null : sharer.identity,
+  previewMarksOf: sharer.isLocal ? sharer.identity : null,
   onStopWatching: onStopWatching,
   onFocus: onFocus,
   focused: focused,

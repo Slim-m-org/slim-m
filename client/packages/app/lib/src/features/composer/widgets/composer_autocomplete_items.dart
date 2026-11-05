@@ -208,55 +208,57 @@ const _massMentions = <(String name, String detail)>[
 /// them holds whose name contains it, plus `@everyone`/`@here` when
 /// [canMentionEveryone] allows offering them at all.
 ///
-/// Yourself excluded from the member half: mentioning yourself notifies
-/// nobody, and the row would sit where the person you meant to reach was
-/// about to appear. Prefix matches lead, because that is what somebody
-/// typing three letters means. Roles are offered unconditionally rather than
-/// gated the way `_massMentions` is on [canMentionEveryone]: whether typing
-/// one actually wakes anyone is a per-role `mentionable` flag this list has
-/// no visibility into (see `Role.mentionable`), not a caller-wide permission
-/// this function could check up front.
+/// People, roles and bots share one ranking so a role that merely contains
+/// the term never buries a person whose name starts with it; on a tie a
+/// person leads, because that is who somebody typing `@` usually means.
+/// Yourself excluded: mentioning yourself notifies nobody. Roles are offered
+/// unconditionally rather than gated on [canMentionEveryone]: whether one
+/// wakes anyone is a per-role `mentionable` flag this list cannot see.
 List<AutocompleteSuggestion> _mentions(
   String term,
   List<api.UserProfile> members,
   String? selfId, {
   required bool canMentionEveryone,
 }) {
+  final ranked = [
+    ..._roleCandidates(term, members),
+    for (final m in members)
+      if (m.id != selfId)
+        if (mentionRank(term, m) case final rank?)
+          _Ranked(
+            rank,
+            m.isBot ? _MentionKind.bot : _MentionKind.person,
+            '${foldForMatch(m.displayName)}\u0000${m.username.toLowerCase()}',
+            AutocompleteSuggestion(
+              insert: '@${m.username} ',
+              label: m.displayName,
+              detail: '@${m.username}',
+              userId: m.id,
+            ),
+          ),
+  ]..sort((a, b) => a.compareTo(b));
   return [
     if (canMentionEveryone) ..._massMentionRows(term),
-    ..._roleSuggestions(term, members),
-    for (final m in _memberCandidates(term, members, selfId))
-      AutocompleteSuggestion(
-        insert: '@${m.username} ',
-        label: m.displayName,
-        detail: '@${m.username}',
-        userId: m.id,
-      ),
+    for (final r in ranked) r.suggestion,
   ].take(maxAutocompleteRows).toList(growable: false);
 }
 
-List<api.UserProfile> _memberCandidates(
-  String term,
-  List<api.UserProfile> members,
-  String? selfId,
-) {
-  final ranked =
-      <(int, api.UserProfile)>[
-        for (final m in members)
-          if (m.id != selfId)
-            if (mentionRank(term, m) case final rank?) (rank, m),
-      ]..sort((a, b) {
-        if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
-        final byName = foldForMatch(
-          a.$2.displayName,
-        ).compareTo(foldForMatch(b.$2.displayName));
-        if (byName != 0) return byName;
-        return a.$2.username.toLowerCase().compareTo(
-          b.$2.username.toLowerCase(),
-        );
-      });
-  final candidates = [for (final (_, m) in ranked) m];
-  return candidates;
+/// Declaration order is the tie-break between equally good matches.
+enum _MentionKind { person, role, bot }
+
+class _Ranked implements Comparable<_Ranked> {
+  const _Ranked(this.rank, this.kind, this.sortKey, this.suggestion);
+  final int rank;
+  final _MentionKind kind;
+  final String sortKey;
+  final AutocompleteSuggestion suggestion;
+
+  @override
+  int compareTo(_Ranked other) {
+    if (rank != other.rank) return rank.compareTo(other.rank);
+    if (kind != other.kind) return kind.index.compareTo(other.kind.index);
+    return sortKey.compareTo(other.sortKey);
+  }
 }
 
 List<AutocompleteSuggestion> _massMentionRows(String term) => [
@@ -278,30 +280,27 @@ List<AutocompleteSuggestion> _massMentionRows(String term) => [
 /// Always inserted with the `@[Name]` bracket syntax, even for a name that
 /// would also fit the plain `@name` charset, so the rule stays simple and
 /// exceptionless: bracketed is always a role.
-List<AutocompleteSuggestion> _roleSuggestions(
-  String term,
-  List<api.UserProfile> members,
-) {
+List<_Ranked> _roleCandidates(String term, List<api.UserProfile> members) {
   final byName = <String, String>{}; // lower-cased name -> its own casing
   for (final member in members) {
     for (final name in member.roles) {
       byName.putIfAbsent(name.toLowerCase(), () => name);
     }
   }
-  final matches =
-      byName.values
-          .where((name) => term.isEmpty || name.toLowerCase().contains(term))
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-
   return [
-    for (final name in matches)
-      AutocompleteSuggestion(
-        insert: '@[$name] ',
-        label: '@$name',
-        detail: 'Role',
-        isRoleMention: true,
-      ),
+    for (final name in byName.values)
+      if (nameRank(term, [name]) case final rank?)
+        _Ranked(
+          rank,
+          _MentionKind.role,
+          foldForMatch(name),
+          AutocompleteSuggestion(
+            insert: '@[$name] ',
+            label: '@$name',
+            detail: 'Role',
+            isRoleMention: true,
+          ),
+        ),
   ];
 }
 

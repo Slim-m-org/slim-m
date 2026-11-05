@@ -140,6 +140,7 @@ class ContextMenuRegion extends StatefulWidget {
 /// exists for.
 class ContextMenuRegionState extends State<ContextMenuRegion> {
   final _controller = AnimatedMenuController();
+  final _tapGroup = Object();
   Offset _anchor = Offset.zero;
   bool _sheetOpen = false;
 
@@ -301,16 +302,19 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
           child: AnimatedMenuSurface(
             controller: _controller,
             child: TapRegion(
-              groupId: widget.tapRegionGroupId,
+              groupId: widget.tapRegionGroupId ?? _tapGroup,
               onTapOutside: (_) => _setOpen(false),
-              child: ContextMenuKeyboardScope(
-                onDismiss: () => _setOpen(false),
-                child: SingleChildScrollView(
-                  child: AppMenu(
-                    width: widget.menuWidth,
-                    children: widget.itemsBuilder(
-                      context,
-                      () => _setOpen(false),
+              child: AppMenuTapGroup(
+                groupId: widget.tapRegionGroupId ?? _tapGroup,
+                child: ContextMenuKeyboardScope(
+                  onDismiss: () => _setOpen(false),
+                  child: SingleChildScrollView(
+                    child: AppMenu(
+                      width: widget.menuWidth,
+                      children: widget.itemsBuilder(
+                        context,
+                        () => _setOpen(false),
+                      ),
                     ),
                   ),
                 ),

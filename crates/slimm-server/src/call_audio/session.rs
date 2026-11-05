@@ -45,13 +45,15 @@ pub enum EndReason {
     ModuleDisabled,
     ChannelRemoved,
     ListenerUnavailable,
+    /// The person who asked left before anyone answered; nobody refused.
+    RequesterLeft,
 }
 
 impl EndReason {
     /// The name a module and a client are given.
     pub fn wire(self) -> &'static str {
         match self {
-            Self::Stopped => "stopped",
+            Self::Stopped | Self::RequesterLeft => "stopped",
             Self::Declined | Self::Lapsed => "declined",
             Self::CallEnded => "call_ended",
             Self::TimeLimit => "time_limit",
@@ -235,7 +237,7 @@ impl Session {
                 Effect::Include,
             ],
             Status::On => Vec::new(),
-            Status::Asking if user == self.requested_by => self.end(EndReason::Stopped),
+            Status::Asking if user == self.requested_by => self.end(EndReason::RequesterLeft),
             Status::Asking => self.start_if_unanimous(now),
         }
     }

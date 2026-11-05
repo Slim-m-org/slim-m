@@ -80,15 +80,15 @@ class DmRow extends ConsumerWidget {
       unawaited(action());
     }
 
+    final markRead = markReadStateMenuItem(
+      context,
+      container,
+      channel,
+      close,
+      isDm: true,
+    );
+
     return [
-      AppMenuItem(
-        label: 'Open',
-        leading: AppIcons.send,
-        onTap: () {
-          close();
-          context.go(Routes.channel(channel.id));
-        },
-      ),
       if (channel.isGroupDm)
         AppMenuItem(
           label: 'Group members',
@@ -105,8 +105,7 @@ class DmRow extends ConsumerWidget {
           onTap: () =>
               run(() => hideDmConversation(container, peerId, channel.id)),
         ),
-      ?markReadStateMenuItem(context, container, channel, close, isDm: true),
-      const AppMenuDivider(),
+      if (markRead != null) ...[markRead, const AppMenuDivider()],
       notificationsMenuItem(
         context,
         container,

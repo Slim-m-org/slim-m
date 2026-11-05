@@ -317,6 +317,16 @@ pub async fn run(c: &mut Contract) {
 
     c.bare("getSpaceStorage", "GET", "/space/storage", root)
         .await;
+    c.bare("listAdminAlerts", "GET", "/space/alerts", root)
+        .await;
+    c.json(
+        "setAdminAlertsMuted",
+        "PUT",
+        "/space/alerts/mute",
+        root,
+        json!({"muted": false}),
+    )
+    .await;
     c.bare("listAdminAuditLog", "GET", "/space/audit-log", root)
         .await;
     c.bare("listMyLinkedAccounts", "GET", "/me/links", bob_token)
@@ -371,6 +381,20 @@ pub async fn run(c: &mut Contract) {
     c.get(
         "getVoiceCallAudio",
         &format!("/channels/{}/voice/call-audio", call_audio_channel.id),
+        root,
+    )
+    .await;
+    c.json(
+        "setVoiceNotification",
+        "PUT",
+        &format!("/voice-notifications/channels/{}", call_audio_channel.id),
+        root,
+        json!({ "joins": "first", "streams": true }),
+    )
+    .await;
+    c.get(
+        "listVoiceNotifications",
+        "/voice-notifications/channels",
         root,
     )
     .await;

@@ -60,6 +60,7 @@ pub(super) async fn authorize(
             Authorization::Withhold
         }),
         Event::ReportsChanged => Ok(reports_changed(store, ctx).await),
+        Event::AdminAlertsChanged => Ok(admin_alerts_changed(store, ctx).await),
         Event::ChannelDeleted { channel_id } => {
             // Special-cased; see `Event::ChannelDeleted`'s doc comment for why.
             Ok(
@@ -87,6 +88,20 @@ async fn reports_changed(store: &Store, ctx: &SessionContext) -> Authorization {
     );
     if is_moderator {
         Authorization::Deliver(Box::new(ServerFrame::ReportsChanged))
+    } else {
+        Authorization::Withhold
+    }
+}
+
+/// Same boundary as [`reports_changed`], one permission up, and a mute withholds it too.
+async fn admin_alerts_changed(store: &Store, ctx: &SessionContext) -> Authorization {
+    let holds_manage_server = matches!(
+        store.base_permissions(ctx.user_id).await,
+        Ok(permissions) if permissions.contains(Permissions::MANAGE_SERVER)
+    );
+    let muted = store.admin_alerts_muted(ctx.user_id).await.unwrap_or(true);
+    if holds_manage_server && !muted {
+        Authorization::Deliver(Box::new(ServerFrame::AdminAlertsChanged))
     } else {
         Authorization::Withhold
     }

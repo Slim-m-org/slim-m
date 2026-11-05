@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The host side of [SystemIdle]: `GetLastInputInfo` on Windows and
-/// CoreGraphics' event-source counter on macOS.
+/// The host side of [SystemIdle]: `GetLastInputInfo` on Windows,
+/// CoreGraphics' event-source counter on macOS and D-Bus on Linux.
 library;
 
 import 'dart:ffi';
 import 'dart:io';
 
 import 'system_idle.dart';
+import 'system_idle_linux.dart';
 
 SystemIdle? createSystemIdle() {
   try {
     if (Platform.isWindows) return _WindowsIdle();
     if (Platform.isMacOS) return _MacIdle();
+    if (Platform.isLinux) return createLinuxSystemIdle();
   } on Object {
     return null;
   }

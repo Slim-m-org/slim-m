@@ -21,6 +21,9 @@ const SETTINGS: &str = "SELECT presence_visibility, notification_preference,
         (SELECT json_group_array(json_object('channel_id', lower(hex(channel_id)),
                 'preference', preference, 'updated_at', updated_at))
            FROM channel_notification_prefs WHERE user_id = ?1) AS channel_preferences_json,
+        (SELECT json_group_array(json_object('channel_id', lower(hex(channel_id)),
+                'joins', joins, 'streams', json(CASE streams WHEN 1 THEN 'true' ELSE 'false' END), 'updated_at', updated_at))
+           FROM voice_notify_prefs WHERE user_id = ?1) AS voice_notifications_json,
         (SELECT json_object('timezone', s.timezone, 'off_hours_mode', s.off_hours_mode,
                 'snooze_until', s.snooze_until,
                 'days', (SELECT json_group_array(json_object('weekday', weekday,
@@ -96,6 +99,10 @@ const SAVED: &str = concat!(
     live_channel!(),
     " ORDER BY s.saved_at, s.message_id"
 );
+
+const FAVORITES: &str = "SELECT f.id, f.kind, f.title, f.created_at, f.gif_full_url AS gif_url,
+        lower(hex(f.attachment_sha256)) AS attachment_id, f.message_id
+     FROM user_favorites f WHERE f.user_id = ?1 ORDER BY f.position, f.id";
 
 const NOTES: &str = "SELECT n.subject_id, u.username AS subject_username, n.body,
         n.created_at, n.updated_at
@@ -189,6 +196,10 @@ impl Store {
 
     pub fn export_member_saved(&self, user: UserId) -> RowStream {
         self.stream_rows(SAVED, user.0)
+    }
+
+    pub fn export_member_favorites(&self, user: UserId) -> RowStream {
+        self.stream_rows(FAVORITES, user.0)
     }
 
     pub fn export_member_notes(&self, user: UserId) -> RowStream {

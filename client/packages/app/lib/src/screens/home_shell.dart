@@ -17,7 +17,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -28,6 +27,8 @@ import '../features/members/providers/activity_publisher.dart';
 import '../features/screen_overlay/providers/screen_overlay_controller.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
+import '../features/voice/providers/voice_notice_controller.dart';
+import '../features/voice/widgets/voice_notice_banner_host.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
 import '../features/voice/providers/call_shortcut_registry.dart';
@@ -55,6 +56,7 @@ import '../features/channels/widgets/channel_rail_frame.dart';
 import '../features/palette/widgets/command_palette.dart';
 import '../features/home/widgets/compact_drawer_scaffold.dart';
 import '../features/members/widgets/member_pane.dart';
+import '../features/admin_alerts/widgets/admin_alert_banner_host.dart';
 import '../features/auth/widgets/new_device_banner_host.dart';
 import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
@@ -115,11 +117,15 @@ class HomeShell extends ConsumerWidget {
               child: _LayoutBridge(
                 layout: layout,
                 child: NewDeviceBannerHost(
-                  child: RulesGateBannerHost(
-                    child: UpdateBannerHost(
-                      child: DownloadFailureHost(
-                        child: DatabaseResetNotice(
-                          child: AppBackgroundHost(child: scaffold),
+                  child: VoiceNoticeBannerHost(
+                    child: AdminAlertBannerHost(
+                      child: RulesGateBannerHost(
+                        child: UpdateBannerHost(
+                          child: DownloadFailureHost(
+                            child: DatabaseResetNotice(
+                              child: AppBackgroundHost(child: scaffold),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -147,6 +153,7 @@ class HomeShell extends ConsumerWidget {
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
+    ref.watch(voiceNoticeProvider);
     ref.watch(liveQualityRestartProvider);
     // Session-lifetime, so the overlay follows the share without a call screen mounted.
     ref.watch(screenOverlayControllerProvider.select((_) => null));
@@ -332,18 +339,22 @@ class HomeShell extends ConsumerWidget {
     _ShellFacts facts,
     String channelId,
   ) {
-    // No rail here to carry the strip, so a call elsewhere gets its own row.
-    final (voiceState, voiceChannelId) = ref.watch(
-      voiceControllerProvider.select((s) => (s.state, s.channelId)),
+    // No rail here to carry the strip, so a call not on screen gets its own row.
+    final (callLive, voiceChannelId) = ref.watch(
+      voiceControllerProvider.select((s) => (s.callLive, s.channelId)),
     );
-    final showVoiceStrip =
-        voiceState == VoiceSessionState.connected &&
-        voiceChannelId != channelId;
+    final chatOverCall = voiceChatOverCall(ref, channelId);
     // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
     return withChannelKind(ref, channelId, (isDm) {
       // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
       final replacesHeader = facts.canvasOpen || (facts.dmCallOpen && isDm);
+      // The call's own UI is on screen only on its channel's call stage; a DM's chat or a voice channel's chat has none.
+      final callOnScreen =
+          voiceChannelId == channelId &&
+          !chatOverCall &&
+          (!isDm || facts.dmCallOpen);
+      final showVoiceStrip = callLive && !callOnScreen;
       return CompactDrawerScaffold(
         channelId: channelId,
         onBack: facts.canvasFullscreen

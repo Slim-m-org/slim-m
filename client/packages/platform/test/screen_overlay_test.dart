@@ -91,6 +91,81 @@ void main() {
     });
   });
 
+  group('call panel', () {
+    const panel = OverlayPanel(
+      monitor: 1,
+      corner: OverlayCorner.bottomRight,
+      rows: [
+        OverlayPanelRow(name: 'nick (you)'),
+        OverlayPanelRow(name: 'web', speaking: true),
+        OverlayPanelRow(name: 'quiet', muted: true, deafened: true),
+      ],
+      more: 2,
+      surface: Color(0xE01F2226),
+      border: Color(0xFF2E333A),
+      text: Color(0xFFECEDEF),
+      textMuted: Color(0xFFA7AEB6),
+      accent: Color(0xFF58B4D8),
+      danger: Color(0xFFD4756B),
+    );
+
+    test('carries the rows, the corner and the colours', () {
+      final json = panel.toJson();
+      expect(json['monitor'], 1);
+      expect(json['corner'], 'bottomRight');
+      expect(json['more'], 2);
+      expect(json['accent'], 0xFF58B4D8);
+      expect((json['rows']! as List)[1], {
+        'name': 'web',
+        'speaking': true,
+        'muted': false,
+        'deafened': false,
+      });
+    });
+
+    test('is equal to a panel that says the same, so a repeat can be skipped',
+        () {
+      const same = OverlayPanel(
+        monitor: 1,
+        corner: OverlayCorner.bottomRight,
+        rows: [
+          OverlayPanelRow(name: 'nick (you)'),
+          OverlayPanelRow(name: 'web', speaking: true),
+          OverlayPanelRow(name: 'quiet', muted: true, deafened: true),
+        ],
+        more: 2,
+        surface: Color(0xE01F2226),
+        border: Color(0xFF2E333A),
+        text: Color(0xFFECEDEF),
+        textMuted: Color(0xFFA7AEB6),
+        accent: Color(0xFF58B4D8),
+        danger: Color(0xFFD4756B),
+      );
+      expect(same, panel);
+      expect(same.hashCode, panel.hashCode);
+    });
+
+    test('differs when a row starts speaking', () {
+      final louder = OverlayPanel(
+        monitor: panel.monitor,
+        corner: panel.corner,
+        rows: [
+          panel.rows[0],
+          const OverlayPanelRow(name: 'web'),
+          panel.rows[2],
+        ],
+        more: panel.more,
+        surface: panel.surface,
+        border: panel.border,
+        text: panel.text,
+        textMuted: panel.textMuted,
+        accent: panel.accent,
+        danger: panel.danger,
+      );
+      expect(louder, isNot(panel));
+    });
+  });
+
   group('ChannelScreenOverlay', () {
     const channel = MethodChannel(screenOverlayChannelName);
     final calls = <MethodCall>[];
@@ -110,6 +185,26 @@ void main() {
 
     test('a runner with no overlay reads as unsupported', () async {
       expect((await const ChannelScreenOverlay().support()).supported, isFalse);
+    });
+
+    test('panel sends the panel, or null to clear it', () async {
+      answer((_) => null);
+      const overlay = ChannelScreenOverlay();
+      await overlay.panel(null);
+      expect(calls.single.method, 'panel');
+      expect(calls.single.arguments, isNull);
+    });
+
+    test('appMonitor reads the runner, and no answer is unknown', () async {
+      answer((_) => 1);
+      expect(await const ChannelScreenOverlay().appMonitor(), 1);
+      answer((_) => -1);
+      expect(await const ChannelScreenOverlay().appMonitor(), isNull);
+    });
+
+    test('a runner with no overlay answers appMonitor with nothing', () async {
+      expect(await const ChannelScreenOverlay().appMonitor(), isNull);
+      await const ChannelScreenOverlay().panel(null);
     });
 
     test('show names the monitors and answers whether it opened', () async {

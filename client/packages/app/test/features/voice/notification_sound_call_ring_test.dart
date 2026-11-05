@@ -44,6 +44,9 @@ class _FakePlayer implements SoundPlayer {
   }
 
   @override
+  Future<void> stopAll() async => looping = null;
+
+  @override
   Future<void> dispose() async {}
 }
 

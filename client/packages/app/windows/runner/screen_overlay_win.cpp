@@ -1,5 +1,7 @@
 #include "screen_overlay_win.h"
 
+#include "screen_overlay_win_panel.h"
+
 #include <windows.h>
 
 #include <algorithm>
@@ -28,6 +30,8 @@ int g_height = 0;
 ULONG_PTR g_gdiplus_token = 0;
 bool g_class_registered = false;
 std::vector<Shape> g_shapes;
+Panel g_panel;
+int g_monitor = 0;
 
 bool BuildSupportsExclude() {
   using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
@@ -150,6 +154,10 @@ void Present() {
         case Shape::Kind::kNote: DrawNote(g, s, g_width, g_height); break;
       }
     }
+    if (g_panel.present && g_panel.monitor == g_monitor) {
+      double scale = static_cast<double>(GetDpiForWindow(g_window)) / 96.0;
+      DrawPanel(g, g_panel, g_width, g_height, scale > 0 ? scale : 1.0);
+    }
   }
   HBITMAP hbitmap = nullptr;
   if (bitmap.GetHBITMAP(Gdiplus::Color(0, 0, 0, 0), &hbitmap) != Gdiplus::Ok) {
@@ -230,6 +238,7 @@ bool Show(int monitor_index) {
     return false;
   }
   g_window = window;
+  g_monitor = static_cast<int>(index);
   g_width = m.width;
   g_height = m.height;
   g_shapes.clear();
@@ -245,8 +254,39 @@ void Draw(std::vector<Shape> shapes) {
   Present();
 }
 
+void SetPanel(Panel panel) {
+  g_panel = std::move(panel);
+  Present();
+}
+
+BOOL CALLBACK FindAppWindow(HWND window, LPARAM data) {
+  wchar_t name[64] = {};
+  GetClassNameW(window, name, 64);
+  if (wcscmp(name, L"FLUTTER_RUNNER_WIN32_WINDOW") != 0) return TRUE;
+  *reinterpret_cast<HWND*>(data) = window;
+  return FALSE;
+}
+
+int AppMonitor() {
+  HWND app = nullptr;
+  EnumThreadWindows(GetCurrentThreadId(), FindAppWindow, reinterpret_cast<LPARAM>(&app));
+  if (app == nullptr) return -1;
+  MONITORINFO info = {};
+  info.cbSize = sizeof(info);
+  HMONITOR on = MonitorFromWindow(app, MONITOR_DEFAULTTONEAREST);
+  if (on == nullptr || !GetMonitorInfoW(on, &info)) return -1;
+  std::vector<Monitor> monitors = Monitors();
+  for (size_t i = 0; i < monitors.size(); i++) {
+    if (monitors[i].x == info.rcMonitor.left && monitors[i].y == info.rcMonitor.top) {
+      return static_cast<int>(i);
+    }
+  }
+  return -1;
+}
+
 void Hide() {
   g_shapes.clear();
+  g_panel = Panel();
   if (g_window != nullptr) {
     HWND window = g_window;
     g_window = nullptr;

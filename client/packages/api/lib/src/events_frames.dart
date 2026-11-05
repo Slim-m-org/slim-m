@@ -447,6 +447,12 @@ class ReportsChanged extends ServerEvent {
   const ReportsChanged();
 }
 
+/// An operator alert opened or recovered. Carries nothing; only an unmuted
+/// holder of MANAGE_SERVER ever receives it, and re-fetches `fetchAdminAlerts`.
+class AdminAlertsChanged extends ServerEvent {
+  const AdminAlertsChanged();
+}
+
 /// This account's read marker in a channel moved on some device: a read on
 /// another one, or a message this account sent from another one. Delivered
 /// only to the account's own sockets, so it clears a badge and is never a
@@ -478,6 +484,27 @@ class NotificationOverrideChanged extends ServerEvent {
 
   final String channelId;
   final NotificationPreference? preference;
+}
+
+/// Someone started a call, joined one or went live in a voice channel this account asked to
+/// hear about. Delivered only to that account, after the server applied every exclusion.
+class VoiceNotice extends ServerEvent {
+  const VoiceNotice({
+    required this.channelId,
+    required this.actorId,
+    required this.activity,
+  });
+
+  final String channelId;
+  final String actorId;
+  final VoiceActivity activity;
+}
+
+enum VoiceActivity {
+  /// The first person joined an empty channel.
+  callStarted,
+  joined,
+  streaming,
 }
 
 /// A moderator moved this account to another voice channel. Delivered only to

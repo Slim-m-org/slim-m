@@ -182,7 +182,11 @@ class SpaceStorage {
     required this.attachmentBytes,
     required this.topChannels,
     required this.sweeps,
+    required this.backup,
   });
+
+  /// The nightly backup the backup container last reported.
+  final SpaceBackupStatus backup;
 
   /// The database file's logical size, from SQLite's own page count.
   final int databaseBytes;
@@ -210,5 +214,96 @@ class SpaceStorage {
         sweeps: (json['sweeps'] as List<dynamic>)
             .map((e) => SweepStatus.fromJson(e as Map<String, dynamic>))
             .toList(),
+        backup:
+            SpaceBackupStatus.fromJson(json['backup'] as Map<String, dynamic>),
+      );
+}
+
+/// How the newest nightly backup went, from [SpaceStorage.backup].
+enum BackupState { notConfigured, never, verified, failed, unreadable }
+
+class SpaceBackupStatus {
+  const SpaceBackupStatus({
+    required this.state,
+    required this.stale,
+    this.error,
+    this.verifiedAt,
+    this.verifiedBytes,
+  });
+
+  final BackupState state;
+
+  /// The last verified backup is older than 48 hours.
+  final bool stale;
+
+  /// What the newest run failed with, when [state] is [BackupState.failed].
+  final String? error;
+
+  /// Epoch milliseconds of the last backup that passed its restore drill.
+  final int? verifiedAt;
+  final int? verifiedBytes;
+
+  factory SpaceBackupStatus.fromJson(Map<String, dynamic> json) =>
+      SpaceBackupStatus(
+        state: switch (json['state']) {
+          'not_configured' => BackupState.notConfigured,
+          'verified' => BackupState.verified,
+          'failed' => BackupState.failed,
+          'unreadable' => BackupState.unreadable,
+          _ => BackupState.never,
+        },
+        stale: json['stale'] as bool? ?? false,
+        error: json['error'] as String?,
+        verifiedAt: json['verified_at'] as int?,
+        verifiedBytes: json['verified_bytes'] as int?,
+      );
+}
+
+/// One operator alert. An unknown [kind] is shown by its [detail].
+class AdminAlert {
+  const AdminAlert({
+    required this.kind,
+    required this.subject,
+    required this.detail,
+    required this.raisedAt,
+    this.resolvedAt,
+  });
+
+  final String kind;
+  final String subject;
+  final String detail;
+  final int raisedAt;
+
+  /// Null while the condition lasts.
+  final int? resolvedAt;
+
+  bool get isOpen => resolvedAt == null;
+
+  factory AdminAlert.fromJson(Map<String, dynamic> json) => AdminAlert(
+        kind: json['kind'] as String,
+        subject: json['subject'] as String? ?? '',
+        detail: json['detail'] as String,
+        raisedAt: json['raised_at'] as int,
+        resolvedAt: json['resolved_at'] as int?,
+      );
+}
+
+/// The alert list and the caller's mute, from [SlimmApiSpace.fetchAdminAlerts].
+class AdminAlerts {
+  const AdminAlerts({required this.alerts, required this.muted});
+
+  final List<AdminAlert> alerts;
+  final bool muted;
+
+  List<AdminAlert> get open => [
+        for (final a in alerts)
+          if (a.isOpen) a
+      ];
+
+  factory AdminAlerts.fromJson(Map<String, dynamic> json) => AdminAlerts(
+        alerts: (json['alerts'] as List<dynamic>)
+            .map((e) => AdminAlert.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        muted: json['muted'] as bool? ?? false,
       );
 }

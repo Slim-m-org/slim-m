@@ -5267,6 +5267,233 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /favorites:
+    get:
+      operationId: listFavorites
+      tags: [gifs]
+      summary: Your own favorites, in the order you arranged them.
+      description: >
+        GIFs and media kept from messages, one private list per account. A
+        message favorite is only a reference to an attachment, never a copy.
+        `available` is false once its source message is deleted or its channel
+        can no longer be viewed; the entry stays so it can be removed. Returned
+        whole, which the ceiling of 200 makes safe.
+      responses:
+        "200":
+          description: The caller's favorites.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Favorite"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: addFavorite
+      tags: [gifs]
+      summary: Add a GIF or a message's media to your favorites.
+      description: >
+        Idempotent on the entry `id` and on the content: favoriting the same
+        GIF or file twice answers with the entry already held. A new entry goes
+        first. A `gif` entry is made from a live `searchGifs` or
+        `getTrendingGifs` result id; the server keeps the provider URLs so the
+        favorite outlives the token. An `attachment` entry names a message the
+        caller can view and an image or video attached to it. An account holds
+        at most 200; adding past that is a 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, kind]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: Client-minted UUIDv7 for the entry.
+                kind:
+                  type: string
+                  enum: [gif, attachment]
+                gif_id:
+                  type: string
+                  description: A result id, for `gif`.
+                message_id:
+                  type: string
+                  format: uuid
+                  description: The message the media was seen on, for `attachment`.
+                attachment_id:
+                  type: string
+                  description: The attachment id on that message, for `attachment`.
+      responses:
+        "201":
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Favorite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /favorites/order:
+    put:
+      operationId: reorderFavorites
+      tags: [gifs]
+      summary: Put the named favorites first, in the order given.
+      description: >
+        Entries not named keep their relative order after the named ones, and
+        unknown ids are ignored, so a stale client cannot lose an entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "204":
+          description: The order was saved.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /favorites/{favoriteId}:
+    parameters:
+      - name: favoriteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: removeFavorite
+      tags: [gifs]
+      summary: Remove a favorite.
+      description: >
+        Idempotent, and asks for no permission: letting go is never refused.
+      responses:
+        "204":
+          description: The entry is not in the list (whether or not it was).
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /favorites/{favoriteId}/preview:
+    parameters:
+      - name: favoriteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getFavoritePreview
+      tags: [gifs]
+      summary: A GIF favorite's thumbnail, streamed through this server.
+      responses:
+        "200":
+          description: The thumbnail image.
+          content:
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /favorites/{favoriteId}/select:
+    parameters:
+      - name: favoriteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: selectFavorite
+      tags: [gifs]
+      summary: Turn a favorite into an attachment a message can carry.
+      description: >
+        Needs ATTACH_FILES, as `selectGif` does. A `gif` favorite is downloaded
+        through this server and stored as an ordinary attachment (201). An
+        `attachment` favorite re-checks that the caller can still view the
+        source message's channel and answers with the existing attachment (200);
+        if the message is gone or the channel is no longer viewable it is a 409
+        and nothing is served.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  description: The channel the media is headed for, as in `selectGif`.
+      responses:
+        "200":
+          description: The existing attachment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "201":
+          description: The stored attachment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
   /channels/{channelId}/messages/{messageId}/link-previews:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -6176,6 +6403,64 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice-notifications/channels:
+    get:
+      operationId: listVoiceNotifications
+      tags: [push]
+      summary: List the voice channels the caller asked to hear about.
+      description: >
+        Only channels with something switched on appear; a channel left off carries no entry.
+      responses:
+        "200":
+          description: The caller's choices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VoiceNotification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice-notifications/channels/{channelId}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    put:
+      operationId: setVoiceNotification
+      tags: [push]
+      summary: Choose whether to hear when this voice channel's call starts, grows or goes live.
+      description: >
+        Off by default. `joins` is `first` for the join that starts a call in an empty channel
+        and `every` for each join; `streams` asks to hear when someone starts sharing their
+        screen. Off with no streaming clears the choice. A notice reaches the caller as a
+        `voice.notice` frame and as a push, at most once per channel per ten minutes, and never
+        for the caller's own join, a member who appears offline, a blocked member, a muted
+        channel, Do not disturb or off hours. Requires VIEW_CHANNEL, and the channel must be a
+        voice channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceNotificationRequest"
+      responses:
+        "200":
+          description: The choice now in effect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceNotification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7420,7 +7705,8 @@ paths:
         "busy" otherwise). Their request counts as their own yes; everyone
         else in the call is asked and has 60 seconds. After a decline, a
         lapse or a stop the channel answers 429 with `Retry-After` for 60
-        seconds. 501 without a listener configured.
+        seconds. 501 without a listener configured, and 503 when the listener
+        is away or its room token cannot be minted.
       requestBody:
         required: true
         content:
@@ -7450,6 +7736,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
     delete:
       operationId: stopVoiceCallAudio
       tags: [voice]
@@ -9368,6 +9656,8 @@ paths:
         and threads, the same scope `/space/analytics`'s `channel_count`
         uses. `sweeps` lists every background sweep that has recorded at
         least one run; a sweep that has never run is simply absent.
+        `backup` is what the nightly backup container last wrote; the server
+        only reads it.
       responses:
         "200":
           description: Current storage usage and sweep status.
@@ -9375,6 +9665,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SpaceStorage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/alerts:
+    get:
+      operationId: listAdminAlerts
+      tags: [space]
+      summary: List operator alerts and the caller's mute.
+      description: >
+        Gated on MANAGE_SERVER. Open conditions plus those that recovered in
+        the last 24 hours, newest first. A mute stops the push and the live
+        notice for the caller; the list still answers.
+      responses:
+        "200":
+          description: The alerts and whether the caller has muted them.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAlerts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/alerts/mute:
+    put:
+      operationId: setAdminAlertsMuted
+      tags: [space]
+      summary: Mute or unmute operator alerts for the caller.
+      description: >
+        Gated on MANAGE_SERVER. Setting the value it already has changes
+        nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAdminAlertsMutedRequest"
+      responses:
+        "200":
+          description: The alerts and the mute now in effect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAlerts"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -10965,7 +11306,7 @@ paths:
         Any member may publish. The body is the theme file; the server
         validates it as the client does (every token, colours, the contrast
         floors, the picture sniffed from its bytes, at most 2 MiB) and refuses
-        with 400 naming each problem. A Space holds at most 50 themes, then 409.
+        with 400 naming each problem. A Space holds at most 50 themes and one member at most 5, then 409.
         Decision 0106.
       requestBody:
         required: true
@@ -12791,8 +13132,11 @@ components:
           attachment_bytes,
           top_channels,
           sweeps,
+          backup,
         ]
       properties:
+        backup:
+          $ref: "#/components/schemas/SpaceBackupStatus"
         database_bytes:
           type: integer
           description: The database file's logical size, from SQLite's page count.
@@ -12814,6 +13158,78 @@ components:
           description: Every background sweep that has recorded at least one run.
           items:
             $ref: "#/components/schemas/SpaceSweepStatus"
+    SpaceBackupStatus:
+      type: object
+      required: [state, stale]
+      description: >
+        The newest nightly backup run and the last one that passed its restore
+        drill. `not_configured` and `never` are not failures.
+      properties:
+        state:
+          type: string
+          enum: [not_configured, never, verified, failed, unreadable]
+        error:
+          type: [string, "null"]
+          description: What the newest run failed with, when `state` is `failed`.
+        verified_at:
+          type: [integer, "null"]
+          description: Epoch milliseconds of the last backup that passed its restore drill.
+        verified_bytes:
+          type: [integer, "null"]
+          description: Size of the database snapshot in that backup.
+        stale:
+          type: boolean
+          description: The last verified backup is older than 48 hours.
+    AdminAlert:
+      type: object
+      required: [kind, subject, detail, raised_at, resolved_at]
+      properties:
+        kind:
+          type: string
+          description: >
+            `livekit_unreachable`, `disk_low`, `sweep_failing`, `backup`,
+            `module_breaker` or `push_relay`. A client shows an unknown kind
+            by its `detail`.
+        subject:
+          type: string
+          description: What the kind applies to, such as a module id or sweep name; empty otherwise.
+        detail:
+          type: string
+        raised_at:
+          type: integer
+          description: Epoch milliseconds.
+        resolved_at:
+          type: [integer, "null"]
+          description: Epoch milliseconds it recovered, or null while it lasts.
+    AdminAlerts:
+      type: object
+      required: [alerts, muted]
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAlert"
+        muted:
+          type: boolean
+          description: The caller asked not to be pushed or shown these live.
+    SetAdminAlertsMutedRequest:
+      type: object
+      required: [muted]
+      properties:
+        muted:
+          type: boolean
+    AdminAlertsChanged:
+      type: object
+      required: [type]
+      description: >
+        An operator alert opened or recovered. Carries no fields. Delivered
+        only to a connection whose user holds MANAGE_SERVER and has not muted
+        alerts; a receiving client re-fetches `listAdminAlerts`.
+      properties:
+        type:
+          type: string
+          enum: [admin_alerts.changed]
+
     SpaceRetention:
       type: object
       required: [retention_days]
@@ -16910,6 +17326,44 @@ components:
                 sent, which is the message's own `created_at`. The list is
                 ordered by this.
 
+    Favorite:
+      type: object
+      required: [id, kind, title, width, height, available, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [gif, attachment]
+        title:
+          type: string
+        width:
+          type: integer
+          description: Pixels; 0 when unknown.
+        height:
+          type: integer
+        available:
+          type: boolean
+          description: >
+            False when an `attachment` entry's source message is gone or its
+            channel can no longer be viewed.
+        created_at:
+          type: integer
+          format: int64
+        attachment_id:
+          type: string
+        content_type:
+          type: string
+        message_id:
+          type: string
+          format: uuid
+          description: Present only while the entry is available.
+        channel_id:
+          type: string
+          format: uuid
+          description: Present only while the entry is available.
+
     ForwardedMessage:
       type: object
       required: [message_id, channel_id, created_at, content]
@@ -17911,6 +18365,29 @@ components:
           type: string
           enum: [everything, mentions, nothing]
 
+    VoiceNotificationRequest:
+      type: object
+      required: [joins, streams]
+      properties:
+        joins:
+          type: string
+          enum: [off, first, every]
+        streams:
+          type: boolean
+
+    VoiceNotification:
+      type: object
+      required: [channel_id, joins, streams]
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        joins:
+          type: string
+          enum: [off, first, every]
+        streams:
+          type: boolean
+
     ChannelPermissions:
       type: object
       required: [permissions]
@@ -18677,6 +19154,7 @@ components:
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
         - $ref: "#/components/schemas/CanvasObjectLockChanged"
         - $ref: "#/components/schemas/ReportsChanged"
+        - $ref: "#/components/schemas/AdminAlertsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/MessageEphemeral"
@@ -18687,6 +19165,7 @@ components:
         - $ref: "#/components/schemas/InteractionForm"
         - $ref: "#/components/schemas/NewDeviceSignIn"
         - $ref: "#/components/schemas/VoiceMoved"
+        - $ref: "#/components/schemas/VoiceNotice"
         - $ref: "#/components/schemas/ServerPong"
         - $ref: "#/components/schemas/ServerError"
     CanvasObjectPlaced:
@@ -20091,6 +20570,27 @@ components:
           format: uuid
         moved_by_name:
           type: string
+
+    VoiceNotice:
+      type: object
+      required: [type, channel_id, actor_id, activity]
+      description: >
+        Someone started a call, joined one or went live in a voice channel this account asked
+        to hear about (`setVoiceNotification`). Delivered only to that account's connections,
+        after the time limit and every exclusion were applied, so a client shows it as it is.
+      properties:
+        type:
+          type: string
+          enum: [voice.notice]
+        channel_id:
+          type: string
+          format: uuid
+        actor_id:
+          type: string
+          format: uuid
+        activity:
+          type: string
+          enum: [call_started, joined, streaming]
 
     VoiceActivityChanged:
       type: object

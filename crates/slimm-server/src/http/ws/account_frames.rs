@@ -53,6 +53,19 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
                 moved_by_name: moved_by_name.clone(),
             },
         ),
+        Event::VoiceNotice {
+            user_id,
+            channel_id,
+            actor_id,
+            activity,
+        } => (
+            *user_id,
+            ServerFrame::VoiceNotice {
+                channel_id: channel_id.to_string(),
+                actor_id: actor_id.to_string(),
+                activity: activity.as_str(),
+            },
+        ),
         _ => return None,
     };
     Some(if owner == ctx.user_id {

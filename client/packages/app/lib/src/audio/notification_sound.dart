@@ -70,6 +70,9 @@ abstract class SoundPlayer {
   /// Stops whatever [loop] started. A no-op if nothing is looping.
   Future<void> stopLoop();
 
+  /// Stops every sound and loop and waits for the plugin to let go of the audio session.
+  Future<void> stopAll();
+
   Future<void> dispose();
 }
 
@@ -77,8 +80,11 @@ abstract class SoundPlayer {
 /// session, route, or focus a live call already holds - see the library
 /// doc comment above for why that is this package's whole reason to exist.
 class AudioPlayersSoundPlayer implements SoundPlayer {
-  AudioPlayersSoundPlayer({this.afterPlay, bool Function()? inCall})
+  AudioPlayersSoundPlayer({this.afterPlay, bool Function()? inCall, this.ios})
     : inCall = inCall ?? (() => false);
+
+  /// Null reads the host; tests pass it.
+  final bool? ios;
 
   /// Whether a call holds the audio session right now.
   final bool Function() inCall;
@@ -128,7 +134,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   @override
   Future<void> play(NotificationSound sound) async {
-    if (callOwnsSoundSession(inCall: inCall())) return;
+    if (callOwnsSoundSession(inCall: inCall(), ios: ios)) return;
     // Stopped first, or two overlapping `play()` calls would race.
     await _player.stop();
     await playQuietly(
@@ -143,7 +149,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   @override
   Future<void> loop(NotificationSound sound) async {
-    if (callOwnsSoundSession(inCall: inCall())) return;
+    if (callOwnsSoundSession(inCall: inCall(), ios: ios)) return;
     final player = _loopPlayer.current;
     await player.stop();
     await player.setReleaseMode(ReleaseMode.loop);
@@ -159,6 +165,12 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   @override
   Future<void> stopLoop() => _loopPlayer.release();
+
+  @override
+  Future<void> stopAll() async {
+    await _loopPlayer.release();
+    await _createdPlayer?.stop();
+  }
 
   @override
   Future<void> dispose() async {

@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../screen_overlay/providers/screen_overlay_controller.dart'
@@ -105,16 +106,35 @@ class VideoQualitySection extends ConsumerWidget {
                 semanticLabel: 'Share audio with a screen share',
                 onChanged: notifier.setScreenShareIncludeAudio,
               ),
-            // Absent, never disabled, on a desktop that cannot host the overlay; see decision 0096.
-            if (ref.watch(screenOverlaySupportedProvider))
+            SettingsToggleRow(
+              label: 'Viewers draw on my screen',
+              description:
+                  'Their marks show on the screen you share for a few seconds.',
+              value: settings.screenShareAllowAnnotations,
+              semanticLabel: 'Let viewers draw on the screen I share',
+              onChanged: notifier.setScreenShareAllowAnnotations,
+            ),
+            // Absent, never disabled, on a desktop that cannot host the overlay window; see decision 0096.
+            if (ref.watch(screenOverlaySupportedProvider)) ...[
               SettingsToggleRow(
-                label: 'Viewers draw on my screen',
+                label: 'Call overlay',
                 description:
-                    'Their marks show on the screen you share for a few seconds.',
-                value: settings.screenShareAllowAnnotations,
-                semanticLabel: 'Let viewers draw on the screen I share',
-                onChanged: notifier.setScreenShareAllowAnnotations,
+                    'Lists who is in the call over your other windows.',
+                value: settings.callOverlayEnabled,
+                semanticLabel: 'Show the call over my other windows',
+                onChanged: notifier.setCallOverlayEnabled,
               ),
+              if (settings.callOverlayEnabled)
+                SettingsSegmentedRow<OverlayCorner>(
+                  label: 'Overlay position',
+                  value: settings.callOverlayCorner,
+                  choices: [
+                    for (final c in OverlayCorner.values)
+                      SettingsChoice(value: c, label: c.label),
+                  ],
+                  onChanged: notifier.setCallOverlayCorner,
+                ),
+            ],
             if (ref.watch(pauseOnUnfocusedAppliesProvider))
               const PauseVideoRow(),
           ],

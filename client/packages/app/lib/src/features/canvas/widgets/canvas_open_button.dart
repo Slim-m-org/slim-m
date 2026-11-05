@@ -32,6 +32,12 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../screens/canvas_pane.dart';
 
+const canvasOpenButtonKey = Key('canvas_open_button');
+
+/// Whether the call dock leaves the canvas toggle to the header: phones, where a spilled second dock row went unnoticed.
+bool callDockOmitsCanvasToggle(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < kCompactWidth;
+
 class CanvasOpenButton extends ConsumerWidget {
   const CanvasOpenButton({
     super.key,
@@ -55,15 +61,18 @@ class CanvasOpenButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (!isVoice && !isDm) return const SizedBox.shrink();
     final open = ref.watch(canvasOpenProvider) == channelId;
-    // The call dock carries the canvas toggle while this channel's call is live or auto-rejoining.
+    // The call dock carries the toggle in a live call, except on a phone where the header does.
     final voice = ref.watch(voiceFlagsProvider);
-    if (isVoice && voice.inCallStageFor(channelId)) {
+    if (isVoice &&
+        !callDockOmitsCanvasToggle(context) &&
+        voice.inCallStageFor(channelId)) {
       return const SizedBox.shrink();
     }
     return _button(ref, open);
   }
 
   Widget _button(WidgetRef ref, bool open) => AppIconButton(
+    key: canvasOpenButtonKey,
     icon: AppIcons.canvas,
     semanticLabel: open ? 'Close canvas' : 'Open canvas',
     active: open,

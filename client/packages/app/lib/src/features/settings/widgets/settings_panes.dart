@@ -139,6 +139,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
         ),
         body: SafeArea(
           top: false,
+          bottom: false,
           child: _PaneBody(pane: selected, contentKey: _contentKey(selected)),
         ),
       );
@@ -180,7 +181,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
             fallback: widget.backFallback,
           ),
         ),
-        body: SafeArea(top: false, child: nav),
+        body: SafeArea(top: false, bottom: false, child: nav),
       );
     }
 
@@ -258,10 +259,13 @@ class _PaneBody extends StatelessWidget {
   /// The redesign's pane inset beside a nav, for a pane that kept the default.
   static const _wideInset = EdgeInsets.fromLTRB(32, 24, 32, 40);
 
-  EdgeInsets get _padding =>
-      showHeading && pane.padding == const EdgeInsets.all(AppSpacing.s16)
-      ? _wideInset
-      : pane.padding;
+  EdgeInsets _padding(BuildContext context) {
+    final base =
+        showHeading && pane.padding == const EdgeInsets.all(AppSpacing.s16)
+        ? _wideInset
+        : pane.padding;
+    return base + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom);
+  }
 
   Widget _heading(BuildContext context) =>
       pane.headingBuilder?.call(context, onClose) ??
@@ -283,55 +287,60 @@ class _PaneBody extends StatelessWidget {
     offset: 0,
     child: AppContentColumn(
       maxWidth: pane.wide ? kSettingsWideContentMax : kContentColumnMax,
-      child: pane.scrollable
-          ? ListView(
-              padding: _padding,
-              children: [
-                if (showHeading) _heading(context),
-                KeyedSubtree(
-                  key: contentKey,
-                  child: Builder(builder: pane.builder),
-                ),
-              ],
-            )
-          : showHeading
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    _padding.left,
-                    _padding.top,
-                    _padding.right,
-                    0,
-                  ),
-                  child: _heading(context),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      _padding.left,
-                      0,
-                      _padding.right,
-                      _padding.bottom,
-                    ),
-                    child: KeyedSubtree(
-                      key: contentKey,
-                      child: Builder(builder: pane.builder),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Padding(
-              padding: pane.padding,
-              child: KeyedSubtree(
+      child: _body(context),
+    ),
+  );
+
+  Widget _body(BuildContext context) {
+    final padding = _padding(context);
+    return pane.scrollable
+        ? ListView(
+            padding: padding,
+            children: [
+              if (showHeading) _heading(context),
+              KeyedSubtree(
                 key: contentKey,
                 child: Builder(builder: pane.builder),
               ),
+            ],
+          )
+        : showHeading
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  padding.left,
+                  padding.top,
+                  padding.right,
+                  0,
+                ),
+                child: _heading(context),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    padding.left,
+                    0,
+                    padding.right,
+                    padding.bottom,
+                  ),
+                  child: KeyedSubtree(
+                    key: contentKey,
+                    child: Builder(builder: pane.builder),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : Padding(
+            padding: padding,
+            child: KeyedSubtree(
+              key: contentKey,
+              child: Builder(builder: pane.builder),
             ),
-    ),
-  );
+          );
+  }
 }
 
 class _Nav extends StatelessWidget {
@@ -407,11 +416,11 @@ class _Nav extends StatelessWidget {
   // Each group a raised card on the page, the same two tones the wide nav and its panes show.
   Widget _compactList(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        AppSpacing.s16,
+        AppSpacing.s16 + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
         for (final (index, group) in groups.indexed)

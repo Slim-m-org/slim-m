@@ -21,6 +21,21 @@ class AppBadgeChannel {
   final MethodChannel _channel;
   final bool _isIOS;
 
+  /// Whether iOS lets this app draw a badge; true off iOS and when unknown.
+  Future<bool> badgesAllowed() async {
+    if (!_isIOS) return true;
+    try {
+      return await _channel.invokeMethod<bool>('badgesAllowed') ?? true;
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not read badge access', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not read badge access', error, stack);
+    }
+    return true;
+  }
+
   /// Shows [count] on the icon and drops delivered notifications of the
   /// channels in [readChannelIds].
   Future<void> sync({

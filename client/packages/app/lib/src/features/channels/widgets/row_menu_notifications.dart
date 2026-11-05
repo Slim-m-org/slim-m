@@ -14,6 +14,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/channel_notification_overrides_controller.dart';
+import '../../voice/providers/voice_notification_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
 import '../providers/dms.dart' show dmChannelKind;
 import '../../../providers/providers.dart';
@@ -167,13 +168,14 @@ String channelDefaultMenuLabel(api.NotificationPreference level) =>
 
 /// Mute, mentions only, all messages and off-hours entries for [channelId], led by the channel's own default ([channelDefault]) which clears this account's choice.
 /// Read when the menu opens, not watched; the row already rebuilds on live changes.
-List<AppMenuItem> notificationMenuItems(
+List<Widget> notificationMenuItems(
   BuildContext context,
   ProviderContainer container,
   String channelId,
   VoidCallback close, {
   required String muteLabel,
   api.NotificationPreference? channelDefault,
+  bool voiceChannel = false,
 }) {
   final current = container
       .read(channelNotificationOverridesProvider)
@@ -265,6 +267,58 @@ List<AppMenuItem> notificationMenuItems(
       leading: AppIcons.notificationsOn,
       selected: allowedOffHours,
       onTap: toggleOffHours,
+    ),
+    if (voiceChannel)
+      ...voiceNotificationMenuItems(context, container, channelId, close),
+  ];
+}
+
+/// Opt-in notices for a voice channel's call: when it starts, on every join, when someone streams.
+/// Choosing the one already on turns it off.
+List<Widget> voiceNotificationMenuItems(
+  BuildContext context,
+  ProviderContainer container,
+  String channelId,
+  VoidCallback close,
+) {
+  final choice = container
+      .read(voiceNotificationProvider)
+      .forChannel(channelId);
+
+  void change(Future<void> Function(VoiceNotificationController) action) {
+    close();
+    final notifier = container.read(voiceNotificationProvider.notifier);
+    unawaited(
+      _say(
+        context,
+        'change this channel\'s call notifications',
+        () => action(notifier),
+      ),
+    );
+  }
+
+  AppMenuItem joins(String label, api.VoiceJoinMode mode) => AppMenuItem(
+    label: label,
+    leading: AppIcons.voice,
+    selected: choice.joins == mode,
+    onTap: () => change(
+      (n) => n.setJoins(
+        channelId,
+        choice.joins == mode ? api.VoiceJoinMode.off : mode,
+      ),
+    ),
+  );
+
+  return [
+    const AppMenuDivider(),
+    joins('Notify when a call starts', api.VoiceJoinMode.first),
+    joins('Notify on every join', api.VoiceJoinMode.every),
+    AppMenuItem(
+      label: 'Notify when someone streams',
+      leading: AppIcons.screenShare,
+      selected: choice.streams,
+      onTap: () =>
+          change((n) => n.setStreams(channelId, streams: !choice.streams)),
     ),
   ];
 }

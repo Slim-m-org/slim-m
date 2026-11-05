@@ -16,6 +16,7 @@ use sqlx::SqlitePool;
 use crate::ids::UserId;
 
 mod account_deletion;
+mod admin_alerts;
 mod admin_audit;
 mod analytics;
 mod apps;
@@ -92,6 +93,7 @@ mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
+mod favorites;
 mod hold_music;
 mod login_throttle;
 mod media_compression;
@@ -116,12 +118,14 @@ mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
+mod voice_notify;
 mod voice_rooms;
 mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
 
 pub use account_deletion::DeleteAccountError;
+pub use admin_alerts::{AdminAlert, Raised, ResolvedAlert};
 pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
     ANALYTICS_WINDOW_DAYS, AnalyticsStats, DayCount, MemberAttachmentUsage, MetricSample,
@@ -175,6 +179,7 @@ pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use export_capacity::DEFAULT_EXPORT_CEILING_BYTES;
 pub use export_rows::RowStream;
+pub use favorites::{FavoriteError, FavoriteKind, FavoriteRow, MAX_FAVORITES, NewFavorite};
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
 pub use group_dms::{
     GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,

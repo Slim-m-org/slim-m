@@ -190,7 +190,7 @@ fn the_requester_leaving_during_the_ask_cancels_it() {
     assert_eq!(
         s.leave(p[0], 3),
         vec![Effect::Ended {
-            reason: EndReason::Stopped,
+            reason: EndReason::RequesterLeft,
             was_on: false
         }]
     );
@@ -271,6 +271,7 @@ fn refusals_start_a_cooldown_and_outside_endings_do_not() {
         EndReason::CallEnded,
         EndReason::Overload,
         EndReason::TimeLimit,
+        EndReason::RequesterLeft,
     ] {
         assert!(!r.is_refusal());
     }

@@ -284,7 +284,10 @@ class MessageRowColumn extends ConsumerWidget {
   List<Widget> _footer() => [
     // A forward's attachments are part of what was forwarded, and are drawn inside its card instead.
     if (message.forwarded == null && extras.attachments.isNotEmpty)
-      MessageAttachments(attachments: extras.attachments),
+      MessageAttachments(
+        attachments: extras.attachments,
+        messageId: _unsent ? null : message.id,
+      ),
     if (!_unsent)
       ReactionsRow(
         messageId: message.id,

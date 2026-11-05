@@ -114,7 +114,12 @@ async fn publish(
         .store
         .publish_space_theme(ctx.user_id, &author_name, &valid.name, &valid.doc, picture)
         .await?
-        .map_err(|PublishError::Full| ApiError::Conflict("this Space is at its theme limit"))?;
+        .map_err(|full| match full {
+            PublishError::Full => ApiError::Conflict("this Space is at its theme limit"),
+            PublishError::AuthorFull => ApiError::Conflict(
+                "you have published 5 themes already - remove one to publish another",
+            ),
+        })?;
     Ok((StatusCode::CREATED, Json(dto(created))))
 }
 

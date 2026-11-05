@@ -47,6 +47,8 @@ import '../features/channels/screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../features/messages/screens/message_deep_link.dart';
 import '../features/settings/screens/debug_log_screen.dart';
+import '../features/settings/providers/theme_draft.dart' show ThemeEditorSeed;
+import '../features/settings/screens/theme_editor_screen.dart';
 import '../features/settings/screens/themes_screen.dart';
 import '../features/voice/screens/call_stats_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
@@ -253,6 +255,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.personalThemes,
         pageBuilder: (context, state) =>
             modalPage(context, const ThemesScreen()),
+      ),
+      GoRoute(
+        path: Routes.personalThemeEditor,
+        pageBuilder: (context, state) => modalPage(
+          context,
+          ThemeEditorScreen(seed: state.extra as ThemeEditorSeed?),
+        ),
       ),
       GoRoute(
         path: Routes.debugLog,

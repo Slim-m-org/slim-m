@@ -44,7 +44,11 @@ class AttachmentView extends ConsumerStatefulWidget {
     this.siblings = const [],
     this.tileEdge,
     this.moreCount = 0,
+    this.messageId,
   });
+
+  /// The message this attachment sits on; null where it cannot be favorited.
+  final String? messageId;
 
   final api.Attachment attachment;
 
@@ -117,7 +121,13 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
 
   Widget _video(bool downloadGated) {
     // A player opens its source on mount, so the manual setting holds it back too.
-    if (!downloadGated) return AttachmentVideoPlayer(attachment: attachment);
+    if (!downloadGated) {
+      return AttachmentVideoPlayer(
+        key: ValueKey('attachment-menu-${attachment.id}'),
+        attachment: attachment,
+        messageId: widget.messageId,
+      );
+    }
     return AttachmentRevealTile(
       icon: AppIcons.play,
       line: 'Tap to load',
@@ -264,7 +274,9 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       mainAxisSize: MainAxisSize.min,
       children: [
         ImageActionsMenuRegion(
+          key: ValueKey('attachment-menu-${attachment.id}'),
           image: attachment,
+          messageId: widget.messageId,
           loadBytes: () =>
               ref.read(attachmentBytesProvider(attachment.id).future),
           onFailure: setActionError,
@@ -303,6 +315,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       index: index < 0 ? 0 : index,
       bytes: bytes,
       heroTag: _heroTag,
+      messageId: widget.messageId,
     );
   }
 

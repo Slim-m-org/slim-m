@@ -16,7 +16,14 @@ const int kGalleryMaxTiles = 4;
 /// A message's attachments: its images as one gallery when there are two or
 /// more, then everything else (files, videos) one by one as before.
 class MessageAttachments extends StatelessWidget {
-  const MessageAttachments({super.key, required this.attachments});
+  const MessageAttachments({
+    super.key,
+    required this.attachments,
+    this.messageId,
+  });
+
+  /// The message these sit on, so each can be favorited; null where it cannot.
+  final String? messageId;
 
   final List<api.Attachment> attachments;
 
@@ -31,13 +38,17 @@ class MessageAttachments extends StatelessWidget {
         if (gallery)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
-            child: AttachmentGallery(images: images),
+            child: AttachmentGallery(images: images, messageId: messageId),
           ),
         for (final attachment in attachments)
           if (!gallery || !images.contains(attachment))
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s4),
-              child: AttachmentView(attachment: attachment, siblings: images),
+              child: AttachmentView(
+                attachment: attachment,
+                siblings: images,
+                messageId: messageId,
+              ),
             ),
       ],
     );
@@ -45,10 +56,11 @@ class MessageAttachments extends StatelessWidget {
 }
 
 class AttachmentGallery extends StatelessWidget {
-  const AttachmentGallery({super.key, required this.images})
+  const AttachmentGallery({super.key, required this.images, this.messageId})
     : assert(images.length >= 2);
 
   final List<api.Attachment> images;
+  final String? messageId;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +85,7 @@ class AttachmentGallery extends StatelessWidget {
                 AttachmentView(
                   attachment: shown[i],
                   siblings: images,
+                  messageId: messageId,
                   tileEdge: edge,
                   moreCount: i == shown.length - 1
                       ? images.length - shown.length

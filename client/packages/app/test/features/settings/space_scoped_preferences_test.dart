@@ -117,6 +117,7 @@ void main() {
 /// The device-wide counterpart of [spaceScopedKeys]; see decision 0070.
 const _deviceKeys = <String>{
   'slimm.appearance.custom_theme',
+  'slimm.appearance.my_themes',
   'slimm.appearance.space_default_theme',
   'slimm.appearance.high_contrast',
   'slimm.appearance.motion',
@@ -150,6 +151,8 @@ const _deviceKeys = <String>{
   'slimm.voice.audio_input_device_id',
   'slimm.voice.audio_output_device_id',
   'slimm.voice.auto_gain',
+  'slimm.voice.call_overlay_corner',
+  'slimm.voice.call_overlay_enabled',
   'slimm.voice.camera_on_join',
   'slimm.voice.mirror_self_view',
   'slimm.voice.camera_quality',

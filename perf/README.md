@@ -72,11 +72,7 @@ two separate, differently-priced steps:
 - On a published GitHub release, CI runs the benchmarks for real and
   uploads the `target/criterion` output as a workflow artifact.
 
-Turning that uploaded criterion output into a new committed
-`perf/baselines/<version>.json` is a manual step for now: pull the relevant
-point estimates out of the artifact and add them to a new baseline file in
-the same pull request that finalizes the release.
-Automating that extraction is a later phase, not part of this scaffolding.
+The `baseline` job turns that run into a committed `perf/baselines/<version>.json` on its own; see "Every server release now measures itself in CI" below.
 
 ## Measuring idle RSS
 

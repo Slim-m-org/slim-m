@@ -15,6 +15,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/widgets/media_label.dart';
 import '../../voice/widgets/call_roster_motion.dart';
+import '../../voice/widgets/share_zoom_view.dart' show ShareZoomInput;
+import '../widgets/local_share_marks.dart';
 import '../widgets/screen_annotate_layer.dart';
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
@@ -256,7 +258,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     return (tileContext, close) => builder(tileContext, participant, close);
   }
 
-  /// Others' screens only: the sharer never draws on their own tile.
+  /// Others' screens take the pen; the sharer's own tile only shows what viewers draw.
   Widget? _annotateLayer(
     String key,
     Rect rect,
@@ -265,12 +267,23 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
   ) {
     if (presenceTileKind(key) != screenTrackKind) return null;
     final sharer = byIdentity[presenceTileIdentity(key)];
-    if (sharer == null || sharer.isLocal) return null;
+    if (sharer == null) return null;
+    final zoom = _resolver.zooms.of(key);
+    if (sharer.isLocal) {
+      return LocalShareMarks(
+        key: ValueKey('annotate:$key'),
+        sharerId: sharer.identity,
+        sharerName: sharer.name,
+        tileRect: presenceScreenRect(rect, camera),
+        zoom: zoom,
+      );
+    }
     return ScreenAnnotateLayer(
       key: ValueKey('annotate:$key'),
       sharerId: sharer.identity,
       sharerName: sharer.name,
       tileRect: presenceScreenRect(rect, camera),
+      zoom: zoom,
     );
   }
 
@@ -346,7 +359,16 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       personal: widget.overrides.personal,
       onExpand: widget.onFocus == null ? null : () => widget.onFocus!(key),
       semanticLabel: _semanticLabel(participant, isScreen),
-      child: CallTilePop(child: _tileBadge(participant, isScreen)),
+      child: CallTilePop(
+        child: isScreen
+            ? ShareZoomInput(
+                zoom: _resolver.zooms.of(key),
+                wheelNeedsCtrl: true,
+                pinch: false,
+                child: _tileBadge(participant, isScreen),
+              )
+            : _tileBadge(participant, isScreen),
+      ),
     );
   }
 }

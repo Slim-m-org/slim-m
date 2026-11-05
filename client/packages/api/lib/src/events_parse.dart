@@ -12,6 +12,7 @@ ServerEvent? coreFrame(Map<String, dynamic> decoded) {
     'category.changed' => const CategoryChanged(),
     'space.settings_changed' => const SpaceSettingsChanged(),
     'reports.changed' => const ReportsChanged(),
+    'admin_alerts.changed' => const AdminAlertsChanged(),
     'pong' => const PongEvent(),
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
     'dm.changed' when decoded['channel_id'] is String =>
@@ -285,9 +286,25 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
         movedById: decoded['moved_by_id'] as String,
         movedByName: decoded['moved_by_name'] as String,
       ),
+    'voice.notice'
+        when decoded['channel_id'] is String &&
+            decoded['actor_id'] is String &&
+            _voiceActivity(decoded['activity']) != null =>
+      VoiceNotice(
+        channelId: decoded['channel_id'] as String,
+        actorId: decoded['actor_id'] as String,
+        activity: _voiceActivity(decoded['activity'])!,
+      ),
     _ => null,
   };
 }
+
+VoiceActivity? _voiceActivity(Object? wire) => switch (wire) {
+      'call_started' => VoiceActivity.callStarted,
+      'joined' => VoiceActivity.joined,
+      'streaming' => VoiceActivity.streaming,
+      _ => null,
+    };
 
 /// Voice, call and watch-party frames.
 ServerEvent? voiceFrame(Map<String, dynamic> decoded) {

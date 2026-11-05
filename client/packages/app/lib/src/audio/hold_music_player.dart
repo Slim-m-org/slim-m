@@ -171,7 +171,12 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
   AudioPlayersHoldMusicPlayer({
     HoldLoopOutput? output,
     Future<void> Function()? afterPlay,
-  }) : _output = output ?? _AudioPlayersOutput(afterPlay);
+    bool? ios,
+  }) : _output =
+           output ??
+           ((ios ?? isIOSHost)
+               ? CallPathHoldOutput()
+               : _AudioPlayersOutput(afterPlay));
 
   final HoldLoopOutput _output;
   LoungeTrack _track = LoungeTrack.lofi;
@@ -236,7 +241,6 @@ final holdMusicAvailableProvider = Provider<bool>((ref) => true);
 final holdMusicPlayerProvider = Provider<HoldMusicPlayer>((ref) {
   final router = ref.read(soundOutputRouterProvider);
   final player = AudioPlayersHoldMusicPlayer(
-    output: isIOSHost ? CallPathHoldOutput() : null,
     afterPlay: router.followChosenOutput,
   );
   ref.onDispose(player.dispose);

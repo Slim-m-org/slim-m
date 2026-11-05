@@ -16,11 +16,19 @@ class _OneCamera implements CameraDevices {
       const [CameraDevice(id: 'cam-1', label: 'Webcam')];
 }
 
+Future<void> waitFor(bool Function() done) async {
+  for (var i = 0; i < 200 && !done(); i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  expect(done(), isTrue);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Completer<void> gate;
   late List<VoiceSessionState> stateWhenCameraAsked;
   late List<CameraJoinOpen> opens;
+  late List<bool> cameraAsks;
   late VoiceSession session;
 
   VoiceSession build({Duration timeout = const Duration(seconds: 10)}) {
@@ -28,7 +36,8 @@ void main() {
       roomFactory: () => InstantRoom(
         camera: (enabled, options) {
           stateWhenCameraAsked.add(session.state);
-          return gate.future;
+          cameraAsks.add(enabled);
+          return enabled ? gate.future : Future<void>.value();
         },
       ),
       micPort: CountingMic(),
@@ -52,6 +61,7 @@ void main() {
   setUp(() {
     gate = Completer<void>();
     stateWhenCameraAsked = [];
+    cameraAsks = [];
     opens = [];
     session = build();
   });
@@ -92,6 +102,21 @@ void main() {
 
     expect(opens.last.failure, isA<CameraOpenTimedOut>());
     expect(session.state, VoiceSessionState.connected);
+  });
+
+  test('a camera that opens after the timeout is turned off again', () async {
+    session = build(timeout: const Duration(milliseconds: 20));
+    await join();
+    await waitFor(
+      () => opens.isNotEmpty && opens.last.failure is CameraOpenTimedOut,
+    );
+    expect(cameraAsks, [true]);
+
+    gate.complete();
+    await waitFor(() => cameraAsks.length == 2);
+
+    expect(cameraAsks, [true, false],
+        reason: 'the person was told it failed, so it must not go live');
   });
 
   test('a join with the camera off opens nothing', () async {

@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A conversation row's one Notifications entry, and the menu it opens with
-/// mute, mentions only and off hours: beside the row on a wide window, a
-/// sheet on a compact one.
+/// A conversation row's one Notifications entry, and the submenu it opens with
+/// mute, mentions only and off hours.
 library;
-
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/anchored_popover_or_sheet.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import 'row_menu_notifications.dart';
 
@@ -24,8 +20,7 @@ String notificationStateLabel(api.NotificationPreference? current) =>
       null => 'Default',
     };
 
-/// Wrapped so the submenu can open beside this very entry, where the row menu
-/// it replaces stood.
+/// The one Notifications row, opening the mute, mentions and off-hours choices as a submenu of the row menu.
 Widget notificationsMenuItem(
   BuildContext context,
   ProviderContainer container,
@@ -33,71 +28,31 @@ Widget notificationsMenuItem(
   VoidCallback close, {
   required String muteLabel,
   api.NotificationPreference? channelDefault,
+  bool voiceChannel = false,
 }) {
   final tokens = Theme.of(context).extension<AppTokens>()!;
   final current = container
       .read(channelNotificationOverridesProvider)
       .overrideFor(channelId);
-  return Builder(
-    builder: (itemContext) => AppMenuItem(
-      label: 'Notifications',
-      leading: current == api.NotificationPreference.nothing
-          ? AppIcons.notificationsOff
-          : AppIcons.notificationsOn,
-      trailing: Text(
-        notificationStateLabel(current),
-        style: AppText.caption.copyWith(color: tokens.textSecondary),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      submenu: true,
-      onTap: () {
-        final entry = _entryRect(itemContext);
-        close();
-        unawaited(
-          _showNotificationsMenu(
-            context,
-            container,
-            channelId,
-            entry,
-            muteLabel: muteLabel,
-            channelDefault: channelDefault,
-          ),
-        );
-      },
+  return AppSubmenuItem(
+    label: 'Notifications',
+    leading: current == api.NotificationPreference.nothing
+        ? AppIcons.notificationsOff
+        : AppIcons.notificationsOn,
+    trailing: Text(
+      notificationStateLabel(current),
+      style: AppText.caption.copyWith(color: tokens.textSecondary),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     ),
-  );
-}
-
-Rect? _entryRect(BuildContext itemContext) {
-  final box = itemContext.findRenderObject() as RenderBox?;
-  final overlay =
-      Overlay.of(itemContext).context.findRenderObject() as RenderBox?;
-  if (box == null || overlay == null) return null;
-  return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
-}
-
-Future<void> _showNotificationsMenu(
-  BuildContext anchor,
-  ProviderContainer container,
-  String channelId,
-  Rect? entry, {
-  required String muteLabel,
-  api.NotificationPreference? channelDefault,
-}) {
-  List<Widget> items(BuildContext menuContext) => notificationMenuItems(
-    anchor,
-    container,
-    channelId,
-    () => Navigator.of(menuContext).pop(),
-    muteLabel: muteLabel,
-    channelDefault: channelDefault,
-  );
-
-  return showAnchoredPopoverOrSheet<void>(
-    anchor,
-    anchorRect: entry,
-    sheetBuilder: (context) => AppSheetMenu(children: items(context)),
-    popoverBuilder: (context) => AppMenu(children: items(context)),
+    itemsBuilder: (_) => notificationMenuItems(
+      context,
+      container,
+      channelId,
+      close,
+      muteLabel: muteLabel,
+      channelDefault: channelDefault,
+      voiceChannel: voiceChannel,
+    ),
   );
 }

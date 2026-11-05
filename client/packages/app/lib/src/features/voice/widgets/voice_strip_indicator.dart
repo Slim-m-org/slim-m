@@ -24,7 +24,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/voice_controller.dart';
@@ -35,6 +34,9 @@ import 'call_strip_press_area.dart';
 import '../../members/widgets/user_avatar.dart';
 
 const _inCallLabel = 'In a call';
+
+/// The strip's root, for tests to tell it from the rail's summary.
+const voiceStripKey = Key('voice_strip');
 
 /// Whether a call is live and worth surfacing, regardless of which channel is
 /// on screen. The caller decides *where* it renders; this decides *if*.
@@ -47,13 +49,14 @@ class VoiceStripIndicator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final voice = ref.watch(voiceControllerProvider);
-    if (voice.state != VoiceSessionState.connected) {
+    if (!voice.callLive) {
       return const SizedBox.shrink();
     }
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final controller = ref.read(voiceControllerProvider.notifier);
 
     return Container(
+      key: voiceStripKey,
       decoration: BoxDecoration(
         color: tokens.surfaceSunken,
         border: Border(
@@ -170,6 +173,7 @@ class _Summary extends StatelessWidget {
                         _subtitle(
                           sharing: voice.screenSharing,
                           hasTimer: voice.connectedAt != null,
+                          reconnecting: voice.rejoining || voice.reconnecting,
                         ),
                         overflow: TextOverflow.ellipsis,
                         style: AppText.micro.copyWith(
@@ -191,7 +195,12 @@ class _Summary extends StatelessWidget {
 }
 
 /// The separator only exists to sit after the timer; without one it would lead.
-String _subtitle({required bool sharing, required bool hasTimer}) {
+String _subtitle({
+  required bool sharing,
+  required bool hasTimer,
+  required bool reconnecting,
+}) {
+  if (reconnecting) return hasTimer ? ' - reconnecting' : 'Reconnecting';
   if (hasTimer) return sharing ? ' - sharing' : ' - audio only';
   return sharing ? 'Sharing' : 'Audio only';
 }

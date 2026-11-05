@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM voice_notify_prefs WHERE user_id = ? AND channel_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "705bafd1b3da66d701254dfaee22d275bba97bdc424483194a6c30bce4ba26ad"
+}

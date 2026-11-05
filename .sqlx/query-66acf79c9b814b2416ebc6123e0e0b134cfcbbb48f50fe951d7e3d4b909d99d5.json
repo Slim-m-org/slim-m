@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO voice_notify_prefs (user_id, channel_id, joins, streams, updated_at)\n             VALUES (?, ?, ?, ?, ?)\n             ON CONFLICT (user_id, channel_id)\n             DO UPDATE SET joins = excluded.joins, streams = excluded.streams,\n                           updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "66acf79c9b814b2416ebc6123e0e0b134cfcbbb48f50fe951d7e3d4b909d99d5"
+}

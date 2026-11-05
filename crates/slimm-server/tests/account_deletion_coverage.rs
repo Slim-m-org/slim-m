@@ -190,6 +190,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("user_blocks", "blocker_id", OnDelete::Purge),
     ("user_totp_factors", "user_id", OnDelete::Purge),
     ("username_collision_renames", "user_id", OnDelete::Purge),
+    ("user_favorites", "user_id", OnDelete::Purge),
     ("user_notes", "author_id", OnDelete::Purge),
     (
         "user_notes",
@@ -199,6 +200,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("users", "id", OnDelete::Keep("the tombstone itself")),
     ("voice_call_events", "user_id", OnDelete::Purge),
     ("voice_sessions", "user_id", OnDelete::Purge),
+    ("voice_notify_prefs", "user_id", OnDelete::Purge),
     ("watch_sessions", "bot_user_id", OnDelete::Purge),
     ("watch_sessions", "controller_user_id", OnDelete::Anonymize),
     ("webhooks", "created_by", OnDelete::Anonymize),
@@ -437,4 +439,48 @@ async fn every_purge_and_anonymize_decision_is_carried_out() {
         "these still point at the account after it was deleted, although \
          DECISIONS says each is purged or anonymized: {survivors:?}"
     );
+}
+
+/// A published theme outlives its author, so neither the display name column
+/// nor the `author` field inside the stored document may keep naming them.
+#[tokio::test]
+async fn a_deleted_authors_themes_name_nobody() {
+    let (path, _guard) = support::TestDbGuard::new("slimm-deletion-theme-author");
+    let config = Config {
+        port: 0,
+        database_path: path,
+        hash_concurrency: 2,
+        ..Config::default()
+    };
+    let pool = db::connect(&config).await.expect("connect + migrate");
+    let store = slimm_server::store::Store::new(pool.clone());
+    let stays = store.create_user("stays", "Stays").await.expect("stays");
+    store
+        .bootstrap_deployment(stays.id)
+        .await
+        .expect("an administrator stays");
+    let leaver = store.create_user("leaver", "Leaver").await.expect("leaver");
+    let doc = r#"{"format":"slimm-theme","name":"Dusk","author":"Leaver"}"#;
+    let theme = store
+        .publish_space_theme(leaver.id, "Leaver", "Dusk", doc, None)
+        .await
+        .expect("publish")
+        .expect("room in the store");
+
+    store.delete_account(leaver.id).await.expect("delete");
+
+    let kept = store
+        .space_theme(theme.id)
+        .await
+        .expect("read")
+        .expect("the theme stays");
+    assert_eq!(kept.author_id, None);
+    assert_eq!(kept.author_name, "");
+    let kept_doc: serde_json::Value = serde_json::from_str(&kept.doc).expect("doc is json");
+    assert!(
+        kept_doc.get("author").is_none(),
+        "doc still names: {}",
+        kept.doc
+    );
+    assert_eq!(kept_doc["name"], "Dusk");
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// How long since the person last touched any input on this machine, so working in another window counts as being here.
-/// Windows and macOS report it; Linux (Wayland keeps input private) and web return null and callers fall back to in-app input.
+/// Windows, macOS and Linux (D-Bus, or the screen lock where Wayland keeps input private) report it; web returns null and callers fall back to in-app input.
 library;
 
 import 'system_idle_stub.dart' if (dart.library.io) 'system_idle_io.dart'

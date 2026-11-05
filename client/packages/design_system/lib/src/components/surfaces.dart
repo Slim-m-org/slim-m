@@ -12,6 +12,7 @@ export 'surfaces/error_state.dart';
 export 'surfaces/in_window_dialog.dart';
 export 'surfaces/list_row.dart';
 export 'surfaces/menu.dart';
+export 'surfaces/menu_cascade.dart';
 export 'surfaces/reveal_band.dart';
 export 'surfaces/sheet.dart';
 export 'surfaces/sheet_header.dart';

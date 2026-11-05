@@ -92,6 +92,8 @@ const Map<String, String> _allowlist = {
       'SlimmApi._fetchBytes, the same as GET /attachments/{}',
   'GET /gifs/preview/{}': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
+  'GET /favorites/{}/preview': 'reads raw bytes through SlimmApi._fetchBytes, '
+      'the same as GET /gifs/preview/{}',
   'GET /link-preview/image/{}': 'reads raw bytes through '
       'SlimmApi._fetchBytes, the same as GET /attachments/{}',
   'POST /webhooks/{}/{}': 'unauthenticated delivery for a webhook credential '

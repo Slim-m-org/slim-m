@@ -38,6 +38,7 @@
 //! nothing here can turn a successful send into an error, and nothing here can
 //! make it slower.
 
+mod admin_alert;
 mod attention;
 mod call_end;
 mod call_ring;
@@ -52,9 +53,10 @@ pub(crate) mod recipients;
 mod relay;
 mod sealing;
 mod security;
+mod voice_notice;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use crate::config::Config;
 use crate::ids::{CallRingId, ChannelId, MessageId, Seq, UserId};
@@ -63,9 +65,11 @@ use crate::store::Store;
 
 use debounce::Debounce;
 
+pub use admin_alert::AdminAlertPush;
 pub use attention::{SkipReason, narrow_for_attention, skip_reasons};
 pub use recipients::message_recipients;
 pub use security::NewDeviceSignIn;
+pub use voice_notice::VoiceNotice;
 
 /// How long a burst of messages in one channel collapses into a single wake.
 /// Leading-edge: the first message in a burst fires immediately and the rest
@@ -88,6 +92,8 @@ struct Enabled {
     /// Messages the relay refused as `forbidden` since start, i.e. a device it will not
     /// deliver to for this server's key.
     forbidden: AtomicU64,
+    /// Sends in a row that did not reach the relay at all; any answer resets it.
+    relay_failures: AtomicU32,
 }
 
 impl PushSender {
@@ -126,6 +132,7 @@ impl PushSender {
                     send_url: format!("{}/v1/send", url.trim_end_matches('/')),
                     key: key.clone(),
                     forbidden: AtomicU64::new(0),
+                    relay_failures: AtomicU32::new(0),
                 }))
             }
             _ => {
@@ -157,6 +164,13 @@ impl PushSender {
         self.inner
             .as_ref()
             .map_or(0, |enabled| enabled.forbidden.load(Ordering::Relaxed))
+    }
+
+    /// Sends in a row the relay never answered; zero for a disabled sender or a healthy relay.
+    pub fn relay_consecutive_failures(&self) -> u32 {
+        self.inner
+            .as_ref()
+            .map_or(0, |enabled| enabled.relay_failures.load(Ordering::Relaxed))
     }
 
     /// Whether this sender will actually reach a relay.
@@ -223,6 +237,22 @@ impl PushSender {
         tokio::spawn(call_end::deliver(
             enabled, store, channel_id, ring_id, caller_id,
         ));
+    }
+
+    /// Wakes the devices of members who asked to hear that a voice call started, grew or went live.
+    pub fn notify_voice_activity(&self, store: Store, notice: VoiceNotice) {
+        let Some(enabled) = self.inner.clone() else {
+            return;
+        };
+        tokio::spawn(voice_notice::deliver(enabled, store, notice));
+    }
+
+    /// Pushes an operator alert to `recipients`, who the caller has already checked and unmuted.
+    pub fn notify_admin_alert(&self, store: Store, recipients: Vec<UserId>, alert: AdminAlertPush) {
+        let Some(enabled) = self.inner.clone() else {
+            return;
+        };
+        tokio::spawn(admin_alert::deliver(enabled, store, recipients, alert));
     }
 
     /// Alerts an account's other devices that a device it has not used before signed in.

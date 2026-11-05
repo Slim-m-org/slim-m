@@ -55,6 +55,9 @@ class ComposerActions {
   Future<Attachment> selectGif(String gifId, {String? channelId}) =>
       _api.selectGif(gifId, channelId: channelId);
 
+  Future<Attachment> selectFavorite(String id, {String? channelId}) =>
+      _api.selectFavorite(id, channelId: channelId);
+
   Future<Message> sendPollMessage({
     required String channelId,
     required String id,

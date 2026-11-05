@@ -21,6 +21,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::Class;
 use crate::store::{SessionScope, VoiceEventKind};
 use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
+use crate::voice_notify::Activity;
 use crate::voice_session_sweeps::publish_closed;
 
 pub fn routes() -> Router<AppState> {
@@ -174,7 +175,10 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
         "participant_joined" => {
             // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
             record(state, channel_id, user_id, VoiceEventKind::Joined);
+            let present_before = live_state.present(channel_id);
             if live_state.mark_joined(channel_id, user_id, sid) {
+                let activity = super::voice_notice::join_activity(&present_before, user_id);
+                super::voice_notice::announce(state, channel_id, user_id, activity);
                 presence = Some((channel_id, user_id, true));
                 state.hub.publish(Event::VoiceParticipantJoined {
                     channel_id,
@@ -242,6 +246,9 @@ fn publish_share_change(
             VoiceEventKind::ShareStopped
         };
         record(state, channel_id, user_id, kind);
+        if started {
+            super::voice_notice::announce(state, channel_id, user_id, Activity::Streaming);
+        }
         state.hub.publish(Event::VoiceScreenShareChanged {
             channel_id,
             user_id,

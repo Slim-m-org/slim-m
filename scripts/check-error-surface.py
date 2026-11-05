@@ -154,6 +154,8 @@ GUARDED_EXCEPTIONS: dict[tuple[str, str], str] = {
         "a message's context menu has closed before the request answers",
     ("client/packages/app/lib/src/features/channels/widgets/manage_category_sheet.dart", "confirmAndDeleteCategory"):
         "the header context menu has closed before the request answers",
+    ("client/packages/app/lib/src/features/channels/widgets/channel_settings_danger_zone.dart", "confirmAndDeleteChannel"):
+        "the channel row's context menu has closed before the request answers",
     (_MEMBER_ACTIONS, "toggleNotificationScheduleAllowedUser"):
         "the member row's context menu has closed before the request answers",
     (_MEMBER_ACTIONS, "messageMember"):

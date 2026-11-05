@@ -139,7 +139,7 @@ async fn enqueue(
             let own = built
                 .created
                 .is_some_and(|(_, author)| author == Some(*bot));
-            if own {
+            if own || blocks_actor(state, *bot, built.actor).await {
                 continue;
             }
             let annotated = annotators.as_ref().is_some_and(|a| a.annotates(module_id));
@@ -153,6 +153,21 @@ async fn enqueue(
         }
     }
     Ok(())
+}
+
+/// Whether `bot` blocked `actor`, whose act it then never hears of, as a viewer who blocked them does not.
+async fn blocks_actor(
+    state: &AppState,
+    bot: crate::ids::UserId,
+    actor: Option<crate::ids::UserId>,
+) -> bool {
+    let Some(actor) = actor else {
+        return false;
+    };
+    match state.store.blocked_ids(bot).await {
+        Ok(blocked) => blocked.contains(&actor),
+        Err(_) => true,
+    }
 }
 
 /// `body` with what `module_id` annotated the message with, when it annotated it.

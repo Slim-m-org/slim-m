@@ -149,19 +149,18 @@ List<Widget> participantCallMenuItems(
             showMemberProfile(context, profile: profile!, channelId: channelId);
           },
         ),
-        ParticipantAction.moveTo => AppMenuItem(
+        ParticipantAction.moveTo => AppSubmenuItem(
           label: 'Move to...',
           leading: AppIcons.moveToCall,
-          submenu: true,
-          onTap: () {
-            close();
-            showMoveParticipantPopover(
-              context,
+          panelWidth: 260,
+          itemsBuilder: (_) => [
+            MoveDestinations(
               userId: participant.identity,
               name: participant.name,
               fromChannelId: sourceChannel!,
-            );
-          },
+              onDone: close,
+            ),
+          ],
         ),
         ParticipantAction.moderate => AppMenuItem(
           label: 'Moderate...',

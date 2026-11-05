@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO admin_alerts (kind, subject, detail, raised_at) VALUES (?, ?, ?, ?)\n             ON CONFLICT (kind, subject) DO UPDATE SET\n                 detail = excluded.detail,\n                 raised_at = CASE WHEN admin_alerts.resolved_at IS NULL\n                                  THEN admin_alerts.raised_at ELSE excluded.raised_at END,\n                 announced = CASE WHEN admin_alerts.resolved_at IS NULL\n                                  THEN admin_alerts.announced ELSE 0 END,\n                 resolved_at = NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "d8c30e4b8d7295bf915ca6037f1973ffe70820b2d011f443d9d20291454fc605"
+}

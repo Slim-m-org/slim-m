@@ -33,22 +33,25 @@ void _mockClipboard() {
       });
 }
 
-api.SlimmApi _client(Completer<http.Response> place) =>
-    testApi((request) async {
-      if (request.url.path == '/attachments' && request.method == 'POST') {
-        return jsonResponse({
-          'id': 'sha-pasted',
-          'filename': 'pasted-image.png',
-          'content_type': 'image/png',
-          'size': canvasPngFixture.length,
-        });
-      }
-      if (request.url.path.endsWith('/canvas/objects') &&
-          request.method == 'POST') {
-        return place.future;
-      }
-      return jsonResponse(<Object>[]);
-    }, session: api.SessionStore(tokens: testTokens));
+api.SlimmApi _client(
+  Completer<http.Response> place,
+  Completer<void> placeStarted,
+) => testApi((request) async {
+  if (request.url.path == '/attachments' && request.method == 'POST') {
+    return jsonResponse({
+      'id': 'sha-pasted',
+      'filename': 'pasted-image.png',
+      'content_type': 'image/png',
+      'size': canvasPngFixture.length,
+    });
+  }
+  if (request.url.path.endsWith('/canvas/objects') &&
+      request.method == 'POST') {
+    placeStarted.complete();
+    return place.future;
+  }
+  return jsonResponse(<Object>[]);
+}, session: api.SessionStore(tokens: testTokens));
 
 void main() {
   tearDown(() {
@@ -63,11 +66,13 @@ void main() {
       final document = CanvasDocument()..setViewport(const Size(400, 300));
       final log = <String>[];
       late Completer<http.Response> place;
+      late Completer<void> placeStarted;
       late CanvasImagePaste paste;
       void build() {
         place = Completer<http.Response>();
+        placeStarted = Completer<void>();
         paste = CanvasImagePaste(
-          client: _client(place),
+          client: _client(place, placeStarted),
           channelId: 'c1',
           document: document,
           onPlaced: (id) => log.add('placed $id'),
@@ -81,7 +86,7 @@ void main() {
         final done = paste.pasteFromKeystroke().catchError((Object e) {
           log.add('threw ${e.runtimeType}: $e'.split('\n').first);
         });
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await placeStarted.future;
         paste.stop();
         document.dispose();
         place.complete(
@@ -101,7 +106,7 @@ void main() {
           ),
         );
         await done;
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await pumpEventQueue();
       });
       expect(log.where((l) => l != 'error null'), isEmpty);
       expect(tester.takeException(), isNull);

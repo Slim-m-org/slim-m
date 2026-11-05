@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT admin_alerts_muted AS \"muted!: bool\" FROM users WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "muted!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c122fb1c0c7e2e576be2b1e345cdb2ad06ec21892e441040cf1a29895f4e7997"
+}

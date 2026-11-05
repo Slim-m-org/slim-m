@@ -132,7 +132,7 @@ GitHub Actions does not support path filters on the `release` event, so the rele
 
 `compile-gate` is a fast compile-only gate on every pull request: it proves the benchmarks still build without paying for a full measurement run on each push.
 
-`benchmark` runs the real benchmarks once a release is published and uploads the criterion report as a workflow artifact, for hand-curation into a new `perf/baselines/<version>.json` (see `perf/README.md`).
+`benchmark` runs the real benchmarks once a release is published and uploads the criterion report as a workflow artifact; the `baseline` job commits the measured `perf/baselines/<version>.json` to main itself (see `perf/README.md`).
 It has no environment gate, and that is deliberate: it uploads only an intra-run workflow artifact, not a published release asset, so it is exempt for the same reason the release workflow's `server-binaries` build stage is.
 Reviewer-gated Environments are applied at the true publish boundary (GHCR push, release assets, TestFlight), not to build-time artifacts.
 No secrets are used.

@@ -237,8 +237,9 @@ Future<void> _pumpSpaceMenu(WidgetTester tester, Size window) async {
 /// taken after a right-click, not on arrival.
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpRail(
   WidgetTester tester,
-  Size window,
-) async {
+  Size window, {
+  String? route,
+}) async {
   tester.view.physicalSize = window;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -252,7 +253,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpRail(
         child: MaterialApp.router(
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.dark, AppTokens.dark),
-          routerConfig: fixtureRouter(Routes.channel('c-general')),
+          routerConfig: fixtureRouter(route ?? Routes.channel('c-general')),
           builder: appChromeBuilder,
         ),
       ),
@@ -363,9 +364,45 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.text('Open channel'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
     expect(find.text('Create channel'), findsNothing);
     expect(tester.takeException(), isNull);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
+
+  for (final (name, size, phone) in [
+    ('desktop-1440', const Size(1440, 900), false),
+    ('desktop-900', const Size(900, 800), false),
+    ('phone-390', const Size(390, 844), true),
+  ]) {
+    testWidgets('the channel row menu with Notifications open at $name', (
+      tester,
+    ) async {
+      final fixture = await _pumpRail(
+        tester,
+        size,
+        route: phone ? Routes.channels : null,
+      );
+      final row = find.text('general').first;
+      if (phone) {
+        await tester.longPress(row);
+      } else {
+        await tester.tapAt(tester.getCenter(row), buttons: kSecondaryButton);
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('Notifications'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(
+        find.byKey(Key(phone ? 'menu-submenu-back' : 'menu-submenu-panel')),
+        findsOneWidget,
+      );
+      await expectSettled(tester, 'row-menu-notifications-$name');
+      await writeSnapshot(tester, 'row-menu-notifications-$name');
+      expect(tester.takeException(), isNull);
+      await teardownFixture(tester, fixture.container, fixture.db);
+    });
+  }
 }

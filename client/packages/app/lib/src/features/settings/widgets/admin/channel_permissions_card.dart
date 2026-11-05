@@ -52,7 +52,7 @@ class PermissionsCard extends StatelessWidget {
                 AppSpacing.s16,
                 0,
                 AppSpacing.s16,
-                AppSpacing.s12,
+                0,
               ),
               child: Legend(),
             ),

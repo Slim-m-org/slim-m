@@ -43,27 +43,39 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
   ),
   WhatsNewEntry(
     version: '0.123.0',
-    headline: 'Tidier settings, simpler modules, ten new themes',
+    headline: 'Your own themes, favorites and call notices',
     points: [
       WhatsNewPoint(
-        'Themes have their own page, and the Space store has ten new ones, '
-        'five with their own backdrop.',
+        'Make your own theme from the Themes page, with a live preview and a '
+        'contrast check that can fix what is hard to read.',
       ),
       WhatsNewPoint(
-        'A module is one short page: on or off, who can use it, its settings '
-        'and what it may do, with the technical details folded away.',
+        'Add a GIF or picture to your favorites and find it again in the '
+        'Favorites tab of the GIF picker.',
       ),
       WhatsNewPoint(
-        'Account, data, sounds and shortcuts each sit where you would look '
-        'for them, and the notification checks moved to Troubleshooting.',
+        'A voice channel\'s Notifications menu can tell you when a call '
+        'starts, when someone joins or when someone streams.',
       ),
       WhatsNewPoint(
-        'Menus drop from the button you pressed and open upward near the '
-        'bottom of the window, and fewer pop-ups stack on each other.',
+        'Zoom into a screen share with ctrl and the wheel or a pinch, and '
+        'viewers can draw on a shared window as well as a whole screen.',
       ),
       WhatsNewPoint(
-        'On a phone the microphone test only starts when you tap it, and '
-        'music while alone follows you across devices.',
+        'Turn on the call overlay in Voice settings to see who is talking '
+        'over your other windows.',
+      ),
+      WhatsNewPoint(
+        'Admins can see when the nightly backup was last checked, and get an '
+        'alert when something on the server needs attention.',
+      ),
+      WhatsNewPoint(
+        'Themes have their own page with ten new ones, modules are one short '
+        'page, and settings sit where you would look for them.',
+      ),
+      WhatsNewPoint(
+        'On iPhone you can pick AirPods, the speaker or the phone, and on '
+        'Linux you show as away once the computer is left alone.',
       ),
     ],
   ),

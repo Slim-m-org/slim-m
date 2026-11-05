@@ -13,6 +13,7 @@ import 'dart:ui';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../voice/providers/share_zoom_controller.dart';
 import 'canvas_presence_geometry.dart';
 
 /// What one build of the tiles needs, resolved once.
@@ -44,6 +45,9 @@ class CanvasPresenceFrame {
 class CanvasPresenceFrameResolver {
   final CanvasPresenceVisibility _visibility = CanvasPresenceVisibility();
 
+  /// The zoom of each screen-share tile; shared by the video backdrop and the controls above it.
+  final ShareZoomSet zooms = ShareZoomSet();
+
   /// Tiles that take a default slot but are never shown, so blocking someone does not move everyone else's default spots.
   Set<String> layoutOnlyKeys = const {};
 
@@ -57,6 +61,7 @@ class CanvasPresenceFrameResolver {
     required bool hideSelfCamera,
   }) {
     final keys = presenceTileKeys(participants);
+    zooms.keepOnly(keys.toSet());
     if (keys.isEmpty) return CanvasPresenceFrame.empty;
     final byIdentity = {for (final p in participants) p.identity: p};
     // World units of the shared area when the board is fixed, so every viewer gets the same untouched layout.

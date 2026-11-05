@@ -6,7 +6,7 @@ use sqlx::Row;
 
 use super::{Store, now_ms};
 use crate::ids::{ThemeId, UserId};
-use crate::space_theme::MAX_STORE_THEMES;
+use crate::space_theme::{MAX_AUTHOR_THEMES, MAX_STORE_THEMES};
 
 #[derive(Debug, Clone)]
 pub struct SpaceTheme {
@@ -29,6 +29,7 @@ pub struct ThemePicture {
 #[derive(Debug, PartialEq, Eq)]
 pub enum PublishError {
     Full,
+    AuthorFull,
 }
 
 impl Store {
@@ -72,8 +73,9 @@ impl Store {
         }))
     }
 
-    /// Adds a theme unless the Space is at [`MAX_STORE_THEMES`]; the count and
-    /// the insert share one write transaction so two publishes cannot both pass.
+    /// Adds a theme unless the Space is at [`MAX_STORE_THEMES`] or the author at
+    /// [`MAX_AUTHOR_THEMES`]; the counts and the insert share one write
+    /// transaction so two publishes cannot both pass.
     pub async fn publish_space_theme(
         &self,
         author: UserId,
@@ -88,6 +90,13 @@ impl Store {
             .await?;
         if count >= MAX_STORE_THEMES {
             return Ok(Err(PublishError::Full));
+        }
+        let own: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM space_themes WHERE author_id = ?")
+            .bind(author)
+            .fetch_one(&mut *tx)
+            .await?;
+        if own >= MAX_AUTHOR_THEMES {
+            return Ok(Err(PublishError::AuthorFull));
         }
         let id = ThemeId::generate();
         let now = now_ms();

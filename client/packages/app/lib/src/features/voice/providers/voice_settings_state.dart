@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:slimm_platform/platform.dart' show OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/lounge_tracks.dart';
@@ -32,6 +33,8 @@ class VoiceSettingsState {
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.screenShareAllowAnnotations = false,
+    this.callOverlayEnabled = false,
+    this.callOverlayCorner = OverlayCorner.topLeft,
     this.pauseVideoWhenMinimised = true,
     this.micFallbackEnabled = true,
     this.speakerPreferred = true,
@@ -112,6 +115,10 @@ class VoiceSettingsState {
   /// overlay also needs a desktop that can host it.
   final bool screenShareAllowAnnotations;
 
+  /// Whether the people in your call are listed over your other windows, in [callOverlayCorner]; see decision 0096.
+  final bool callOverlayEnabled;
+  final OverlayCorner callOverlayCorner;
+
   /// Whether incoming video stops while the desktop window is visible but not focused.
   final bool pauseVideoWhenMinimised;
   final bool micFallbackEnabled;
@@ -147,6 +154,8 @@ class VoiceSettingsState {
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? screenShareAllowAnnotations,
+    bool? callOverlayEnabled,
+    OverlayCorner? callOverlayCorner,
     bool? pauseVideoWhenMinimised,
     bool? micFallbackEnabled,
     bool? speakerPreferred,
@@ -177,6 +186,8 @@ class VoiceSettingsState {
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
     screenShareAllowAnnotations:
         screenShareAllowAnnotations ?? this.screenShareAllowAnnotations,
+    callOverlayEnabled: callOverlayEnabled ?? this.callOverlayEnabled,
+    callOverlayCorner: callOverlayCorner ?? this.callOverlayCorner,
     pauseVideoWhenMinimised:
         pauseVideoWhenMinimised ?? this.pauseVideoWhenMinimised,
     micFallbackEnabled: micFallbackEnabled ?? this.micFallbackEnabled,

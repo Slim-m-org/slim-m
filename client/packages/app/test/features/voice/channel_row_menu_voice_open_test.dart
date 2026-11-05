@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Open channel" on a voice row's menu must do what a tap on that row does,
-/// including rejoining when the channel is already the open one - where a bare
-/// `go()` to the current location did nothing visible.
+/// A tap on a voice row navigates, and rejoins when the channel is already the
+/// open one - where a bare `go()` to the current location did nothing visible.
+/// The row menu no longer repeats that as an entry of its own.
 library;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,21 +79,13 @@ Future<VoiceHarness> _pump(
   return harness;
 }
 
-Future<void> _openChannelFromMenu(WidgetTester tester) async {
-  await tester.tapAt(
-    tester.getCenter(find.text(_channel.name)),
-    buttons: kSecondaryButton,
-    kind: PointerDeviceKind.mouse,
-  );
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Open channel'));
+Future<void> _tapRow(WidgetTester tester) async {
+  await tester.tap(find.text(_channel.name));
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('Open channel on the already-open voice row rejoins like a tap', (
-    tester,
-  ) async {
+  testWidgets('tapping the already-open voice row rejoins', (tester) async {
     final session = FakeSession();
     final router = _router('/channels/ch-1');
     final harness = await _pump(tester, session, router);
@@ -103,22 +94,23 @@ void main() {
     await controller.leave();
     expect(session.state, VoiceSessionState.idle);
 
-    await _openChannelFromMenu(tester);
+    await _tapRow(tester);
 
     expect(router.routeInformationProvider.value.uri.path, '/channels/ch-1');
     expect(session.state, VoiceSessionState.connected);
   });
 
-  testWidgets('Open channel from elsewhere navigates without a double join', (
-    tester,
-  ) async {
-    final session = FakeSession();
-    final router = _router('/channels/elsewhere');
-    await _pump(tester, session, router);
+  testWidgets(
+    'tapping a voice row from elsewhere navigates without a double join',
+    (tester) async {
+      final session = FakeSession();
+      final router = _router('/channels/elsewhere');
+      await _pump(tester, session, router);
 
-    await _openChannelFromMenu(tester);
+      await _tapRow(tester);
 
-    expect(router.routeInformationProvider.value.uri.path, '/channels/ch-1');
-    expect(session.state, VoiceSessionState.idle);
-  });
+      expect(router.routeInformationProvider.value.uri.path, '/channels/ch-1');
+      expect(session.state, VoiceSessionState.idle);
+    },
+  );
 }

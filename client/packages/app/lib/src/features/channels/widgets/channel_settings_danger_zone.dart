@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Channel settings' danger zone: `DELETE /channels/{id}`, with the same
 /// confirm-then-delete flow the old `manage_channel_sheet` carried before
-/// `channel_settings_screen.dart` replaced it.
+/// `channel_settings_screen.dart` replaced it, plus the row menu's direct
+/// delete, which asks the same question.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,11 +15,47 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../api_failure.dart';
 import '../../../routing/close_screen.dart';
 import '../../../routing/routes.dart';
+import '../../../widgets/app_snackbar.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_danger_card.dart';
 import '../providers/channel_actions.dart';
 
 const _deleteChannelAction = 'delete the channel';
+
+Future<bool> _confirmChannelDeletion(BuildContext context, Channel channel) =>
+    confirmDangerousAction(
+      context,
+      title: 'Delete "${channel.name}"?',
+      message:
+          'This deletes the channel and its message history for everyone '
+          'in the Space. This cannot be undone.',
+      confirmLabel: 'Delete permanently',
+      cancelLabel: 'Keep channel',
+    );
+
+/// The row menu's delete; the menu has closed before the request answers, so
+/// a snackbar carries a failure, as `confirmAndDeleteCategory` does.
+Future<void> confirmAndDeleteChannel(
+  BuildContext context,
+  ProviderContainer container,
+  Channel channel, {
+  required bool wasOpen,
+}) async {
+  if (!await _confirmChannelDeletion(context, channel)) return;
+  if (!context.mounted) return;
+  final router = GoRouter.of(context);
+  final failure = await runGuarded(
+    whatFailed: _deleteChannelAction,
+    action: () => container.read(channelActionsProvider).delete(channel.id),
+  );
+  if (failure == null) {
+    // The view behind the menu may still show a channel that no longer exists.
+    if (wasOpen) router.go(Routes.channels);
+  } else if (context.mounted) {
+    showAppSnackbar(context, failure);
+  }
+}
 
 class ChannelDangerZoneSection extends ConsumerStatefulWidget {
   const ChannelDangerZoneSection({
@@ -45,16 +82,9 @@ class _ChannelDangerZoneSectionState
   String? _error;
 
   Future<void> _confirmDelete() async {
-    final confirmed = await confirmDangerousAction(
-      context,
-      title: 'Delete "${widget.channel.name}"?',
-      message:
-          'This deletes the channel and its message history for everyone '
-          'in the Space. This cannot be undone.',
-      confirmLabel: 'Delete permanently',
-      cancelLabel: 'Keep channel',
-    );
-    if (confirmed) await _delete();
+    if (await _confirmChannelDeletion(context, widget.channel)) {
+      await _delete();
+    }
   }
 
   Future<void> _delete() async {

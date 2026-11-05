@@ -4,6 +4,7 @@
 //! The binary in `main.rs` is a thin wrapper; the server logic lives here as a
 //! library so it can be exercised by integration tests.
 
+pub mod admin_alerts;
 mod attachment_text;
 pub mod auth;
 pub mod blobs;
@@ -52,6 +53,7 @@ pub mod store;
 mod sweeps;
 pub mod totp;
 pub mod voice;
+pub mod voice_notify;
 mod voice_session_sweeps;
 
 pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
@@ -185,13 +187,19 @@ pub async fn run() -> anyhow::Result<()> {
         code_runner,
         call_audio,
     };
+    admin_alerts::spawn_monitor(
+        state.clone(),
+        admin_alerts::MonitorSettings::from_config(&config),
+    );
     http::module_compat::disable_incompatible(&state).await;
     http::module_schedule::spawn_sweep(state.clone());
     http::module_timers::spawn_sweep(state.clone());
     http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
-    let mut router = http::router(state);
+    let mut router = http::router(state).layer(axum::Extension(http::BackupStatusDir(
+        config.backup_status_dir.clone(),
+    )));
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));
     }

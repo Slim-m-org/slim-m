@@ -124,18 +124,46 @@ class AppBackgroundController extends Notifier<AppBackgroundSettings>
     if (prepared == null) return false;
     final store = ref.read(backgroundImageStoreProvider);
     if (!await store.write(prepared.png)) return false;
-    final prefs = await ref.read(preferencesProvider.future);
-    await prefs.setBool(backgroundHasImageKey, true);
-    await prefs.setStringList(
-      backgroundToneKey,
-      rangeToStrings(prepared.range),
-    );
+    try {
+      final prefs = await ref.read(preferencesProvider.future);
+      await prefs.setBool(backgroundHasImageKey, true);
+      await prefs.setStringList(
+        backgroundToneKey,
+        rangeToStrings(prepared.range),
+      );
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'Could not save the background settings; dropping the picture',
+        error,
+        stack,
+      );
+      await _dropUnsavedPicture(store);
+      return false;
+    }
     state = state.copyWith(
       hasImage: true,
       revision: state.revision + 1,
       range: prepared.range,
     );
     return true;
+  }
+
+  /// The picture on disk would outlive a restart without its settings, so no picture is kept at all.
+  Future<void> _dropUnsavedPicture(BackgroundImageStore store) async {
+    await store.clear();
+    state = state.copyWith(hasImage: false, revision: state.revision + 1);
+    try {
+      final prefs = await ref.read(preferencesProvider.future);
+      await prefs.setBool(backgroundHasImageKey, false);
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'Could not reset the background flag',
+        error,
+        stack,
+      );
+    }
   }
 
   Future<void> remove() async {

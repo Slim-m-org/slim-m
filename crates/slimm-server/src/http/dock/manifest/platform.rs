@@ -16,13 +16,29 @@ const MAX_SLOT_TITLE: usize = 40;
 const SLOT_KINDS: [&str; 2] = ["profile.section", "member.badge"];
 
 /// The events a phase 1 module may subscribe to.
-pub(in crate::http) const EVENTS: [&str; 6] = [
+pub(in crate::http) const EVENTS: [&str; 12] = [
     "message.created",
     "message.deleted",
     "reaction.changed",
     "member.joined",
     "member.left",
     "voice.session.closed",
+    "message.edited",
+    "voice.participant.joined",
+    "voice.participant.left",
+    "voice.screen_share.changed",
+    "member.roles.changed",
+    "poll.voted",
+];
+
+/// The events that arrived with add-on API 5; a module naming one must declare that level.
+const LEVEL_5_EVENTS: [&str; 6] = [
+    "message.edited",
+    "voice.participant.joined",
+    "voice.participant.left",
+    "voice.screen_share.changed",
+    "member.roles.changed",
+    "poll.voted",
 ];
 
 #[derive(Deserialize)]
@@ -60,7 +76,7 @@ pub(super) fn validate_platform(
         addon_api_max,
     )
     .map_err(|why| malformed(&why))?;
-    let subscriptions = validate_subscriptions(raw.subscriptions, capabilities)?;
+    let subscriptions = validate_subscriptions(raw.subscriptions, capabilities, addon_api)?;
     let settings = settings::validate_settings(raw.settings)?;
     let slots = validate_slots(raw.slots)?;
     let hooks = super::hooks::validate_hooks(
@@ -108,6 +124,7 @@ fn validate_range_max(min: i64, max: Option<i64>) -> Result<Option<u32>, Manifes
 fn validate_subscriptions(
     raw: Vec<RawSubscription>,
     capabilities: &[String],
+    addon_api: i64,
 ) -> Result<Vec<String>, ManifestError> {
     if raw.len() > MAX_SUBSCRIPTIONS {
         return Err(malformed("manifest declares too many subscriptions"));
@@ -119,6 +136,11 @@ fn validate_subscriptions(
     for entry in raw {
         if !EVENTS.contains(&entry.event.as_str()) {
             return Err(malformed("subscription names an unknown event"));
+        }
+        if addon_api < 5 && LEVEL_5_EVENTS.contains(&entry.event.as_str()) {
+            return Err(malformed(
+                "this subscription needs \"addon_api\": 5 or higher",
+            ));
         }
         if events.contains(&entry.event) {
             return Err(malformed("a subscription is listed twice"));

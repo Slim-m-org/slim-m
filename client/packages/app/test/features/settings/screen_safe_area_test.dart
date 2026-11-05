@@ -362,6 +362,17 @@ void _expectClearOfIndicator(WidgetTester tester, Finder finder, String what) {
   );
 }
 
+/// A list that runs to the screen edge pads its end by the inset.
+void _expectPaddedForIndicator(
+  WidgetTester tester,
+  Finder finder,
+  String what,
+) => expect(
+  tester.widget<ListView>(finder).padding!.resolve(TextDirection.ltr).bottom,
+  greaterThanOrEqualTo(_bottomInset),
+  reason: '$what stops short of the inset',
+);
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -384,7 +395,7 @@ void main() {
       ],
     );
 
-    _expectClearOfIndicator(
+    _expectPaddedForIndicator(
       tester,
       find.byType(ListView),
       "voice settings' list",
@@ -396,7 +407,7 @@ void main() {
     // overflows by 114px at 390, which is a separate defect from this inset.
     await _pump(tester, const InvitesScreen(), size: const Size(540, 400));
 
-    _expectClearOfIndicator(tester, find.byType(ListView), 'the invite list');
+    _expectPaddedForIndicator(tester, find.byType(ListView), 'the invite list');
   });
 
   testWidgets('the roles list is inset even when it is empty', (tester) async {
@@ -431,7 +442,7 @@ void main() {
   testWidgets('the emoji list is inset', (tester) async {
     await _pump(tester, const EmojiScreen());
 
-    _expectClearOfIndicator(tester, find.byType(ListView), 'the emoji list');
+    _expectPaddedForIndicator(tester, find.byType(ListView), 'the emoji list');
   });
 
   testWidgets('the channel permissions list is inset', (tester) async {

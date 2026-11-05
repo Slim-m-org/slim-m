@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../downloads/downloads_controller.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../favorites/providers/favorite_actions.dart';
 import 'image_actions.dart';
 import 'image_export.dart';
 
@@ -26,6 +27,7 @@ class ImageActionsMenuRegion extends ConsumerWidget {
     required this.loadBytes,
     required this.onFailure,
     required this.child,
+    this.messageId,
   });
 
   final api.Attachment image;
@@ -34,6 +36,9 @@ class ImageActionsMenuRegion extends ConsumerWidget {
   final Future<Uint8List> Function() loadBytes;
 
   final ValueChanged<String> onFailure;
+
+  /// The message the image sits on; without one there is nothing to favorite.
+  final String? messageId;
 
   final Widget child;
 
@@ -71,6 +76,20 @@ class ImageActionsMenuRegion extends ConsumerWidget {
             _run(saveImageToDevice, ref);
           },
         ),
+        if (messageId case final id?)
+          AppMenuItem(
+            label: 'Add to favorites',
+            leading: AppIcons.favorite,
+            onTap: () async {
+              close();
+              final failure = await addAttachmentToFavorites(
+                ref,
+                messageId: id,
+                attachment: image,
+              );
+              if (failure != null) onFailure(failure);
+            },
+          ),
         if (image.original != null)
           AppMenuItem(
             label: 'Download original',

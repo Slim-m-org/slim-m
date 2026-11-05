@@ -73,6 +73,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::EphemeralMessage { .. }
@@ -81,6 +82,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceNotice { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => None,
     }

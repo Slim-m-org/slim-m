@@ -70,6 +70,21 @@ services:
       SLIMM_LISTENER_URL: ${SLIMM_LISTENER_URL:-}
       SLIMM_LISTENER_SECRET: ${SLIMM_LISTENER_SECRET:-}
       SLIMM_LISTENER_LIVEKIT_URL: ${SLIMM_LISTENER_LIVEKIT_URL:-}
+      # Both blank means push is off, which is a supported way to run; docs/OPERATING.md.
+      SLIMM_PUSH_RELAY_URL: ${SLIMM_PUSH_RELAY_URL:-}
+      SLIMM_PUSH_RELAY_KEY: ${SLIMM_PUSH_RELAY_KEY:-}
+      # The defaults below are the server's own; a blank number would stop startup, so they are spelled out.
+      SLIMM_ATTACHMENT_MAX_BYTES: ${SLIMM_ATTACHMENT_MAX_BYTES:-1073741824}
+      SLIMM_HASH_CONCURRENCY: ${SLIMM_HASH_CONCURRENCY:-4}
+      SLIMM_ADDONS_REPO: ${SLIMM_ADDONS_REPO:-Slim-m-org/slim-addons}
+      SLIMM_CODE_RUNNER_URL: ${SLIMM_CODE_RUNNER_URL:-}
+      SLIMM_MODULE_LAN_DENY: ${SLIMM_MODULE_LAN_DENY:-}
+      SLIMM_MEMORY_LIMIT_BYTES: ${SLIMM_MEMORY_LIMIT_BYTES:-}
+      # Only for recovery after every two-factor secret was cleared; docs/OPERATING.md, The data key.
+      SLIMM_DATA_KEY_ALLOW_NEW: ${SLIMM_DATA_KEY_ALLOW_NEW:-}
+      # Alerts: free MiB on the data disk under which admins are told (0 is off); the status dir is the backup profile output.
+      SLIMM_ALERT_MIN_DISK_FREE_MB: ${SLIMM_ALERT_MIN_DISK_FREE_MB:-1024}
+      SLIMM_BACKUP_STATUS_DIR: /backup-status
       # No SLIMM_LIVEKIT_* here on purpose, and absent rather than empty: the
       # server reads an unset trio as "no SFU" and answers 501 for every voice
       # request, which is a supported way to run this rather than a broken one.
@@ -84,6 +99,8 @@ services:
       # The whole directory is the volume (SLIMM_DATABASE_PATH defaults to
       # /data/slimm.db) so Litestream can see the database file and its WAL.
       - slimm_data:/data
+      # Written by the backup profile and only ever read here.
+      - slimm_backup_status:/backup-status:ro
     # The image already ships a HEALTHCHECK that runs the server's own
     # `--healthcheck` subcommand; no need to redeclare it here.
     expose:
@@ -192,6 +209,45 @@ services:
       replicate /data/slimm.db
       "s3://${LITESTREAM_S3_BUCKET}/${LITESTREAM_S3_PATH:-slimm}?endpoint=${LITESTREAM_S3_ENDPOINT}&region=${LITESTREAM_S3_REGION:-auto}"
 
+  # Nightly verified backup, off unless COMPOSE_PROFILES=backup; deploy/README.md, Nightly verified backups.
+  backup:
+    <<: *hardened
+    # Root with one capability: reads the server's files whatever their owner, writes only its own volumes.
+    cap_add:
+      - DAC_READ_SEARCH
+    profiles:
+      - backup
+    image: python:3.13-slim@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc50c84507c1041fa8285d1
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    volumes:
+      - slimm_data:/data:ro
+      - ./scripts:/scripts:ro
+      # A named volume by default; point SLIMM_BACKUP_DIR at a host path on another disk to survive this one.
+      - ${SLIMM_BACKUP_DIR:-slimm_backups}:/backup
+      - slimm_backup_status:/backup-status
+    command:
+      - python3
+      - /scripts/backup-nightly.py
+      - --database-path=/data/slimm.db
+      - --media-dir=/data/media
+      - --modules-dir=/data/modules
+      - --backup-root=/backup
+      - --status-dir=/backup-status
+      - --keep=${SLIMM_BACKUP_KEEP:-14}
+      - --at-hour=${SLIMM_BACKUP_HOUR_UTC:-3}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+
   web:
     <<: *hardened
     # nginx keeps its pid and temp files here.
@@ -212,4 +268,6 @@ volumes:
   slimm_data:   # the embedded SQLite database
   caddy_data:   # Caddy's ACME account and issued certificates
   caddy_config: # Caddy's runtime config cache
+  slimm_backups:       # database snapshots and the media mirror (backup profile)
+  slimm_backup_status: # status.json the backup profile writes and the server reads
   listener_models: # the speech model the listener downloads once (listener profile)

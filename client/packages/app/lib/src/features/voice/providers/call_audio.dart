@@ -56,6 +56,9 @@ class CallAudioController
   late String channelId;
   bool _disposed = false;
 
+  /// Bumped by every refresh and every pushed frame, so a reply that left before a newer one is dropped.
+  int _version = 0;
+
   api.SlimmApi get _api => ref.read(apiProvider);
 
   @override
@@ -79,6 +82,7 @@ class CallAudioController
     if (event is! api.VoiceCallAudioChanged || event.channelId != channelId) {
       return;
     }
+    _version++;
     final session = event.state;
     state = state.copyWith(
       status: api.CallAudioStatus(
@@ -93,9 +97,12 @@ class CallAudioController
 
   /// Reads the state again; a deployment without the feature reads as none.
   Future<void> refresh() async {
+    final version = ++_version;
     try {
       final status = await _api.callAudio(channelId);
-      if (!_disposed) state = state.copyWith(status: status);
+      if (!_disposed && version == _version) {
+        state = state.copyWith(status: status);
+      }
     } on api.ApiException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
@@ -103,7 +110,7 @@ class CallAudioController
         error,
         stack,
       );
-      if (!_disposed) {
+      if (!_disposed && version == _version) {
         state = state.copyWith(status: const api.CallAudioStatus());
       }
     }
@@ -127,6 +134,7 @@ class CallAudioController
     try {
       final status = await call();
       if (_disposed) return;
+      _version++;
       state = state.copyWith(
         busy: false,
         status: status == null

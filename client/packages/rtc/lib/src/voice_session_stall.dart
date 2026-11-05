@@ -34,7 +34,7 @@ extension VoiceSessionStall on VoiceSession {
     final room = _room;
     if (room == null || _disposed) return;
     // Frames stand still while the transport repairs itself, and that is not the sender's doing.
-    if (health.reconnect.active.value) return;
+    if (health.reconnect.restarting.value) return;
     final publications = <StallPublication>[
       for (final peer in room.remoteParticipants.values)
         for (final pub in peer.videoTrackPublications)

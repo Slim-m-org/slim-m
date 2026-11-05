@@ -17,6 +17,8 @@ import '../../../../format.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/attachment_format.dart' show formatByteSize;
+import '../../../admin_alerts/widgets/admin_alerts_card.dart';
+import '../../../admin_alerts/widgets/backup_status_card.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_meter_row.dart';
@@ -71,6 +73,8 @@ class _StorageView extends ConsumerWidget {
         totalBytes: storage.attachmentBytes,
       ),
       _SweepsCard(sweeps: storage.sweeps),
+      BackupStatusCard(backup: storage.backup),
+      const AdminAlertsCard(),
     ],
   );
 }

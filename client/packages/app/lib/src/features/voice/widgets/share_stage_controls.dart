@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The controls that choose which screen shares a viewer watches: the shared
-/// context-menu rows. The way back in is `stopped_shares_banner.dart`.
+/// context-menu rows. The way back in is "Watch stream" on the sharer's own participant menu.
 library;
 
 import 'package:flutter/material.dart';

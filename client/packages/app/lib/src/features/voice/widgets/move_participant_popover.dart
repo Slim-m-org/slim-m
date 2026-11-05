@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The "Move to..." destination list: every voice channel the caller may move
-/// people into, anchored beside a pointer menu and a sheet on a phone.
+/// The "Move to..." destination rows: every voice channel the caller may move
+/// people into, shown as a submenu of the participant menu.
 library;
 
 import 'dart:async';
@@ -13,28 +13,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../permissions.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../channels/providers/channel_permissions.dart';
-import '../../../widgets/anchored_popover_or_sheet.dart';
 import '../providers/voice_roster.dart';
 import '../providers/voice_actions.dart';
-
-const double _width = 260;
-
-/// Opens the destination list for [userId], currently in [fromChannelId].
-Future<void> showMoveParticipantPopover(
-  BuildContext anchor, {
-  required String userId,
-  required String name,
-  required String fromChannelId,
-}) {
-  Widget body(BuildContext context) => MoveDestinations(
-    userId: userId,
-    name: name,
-    fromChannelId: fromChannelId,
-    onDone: () => Navigator.of(context).pop(),
-  );
-
-  return showAnchoredPopoverOrSheet<void>(anchor, popoverBuilder: body);
-}
 
 /// Whether [channel] can take one more person, given who is in it now.
 bool hasRoomFor(api.Channel channel, int present) =>
@@ -112,18 +92,12 @@ class _MoveDestinationsState extends ConsumerState<MoveDestinations> {
           ),
       if (_failure != null) AppErrorState(message: _failure!),
     ];
-    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     // Without explicit child nodes the menu merges every row into one label.
-    final rows = [
-      Semantics(
-        container: true,
-        explicitChildNodes: true,
-        child: Column(mainAxisSize: MainAxisSize.min, children: children),
-      ),
-    ];
-    return compact
-        ? AppSheetMenu(width: _width, children: rows)
-        : AppMenu(width: _width, children: rows);
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
   }
 }
 

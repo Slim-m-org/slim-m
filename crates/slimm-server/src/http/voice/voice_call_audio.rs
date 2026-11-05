@@ -216,7 +216,9 @@ async fn ask(
         .begin((channel, subject), ctx.user_id, &people, now_ms())
         .map_err(request_error)?;
     let view = visible_view(&state, ctx.user_id, &began).await;
-    runtime::apply(&state, began).await;
+    if !runtime::apply(&state, began).await {
+        return Err(ApiError::Unavailable);
+    }
     Ok(Json(CallAudioDto {
         session: Some(view),
         startable: Vec::new(),

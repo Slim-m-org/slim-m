@@ -155,4 +155,29 @@ void main() {
     expect(cancelled, isTrue);
     expect(saved, isNull);
   });
+
+  testWidgets('onChanged reports each typed colour for a live preview', (
+    tester,
+  ) async {
+    final seen = <Color>[];
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppColourPicker(
+            initial: const Color(0xFF3366CC),
+            onChanged: seen.add,
+            onSave: (_) {},
+            onCancel: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byKey(AppColourPicker.hexFieldKey), '#FFB000');
+    await tester.enterText(find.byKey(AppColourPicker.hexFieldKey), '#FFB0');
+    expect(seen, [const Color(0xFFFFB000)]);
+  });
 }

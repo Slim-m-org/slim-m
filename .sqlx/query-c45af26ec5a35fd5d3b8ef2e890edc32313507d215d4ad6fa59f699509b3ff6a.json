@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE users SET admin_alerts_muted = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c45af26ec5a35fd5d3b8ef2e890edc32313507d215d4ad6fa59f699509b3ff6a"
+}

@@ -11,7 +11,6 @@
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,11 +18,13 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
-import '../../../widgets/animation_gate.dart';
-import '../providers/gif_preview_bytes.dart';
+import '../../../providers/toasts.dart';
+import '../../../widgets/context_menu_region.dart';
+import '../../favorites/providers/favorites_controller.dart';
+import '../../favorites/widgets/favorites_grid.dart';
 import '../providers/gif_trending.dart';
 import 'composer_attachments.dart';
-import '../../../widgets/image_decode.dart';
+import 'gif_tile.dart';
 import '../providers/composer_actions.dart';
 
 /// How long a pause in typing must last before a search actually fires, so a
@@ -126,6 +127,9 @@ Future<void> pickGif({
   );
 }
 
+/// Which half of the picker is showing.
+enum _PickerTab { favorites, gifs }
+
 /// The picker's content: search field, trending/search grid, nothing else.
 /// Exposed (not `_`-private) so `composer_picker_panel.dart` can embed it as
 /// one tab of the composer's own anchored picker rather than a sheet;
@@ -160,6 +164,9 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   bool _loading = false;
   String? _error;
   List<api.GifResult>? _results;
+
+  /// The tab the reader chose; null until they do, so Favorites leads once they have any.
+  _PickerTab? _chosenTab;
 
   /// The result currently being picked, so its own tile can show a spinner
   /// and every other tile is disabled until this one resolves.
@@ -225,6 +232,19 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     }
   }
 
+  Future<void> _addFavorite(api.GifResult result) async {
+    try {
+      await ref.read(favoritesProvider.notifier).addGif(result.id);
+      ref
+          .read(toastsProvider.notifier)
+          .show('Added to favorites.', severity: AppToastSeverity.success);
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'favorite a GIF', e, stack);
+      if (!mounted) return;
+      setState(() => _error = describeApiFailure('favorite that gif', e));
+    }
+  }
+
   Future<void> _pick(api.GifResult result) async {
     setState(() {
       _selectingId = result.id;
@@ -281,40 +301,75 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         ? _describeTrendingFailure(trending.error)
         : null;
     final error = _error ?? trendingError;
+    final favorites = ref.watch(favoritesProvider);
+    final hasTabs = favorites.hasValue;
+    final tab = !hasTabs
+        ? _PickerTab.gifs
+        : _chosenTab ??
+              (widget.initialQuery.trim().isEmpty &&
+                      favorites.requireValue.isNotEmpty
+                  ? _PickerTab.favorites
+                  : _PickerTab.gifs);
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.s12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppInput(
-            maxLength: api.InputLimits.searchQuery,
-            controller: _queryController,
-            focusNode: _queryFocus,
-            autofocus: true,
-            placeholder: 'Search GIFs',
-            icon: Icon(
-              AppIcons.search,
-              size: AppSizes.icon16,
-              color: tokens.textSecondary,
-            ),
-            onChanged: _onQueryChanged,
-            semanticLabel: 'Search GIFs',
-          ),
-          const SizedBox(height: AppSpacing.s12),
-          if (error != null) ...[
-            AppErrorState(
-              message: error,
-              onRetry: trendingError != null
-                  ? () => ref.invalidate(trendingGifsProvider(widget.channelId))
-                  : null,
+          if (hasTabs) ...[
+            Center(
+              child: AppSegmentedControl.inline(
+                options: const [
+                  AppSegmentedOption(label: 'Favorites'),
+                  AppSegmentedOption(label: 'Search'),
+                ],
+                selectedIndex: tab.index,
+                onSegmentSelected: (i) =>
+                    setState(() => _chosenTab = _PickerTab.values[i]),
+                semanticLabel: 'Favorites or GIFs',
+              ),
             ),
             const SizedBox(height: AppSpacing.s12),
           ],
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
-            child: _content(tokens, trending),
-          ),
+          if (tab == _PickerTab.favorites)
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
+              child: FavoritesGrid(
+                channelId: widget.channelId,
+                onPicked: widget.onPicked,
+              ),
+            )
+          else ...[
+            AppInput(
+              maxLength: api.InputLimits.searchQuery,
+              controller: _queryController,
+              focusNode: _queryFocus,
+              autofocus: true,
+              placeholder: 'Search GIFs',
+              icon: Icon(
+                AppIcons.search,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+              onChanged: _onQueryChanged,
+              semanticLabel: 'Search GIFs',
+            ),
+            const SizedBox(height: AppSpacing.s12),
+            if (error != null) ...[
+              AppErrorState(
+                message: error,
+                onRetry: trendingError != null
+                    ? () =>
+                          ref.invalidate(trendingGifsProvider(widget.channelId))
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.s12),
+            ],
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
+              child: _content(tokens, trending),
+            ),
+          ],
         ],
       ),
     );
@@ -353,12 +408,25 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       itemCount: results.length,
       itemBuilder: (context, index) {
         final result = results[index];
-        return _GifTile(
-          result: result,
-          channelId: widget.channelId,
-          busy: _selectingId != null,
-          selecting: _selectingId == result.id,
-          onTap: () => unawaited(_pick(result)),
+        return ContextMenuRegion(
+          ownsFocusNode: false,
+          itemsBuilder: (context, close) => [
+            AppMenuItem(
+              label: 'Add to favorites',
+              leading: AppIcons.favorite,
+              onTap: () {
+                close();
+                unawaited(_addFavorite(result));
+              },
+            ),
+          ],
+          child: GifTile(
+            result: result,
+            channelId: widget.channelId,
+            busy: _selectingId != null,
+            selecting: _selectingId == result.id,
+            onTap: () => unawaited(_pick(result)),
+          ),
         );
       },
     );
@@ -373,120 +441,3 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
 String _describeTrendingFailure(Object? error) => error is api.ApiException
     ? describeApiFailure('load trending gifs', error)
     : 'Could not load trending gifs.';
-
-class _GifTile extends ConsumerStatefulWidget {
-  const _GifTile({
-    required this.result,
-    required this.busy,
-    required this.selecting,
-    required this.onTap,
-    required this.channelId,
-  });
-
-  final api.GifResult result;
-  final String? channelId;
-
-  /// Whether *some* tile in the grid is currently being picked - every tile
-  /// is disabled while that is true, not only the one selected.
-  final bool busy;
-  final bool selecting;
-  final VoidCallback onTap;
-
-  @override
-  ConsumerState<_GifTile> createState() => _GifTileState();
-}
-
-class _GifTileState extends ConsumerState<_GifTile> {
-  bool _focused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    FocusManager.instance.addHighlightModeListener(_onHighlightMode);
-  }
-
-  @override
-  void dispose() {
-    FocusManager.instance.removeHighlightModeListener(_onHighlightMode);
-    super.dispose();
-  }
-
-  // Without this a switch between mouse and keyboard leaves the ring as it was until the next focus change.
-  void _onHighlightMode(FocusHighlightMode _) {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final result = widget.result;
-    final preview = ref.watch(
-      gifPreviewBytesProvider((gifId: result.id, channelId: widget.channelId)),
-    );
-    // Keyboard focus only: a tap focuses too, and a ring on every tap would flash.
-    final ringed =
-        _focused &&
-        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
-    return Semantics(
-      button: true,
-      label: result.title.isEmpty ? 'Pick a GIF' : 'Pick: ${result.title}',
-      child: InkWell(
-        onTap: widget.busy ? null : widget.onTap,
-        onFocusChange: (focused) => setState(() => _focused = focused),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadii.control),
-              child: ColoredBox(
-                color: tokens.surfaceBase,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    switch (preview) {
-                      AsyncData(value: final Uint8List bytes) => AnimationGate(
-                        child: Image.memory(
-                          bytes,
-                          fit: BoxFit.cover,
-                          cacheWidth: decodeEdge(context, 160),
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
-                      ),
-                      AsyncError() => const SizedBox.shrink(),
-                      _ => const Center(
-                        child: AppSpinner(size: AppSpinnerSize.sm),
-                      ),
-                    },
-                    if (widget.selecting)
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: tokens.surfaceBase.withValues(alpha: 0.65),
-                        ),
-                        child: const Center(
-                          child: AppSpinner(size: AppSpinnerSize.md),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (ringed)
-              IgnorePointer(
-                child: DecoratedBox(
-                  key: const ValueKey('gif-tile-focus-ring'),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadii.control),
-                    border: Border.all(
-                      color: tokens.focusRing,
-                      width: focusRingWidth,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}

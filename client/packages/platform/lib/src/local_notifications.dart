@@ -35,6 +35,8 @@ const callsChannelId = 'calls_v1';
 const callsChannelName = 'Calls';
 const securityChannelId = 'security_v1';
 const securityChannelName = 'Security alerts';
+const voiceChannelId = 'voice_v1';
+const voiceChannelName = 'Voice activity';
 
 /// The Android channel a plain content-free alert posts through, and the
 /// stable notification id it replaces rather than stacks beside.
@@ -84,6 +86,14 @@ enum LocalAlertChannel {
     name: securityChannelName,
     description: 'Sign-ins and other account security alerts.',
     notificationId: 4,
+  ),
+
+  /// A call starting, growing or going live in a voice channel the member asked to hear about.
+  voice(
+    id: voiceChannelId,
+    name: voiceChannelName,
+    description: 'Calls starting or going live in channels you follow.',
+    notificationId: 5,
   );
 
   const LocalAlertChannel({

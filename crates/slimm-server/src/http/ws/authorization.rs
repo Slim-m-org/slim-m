@@ -493,6 +493,7 @@ async fn channel_frame(
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::EphemeralMessage { .. }
@@ -501,6 +502,7 @@ async fn channel_frame(
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceNotice { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,
     }))

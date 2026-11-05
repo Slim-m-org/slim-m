@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE admin_alerts SET notified_at = ?, announced = 1\n             WHERE kind = ? AND subject = ?\n               AND NOT EXISTS (SELECT 1 FROM admin_alerts WHERE kind = ? AND notified_at > ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "5b180b55dedf363bdd3f98e09a705912158b509efa8e9cb920f81d30a86c9039"
+}

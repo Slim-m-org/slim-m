@@ -61,6 +61,16 @@ async fn count_failure(
         return Ok(());
     }
     tracing::warn!(module = %module.id, streak, "disabled a module after repeated failed runs");
+    crate::admin_alerts::Notifier::from_state(state)
+        .raise(
+            crate::admin_alerts::AlertKind::ModuleBreaker,
+            &module.id,
+            &format!(
+                "{} was turned off after {streak} failed runs in a row.",
+                module.name
+            ),
+        )
+        .await;
     crate::call_audio::runtime::end_module_sessions(
         state,
         &module.id,

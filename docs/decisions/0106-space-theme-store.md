@@ -42,7 +42,7 @@ Any member can publish one to the Space, anyone can apply any of them for themse
 
 The picture is a BLOB on the store row, not an `attachments` row.
 The emoji path (0016, 0017) shows what sharing the attachments table costs: the orphan sweep, the export and the account deletion each need an exclusion for it.
-A theme picture is capped at 2 MiB and 50 themes, at most 100 MiB, and belongs to nothing else, so a column keeps it out of all three.
+A theme picture is capped at 2 MiB and 50 themes (5 per author), at most 100 MiB, and belongs to nothing else, so a column keeps it out of all three.
 It is served by `GET /space/themes/{id}/picture` with an immutable cache header, keyed by the theme id.
 Applying a theme with a picture hands the bytes to the personal background of 0104 on that device, so dim, vignette, blur and the contrast floor work as they already do.
 
@@ -74,3 +74,23 @@ Applying a theme with a picture hands the bytes to the personal background of 01
 
 A Space can now carry 50 pictures in its database.
 The caps bound it, and the store is the only place a member can add one.
+
+## The editor (built 2026-11-04)
+
+The theme editor finishes what the file format promised: you can now make a theme, not just move one around.
+
+- Route `/settings/themes/edit`, a `modalPage` (rule 5).
+  It is side by side from 640 wide inside the panel (tokens left, preview and contrast right) and stacked below it, with a fixed preview strip on top and the colour picker as a sheet.
+- It starts from any built-in ("Customise"), any Space theme ("Edit a copy"), a Mine entry ("Edit") or the "Start from" row inside the editor.
+- The 19 tokens are grouped as Surfaces, Text, Accent, Borders, Status and Other.
+  The picker is the design system's `AppColourPicker`, inline on a wide window and in `showAppColourPicker` on a phone, both previewing live through a new `onChanged`.
+  The three tokens that may carry alpha also get an opacity slider.
+- The contrast floors are data (`themeContrastChecks`) and the parser reports the same sentences.
+  Each failing floor shows what to change and a Fix button, "Fix all" covers several, and Save, Publish and Export refuse while any fails.
+- "Mine" is a list kept on the device (`slimm.appearance.my_themes`, at most 50), apart from the theme in use.
+  Pictures are not kept in Mine: the editor does not edit them, and a picture only travels with a theme applied from the store.
+  Importing a file with a picture saves the colours and drops the picture.
+- Publish sends the draft under the member's display name and shows the server's own sentence for the 5-per-author and 50-per-Space caps.
+- Import and Export use the existing wire format through the file picker; an import that fails the checks is refused with the first three problems.
+- Not built: "accent from my background picture" (0104), which needs palette extraction and is not cheap.
+- No migration and no server change.

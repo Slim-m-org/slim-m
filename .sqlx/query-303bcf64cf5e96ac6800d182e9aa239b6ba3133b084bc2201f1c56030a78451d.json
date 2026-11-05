@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: FavoriteId\" FROM user_favorites\n                       WHERE user_id = ? AND (id = ? OR (kind = 'attachment' AND attachment_sha256 = ?))",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: FavoriteId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "303bcf64cf5e96ac6800d182e9aa239b6ba3133b084bc2201f1c56030a78451d"
+}

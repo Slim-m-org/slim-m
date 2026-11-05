@@ -66,10 +66,10 @@ fn an_old_manifest_keeps_its_review_digest() {
 
 #[test]
 fn a_higher_addon_api_than_the_host_supports_is_refused_with_a_reason() {
-    let reason = refusal(&manifest_with(json!({"addon_api": 5}), &[]));
-    assert!(reason.contains("add-on API 5"), "{reason}");
-    assert!(reason.contains("up to 4"), "{reason}");
-    for supported in [1, 2, 3, 4] {
+    let reason = refusal(&manifest_with(json!({"addon_api": 6}), &[]));
+    assert!(reason.contains("add-on API 6"), "{reason}");
+    assert!(reason.contains("up to 5"), "{reason}");
+    for supported in [1, 2, 3, 4, 5] {
         assert!(
             parse_manifest(manifest_with(json!({"addon_api": supported}), &[]).as_bytes()).is_ok()
         );
@@ -98,6 +98,26 @@ fn subscriptions_need_the_events_capability_and_known_events() {
     assert!(refusal(&manifest_with(unknown, &["events"])).contains("unknown event"));
     let twice = json!({"addon_api": 1, "subscriptions": [{"event": "member.left"}, {"event": "member.left"}]});
     assert!(refusal(&manifest_with(twice, &["events"])).contains("twice"));
+}
+
+#[test]
+fn the_newer_events_need_add_on_api_5() {
+    for event in [
+        "message.edited",
+        "voice.participant.joined",
+        "voice.participant.left",
+        "voice.screen_share.changed",
+        "member.roles.changed",
+        "poll.voted",
+    ] {
+        let old = json!({"addon_api": 4, "subscriptions": [{"event": event}]});
+        assert!(refusal(&manifest_with(old, &["events"])).contains("\"addon_api\": 5"));
+        let new = json!({"addon_api": 5, "subscriptions": [{"event": event}]});
+        assert_eq!(
+            ok(new, &["events"]).platform.subscriptions,
+            vec![event.to_owned()]
+        );
+    }
 }
 
 #[test]

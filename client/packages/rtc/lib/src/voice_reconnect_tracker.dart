@@ -62,6 +62,9 @@ class ReconnectTracker {
   /// True from the SDK reporting a reconnect until it reports the end of it.
   final ValueNotifier<bool> active = ValueNotifier(false);
 
+  /// True while the peer connections are being rebuilt; a resume keeps the media path, so it never sets this.
+  final ValueNotifier<bool> restarting = ValueNotifier(false);
+
   bool _disposed = false;
   DateTime? _since;
   Timer? _stuck;
@@ -85,6 +88,9 @@ class ReconnectTracker {
           : 'Call transport: reconnecting (${kind.name})',
     );
     active.value = true;
+    if (kind == ReconnectKind.restart) {
+      restarting.value = true;
+    }
   }
 
   /// The SDK is retrying; also marks a reconnect whose start was not seen.
@@ -97,7 +103,11 @@ class ReconnectTracker {
       'Call transport: attempt $attempt of $maxAttempts '
       '(${_elapsedMs()} ms in, next retry in $nextDelayMs ms)',
     );
-    if (!wasActive) active.value = true;
+    if (!wasActive) {
+      active.value = true;
+      // A retry with no start seen cannot be told from a restart, so it is held as one.
+      restarting.value = true;
+    }
   }
 
   /// The reconnect is over, repaired or not; [cause] says which for the log.
@@ -114,6 +124,7 @@ class ReconnectTracker {
     if (elapsed > _longest) _longest = elapsed;
     log?.call('Call transport: $cause after ${elapsed.inMilliseconds} ms');
     active.value = false;
+    restarting.value = false;
   }
 
   /// Forgets the counts, at the end of a call; an episode in flight stays.
@@ -127,6 +138,7 @@ class ReconnectTracker {
     _disposed = true;
     _stuck?.cancel();
     active.dispose();
+    restarting.dispose();
   }
 
   int _elapsedMs() => _clock().difference(_since ?? _clock()).inMilliseconds;

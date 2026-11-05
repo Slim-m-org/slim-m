@@ -303,8 +303,11 @@ impl CallAudio {
         self.end(channel, reason, now)
     }
 
-    /// Time passing for every session.
+    /// Time passing for every session; also forgets cooldowns that have run out.
     pub fn tick(&self, now: i64) -> Vec<Outcome> {
+        if let Some(inner) = &self.inner {
+            lock(&inner.state).cooldowns.retain(|_, until| *until > now);
+        }
         self.channels(None)
             .into_iter()
             .filter_map(|channel| {
@@ -433,6 +436,13 @@ impl CallAudio {
             segment_id,
             ids: live.ids.clone(),
         })
+    }
+
+    #[cfg(test)]
+    fn cooldown_count(&self) -> usize {
+        lock(&self.inner.as_ref().expect("enabled").state)
+            .cooldowns
+            .len()
     }
 
     #[cfg(test)]

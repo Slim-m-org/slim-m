@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT a.content_type AS \"content_type!\", a.filename AS \"filename!\",\n                      ma.filename AS \"linked_name?: String\"\n               FROM message_attachments ma\n               JOIN messages m ON m.id = ma.message_id AND m.deleted_at IS NULL\n               JOIN attachments a ON a.sha256 = ma.sha256\n               WHERE ma.message_id = ? AND ma.sha256 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "content_type!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "filename!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "linked_name?: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0ff45b4bafaec726f4fab08cb826320f5164f48349c5c1af68a2a881e065f94b"
+}

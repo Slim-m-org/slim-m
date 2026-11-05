@@ -7,7 +7,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart' show AppThemeChoice;
 
-export '../providers/theme_labels.dart' show themeLabel;
+export '../providers/theme_labels.dart'
+    show themeLabel, themeBaseOf, themeCopyName;
 
 /// The palette a choice paints with; System shows both of its halves.
 List<Color> themeSwatchColors(AppThemeChoice choice) {

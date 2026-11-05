@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_image_paste.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../support/async_wait.dart';
 import '../../support/pixel_bomb_png.dart';
 import 'canvas_pane_harness.dart';
 
@@ -60,10 +61,8 @@ void main() {
     addTearDown(document.dispose);
     addTearDown(paste.stop);
 
-    await tester.runAsync(() async {
-      await paste.pasteFromKeystroke();
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
+    await tester.runAsync(paste.pasteFromKeystroke);
+    await waitUntil(tester, () => errors.contains('That image is too large.'));
 
     expect(errors, contains('That image is too large.'));
     expect(requests, isEmpty);
@@ -114,10 +113,8 @@ void main() {
     addTearDown(document.dispose);
     addTearDown(paste.stop);
 
-    await tester.runAsync(() async {
-      await paste.pasteFromKeystroke();
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
+    await tester.runAsync(paste.pasteFromKeystroke);
+    await waitUntil(tester, () => attached.isNotEmpty);
 
     expect(attached.map((a) => a.$1), ['p1']);
     expect(document.hasImageBitmap('p1'), isTrue);

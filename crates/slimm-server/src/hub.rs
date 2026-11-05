@@ -182,6 +182,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::SpaceSettingsChanged
         // A report being filed or resolved changes no permission's answer either.
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
@@ -191,6 +192,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceNotice { .. }
         // Internal to the module event consumer; it moves no permission.
         | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
@@ -285,11 +287,13 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceNotice { .. }
         | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => is_ephemeral(event),
     }

@@ -34,6 +34,13 @@ void main() {
     });
   });
 
+  test('iOS reports whether badges are allowed', () async {
+    messenger.setMockMethodCallHandler(const MethodChannel(_name),
+        (call) async => call.method == 'badgesAllowed' ? false : null);
+    expect(await AppBadgeChannel(isIOS: true).badgesAllowed(), isFalse);
+    expect(await AppBadgeChannel(isIOS: false).badgesAllowed(), isTrue);
+  });
+
   test('every other platform stays silent', () async {
     await AppBadgeChannel(isIOS: false).sync(count: 3, readChannelIds: ['a']);
     expect(calls, isEmpty);

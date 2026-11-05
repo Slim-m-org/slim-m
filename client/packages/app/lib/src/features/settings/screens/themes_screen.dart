@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
@@ -14,10 +15,12 @@ import '../../../permissions.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../providers/stored_theme.dart';
+import '../providers/theme_draft.dart';
 import '../providers/theme_store.dart';
 import '../providers/theme_store_actions.dart';
 import '../widgets/settings_empty.dart';
 import '../widgets/settings_section_header.dart';
+import '../widgets/my_themes_card.dart';
 import '../widgets/theme_list_row.dart';
 import '../widgets/theme_menu_button.dart';
 import '../widgets/theme_menus.dart';
@@ -66,6 +69,8 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
   Future<void> _rowAction(api.SpaceTheme theme, ThemeRowAction action) {
     return _run(() async {
       switch (action) {
+        case ThemeRowAction.copy:
+          _editCopyOf(theme);
         case ThemeRowAction.setDefault:
           await setSpaceDefaultTheme(ref, theme.id);
         case ThemeRowAction.clearDefault:
@@ -76,11 +81,38 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     });
   }
 
-  Widget? _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
+  void _editCopyOf(api.SpaceTheme theme) {
+    final document = parseThemeJson(theme.theme).document;
+    if (document == null) return;
+    unawaited(_openEditor(document, theme.name));
+  }
+
+  Future<void> _openEditor(ThemeDocument source, String name) {
+    final copy = source.copyWith(name: themeCopyName(name), author: '');
+    return context.push(
+      Routes.personalThemeEditor,
+      extra: ThemeEditorSeed(copy),
+    );
+  }
+
+  Widget? _builtInMenu(AppThemeChoice choice) {
+    final base = themeBaseOf(choice);
+    if (base == null) return null;
+    return ThemeMenuButton<ThemeRowAction>(
+      key: Key('theme-builtin-menu-${choice.name}'),
+      semanticLabel: 'More for ${themeLabel(choice)}',
+      onSelected: (_) {
+        final source = ThemeEditorSeed.fromBase(base).document;
+        unawaited(_openEditor(source, themeLabel(choice)));
+      },
+      items: (pick) => themeRowMenuItems(pick, copyLabel: 'Customise'),
+    );
+  }
+
+  Widget _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
     final me = ref.read(meProvider).valueOrNull;
     final isAdmin = me?.permissions.hasPermission(Perm.manageServer) ?? false;
     final canRemove = isAdmin || (me != null && theme.authorId == me.id);
-    if (!isAdmin && !canRemove) return null;
     return ThemeMenuButton<ThemeRowAction>(
       key: Key('theme-menu-${theme.id}'),
       semanticLabel: 'More for ${theme.name}',
@@ -91,6 +123,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
         isDefault: isDefault,
         canSetDefault: isAdmin,
         canRemove: canRemove,
+        copyLabel: 'Edit a copy',
       ),
     );
   }
@@ -117,7 +150,10 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
               ),
             ),
           _builtInCard(),
-          ..._mineCard(),
+          MyThemesCard(
+            onError: (message) => setState(() => _error = message),
+            busy: _busy,
+          ),
           _spaceCard(store, storeFailed),
         ],
       ),
@@ -142,36 +178,13 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
             label: themeLabel(choice),
             preview: ThemeSwatch(choice: choice),
             selected: current == choice,
+            menu: _builtInMenu(choice),
             onApply: () => unawaited(
               ref.read(themeControllerProvider.notifier).select(choice),
             ),
           ),
       ],
     );
-  }
-
-  List<Widget> _mineCard() {
-    final custom = ref.watch(customThemeProvider);
-    if (custom == null) return const [];
-    return [
-      SettingsSectionCard(
-        title: 'Mine',
-        children: [
-          ThemeListRow(
-            key: const Key('theme-mine'),
-            label: custom.name,
-            preview: ThemePreview(colours: themeStrip(custom)),
-            selected:
-                ref.watch(themeControllerProvider) == AppThemeChoice.custom,
-            onApply: () => unawaited(
-              ref
-                  .read(themeControllerProvider.notifier)
-                  .select(AppThemeChoice.custom),
-            ),
-          ),
-        ],
-      ),
-    ];
   }
 
   Widget _spaceCard(AsyncValue<api.SpaceThemeList> store, bool storeFailed) {

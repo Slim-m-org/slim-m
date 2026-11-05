@@ -121,14 +121,15 @@ pub async fn end_module_sessions(state: &AppState, module_id: &str, reason: EndR
 }
 
 /// Carries out an outcome's effects, then tells the call what its session now looks like.
-pub async fn apply(state: &AppState, outcome: Outcome) {
+/// False when the listener could not be started and the session was ended instead.
+pub async fn apply(state: &AppState, outcome: Outcome) -> bool {
     let mut ended: Option<EndReason> = None;
     for effect in &outcome.effects {
         match effect {
             Effect::Start => {
                 if !start_listener(state, &outcome) {
                     stop_unstartable(state, &outcome);
-                    return;
+                    return false;
                 }
                 module_events::started(state, &outcome);
             }
@@ -146,6 +147,7 @@ pub async fn apply(state: &AppState, outcome: Outcome) {
         }
     }
     publish(state, &outcome, ended);
+    true
 }
 
 fn publish(state: &AppState, outcome: &Outcome, ended: Option<EndReason>) {

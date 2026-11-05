@@ -13,6 +13,7 @@ use tower_http::trace::TraceLayer;
 
 pub use crate::state::AppState;
 
+mod admin_alerts;
 pub mod admin_audit;
 mod analytics;
 mod apps;
@@ -98,6 +99,7 @@ pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
 pub use scene_refresh::run_due as run_scene_refreshes;
+pub use storage::BackupStatusDir;
 mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;
@@ -118,6 +120,7 @@ mod reports;
 mod roles;
 use roles::role_reorder;
 mod data_exports;
+mod favorites;
 mod hold_music;
 mod media_compression;
 mod route_timing;
@@ -148,7 +151,9 @@ mod users;
 mod version;
 mod viewable_message;
 mod voice;
-use voice::{voice_call_audio, voice_calls, voice_ring, voice_rooms, voice_webhook};
+use voice::{
+    voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms, voice_webhook,
+};
 mod watch_session;
 mod webhooks;
 mod webhooks_admin;
@@ -274,6 +279,7 @@ pub fn router(state: AppState) -> Router {
         .merge(pins::routes())
         .merge(hold_music::routes())
         .merge(saved_messages::routes())
+        .merge(favorites::routes())
         .merge(recovery::routes())
         .merge(reports::routes())
         .merge(roles::routes())
@@ -289,6 +295,7 @@ pub fn router(state: AppState) -> Router {
         .merge(space_icon::routes())
         .merge(totp::routes())
         .merge(storage::routes())
+        .merge(admin_alerts::routes())
         .merge(uplink_test::routes())
         .merge(sync::routes())
         .merge(read_states::routes())
@@ -304,6 +311,7 @@ pub fn router(state: AppState) -> Router {
         .merge(voice_call_audio::routes())
         .merge(voice_calls::routes())
         .merge(voice_ring::routes())
+        .merge(voice_notify_prefs::routes())
         .merge(voice_rooms::routes())
         .merge(voice_webhook::routes())
         .merge(watch_session::routes())

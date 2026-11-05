@@ -132,4 +132,25 @@ final class NotificationSoundTests: XCTestCase {
     XCTAssertEqual(content.title, "New sign-in")
     XCTAssertEqual(content.body, "Pixel 9 signed in to your account.")
   }
+
+  func testAVoiceNoticeNamesTheCallAndWhoStartedIt() throws {
+    let plaintext = Array(
+      #"{"domain":"slim-m.push.v1","version":1,"kind":"voice","channel_id":"c1","activity":"call_started","sent_at":9999999999999,"actor_name":"Ada","channel_name":"lounge"}"#
+        .utf8)
+    let decoded = try XCTUnwrap(PushEnvelope.decode(plaintext))
+    let content = decoded.applied(to: UNMutableNotificationContent())
+    XCTAssertEqual(content.title, "#lounge")
+    XCTAssertEqual(content.body, "Ada started a call.")
+    XCTAssertEqual(content.userInfo[PushEnvelope.channelIdKey] as? String, "c1")
+  }
+
+  func testAContentFreeVoiceNoticeNamesNobody() throws {
+    let plaintext = Array(
+      #"{"domain":"slim-m.push.v1","version":1,"kind":"voice","channel_id":"c1","activity":"streaming","sent_at":9999999999999}"#
+        .utf8)
+    let decoded = try XCTUnwrap(PushEnvelope.decode(plaintext))
+    let content = decoded.applied(to: UNMutableNotificationContent())
+    XCTAssertEqual(content.title, "Voice channel")
+    XCTAssertEqual(content.body, "Someone started streaming.")
+  }
 }

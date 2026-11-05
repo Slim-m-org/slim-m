@@ -77,6 +77,13 @@ pub(super) async fn collect(b: &mut Builder<'_>, user: UserId) -> anyhow::Result
     )
     .await?;
     b.jsonl(
+        "favorites.jsonl",
+        "Your favorite GIFs and media, in your order",
+        store.export_member_favorites(user),
+        PLAIN,
+    )
+    .await?;
+    b.jsonl(
         "notes.jsonl",
         "Private notes you wrote about other members",
         store.export_member_notes(user),

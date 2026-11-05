@@ -308,6 +308,10 @@ pub enum Event {
     /// deployment-wide event here (`RoleChanged`, `CategoryChanged`,
     /// `MemberTimeoutChanged`) is already fine to broadcast unfiltered.
     ReportsChanged,
+    /// An operator alert opened or recovered. Carries nothing: a holder of
+    /// `MANAGE_SERVER` who has not muted alerts refetches `GET /space/alerts`.
+    /// `http::ws::authorization` withholds it from everyone else.
+    AdminAlertsChanged,
     /// One account's read marker in a channel moved, from any of its devices.
     ///
     /// Private to `user_id`: `http::ws::authorization` delivers it only to that
@@ -382,6 +386,15 @@ pub enum Event {
         to_channel_name: String,
         moved_by_id: UserId,
         moved_by_name: String,
+    },
+    /// Someone started a call, joined one or went live in a channel `user_id` asked to hear
+    /// about. Private to `user_id`; the audience and the time limit are settled before this
+    /// is published (decision 0107).
+    VoiceNotice {
+        user_id: UserId,
+        channel_id: ChannelId,
+        actor_id: UserId,
+        activity: crate::voice_notify::Activity,
     },
     /// A voice session closed. Internal: only the module event consumer reads
     /// it, and no websocket frame is ever built from it.

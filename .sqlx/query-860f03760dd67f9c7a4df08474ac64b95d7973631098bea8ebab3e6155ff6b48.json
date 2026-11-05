@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\", joins AS \"joins!\",\n                      streams AS \"streams!: bool\"\n               FROM voice_notify_prefs WHERE user_id = ? ORDER BY updated_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "joins!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "streams!: bool",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "860f03760dd67f9c7a4df08474ac64b95d7973631098bea8ebab3e6155ff6b48"
+}

@@ -9,6 +9,8 @@ library;
 
 import 'dart:ui' show Color;
 
+import 'package:flutter/foundation.dart' show listEquals;
+
 /// One monitor the overlay could cover, in the desktop's logical pixels.
 class OverlayMonitor {
   const OverlayMonitor({
@@ -152,6 +154,118 @@ class OverlayNote extends OverlayShape {
       };
 }
 
+/// Which corner of the monitor the call panel sits in.
+enum OverlayCorner {
+  topLeft('Top left'),
+  topRight('Top right'),
+  bottomLeft('Bottom left'),
+  bottomRight('Bottom right');
+
+  const OverlayCorner(this.label);
+
+  final String label;
+}
+
+/// One person in the call panel.
+class OverlayPanelRow {
+  const OverlayPanelRow({
+    required this.name,
+    this.speaking = false,
+    this.muted = false,
+    this.deafened = false,
+  });
+
+  final String name;
+  final bool speaking;
+  final bool muted;
+  final bool deafened;
+
+  Map<String, Object?> toJson() => {
+        'name': name,
+        'speaking': speaking,
+        'muted': muted,
+        'deafened': deafened,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayPanelRow &&
+      other.name == name &&
+      other.speaking == speaking &&
+      other.muted == muted &&
+      other.deafened == deafened;
+
+  @override
+  int get hashCode => Object.hash(name, speaking, muted, deafened);
+}
+
+/// The call panel the runner paints in one corner of one monitor. Value
+/// equality is what lets the caller skip a repaint when nothing changed.
+class OverlayPanel {
+  const OverlayPanel({
+    required this.monitor,
+    required this.corner,
+    required this.rows,
+    required this.more,
+    required this.surface,
+    required this.border,
+    required this.text,
+    required this.textMuted,
+    required this.accent,
+    required this.danger,
+  });
+
+  /// Index into [OverlaySupport.monitors].
+  final int monitor;
+  final OverlayCorner corner;
+  final List<OverlayPanelRow> rows;
+
+  /// People past the rows shown.
+  final int more;
+  final Color surface, border, text, textMuted, accent, danger;
+
+  Map<String, Object?> toJson() => {
+        'monitor': monitor,
+        'corner': corner.name,
+        'rows': [for (final r in rows) r.toJson()],
+        'more': more,
+        'surface': surface.toARGB32(),
+        'border': border.toARGB32(),
+        'text': text.toARGB32(),
+        'textMuted': textMuted.toARGB32(),
+        'accent': accent.toARGB32(),
+        'danger': danger.toARGB32(),
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayPanel &&
+      other.monitor == monitor &&
+      other.corner == corner &&
+      other.more == more &&
+      other.surface == surface &&
+      other.border == border &&
+      other.text == text &&
+      other.textMuted == textMuted &&
+      other.accent == accent &&
+      other.danger == danger &&
+      listEquals(other.rows, rows);
+
+  @override
+  int get hashCode => Object.hash(
+        monitor,
+        corner,
+        more,
+        surface,
+        border,
+        text,
+        textMuted,
+        accent,
+        danger,
+        Object.hashAll(rows),
+      );
+}
+
 /// The overlay window, behind a seam so the app never touches the channel.
 abstract class ScreenOverlay {
   Future<OverlaySupport> support();
@@ -163,4 +277,10 @@ abstract class ScreenOverlay {
   Future<void> draw(List<OverlayShape> shapes);
 
   Future<void> hide();
+
+  /// Paints [panel] in its corner of the window, or clears it when null.
+  Future<void> panel(OverlayPanel? panel);
+
+  /// The monitor the app's own window is on, or null when the runner cannot tell.
+  Future<int?> appMonitor();
 }

@@ -39,9 +39,6 @@ import 'support/code_only.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
-  'publishSpaceTheme': 'the owner removed Publish from the Themes page while '
-      'themes cannot be customized in the app; store themes are published '
-      'through the API by scripts and bots (2026-11-03)',
   'placeCanvasObjects': 'the batch place for bots that draw hundreds of marks; '
       'the app commits one gesture at a time through placeCanvasObject '
       '(2026-11-03)',

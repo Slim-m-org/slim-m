@@ -101,6 +101,8 @@ pub(super) enum PushKind {
     /// A ring that ended, so a device still showing it can stop; see `call_end`.
     #[serde(rename = "call_end")]
     CallEnd,
+    /// A voice channel call started, grew or went live; see `voice_notice`.
+    Voice,
     /// An account security alert; see `security`.
     Security,
 }
@@ -114,6 +116,8 @@ impl PushKind {
             PushKind::Mention => "mention",
             PushKind::Call => "call",
             PushKind::CallEnd => "call_end",
+            // The relay refuses a kind it does not know, so this rides as a plain message.
+            PushKind::Voice => "message",
             PushKind::Security => "security",
         }
     }

@@ -62,9 +62,11 @@ pub(super) async fn send_and_prune(
         Ok(results) => results,
         Err(err) => {
             tracing::warn!(error = %err, what, "push: relay send failed");
+            enabled.relay_failures.fetch_add(1, Ordering::Relaxed);
             return None;
         }
     };
+    enabled.relay_failures.store(0, Ordering::Relaxed);
     let triage = Triage::of(messages, &results);
     for message in &triage.dead {
         clear_dead(store, message).await;

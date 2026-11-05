@@ -210,6 +210,19 @@ pub struct Config {
     pub discord_client_secret: Option<String>,
     #[serde(default, deserialize_with = "blank_as_none")]
     pub discord_redirect_uri: Option<String>,
+
+    /// Directory the backup container writes its `status.json` into, mounted read-only here.
+    /// Blank reads as unset, and Storage then says backups are not set up.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub backup_status_dir: Option<String>,
+
+    /// Free space on the data volume, in MiB, under which admins are alerted. 0 turns the alert off.
+    #[serde(default = "default_alert_min_disk_free_mb")]
+    pub alert_min_disk_free_mb: u64,
+}
+
+fn default_alert_min_disk_free_mb() -> u64 {
+    1024
 }
 
 fn default_port() -> u16 {
@@ -281,6 +294,8 @@ impl Default for Config {
             discord_client_id: None,
             discord_client_secret: None,
             discord_redirect_uri: None,
+            backup_status_dir: None,
+            alert_min_disk_free_mb: default_alert_min_disk_free_mb(),
         }
     }
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #include "screen_overlay.h"
 
+#include "screen_overlay_panel.h"
+
 #include <dlfcn.h>
 #include <gtk/gtk.h>
 #include <pango/pangocairo.h>
@@ -42,6 +44,7 @@ constexpr int kKeyboardNone = 0;
 LayerShell g_layer;
 std::vector<GtkWidget*> g_windows;
 std::vector<Shape> g_shapes;
+Panel g_panel;
 
 template <typename T>
 bool Bind(void* lib, const char* name, T* out) {
@@ -160,6 +163,10 @@ void DrawNote(cairo_t* cr, const Shape& s, double w, double h) {
   g_object_unref(layout);
 }
 
+int MonitorOf(GtkWidget* window) {
+  return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "slimm-monitor"));
+}
+
 gboolean OnDraw(GtkWidget* widget, cairo_t* cr, gpointer) {
   cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
   cairo_set_source_rgba(cr, 0, 0, 0, 0);
@@ -173,6 +180,9 @@ gboolean OnDraw(GtkWidget* widget, cairo_t* cr, gpointer) {
       case Shape::Kind::kEllipse: DrawEllipse(cr, s, w, h); break;
       case Shape::Kind::kNote: DrawNote(cr, s, w, h); break;
     }
+  }
+  if (g_panel.present && MonitorOf(widget) == g_panel.monitor) {
+    DrawPanel(cr, g_panel, w, h);
   }
   return TRUE;
 }
@@ -211,7 +221,7 @@ void PlaceOnWayland(GtkWindow* window, GdkMonitor* monitor) {
   }
 }
 
-void ShowOn(GdkMonitor* monitor) {
+void ShowOn(GdkMonitor* monitor, int index) {
   GdkRectangle geometry;
   gdk_monitor_get_geometry(monitor, &geometry);
 
@@ -237,6 +247,7 @@ void ShowOn(GdkMonitor* monitor) {
   } else {
     gtk_window_move(GTK_WINDOW(window), geometry.x, geometry.y);
   }
+  g_object_set_data(G_OBJECT(window), "slimm-monitor", GINT_TO_POINTER(index));
   g_windows.push_back(window);
   gtk_widget_show_all(window);
 }
@@ -268,7 +279,7 @@ bool Show(const std::vector<int>& monitor_indexes) {
     }
   }
   if (unique.empty()) unique.push_back(0);
-  for (int index : unique) ShowOn(MonitorAt(index));
+  for (int index : unique) ShowOn(MonitorAt(index), index);
   return true;
 }
 
@@ -277,8 +288,33 @@ void Draw(std::vector<Shape> shapes) {
   for (GtkWidget* window : g_windows) gtk_widget_queue_draw(window);
 }
 
+void SetPanel(Panel panel) {
+  g_panel = std::move(panel);
+  for (GtkWidget* window : g_windows) gtk_widget_queue_draw(window);
+}
+
+int AppMonitor() {
+  GdkDisplay* display = gdk_display_get_default();
+  if (display == nullptr) return -1;
+  int found = -1;
+  GList* toplevels = gtk_window_list_toplevels();
+  for (GList* l = toplevels; l != nullptr && found < 0; l = l->next) {
+    GtkWidget* window = GTK_WIDGET(l->data);
+    GdkWindow* surface = gtk_widget_get_window(window);
+    bool ours = std::find(g_windows.begin(), g_windows.end(), window) != g_windows.end();
+    if (ours || surface == nullptr || !gtk_widget_get_visible(window)) continue;
+    GdkMonitor* on = gdk_display_get_monitor_at_window(display, surface);
+    for (int i = 0; i < gdk_display_get_n_monitors(display); i++) {
+      if (gdk_display_get_monitor(display, i) == on) found = i;
+    }
+  }
+  g_list_free(toplevels);
+  return found;
+}
+
 void Hide() {
   g_shapes.clear();
+  g_panel = Panel();
   std::vector<GtkWidget*> open = g_windows;
   for (GtkWidget* window : open) gtk_widget_destroy(window);
   g_windows.clear();

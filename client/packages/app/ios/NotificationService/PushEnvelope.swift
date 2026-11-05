@@ -50,10 +50,16 @@ struct PushEnvelope: Decodable {
   var kind: String? = nil
   var event: String? = nil
   var deviceName: String? = nil
+  var activity: String? = nil
+  var actorName: String? = nil
+  var channelName: String? = nil
+  var title: String? = nil
 
   static let mentionKind = "mention"
   static let securityKind = "security"
+  static let voiceKind = "voice"
   static let newDeviceSignInEvent = "new_device_sign_in"
+  static let adminAlertEvent = "admin_alert"
 
   /// Spelled out because two of these are snake_case on the wire. The
   /// authority is the `PushEnvelope` struct in
@@ -70,6 +76,10 @@ struct PushEnvelope: Decodable {
     case kind
     case event
     case deviceName = "device_name"
+    case activity
+    case actorName = "actor_name"
+    case channelName = "channel_name"
+    case title
   }
 
   /// Decodes, or nil for anything this build should not act on. An unknown
@@ -147,6 +157,19 @@ struct PushEnvelope: Decodable {
       content.body = "\(deviceName) signed in to your account."
       return content
     }
+    if kind == Self.voiceKind, !isStale(now: now) {
+      content.title = channelName.flatMap { $0.isEmpty ? nil : "#\($0)" } ?? "Voice channel"
+      content.body = voiceBody
+      return content
+    }
+    if kind == Self.securityKind, event == Self.adminAlertEvent,
+      let title, !title.isEmpty, let body, !isStale(now: now)
+    {
+      // The words are the server's own, not member content.
+      content.title = title
+      content.body = body
+      return content
+    }
     guard hasPreview, !isStale(now: now), let sender = sender, let body = body else {
       return content
     }
@@ -156,6 +179,16 @@ struct PushEnvelope: Decodable {
     }
     content.body = body
     return content
+  }
+
+  /// What happened on the call, naming who only when the device asked for names.
+  private var voiceBody: String {
+    let who = (actorName?.isEmpty == false) ? actorName! : "Someone"
+    switch activity {
+    case "call_started": return "\(who) started a call."
+    case "streaming": return "\(who) started streaming."
+    default: return "\(who) joined the call."
+    }
   }
 
   /// Copies the routing ids into `userInfo` so the app can read them when
