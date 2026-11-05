@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.124.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.123.0...client-v0.124.0) (2026-11-05)
+
+
+### Features
+
+* v126 - gif picker cleanup, known bug fixes, linux pop-out on top, windows update hand-over, module store page ([e980fe4](https://github.com/Slim-m-org/slim-m/commit/e980fe4fb8df3b8fc221a839477f6d026061bedf))
+
 ## [0.123.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.122.0...client-v0.123.0) (2026-11-05)
 
 
