@@ -321,7 +321,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
               child: AppSegmentedControl.inline(
                 options: const [
                   AppSegmentedOption(label: 'Favorites'),
-                  AppSegmentedOption(label: 'GIFs'),
+                  AppSegmentedOption(label: 'Search'),
                 ],
                 selectedIndex: tab.index,
                 onSegmentSelected: (i) =>

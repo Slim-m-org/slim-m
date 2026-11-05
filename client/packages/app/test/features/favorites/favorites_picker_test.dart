@@ -168,18 +168,19 @@ void main() {
     expect(container.read(favoritesProvider).requireValue, hasLength(2));
   });
 
-  testWidgets('the GIFs tab is still reachable and the search field is back', (
-    tester,
-  ) async {
-    final server = _Server([_gif('a')]);
-    await _pump(tester, server, onPicked: (_) {});
+  testWidgets(
+    'the Search tab is still reachable and the search field is back',
+    (tester) async {
+      final server = _Server([_gif('a')]);
+      await _pump(tester, server, onPicked: (_) {});
 
-    await tester.tap(find.text('GIFs'));
-    await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('Search'));
+      await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Search GIFs'), findsOneWidget);
-    expect(_tile('a'), findsNothing);
-  });
+      expect(find.text('Search GIFs'), findsOneWidget);
+      expect(_tile('a'), findsNothing);
+    },
+  );
 
   testWidgets('an unavailable favorite cannot be sent', (tester) async {
     final server = _Server([_kept('k', available: false)]);
