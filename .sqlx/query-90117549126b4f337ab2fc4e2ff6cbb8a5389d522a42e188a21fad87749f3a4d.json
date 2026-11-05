@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO user_favorites\n                   (id, user_id, kind, position, created_at, title,\n                    attachment_sha256, content_type, message_id)\n                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "90117549126b4f337ab2fc4e2ff6cbb8a5389d522a42e188a21fad87749f3a4d"
+}

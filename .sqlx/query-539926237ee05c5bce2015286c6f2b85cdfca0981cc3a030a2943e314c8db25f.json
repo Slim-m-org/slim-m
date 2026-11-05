@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO user_favorites\n                   (id, user_id, kind, position, created_at, title, width, height,\n                    gif_preview_url, gif_full_url)\n                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "539926237ee05c5bce2015286c6f2b85cdfca0981cc3a030a2943e314c8db25f"
+}

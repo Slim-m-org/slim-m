@@ -33,6 +33,7 @@ Future<void> showFullscreenImage(
   required int index,
   required Uint8List bytes,
   Object? heroTag,
+  String? messageId,
 }) {
   return Navigator.of(context, rootNavigator: true).push<void>(
     PageRouteBuilder<void>(
@@ -52,6 +53,7 @@ Future<void> showFullscreenImage(
           index: index,
           bytes: bytes,
           heroTag: heroTag,
+          messageId: messageId,
         ),
       ),
     ),
@@ -65,7 +67,11 @@ class FullscreenImageViewer extends ConsumerStatefulWidget {
     required this.index,
     required this.bytes,
     this.heroTag,
+    this.messageId,
   });
+
+  /// The message the images sit on, so the menu can offer Add to favorites.
+  final String? messageId;
 
   /// Every image on the message, in the order the message shows them.
   final List<api.Attachment> images;
@@ -236,6 +242,7 @@ class _FullscreenImageViewerState extends ConsumerState<FullscreenImageViewer> {
                   Expanded(
                     child: ImageActionsMenuRegion(
                       image: widget.images[_current],
+                      messageId: widget.messageId,
                       loadBytes: _currentBytes,
                       onFailure: (message) =>
                           setState(() => _exportFailure = message),

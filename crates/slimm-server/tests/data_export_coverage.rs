@@ -163,6 +163,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ),
     ("roles", "managed_bot_id", Fate::Excluded(BOT_CONFIG)),
     ("saved_messages", "user_id", Fate::Exported("saved.jsonl")),
+    (
+        "user_favorites",
+        "user_id",
+        Fate::Exported("favorites.jsonl"),
+    ),
     ("sessions", "user_id", Fate::Excluded(CREDENTIAL)),
     ("space_removals", "removed_by", Fate::Excluded(STAFF_RECORD)),
     ("space_removals", "user_id", Fate::Excluded(STAFF_RECORD)),

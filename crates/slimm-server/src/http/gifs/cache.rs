@@ -35,7 +35,18 @@ struct CachedGif {
     /// stored under a useful filename (slugged from this) instead of a bare
     /// "gif.gif" - see `gifs::select`.
     title: String,
+    width: u32,
+    height: u32,
     inserted_at: i64,
+}
+
+/// What a favorite keeps of a search hit: the real URLs, which outlive the token.
+pub(crate) struct GifSnapshot {
+    pub(crate) title: String,
+    pub(crate) preview_url: String,
+    pub(crate) full_url: String,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 /// A plain `Mutex<HashMap<..>>`, the same shape
@@ -76,6 +87,8 @@ impl Cache {
                 preview_url: gif.preview_url.clone(),
                 full_url: gif.full_url.clone(),
                 title: gif.title.clone(),
+                width: gif.width,
+                height: gif.height,
                 inserted_at: now,
             },
         );
@@ -90,6 +103,16 @@ impl Cache {
 
     pub(super) fn full_url(&self, token: &str) -> Option<String> {
         self.lock().get(token).map(|cached| cached.full_url.clone())
+    }
+
+    pub(super) fn snapshot(&self, token: &str) -> Option<GifSnapshot> {
+        self.lock().get(token).map(|cached| GifSnapshot {
+            title: cached.title.clone(),
+            preview_url: cached.preview_url.clone(),
+            full_url: cached.full_url.clone(),
+            width: cached.width,
+            height: cached.height,
+        })
     }
 
     pub(super) fn title(&self, token: &str) -> Option<String> {
@@ -113,6 +136,8 @@ mod tests {
             preview_url: preview.to_owned(),
             full_url: full.to_owned(),
             title: "a title".to_owned(),
+            width: 0,
+            height: 0,
             inserted_at: now_ms() - ago_ms,
         }
     }

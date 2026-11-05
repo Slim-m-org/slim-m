@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: FavoriteId\" FROM user_favorites\n                       WHERE user_id = ? AND (id = ? OR (kind = 'gif' AND gif_full_url = ?))",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: FavoriteId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "54d1d9129dbc59774336dfc4aa25892b45fbcf83b92bdd5ba6b1f0bf7d24e941"
+}

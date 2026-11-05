@@ -72,3 +72,6 @@ String uuidV7At(int now, Random random) {
   return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}'
       '-${hex.substring(16, 20)}-${hex.substring(20)}';
 }
+
+/// The same generator for a favorite, idempotent by id like a message send.
+String newFavoriteId() => _uuidV7();

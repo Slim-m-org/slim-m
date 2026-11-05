@@ -30,6 +30,7 @@ export 'client_dock.dart' show SlimmApiDock;
 export 'client_emoji.dart' show SlimmApiEmoji;
 export 'client_space_themes.dart' show SlimmApiSpaceThemes;
 export 'client_exports.dart' show SlimmApiExports;
+export 'client_favorites.dart' show SlimmApiFavorites;
 export 'client_gifs.dart' show SlimmApiGifs;
 export 'client_interactions.dart' show SlimmApiInteractions;
 export 'client_join_gate.dart' show JoinGate, SlimmApiJoinGate, SpaceRules;

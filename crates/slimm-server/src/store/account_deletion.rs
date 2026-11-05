@@ -181,6 +181,9 @@ impl Store {
         sqlx::query!("DELETE FROM saved_messages WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query!("DELETE FROM user_favorites WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         // How somebody voted is theirs, like the emoji they reacted with; the tally moves as a reaction count would.
         sqlx::query!("DELETE FROM poll_votes WHERE user_id = ?", user_id)
             .execute(&mut *tx)

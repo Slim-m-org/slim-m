@@ -64,6 +64,7 @@ Deleted messages are never exported.
 | `messages.jsonl` | The member's own messages, with `channel_id`, `channel_kind` (`text`, `voice` or `dm`), `channel_name` (null for a direct message), `thread_of_message_id`, and `forwarded_from` (ids and time only, no text). |
 | `reactions.jsonl` | `message_id`, `channel_id`, `emoji`, `created_at`. |
 | `saved.jsonl` | `message_id`, `channel_id`, `saved_at`, `is_own`, and `content` only when `is_own`. |
+| `favorites.jsonl` | `id`, `kind` (`gif` or `attachment`), `title`, `created_at`, in the member's order; `gif_url` for a GIF, `attachment_id` and `message_id` for media kept from a message. |
 | `notes.jsonl` | The member's private notes: `subject_id`, `subject_username`, `body`, times. |
 | `blocks.jsonl` | `blocked_id`, `blocked_username`, `created_at`. |
 | `poll_votes.jsonl` | `message_id`, `channel_id`, `position`, `voted_at`. |

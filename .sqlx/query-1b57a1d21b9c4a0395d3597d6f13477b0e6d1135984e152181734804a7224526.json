@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT f.id AS \"id!: FavoriteId\", f.kind AS \"kind!\", f.created_at AS \"created_at!\",\n                      f.title AS \"title!\", f.width AS \"width!\", f.height AS \"height!\",\n                      f.gif_preview_url, f.gif_full_url,\n                      f.attachment_sha256 AS \"attachment_sha256: Vec<u8>\", f.content_type,\n                      f.message_id AS \"message_id?: MessageId\",\n                      m.channel_id AS \"channel_id?: ChannelId\"\n               FROM user_favorites f\n               LEFT JOIN messages m ON m.id = f.message_id AND m.deleted_at IS NULL\n               WHERE f.user_id = ? ORDER BY f.position, f.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: FavoriteId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "title!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "width!",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "height!",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "gif_preview_url",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "gif_full_url",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "attachment_sha256: Vec<u8>",
+        "ordinal": 8,
+        "type_info": "Blob"
+      },
+      {
+        "name": "content_type",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "message_id?: MessageId",
+        "ordinal": 10,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id?: ChannelId",
+        "ordinal": 11,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "1b57a1d21b9c4a0395d3597d6f13477b0e6d1135984e152181734804a7224526"
+}

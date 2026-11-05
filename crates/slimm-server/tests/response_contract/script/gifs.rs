@@ -32,4 +32,49 @@ pub(super) async fn gif_calls(c: &mut Contract, root: &str) {
     .await;
     c.bare("getTrendingGifs", "GET", "/gifs/trending", root)
         .await;
+    favorite_calls(c, root, &id).await;
+}
+
+/// A favorite is made from a live search token, so it runs while one is in hand.
+async fn favorite_calls(c: &mut Contract, root: &str, gif_id: &str) {
+    let fav = uuid::Uuid::now_v7().to_string();
+    c.json(
+        "addFavorite",
+        "POST",
+        "/favorites",
+        root,
+        json!({ "id": fav, "kind": "gif", "gif_id": gif_id }),
+    )
+    .await;
+    c.get("listFavorites", "/favorites", root).await;
+    c.bare(
+        "getFavoritePreview",
+        "GET",
+        &format!("/favorites/{fav}/preview"),
+        root,
+    )
+    .await;
+    c.json(
+        "selectFavorite",
+        "POST",
+        &format!("/favorites/{fav}/select"),
+        root,
+        json!({}),
+    )
+    .await;
+    c.json(
+        "reorderFavorites",
+        "PUT",
+        "/favorites/order",
+        root,
+        json!({ "ids": [fav] }),
+    )
+    .await;
+    c.bare(
+        "removeFavorite",
+        "DELETE",
+        &format!("/favorites/{fav}"),
+        root,
+    )
+    .await;
 }

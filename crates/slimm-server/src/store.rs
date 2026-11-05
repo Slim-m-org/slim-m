@@ -92,6 +92,7 @@ mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
+mod favorites;
 mod hold_music;
 mod login_throttle;
 mod media_compression;
@@ -176,6 +177,7 @@ pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use export_capacity::DEFAULT_EXPORT_CEILING_BYTES;
 pub use export_rows::RowStream;
+pub use favorites::{FavoriteError, FavoriteKind, FavoriteRow, MAX_FAVORITES, NewFavorite};
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
 pub use group_dms::{
     GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,

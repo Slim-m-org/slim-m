@@ -34,6 +34,7 @@ export 'models_emoji.dart';
 export 'models_space_theme.dart';
 export 'models_exports.dart';
 export 'models_forwards.dart';
+export 'models_favorites.dart';
 export 'models_gifs.dart';
 export 'models_identity.dart';
 export 'models_link_preview.dart';

@@ -117,3 +117,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0106](0106-space-theme-store.md) | A Space theme store: full themes (colours, backdrop effect, picture) exported to a file, published by members, defaulted by admins | accepted |
 | [0107](0107-voice-activity-notices.md) | Opt-in notices when a call starts, grows or goes live: per channel, limited to one per ten minutes, pushed and shown in app | accepted |
 | [0109](0109-more-module-events.md) | Modules hear message edits, voice joins and leaves, screen shares, role changes and poll votes, and who reacted | accepted |
+| [0110](0110-favorites.md) | Favorites: GIFs and message media, kept as references | accepted |

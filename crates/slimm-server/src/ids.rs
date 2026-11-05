@@ -44,6 +44,10 @@ uuid_id!(
 );
 uuid_id!(EmojiId, "A custom emoji identity.");
 uuid_id!(ThemeId, "A Space store theme identity.");
+uuid_id!(
+    FavoriteId,
+    "A favorite-list entry identity, minted by the client."
+);
 uuid_id!(ExportId, "A data export job identity.");
 uuid_id!(
     FamilyId,

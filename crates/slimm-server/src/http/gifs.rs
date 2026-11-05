@@ -49,6 +49,7 @@ mod provider;
 mod tests;
 
 use self::gif_select::select;
+pub(crate) use self::gif_select::store_gif;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,7 +114,7 @@ struct Enabled {
 /// What went wrong asking the provider or the cache, kept distinct from
 /// [`ApiError`] so [`GifSearch`] never has to think about HTTP status codes;
 /// each route below maps it once, at the edge.
-enum GifError {
+pub(crate) enum GifError {
     /// No provider is configured at all.
     NotConfigured,
     /// A provider request failed. Retrying the same pick in a moment can
@@ -250,6 +251,24 @@ impl GifSearch {
             .preview_url(token)
             .ok_or(GifError::StaleToken)?;
         fetch_capped(&enabled.http, &url, MAX_PREVIEW_BYTES).await
+    }
+
+    /// The real URLs behind a live search token, for a favorite to keep.
+    pub(crate) fn snapshot(&self, token: &str) -> Result<cache::GifSnapshot, GifError> {
+        let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
+        enabled.cache.snapshot(token).ok_or(GifError::StaleToken)
+    }
+
+    /// A thumbnail for a URL a favorite kept, fetched with the same cap as a search preview.
+    pub(crate) async fn preview_bytes_from(&self, url: &str) -> Result<Vec<u8>, GifError> {
+        let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
+        fetch_capped(&enabled.http, url, MAX_PREVIEW_BYTES).await
+    }
+
+    /// The full image for a URL a favorite kept, with the same cap as a selected result.
+    pub(crate) async fn download_full_from(&self, url: &str) -> Result<Vec<u8>, GifError> {
+        let enabled = self.inner.as_deref().ok_or(GifError::NotConfigured)?;
+        fetch_capped(&enabled.http, url, MAX_DOWNLOAD_BYTES).await
     }
 
     async fn download_full(&self, token: &str) -> Result<(Vec<u8>, String), GifError> {

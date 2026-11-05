@@ -27,6 +27,7 @@ import '../../../providers/toasts.dart';
 import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/viewport_freeze.dart';
 import '../../../widgets/attachment_format.dart';
+import '../../favorites/providers/favorite_actions.dart';
 import '../providers/message_api_actions.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_reopen.dart';
@@ -96,7 +97,14 @@ final clipboardFileWriterProvider = Provider<ClipboardFileWriter>(
 );
 
 class AttachmentVideoPlayer extends ConsumerStatefulWidget {
-  const AttachmentVideoPlayer({super.key, required this.attachment});
+  const AttachmentVideoPlayer({
+    super.key,
+    required this.attachment,
+    this.messageId,
+  });
+
+  /// The message the video sits on; without one there is nothing to favorite.
+  final String? messageId;
 
   final api.Attachment attachment;
 
@@ -196,6 +204,15 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     }
   }
 
+  Future<void> _favorite(String messageId) async {
+    final failure = await addAttachmentToFavorites(
+      ref,
+      messageId: messageId,
+      attachment: attachment,
+    );
+    if (failure != null && mounted) setActionError(failure);
+  }
+
   Future<void> _openFullscreen() {
     return showFullscreenAttachmentVideo(
       context,
@@ -280,6 +297,15 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
                   onTap: () {
                     close();
                     unawaited(_copy());
+                  },
+                ),
+              if (widget.messageId case final id?)
+                AppMenuItem(
+                  label: 'Add to favorites',
+                  leading: AppIcons.favorite,
+                  onTap: () {
+                    close();
+                    unawaited(_favorite(id));
                   },
                 ),
               AppMenuItem(

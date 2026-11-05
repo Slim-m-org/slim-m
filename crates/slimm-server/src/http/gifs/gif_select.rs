@@ -35,14 +35,25 @@ pub(super) async fn select(
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
     require_attach_files(&state, ctx.user_id, req.channel_id.as_deref()).await?;
     let (bytes, title) = state.gifs.download_full(&req.id).await?;
+    let attachment = store_gif(&state, ctx.user_id, bytes, &title).await?;
+    Ok((StatusCode::CREATED, Json(attachment)))
+}
+
+/// Stores downloaded GIF bytes as an ordinary attachment owned by `user_id`.
+pub(crate) async fn store_gif(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    bytes: Vec<u8>,
+    title: &str,
+) -> Result<AttachmentDto, ApiError> {
     if bytes.len() as u64 > state.media.max_attachment_bytes() {
         return Err(ApiError::BadRequest("gif is too large to attach"));
     }
-    room_for(&state, bytes.len() as i64).await?;
+    room_for(state, bytes.len() as i64).await?;
     // Unsniffable is the provider's doing, never the caller's own token.
     let content_type = media::sniff_content_type(&bytes).ok_or(ApiError::Unavailable)?;
     // Named after the provider's title (slugged, falling back to "gif"), so a saved GIF is findable later rather than a wall of identical "gif.gif".
-    let filename = format!("{}.{}", slug_filename(&title), extension_for(content_type));
+    let filename = format!("{}.{}", slug_filename(title), extension_for(content_type));
 
     let sha256 = Sha256::digest(&bytes).to_vec();
     let hex_id = media::to_hex(&sha256);
@@ -59,18 +70,15 @@ pub(super) async fn select(
         })?;
     state
         .store
-        .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
+        .store_attachment(&sha256, size, content_type, &filename, Some(user_id))
         .await?;
     drop(placing);
-    Ok((
-        StatusCode::CREATED,
-        Json(AttachmentDto::from(AttachmentSummary {
-            id: hex_id,
-            filename,
-            content_type: content_type.to_owned(),
-            size,
-            spoiler: false,
-            original: None,
-        })),
-    ))
+    Ok(AttachmentDto::from(AttachmentSummary {
+        id: hex_id,
+        filename,
+        content_type: content_type.to_owned(),
+        size,
+        spoiler: false,
+        original: None,
+    }))
 }

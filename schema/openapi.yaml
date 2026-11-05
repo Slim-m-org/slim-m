@@ -5267,6 +5267,233 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /favorites:
+    get:
+      operationId: listFavorites
+      tags: [gifs]
+      summary: Your own favorites, in the order you arranged them.
+      description: >
+        GIFs and media kept from messages, one private list per account. A
+        message favorite is only a reference to an attachment, never a copy.
+        `available` is false once its source message is deleted or its channel
+        can no longer be viewed; the entry stays so it can be removed. Returned
+        whole, which the ceiling of 200 makes safe.
+      responses:
+        "200":
+          description: The caller's favorites.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Favorite"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: addFavorite
+      tags: [gifs]
+      summary: Add a GIF or a message's media to your favorites.
+      description: >
+        Idempotent on the entry `id` and on the content: favoriting the same
+        GIF or file twice answers with the entry already held. A new entry goes
+        first. A `gif` entry is made from a live `searchGifs` or
+        `fetchTrendingGifs` result id; the server keeps the provider URLs so the
+        favorite outlives the token. An `attachment` entry names a message the
+        caller can view and an image or video attached to it. An account holds
+        at most 200; adding past that is a 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, kind]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: Client-minted UUIDv7 for the entry.
+                kind:
+                  type: string
+                  enum: [gif, attachment]
+                gif_id:
+                  type: string
+                  description: A result id, for `gif`.
+                message_id:
+                  type: string
+                  format: uuid
+                  description: The message the media was seen on, for `attachment`.
+                attachment_id:
+                  type: string
+                  description: The attachment id on that message, for `attachment`.
+      responses:
+        "201":
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Favorite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /favorites/order:
+    put:
+      operationId: reorderFavorites
+      tags: [gifs]
+      summary: Put the named favorites first, in the order given.
+      description: >
+        Entries not named keep their relative order after the named ones, and
+        unknown ids are ignored, so a stale client cannot lose an entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "204":
+          description: The order was saved.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /favorites/{favoriteId}:
+    parameters:
+      - name: favoriteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: removeFavorite
+      tags: [gifs]
+      summary: Remove a favorite.
+      description: >
+        Idempotent, and asks for no permission: letting go is never refused.
+      responses:
+        "204":
+          description: The entry is not in the list (whether or not it was).
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /favorites/{favoriteId}/preview:
+    parameters:
+      - name: favoriteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getFavoritePreview
+      tags: [gifs]
+      summary: A GIF favorite's thumbnail, streamed through this server.
+      responses:
+        "200":
+          description: The thumbnail image.
+          content:
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /favorites/{favoriteId}/select:
+    parameters:
+      - name: favoriteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: selectFavorite
+      tags: [gifs]
+      summary: Turn a favorite into an attachment a message can carry.
+      description: >
+        Needs ATTACH_FILES, as `selectGif` does. A `gif` favorite is downloaded
+        through this server and stored as an ordinary attachment (201). An
+        `attachment` favorite re-checks that the caller can still view the
+        source message's channel and answers with the existing attachment (200);
+        if the message is gone or the channel is no longer viewable it is a 409
+        and nothing is served.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  description: The channel the media is headed for, as in `selectGif`.
+      responses:
+        "200":
+          description: The existing attachment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "201":
+          description: The stored attachment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
   /channels/{channelId}/messages/{messageId}/link-previews:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -16970,6 +17197,44 @@ components:
                 When the caller saved it, unix milliseconds - not when it was
                 sent, which is the message's own `created_at`. The list is
                 ordered by this.
+
+    Favorite:
+      type: object
+      required: [id, kind, title, width, height, available, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [gif, attachment]
+        title:
+          type: string
+        width:
+          type: integer
+          description: Pixels; 0 when unknown.
+        height:
+          type: integer
+        available:
+          type: boolean
+          description: >
+            False when an `attachment` entry's source message is gone or its
+            channel can no longer be viewed.
+        created_at:
+          type: integer
+          format: int64
+        attachment_id:
+          type: string
+        content_type:
+          type: string
+        message_id:
+          type: string
+          format: uuid
+          description: Present only while the entry is available.
+        channel_id:
+          type: string
+          format: uuid
+          description: Present only while the entry is available.
 
     ForwardedMessage:
       type: object
