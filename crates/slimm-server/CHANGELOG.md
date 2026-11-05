@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.107.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.106.0...server-v0.107.0) (2026-11-05)
+
+
+### Features
+
+* v124 - settings and pop-up cleanup, single-page modules, mic test on tap, synced hold music ([#2336](https://github.com/Slim-m-org/slim-m/issues/2336)) ([540e676](https://github.com/Slim-m-org/slim-m/commit/540e676a0fcfcdfb9ae64a6998d0dc2e3ce160ff))
+* v125 - backlog fixes, call overlay, theme editor, favorites, voice notices, share zoom, module events, backup alerts ([#2339](https://github.com/Slim-m-org/slim-m/issues/2339)) ([7359322](https://github.com/Slim-m-org/slim-m/commit/73593223c6dc84cd8bdda150d47e1b3f6ede2f9c))
+
 ## [0.106.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.105.0...server-v0.106.0) (2026-11-03)
 
 
