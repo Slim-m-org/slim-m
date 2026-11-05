@@ -299,7 +299,6 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
       label: 'Save',
       variant: AppButtonVariant.primary,
       size: AppButtonSize.sm,
-      touch: false,
       disabled: _busy || !_draft.canSave,
       onPressed: () => unawaited(_save()),
     ),
