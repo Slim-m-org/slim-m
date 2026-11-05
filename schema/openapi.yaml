@@ -5299,7 +5299,7 @@ paths:
         Idempotent on the entry `id` and on the content: favoriting the same
         GIF or file twice answers with the entry already held. A new entry goes
         first. A `gif` entry is made from a live `searchGifs` or
-        `fetchTrendingGifs` result id; the server keeps the provider URLs so the
+        `getTrendingGifs` result id; the server keeps the provider URLs so the
         favorite outlives the token. An `attachment` entry names a message the
         caller can view and an image or video attached to it. An account holds
         at most 200; adding past that is a 400.
