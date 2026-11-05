@@ -17,24 +17,31 @@ extension SlimmApiFavorites on SlimmApi {
   }
 
   /// Favorites a live GIF result. Idempotent on [id] and on the GIF itself.
-  Future<Favorite> addGifFavorite(String id, {required String gifId}) =>
-      _add({'id': id, 'kind': 'gif', 'gif_id': gifId});
+  Future<Favorite> addGifFavorite(String id, {required String gifId}) async {
+    final json = await send(
+      'POST',
+      '/favorites',
+      body: {'id': id, 'kind': 'gif', 'gif_id': gifId},
+    );
+    return Favorite.fromJson(json as Map<String, dynamic>);
+  }
 
   /// Favorites an image or video attached to a message the caller can view.
   Future<Favorite> addAttachmentFavorite(
     String id, {
     required String messageId,
     required String attachmentId,
-  }) =>
-      _add({
+  }) async {
+    final json = await send(
+      'POST',
+      '/favorites',
+      body: {
         'id': id,
         'kind': 'attachment',
         'message_id': messageId,
         'attachment_id': attachmentId,
-      });
-
-  Future<Favorite> _add(Map<String, dynamic> body) async {
-    final json = await send('POST', '/favorites', body: body);
+      },
+    );
     return Favorite.fromJson(json as Map<String, dynamic>);
   }
 
