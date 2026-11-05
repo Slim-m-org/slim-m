@@ -149,6 +149,7 @@ export 'src/events.dart'
         ReadStateChanged,
         CodeRunChanged,
         CodeRunsCleared,
+        AdminAlertsChanged,
         ReportsChanged,
         RoleChanged,
         ServerEvent,

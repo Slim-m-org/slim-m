@@ -116,6 +116,13 @@ async fn five_failures_in_a_row_switch_a_module_off_and_a_success_or_enabling_re
             .contains("5 failed background runs"),
         "{module}"
     );
+    let alerts = w.store.list_admin_alerts(0).await.unwrap();
+    assert!(
+        alerts
+            .iter()
+            .any(|a| a.kind == "module_breaker" && a.subject == "flaky" && a.resolved_at.is_none()),
+        "the breaker tripping tells the admins: {alerts:?}"
+    );
     let audit = w.store.admin_changes(None, 10).await.unwrap();
     let entry = audit
         .iter()

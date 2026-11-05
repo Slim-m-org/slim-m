@@ -308,6 +308,10 @@ pub enum Event {
     /// deployment-wide event here (`RoleChanged`, `CategoryChanged`,
     /// `MemberTimeoutChanged`) is already fine to broadcast unfiltered.
     ReportsChanged,
+    /// An operator alert opened or recovered. Carries nothing: a holder of
+    /// `MANAGE_SERVER` who has not muted alerts refetches `GET /space/alerts`.
+    /// `http::ws::authorization` withholds it from everyone else.
+    AdminAlertsChanged,
     /// One account's read marker in a channel moved, from any of its devices.
     ///
     /// Private to `user_id`: `http::ws::authorization` delivers it only to that

@@ -20,6 +20,17 @@ pub use voice::{
 
 use crate::{hub, media, store};
 
+/// The sweeps that record a run in `sweep_status`, with how often each one ticks.
+///
+/// Lives beside the intervals so the admin alerts, which read a missed run as a failing sweep,
+/// cannot drift from the schedule.
+pub(crate) const RECORDED_SWEEPS: [(&str, std::time::Duration); 4] = [
+    ("token", TOKEN_SWEEP_INTERVAL),
+    ("attachments", ATTACHMENT_SWEEP_INTERVAL),
+    ("canvas_ops", CANVAS_OP_SWEEP_INTERVAL),
+    ("message_retention", MESSAGE_RETENTION_SWEEP_INTERVAL),
+];
+
 /// Records that a sweep just ran, for the operator-visible storage view at
 /// `GET /space/storage`. Best-effort: a failure here is only ever logged,
 /// never allowed to affect the sweep it is called from, since the sweep's

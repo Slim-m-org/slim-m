@@ -72,6 +72,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::EphemeralMessage { .. }

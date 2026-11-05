@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE admin_alerts SET resolved_at = ?\n             WHERE kind = ? AND subject = ? AND resolved_at IS NULL\n             RETURNING detail, raised_at, announced AS \"announced: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "detail",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "raised_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "announced: bool",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a7559b5343340e17533fac02692c2b1f51586e4bb73a4b88cbc39b71453f340f"
+}

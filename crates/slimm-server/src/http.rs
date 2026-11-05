@@ -13,6 +13,7 @@ use tower_http::trace::TraceLayer;
 
 pub use crate::state::AppState;
 
+mod admin_alerts;
 pub mod admin_audit;
 mod analytics;
 mod apps;
@@ -98,6 +99,7 @@ pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
 pub use scene_refresh::run_due as run_scene_refreshes;
+pub use storage::BackupStatusDir;
 mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;
@@ -293,6 +295,7 @@ pub fn router(state: AppState) -> Router {
         .merge(space_icon::routes())
         .merge(totp::routes())
         .merge(storage::routes())
+        .merge(admin_alerts::routes())
         .merge(uplink_test::routes())
         .merge(sync::routes())
         .merge(read_states::routes())

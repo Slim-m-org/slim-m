@@ -315,6 +315,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             version: 3,
         }),
         Event::ReportsChanged,
+        Event::AdminAlertsChanged,
         Event::ReadStateChanged {
             user_id: alice,
             channel_id: channel,

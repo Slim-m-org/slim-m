@@ -219,6 +219,19 @@ extension SlimmApiSpace on SlimmApi {
     return SpaceStorage.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Operator alerts and whether the caller has muted them.
+  Future<AdminAlerts> fetchAdminAlerts() async {
+    final json = await send('GET', '/space/alerts');
+    return AdminAlerts.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Sets the caller's alert mute; the same value twice changes nothing.
+  Future<AdminAlerts> setAdminAlertsMuted(bool muted) async {
+    final json =
+        await send('PUT', '/space/alerts/mute', body: {'muted': muted});
+    return AdminAlerts.fromJson(json as Map<String, dynamic>);
+  }
+
   /// The kept uplink measurements, newest first.
   Future<List<UplinkTest>> fetchUplinkTests() async {
     final json = await send('GET', '/space/uplink-test');

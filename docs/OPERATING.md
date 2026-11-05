@@ -20,19 +20,19 @@ To set one of those you need a compose override file that adds it to the `server
 | --- | --- | --- | --- |
 | `SLIMM_PORT` | `8080` | TCP port for HTTP and WebSocket. | no, the image sets 8080 |
 | `SLIMM_DATABASE_PATH` | `data/slimm.db` | The SQLite file. | no, the image sets `/data/slimm.db` |
-| `SLIMM_DATA_KEY_ALLOW_NEW` | unset | Set to `1` to let a server with sealed two-factor secrets and no key start with a fresh one. Only after every factor was cleared; see [The data key](#the-data-key). | no |
+| `SLIMM_DATA_KEY_ALLOW_NEW` | unset | Set to `1` to let a server with sealed two-factor secrets and no key start with a fresh one. Only after every factor was cleared; see [The data key](#the-data-key). | yes |
 | `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | no |
 | `SLIMM_ATTACHMENTS_DIR` | `data/media` | Where attachment and avatar bytes live, beside the database. | no, the image sets `/data/media` |
 | `SLIMM_MODULES_DIR` | a `modules` directory beside the database | One small SQLite file per installed module that keeps structured data, named `<module id>.db`. Created on first use, owner-only. Uninstalling keeps a module's file unless you ask to delete its data. | no, the image keeps it in `/data/modules` |
-| `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | no |
+| `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | yes |
 | `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES` | unset, no ceiling | Most bytes held in attachments and custom emoji together. Over it is a 507. Avatars are outside it. | yes, example sets 2 GiB |
-| `SLIMM_HASH_CONCURRENCY` | `4` | How many Argon2id password hashes run at once, about 19 MiB each while running. | no |
+| `SLIMM_HASH_CONCURRENCY` | `4` | How many Argon2id password hashes run at once, about 19 MiB each while running. | yes |
 | `SLIMM_LOG` | `info` | Log filter in tracing `EnvFilter` syntax. | yes |
 | `SLIMM_TRUST_PROXY_HOPS` | `0` | How many reverse proxies in front of the server may be believed about a caller's address, for rate limiting. | yes, defaults to 1 for Caddy |
 | `SLIMM_CORS_ALLOWED_ORIGINS` | unset, no CORS | Comma-separated browser origins allowed cross-origin. `*` and malformed entries stop startup. | yes |
 | `SLIMM_MIN_CLIENT_VERSION` | unset, no floor | Oldest client version still served, as `X.Y.Z`. Older clients are stopped and offered an update. Empty is read as unset. | yes |
 | `SLIMM_DIRECT_ADDRESSES` | unset | Comma-separated `host:port` where native clients on your own network reach the same TLS endpoint directly, for example `10.0.0.100:443`, so they skip Cloudflare or another proxy. Clients verify the certificate against the public hostname, and only dial a private or loopback IP literal on the server's own port. Served to signed-in clients at `GET /direct-route`, never in the unauthenticated `/version`. | yes |
-| `SLIMM_MODULE_LAN_DENY` | unset | Comma-separated IPs or CIDRs (for example `10.0.0.50, 192.168.1.0/24`) that a module with the Private network approval may never reach. Always refused as well: this server's own addresses, the hosts in `SLIMM_DIRECT_ADDRESSES` (the docker host's LAN address), and every docker bridge network the container can see. Malformed entries are logged and ignored. | no |
+| `SLIMM_MODULE_LAN_DENY` | unset | Comma-separated IPs or CIDRs (for example `10.0.0.50, 192.168.1.0/24`) that a module with the Private network approval may never reach. Always refused as well: this server's own addresses, the hosts in `SLIMM_DIRECT_ADDRESSES` (the docker host's LAN address), and every docker bridge network the container can see. Malformed entries are logged and ignored. | yes |
 | `SLIMM_LINK_PREVIEWS` | `false` | Unfurl pasted links into preview cards. Makes the server fetch member-supplied URLs behind an SSRF guard (decision 0019). | yes |
 | `SLIMM_GIF_PROVIDER` | unset | `tenor` or `klipy`. Set it with the key or neither. An unrecognised value stops startup. | yes |
 | `SLIMM_GIF_API_KEY` | unset | Your key for that provider. | yes |
@@ -40,16 +40,25 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_LIVEKIT_API_KEY` | unset | The key LiveKit knows this deployment by. | voice overlay only |
 | `SLIMM_LIVEKIT_API_SECRET` | unset | The matching secret. Set all three LiveKit variables or none; with none, every voice route answers 501. | voice overlay only |
 | `SLIMM_LIVEKIT_SERVICE_URL` | derived from `SLIMM_LIVEKIT_URL` | Where this server reaches LiveKit for roster and kick calls, for example `http://livekit:7880` on the compose network. Set it when `SLIMM_LIVEKIT_URL` goes out through a proxy such as Cloudflare, which adds roughly 100 ms to every call. | voice overlay only |
-| `SLIMM_PUSH_RELAY_URL` | unset | Base URL of the push relay. `http://` is refused unless it is loopback or private-range. | no |
-| `SLIMM_PUSH_RELAY_KEY` | unset | Bearer key sent to the relay. Set both push variables or neither; with neither, push is off and the server says so once at startup. | no |
-| `SLIMM_ADDONS_REPO` | `Slim-m-org/slim-addons` | The `owner/repo` the Dock reads as the official module source, always from `raw.githubusercontent.com`. The older `NC1107/slim-addons` is tried too. | no |
-| `SLIMM_CODE_RUNNER_URL` | unset | Base URL of a Piston instance you run. Unset means no Run button on code blocks. | no |
-| `SLIMM_MEMORY_LIMIT_BYTES` | the cgroup limit | Overrides the memory ceiling the server refuses new WebSocket connections near. With no limit found, connections are always admitted. | no |
+| `SLIMM_PUSH_RELAY_URL` | unset | Base URL of the push relay. `http://` is refused unless it is loopback or private-range. | yes |
+| `SLIMM_PUSH_RELAY_KEY` | unset | Bearer key sent to the relay. Set both push variables or neither; with neither, push is off and the server says so once at startup. | yes |
+| `SLIMM_ADDONS_REPO` | `Slim-m-org/slim-addons` | The `owner/repo` the Dock reads as the official module source, always from `raw.githubusercontent.com`. The older `NC1107/slim-addons` is tried too. | yes |
+| `SLIMM_CODE_RUNNER_URL` | unset | Base URL of a Piston instance you run. Unset means no Run button on code blocks. | yes |
+| `SLIMM_MEMORY_LIMIT_BYTES` | the cgroup limit | Overrides the memory ceiling the server refuses new WebSocket connections near. With no limit found, connections are always admitted. | yes |
+| `SLIMM_BACKUP_STATUS_DIR` | unset | Where the backup container writes `status.json`, read-only here. Unset, Storage shows backups as not set up. | yes, `/backup-status` |
+| `SLIMM_ALERT_MIN_DISK_FREE_MB` | `1024` | Free MiB on the data disk under which admins are alerted. `0` turns the alert off. | yes |
 | `SLIMM_BUILD_ID` | unset | Identifier `/version` reports, 1 to 12 letters or digits. Read when the server is compiled, so it does nothing on a running one. | not applicable |
 
 A few things follow from the "no" entries.
-Push notifications cannot be turned on through `.env` under the shipped compose file, because it does not pass the relay pair; that is a gap in the example, not a design choice, and a compose override closes it.
-The same holds for the module repository, the code runner and the memory override.
+The compose file passes the push relay pair and the other tunables, blank or at the server's own default.
+The port, database path, attachments directory and modules directory stay with the image.
+
+## Admin alerts
+
+Holders of Manage server are told, in the app and by push, when LiveKit is unreachable for 2 minutes, the data disk is under `SLIMM_ALERT_MIN_DISK_FREE_MB`, a background sweep misses 3 runs, the backup failed or is over 48 hours old, a module is turned off by its circuit breaker, or the push relay stops answering.
+Each kind pushes at most once per 6 hours and sends a recovery notice.
+Each admin can mute them in Settings, Storage; the list there still shows them.
+Decision 0108 has the detail.
 
 ## Ports and voice off the LAN
 

@@ -56,6 +56,7 @@ import '../features/channels/widgets/channel_rail_frame.dart';
 import '../features/palette/widgets/command_palette.dart';
 import '../features/home/widgets/compact_drawer_scaffold.dart';
 import '../features/members/widgets/member_pane.dart';
+import '../features/admin_alerts/widgets/admin_alert_banner_host.dart';
 import '../features/auth/widgets/new_device_banner_host.dart';
 import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
@@ -117,11 +118,13 @@ class HomeShell extends ConsumerWidget {
                 layout: layout,
                 child: NewDeviceBannerHost(
                   child: VoiceNoticeBannerHost(
-                    child: RulesGateBannerHost(
-                      child: UpdateBannerHost(
-                        child: DownloadFailureHost(
-                          child: DatabaseResetNotice(
-                            child: AppBackgroundHost(child: scaffold),
+                    child: AdminAlertBannerHost(
+                      child: RulesGateBannerHost(
+                        child: UpdateBannerHost(
+                          child: DownloadFailureHost(
+                            child: DatabaseResetNotice(
+                              child: AppBackgroundHost(child: scaffold),
+                            ),
                           ),
                         ),
                       ),

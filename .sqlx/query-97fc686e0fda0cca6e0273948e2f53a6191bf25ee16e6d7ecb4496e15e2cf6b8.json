@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT kind, subject, detail, raised_at, resolved_at\n               FROM admin_alerts\n               WHERE resolved_at IS NULL OR resolved_at >= ?\n               ORDER BY raised_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "subject",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "detail",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "raised_at",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "resolved_at",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "97fc686e0fda0cca6e0273948e2f53a6191bf25ee16e6d7ecb4496e15e2cf6b8"
+}

@@ -38,6 +38,7 @@ const _body = {
   'sweeps': [
     {'name': 'token', 'last_run_at': 1000, 'last_reclaimed': 3},
   ],
+  'backup': {'state': 'never', 'stale': false},
 };
 
 ProviderContainer _containerFor(MockClient client) {
@@ -71,9 +72,9 @@ void main() {
   testWidgets('renders totals, top channels and sweep status as text', (
     tester,
   ) async {
-    var requestedPath = '';
+    final requested = <String>[];
     final client = MockClient((request) async {
-      requestedPath = request.url.path;
+      requested.add(request.url.path);
       return http.Response(
         jsonEncode(_body),
         200,
@@ -86,7 +87,7 @@ void main() {
     await tester.pumpWidget(_app(container));
     await tester.pumpAndSettle();
 
-    expect(requestedPath, '/space/storage');
+    expect(requested, contains('/space/storage'));
     expect(find.text('490.3 KB'), findsOneWidget); // total on disk
     expect(find.text('488.3 KB of 490.3 KB'), findsOneWidget); // database
     expect(find.text('2.0 KB of 490.3 KB'), findsOneWidget); // attachments
@@ -108,6 +109,7 @@ void main() {
           'attachment_bytes': 0,
           'top_channels': <Map<String, dynamic>>[],
           'sweeps': <Map<String, dynamic>>[],
+          'backup': {'state': 'not_configured', 'stale': false},
         }),
         200,
         headers: {'content-type': 'application/json'},

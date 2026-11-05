@@ -462,6 +462,10 @@ pub(super) enum ServerFrame {
     /// boundary, not a visibility nicety.
     #[serde(rename = "reports.changed")]
     ReportsChanged,
+    /// An operator alert opened or recovered; see [`crate::hub::Event::AdminAlertsChanged`].
+    /// Delivered only to unmuted holders of `MANAGE_SERVER`.
+    #[serde(rename = "admin_alerts.changed")]
+    AdminAlertsChanged,
     /// The account's read marker in a channel moved on some device; see
     /// [`crate::hub::Event::ReadStateChanged`]. Delivered only to that
     /// account's own connections.

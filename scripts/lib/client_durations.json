@@ -175,6 +175,8 @@
 "test/features/accounts/account_sync_events_test.dart": 0.5,
 "test/features/accounts/effective_me_refresh_test.dart": 0.4,
 "test/features/accounts/space_settings_switch_test.dart": 0.6,
+"test/features/admin_alerts/admin_alert_banner_test.dart": 2.0,
+"test/features/admin_alerts/storage_alerts_test.dart": 2.5,
 "test/features/admin_setup/admin_setup_flow_test.dart": 10.9,
 "test/features/admin_setup/capacity_guidance_test.dart": 0.4,
 "test/features/auth/banner_hosts_keep_child_state_test.dart": 0.8,

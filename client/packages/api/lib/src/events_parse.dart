@@ -12,6 +12,7 @@ ServerEvent? coreFrame(Map<String, dynamic> decoded) {
     'category.changed' => const CategoryChanged(),
     'space.settings_changed' => const SpaceSettingsChanged(),
     'reports.changed' => const ReportsChanged(),
+    'admin_alerts.changed' => const AdminAlertsChanged(),
     'pong' => const PongEvent(),
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
     'dm.changed' when decoded['channel_id'] is String =>

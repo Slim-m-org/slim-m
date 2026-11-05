@@ -182,6 +182,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::SpaceSettingsChanged
         // A report being filed or resolved changes no permission's answer either.
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
@@ -286,6 +287,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }

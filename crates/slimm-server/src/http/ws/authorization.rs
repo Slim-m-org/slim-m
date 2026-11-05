@@ -493,6 +493,7 @@ async fn channel_frame(
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
         | Event::ReportsChanged
+        | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::EphemeralMessage { .. }

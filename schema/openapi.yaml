@@ -9656,6 +9656,8 @@ paths:
         and threads, the same scope `/space/analytics`'s `channel_count`
         uses. `sweeps` lists every background sweep that has recorded at
         least one run; a sweep that has never run is simply absent.
+        `backup` is what the nightly backup container last wrote; the server
+        only reads it.
       responses:
         "200":
           description: Current storage usage and sweep status.
@@ -9663,6 +9665,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SpaceStorage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/alerts:
+    get:
+      operationId: listAdminAlerts
+      tags: [space]
+      summary: List operator alerts and the caller's mute.
+      description: >
+        Gated on MANAGE_SERVER. Open conditions plus those that recovered in
+        the last 24 hours, newest first. A mute stops the push and the live
+        notice for the caller; the list still answers.
+      responses:
+        "200":
+          description: The alerts and whether the caller has muted them.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAlerts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/alerts/mute:
+    put:
+      operationId: setAdminAlertsMuted
+      tags: [space]
+      summary: Mute or unmute operator alerts for the caller.
+      description: >
+        Gated on MANAGE_SERVER. Setting the value it already has changes
+        nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAdminAlertsMutedRequest"
+      responses:
+        "200":
+          description: The alerts and the mute now in effect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAlerts"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -13079,8 +13132,11 @@ components:
           attachment_bytes,
           top_channels,
           sweeps,
+          backup,
         ]
       properties:
+        backup:
+          $ref: "#/components/schemas/SpaceBackupStatus"
         database_bytes:
           type: integer
           description: The database file's logical size, from SQLite's page count.
@@ -13102,6 +13158,78 @@ components:
           description: Every background sweep that has recorded at least one run.
           items:
             $ref: "#/components/schemas/SpaceSweepStatus"
+    SpaceBackupStatus:
+      type: object
+      required: [state, stale]
+      description: >
+        The newest nightly backup run and the last one that passed its restore
+        drill. `not_configured` and `never` are not failures.
+      properties:
+        state:
+          type: string
+          enum: [not_configured, never, verified, failed, unreadable]
+        error:
+          type: [string, "null"]
+          description: What the newest run failed with, when `state` is `failed`.
+        verified_at:
+          type: [integer, "null"]
+          description: Epoch milliseconds of the last backup that passed its restore drill.
+        verified_bytes:
+          type: [integer, "null"]
+          description: Size of the database snapshot in that backup.
+        stale:
+          type: boolean
+          description: The last verified backup is older than 48 hours.
+    AdminAlert:
+      type: object
+      required: [kind, subject, detail, raised_at, resolved_at]
+      properties:
+        kind:
+          type: string
+          description: >
+            `livekit_unreachable`, `disk_low`, `sweep_failing`, `backup`,
+            `module_breaker` or `push_relay`. A client shows an unknown kind
+            by its `detail`.
+        subject:
+          type: string
+          description: What the kind applies to, such as a module id or sweep name; empty otherwise.
+        detail:
+          type: string
+        raised_at:
+          type: integer
+          description: Epoch milliseconds.
+        resolved_at:
+          type: [integer, "null"]
+          description: Epoch milliseconds it recovered, or null while it lasts.
+    AdminAlerts:
+      type: object
+      required: [alerts, muted]
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAlert"
+        muted:
+          type: boolean
+          description: The caller asked not to be pushed or shown these live.
+    SetAdminAlertsMutedRequest:
+      type: object
+      required: [muted]
+      properties:
+        muted:
+          type: boolean
+    AdminAlertsChanged:
+      type: object
+      required: [type]
+      description: >
+        An operator alert opened or recovered. Carries no fields. Delivered
+        only to a connection whose user holds MANAGE_SERVER and has not muted
+        alerts; a receiving client re-fetches `listAdminAlerts`.
+      properties:
+        type:
+          type: string
+          enum: [admin_alerts.changed]
+
     SpaceRetention:
       type: object
       required: [retention_days]
@@ -19026,6 +19154,7 @@ components:
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
         - $ref: "#/components/schemas/CanvasObjectLockChanged"
         - $ref: "#/components/schemas/ReportsChanged"
+        - $ref: "#/components/schemas/AdminAlertsChanged"
         - $ref: "#/components/schemas/ReadStateChanged"
         - $ref: "#/components/schemas/NotificationOverrideChanged"
         - $ref: "#/components/schemas/MessageEphemeral"

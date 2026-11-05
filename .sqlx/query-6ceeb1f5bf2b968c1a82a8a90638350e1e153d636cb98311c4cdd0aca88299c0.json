@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT subject AS \"subject!\" FROM admin_alerts\n               WHERE kind = ? AND resolved_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "subject!",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6ceeb1f5bf2b968c1a82a8a90638350e1e153d636cb98311c4cdd0aca88299c0"
+}

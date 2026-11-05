@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.id AS \"id!: UserId\" FROM users u\n               WHERE u.deleted_at IS NULL AND u.is_webhook = 0 AND u.admin_alerts_muted = 0\n               AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id) AND (\n                   EXISTS (SELECT 1 FROM roles WHERE is_everyone = 1 AND (permissions & ?) != 0)\n                   OR EXISTS (\n                       SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id\n                       WHERE mr.user_id = u.id AND (r.permissions & ?) != 0\n                   )\n               )",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e07ecbe418cc865f5572212ba4ad21f55efeef1fe8243fa737baee69b85a7f57"
+}

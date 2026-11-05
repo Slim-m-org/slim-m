@@ -206,6 +206,17 @@ Back that key up apart from the replica: a restore without it leaves two-factor 
 They live on disk beside the database, at `SLIMM_ATTACHMENTS_DIR` (default `/data/media` inside the container, so the same `slimm_data` volume as the database), specifically because multi-megabyte blobs in the SQLite file would bloat what Litestream streams for no benefit.
 That means restoring from a Litestream replica brings back every message and its attachment references, but not the attachment files themselves; a client would render broken images and failed downloads for anything uploaded since the last time `/data/media` was backed up some other way.
 
+### Nightly verified backups
+
+Set `COMPOSE_PROFILES=backup` (comma separated with any other profile) and run `docker compose up -d`.
+The `backup` service runs `scripts/backup.py`, then `scripts/restore-drill.py`, at 03:00 UTC (`SLIMM_BACKUP_HOUR_UTC`) and keeps 14 snapshots (`SLIMM_BACKUP_KEEP`).
+It needs the repo's `scripts/` directory beside `docker-compose.yml`.
+Snapshots go to the `slimm_backups` volume; set `SLIMM_BACKUP_DIR` to a host path on another disk to survive losing this one.
+It writes `status.json` into `slimm_backup_status`, which the server mounts read-only and shows in Settings, Storage as "Last verified backup".
+The server never runs a backup itself.
+A failed run or a verified backup older than 48 hours alerts everyone with the Manage server permission; see docs/OPERATING.md, Admin alerts.
+The same volume keeps `slimm-data.key` out: back that up apart, as above.
+
 ### `scripts/backup.py` and `scripts/restore-drill.py`
 
 These two scripts are the "some other way", and they complement Litestream rather than duplicate it: Litestream is continuous, off-host replication of the database file alone, while these are a periodic snapshot of the database *and* the attachment/avatar bytes together, plus a drill that actually restores and checks one.

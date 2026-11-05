@@ -47,6 +47,7 @@
   "{\"seq\":\"CLOCK\",\"type\":\"member.restored\",\"user_id\":\"01900000-0000-7000-8000-000000000007\"}",
   "{\"seq\":\"CLOCK\",\"type\":\"member.timeout\",\"until\":1700000000003,\"user_id\":\"BOB\"}",
   "{\"seq\":41,\"type\":\"member.removed\",\"user_id\":\"01900000-0000-7000-8000-00000000000e\"}",
+  "{\"type\":\"admin_alerts.changed\"}",
   "{\"type\":\"category.changed\"}",
   "{\"type\":\"join_gate.changed\",\"user_id\":\"BOB\"}",
   "{\"type\":\"member.joined\",\"user_id\":\"01900000-0000-7000-8000-000000000008\"}",

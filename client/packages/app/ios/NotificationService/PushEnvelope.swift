@@ -53,11 +53,13 @@ struct PushEnvelope: Decodable {
   var activity: String? = nil
   var actorName: String? = nil
   var channelName: String? = nil
+  var title: String? = nil
 
   static let mentionKind = "mention"
   static let securityKind = "security"
   static let voiceKind = "voice"
   static let newDeviceSignInEvent = "new_device_sign_in"
+  static let adminAlertEvent = "admin_alert"
 
   /// Spelled out because two of these are snake_case on the wire. The
   /// authority is the `PushEnvelope` struct in
@@ -77,6 +79,7 @@ struct PushEnvelope: Decodable {
     case activity
     case actorName = "actor_name"
     case channelName = "channel_name"
+    case title
   }
 
   /// Decodes, or nil for anything this build should not act on. An unknown
@@ -157,6 +160,14 @@ struct PushEnvelope: Decodable {
     if kind == Self.voiceKind, !isStale(now: now) {
       content.title = channelName.flatMap { $0.isEmpty ? nil : "#\($0)" } ?? "Voice channel"
       content.body = voiceBody
+      return content
+    }
+    if kind == Self.securityKind, event == Self.adminAlertEvent,
+      let title, !title.isEmpty, let body, !isStale(now: now)
+    {
+      // The words are the server's own, not member content.
+      content.title = title
+      content.body = body
       return content
     }
     guard hasPreview, !isStale(now: now), let sender = sender, let body = body else {
