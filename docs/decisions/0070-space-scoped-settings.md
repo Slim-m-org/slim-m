@@ -40,6 +40,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Setting | Key | Scope | Why |
 | --- | --- | --- | --- |
 | Theme | `slimm.appearance.theme` | Space | appearance |
+| Copy of the Space default theme | `slimm.appearance.space_default_theme` | Space | each server has its own default |
 | Time format | `slimm.appearance.time_format` | Space | appearance |
 | Message density | `slimm.appearance.message_density` | Space | message preference |
 | Group spacing | `slimm.appearance.group_spacing` | Space | message preference |

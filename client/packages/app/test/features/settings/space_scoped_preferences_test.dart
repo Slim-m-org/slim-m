@@ -7,8 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/accounts/providers/account.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/messages/providers/image_cache_preference.dart';
-import 'package:slimm_design_system/design_system.dart' show AppDensity;
+import 'package:flutter/material.dart' show Brightness;
+import 'package:slimm_design_system/design_system.dart'
+    show AppDensity, AppTokens, ThemeDocument;
 import 'package:slimm_app/src/features/settings/providers/display_density.dart';
+import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_app/src/providers/space_scoped_preferences.dart';
 
 const _a = 'https://first.example';
@@ -49,6 +52,28 @@ void main() {
     await freshB.read(messageDensityControllerProvider.notifier).restore();
     expect(freshA.read(messageDensityControllerProvider), AppDensity.compact);
     expect(freshB.read(messageDensityControllerProvider), AppDensity.spacious);
+  });
+
+  test('each Space keeps its own copy of its default theme', () async {
+    SharedPreferences.setMockInitialValues({});
+    ThemeDocument named(String name) => ThemeDocument.of(
+      AppTokens.forest,
+      name: name,
+      author: 'Ren',
+      base: 'forest',
+      brightness: Brightness.dark,
+    );
+    final a = _containerFor(_a);
+    final b = _containerFor(_b);
+    addTearDown(a.dispose);
+    addTearDown(b.dispose);
+    await a.read(spaceDefaultThemeProvider.notifier).set(named('Pine'));
+    await b.read(spaceDefaultThemeProvider.notifier).set(named('Dune'));
+
+    final freshA = _containerFor(_a);
+    addTearDown(freshA.dispose);
+    await freshA.read(spaceDefaultThemeProvider.notifier).restore();
+    expect(freshA.read(spaceDefaultThemeProvider)?.name, 'Pine');
   });
 
   test('values saved before the change become every Space\'s values', () async {
@@ -118,7 +143,6 @@ void main() {
 const _deviceKeys = <String>{
   'slimm.appearance.custom_theme',
   'slimm.appearance.my_themes',
-  'slimm.appearance.space_default_theme',
   'slimm.appearance.high_contrast',
   'slimm.appearance.motion',
   'slimm.appearance.ui_scale',
