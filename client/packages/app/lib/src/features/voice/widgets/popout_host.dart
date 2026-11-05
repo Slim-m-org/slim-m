@@ -114,11 +114,13 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
           : handle.host(
               PopOutWindowView(
                 feed: feed,
-                frame: PopOutFrame(
-                  onMoveStart: handle.beginMove,
-                  onResizeStart: handle.beginResize,
-                  onClose: _close,
-                ),
+                frame: handle.drawsOwnFrame
+                    ? PopOutFrame(
+                        onMoveStart: handle.beginMove,
+                        onResizeStart: handle.beginResize,
+                        onClose: _close,
+                      )
+                    : null,
               ),
             ),
       child: widget.child,

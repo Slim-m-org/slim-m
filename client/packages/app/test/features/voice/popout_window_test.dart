@@ -37,6 +37,9 @@ class _FakeWindow implements PopOutWindowHandle {
 
   @override
   Future<void> keepAbove() async => keptAbove++;
+
+  @override
+  bool get drawsOwnFrame => !decorated;
   int moves = 0;
   final resizes = <ResizeEdge>[];
 

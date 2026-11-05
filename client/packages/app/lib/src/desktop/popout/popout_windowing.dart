@@ -28,6 +28,9 @@ abstract interface class PopOutWindowHandle {
 
   /// Keeps the window above every other one, as a pop-out should stay in view.
   Future<void> keepAbove();
+
+  /// Whether the app draws the move area, resize edges and close button, because the OS draws none.
+  bool get drawsOwnFrame;
 }
 
 /// The pop-out's own window title, distinct from the main window's, so a window manager script can find it.
