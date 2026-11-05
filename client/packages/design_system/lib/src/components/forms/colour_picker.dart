@@ -25,6 +25,7 @@ Future<Color?> showAppColourPicker(
   BuildContext context, {
   required Color initial,
   String title = 'Custom colour',
+  ValueChanged<Color>? onChanged,
 }) =>
     showAppSheet<Color>(
       context,
@@ -49,6 +50,7 @@ Future<Color?> showAppColourPicker(
             const SizedBox(height: AppSpacing.s12),
             AppColourPicker(
               initial: initial,
+              onChanged: onChanged,
               onSave: (c) => Navigator.of(context).pop(c),
               onCancel: () => Navigator.of(context).pop(),
             ),
@@ -67,7 +69,13 @@ class AppColourPicker extends StatefulWidget {
     required this.initial,
     required this.onSave,
     required this.onCancel,
+    this.onChanged,
   });
+
+  static const hexFieldKey = Key('colour_picker_hex');
+
+  /// Called with each colour as it is dragged or typed, for a live preview.
+  final ValueChanged<Color>? onChanged;
 
   final Color initial;
   final ValueChanged<Color> onSave;
@@ -88,11 +96,14 @@ class _AppColourPickerState extends State<AppColourPicker> {
     super.dispose();
   }
 
-  void _fromSurface(HSVColor hsv) => setState(() {
-        _hsv = hsv;
-        _error = null;
-        _hex.text = hexOfColour(hsv.toColor());
-      });
+  void _fromSurface(HSVColor hsv) {
+    setState(() {
+      _hsv = hsv;
+      _error = null;
+      _hex.text = hexOfColour(hsv.toColor());
+    });
+    widget.onChanged?.call(hsv.toColor());
+  }
 
   void _fromText(String text) {
     final colour = colourFromHexText(text);
@@ -105,6 +116,7 @@ class _AppColourPickerState extends State<AppColourPicker> {
       final greyOrBlack = parsed.saturation == 0 || parsed.value == 0;
       _hsv = greyOrBlack ? parsed.withHue(_hsv.hue) : parsed;
     });
+    if (colour != null) widget.onChanged?.call(colour);
   }
 
   Color? get _typed => colourFromHexText(_hex.text);
@@ -142,6 +154,7 @@ class _AppColourPickerState extends State<AppColourPicker> {
               const SizedBox(width: AppSpacing.s12),
               Expanded(
                 child: AppInput(
+                  key: AppColourPicker.hexFieldKey,
                   controller: _hex,
                   mono: true,
                   autocorrect: false,

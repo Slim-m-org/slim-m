@@ -5,14 +5,21 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-enum ThemeRowAction { setDefault, clearDefault, remove }
+enum ThemeRowAction { copy, setDefault, clearDefault, remove }
 
 List<Widget> themeRowMenuItems(
   void Function(ThemeRowAction) pick, {
-  required bool isDefault,
-  required bool canSetDefault,
-  required bool canRemove,
+  bool isDefault = false,
+  bool canSetDefault = false,
+  bool canRemove = false,
+  String? copyLabel,
 }) => [
+  if (copyLabel != null)
+    AppMenuItem(
+      label: copyLabel,
+      leading: AppIcons.edit,
+      onTap: () => pick(ThemeRowAction.copy),
+    ),
   if (canSetDefault)
     AppMenuItem(
       label: isDefault ? 'Clear default' : 'Set as Space default',

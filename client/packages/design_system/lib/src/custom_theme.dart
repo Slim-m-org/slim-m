@@ -13,7 +13,7 @@ import 'dart:ui' show Brightness;
 import 'package:flutter/painting.dart';
 
 import 'app_tokens.dart';
-import 'colour_contrast.dart';
+import 'custom_theme_checks.dart';
 
 const themeFileFormat = 'slimm-theme';
 const themeFileVersion = 1;
@@ -31,7 +31,7 @@ const themeBases = <String, AppTokens>{
   'halloween': AppTokens.halloween,
 };
 
-const _tokenKeys = [
+const themeTokenKeys = [
   'surfaceSunken',
   'surfaceBase',
   'surfaceRaised',
@@ -52,8 +52,8 @@ const _tokenKeys = [
   'warnSoft',
   'stripe',
 ];
-const _mayHaveAlpha = {'accentRing', 'warnSoft', 'stripe'};
-const _surfaces = ['surfaceSunken', 'surfaceBase', 'surfaceRaised'];
+const themeAlphaTokens = {'accentRing', 'warnSoft', 'stripe'};
+const themeSurfaceTokens = ['surfaceSunken', 'surfaceBase', 'surfaceRaised'];
 
 /// The picture settings of 0104, with the bytes when a file carries them.
 class ThemePicture {
@@ -160,6 +160,24 @@ class ThemeDocument {
         picture: picture,
       );
 
+  ThemeDocument copyWith({
+    String? name,
+    String? author,
+    String? base,
+    Brightness? brightness,
+    Map<String, Color>? colours,
+    bool dropPicture = false,
+  }) =>
+      ThemeDocument(
+        name: name ?? this.name,
+        author: author ?? this.author,
+        base: base ?? this.base,
+        brightness: brightness ?? this.brightness,
+        colours: colours ?? this.colours,
+        effect: effect,
+        picture: dropPicture ? null : picture,
+      );
+
   /// The same theme with the picture's bytes dropped, keeping its settings.
   ThemeDocument withoutPictureData() => ThemeDocument(
         name: name,
@@ -185,8 +203,8 @@ class ThemeDocument {
         'base': base,
         'brightness': brightness == Brightness.light ? 'light' : 'dark',
         'tokens': {
-          for (final key in _tokenKeys)
-            key: _hex(colours[key]!, _mayHaveAlpha.contains(key)),
+          for (final key in themeTokenKeys)
+            key: _hex(colours[key]!, themeAlphaTokens.contains(key)),
         },
         if (effect != null || picture != null)
           'backdrop': {
@@ -308,16 +326,16 @@ Map<String, Color>? _colours(Object? raw, List<String> problems) {
     problems.add('tokens must be an object.');
     return null;
   }
-  for (final key in raw.keys.where((k) => !_tokenKeys.contains(k))) {
+  for (final key in raw.keys.where((k) => !themeTokenKeys.contains(k))) {
     problems.add('Unknown token $key.');
   }
   final colours = <String, Color>{};
-  for (final key in _tokenKeys) {
+  for (final key in themeTokenKeys) {
     if (!raw.containsKey(key)) {
       problems.add('Missing token $key.');
       continue;
     }
-    final colour = _parseColour(raw[key], _mayHaveAlpha.contains(key));
+    final colour = _parseColour(raw[key], themeAlphaTokens.contains(key));
     if (colour == null) {
       problems.add('Token $key is not a valid colour.');
     } else {
@@ -328,30 +346,8 @@ Map<String, Color>? _colours(Object? raw, List<String> problems) {
 }
 
 void _contrast(Map<String, Color> c, List<String> problems) {
-  void floor(String fg, String bg, double min) {
-    if (contrastRatio(c[fg]!, c[bg]!) < min) {
-      problems.add('$fg on $bg is below $min:1.');
-    }
-  }
-
-  for (final surface in _surfaces) {
-    for (final text in [
-      'textPrimary',
-      'textSecondary',
-      'accent',
-      'dangerText',
-      'warnText'
-    ]) {
-      floor(text, surface, 4.5);
-    }
-    floor('borderStrong', surface, 3);
-  }
-  floor('accentOn', 'accentFill', 4.5);
-  floor('accent', 'accentSoft', 4.5);
-  final base = c['surfaceBase']!;
-  if (contrastRatio(c['textDisabled']!, base) >=
-      contrastRatio(c['textSecondary']!, base)) {
-    problems.add('textDisabled must be quieter than textSecondary.');
+  for (final check in themeContrastChecks(c).where((k) => !k.passes)) {
+    problems.add(check.problem);
   }
 }
 

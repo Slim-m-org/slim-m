@@ -20,6 +20,7 @@ export 'src/brand_logo.dart';
 export 'src/colour_contrast.dart';
 export 'src/colour_hex.dart';
 export 'src/custom_theme.dart';
+export 'src/custom_theme_checks.dart';
 export 'src/components/core.dart';
 export 'src/components/forms.dart';
 export 'src/components/surfaces.dart';

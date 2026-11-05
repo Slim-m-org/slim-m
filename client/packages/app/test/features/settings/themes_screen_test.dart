@@ -152,8 +152,12 @@ void main() {
     expect(find.byKey(const Key('theme-store-t1')), findsOneWidget);
     expect(find.byKey(const Key('theme-store-t2')), findsOneWidget);
 
+    await _openRowMenu(tester, 't1');
     expect(find.text('Set as Space default'), findsNothing);
-    expect(_menuOf('t1'), findsNothing);
+    expect(find.text('Remove'), findsNothing);
+    expect(find.text('Edit a copy'), findsOneWidget);
+    await tester.tapAt(const Offset(2, 2));
+    await _settle(tester);
 
     await _openRowMenu(tester, 't2');
     expect(find.text('Remove'), findsOneWidget);

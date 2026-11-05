@@ -45,6 +45,7 @@ abstract final class Routes {
   static String spaceSettingsPane(String paneId) =>
       '$spaceSettings?$settingsPaneQuery=$paneId';
   static const personalThemes = '/settings/themes';
+  static const personalThemeEditor = '/settings/themes/edit';
   static const adminReports = '/settings/reports';
   static const adminInvites = '/settings/invites';
   static const adminCustomize = '/settings/customize';
