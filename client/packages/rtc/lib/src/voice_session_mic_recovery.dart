@@ -100,7 +100,7 @@ mixin VoiceSessionMicRecovery {
         );
         unawaited(_logAudioDevices('gave up'));
         _setMicStatus(MicStatus.unavailable);
-        unawaited(_noteMicFailure(MicFailureReason.silent));
+        unawaited(_noteMicFailure(MicFailureReason.stalled));
       },
       onRecovered: () {
         if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);

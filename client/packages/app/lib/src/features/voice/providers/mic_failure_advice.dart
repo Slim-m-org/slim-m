@@ -45,7 +45,7 @@ MicAdvice? micAdviceFor(
     MicFailureReason.notFound => const MicAdvice(
       'No microphone found. Connect one and try again.',
     ),
-    MicFailureReason.silent => const MicAdvice(
+    MicFailureReason.stalled => const MicAdvice(
       'The microphone is sending no sound. Check it is not muted in your system sound settings.',
     ),
     MicFailureReason.unknown => null,

@@ -268,7 +268,7 @@ void main() {
       _minutes(clock, 10);
 
       expect(rig.session.micStatus, MicStatus.unavailable);
-      expect(rig.session.micFailure, MicFailureReason.silent);
+      expect(rig.session.micFailure, MicFailureReason.stalled);
       expect(rig.session.micFallbackNotice, isNull);
       expect(
         rig.logs.where((l) => l.startsWith('Switching microphone to Desk')),
