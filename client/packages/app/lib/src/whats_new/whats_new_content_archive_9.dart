@@ -79,4 +79,30 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.124.0',
+    headline: 'A tidier GIF picker and a round of fixes',
+    points: [
+      WhatsNewPoint(
+        'Favorites in the GIF picker are a star next to the search box, so '
+        'the picker has one row above the GIFs instead of two.',
+      ),
+      WhatsNewPoint(
+        'Turning hold music on or off while offline now sticks once you are '
+        'back, and the Space default theme is kept for each server.',
+      ),
+      WhatsNewPoint(
+        'If a module asks to hear a call and your answer does not go '
+        'through, the prompt says why.',
+      ),
+      WhatsNewPoint(
+        'An empty canvas explains panning for the mouse or finger you are '
+        'actually using.',
+      ),
+      WhatsNewPoint(
+        'On Android, voice channel notices and server alerts show their own '
+        'text instead of New message or New sign-in.',
+      ),
+    ],
+  ),
 ];
