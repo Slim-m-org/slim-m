@@ -13,14 +13,15 @@ pub const TEXT_SIZES: [&str; 3] = ["small", "medium", "large"];
 
 const MAX_COLOR_BYTES: usize = 32;
 
-/// A named colour key, or `#rrggbb`.
-fn is_colour(c: &str) -> bool {
+/// A named colour key of identifier characters, or `#rrggbb`: the one rule for every canvas colour.
+pub fn is_colour(c: &str) -> bool {
     if let Some(hex) = c.strip_prefix('#') {
         return hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit());
     }
     !c.is_empty()
         && c.len() <= MAX_COLOR_BYTES
-        && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        && c.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
 /// Refuses props a client could not have produced: wrong types, an empty or oversized text, hidden characters, an unknown size.
@@ -63,12 +64,13 @@ mod tests {
 
     #[test]
     fn a_text_colour_is_a_key_or_a_six_digit_hex() {
-        for ok in ["annotation", "amber", "#ff8800", "#FF8800"] {
+        for ok in ["annotation", "amber", "pen-2", "#ff8800", "#FF8800"] {
             assert!(text_with(json!(ok)).is_ok(), "{ok}");
         }
         for bad in ["", "#fff", "#ff88001", "#gg0000", "a b", "#", "rgb(1,2,3)"] {
             assert!(text_with(json!(bad)).is_err(), "{bad}");
         }
         assert!(text_with(json!(7)).is_err());
+        assert!(text_with(json!("a".repeat(33))).is_err());
     }
 }
