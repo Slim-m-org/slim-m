@@ -383,6 +383,15 @@ pub enum Event {
         moved_by_id: UserId,
         moved_by_name: String,
     },
+    /// Someone started a call, joined one or went live in a channel `user_id` asked to hear
+    /// about. Private to `user_id`; the audience and the time limit are settled before this
+    /// is published (decision 0107).
+    VoiceNotice {
+        user_id: UserId,
+        channel_id: ChannelId,
+        actor_id: UserId,
+        activity: crate::voice_notify::Activity,
+    },
     /// A voice session closed. Internal: only the module event consumer reads
     /// it, and no websocket frame is ever built from it.
     VoiceSessionClosed {

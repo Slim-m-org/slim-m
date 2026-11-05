@@ -27,6 +27,8 @@ import '../features/members/providers/activity_publisher.dart';
 import '../features/screen_overlay/providers/screen_overlay_controller.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
+import '../features/voice/providers/voice_notice_controller.dart';
+import '../features/voice/widgets/voice_notice_banner_host.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
 import '../features/voice/providers/call_shortcut_registry.dart';
@@ -114,11 +116,13 @@ class HomeShell extends ConsumerWidget {
               child: _LayoutBridge(
                 layout: layout,
                 child: NewDeviceBannerHost(
-                  child: RulesGateBannerHost(
-                    child: UpdateBannerHost(
-                      child: DownloadFailureHost(
-                        child: DatabaseResetNotice(
-                          child: AppBackgroundHost(child: scaffold),
+                  child: VoiceNoticeBannerHost(
+                    child: RulesGateBannerHost(
+                      child: UpdateBannerHost(
+                        child: DownloadFailureHost(
+                          child: DatabaseResetNotice(
+                            child: AppBackgroundHost(child: scaffold),
+                          ),
                         ),
                       ),
                     ),
@@ -146,6 +150,7 @@ class HomeShell extends ConsumerWidget {
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
+    ref.watch(voiceNoticeProvider);
     ref.watch(liveQualityRestartProvider);
     // Session-lifetime, so the overlay follows the share without a call screen mounted.
     ref.watch(screenOverlayControllerProvider.select((_) => null));

@@ -18,6 +18,7 @@ import '../../members/providers/blocks_controller.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../settings/providers/notification_preference_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
+import '../../voice/providers/voice_notification_controller.dart';
 
 /// Refetches the block list, the channel overrides, the schedule and the
 /// account preference.
@@ -41,6 +42,9 @@ void refreshAccountNotificationState(Ref ref, {required bool reconnect}) {
         ref.read(channelNotificationOverridesProvider.notifier).refresh(),
       );
     }
+  }
+  if (ref.exists(voiceNotificationProvider) && reconnect) {
+    unawaited(ref.read(voiceNotificationProvider.notifier).refresh());
   }
   if (ref.exists(notificationScheduleProvider) &&
       (reconnect || ref.read(notificationScheduleProvider).hasError)) {

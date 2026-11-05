@@ -116,6 +116,7 @@ mod uplink_tests;
 mod user_notes;
 mod users;
 mod voice_call_events;
+mod voice_notify;
 mod voice_rooms;
 mod voice_sessions;
 mod watch_sessions;

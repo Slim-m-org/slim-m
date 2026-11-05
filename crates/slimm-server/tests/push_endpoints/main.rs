@@ -22,3 +22,4 @@ mod reply_ping;
 mod ring_refusals;
 #[path = "../support/mod.rs"]
 mod support;
+mod voice_notice;

@@ -86,6 +86,7 @@ List<Widget> channelRowMenuItems(
       close,
       muteLabel: 'Mute channel',
       channelDefault: channelDefaultOf(channel),
+      voiceChannel: channel.kind == 'voice',
     ),
     if (canManage || canManageRoles || canEditThisRoom) ...[
       const AppMenuDivider(),

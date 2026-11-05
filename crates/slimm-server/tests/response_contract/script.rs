@@ -374,6 +374,20 @@ pub async fn run(c: &mut Contract) {
         root,
     )
     .await;
+    c.json(
+        "setVoiceNotification",
+        "PUT",
+        &format!("/voice-notifications/channels/{}", call_audio_channel.id),
+        root,
+        json!({ "joins": "first", "streams": true }),
+    )
+    .await;
+    c.get(
+        "listVoiceNotifications",
+        "/voice-notifications/channels",
+        root,
+    )
+    .await;
     c.bare(
         "mintVoiceToken",
         "POST",

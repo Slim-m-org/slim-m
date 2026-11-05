@@ -52,6 +52,7 @@ pub(crate) mod recipients;
 mod relay;
 mod sealing;
 mod security;
+mod voice_notice;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -66,6 +67,7 @@ use debounce::Debounce;
 pub use attention::{SkipReason, narrow_for_attention, skip_reasons};
 pub use recipients::message_recipients;
 pub use security::NewDeviceSignIn;
+pub use voice_notice::VoiceNotice;
 
 /// How long a burst of messages in one channel collapses into a single wake.
 /// Leading-edge: the first message in a burst fires immediately and the rest
@@ -223,6 +225,14 @@ impl PushSender {
         tokio::spawn(call_end::deliver(
             enabled, store, channel_id, ring_id, caller_id,
         ));
+    }
+
+    /// Wakes the devices of members who asked to hear that a voice call started, grew or went live.
+    pub fn notify_voice_activity(&self, store: Store, notice: VoiceNotice) {
+        let Some(enabled) = self.inner.clone() else {
+            return;
+        };
+        tokio::spawn(voice_notice::deliver(enabled, store, notice));
     }
 
     /// Alerts an account's other devices that a device it has not used before signed in.

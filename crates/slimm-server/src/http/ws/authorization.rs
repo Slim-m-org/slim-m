@@ -501,6 +501,7 @@ async fn channel_frame(
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceNotice { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,
     }))

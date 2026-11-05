@@ -42,6 +42,7 @@ use crate::permissions::Permissions;
 mod call_record;
 mod heartbeat;
 mod live_state;
+mod notice_windows;
 mod ring;
 mod room_admin;
 mod room_lifecycle;
@@ -52,6 +53,7 @@ mod webhook;
 pub(crate) use call_record::record_finished_call;
 use heartbeat::{CallHeartbeats, STALE_AFTER as HEARTBEAT_STALE_AFTER};
 pub use live_state::RoomLiveState;
+pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
 pub use ring::{CallRingOutcome, CallRings, Declined, RING_TIMEOUT};
 pub use roster::{RoomParticipant, RosterCache};
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
@@ -136,6 +138,8 @@ pub struct VoiceService {
     roster_cache: roster::RosterCache,
     /// Ephemeral like its siblings; see `voice::watch_viewing`'s own doc.
     watch_viewing: watch_viewing::WatchViewing,
+    /// Ephemeral like its siblings; see `voice::notice_windows`'s own doc.
+    notice_windows: NoticeWindows,
 }
 
 struct Enabled {
@@ -183,6 +187,7 @@ impl VoiceService {
             live_state: RoomLiveState::new(),
             roster_cache: roster::RosterCache::default(),
             watch_viewing: watch_viewing::WatchViewing::default(),
+            notice_windows: NoticeWindows::default(),
         })
     }
 
@@ -195,6 +200,7 @@ impl VoiceService {
             live_state: RoomLiveState::new(),
             roster_cache: roster::RosterCache::default(),
             watch_viewing: watch_viewing::WatchViewing::default(),
+            notice_windows: NoticeWindows::default(),
         }
     }
 
@@ -214,7 +220,13 @@ impl VoiceService {
             live_state: RoomLiveState::new(),
             roster_cache: roster::RosterCache::default(),
             watch_viewing: watch_viewing::WatchViewing::default(),
+            notice_windows: NoticeWindows::default(),
         }
+    }
+
+    /// The per-recipient limit on voice activity notices.
+    pub fn notice_windows(&self) -> &NoticeWindows {
+        &self.notice_windows
     }
 
     /// Who on each call plays the watch party's title themselves.

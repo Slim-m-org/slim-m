@@ -52,6 +52,7 @@ pub mod store;
 mod sweeps;
 pub mod totp;
 pub mod voice;
+pub mod voice_notify;
 mod voice_session_sweeps;
 
 pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;

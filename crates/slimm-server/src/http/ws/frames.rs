@@ -506,6 +506,14 @@ pub(super) enum ServerFrame {
         moved_by_id: String,
         moved_by_name: String,
     },
+    /// Someone started a call, joined one or went live in a channel this account asked to
+    /// hear about; see [`crate::hub::Event::VoiceNotice`]. Delivered only to that account.
+    #[serde(rename = "voice.notice")]
+    VoiceNotice {
+        channel_id: String,
+        actor_id: String,
+        activity: &'static str,
+    },
     #[serde(rename = "pong")]
     Pong,
     #[serde(rename = "error")]

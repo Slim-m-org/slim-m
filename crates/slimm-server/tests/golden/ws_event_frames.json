@@ -1,4 +1,5 @@
 [
+  "{\"activity\":\"call_started\",\"actor_id\":\"BOB\",\"channel_id\":\"CHANNEL\",\"type\":\"voice.notice\"}",
   "{\"after\":{\"color\":3,\"hoist\":true,\"mentionable\":false,\"name\":\"Moderators\"},\"before\":{\"color\":null,\"hoist\":false,\"mentionable\":false,\"name\":\"Mods\"},\"change\":\"updated\",\"name\":\"Moderators\",\"role_id\":\"01900000-0000-7000-8000-000000000009\",\"seq\":\"CLOCK\",\"type\":\"role.changed\"}",
   "{\"author_id\":\"BOB\",\"before_seq\":5,\"channel_id\":\"CHANNEL\",\"kinds\":[\"stroke\"],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":6,\"type\":\"canvas.cleared_scoped\"}",
   "{\"before_seq\":4,\"channel_id\":\"CHANNEL\",\"kinds\":[],\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":5,\"spared_count\":1,\"spared_ids\":[\"01900000-0000-7000-8000-000000000002\"],\"type\":\"canvas.cleared_scoped\"}",

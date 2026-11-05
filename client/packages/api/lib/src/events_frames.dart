@@ -480,6 +480,27 @@ class NotificationOverrideChanged extends ServerEvent {
   final NotificationPreference? preference;
 }
 
+/// Someone started a call, joined one or went live in a voice channel this account asked to
+/// hear about. Delivered only to that account, after the server applied every exclusion.
+class VoiceNotice extends ServerEvent {
+  const VoiceNotice({
+    required this.channelId,
+    required this.actorId,
+    required this.activity,
+  });
+
+  final String channelId;
+  final String actorId;
+  final VoiceActivity activity;
+}
+
+enum VoiceActivity {
+  /// The first person joined an empty channel.
+  callStarted,
+  joined,
+  streaming,
+}
+
 /// A moderator moved this account to another voice channel. Delivered only to
 /// the moved account's sockets.
 class VoiceMoved extends ServerEvent {

@@ -20,6 +20,8 @@ import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
 import '../../screen_overlay/providers/screen_overlay_controller.dart';
 import '../../voice/providers/voice_move_follower.dart';
+import '../../voice/providers/voice_notice_controller.dart';
+import '../../voice/providers/voice_notification_controller.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
 import '../../settings/providers/notification_sound_controller.dart';
@@ -46,6 +48,8 @@ void startAccountServices(ProviderContainer container) {
   container.listen(holdMusicSyncProvider, (_, _) {});
   container.listen(activityPublisherProvider, (_, _) {});
   container.listen(voiceMoveFollowerProvider, (_, _) {});
+  container.listen(voiceNoticeProvider, (_, _) {});
+  container.listen(voiceNotificationProvider, (_, _) {});
   container.listen(screenOverlayControllerProvider, (_, _) {});
   container.listen(notificationScheduleProvider, (_, _) {});
   container.listen(retentionSweepControllerProvider, (_, _) {});

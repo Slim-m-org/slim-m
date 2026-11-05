@@ -6179,6 +6179,64 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /voice-notifications/channels:
+    get:
+      operationId: listVoiceNotifications
+      tags: [push]
+      summary: List the voice channels the caller asked to hear about.
+      description: >
+        Only channels with something switched on appear; a channel left off carries no entry.
+      responses:
+        "200":
+          description: The caller's choices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VoiceNotification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice-notifications/channels/{channelId}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    put:
+      operationId: setVoiceNotification
+      tags: [push]
+      summary: Choose whether to hear when this voice channel's call starts, grows or goes live.
+      description: >
+        Off by default. `joins` is `first` for the join that starts a call in an empty channel
+        and `every` for each join; `streams` asks to hear when someone starts sharing their
+        screen. Off with no streaming clears the choice. A notice reaches the caller as a
+        `voice.notice` frame and as a push, at most once per channel per ten minutes, and never
+        for the caller's own join, a member who appears offline, a blocked member, a muted
+        channel, Do not disturb or off hours. Requires VIEW_CHANNEL, and the channel must be a
+        voice channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceNotificationRequest"
+      responses:
+        "200":
+          description: The choice now in effect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceNotification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /direct-route:
     get:
       operationId: getDirectRoute
@@ -17914,6 +17972,29 @@ components:
           type: string
           enum: [everything, mentions, nothing]
 
+    VoiceNotificationRequest:
+      type: object
+      required: [joins, streams]
+      properties:
+        joins:
+          type: string
+          enum: [off, first, every]
+        streams:
+          type: boolean
+
+    VoiceNotification:
+      type: object
+      required: [channel_id, joins, streams]
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        joins:
+          type: string
+          enum: [off, first, every]
+        streams:
+          type: boolean
+
     ChannelPermissions:
       type: object
       required: [permissions]
@@ -18690,6 +18771,7 @@ components:
         - $ref: "#/components/schemas/InteractionForm"
         - $ref: "#/components/schemas/NewDeviceSignIn"
         - $ref: "#/components/schemas/VoiceMoved"
+        - $ref: "#/components/schemas/VoiceNotice"
         - $ref: "#/components/schemas/ServerPong"
         - $ref: "#/components/schemas/ServerError"
     CanvasObjectPlaced:
@@ -20094,6 +20176,27 @@ components:
           format: uuid
         moved_by_name:
           type: string
+
+    VoiceNotice:
+      type: object
+      required: [type, channel_id, actor_id, activity]
+      description: >
+        Someone started a call, joined one or went live in a voice channel this account asked
+        to hear about (`setVoiceNotification`). Delivered only to that account's connections,
+        after the time limit and every exclusion were applied, so a client shows it as it is.
+      properties:
+        type:
+          type: string
+          enum: [voice.notice]
+        channel_id:
+          type: string
+          format: uuid
+        actor_id:
+          type: string
+          format: uuid
+        activity:
+          type: string
+          enum: [call_started, joined, streaming]
 
     VoiceActivityChanged:
       type: object

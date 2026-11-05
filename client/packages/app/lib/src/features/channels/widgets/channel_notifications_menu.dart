@@ -28,6 +28,7 @@ Widget notificationsMenuItem(
   VoidCallback close, {
   required String muteLabel,
   api.NotificationPreference? channelDefault,
+  bool voiceChannel = false,
 }) {
   final tokens = Theme.of(context).extension<AppTokens>()!;
   final current = container
@@ -51,6 +52,7 @@ Widget notificationsMenuItem(
       close,
       muteLabel: muteLabel,
       channelDefault: channelDefault,
+      voiceChannel: voiceChannel,
     ),
   );
 }

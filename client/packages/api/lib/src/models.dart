@@ -46,6 +46,7 @@ export 'models_canvas_ops.dart';
 export 'models_channel.dart';
 export 'models_code_runs.dart';
 export 'models_channel_notification_override.dart';
+export 'models_voice_notification.dart';
 export 'models_message_history.dart';
 export 'models_message_ops.dart';
 export 'models_module_commands.dart';

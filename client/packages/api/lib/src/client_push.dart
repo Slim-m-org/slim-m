@@ -136,6 +136,28 @@ extension SlimmApiPush on SlimmApi {
     return ChannelNotificationOverride.fromJson(json as Map<String, dynamic>);
   }
 
+  /// The voice channels this account asked to hear about; a channel left off has no entry.
+  Future<List<VoiceNotification>> listVoiceNotifications() async {
+    final json = await send('GET', '/voice-notifications/channels');
+    return (json as List<dynamic>)
+        .map((e) => VoiceNotification.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  /// Replaces this account's choice for one voice channel; off with no streaming clears it.
+  Future<VoiceNotification> setVoiceNotification(
+    String channelId, {
+    required VoiceJoinMode joins,
+    required bool streams,
+  }) async {
+    final json = await send(
+      'PUT',
+      '/voice-notifications/channels/$channelId',
+      body: {'joins': joins.wire, 'streams': streams},
+    );
+    return VoiceNotification.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Clears [channelId]'s override, reverting it to the account default.
   Future<void> clearChannelNotificationOverride(String channelId) => send(
         'DELETE',

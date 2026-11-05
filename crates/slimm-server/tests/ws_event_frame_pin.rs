@@ -341,6 +341,12 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             moved_by_id: bob,
             moved_by_name: "bob".into(),
         },
+        Event::VoiceNotice {
+            user_id: alice,
+            channel_id: channel,
+            actor_id: bob,
+            activity: slimm_server::voice_notify::Activity::CallStarted,
+        },
         Event::VoiceSessionClosed {
             session_id: 4,
             user_id: alice,

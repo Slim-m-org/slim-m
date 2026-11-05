@@ -39,10 +39,14 @@ class AppCallout extends StatelessWidget {
       {super.key,
       this.tone = AppCalloutTone.warn,
       this.icon,
+      this.centred = false,
       required this.child});
 
   final AppCalloutTone tone;
   final IconData? icon;
+
+  /// Centres the icon on the body, for a one-row body taller than its text, such as text beside buttons.
+  final bool centred;
   final Widget child;
 
   IconData _defaultIcon() => switch (tone) {
@@ -92,13 +96,14 @@ class AppCallout extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadii.control),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              centred ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           spacing: AppSpacing.s8,
           children: [
             // `margin-top: 1` in the source: top-aligned rather than centred,
             // nudged 1px to meet the cap height of the first text line.
             Padding(
-              padding: const EdgeInsets.only(top: 1),
+              padding: EdgeInsets.only(top: centred ? 0 : 1),
               child: Icon(icon ?? _defaultIcon(),
                   size: AppSizes.icon16, color: ink),
             ),
