@@ -42,13 +42,20 @@ class IndexedDbBackgroundImageStore implements BackgroundImageStore {
     final db = await _open();
     try {
       final done = Completer<JSAny?>();
-      final request = act(
-        db.transaction(_store.toJS, mode).objectStore(_store),
-      );
-      request.onsuccess = ((web.Event _) => done.complete(request.result)).toJS;
-      request.onerror = ((web.Event _) {
-        done.completeError(StateError('IndexedDB request failed'));
+      final transaction = db.transaction(_store.toJS, mode);
+      final request = act(transaction.objectStore(_store));
+      // A write is only durable once its transaction commits, not when the request succeeds.
+      transaction.oncomplete = ((web.Event _) {
+        if (!done.isCompleted) done.complete(request.result);
       }).toJS;
+      void fail(web.Event _) {
+        if (!done.isCompleted) {
+          done.completeError(StateError('IndexedDB transaction failed'));
+        }
+      }
+
+      transaction.onerror = fail.toJS;
+      transaction.onabort = fail.toJS;
       return await done.future;
     } finally {
       db.close();
