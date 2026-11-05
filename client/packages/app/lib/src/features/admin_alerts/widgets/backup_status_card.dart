@@ -62,7 +62,9 @@ class BackupStatusCard extends StatelessWidget {
           ? backup.error!
           : 'The last run failed.';
       return (
-        detail: verified == null ? error : '$error Last verified $verified.',
+        detail: verified == null
+            ? _sentence(error)
+            : '${_sentence(error)} Last verified $verified.',
         warn: true,
       );
     case api.BackupState.verified:
@@ -73,3 +75,7 @@ class BackupStatusCard extends StatelessWidget {
       );
   }
 }
+
+/// A runner's raw error, closed as a sentence so the next one does not run into it.
+String _sentence(String text) =>
+    RegExp(r'[.!?]$').hasMatch(text) ? text : '$text.';

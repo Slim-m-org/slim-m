@@ -183,6 +183,7 @@ void main() {
   testWidgets('the storage refresh button fetches usage again', (tester) async {
     var fetches = 0;
     await _pump(tester, const StoragePane(), (r) {
+      if (!r.url.path.endsWith('/space/storage')) return _json(<Object>[]);
       fetches++;
       return _json({
         'database_bytes': 1000,
@@ -190,6 +191,7 @@ void main() {
         'attachment_bytes': 0,
         'top_channels': <Object>[],
         'sweeps': <Object>[],
+        'backup': {'state': 'not_configured', 'stale': false},
       });
     });
     expect(fetches, 1);
