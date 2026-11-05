@@ -14,21 +14,17 @@ import 'package:flutter/src/foundation/_features.dart' show isWindowingEnabled;
 import 'package:flutter/src/widgets/_window.dart';
 import 'package:flutter/src/widgets/_window_linux.dart';
 import 'package:flutter/widgets.dart';
-import 'package:slimm_platform/platform.dart'
-    show isLinuxHost, isWindowsHost, kwinKeepAbove;
+import 'package:slimm_platform/platform.dart' show isLinuxHost, kwinKeepAbove;
 
 import '../desktop_window_port.dart' show ResizeEdge;
 import 'popout_gtk_drag.dart';
 import 'popout_windowing.dart' show PopOutWindowFactory, PopOutWindowHandle;
-import 'popout_windowing_win32.dart';
 
 /// Null wherever a pop-out cannot be offered: web, every platform whose build
 /// does not carry the windowing flag, and a Linux build made without it.
 PopOutWindowFactory? nativePopOutWindowFactory() {
   if (kIsWeb || !isWindowingEnabled) return null;
-  if (isLinuxHost) return _NativePopOutWindow.new;
-  if (isWindowsHost) return Win32PopOutWindow.new;
-  return null;
+  return isLinuxHost ? _NativePopOutWindow.new : null;
 }
 
 const _minSize = Size(240, 160);

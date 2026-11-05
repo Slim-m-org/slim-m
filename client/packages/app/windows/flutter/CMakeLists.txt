@@ -83,10 +83,6 @@ target_include_directories(flutter_wrapper_app PUBLIC
 )
 add_dependencies(flutter_wrapper_app flutter_assemble)
 
-# Enables Flutter's experimental windowing (the desktop pop-out). The tool refuses this define on stable, so it is appended to the tool's environment here; the value is base64 of FLUTTER_ENABLED_FEATURE_FLAGS=windowing.
-set(SLIMM_WINDOWING_DEFINE "RkxVVFRFUl9FTkFCTEVEX0ZFQVRVUkVfRkxBR1M9d2luZG93aW5n")
-list(TRANSFORM FLUTTER_TOOL_ENVIRONMENT REPLACE "^(DART_DEFINES=.*)$" "\\1,${SLIMM_WINDOWING_DEFINE}")
-
 # === Flutter tool backend ===
 # _phony_ is a non-existent file to force this command to run every time,
 # since currently there's no way to get a full input/output list from the
