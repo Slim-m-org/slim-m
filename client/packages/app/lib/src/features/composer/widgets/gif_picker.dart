@@ -144,6 +144,8 @@ class GifPickerBody extends ConsumerStatefulWidget {
     this.initialQuery = '',
   });
 
+  static const favoritesToggleKey = Key('gif-picker-favorites');
+
   final ValueChanged<api.Attachment> onPicked;
 
   /// The channel the GIF is headed for, so its ATTACH_FILES overwrite counts.
@@ -316,21 +318,51 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (hasTabs) ...[
-            Center(
-              child: AppSegmentedControl.inline(
-                options: const [
-                  AppSegmentedOption(label: 'Favorites'),
-                  AppSegmentedOption(label: 'Search'),
-                ],
-                selectedIndex: tab.index,
-                onSegmentSelected: (i) =>
-                    setState(() => _chosenTab = _PickerTab.values[i]),
-                semanticLabel: 'Favorites or GIFs',
+          Row(
+            children: [
+              Expanded(
+                child: AppInput(
+                  maxLength: api.InputLimits.searchQuery,
+                  controller: _queryController,
+                  focusNode: _queryFocus,
+                  autofocus: true,
+                  placeholder: 'Search GIFs',
+                  icon: Icon(
+                    AppIcons.search,
+                    size: AppSizes.icon16,
+                    color: tokens.textSecondary,
+                  ),
+                  onChanged: (value) {
+                    if (tab == _PickerTab.favorites &&
+                        value.trim().isNotEmpty) {
+                      setState(() => _chosenTab = _PickerTab.gifs);
+                    }
+                    _onQueryChanged(value);
+                  },
+                  semanticLabel: 'Search GIFs',
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s12),
-          ],
+              if (hasTabs) ...[
+                const SizedBox(width: AppSpacing.s8),
+                AppIconButton(
+                  key: GifPickerBody.favoritesToggleKey,
+                  icon: AppIcons.favorite,
+                  size: AppIconButtonSize.touch,
+                  active: tab == _PickerTab.favorites,
+                  tooltip: tab == _PickerTab.favorites
+                      ? 'Show search results'
+                      : 'Show favorites',
+                  semanticLabel: 'Favorites',
+                  onPressed: () => setState(
+                    () => _chosenTab = tab == _PickerTab.favorites
+                        ? _PickerTab.gifs
+                        : _PickerTab.favorites,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.s12),
           if (tab == _PickerTab.favorites)
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
@@ -340,21 +372,6 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
               ),
             )
           else ...[
-            AppInput(
-              maxLength: api.InputLimits.searchQuery,
-              controller: _queryController,
-              focusNode: _queryFocus,
-              autofocus: true,
-              placeholder: 'Search GIFs',
-              icon: Icon(
-                AppIcons.search,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              onChanged: _onQueryChanged,
-              semanticLabel: 'Search GIFs',
-            ),
-            const SizedBox(height: AppSpacing.s12),
             if (error != null) ...[
               AppErrorState(
                 message: error,
