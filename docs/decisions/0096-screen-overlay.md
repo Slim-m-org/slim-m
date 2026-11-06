@@ -16,7 +16,7 @@ Decision on 2026-10-28: build it in v120 for Linux and Windows.
   The overlay window only exists on a desktop that can host it; the setting itself is offered everywhere (see "In-app preview and window shares").
 - It is up only while all of these hold: the setting is on, a whole screen is being shared, and the desktop can host it.
   A window share never opens the overlay window (see "What it covers"), though viewers may still draw on it.
-- Viewers get a small pen, circle and note pill on a screen tile, and only while that sharer's consent is live.
+- Viewers draw with the board's own tools on the canvas and a small pen, circle and note pill on the call stage, and only while that sharer's consent is live.
 - Marks are ephemeral and never stored.
   They are relayed to the sharer, painted on the sharer's real screen, and fade out a few seconds later.
 - When it comes up the sharer gets a short "Viewers can draw on your screen." toast, and the share options menu shows the toggle checked (no persistent banner, see Privacy).
@@ -181,6 +181,17 @@ It works on the call stage tile, the full-screen view and the canvas tile.
 - Marks stay normalised to the video: the annotate layer maps through the content rect after the zoom is applied, so a stroke drawn while zoomed lands where it was aimed, and marks are clipped to the tile.
 - A wheel still zooms while a pen is picked.
   Pinch and pan wait until the pen is put down, since the pen's catcher owns the drag.
+
+## The board's own tools on the canvas (2026-11-06)
+
+Owner, 2026-11-06: "why cant i use the normal controls ... if i draw on canvas why doesnt that translate to the stream that i see on the canvas, do we need a seperate dock on a stream to do this?"
+
+- On the canvas a screen tile has no pill of its own.
+  While the sharer allows drawing, the board's pen draws on their screen, its shape tool circles, and its note and text tools leave a note, all in the board's pen colour.
+- Every board shape lands as a circle, since the relay only carries strokes, circles and notes.
+- Where the sharer has not allowed it, the board's tools behave as before and ink the board over the tile.
+- The pan and eraser tools leave the screen alone.
+- The call stage, which has no board toolbar, keeps the pill.
 
 ## Not done
 

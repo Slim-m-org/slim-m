@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart' show CanvasTool;
 
 import '../../support/fake_sync.dart';
 import '../../ui_snapshot_support.dart';
@@ -122,6 +123,7 @@ class _Rig {
     required Rect tile,
     Size view = const Size(1280, 800),
     Brightness brightness = Brightness.light,
+    CanvasTool? canvasTool,
   }) async {
     tester.view.physicalSize = view;
     tester.view.devicePixelRatio = 1;
@@ -155,6 +157,7 @@ class _Rig {
                     sharerId: 'sharer',
                     sharerName: 'Ada',
                     tileRect: tile,
+                    canvasTool: canvasTool,
                   ),
                 ],
               ),
@@ -234,6 +237,32 @@ void main() {
     expect(points.last, closeTo(0.6, 1e-9));
     expect(strokes.last.ended, isTrue);
     expect(strokes.every((f) => f.target == 'sharer'), isTrue);
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('on the canvas the board tools draw on the screen, no pill', (
+    tester,
+  ) async {
+    final rig = _Rig(tester)..allow();
+    const tile = Rect.fromLTWH(100, 100, 640, 360);
+    Future<void> drag(CanvasTool tool) async {
+      await rig.pump(tile: tile, canvasTool: tool);
+      final gesture = await tester.startGesture(tile.center);
+      await tester.pump();
+      await gesture.moveTo(tile.center + const Offset(64, 36));
+      await tester.pump(annotationFlushInterval);
+      await gesture.up();
+      await tester.pump(annotationFlushInterval);
+    }
+
+    await drag(CanvasTool.pen);
+    expect(find.bySemanticsLabel("Draw on Ada's screen"), findsNothing);
+    expect(rig.sync.frames.where((f) => f.kind == 'stroke'), isNotEmpty);
+    await drag(CanvasTool.shape);
+    expect(rig.sync.frames.last.kind, 'shape');
+    final sent = rig.sync.frames.length;
+    await drag(CanvasTool.eraser);
+    expect(rig.sync.frames, hasLength(sent));
     await tester.pump(const Duration(seconds: 6));
   });
 

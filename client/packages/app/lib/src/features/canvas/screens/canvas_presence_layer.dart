@@ -284,6 +284,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       sharerName: sharer.name,
       tileRect: presenceScreenRect(rect, camera),
       zoom: zoom,
+      canvasTool: widget.tool,
     );
   }
 

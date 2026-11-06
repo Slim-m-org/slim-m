@@ -13,6 +13,7 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart' show CanvasTool;
 
 import '../../../providers/sync_controller.dart';
 import '../../screen_overlay/providers/screen_annotation_board.dart';
@@ -41,6 +42,7 @@ class ScreenAnnotateLayer extends ConsumerStatefulWidget {
     this.zoom,
     this.readOnly = false,
     this.fallbackAspect,
+    this.canvasTool,
   });
 
   final String sharerId;
@@ -57,6 +59,9 @@ class ScreenAnnotateLayer extends ConsumerStatefulWidget {
 
   /// The shared screen's shape when no consent frame says it, as on the sharer's own preview.
   final double? fallbackAspect;
+
+  /// The board's own tool on the canvas, which draws on the screen in place of the tile's toolbar.
+  final CanvasTool? canvasTool;
 
   @override
   ConsumerState<ScreenAnnotateLayer> createState() =>
@@ -88,6 +93,12 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   @override
   void didUpdateWidget(ScreenAnnotateLayer old) {
     super.didUpdateWidget(old);
+    if (old.canvasTool != widget.canvasTool) {
+      _sender?.dispose();
+      _sender = null;
+      _shapeStart = null;
+      _pendingNote = null;
+    }
     if (old.zoom == widget.zoom) return;
     old.zoom?.removeListener(_onFeed);
     widget.zoom?.addListener(_onFeed);
@@ -111,6 +122,15 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     if (!live && _ticker.isActive) _ticker.stop();
     setState(() {});
   }
+
+  /// Every shape the board offers lands as a circle: the screen only knows strokes, circles and notes.
+  ScreenAnnotateTool? get _active => switch (widget.canvasTool) {
+    null => _tool,
+    CanvasTool.pen => ScreenAnnotateTool.pen,
+    CanvasTool.shape => ScreenAnnotateTool.ellipse,
+    CanvasTool.note || CanvasTool.text => ScreenAnnotateTool.note,
+    CanvasTool.pan || CanvasTool.eraser => null,
+  };
 
   Rect _content() {
     final aspect = _aspect ?? widget.fallbackAspect;
@@ -164,16 +184,16 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
 
   void _panStart(DragStartDetails d) {
     final sender = _sender = _newSender();
-    if (_tool == ScreenAnnotateTool.pen) {
+    if (_active == ScreenAnnotateTool.pen) {
       sender.beginStroke(_norm(d.localPosition));
-    } else if (_tool == ScreenAnnotateTool.ellipse) {
+    } else if (_active == ScreenAnnotateTool.ellipse) {
       _shapeStart = _norm(d.localPosition);
     }
   }
 
   void _panUpdate(DragUpdateDetails d) {
     final now = _norm(d.localPosition);
-    if (_tool == ScreenAnnotateTool.pen) {
+    if (_active == ScreenAnnotateTool.pen) {
       _sender?.extendStroke(now);
     } else if (_shapeStart != null) {
       _sender?.dragShape(_shapeStart!, now);
@@ -181,8 +201,8 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   }
 
   void _panEnd() {
-    if (_tool == ScreenAnnotateTool.pen) _sender?.endStroke();
-    if (_tool == ScreenAnnotateTool.ellipse) _sender?.endShape();
+    if (_active == ScreenAnnotateTool.pen) _sender?.endStroke();
+    if (_active == ScreenAnnotateTool.ellipse) _sender?.endShape();
     _shapeStart = null;
   }
 
@@ -208,7 +228,9 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     }
     final content = _content();
     final showToolbar =
-        consent != null && widget.tileRect.width >= screenAnnotateMinTileWidth;
+        consent != null &&
+        widget.canvasTool == null &&
+        widget.tileRect.width >= screenAnnotateMinTileWidth;
     final zoomed = widget.zoom?.zoomed ?? false;
     return Positioned.fromRect(
       rect: widget.tileRect,
@@ -234,7 +256,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
                 builder: (_, _, _) => Stack(children: _notes(content)),
               ),
             ),
-            if (_tool != null && consent != null)
+            if (_active != null && consent != null)
               Positioned.fill(child: _catcher()),
             if (_pendingNote != null) _noteField(),
             if (showToolbar)
@@ -266,7 +288,7 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
         onPanUpdate: _panUpdate,
         onPanEnd: (_) => _panEnd(),
         onPanCancel: _panEnd,
-        onTapUp: _tool == ScreenAnnotateTool.note
+        onTapUp: _active == ScreenAnnotateTool.note
             ? (d) => setState(() => _pendingNote = d.localPosition)
             : null,
       ),
