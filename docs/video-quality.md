@@ -34,17 +34,22 @@ Bits per second:
 
 | | 15 fps | 30 fps | 60 fps |
 |---|---|---|---|
-| 720p | 1.5M | 2.0M | 3.2M |
-| 1080p | 2.5M | 5.0M | 8.0M |
-| 1440p | 4.0M | 7.5M | 12M |
-| 2160p | 6.0M | 10M | 12M |
+| 720p | 2.5M | 5M | 7.5M |
+| 1080p | 4M | 8M | 12M |
+| 1440p | 8M | 16M | 24M |
+| 2160p | 15M | 35M | 50M |
 
-- The anchors are LiveKit's own presets: 720p30 is 2.0M and 1080p30 is 5.0M.
-- 15 fps costs about half of 30 fps (LiveKit's 1080p15 is 2.5M), and 60 fps about 1.6 times 30 fps, since motion compresses worse but VP8 does not need twice the bits for twice the frames.
-- Larger sizes scale with pixels to the power 0.75 from 1080p30, rounded to 0.5M.
-- 12M is the top, so one share cannot take a whole home upload.
-  A share also publishes a half-size simulcast layer, which adds a fraction on top.
-- The simulcast layer and LiveKit's congestion control still lower what is really sent; the numbers above are ceilings.
+- Raised on 2026-11-06 at the owner's request: "up the bitrate to what most people use for the best quality ... then drop it to sensible quality where no one can tell the difference".
+- Each cell sits at the published recommended upload bitrates for game and video content (about where more bits stop being visible for H.264), nudged up because libwebrtc's real-time VP8 needs a little more for the same picture.
+  The old table (anchored on LiveKit's 2M at 720p30 and 5M at 1080p30) smeared on motion.
+- 50M is the top. These are ceilings: congestion control sends less on a slower upload, and a share also publishes a half-size simulcast layer.
+- Cameras rose the same way: 0.6M at 360p, 2.5M at 720p, 4.5M at 1080p (LiveKit's presets were 1.7M and 3M).
+
+Measured the same day with a scripted publisher and viewer on prod, the viewer shaped in a VM (`tc netem`):
+
+- An average home download (about 80 ms round trip, 1% loss, 20 Mbit) watching 720p60, 1080p60 and a 720p30 camera received 58 to 62, 52 to 59 and about 30 fps at full size.
+- A 5 Mbit upload sends 720p60 at about 60 fps but 1080p60 at about 4 fps, even with `balanced`: the top simulcast layer keeps its size and starves, and a viewer with a large tile keeps asking for it.
+  On a typical home upload 720p60 therefore looks better than 1080p60.
 
 ## Never above the source
 

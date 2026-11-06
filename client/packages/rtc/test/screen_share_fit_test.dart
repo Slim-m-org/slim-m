@@ -15,7 +15,7 @@ void main() {
     final fit = fitScreenShare(_p2160, sourceWidth: 1920, sourceHeight: 1080);
     expect(fit.quality.resolution, ScreenShareResolution.p1080);
     expect((fit.width, fit.height), (1920, 1080));
-    expect(fit.quality.maxBitrate, 5000000);
+    expect(fit.quality.maxBitrate, 8000000);
   });
 
   test('a 4K screen keeps the 2160p tier', () {
@@ -120,7 +120,7 @@ void main() {
       final fit = fitMeasured(_p2160, null, maxHeight: 1080);
       expect(fit.quality.resolution, ScreenShareResolution.p1080);
       expect((fit.width, fit.height), (1920, 1080));
-      expect(fit.quality.maxBitrate, 5000000);
+      expect(fit.quality.maxBitrate, 8000000);
     });
 
     test('the chosen tier stands when no ceiling is lower', () {

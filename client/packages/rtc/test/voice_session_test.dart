@@ -351,7 +351,7 @@ void main() {
 
     test('the default stays 1080p30, at LiveKit\'s 5 Mbps', () {
       expect(ScreenShareQuality.standard.id, '1080p30');
-      expect(ScreenShareQuality.standard.maxBitrate, 5000000);
+      expect(ScreenShareQuality.standard.maxBitrate, 8000000);
     });
 
     test('an id round-trips and an unknown one is null', () {

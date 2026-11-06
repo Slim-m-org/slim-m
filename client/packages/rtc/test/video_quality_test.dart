@@ -217,12 +217,16 @@ void main() {
       expect(options.params.dimensions.height, 1080);
     });
 
-    test('balanced is the 720p a camera published before the setting', () {
+    test('balanced is the 720p a camera published before, with more bits', () {
       final options = cameraCaptureOptionsFor(
         const lk.CameraCaptureOptions(),
         CameraQuality.balanced,
       );
-      expect(options.params, const lk.CameraCaptureOptions().params);
+      expect(
+        options.params.dimensions,
+        const lk.CameraCaptureOptions().params.dimensions,
+      );
+      expect(options.params.encoding?.maxBitrate, 2500000);
     });
 
     test('data saver publishes 360p', () {

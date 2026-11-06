@@ -13,29 +13,27 @@ int _bitrate(ScreenShareResolution r, ScreenShareFps f) =>
 
 void main() {
   group('screen share bitrate table', () {
-    test('is anchored on LiveKit 720p30 = 2 Mbps and 1080p30 = 5 Mbps', () {
+    test('1080p60 gets 12 Mbps, where more stops showing', () {
       expect(
-          _bitrate(ScreenShareResolution.p720, ScreenShareFps.fps30), 2000000);
-      expect(
-        _bitrate(ScreenShareResolution.p1080, ScreenShareFps.fps30),
-        5000000,
+        _bitrate(ScreenShareResolution.p1080, ScreenShareFps.fps60),
+        12000000,
       );
     });
 
     test('holds every cell', () {
       const expected = {
-        '720p15': 1500000,
-        '720p30': 2000000,
-        '720p60': 3200000,
-        '1080p15': 2500000,
-        '1080p30': 5000000,
-        '1080p60': 8000000,
-        '1440p15': 4000000,
-        '1440p30': 7500000,
-        '1440p60': 12000000,
-        '2160p15': 6000000,
-        '2160p30': 10000000,
-        '2160p60': 12000000,
+        '720p15': 2500000,
+        '720p30': 5000000,
+        '720p60': 7500000,
+        '1080p15': 4000000,
+        '1080p30': 8000000,
+        '1080p60': 12000000,
+        '1440p15': 8000000,
+        '1440p30': 16000000,
+        '1440p60': 24000000,
+        '2160p15': 15000000,
+        '2160p30': 35000000,
+        '2160p60': 50000000,
       };
       expect({for (final q in ScreenShareQuality.all) q.id: q.maxBitrate},
           expected);
