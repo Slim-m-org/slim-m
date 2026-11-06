@@ -15,6 +15,7 @@ import '../providers/live_quality_restart.dart'
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import '../providers/camera_reach.dart';
 import 'camera_on_join_section.dart';
 import 'overlay_screen_row.dart';
 import 'pause_video_section.dart';
@@ -42,6 +43,7 @@ class VideoQualitySection extends ConsumerWidget {
       ref,
       settings.screenShareQuality.resolution,
     );
+    final cameraReach = ref.watch(cameraReachProvider);
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
         .share
@@ -56,9 +58,14 @@ class VideoQualitySection extends ConsumerWidget {
             _QualityRow<CameraQuality>(
               label: 'Camera quality',
               description: 'Sharpness of the video you send.',
+              footnote: cameraReachNote(cameraReach),
               values: CameraQuality.values,
-              selected: settings.cameraQuality,
+              selected: effectiveCameraQuality(
+                settings.cameraQuality,
+                cameraReach,
+              ),
               nameOf: cameraQualityLabel,
+              disabledReasonOf: (q) => cameraQualityOutOfReach(q, cameraReach),
               onSelected: notifier.setCameraQuality,
             ),
             const CameraOnJoinSection(embedded: true),

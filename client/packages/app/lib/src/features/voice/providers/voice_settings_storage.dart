@@ -33,6 +33,7 @@ abstract final class VoiceSettingKeys {
   static const speakerPreferred = 'slimm.voice.speaker_preferred';
   static const receiveQuality = 'slimm.voice.receive_video_quality';
   static const cameraQuality = 'slimm.voice.camera_quality';
+  static const cameraReach = 'slimm.voice.camera_reach';
   static const shareAudio = 'slimm.voice.screen_share_include_audio';
   static const shareAnnotations = 'slimm.voice.screen_share_allow_annotations';
   static const callOverlay = 'slimm.voice.call_overlay_enabled';

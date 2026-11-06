@@ -141,7 +141,10 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.textContaining('Your screen is 1080p'), findsOneWidget);
+    expect(
+      find.textContaining('Your largest display is 1080p'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('2160p'));
     await _settle(tester);
     expect(
