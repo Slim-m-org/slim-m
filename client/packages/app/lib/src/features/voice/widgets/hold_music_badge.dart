@@ -72,7 +72,7 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
     final sharedDockWidth = ref.watch(bottomDockWidthProvider);
     final double dockWidth = widget.dockWidth ?? sharedDockWidth;
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
-    final badge = KeyedSubtree(key: _badgeKey, child: const HoldMusicBadge());
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final dockHeight = widget.dockHeight;
@@ -91,12 +91,10 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
               left: AppSpacing.s12,
               bottom: beside ? widget.dockMargin : widget.fallbackBottom,
             ),
-            child: beside
-                ? SizedBox(
-                    height: dockHeight,
-                    child: Align(alignment: Alignment.centerLeft, child: badge),
-                  )
-                : badge,
+            child: KeyedSubtree(
+              key: _badgeKey,
+              child: HoldMusicBadge(pillSlot: beside ? dockHeight : null),
+            ),
           ),
         );
       },
@@ -105,7 +103,10 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
 }
 
 class HoldMusicBadge extends ConsumerStatefulWidget {
-  const HoldMusicBadge({super.key});
+  const HoldMusicBadge({super.key, this.pillSlot});
+
+  /// Height the pill is centred in, so the volume panel unfolds upward from a row it shares.
+  final double? pillSlot;
 
   @override
   ConsumerState<HoldMusicBadge> createState() => _HoldMusicBadgeState();
@@ -138,7 +139,17 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
                 : const SizedBox(width: AppSizes.controlSm),
           ),
           if (_volumeOpen) const SizedBox(height: AppSpacing.s4),
-          _pill(tokens, settings, player, on),
+          if (widget.pillSlot case final slot?)
+            SizedBox(
+              height: slot,
+              child: Align(
+                alignment: Alignment.centerRight,
+                widthFactor: 1,
+                child: _pill(tokens, settings, player, on),
+              ),
+            )
+          else
+            _pill(tokens, settings, player, on),
         ],
       ),
     );
