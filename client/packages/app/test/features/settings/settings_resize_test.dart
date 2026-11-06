@@ -6,8 +6,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:slimm_app/src/features/settings/providers/settings_index.dart'
-    show yourDataPane;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -148,9 +146,9 @@ void main() {
     tester,
   ) async {
     final router = await _pump(tester, _router(Routes.personalSettings));
-    await tester.tap(find.text('Your data'));
+    await tester.tap(find.text('Account and security'));
     await tester.pumpAndSettle();
-    expect(_location(router), Routes.personalSettingsPane(yourDataPane));
+    expect(_location(router), Routes.personalSettingsPane(accountDevicesPane));
     expect(find.text('Delete account...'), findsOneWidget);
 
     await _resize(tester, _phone);
@@ -158,11 +156,14 @@ void main() {
 
     await _resize(tester, _wide);
     expect(find.text('Delete account...'), findsOneWidget);
-    expect(_location(router), Routes.personalSettingsPane(yourDataPane));
+    expect(_location(router), Routes.personalSettingsPane(accountDevicesPane));
   });
 
   testWidgets('a pane link opens that pane from cold', (tester) async {
-    await _pump(tester, _router(Routes.personalSettingsPane(yourDataPane)));
+    await _pump(
+      tester,
+      _router(Routes.personalSettingsPane(accountDevicesPane)),
+    );
 
     expect(find.text('Delete account...'), findsOneWidget);
   });

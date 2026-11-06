@@ -18,7 +18,7 @@ export 'settings_index_voice.dart';
 const _devicesPage = 'account-devices';
 
 /// The pane holding the data export and account deletion.
-const yourDataPane = 'your-data';
+const aboutPane = 'about';
 
 /// One searchable setting.
 class SettingsEntry {
@@ -141,7 +141,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['sessions', 'sign out', 'logout', 'version'],
   ),
   SettingsEntry(
-    yourDataPane,
+    aboutPane,
     'Your data',
     description: 'A copy of what you wrote and uploaded.',
     conditional: true,
@@ -154,13 +154,13 @@ const personalSettingsIndex = <SettingsEntry>[
     ],
   ),
   SettingsEntry(
-    yourDataPane,
+    aboutPane,
     'Download my data',
     description: 'Messages, reactions, saved items, notes and uploads.',
     keywords: ['export', 'archive', 'backup', 'portability'],
   ),
   SettingsEntry(
-    yourDataPane,
+    _devicesPage,
     'Delete account',
     description: 'Permanently removes you and signs out every device.',
     keywords: ['remove account', 'close account', 'erase'],
