@@ -12,7 +12,10 @@
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
-FlutterWindow::~FlutterWindow() {}
+FlutterWindow::~FlutterWindow() {
+  // reset() clears the pointer before deleting, so a message sent mid-teardown sees no controller.
+  flutter_controller_.reset();
+}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -52,6 +55,8 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   UnregisterGlobalHotkeys();
+  // Before the view goes, or DestroyWindow's WM_ACTIVATE focuses it after it is freed (crash on quit).
+  ClearChildContent();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

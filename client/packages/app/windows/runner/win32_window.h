@@ -71,6 +71,9 @@ class Win32Window {
   // Called when Destroy is called.
   virtual void OnDestroy();
 
+  // Forgets the child content so no later message routes into a torn-down view.
+  void ClearChildContent();
+
  private:
   friend class WindowClassRegistrar;
 

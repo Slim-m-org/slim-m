@@ -249,6 +249,10 @@ Win32Window* Win32Window::GetThisFromHandle(HWND const window) noexcept {
       GetWindowLongPtr(window, GWLP_USERDATA));
 }
 
+void Win32Window::ClearChildContent() {
+  child_content_ = nullptr;
+}
+
 void Win32Window::SetChildContent(HWND content) {
   child_content_ = content;
   SetParent(content, window_handle_);
