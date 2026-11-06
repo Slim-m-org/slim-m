@@ -273,7 +273,8 @@ final appInfoProvider = FutureProvider.autoDispose<PackageInfo>(
 final apiProvider = Provider<SlimmApi>((ref) {
   final api = SlimmApi(
     baseUrl: ref.watch(serverUrlProvider),
-    session: ref.watch(sessionProvider),
+    // Read, not watched: the store follows sign-ins itself, and a rebuild would close in-flight requests.
+    session: ref.read(sessionProvider),
   )..clientReport = (kind: deviceClientKind, version: null);
   // The version arrives asynchronously; until then a refresh reports the kind alone.
   unawaited(

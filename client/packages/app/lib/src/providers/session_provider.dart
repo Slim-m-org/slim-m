@@ -23,6 +23,11 @@ import 'providers.dart';
 /// finish after a faster later one and leave a stale value as the persisted
 /// state. [SessionStore.settled] is what lets a rotation wait for its own
 /// write to land before anything relies on it being durable.
+///
+/// The store is one long-lived object, so watchers are told explicitly when the
+/// signed-in account changes (sign-in, sign-out, a switch); a token rotation
+/// for the same account stays quiet. Without it a provider that read the
+/// signed-out `tokens?.userId` kept that null for the rest of the process.
 final sessionProvider = Provider<SessionStore>((ref) {
   final keyStore = ref.read(keyStoreProvider);
   final slot = ref.read(accountSlotProvider);
@@ -68,6 +73,13 @@ final sessionProvider = Provider<SessionStore>((ref) {
       }
     },
   );
+  var lastUserId = store.tokens?.userId;
+  final signedInAs = store.changes.listen((tokens) {
+    if (tokens?.userId == lastUserId) return;
+    lastUserId = tokens?.userId;
+    ref.notifyListeners();
+  });
+  ref.onDispose(signedInAs.cancel);
   final following = tabs.storageChanges.listen(
     (_) => unawaited(store.reloadFromStorage()),
   );

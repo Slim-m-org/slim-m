@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -88,9 +89,40 @@ Page<void> modalPage(
     child: _ModalSurface(
       maxWidth: maxWidth,
       maxHeight: maxHeight,
-      child: AppBoundedWidth(child: child),
+      child: _EscapeDismisses(child: AppBoundedWidth(child: child)),
     ),
   );
+}
+
+/// Pops the route on Escape from anywhere inside it.
+///
+/// The framework's own Escape handling resolves `DismissIntent` from the
+/// focused widget, and the nearest handler wins even when it is disabled. Any
+/// [Scaffold] in the screen installs a drawer handler that is disabled unless a
+/// drawer is open, so once a control below it held focus the route's handler
+/// was never reached and Escape did nothing.
+class _EscapeDismisses extends StatelessWidget {
+  const _EscapeDismisses({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent ||
+            event.logicalKey != LogicalKeyboardKey.escape ||
+            !(ModalRoute.of(context)?.barrierDismissible ?? false)) {
+          return KeyEventResult.ignored;
+        }
+        Navigator.of(context).maybePop();
+        return KeyEventResult.handled;
+      },
+      child: child,
+    );
+  }
 }
 
 /// The whole window on a phone, the floating panel on a desktop, around one
