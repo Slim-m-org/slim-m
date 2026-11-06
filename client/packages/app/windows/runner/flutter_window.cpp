@@ -52,6 +52,8 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   UnregisterGlobalHotkeys();
+  // Before the view goes, or DestroyWindow's WM_ACTIVATE focuses it after it is freed (crash on quit).
+  ClearChildContent();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
