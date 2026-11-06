@@ -105,4 +105,39 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.125.0',
+    headline: 'Draw on a shared screen with the canvas tools',
+    points: [
+      WhatsNewPoint(
+        "When someone lets viewers draw on their screen, the canvas's own pen, "
+        'shapes and notes mark it up, in your pen colour.',
+      ),
+      WhatsNewPoint(
+        'On Windows, switching microphones mid-call keeps you heard, and '
+        'quitting no longer crashes.',
+      ),
+      WhatsNewPoint(
+        'A Close to tray setting under Desktop: turn it off and the close '
+        'button quits the app.',
+      ),
+      WhatsNewPoint(
+        'Pen colours fit on one row, with a custom colour at the end, and the '
+        'mic test in Voice settings has a Stop button.',
+      ),
+      WhatsNewPoint(
+        'Your data now lives under About slim-m; deleting your account is in '
+        'Account and security.',
+      ),
+      WhatsNewPoint(
+        'On phones, the GIF picker no longer opens the keyboard, and tapping '
+        'the text box brings it back from the photo panel.',
+      ),
+      WhatsNewPoint(
+        'Fixed: the hold music volume slider hiding behind the taskbar, a '
+        'missing name and picture after waking, closing the canvas after a '
+        'call joining it again, and Escape in settings after a toggle.',
+      ),
+    ],
+  ),
 ];
