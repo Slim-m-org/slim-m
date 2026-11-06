@@ -74,7 +74,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   // keep saying /channels while a modal is open, so the URL could not be
   // copied, shared or reloaded, and browser back would not close it.
   GoRouter.optionURLReflectsImperativeAPIs = true;
-  final session = ref.watch(sessionProvider);
+  // Read, not watched: the listenable below already follows every change, and a rebuild would replace the router.
+  final session = ref.read(sessionProvider);
 
   // Read, not watched: main() awaits restoreSession before the router is
   // built, so a remembered server is already in place by this point.
@@ -357,7 +358,7 @@ Page<void> _messagePage(BuildContext context, GoRouterState state) {
 /// refresh hook takes.
 class _SessionListenable extends ChangeNotifier {
   _SessionListenable(Ref ref) {
-    _subscription = ref.watch(sessionProvider).changes.listen((_) {
+    _subscription = ref.read(sessionProvider).changes.listen((_) {
       notifyListeners();
     });
     ref.onDispose(() => _subscription.cancel());

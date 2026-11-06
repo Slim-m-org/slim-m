@@ -91,6 +91,8 @@ class FirstRunController extends StateNotifier<FirstRunState> {
 }
 
 final firstRunControllerProvider =
-    StateNotifierProvider<FirstRunController, FirstRunState>(
-      (ref) => FirstRunController(ref),
-    );
+    StateNotifierProvider<FirstRunController, FirstRunState>((ref) {
+      // Rebuilt per account, or the next one signed in inherits the last one's verdict.
+      ref.watch(sessionProvider.select((s) => s.tokens?.userId));
+      return FirstRunController(ref);
+    });
