@@ -74,6 +74,12 @@ class MicPreviewController extends StateNotifier<MicPreviewReading> {
     _sync();
   }
 
+  /// "Stop test": closes the microphone while the pane stays open.
+  void stop() {
+    _disarm();
+    _sync();
+  }
+
   void acquire() {
     _holds++;
     _sync();

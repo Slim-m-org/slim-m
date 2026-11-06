@@ -46,7 +46,8 @@ class _TapToTest extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final needsTap = ref.watch(micPreviewNeedsTapProvider);
     final armed = ref.watch(micPreviewArmedProvider);
-    if (!needsTap || armed) return child;
+    if (!needsTap) return child;
+    final controller = ref.read(micPreviewProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -58,12 +59,20 @@ class _TapToTest extends ConsumerWidget {
             AppSpacing.s16,
             AppSpacing.s16,
           ),
-          child: AppButton(
-            key: micTestButtonKey,
-            label: 'Test microphone',
-            icon: AppIcons.mic,
-            onPressed: ref.read(micPreviewProvider.notifier).arm,
-          ),
+          child: armed
+              ? AppButton(
+                  key: micTestStopKey,
+                  label: 'Stop test',
+                  icon: AppIcons.micOff,
+                  variant: AppButtonVariant.secondary,
+                  onPressed: controller.stop,
+                )
+              : AppButton(
+                  key: micTestButtonKey,
+                  label: 'Test microphone',
+                  icon: AppIcons.mic,
+                  onPressed: controller.arm,
+                ),
         ),
       ],
     );
@@ -71,3 +80,4 @@ class _TapToTest extends ConsumerWidget {
 }
 
 const micTestButtonKey = ValueKey('mic-test-button');
+const micTestStopKey = ValueKey('mic-test-stop');
