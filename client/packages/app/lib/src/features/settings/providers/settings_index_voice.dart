@@ -94,13 +94,24 @@ const voiceSettingsIndex = <SettingsEntry>[
     'voice',
     'Call overlay',
     description: 'Lists who is in the call over your other windows.',
-    keywords: ['overlay', 'who is talking', 'speaking', 'corner', 'position'],
+    keywords: [
+      'overlay',
+      'who is talking',
+      'speaking',
+      'corner',
+      'position',
+      'monitor',
+      'screen',
+    ],
     conditional: true,
   ),
   SettingsEntry(
     'voice',
-    'Pause video when minimised',
-    description: 'Stops receiving video while the window is minimised.',
+    'Pause video in the background',
+    description:
+        'Your own previews stop when slim-m is not focused, and other '
+        "people's video stops when it is minimised.",
+    keywords: ['minimised', 'unfocused', 'cpu', 'battery', 'preview'],
   ),
   SettingsEntry(
     'notifications',

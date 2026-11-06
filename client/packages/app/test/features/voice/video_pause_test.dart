@@ -85,21 +85,40 @@ void main() {
       AppLifecycleState.detached,
     ];
 
-    test('a focused or merely unfocused window never pauses', () {
+    test('a focused window never pauses', () {
       for (final setting in [true, false]) {
         for (final desktop in [true, false]) {
-          for (final s in [
-            AppLifecycleState.resumed,
-            AppLifecycleState.inactive,
-          ]) {
-            expect(
-              pauses(s, setting: setting, desktop: desktop),
-              isFalse,
-              reason: '$s setting=$setting desktop=$desktop',
-            );
-          }
+          expect(
+            pauses(
+              AppLifecycleState.resumed,
+              setting: setting,
+              desktop: desktop,
+            ),
+            isFalse,
+            reason: 'setting=$setting desktop=$desktop',
+          );
         }
       }
+    });
+
+    test(
+      'an unfocused desktop window pauses its own preview with the setting',
+      () {
+        expect(pauses(AppLifecycleState.inactive), isTrue);
+        expect(pauses(AppLifecycleState.inactive, setting: false), isFalse);
+      },
+    );
+
+    test('an unfocused desktop window still receives remote video', () {
+      expect(
+        shouldPauseRemoteVideo(
+          lifecycle: AppLifecycleState.inactive,
+          pauseWhenMinimised: true,
+          desktop: true,
+          pictureInPicture: false,
+        ),
+        isFalse,
+      );
     });
 
     test('a hidden desktop window pauses only when the setting is on', () {
@@ -177,7 +196,7 @@ void main() {
     final remoteCamera = find.byKey(const Key('fake-camera-view-u-ada'));
     final localCamera = find.byKey(const Key('fake-camera-view-u-me'));
 
-    testWidgets('an unfocused window keeps remote video and the preview', (
+    testWidgets('an unfocused window keeps remote video, not its own preview', (
       tester,
     ) async {
       final c = await pump(tester);
@@ -187,7 +206,7 @@ void main() {
       await tester.pump();
       expect(remoteShare, findsOneWidget);
       expect(remoteCamera, findsOneWidget);
-      expect(localCamera, findsOneWidget);
+      expect(localCamera, findsNothing);
     });
 
     testWidgets('a minimised window still keeps remote video tiles', (
