@@ -15,7 +15,7 @@ import e2e_voice_ui as ui
 from e2e_voice import join_call
 from e2e_voice_rejoin import _click_channel_row
 
-MIC_ROW = "Microphone, currently"
+MIC_ROW = "Input device, currently"
 DEFAULT_MIC = "System default"
 # Reopening a capture is not instant; a second of silence is a lost word, more is a dropout.
 MAX_GAP_SECONDS = 1.5

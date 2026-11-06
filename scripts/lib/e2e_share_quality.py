@@ -34,7 +34,7 @@ QUALITY_KEY = "flutter.slimm.voice.screen_share_quality"
 # A 1080p screen with the 2160p tier picked: nothing above 1080p may be published.
 DEFAULT_MATRIX = [{"name": "1080p screen, 2160p tier", "quality": "2160p30",
                    "source": [1920, 1080]}]
-FITTED_TOP_BITRATE = 5_000_000
+FITTED_TOP_BITRATE = 8_000_000
 
 
 def matrix():

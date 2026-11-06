@@ -52,7 +52,7 @@ export const L = {
   "INVITE_CONTINUE": "Continue",
   "SHARE_OPTIONS": "Screen share options",
   "SHARE_RESOLUTION_HEADING": "Resolution",
-  "SHARE_RESOLUTION_ROW": "Screen share resolution",
+  "SHARE_RESOLUTION_ROW": "Resolution",
   "RES_720P": "720p",
   "FPS_30": "30 fps",
   "FPS_60": "60 fps",
