@@ -99,6 +99,10 @@ class VoiceScreen extends ConsumerStatefulWidget {
   ConsumerState<VoiceScreen> createState() => _VoiceScreenState();
 }
 
+/// The channel whose screen handed over to its canvas after its join was
+/// already settled, so the remount when the canvas closes is not an arrival.
+final _canvasHandoffProvider = StateProvider<String?>((ref) => null);
+
 class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// The channel id an automatic join has already been requested for, so a
   /// failure - or an explicit hang-up, which leaves this same screen still
@@ -127,9 +131,12 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// A fresh arrival owes an automatic join, unless the member came to read:
   /// then it counts as already attempted, and the chat opens instead.
   void _arrive() {
-    _autoJoinedFor = widget.openChat ? widget.channelId : null;
+    // Closing the canvas remounts this screen with no memory; the handoff carries it across, however long the canvas was open.
+    final handedOff = ref.read(_canvasHandoffProvider) == widget.channelId;
+    _autoJoinedFor = widget.openChat || handedOff ? widget.channelId : null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (handedOff) ref.read(_canvasHandoffProvider.notifier).state = null;
       // A phone has no docked pane to remember, so an arrival starts on the call unless it came to read.
       final compact = LayoutClass.of(context) == LayoutClass.compact;
       if (widget.openChat || compact) {
@@ -252,6 +259,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(canvasOpenProvider, (_, open) {
+      if (open == widget.channelId && _autoJoinedFor == widget.channelId) {
+        ref.read(_canvasHandoffProvider.notifier).state = widget.channelId;
+      }
+    });
     ref.listen<VoiceFlags>(voiceFlagsProvider, _returnAfterHangUp);
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final voice = ref.watch(voiceFlagsProvider);

@@ -159,7 +159,12 @@ class WindowManagerDesktopWindowPort
   }
 
   @override
-  void onWindowClose() => _events.add(DesktopWindowEventKind.close);
+  void onWindowClose() {
+    // window_manager's destroy closes the GTK window, which echoes a close; routing that one closed it twice and crashed.
+    if (_destroying) return;
+    _events.add(DesktopWindowEventKind.close);
+  }
+
   @override
   void onWindowResize() => _events.add(DesktopWindowEventKind.resize);
   @override

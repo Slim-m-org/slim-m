@@ -125,7 +125,7 @@ void main() {
           primary: false,
         ),
       ];
-      final size = const Size(1920, 1080);
+      const size = Size(1920, 1080);
       expect(
         pickSharedMonitors(
           twins,

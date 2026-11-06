@@ -161,29 +161,41 @@ void main() {
     expect(container.read(canvasRecentColoursProvider), ['#abcdef']);
   });
 
-  test('the pen menu carries a Custom group only when given tiles', () {
-    List<ControlOptionEntry> options(List<ControlSwatch> custom) =>
-        canvasToolOptions(
-          CanvasTool.pen,
-          pen: const CanvasPenStyle(colorKey: '#3a7bd5'),
-          onPenChanged: (_) {},
-          shapeKind: CanvasShapeKind.rectangle,
-          onShapeKindChanged: (_) {},
-          customColours: custom,
-        );
-    List<String> headings(List<ControlOptionEntry> e) => [
-      for (final entry in e)
-        if (entry is ControlSwatchGroup) entry.heading,
-    ];
-    expect(headings(options(const [])), ['Colour']);
-    final tile = ControlSwatch(
-      label: 'Custom colour',
-      selected: false,
-      color: const Color(0xFF3A7BD5),
-      onSelected: () {},
-    );
-    expect(headings(options([tile])), ['Colour', 'Custom']);
-  });
+  test(
+    'the picker ends the colour row; recent picks get a row of their own',
+    () {
+      List<ControlSwatchGroup> rows({
+        ControlSwatch? picker,
+        List<ControlSwatch> recent = const [],
+      }) => canvasToolOptions(
+        CanvasTool.pen,
+        pen: const CanvasPenStyle(colorKey: '#3a7bd5'),
+        onPenChanged: (_) {},
+        shapeKind: CanvasShapeKind.rectangle,
+        onShapeKindChanged: (_) {},
+        customPicker: picker,
+        recentColours: recent,
+      ).whereType<ControlSwatchGroup>().toList();
+      ControlSwatch tile(String label) => ControlSwatch(
+        label: label,
+        selected: false,
+        color: const Color(0xFF3A7BD5),
+        onSelected: () {},
+      );
+
+      final plain = rows();
+      expect(plain.map((r) => r.heading), ['Colour']);
+      expect(plain.single.swatches, hasLength(canvasPenColors.length));
+
+      final withPicker = rows(
+        picker: tile('Custom colour'),
+        recent: [tile('Custom #3a7bd5')],
+      );
+      expect(withPicker.map((r) => r.heading), ['Colour', null]);
+      expect(withPicker.first.swatches.last.label, 'Custom colour');
+      expect(withPicker.last.swatches.single.label, 'Custom #3a7bd5');
+    },
+  );
 
   test('a pen on a hex colour paints that colour', () {
     const pen = CanvasPenStyle(colorKey: '#3a7bd5');

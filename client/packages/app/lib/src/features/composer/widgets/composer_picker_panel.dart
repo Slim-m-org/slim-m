@@ -106,6 +106,7 @@ class _ComposerPickerPanelState extends State<ComposerPickerPanel> {
                 onClose: widget.onClose,
               ),
               onPickedGif: widget.onPickedGif,
+              focusGifSearch: true,
               channelId: widget.channelId,
               gifQuery: widget.gifQuery,
             ),
@@ -128,6 +129,7 @@ List<Widget> _pickerBody({
   required bool showGifTab,
   required Widget emojiBody,
   required ValueChanged<api.Attachment> onPickedGif,
+  required bool focusGifSearch,
   String? channelId,
   String gifQuery = '',
 }) => [
@@ -156,6 +158,7 @@ List<Widget> _pickerBody({
       channelId: channelId,
       onPicked: onPickedGif,
       initialQuery: gifQuery,
+      focusSearch: focusGifSearch,
     ),
   },
 ];
@@ -236,6 +239,7 @@ class _ComposerPickerSheetState extends State<_ComposerPickerSheet> {
             Navigator.of(context).pop();
             widget.onPickedGif(attachment);
           },
+          focusGifSearch: widget.gifQuery.isNotEmpty,
           channelId: widget.channelId,
           gifQuery: widget.gifQuery,
         ),

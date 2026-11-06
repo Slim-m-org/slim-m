@@ -63,4 +63,22 @@ void main() {
     expect(source.closes, greaterThan(0));
     container.dispose();
   });
+
+  testWidgets('Stop test closes the microphone and leaves the pane open', (
+    tester,
+  ) async {
+    final source = FakeMicSource();
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: _phone(source)),
+    );
+    await _settle(tester);
+    await tester.tap(find.byKey(micTestButtonKey));
+    await _settle(tester);
+    expect(source.opened, hasLength(1));
+
+    await tester.tap(find.byKey(micTestStopKey));
+    await _settle(tester);
+    expect(source.closes, greaterThan(0));
+    expect(find.byKey(micTestButtonKey), findsOneWidget);
+  });
 }

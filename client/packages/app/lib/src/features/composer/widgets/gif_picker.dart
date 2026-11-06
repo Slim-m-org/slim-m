@@ -142,6 +142,7 @@ class GifPickerBody extends ConsumerStatefulWidget {
     required this.onPicked,
     this.channelId,
     this.initialQuery = '',
+    this.focusSearch = true,
   });
 
   static const favoritesToggleKey = Key('gif-picker-favorites');
@@ -153,6 +154,9 @@ class GifPickerBody extends ConsumerStatefulWidget {
 
   /// Searched for straight away, as `/gif cats` asks.
   final String initialQuery;
+
+  /// Off on a phone that opened the tab to browse: a focused field raises the keyboard over the GIFs.
+  final bool focusSearch;
 
   @override
   ConsumerState<GifPickerBody> createState() => _GifPickerBodyState();
@@ -182,7 +186,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     // Asked for, not autofocus alone: autofocus yields to the composer when it already holds focus, as it does for /gif.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _queryFocus.requestFocus();
+      if (widget.focusSearch) _queryFocus.requestFocus();
       if (query.isNotEmpty) unawaited(_search(query));
     });
   }
@@ -325,7 +329,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
                   maxLength: api.InputLimits.searchQuery,
                   controller: _queryController,
                   focusNode: _queryFocus,
-                  autofocus: true,
+                  autofocus: widget.focusSearch,
                   placeholder: 'Search GIFs',
                   icon: Icon(
                     AppIcons.search,

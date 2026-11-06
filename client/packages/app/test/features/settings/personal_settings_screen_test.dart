@@ -119,7 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Deletion sits with the account it deletes, not under "About slim-m".
-    await tester.tap(find.text('Your data'));
+    await tester.tap(find.text('Account and security'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Delete account...'));
     await tester.pumpAndSettle();
@@ -195,7 +195,6 @@ void main() {
       for (final icon in const [
         AppIcons.account,
         AppIcons.shield,
-        AppIcons.download,
         AppIcons.appearance,
         AppIcons.notificationsOn,
         AppIcons.voice,

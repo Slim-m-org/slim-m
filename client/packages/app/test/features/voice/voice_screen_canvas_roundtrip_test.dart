@@ -30,6 +30,8 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart'
+    show canvasOpenProvider;
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -357,6 +359,59 @@ void main() {
         reason: 'left, on the idle pane',
       );
       expect(find.byType(CircularProgressIndicator), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'after a call, a canvas opened from its recap does not rejoin on close',
+    (tester) async {
+      final session = _ConnectableSession();
+      final container = _container(session);
+      Future<void> mountScreen() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: buildTheme(Brightness.light, AppTokens.light),
+              home: const Scaffold(body: VoiceScreen(channelId: 'channel-1')),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+      }
+
+      final controller = container.read(voiceControllerProvider.notifier);
+      await controller.join('channel-1');
+      await mountScreen();
+      await controller.leave();
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Rejoin muted'), findsOneWidget);
+
+      // Open canvas from the recap: the pane swap unmounts this screen.
+      container.read(canvasOpenProvider.notifier).state = 'channel-1';
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      // Time on the canvas outlasts the hang-up's own rejoin guard.
+      await tester.runAsync(
+        () => Future<void>.delayed(
+          VoiceState.rejoinGuardWindow + const Duration(milliseconds: 300),
+        ),
+      );
+
+      container.read(canvasOpenProvider.notifier).state = null;
+      await mountScreen();
+
+      expect(
+        session.joinCount,
+        1,
+        reason: 'closing the canvas is not arriving at the channel',
+      );
+      expect(find.text('Rejoin muted'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      container.dispose();
+      await tester.pump(const Duration(minutes: 1));
     },
   );
 }

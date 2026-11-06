@@ -19,9 +19,10 @@ List<ControlOptionEntry> canvasToolOptions(
   required ValueChanged<CanvasPenStyle> onPenChanged,
   required CanvasShapeKind shapeKind,
   required ValueChanged<CanvasShapeKind> onShapeKindChanged,
-  List<ControlSwatch> customColours = const [],
+  ControlSwatch? customPicker,
+  List<ControlSwatch> recentColours = const [],
 }) => switch (tool) {
-  CanvasTool.pen => _penOptions(pen, onPenChanged, customColours),
+  CanvasTool.pen => _penOptions(pen, onPenChanged, customPicker, recentColours),
   CanvasTool.shape => _shapeOptions(shapeKind, onShapeKindChanged),
   _ => const [],
 };
@@ -34,10 +35,13 @@ const canvasShapeOptionKinds = [
   CanvasShapeKind.arrow,
 ];
 
+/// One colour row with the picker at its end, then any recent custom colours
+/// on a row of their own, so the menu stays two short sections.
 List<ControlOptionEntry> _penOptions(
   CanvasPenStyle pen,
   ValueChanged<CanvasPenStyle> onChanged,
-  List<ControlSwatch> customColours,
+  ControlSwatch? customPicker,
+  List<ControlSwatch> recentColours,
 ) => [
   ControlSwatchGroup(
     heading: 'Colour',
@@ -49,10 +53,10 @@ List<ControlOptionEntry> _penOptions(
           selected: pen.colorKey == choice.key,
           onSelected: () => onChanged(pen.copyWith(colorKey: choice.key)),
         ),
+      ?customPicker,
     ],
   ),
-  if (customColours.isNotEmpty)
-    ControlSwatchGroup(heading: 'Custom', swatches: customColours),
+  if (recentColours.isNotEmpty) ControlSwatchGroup(swatches: recentColours),
   ControlSliderGroup(
     heading: 'Size',
     value: pen.width,

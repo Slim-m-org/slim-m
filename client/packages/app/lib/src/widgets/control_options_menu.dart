@@ -146,7 +146,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
   ) {
     if (entry is ControlSwatchGroup) {
       return [
-        AppMenuLabel(entry.heading),
+        if (entry.heading case final heading?) AppMenuLabel(heading),
         ControlSwatchRow(swatches: entry.swatches, close: close),
       ];
     }

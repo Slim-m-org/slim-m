@@ -65,6 +65,24 @@ void main() {
     }
   }
 
+  testWidgets('armed on a phone, beside its caret, the bar stays under the '
+      'glyph', (tester) async {
+    await tester.pumpWidget(
+      wrapCanvasToolsRow(
+        buildCanvasToolsRow(tool: CanvasTool.pen, pen: const CanvasPenStyle()),
+        width: 390,
+        touch: true,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      tester.getCenter(_bar).dx,
+      closeTo(tester.getCenter(find.byIcon(AppIcons.pen)).dx, 0.5),
+    );
+    final glyph = tester.getRect(find.byIcon(AppIcons.pen));
+    expect(tester.getRect(_bar).top - glyph.bottom, lessThan(4));
+  });
+
   testWidgets('a thicker pen draws a thicker bar at once', (tester) async {
     var pen = const CanvasPenStyle(width: 1.5);
     late StateSetter set;

@@ -48,23 +48,29 @@ class CanvasToolButtons extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     CanvasTool forTool,
-  ) => tool == forTool && forTool.isAvailable(canDraw: canDraw)
-      ? canvasToolOptions(
-          forTool,
-          pen: pen,
-          onPenChanged: onPenChanged,
-          shapeKind: shapeKind,
-          onShapeKindChanged: onShapeKindChanged,
-          customColours: forTool == CanvasTool.pen
-              ? canvasCustomColourSwatches(
-                  context: context,
-                  ref: ref,
-                  selectedKey: pen.colorKey,
-                  onChoose: (hex) => onPenChanged(pen.copyWith(colorKey: hex)),
-                )
-              : const [],
-        )
-      : const [];
+  ) {
+    if (tool != forTool || !forTool.isAvailable(canDraw: canDraw)) {
+      return const [];
+    }
+    // The picker leads the list canvasCustomColourSwatches returns; the rest are recent picks.
+    final custom = forTool == CanvasTool.pen
+        ? canvasCustomColourSwatches(
+            context: context,
+            ref: ref,
+            selectedKey: pen.colorKey,
+            onChoose: (hex) => onPenChanged(pen.copyWith(colorKey: hex)),
+          )
+        : const <ControlSwatch>[];
+    return canvasToolOptions(
+      forTool,
+      pen: pen,
+      onPenChanged: onPenChanged,
+      shapeKind: shapeKind,
+      onShapeKindChanged: onShapeKindChanged,
+      customPicker: custom.firstOrNull,
+      recentColours: custom.skip(1).toList(),
+    );
+  }
 
   /// The caret only exists once the tool is selected, so the hint says what is true now.
   String get _shapeHint {
@@ -82,6 +88,7 @@ class CanvasToolButtons extends ConsumerWidget {
     Widget child,
   ) => ControlOptionsMenu(
     active: true,
+    menuWidth: _toolMenuWidth,
     caretHeight: AppSizes.icon28,
     opensAbove: true,
     optionsLabel: label,
@@ -175,6 +182,9 @@ class CanvasToolButtons extends ConsumerWidget {
   }
 }
 
+/// Room for the six pen colours and the picker at the 30dp pointer target.
+const double _toolMenuWidth = 240;
+
 /// The pen button, with a bar of the armed colour under the glyph, like the tip of the nib.
 class _PenButton extends StatelessWidget {
   const _PenButton({
@@ -199,6 +209,8 @@ class _PenButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final outline = penBarOutline(pen.color);
+    // Joined to its caret the glyph's box sits right in the hit box, so the bar follows it there.
+    final joined = AppControlWithOptions.joinedOf(context);
     return Stack(
       children: [
         AppIconButton(
@@ -210,23 +222,29 @@ class _PenButton extends StatelessWidget {
         ),
         Positioned.fill(
           child: IgnorePointer(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: _barOffset),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: outline == null
-                        ? null
-                        : Border.all(color: outline, width: 0.75),
-                    borderRadius: BorderRadius.circular(_barThickness),
-                  ),
-                  child: Container(
-                    key: const ValueKey('pen-colour-bar'),
-                    width: _barLength,
-                    height: _barThickness,
-                    decoration: BoxDecoration(
-                      color: pen.color,
-                      borderRadius: BorderRadius.circular(_barThickness),
+            child: Align(
+              alignment: joined ? Alignment.centerRight : Alignment.center,
+              child: SizedBox.square(
+                dimension: AppSizes.icon28,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: _barOffset),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: outline == null
+                            ? null
+                            : Border.all(color: outline, width: 0.75),
+                        borderRadius: BorderRadius.circular(_barThickness),
+                      ),
+                      child: Container(
+                        key: const ValueKey('pen-colour-bar'),
+                        width: _barLength,
+                        height: _barThickness,
+                        decoration: BoxDecoration(
+                          color: pen.color,
+                          borderRadius: BorderRadius.circular(_barThickness),
+                        ),
+                      ),
                     ),
                   ),
                 ),

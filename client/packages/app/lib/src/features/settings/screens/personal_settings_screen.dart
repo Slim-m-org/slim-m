@@ -11,7 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
 import '../../../routing/routes.dart';
-import '../providers/settings_index.dart' show yourDataPane;
+import '../providers/settings_index.dart' show aboutPane;
 import '../widgets/settings_section_header.dart';
 import '../../members/widgets/activity_sharing_section.dart';
 import '../widgets/app_info_section.dart';
@@ -96,16 +96,6 @@ class PersonalSettingsScreen extends ConsumerWidget {
                   _SignInSection(),
                   AppLockSection(),
                   DevicesSection(),
-                ],
-              ),
-            ),
-            SettingsPane(
-              id: yourDataPane,
-              label: 'Your data',
-              icon: AppIcons.download,
-              builder: (context) => const Column(
-                children: [
-                  DataExportCard(copy: DataExportCopy.member),
                   AccountSection(),
                 ],
               ),
@@ -177,10 +167,15 @@ class PersonalSettingsScreen extends ConsumerWidget {
                   TroubleshootingHeading(onClose: onClose),
             ),
             SettingsPane(
-              id: 'about',
+              id: aboutPane,
               label: 'About slim-m',
               icon: AppIcons.info,
-              builder: (context) => const AppInfoSection(),
+              builder: (context) => const Column(
+                children: [
+                  AppInfoSection(),
+                  DataExportCard(copy: DataExportCopy.member),
+                ],
+              ),
             ),
           ],
         ),

@@ -27,7 +27,6 @@ import 'settings_harness.dart';
 const List<(String?, String)> _panes = [
   ('You', 'Profile'),
   ('You', 'Account and security'),
-  ('You', 'Your data'),
   ('App', 'Appearance'),
   ('App', 'Desktop'),
   ('App', 'Notifications'),
@@ -135,7 +134,7 @@ void main() {
   testWidgets('the delete warning survives, above the action', (tester) async {
     useTallViewport(tester);
     await pumpPersonalSettings(tester, 0, scrollToBottom: false);
-    await tester.tap(find.text('Your data'));
+    await tester.tap(find.text('Account and security'));
     await tester.pumpAndSettle();
 
     expect(

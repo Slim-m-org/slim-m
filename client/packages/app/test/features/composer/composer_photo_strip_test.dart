@@ -180,6 +180,20 @@ void main() {
     expect(library.manageCalls, 1);
   });
 
+  testWidgets('tapping the field brings the keyboard back instead of the '
+      'strip', (tester) async {
+    await pump(tester, _FakeLibrary(PhotoAccess.full));
+    await _openStrip(tester);
+    expect(find.bySemanticsLabel('Attach photo'), findsWidgets);
+
+    await tester.tap(find.byWidgetPredicate((w) => w is EditableText));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.bySemanticsLabel('Attach photo'), findsNothing);
+    expect(tester.testTextInput.isVisible, isTrue);
+  });
+
   testWidgets('tapping the handle removes the strip', (tester) async {
     await pump(tester, _FakeLibrary(PhotoAccess.full));
     await _openStrip(tester);
