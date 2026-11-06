@@ -100,6 +100,7 @@ class OverlayRig {
     bool supported = true,
     VoiceState? initial,
     ScreenShareSource? source,
+    PortalMonitor? portal,
   }) {
     SharedPreferences.setMockInitialValues({
       'slimm.voice.screen_share_allow_annotations': allow,
@@ -109,6 +110,7 @@ class OverlayRig {
     container = ProviderContainer(
       overrides: [
         screenOverlayProvider.overrideWithValue(overlay),
+        portalSharedMonitorProvider.overrideWithValue(() async => portal),
         screenOverlaySupportProvider.overrideWith(
           (ref) async => supported
               ? const OverlaySupport(supported: true, monitors: rigMonitors)

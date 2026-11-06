@@ -56,6 +56,16 @@ void main() {
     },
   );
 
+  test('the monitor the portal names is the one covered', () {
+    fakeAsync((async) {
+      final rig = OverlayRig(portal: (x: 1920, y: 0, width: 1280, height: 800));
+      async.flushMicrotasks();
+      expect(rig.overlay.shown, [
+        [1],
+      ]);
+    });
+  });
+
   test('a known capture size covers only the monitor of that shape', () {
     fakeAsync((async) {
       localShareCapturedSize.value = (width: 1280, height: 800);
@@ -223,6 +233,7 @@ void _lateProbeTest() {
         final container = ProviderContainer(
           overrides: [
             screenOverlayProvider.overrideWithValue(FakeOverlay()),
+            portalSharedMonitorProvider.overrideWithValue(() async => null),
             screenOverlaySupportProvider.overrideWith((ref) async {
               probes++;
               return probes == 1

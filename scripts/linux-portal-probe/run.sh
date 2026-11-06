@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 # Counts the xdg-desktop-portal ScreenCast sessions screen shares open against
-# a nested KWin. Cases: app (2 shares, 2 sessions), long (3 shares across a 35
+# a nested KWin, and checks each share learns which monitor the portal picked. Cases: app (2 shares, 2 sessions), long (3 shares across a 35
 # s gap, 3 sessions, nothing retried), noenum (1 share with no enumeration,
 # 2 sessions, the unguarded path), window (a window list on Wayland comes
 # back empty instead of aborting). FORK_PATH points at a local checkout.
@@ -31,6 +31,9 @@ sed -i "/^  flutter:\$/{n;r $work/dep.txt
 cat >"$work/inner.sh" <<INNER
 #!/usr/bin/env bash
 export XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland
+# A nested KWin writes its output layout to the config dir; never the real one.
+export XDG_CONFIG_HOME="$work/config"
+mkdir -p "\$XDG_CONFIG_HOME"
 unset DISPLAY
 kwin_wayland --virtual --socket slimm-portal-probe >"$work/kwin.log" 2>&1 &
 kwin=\$!
@@ -52,6 +55,12 @@ check() {
   tracks="$(grep -c 'PROBE share . tracks=1' "$work/probe-$mode.log" || true)"
   opened="$(grep -c 'interface=org.freedesktop.portal.ScreenCast; member=CreateSession' "$work/dbus-$mode.log" || true)"
   echo "$mode: shares started $tracks (want $shares), portal sessions $opened (want $sessions)"
+  local placed
+  placed="$(grep -c 'PROBE share . monitor={x: [0-9-]*, y: [0-9-]*' "$work/probe-$mode.log" || true)"
+  echo "$mode: shares that knew their monitor $placed (want $shares)"
+  if [ "$placed" != "$shares" ]; then
+    status=1
+  fi
   grep -iE 'error|critical|fail' "$work/probe-$mode.log" | grep -v 'a11y\|AT-SPI\|atk_socket\|bus can' | head -5 || true
   if [ "$tracks" != "$shares" ] || [ "$opened" != "$sessions" ]; then
     status=1
