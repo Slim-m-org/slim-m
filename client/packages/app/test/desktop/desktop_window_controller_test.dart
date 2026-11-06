@@ -295,6 +295,27 @@ void main() {
         controller.dispose();
       },
     );
+
+    test('with Close to tray off, closing quits instead of hiding', () async {
+      final port = FakeDesktopWindowPort();
+      final store = await _store();
+      var quits = 0;
+      final controller = DesktopWindowController(
+        port: port,
+        store: store,
+        platform: DesktopPlatform.windows,
+        trayAvailable: () async => true,
+        keepInTray: () => false,
+        quit: () async => quits++,
+      )..start();
+
+      port.emit(DesktopWindowEventKind.close);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(quits, 1);
+      expect(port.hideCalls, 0);
+      controller.dispose();
+    });
   });
 
   group('DesktopWindowController onShow', () {

@@ -28,6 +28,8 @@ const desktopGeometryDebounce = Duration(milliseconds: 500);
 
 bool _never() => false;
 
+bool _always() => true;
+
 class DesktopWindowController {
   DesktopWindowController({
     required this.port,
@@ -36,6 +38,8 @@ class DesktopWindowController {
     required this.trayAvailable,
     this.onShow,
     this.fullscreenHeld = _never,
+    this.keepInTray = _always,
+    this.quit,
     this.debounce = desktopGeometryDebounce,
     bool geometryPersistenceEnabled = false,
     bool Function()? positionSupported,
@@ -62,6 +66,12 @@ class DesktopWindowController {
 
   /// Whether a video or canvas tile is holding the window fullscreen.
   final bool Function() fullscreenHeld;
+
+  /// The "Close to tray" setting; off routes a close to [quit] instead.
+  final bool Function() keepInTray;
+
+  /// Ends the app the way the tray's Quit does.
+  final Future<void> Function()? quit;
 
   final Duration debounce;
   final bool Function() _positionSupported;
@@ -228,6 +238,8 @@ class DesktopWindowController {
   }
 
   Future<void> _routeClose() async {
+    final quit = this.quit;
+    if (quit != null && !keepInTray()) return quit();
     final action = resolveCloseAction(
       platform: platform,
       trayAvailable: await trayAvailable(),

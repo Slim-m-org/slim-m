@@ -25,6 +25,7 @@ import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
+import 'providers/close_to_tray_preference.dart';
 import 'display_server.dart';
 import 'first_run_tray_notice.dart';
 import 'second_instance_channel.dart';
@@ -449,7 +450,11 @@ class DesktopWindowShell {
       positionSupported: _positionSupported,
       onShow: (action) => _offerFirstRunNoticeIfNeeded(container, action),
       fullscreenHeld: () => fullscreenHolds.any,
+      keepInTray: () => container.read(closeToTrayProvider),
+      quit: () => quit(port),
     )..start();
+    // Read now so the stored choice has loaded before the first close.
+    container.read(closeToTrayProvider);
 
     await port.setPreventClose(true);
     // The Linux title bar is hidden by lockSplashChrome, not here; see decision 0012's superseding section.
