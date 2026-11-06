@@ -51,6 +51,7 @@ extension SlimmApiTransport on SlimmApi {
     http.Client? over,
     void Function(Map<String, String> headers)? onHeaders,
   }) async {
+    final sentWith = session.tokens?.accessToken;
     final request = _buildRequest(
       method,
       requestUri(path, query),
@@ -73,7 +74,8 @@ extension SlimmApiTransport on SlimmApi {
         authenticated &&
         !isRetry &&
         session.tokens != null) {
-      await refresh();
+      // Another call already rotated while this one was out: replay with that token, since rotating again voids it.
+      if (session.tokens?.accessToken == sentWith) await refresh();
       return send(
         method,
         path,
