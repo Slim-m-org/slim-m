@@ -78,10 +78,11 @@ class _MediaCapabilitySectionState
     return SettingsSectionCard(
       title: 'This device',
       children: [
-        AppListRow(
-          leading: const SettingsIconTile(AppIcons.deviceCheck),
-          label: 'Device check',
-          subtitle: 'Tests your microphone, camera and screen capture.',
+        // The same row as the card's other rows, so its text lines up with theirs.
+        SettingsDetailRow(
+          icon: AppIcons.deviceCheck,
+          title: 'Device check',
+          detail: 'Tests your microphone, camera and screen capture.',
           trailing: AppButton(
             size: AppButtonSize.sm,
             label: _buttonLabel(),

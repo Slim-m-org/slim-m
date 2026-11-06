@@ -54,6 +54,19 @@ void main() {
     expect(find.text('Device check'), findsOneWidget);
   });
 
+  testWidgets('Device check lines up with the rows under it', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpPersonalSettings(tester, 0, scrollToBottom: false);
+    await tester.tap(find.text('Troubleshooting'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      tester.getTopLeft(find.text('Device check')).dx,
+      tester.getTopLeft(find.text('Call stats')).dx,
+    );
+  });
+
   testWidgets('the header actions sit on the right edge of the content', (
     tester,
   ) async {
