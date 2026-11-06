@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The caller's own profile refreshes when they edit it somewhere else.
+/// The caller's own profile refreshes when they edit it somewhere else, and after a failed fetch.
 ///
 /// `meProvider` is fetched once per session, and other people's profiles have
 /// two controllers watching `ProfileChanged` for them, but nothing watched it
@@ -81,6 +81,41 @@ void main() {
         isNot(first),
         reason: 'the new avatar key is what makes the picture reload',
       );
+    },
+  );
+
+  test(
+    'a /me that failed is fetched again once the server is heard from',
+    () async {
+      final events = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(events.close);
+      var fetches = 0;
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          liveEventsProvider.overrideWithValue(events.stream),
+          mockApiOverride((request) async {
+            fetches++;
+            if (fetches == 1) return http.Response('{"error":"boom"}', 500);
+            return http.Response(
+              jsonEncode(_meJson(fetches)),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(effectiveMeProvider, (_, _) {});
+      addTearDown(sub.close);
+      await expectLater(container.read(meProvider.future), throwsA(anything));
+      expect(container.read(effectiveMeProvider), isNull);
+
+      events.add(const api.ProfileChanged(userId: 'someone-else'));
+      await pumpEventQueue();
+      await container.read(meProvider.future);
+      expect(fetches, 2);
+      expect(container.read(effectiveMeProvider)?.id, 'self');
     },
   );
 }
