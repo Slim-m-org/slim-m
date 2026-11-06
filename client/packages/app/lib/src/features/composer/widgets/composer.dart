@@ -242,6 +242,8 @@ class _ComposerState extends ConsumerState<Composer> {
   /// life.
   void _handleFocusChange() {
     if (_focus.hasFocus) {
+      // Tapping the field is how a phone gets its keyboard back from the photo strip.
+      ref.read(photoStripOpenProvider(widget.channelId).notifier).state = false;
       widget.clipboardPasteStart(_actions.handlePastedImage);
     } else {
       widget.clipboardPasteStop(_actions.handlePastedImage);
