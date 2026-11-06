@@ -37,6 +37,9 @@ const requestDeadline = Duration(seconds: 45);
 /// the hang it replaces.
 const transferDeadline = Duration(minutes: 3);
 
+/// Methods a repeat cannot double up: a POST might already have landed.
+const _replayable = {'GET', 'HEAD', 'PUT', 'DELETE'};
+
 extension SlimmApiTransport on SlimmApi {
   Future<Object?> send(
     String method,
@@ -52,20 +55,27 @@ extension SlimmApiTransport on SlimmApi {
     void Function(Map<String, String> headers)? onHeaders,
   }) async {
     final sentWith = session.tokens?.accessToken;
-    final request = _buildRequest(
-      method,
-      requestUri(path, query),
-      body: body,
-      bytes: bytes,
-      authenticated: authenticated,
-    );
+    Future<http.Response> attempt() => _perform(
+          _buildRequest(
+            method,
+            requestUri(path, query),
+            body: body,
+            bytes: bytes,
+            authenticated: authenticated,
+          ),
+          '$method $path',
+          deadline: bytes == null ? requestDeadline : transferDeadline,
+          over: over,
+        );
 
-    final response = await _perform(
-      request,
-      '$method $path',
-      deadline: bytes == null ? requestDeadline : transferDeadline,
-      over: over,
-    );
+    http.Response response;
+    try {
+      response = await attempt();
+    } on ConnectionDroppedException {
+      // A phone back from the background finds its pooled sockets dead; a fresh one answers.
+      if (!_replayable.contains(method)) rethrow;
+      response = await attempt();
+    }
     onHeaders?.call(response.headers);
 
     // One automatic rotation, then replay. Only for authenticated calls, and
@@ -220,6 +230,8 @@ extension SlimmApiTransport on SlimmApi {
       throw TransportException(
         '$label got no answer within ${deadline.inSeconds} seconds',
       );
+    } on http.ClientException catch (e) {
+      throw ConnectionDroppedException('$label failed: $e');
     } catch (e) {
       throw TransportException('$label failed: $e');
     }

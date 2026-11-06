@@ -20,6 +20,11 @@ class TransportException extends ApiException {
   const TransportException(super.message);
 }
 
+/// The connection failed under a request, as a socket the OS closed while the app slept does.
+class ConnectionDroppedException extends TransportException {
+  const ConnectionDroppedException(super.message);
+}
+
 /// The reply arrived but is not JSON, so whatever answered is not a slim-m server.
 class UnreadableReplyException extends TransportException {
   const UnreadableReplyException(super.message);
