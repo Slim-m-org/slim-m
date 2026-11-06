@@ -12,15 +12,16 @@ void main() {
     ScreenShareFps.fps60,
   );
 
-  test('a 100 Mbit/s uplink serves eight 1080p60 viewers at 70 percent', () {
-    expect(viewersServed(100, p1080x60), 8);
+  test('a 100 Mbit/s uplink serves five 1080p60 viewers at 70 percent', () {
+    expect(viewersServed(100, p1080x60), 5);
   });
 
   test(
     'the suggested ceiling is the tallest tier that serves four viewers',
     () {
-      expect(suggestedCeiling(100), ScreenShareResolution.p2160);
-      expect(suggestedCeiling(40), ScreenShareResolution.p1080);
+      expect(suggestedCeiling(200), ScreenShareResolution.p2160);
+      expect(suggestedCeiling(100), ScreenShareResolution.p1440);
+      expect(suggestedCeiling(60), ScreenShareResolution.p1080);
       expect(suggestedCeiling(20), ScreenShareResolution.p720);
     },
   );
