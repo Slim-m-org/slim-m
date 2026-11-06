@@ -90,10 +90,17 @@ class CameraToggleResult {
       reason == null || cause == null ? cause : CameraFailure(cause!, reason!);
 }
 
+typedef CameraFrameMeasure = Future<({int width, int height})?> Function(
+    webrtc.MediaStream stream);
+
 class CameraSwitching {
-  CameraSwitching(this._devices);
+  CameraSwitching(this._devices, {CameraFrameMeasure? measure})
+      : _measure = measure ?? measureCapturedSize;
 
   final CameraDevices _devices;
+
+  /// Reads a live camera's first frame; a test without the native plugin passes its own.
+  final CameraFrameMeasure _measure;
 
   final ValueNotifier<CameraFacing> _facing = ValueNotifier(
     CameraFacing.front,
@@ -189,7 +196,7 @@ class CameraSwitching {
         local.getTrackPublicationBySource(lk.TrackSource.camera)?.track;
     if (track is! lk.LocalVideoTrack) return;
     try {
-      final size = await measureCapturedSize(track.mediaStream);
+      final size = await _measure(track.mediaStream);
       if (size == null) return;
       // A portrait phone camera reports its frames turned, so the shorter side is the height.
       final delivered = size.width < size.height ? size.width : size.height;

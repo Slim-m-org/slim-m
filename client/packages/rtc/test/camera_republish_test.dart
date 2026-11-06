@@ -111,7 +111,9 @@ void main() {
   group('CameraSwitching.setEnabled', () {
     test('unpublishes then republishes at the new quality', () async {
       final me = _Me(_Camera(_publishedAt(CameraQuality.balanced)));
-      final result = await CameraSwitching(_NoCameras()).setEnabled(
+      final result =
+          await CameraSwitching(_NoCameras(), measure: (_) async => null)
+              .setEnabled(
         me,
         true,
         options: _options(CameraQuality.dataSaver),
@@ -123,7 +125,8 @@ void main() {
 
     test('a plain toggle at the same quality only unmutes', () async {
       final me = _Me(_Camera(_publishedAt(CameraQuality.balanced)));
-      await CameraSwitching(_NoCameras()).setEnabled(
+      await CameraSwitching(_NoCameras(), measure: (_) async => null)
+          .setEnabled(
         me,
         true,
         options: _options(CameraQuality.balanced),
@@ -134,7 +137,8 @@ void main() {
 
     test('turning off never unpublishes', () async {
       final me = _Me(_Camera(_publishedAt(CameraQuality.balanced)));
-      await CameraSwitching(_NoCameras()).setEnabled(
+      await CameraSwitching(_NoCameras(), measure: (_) async => null)
+          .setEnabled(
         me,
         false,
         options: _options(CameraQuality.dataSaver),
@@ -145,7 +149,8 @@ void main() {
 
     test('a first publish has nothing to remove', () async {
       final me = _Me(null);
-      await CameraSwitching(_NoCameras()).setEnabled(
+      await CameraSwitching(_NoCameras(), measure: (_) async => null)
+          .setEnabled(
         me,
         true,
         options: _options(CameraQuality.high),
