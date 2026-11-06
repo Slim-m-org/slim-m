@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.125.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.124.0...client-v0.125.0) (2026-11-06)
+
+
+### Features
+
+* **client:** the canvas's own tools draw on a shared screen ([#2349](https://github.com/Slim-m-org/slim-m/issues/2349)) ([a77b036](https://github.com/Slim-m-org/slim-m/commit/a77b036d57322ee9d2a6f5fa6d302b4148ea8ac3))
+
+
+### Bug Fixes
+
+* **client:** hold music volume slider unfolds upward beside the dock ([#2344](https://github.com/Slim-m-org/slim-m/issues/2344)) ([d1e9ed1](https://github.com/Slim-m-org/slim-m/commit/d1e9ed11b873a7e7187af32f2b92de7c2c1c2e99))
+* **client:** menu headings and hover; Close to tray setting ([#2348](https://github.com/Slim-m-org/slim-m/issues/2348)) ([1acfd9b](https://github.com/Slim-m-org/slim-m/commit/1acfd9b96b048bdd33c0aaabda2b86debead497c))
+* **client:** mic switches stay live on Windows; overlay on the shared monitor ([#2347](https://github.com/Slim-m-org/slim-m/issues/2347)) ([be08aff](https://github.com/Slim-m-org/slim-m/commit/be08aff7d87282f43cb74293800d62670e3b2d9f))
+* **client:** one token rotation per expiry, and retry a failed /me ([#2343](https://github.com/Slim-m-org/slim-m/issues/2343)) ([e455438](https://github.com/Slim-m-org/slim-m/commit/e4554388aafc57b5d20efa004135f5fe78d0fb60))
+* **client:** phone composer, pen colours, sign-in on resume, mic test, settings, canvas rejoin ([#2350](https://github.com/Slim-m-org/slim-m/issues/2350)) ([81a1fc7](https://github.com/Slim-m-org/slim-m/commit/81a1fc71d60a0f67e2b19ec1b016179465bf94d6))
+* **client:** quitting on Windows no longer crashes in teardown ([#2351](https://github.com/Slim-m-org/slim-m/issues/2351)) ([8da9782](https://github.com/Slim-m-org/slim-m/commit/8da9782f54e2b4f12c4fa81211a7de92ca6ca20b))
+* **client:** stream pen colour, escape after a toggle, presence after signing in again ([#2352](https://github.com/Slim-m-org/slim-m/issues/2352)) ([79118bf](https://github.com/Slim-m-org/slim-m/commit/79118bf45efb37dff47c349cd8a0c6d7320eb071))
+
+
+### Performance Improvements
+
+* **client:** pause your own previews when unfocused, higher bitrates, tidier voice settings ([#2354](https://github.com/Slim-m-org/slim-m/issues/2354)) ([ae04bca](https://github.com/Slim-m-org/slim-m/commit/ae04bca721c222cdb9a3ea5b1e6e78e413e7a104))
+
 ## [0.124.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.123.0...client-v0.124.0) (2026-11-05)
 
 
