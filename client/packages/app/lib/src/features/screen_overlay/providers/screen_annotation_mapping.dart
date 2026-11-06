@@ -49,6 +49,13 @@ Offset fromNormalised(Offset normalised, Rect content) => Offset(
 /// not. Otherwise every monitor whose shape matches the captured size is a
 /// candidate, and every monitor is one when the size is unknown: guessing one
 /// would draw on the wrong screen.
+/// [chosen] when it is one of several equally likely screens; a share that
+/// named its screen is never overridden.
+List<int> preferChosenScreen(List<int> candidates, int? chosen) =>
+    candidates.length > 1 && chosen != null && candidates.contains(chosen)
+    ? [chosen]
+    : candidates;
+
 List<int> pickSharedMonitors(
   List<OverlayMonitor> monitors, {
   int? screenNumber,

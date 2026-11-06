@@ -9,12 +9,13 @@ import 'package:slimm_platform/platform.dart' show OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../screen_overlay/providers/screen_overlay_controller.dart'
-    show screenOverlaySupportedProvider;
+    show screenOverlaySupportProvider, screenOverlaySupportedProvider;
 import '../providers/live_quality_restart.dart'
     show shareSettingsPendingNote, shareSettingsPendingProvider;
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import 'overlay_screen_row.dart';
 import 'pause_video_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_segmented_row.dart';
@@ -133,6 +134,17 @@ class VideoQualitySection extends ConsumerWidget {
                       SettingsChoice(value: c, label: c.label),
                   ],
                   onChanged: notifier.setCallOverlayCorner,
+                ),
+              if (settings.callOverlayEnabled)
+                OverlayScreenRow(
+                  monitors:
+                      ref
+                          .watch(screenOverlaySupportProvider)
+                          .valueOrNull
+                          ?.monitors ??
+                      const [],
+                  value: settings.callOverlayScreen,
+                  onChanged: notifier.setCallOverlayScreen,
                 ),
             ],
             if (ref.watch(pauseOnUnfocusedAppliesProvider))

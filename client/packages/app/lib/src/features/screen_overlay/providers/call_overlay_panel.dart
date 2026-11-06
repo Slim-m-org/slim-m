@@ -56,8 +56,25 @@ OverlayPanel callOverlayPanel(
   );
 }
 
-/// The monitor the panel goes on: where the app window is, else the primary, else the first.
-int callOverlayMonitor(OverlaySupport support, int? appMonitor) {
+/// A screen named by its place and size, which survive a reorder that would shift its index.
+String overlayScreenKey(OverlayMonitor m) =>
+    '${m.x},${m.y},${m.width},${m.height}';
+
+/// The index of the screen [key] names, or null when it is not plugged in.
+int? overlayScreenIndex(OverlaySupport support, String? key) {
+  if (key == null) return null;
+  final at = support.monitors.indexWhere((m) => overlayScreenKey(m) == key);
+  return at < 0 ? null : at;
+}
+
+/// The monitor the panel goes on: the chosen screen, else where the app window is, else the primary, else the first.
+int callOverlayMonitor(
+  OverlaySupport support,
+  int? appMonitor, {
+  String? chosen,
+}) {
+  final picked = overlayScreenIndex(support, chosen);
+  if (picked != null) return picked;
   final count = support.monitors.length;
   if (appMonitor != null && appMonitor >= 0 && appMonitor < count) {
     return appMonitor;
