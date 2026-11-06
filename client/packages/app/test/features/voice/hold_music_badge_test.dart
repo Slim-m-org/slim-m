@@ -114,6 +114,31 @@ void main() {
     expect(badge.right, lessThan((1600 - 560) / 2));
   });
 
+  testWidgets(
+    'beside the dock the volume slider unfolds upward and the pill stays put',
+    (tester) async {
+      await _pump(
+        tester,
+        player: _Player(),
+        width: 1600,
+        dockWidth: 560,
+        dockHeight: 64,
+      );
+      final play = find.bySemanticsLabel('Play music');
+      final before = tester.getRect(play);
+      await tester.tap(find.bySemanticsLabel('Music volume').first);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(tester.getRect(play).center.dy, closeTo(before.center.dy, 1));
+      final slider = tester.getRect(
+        find.byWidgetPredicate((w) => w is RotatedBox),
+      );
+      expect(slider.bottom, lessThan(before.top));
+      expect(slider.top, greaterThan(0));
+    },
+  );
+
   testWidgets('it sits above the dock when the row has no room', (
     tester,
   ) async {
