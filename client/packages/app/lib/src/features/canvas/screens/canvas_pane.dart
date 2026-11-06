@@ -53,11 +53,11 @@ import '../../members/widgets/member_pane.dart'
     show memberPaneVisibleProvider, memberPaneWanted;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
-import '../../members/widgets/profile_colour.dart' show profileColourOf;
 import '../providers/canvas_focus_video_hold.dart';
 import '../providers/canvas_self_presence.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
+import '../widgets/armed_pen.dart';
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_spans.dart';
 import 'canvas_text_tool.dart';
@@ -236,19 +236,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _document.setBottomInset(
       _boardInset(ref.read(bottomDockReservationProvider)),
     );
-    _pen = ref.read(canvasActivePenStyleProvider) ?? _profilePen();
+    _pen = armedPen(ref);
     _shapeKind = ref.read(canvasActiveShapeKindProvider);
-  }
-
-  /// Starts the pen in the colour nearest the user's profile colour, when one is set.
-  CanvasPenStyle _profilePen() {
-    final me = ref.read(meProvider).valueOrNull;
-    final colour = me == null
-        ? null
-        : profileColourOf(index: me.profileColor, rgb: me.profileColorRgb);
-    return colour == null
-        ? const CanvasPenStyle()
-        : CanvasPenStyle(colorKey: nearestPenColorKey(colour));
   }
 
   /// In fullscreen the dock floats over the board, so showing it never refits the view; only its handle is kept clear.

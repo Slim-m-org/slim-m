@@ -17,6 +17,7 @@ import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotatio
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_feed.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_sender.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/providers/effective_me.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -36,6 +37,7 @@ class _Sync extends NoopSyncController {
           String? text,
           bool ended,
           String target,
+          String? color,
         })
       >[];
 
@@ -57,6 +59,7 @@ class _Sync extends NoopSyncController {
     text: text,
     ended: ended,
     target: targetUserId,
+    color: color,
   ));
 }
 
@@ -124,6 +127,7 @@ class _Rig {
     Size view = const Size(1280, 800),
     Brightness brightness = Brightness.light,
     CanvasTool? canvasTool,
+    api.Me? me,
   }) async {
     tester.view.physicalSize = view;
     tester.view.devicePixelRatio = 1;
@@ -140,6 +144,7 @@ class _Rig {
             const VoiceFlags(channelId: 'call'),
           ),
           syncControllerProvider.overrideWith((ref) => sync = _Sync(ref)),
+          if (me != null) meProvider.overrideWith((ref) async => me),
         ],
         child: RepaintBoundary(
           key: snapshotBoundary,
@@ -153,6 +158,16 @@ class _Rig {
                     rect: tile,
                     child: const ColoredBox(color: Color(0xFF20252B)),
                   ),
+                  // The shell keeps the autoDispose profile alive in the app.
+                  if (me != null)
+                    Positioned.fill(
+                      child: Consumer(
+                        builder: (_, ref, _) {
+                          ref.watch(meProvider);
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
                   ScreenAnnotateLayer(
                     sharerId: 'sharer',
                     sharerName: 'Ada',
@@ -263,6 +278,36 @@ void main() {
     final sent = rig.sync.frames.length;
     await drag(CanvasTool.eraser);
     expect(rig.sync.frames, hasLength(sent));
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('a stroke on the screen takes the board pen colour', (
+    tester,
+  ) async {
+    final rig = _Rig(tester)..allow();
+    const tile = Rect.fromLTWH(100, 100, 640, 360);
+    await rig.pump(
+      tile: tile,
+      canvasTool: CanvasTool.pen,
+      me: const api.Me(
+        id: 'me',
+        username: 'me',
+        displayName: 'Me',
+        createdAt: 0,
+        permissions: 0,
+        profileColorRgb: 0x2F6FE0,
+      ),
+    );
+    final gesture = await tester.startGesture(tile.center);
+    await tester.pump();
+    await gesture.moveTo(tile.center + const Offset(64, 36));
+    await tester.pump(annotationFlushInterval);
+    await gesture.up();
+    await tester.pump(annotationFlushInterval);
+
+    final strokes = rig.sync.frames.where((f) => f.kind == 'stroke');
+    expect(strokes, isNotEmpty);
+    expect(strokes.every((f) => f.color == 'blue'), isTrue);
     await tester.pump(const Duration(seconds: 6));
   });
 

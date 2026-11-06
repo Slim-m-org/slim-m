@@ -22,8 +22,8 @@ import '../../screen_overlay/providers/screen_annotation_mapping.dart';
 import '../../screen_overlay/providers/screen_annotation_sender.dart';
 import '../../voice/providers/share_zoom_controller.dart';
 import '../../voice/providers/voice_flags.dart';
-import '../providers/canvas_pen_style.dart';
 import '../../voice/widgets/share_zoom_view.dart';
+import 'armed_pen.dart';
 import 'screen_annotate_painter.dart';
 import 'screen_annotate_toolbar.dart';
 
@@ -154,12 +154,11 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
         .read(voiceParticipantsProvider)
         .firstWhere((p) => p.isLocal)
         .identity;
-    final pen = ref.read(canvasActivePenStyleProvider);
     return ScreenAnnotationSender(
       channelId: ref.read(voiceFlagsProvider).channelId!,
       sharerId: widget.sharerId,
       selfId: self,
-      colorKey: pen?.colorKey ?? canvasDefaultPenColorKey,
+      colorKey: armedPen(ref).colorKey,
       emit: _emit,
     );
   }
