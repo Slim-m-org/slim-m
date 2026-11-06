@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/call_mini_player.dart';
 import '../providers/camera_background_pause.dart';
+import '../providers/camera_reach.dart';
 import '../providers/picture_in_picture.dart';
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
@@ -29,6 +30,7 @@ class PictureInPictureGate extends ConsumerWidget {
     ref.watch(pictureInPictureHostProvider);
     ref.watch(videoInterestHostProvider);
     ref.watch(cameraBackgroundHostProvider);
+    ref.watch(cameraReachProvider);
     final feed = ref.watch(pictureInPictureFeedProvider);
     return Stack(
       fit: StackFit.expand,

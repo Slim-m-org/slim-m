@@ -53,13 +53,27 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     this.state = _windowMinimized ? AppLifecycleState.hidden : state;
   }
 
+  /// A focused window is visible whatever the binding last said: after a
+  /// locked screen or a launch behind another window the embedder can leave
+  /// it at `hidden`, and the video pause would never lift.
   void _onWindowEvent(DesktopWindowEventKind kind) {
-    if (kind == DesktopWindowEventKind.minimize) {
-      _windowMinimized = true;
-      state = AppLifecycleState.hidden;
-    } else if (kind == DesktopWindowEventKind.show && _windowMinimized) {
-      _windowMinimized = false;
-      state = _bindingState;
+    switch (kind) {
+      case DesktopWindowEventKind.minimize:
+        _windowMinimized = true;
+        state = AppLifecycleState.hidden;
+      case DesktopWindowEventKind.show when _windowMinimized:
+        _windowMinimized = false;
+        state = _bindingState;
+      case DesktopWindowEventKind.focus:
+        _windowMinimized = false;
+        _bindingState = AppLifecycleState.resumed;
+        state = AppLifecycleState.resumed;
+      case DesktopWindowEventKind.blur when !_windowMinimized:
+        if (state == AppLifecycleState.resumed) {
+          state = AppLifecycleState.inactive;
+        }
+      default:
+        break;
     }
   }
 

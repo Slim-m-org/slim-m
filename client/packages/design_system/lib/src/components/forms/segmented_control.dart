@@ -113,6 +113,9 @@ class AppSegmentedControl extends StatelessWidget {
               },
               fontWeight: selected ? AppWeights.medium : AppWeights.regular,
               fontFamily: AppFonts.sans,
+              // Grey alone read as merely unselected beside a selected neighbour.
+              decoration: option.disabled ? TextDecoration.lineThrough : null,
+              decorationColor: tokens.textDisabled,
             ),
           ),
         );

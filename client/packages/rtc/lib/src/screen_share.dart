@@ -59,18 +59,19 @@ class ScreenShareQuality {
 
   /// Bits per second by [resolution.index][frameRate.index].
   ///
-  /// Anchored on LiveKit's own 720p30 = 2 Mbps and 1080p30 = 5 Mbps; see
-  /// docs/video-quality.md for how the other cells scale from them.
+  /// Each cell is about where more bits stop being visible for game and video
+  /// content; see docs/video-quality.md. They are ceilings: congestion control
+  /// still sends less on a slower upload.
   @visibleForTesting
   static const bitrateTable = [
-    [1500000, 2000000, 3200000],
-    [2500000, 5000000, 8000000],
-    [4000000, 7500000, 12000000],
-    [6000000, 10000000, 12000000],
+    [2500000, 5000000, 7500000],
+    [4000000, 8000000, 12000000],
+    [8000000, 16000000, 24000000],
+    [15000000, 35000000, 50000000],
   ];
 
-  /// The most any tier may publish, so a 4K share cannot starve call audio.
-  static const bitrateCeiling = 12000000;
+  /// The most any tier may publish.
+  static const bitrateCeiling = 50000000;
 
   final ScreenShareResolution resolution;
   final ScreenShareFps frameRate;

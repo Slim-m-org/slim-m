@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The desktop-only switch for pausing video while the window is minimised,
+/// The desktop-only switch for pausing video while slim-m is in the background,
 /// a row in the Video quality card rather than a card of its own.
 library;
 
@@ -22,10 +22,11 @@ class PauseVideoRow extends ConsumerWidget {
       voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenMinimised),
     );
     return SettingsToggleRow(
-      label: 'Pause video when minimised',
-      description: 'Stops receiving video while the window is minimised.',
+      label: 'Pause video in the background',
+      description:
+          "Stops your own previews when unfocused, others' video when minimised.",
       value: enabled,
-      semanticLabel: 'Pause video when slim-m is minimised',
+      semanticLabel: 'Pause video while slim-m is in the background',
       onChanged: (value) => ref
           .read(voiceSettingsControllerProvider.notifier)
           .setPauseVideoWhenMinimised(value),

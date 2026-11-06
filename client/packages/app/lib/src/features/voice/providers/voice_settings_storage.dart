@@ -33,10 +33,12 @@ abstract final class VoiceSettingKeys {
   static const speakerPreferred = 'slimm.voice.speaker_preferred';
   static const receiveQuality = 'slimm.voice.receive_video_quality';
   static const cameraQuality = 'slimm.voice.camera_quality';
+  static const cameraReach = 'slimm.voice.camera_reach';
   static const shareAudio = 'slimm.voice.screen_share_include_audio';
   static const shareAnnotations = 'slimm.voice.screen_share_allow_annotations';
   static const callOverlay = 'slimm.voice.call_overlay_enabled';
   static const callOverlayCorner = 'slimm.voice.call_overlay_corner';
+  static const callOverlayScreen = 'slimm.voice.call_overlay_screen';
   static const audioInputDeviceId = 'slimm.voice.audio_input_device_id';
   static const audioOutputDeviceId = 'slimm.voice.audio_output_device_id';
 }

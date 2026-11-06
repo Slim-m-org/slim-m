@@ -21,9 +21,12 @@ import 'voice_settings_controller.dart';
 /// Whether this is a desktop window, where minimising is a choice the user can opt out of pausing for.
 final pauseOnUnfocusedAppliesProvider = Provider<bool>((ref) => isDesktopHost);
 
-/// Hidden, minimised or backgrounded pauses; a merely unfocused window never does.
+/// Whether the member's own camera and screen-share preview stop drawing.
 ///
-/// On a desktop the user's setting decides whether a minimised window pauses; a phone always does.
+/// Hidden, minimised or backgrounded always pauses on a phone. On a desktop
+/// the user's setting decides, and it also covers a window that is open but
+/// not focused: a preview of your own screen redrawn at full rate costs more
+/// than the share itself, and nobody is looking at it while you are elsewhere.
 bool shouldPauseLocalPreview({
   required AppLifecycleState lifecycle,
   required bool pauseWhenMinimised,
@@ -32,26 +35,50 @@ bool shouldPauseLocalPreview({
 }) {
   if (pictureInPicture) return false;
   return switch (lifecycle) {
-    AppLifecycleState.resumed || AppLifecycleState.inactive => false,
+    AppLifecycleState.resumed => false,
+    AppLifecycleState.inactive => desktop && pauseWhenMinimised,
     AppLifecycleState.hidden ||
     AppLifecycleState.paused ||
     AppLifecycleState.detached => !desktop || pauseWhenMinimised,
   };
 }
 
-bool _pausedNow(Ref ref) => shouldPauseLocalPreview(
-  lifecycle: ref.watch(appLifecycleProvider),
-  pauseWhenMinimised: ref.watch(
-    voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenMinimised),
-  ),
-  desktop: ref.watch(pauseOnUnfocusedAppliesProvider),
-  pictureInPicture: ref.watch(inPictureInPictureProvider),
+/// Other members' video is still worth receiving in an unfocused window, which
+/// can sit on a second monitor; only a hidden one stops it.
+bool shouldPauseRemoteVideo({
+  required AppLifecycleState lifecycle,
+  required bool pauseWhenMinimised,
+  required bool desktop,
+  required bool pictureInPicture,
+}) =>
+    lifecycle != AppLifecycleState.inactive &&
+    shouldPauseLocalPreview(
+      lifecycle: lifecycle,
+      pauseWhenMinimised: pauseWhenMinimised,
+      desktop: desktop,
+      pictureInPicture: pictureInPicture,
+    );
+
+bool _pausedNow(Ref ref, {required bool local}) =>
+    (local ? shouldPauseLocalPreview : shouldPauseRemoteVideo)(
+      lifecycle: ref.watch(appLifecycleProvider),
+      pauseWhenMinimised: ref.watch(
+        voiceSettingsControllerProvider.select(
+          (s) => s.pauseVideoWhenMinimised,
+        ),
+      ),
+      desktop: ref.watch(pauseOnUnfocusedAppliesProvider),
+      pictureInPicture: ref.watch(inPictureInPictureProvider),
+    );
+
+final localPreviewPausedProvider = Provider<bool>(
+  (ref) => _pausedNow(ref, local: true),
 );
 
-final localPreviewPausedProvider = Provider<bool>(_pausedNow);
-
 /// Whether a person can see the window, so remote video is worth receiving.
-final remoteVideoSeenProvider = Provider<bool>((ref) => !_pausedNow(ref));
+final remoteVideoSeenProvider = Provider<bool>(
+  (ref) => !_pausedNow(ref, local: false),
+);
 
 /// Mounted from the app chrome: feeds window visibility and a fresh connection into the video interest.
 final videoInterestHostProvider = Provider<void>((ref) {

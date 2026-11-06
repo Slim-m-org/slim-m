@@ -42,7 +42,7 @@ void main() {
   ) async {
     await _pumpSettings(tester);
 
-    final camera = find.text('Sharpness of the camera video you send.');
+    final camera = find.text('Sharpness of the video you send.');
     await _show(tester, camera);
     expect(camera, findsOneWidget);
 

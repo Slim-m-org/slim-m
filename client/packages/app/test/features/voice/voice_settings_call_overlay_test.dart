@@ -11,6 +11,8 @@ import 'package:slimm_app/src/features/settings/providers/settings_index.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart'
+    show OverlayMonitor, OverlaySupport;
 
 import 'voice_settings_screen_harness.dart';
 
@@ -23,7 +25,16 @@ final _toggle = find.byWidgetPredicate(
 );
 final _position = find.text('Overlay position');
 
-Future<void> _pump(WidgetTester tester, {bool supported = true}) async {
+const _screenKey = 'slimm.voice.call_overlay_screen';
+
+OverlayMonitor _screen(int x) =>
+    OverlayMonitor(x: x, y: 0, width: 1920, height: 1080, primary: x == 0);
+
+Future<void> _pump(
+  WidgetTester tester, {
+  bool supported = true,
+  List<OverlayMonitor> monitors = const [],
+}) async {
   tester.view.physicalSize = const Size(900, 4000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -35,6 +46,9 @@ Future<void> _pump(WidgetTester tester, {bool supported = true}) async {
           (ref) => VoiceController(ref, session: FakeSession()),
         ),
         screenOverlaySupportedProvider.overrideWithValue(supported),
+        screenOverlaySupportProvider.overrideWith(
+          (ref) async => OverlaySupport(supported: true, monitors: monitors),
+        ),
       ],
     ),
   );
@@ -103,5 +117,35 @@ void main() {
   test('the settings index finds it', () {
     final hit = searchSettings('call overlay', personalSettingsIndex);
     expect(hit.map((e) => e.label), contains('Call overlay'));
+  });
+
+  testWidgets('with two screens the overlay screen can be picked', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({_enabledKey: true});
+    await _pump(tester, monitors: [_screen(0), _screen(1920)]);
+    await tester.pump();
+    expect(find.text('Overlay screen'), findsOneWidget);
+    await tester.tap(find.text('Screen 2'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      (await SharedPreferences.getInstance()).getString(_screenKey),
+      '1920,0,1920,1080',
+    );
+
+    await tester.tap(find.text('Automatic'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      (await SharedPreferences.getInstance()).getString(_screenKey),
+      isNull,
+    );
+  });
+
+  testWidgets('with one screen there is nothing to pick', (tester) async {
+    SharedPreferences.setMockInitialValues({_enabledKey: true});
+    await _pump(tester, monitors: [_screen(0)]);
+    await tester.pump();
+    expect(find.text('Overlay position'), findsOneWidget);
+    expect(find.text('Overlay screen'), findsNothing);
   });
 }

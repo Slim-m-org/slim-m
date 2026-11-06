@@ -244,7 +244,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final captured = localShareCapturedSize.value;
     final portal = isWindowsHost ? null : await _portalMonitor();
     if (!mounted) return false;
-    final covered = pickSharedMonitors(
+    final candidates = pickSharedMonitors(
       monitors,
       portalOrigin: portal == null ? null : (x: portal.x, y: portal.y),
       screenNumber: isWindowsHost
@@ -254,6 +254,12 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
           ? null
           : Size(captured.width.toDouble(), captured.height.toDouble()),
     );
+    // When the share cannot say which screen it is, the screen the overlay was pointed at decides.
+    final chosen = overlayScreenIndex(
+      _support,
+      _ref.read(voiceSettingsControllerProvider).callOverlayScreen,
+    );
+    final covered = preferChosenScreen(candidates, chosen);
     // Showing replaces any panel window, which is why the panel is forgotten rather than hidden.
     _panelUp = false;
     _lastPanel = null;
@@ -273,7 +279,11 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   }
 
   Future<void> _startPanel() async {
-    final monitor = callOverlayMonitor(_support, await _window.appMonitor());
+    final monitor = callOverlayMonitor(
+      _support,
+      await _window.appMonitor(),
+      chosen: _ref.read(voiceSettingsControllerProvider).callOverlayScreen,
+    );
     if (!await _window.show([monitor]) || !mounted) return;
     _panelMonitor = monitor;
     _panelUp = true;

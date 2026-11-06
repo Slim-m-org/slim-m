@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The video quality card of Voice settings: what you watch, what your camera
-/// sends, and the resolution and frame rate of a screen share.
+/// The video cards of Voice settings: your camera and what you watch, the
+/// screen you share, and the call overlay.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,12 +9,15 @@ import 'package:slimm_platform/platform.dart' show OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../screen_overlay/providers/screen_overlay_controller.dart'
-    show screenOverlaySupportedProvider;
+    show screenOverlaySupportProvider, screenOverlaySupportedProvider;
 import '../providers/live_quality_restart.dart'
     show shareSettingsPendingNote, shareSettingsPendingProvider;
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import '../providers/camera_reach.dart';
+import 'camera_on_join_section.dart';
+import 'overlay_screen_row.dart';
 import 'pause_video_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_segmented_row.dart';
@@ -23,6 +26,8 @@ import '../../settings/widgets/settings_toggle_row.dart';
 import 'share_resolution_support.dart';
 import 'video_quality_labels.dart';
 
+/// The video half of Voice settings: one card for video in and out, one for
+/// screen sharing, and the overlay where this desktop can host it.
 class VideoQualitySection extends ConsumerWidget {
   const VideoQualitySection({super.key});
 
@@ -38,6 +43,7 @@ class VideoQualitySection extends ConsumerWidget {
       ref,
       settings.screenShareQuality.resolution,
     );
+    final cameraReach = ref.watch(cameraReachProvider);
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
         .share
@@ -47,11 +53,25 @@ class VideoQualitySection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          title: 'Video quality',
-          description: 'Lower it to save data, raise it to see more.',
+          title: 'Video',
           children: [
+            _QualityRow<CameraQuality>(
+              label: 'Camera quality',
+              description: 'Sharpness of the video you send.',
+              footnote: cameraReachNote(cameraReach),
+              values: CameraQuality.values,
+              selected: effectiveCameraQuality(
+                settings.cameraQuality,
+                cameraReach,
+              ),
+              nameOf: cameraQualityLabel,
+              disabledReasonOf: (q) => cameraQualityOutOfReach(q, cameraReach),
+              onSelected: notifier.setCameraQuality,
+            ),
+            const CameraOnJoinSection(embedded: true),
+            const MirrorSelfViewRow(),
             _QualityRow<ReceiveVideoQuality>(
-              label: 'Watching',
+              label: 'Watching quality',
               description: receiveVideoQualityNote(
                 settings.receiveVideoQuality,
               ),
@@ -60,16 +80,15 @@ class VideoQualitySection extends ConsumerWidget {
               nameOf: receiveVideoQualityLabel,
               onSelected: notifier.setReceiveVideoQuality,
             ),
-            _QualityRow<CameraQuality>(
-              label: 'Your camera',
-              description: 'Sharpness of the camera video you send.',
-              values: CameraQuality.values,
-              selected: settings.cameraQuality,
-              nameOf: cameraQualityLabel,
-              onSelected: notifier.setCameraQuality,
-            ),
+            if (ref.watch(pauseOnUnfocusedAppliesProvider))
+              const PauseVideoRow(),
+          ],
+        ),
+        SettingsSectionCard(
+          title: 'Screen share',
+          children: [
             _QualityRow<ScreenShareResolution>(
-              label: 'Screen share resolution',
+              label: 'Resolution',
               description: note,
               footnote: shareResolutionNote(maxShareHeight),
               values: ScreenShareResolution.values,
@@ -85,18 +104,13 @@ class VideoQualitySection extends ConsumerWidget {
               onSelected: notifier.setScreenShareResolution,
             ),
             _QualityRow<ScreenShareFps>(
-              label: 'Screen share frame rate',
+              label: 'Frame rate',
               description: note,
               values: ScreenShareFps.values,
               selected: settings.screenShareQuality.frameRate,
               nameOf: (f) => f.label,
               onSelected: notifier.setScreenShareFps,
             ),
-          ],
-        ),
-        SettingsSectionCard(
-          title: 'Sharing and preview',
-          children: [
             // Absent, never disabled, where this platform cannot publish it; see supportsScreenShareAudio.
             if (supportsAudio)
               SettingsToggleRow(
@@ -114,10 +128,15 @@ class VideoQualitySection extends ConsumerWidget {
               semanticLabel: 'Let viewers draw on the screen I share',
               onChanged: notifier.setScreenShareAllowAnnotations,
             ),
-            // Absent, never disabled, on a desktop that cannot host the overlay window; see decision 0096.
-            if (ref.watch(screenOverlaySupportedProvider)) ...[
+          ],
+        ),
+        // Absent, never disabled, on a desktop that cannot host the overlay window; see decision 0096.
+        if (ref.watch(screenOverlaySupportedProvider))
+          SettingsSectionCard(
+            title: 'Call overlay',
+            children: [
               SettingsToggleRow(
-                label: 'Call overlay',
+                label: 'Show call overlay',
                 description:
                     'Lists who is in the call over your other windows.',
                 value: settings.callOverlayEnabled,
@@ -134,11 +153,19 @@ class VideoQualitySection extends ConsumerWidget {
                   ],
                   onChanged: notifier.setCallOverlayCorner,
                 ),
+              if (settings.callOverlayEnabled)
+                OverlayScreenRow(
+                  monitors:
+                      ref
+                          .watch(screenOverlaySupportProvider)
+                          .valueOrNull
+                          ?.monitors ??
+                      const [],
+                  value: settings.callOverlayScreen,
+                  onChanged: notifier.setCallOverlayScreen,
+                ),
             ],
-            if (ref.watch(pauseOnUnfocusedAppliesProvider))
-              const PauseVideoRow(),
-          ],
-        ),
+          ),
       ],
     );
   }

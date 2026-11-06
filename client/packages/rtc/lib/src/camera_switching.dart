@@ -7,12 +7,16 @@
 /// with no LiveKit connection of its own to fake.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as webrtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'camera_devices.dart';
 import 'camera_failure.dart';
+import 'camera_reach.dart';
+import 'screen_share_source_size.dart' show measureCapturedSize;
 import 'voice_models.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
@@ -86,10 +90,17 @@ class CameraToggleResult {
       reason == null || cause == null ? cause : CameraFailure(cause!, reason!);
 }
 
+typedef CameraFrameMeasure = Future<({int width, int height})?> Function(
+    webrtc.MediaStream stream);
+
 class CameraSwitching {
-  CameraSwitching(this._devices);
+  CameraSwitching(this._devices, {CameraFrameMeasure? measure})
+      : _measure = measure ?? measureCapturedSize;
 
   final CameraDevices _devices;
+
+  /// Reads a live camera's first frame; a test without the native plugin passes its own.
+  final CameraFrameMeasure _measure;
 
   final ValueNotifier<CameraFacing> _facing = ValueNotifier(
     CameraFacing.front,
@@ -155,6 +166,7 @@ class CameraSwitching {
         resetFacing();
       }
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
+      if (enabled) unawaited(_measureReach(local, options));
       return const CameraToggleResult.ok();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'turn the camera on or off', e, stack);
@@ -170,6 +182,32 @@ class CameraSwitching {
         e,
         classifyCameraFailure(e, hasDevice: hasDevice),
       );
+    }
+  }
+
+  /// Reads how tall the camera's frames really are, for [localCameraReach].
+  Future<void> _measureReach(
+    lk.LocalParticipant local,
+    lk.CameraCaptureOptions? options,
+  ) async {
+    final asked =
+        (options ?? const lk.CameraCaptureOptions()).params.dimensions;
+    final track =
+        local.getTrackPublicationBySource(lk.TrackSource.camera)?.track;
+    if (track is! lk.LocalVideoTrack) return;
+    try {
+      final size = await _measure(track.mediaStream);
+      if (size == null) return;
+      // A portrait phone camera reports its frames turned, so the shorter side is the height.
+      final delivered = size.width < size.height ? size.width : size.height;
+      final wanted = asked.width < asked.height ? asked.width : asked.height;
+      localCameraReach.value = (
+        deviceId: options?.deviceId ?? '',
+        asked: wanted,
+        delivered: delivered,
+      );
+    } catch (error, stack) {
+      reportFailure(LogTag.voice, 'measure the camera size', error, stack);
     }
   }
 

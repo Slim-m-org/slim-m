@@ -171,4 +171,11 @@ void main() {
     expect(screenNumberFromLabel('Entire screen'), isNull);
     expect(screenNumberFromLabel('Screen 2 - Firefox'), isNull);
   });
+
+  test('the chosen overlay screen settles a share that could be either', () {
+    expect(preferChosenScreen([0, 1], 1), [1]);
+    expect(preferChosenScreen([0, 1], null), [0, 1]);
+    expect(preferChosenScreen([0, 1], 2), [0, 1]);
+    expect(preferChosenScreen([0], 1), [0], reason: 'a named screen wins');
+  });
 }

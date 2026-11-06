@@ -35,6 +35,7 @@ class VoiceSettingsState {
     this.screenShareAllowAnnotations = false,
     this.callOverlayEnabled = false,
     this.callOverlayCorner = OverlayCorner.topLeft,
+    this.callOverlayScreen,
     this.pauseVideoWhenMinimised = true,
     this.micFallbackEnabled = true,
     this.speakerPreferred = true,
@@ -119,6 +120,9 @@ class VoiceSettingsState {
   final bool callOverlayEnabled;
   final OverlayCorner callOverlayCorner;
 
+  /// The screen the overlay goes on, as [overlayScreenKey] names it; null follows the app window.
+  final String? callOverlayScreen;
+
   /// Whether incoming video stops while the desktop window is visible but not focused.
   final bool pauseVideoWhenMinimised;
   final bool micFallbackEnabled;
@@ -156,6 +160,7 @@ class VoiceSettingsState {
     bool? screenShareAllowAnnotations,
     bool? callOverlayEnabled,
     OverlayCorner? callOverlayCorner,
+    String? Function()? callOverlayScreen,
     bool? pauseVideoWhenMinimised,
     bool? micFallbackEnabled,
     bool? speakerPreferred,
@@ -188,6 +193,9 @@ class VoiceSettingsState {
         screenShareAllowAnnotations ?? this.screenShareAllowAnnotations,
     callOverlayEnabled: callOverlayEnabled ?? this.callOverlayEnabled,
     callOverlayCorner: callOverlayCorner ?? this.callOverlayCorner,
+    callOverlayScreen: callOverlayScreen == null
+        ? this.callOverlayScreen
+        : callOverlayScreen(),
     pauseVideoWhenMinimised:
         pauseVideoWhenMinimised ?? this.pauseVideoWhenMinimised,
     micFallbackEnabled: micFallbackEnabled ?? this.micFallbackEnabled,

@@ -11,6 +11,8 @@ import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../features/voice/providers/voice_controller.dart';
 import '../providers/providers.dart';
+import '../routing/router.dart' show routerProvider;
+import '../routing/routes.dart';
 import 'voice_harness_media.dart';
 
 const bool kVoiceHarness = bool.fromEnvironment('SLIMM_VOICE_HARNESS');
@@ -20,6 +22,9 @@ const joinFailedMarker = 'SLIMM_HARNESS join-failed';
 
 const _channelFlag = '--voice-harness-channel=';
 const _volumeFileFlag = '--voice-harness-volume-file=';
+
+/// Opens the call view after joining, so a share is drawn at stage size rather than in the mini-player.
+const _openCallFlag = '--voice-harness-open-call';
 const _signInWait = Duration(seconds: 90);
 const _joinWait = Duration(seconds: 60);
 
@@ -66,6 +71,9 @@ Future<void> joinHarnessChannel(
     return;
   }
   debugPrint('SLIMM_HARNESS joined $channel');
+  if (args.contains(_openCallFlag)) {
+    container().read(routerProvider).go(Routes.channel(channel));
+  }
   _logGate(voice, container);
   if (args.isNotEmpty) unawaited(startHarnessMedia(container, args));
   if (volumeFile != null) _followVolumeFile(voice, container, volumeFile);

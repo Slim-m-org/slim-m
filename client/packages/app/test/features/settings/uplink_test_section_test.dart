@@ -78,9 +78,9 @@ void main() {
 
     expect(find.textContaining('Measured 2026-11-03'), findsOneWidget);
     expect(find.textContaining('99 Mbit/s'), findsOneWidget);
-    expect(find.text('Suggested ceiling: 2160p.'), findsOneWidget);
+    expect(find.text('Suggested ceiling: 1440p.'), findsOneWidget);
     expect(find.text('Counts every viewer of every share.'), findsOneWidget);
-    expect(find.text('1080p60: about 8 viewers'), findsOneWidget);
+    expect(find.text('1080p60: about 5 viewers'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('uplink-test-run')));
     await tester.pump();

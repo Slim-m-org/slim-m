@@ -28,6 +28,8 @@ enum DesktopWindowEventKind {
   fullScreen,
   leaveFullScreen,
   show,
+  focus,
+  blur,
 }
 
 /// The eight edges and corners a hand-rolled resize border can grab, named
@@ -175,6 +177,10 @@ class WindowManagerDesktopWindowPort
   void onWindowUnmaximize() => _events.add(DesktopWindowEventKind.unmaximize);
   @override
   void onWindowMinimize() => _events.add(DesktopWindowEventKind.minimize);
+  @override
+  void onWindowFocus() => _events.add(DesktopWindowEventKind.focus);
+  @override
+  void onWindowBlur() => _events.add(DesktopWindowEventKind.blur);
 
   /// Un-minimising emits `restore`, never `show`, and the controller reads
   /// `show` as the window coming back.

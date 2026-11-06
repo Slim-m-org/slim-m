@@ -63,7 +63,7 @@ void main() {
               if (end) {
                 await tester.ensureVisible(
                   find.text(
-                    pane.key == 'voice' ? 'Video quality' : 'Music while alone',
+                    pane.key == 'voice' ? 'Screen share' : 'Music while alone',
                   ),
                 );
                 await tester.pump();

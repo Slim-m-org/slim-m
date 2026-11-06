@@ -411,6 +411,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'troubleshooting',
+    'Device check',
+    description: 'Tests your microphone, camera and screen capture.',
+    keywords: ['microphone', 'camera', 'screen capture', 'permissions'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
     'Connection test',
     description: 'Latency and speed to the server.',
     keywords: ['speed', 'ping', 'latency', 'lan', 'cloudflare', 'network'],

@@ -185,6 +185,9 @@ class SettingsSelectRow<T> extends StatelessWidget {
   Widget build(BuildContext context) =>
       SettingsHighlightTarget(label: label, child: _content(context));
 
+  /// The most of the row a long value may take, so the label keeps its place.
+  static const _valueShare = 0.55;
+
   Widget _content(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final desktop = MediaQuery.sizeOf(context).width >= kCompactWidth;
@@ -215,15 +218,20 @@ class SettingsSelectRow<T> extends StatelessWidget {
         onTap: () => _open(context),
       );
     }
+    // AppListRow gives a trailing no bound, so the value is capped at the row's own width, not the window's.
+    return LayoutBuilder(
+      builder: (context, box) => _valueRow(context, chevron, box.maxWidth),
+    );
+  }
+
+  Widget _valueRow(BuildContext context, Widget chevron, double rowWidth) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return AppListRow(
       label: label,
       subtitle: description,
       semanticLabel: '$label, currently $_currentLabel',
-      // AppListRow gives a trailing no bound, so the value is capped here.
       trailing: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.5,
-        ),
+        constraints: BoxConstraints(maxWidth: rowWidth * _valueShare),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           spacing: 6,

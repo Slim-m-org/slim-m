@@ -91,6 +91,8 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
         prefs.getString(VoiceSettingKeys.callOverlayCorner),
         OverlayCorner.topLeft,
       ),
+      callOverlayScreen: () =>
+          prefs.getString(VoiceSettingKeys.callOverlayScreen),
       pauseVideoWhenMinimised:
           prefs.getBool(VoiceSettingKeys.pauseVideoUnfocused) ?? true,
       micFallbackEnabled: prefs.getBool(VoiceSettingKeys.micFallback) ?? true,
@@ -209,6 +211,17 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(callOverlayCorner: corner);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setString(VoiceSettingKeys.callOverlayCorner, corner.name);
+  }
+
+  /// Null goes back to following the app window.
+  Future<void> setCallOverlayScreen(String? screen) async {
+    state = state.copyWith(callOverlayScreen: () => screen);
+    final prefs = await _ref.read(preferencesProvider.future);
+    if (screen == null) {
+      await prefs.remove(VoiceSettingKeys.callOverlayScreen);
+    } else {
+      await prefs.setString(VoiceSettingKeys.callOverlayScreen, screen);
+    }
   }
 
   Future<void> setMirrorSelfView(bool enabled) async {

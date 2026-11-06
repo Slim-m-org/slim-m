@@ -130,11 +130,12 @@ void main() {
       ),
     );
 
-    testWidgets('an unfocused window keeps the preview', (tester) async {
+    testWidgets('an unfocused window pauses the preview', (tester) async {
       await tester.pumpWidget(gate());
       await tester.pump();
       await _lifecycle(tester, AppLifecycleState.inactive);
-      expect(find.byKey(const Key('preview')), findsOneWidget);
+      expect(find.byKey(const Key('preview')), findsNothing);
+      expect(find.text('Preview paused in the background'), findsOneWidget);
     });
 
     testWidgets('a minimised window shows a card, not black', (tester) async {
@@ -147,7 +148,7 @@ void main() {
       life.didChangeAppLifecycleState(AppLifecycleState.hidden);
       await tester.pump();
       expect(find.byKey(const Key('preview')), findsNothing);
-      expect(find.text('Preview paused while minimised'), findsOneWidget);
+      expect(find.text('Preview paused in the background'), findsOneWidget);
 
       life.didChangeAppLifecycleState(AppLifecycleState.resumed);
       await tester.pump();

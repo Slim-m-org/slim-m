@@ -118,6 +118,19 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
         'quitting no longer crashes.',
       ),
       WhatsNewPoint(
+        'Screen shares and cameras send at a much higher bitrate, so motion '
+        'stays sharp; on a slower upload they still send what fits.',
+      ),
+      WhatsNewPoint(
+        'Your own screen and camera previews pause while slim-m is not '
+        'focused, which saves a lot of CPU while you share and play.',
+      ),
+      WhatsNewPoint(
+        'The call overlay can go on the screen you pick, and Voice and screen '
+        'share settings are regrouped, with sizes your screen or camera '
+        'cannot reach struck out.',
+      ),
+      WhatsNewPoint(
         'A Close to tray setting under Desktop: turn it off and the close '
         'button quits the app.',
       ),

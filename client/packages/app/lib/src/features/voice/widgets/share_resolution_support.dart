@@ -11,7 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 /// The reason shown beside a tier the screens cannot reach.
-const shareResolutionTooHighReason = 'Taller than your screen';
+const shareResolutionTooHighReason =
+    'No connected display reaches this resolution';
 
 /// The tallest height a share can reach: the largest display, or the delivered size when capture came in smaller than the picked tier. Null when unknown.
 int? maxShareHeight({
@@ -55,7 +56,7 @@ String? shareResolutionNote(int? maxHeight) =>
         ScreenShareResolution.values.any(
           (r) => !shareResolutionSupported(r, maxHeight),
         )
-    ? 'Your screen is ${maxHeight}p, so taller sizes are off.'
+    ? 'Your largest display is ${maxHeight}p.'
     : null;
 
 /// The heights of the screens the OS reports; a provider so a test can say what is plugged in.

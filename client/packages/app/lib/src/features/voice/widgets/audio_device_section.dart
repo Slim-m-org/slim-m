@@ -39,10 +39,15 @@ const _systemDefaultId = '';
 const speakerTestRowKey = ValueKey('speaker-test-row');
 const windowsMicHelpKey = ValueKey('windows-mic-enhancements-help');
 
+/// Which rows an [AudioDeviceSection] shows, so Voice settings can give the
+/// microphone and the speaker a card each.
+enum AudioDevicePart { all, microphone, microphoneOptions, speaker }
+
 class AudioDeviceSection extends ConsumerStatefulWidget {
   const AudioDeviceSection({
     super.key,
     this.embedded = false,
+    this.part = AudioDevicePart.all,
     this.windows,
     this.ios,
     this.routePicker,
@@ -59,6 +64,7 @@ class AudioDeviceSection extends ConsumerStatefulWidget {
 
   /// Rows only, for a card another section already owns.
   final bool embedded;
+  final AudioDevicePart part;
 
   @override
   ConsumerState<AudioDeviceSection> createState() => _AudioDeviceSectionState();
@@ -115,12 +121,18 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         ref.watch(speakerRouteProvider).supported;
 
     final onIOS = widget.ios ?? isIOSHost;
+    final part = widget.part;
+    final all = part == AudioDevicePart.all;
+    final mic = all || part == AudioDevicePart.microphone;
+    final micOptions = all || part == AudioDevicePart.microphoneOptions;
+    final speaker = all || part == AudioDevicePart.speaker;
     final rows = [
-      if (onIOS)
+      if (mic && onIOS)
         AudioRoutePickerRow(picker: widget.routePicker)
-      else
+      else if (mic)
         _DevicePickerRow(
-          label: 'Microphone',
+          label: all ? 'Microphone' : 'Input device',
+          kind: 'mic',
           icon: AppIcons.mic,
           supported: notifier.devices.supportsAudioInputSelection,
           unsupportedCaption: 'This platform routes microphones automatically.',
@@ -130,16 +142,9 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
           onChanged: settingsNotifier.setAudioInputDevice,
         ),
       // By platform, not width: it describes an OS setting, not a layout.
-      if (widget.windows ?? isWindowsHost)
-        const AppListRow(
-          key: windowsMicHelpKey,
-          label: 'Windows enhancements',
-          subtitle:
-              'Windows audio enhancements on the microphone can double-process '
-              'your voice; turn them off in Sound settings, under the '
-              "microphone's properties.",
-        ),
-      if (notifier.devices.supportsAudioInputSelection)
+      if (micOptions && (widget.windows ?? isWindowsHost))
+        const _WindowsEnhancementsNote(key: windowsMicHelpKey),
+      if (micOptions && notifier.devices.supportsAudioInputSelection)
         SettingsToggleRow(
           label: 'Switch if mic stops working',
           description: 'Use another microphone when yours goes silent.',
@@ -147,7 +152,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
           semanticLabel: 'Switch microphone if mine stops working',
           onChanged: settingsNotifier.setMicFallbackEnabled,
         ),
-      if (showSpeakerToggle)
+      if (speaker && showSpeakerToggle)
         SettingsToggleRow(
           label: 'Use loudspeaker',
           description: 'Off plays calls through the earpiece.',
@@ -155,9 +160,10 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
           semanticLabel: 'Play calls through the loudspeaker',
           onChanged: settingsNotifier.setSpeakerPreferred,
         )
-      else if (!onIOS)
+      else if (speaker && !onIOS)
         _DevicePickerRow(
-          label: 'Speaker',
+          label: all ? 'Speaker' : 'Output device',
+          kind: 'speaker',
           icon: AppIcons.speaker,
           supported: notifier.devices.supportsAudioOutputSelection,
           unsupportedCaption:
@@ -167,7 +173,9 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
           selectedId: settings.audioOutputDeviceId,
           onChanged: settingsNotifier.setAudioOutputDevice,
         ),
-      const SpeakerTestRow(),
+      // A test that cannot follow the chosen speaker would only test some other one.
+      if (speaker && ref.read(soundOutputRouterProvider).testable)
+        const SpeakerTestRow(),
     ];
     if (widget.embedded) return SettingsRowGroup(children: rows);
     return SettingsSectionCard(
@@ -186,22 +194,42 @@ class SpeakerTestRow extends ConsumerWidget {
     ref.watch(
       voiceSettingsControllerProvider.select((s) => s.audioOutputDeviceId),
     );
-    final testable = ref.read(soundOutputRouterProvider).testable;
     return AppListRow(
       key: speakerTestRowKey,
       label: 'Test speaker',
-      subtitle: testable
-          ? null
-          : 'Interface sounds play on the system default output.',
-      trailing: testable
-          ? AppButton(
-              size: AppButtonSize.sm,
-              label: 'Play',
-              onPressed: () => unawaited(
-                ref.read(notificationSoundControllerProvider).playSpeakerTest(),
-              ),
-            )
-          : null,
+      trailing: AppButton(
+        size: AppButtonSize.sm,
+        label: 'Play',
+        onPressed: () => unawaited(
+          ref.read(notificationSoundControllerProvider).playSpeakerTest(),
+        ),
+      ),
+    );
+  }
+}
+
+/// A note rather than a link: the app only opens http and https links, and
+/// the Sound settings page is an `ms-settings:` one.
+class _WindowsEnhancementsNote extends StatelessWidget {
+  const _WindowsEnhancementsNote({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return SettingsCardBlock(
+      gap: AppSpacing.s4,
+      children: [
+        Text(
+          'Windows enhancements',
+          style: AppText.ui.copyWith(color: tokens.textPrimary),
+        ),
+        Text(
+          'Windows can process your voice a second time. If you sound '
+          "muffled, turn off audio enhancements in your microphone's "
+          'properties in Sound settings.',
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
+      ],
     );
   }
 }
@@ -209,6 +237,7 @@ class SpeakerTestRow extends ConsumerWidget {
 class _DevicePickerRow extends StatelessWidget {
   const _DevicePickerRow({
     required this.label,
+    required this.kind,
     required this.icon,
     required this.supported,
     required this.unsupportedCaption,
@@ -219,6 +248,9 @@ class _DevicePickerRow extends StatelessWidget {
   });
 
   final String label;
+
+  /// How the unplugged warning names the device: mic or speaker.
+  final String kind;
   final IconData icon;
   final bool supported;
   final String unsupportedCaption;
@@ -240,7 +272,6 @@ class _DevicePickerRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final resolved = resolveAudioDevice(devices, selectedId);
     final unplugged = listed && selectedId != null && resolved == null;
-    final kind = label == 'Microphone' ? 'mic' : 'speaker';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

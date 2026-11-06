@@ -185,14 +185,31 @@ Iterable<RemoteVideoQualityRef> remoteVideoQualityRefs(lk.Room room) sync* {
 /// How sharp your own camera is published.
 enum CameraQuality {
   /// 360p, for a weak upload.
-  dataSaver(lk.VideoParametersPresets.h360_169),
+  dataSaver(
+    lk.VideoParameters(
+      dimensions: lk.VideoDimensionsPresets.h360_169,
+      encoding: lk.VideoEncoding(maxBitrate: 600000, maxFramerate: 30),
+    ),
+  ),
 
   /// 720p, what a camera published before this setting existed.
-  balanced(lk.VideoParametersPresets.h720_169),
+  balanced(
+    lk.VideoParameters(
+      dimensions: lk.VideoDimensionsPresets.h720_169,
+      encoding: lk.VideoEncoding(maxBitrate: 2500000, maxFramerate: 30),
+    ),
+  ),
 
   /// 1080p.
-  high(lk.VideoParametersPresets.h1080_169);
+  high(
+    lk.VideoParameters(
+      dimensions: lk.VideoDimensionsPresets.h1080_169,
+      encoding: lk.VideoEncoding(maxBitrate: 4500000, maxFramerate: 30),
+    ),
+  );
 
+  /// Bitrates sit where a talking-head camera stops looking better, above
+  /// LiveKit's presets (1.7M at 720p, 3M at 1080p), which smear on movement.
   const CameraQuality(this.params);
 
   final lk.VideoParameters params;
