@@ -48,11 +48,11 @@ class ControlSwatch {
   final String? disabledReason;
 }
 
-/// A [heading] and its [swatches] on a single line.
+/// A [heading] and its [swatches] on a single line; no heading continues the row above.
 class ControlSwatchGroup extends ControlOptionEntry {
-  const ControlSwatchGroup({required this.heading, required this.swatches});
+  const ControlSwatchGroup({required this.swatches, this.heading});
 
-  final String heading;
+  final String? heading;
   final List<ControlSwatch> swatches;
 }
 
