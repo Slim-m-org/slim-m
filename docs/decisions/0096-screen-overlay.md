@@ -152,6 +152,10 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
   The drawing overlay needs a whole-screen share and the panel needs there to be none, so they are never wanted together; the controller hands the window from one to the other.
 - Monitor: the one the app window is on when the runner can tell (GDK `monitor_at_window` on Linux, `MonitorFromWindow` on Windows), otherwise the primary.
   It is chosen when the panel opens and does not follow the window to another monitor mid-call.
+- Overlay screen (2026-11-06): with two or more screens the setting offers Automatic (the rule above) or a named screen.
+  Owner, 2026-11-06: "on the call overlay can we have it pick a monitor to display on? might help with the canvas drawing also".
+  The pick is stored as the screen's position and size, so a reorder does not move it, and an unplugged pick falls back to Automatic.
+  When a share cannot say which screen it is and more than one could match, the drawing overlay uses the picked screen instead of covering them all.
 - Windows draws the same panel with GDI+ and, like the drawing overlay, is excluded from capture; it is compiled for syntax only.
 
 ## In-app preview and window shares (2026-11-04)

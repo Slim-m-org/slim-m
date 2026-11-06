@@ -62,7 +62,7 @@ void main() {
     });
 
     test('every word of a query has to match', () {
-      expect(_labels('screen share fps'), ['Screen share frame rate']);
+      expect(_labels('screen share fps'), ['Frame rate']);
     });
   });
 

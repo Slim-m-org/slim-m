@@ -62,7 +62,7 @@ void main() {
     await _open(tester, await _overrides(session, applied, supported: true));
     expect(tester.widget<AppToggle>(_toggle).value, isTrue);
     expect(find.text('Off plays calls through the earpiece.'), findsOneWidget);
-    expect(find.text('Speaker'), findsNothing);
+    expect(find.text('Output device'), findsNothing);
 
     await tester.tap(_toggle);
     await _settle(tester);
@@ -79,7 +79,7 @@ void main() {
     await _open(tester, await _overrides(session, [], supported: true));
 
     expect(_toggle, findsNothing);
-    expect(find.text('Speaker'), findsOneWidget);
+    expect(find.text('Output device'), findsOneWidget);
   });
 
   testWidgets('a platform that cannot switch shows no toggle', (tester) async {

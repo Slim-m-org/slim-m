@@ -24,8 +24,7 @@ class PauseVideoRow extends ConsumerWidget {
     return SettingsToggleRow(
       label: 'Pause video in the background',
       description:
-          'Your own previews stop when slim-m is not focused, and other '
-          "people's video stops when it is minimised.",
+          "Stops your own previews when unfocused, others' video when minimised.",
       value: enabled,
       semanticLabel: 'Pause video while slim-m is in the background',
       onChanged: (value) => ref

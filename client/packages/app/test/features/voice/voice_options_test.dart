@@ -70,7 +70,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final row = find.byWidgetPredicate(
-      (w) => w is SettingsSelectRow<String> && w.label == 'Speaker',
+      (w) => w is SettingsSelectRow<String> && w.label == 'Output device',
     );
     await _show(tester, row);
     await tester.tap(row);

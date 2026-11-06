@@ -92,7 +92,7 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
-    'Call overlay',
+    'Show call overlay',
     description: 'Lists who is in the call over your other windows.',
     keywords: [
       'overlay',
@@ -109,9 +109,8 @@ const voiceSettingsIndex = <SettingsEntry>[
     'voice',
     'Pause video in the background',
     description:
-        'Your own previews stop when slim-m is not focused, and other '
-        "people's video stops when it is minimised.",
-    keywords: ['minimised', 'unfocused', 'cpu', 'battery', 'preview'],
+        "Stops your own previews when unfocused, others' video when minimised.",
+    keywords: ['minimised', 'unfocused', 'cpu', 'battery'],
   ),
   SettingsEntry(
     'notifications',
@@ -146,43 +145,53 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Input device',
+    keywords: ['microphone', 'mic', 'input', 'headset'],
+  ),
+  SettingsEntry(
+    'voice',
+    'Output device',
+    keywords: ['speaker', 'output', 'headphones', 'headset'],
+  ),
+  SettingsEntry(
+    'voice',
     'Speaker',
     keywords: ['output', 'headphones', 'headset', 'audio device'],
   ),
   SettingsEntry(
     'voice',
-    'Watching',
+    'Watching quality',
     description: 'How sharp the video you watch is.',
-    keywords: ['video quality'],
+    keywords: ['video quality', 'watching'],
   ),
   SettingsEntry(
     'voice',
-    'Your camera',
-    description: 'Sharpness of the camera video you send.',
+    'Camera quality',
+    description: 'Sharpness of the video you send.',
     keywords: ['webcam', 'video'],
   ),
   SettingsEntry(
     'voice',
-    'Screen share resolution',
-    keywords: ['stream', 'quality', '1080p', '720p'],
+    'Resolution',
+    keywords: ['screen share', 'stream', 'quality', '1080p', '720p'],
   ),
   SettingsEntry(
     'voice',
-    'Screen share frame rate',
-    keywords: ['stream', 'fps', '60fps'],
+    'Frame rate',
+    keywords: ['screen share', 'stream', 'fps', '60fps'],
   ),
   SettingsEntry(
     'voice',
-    'Devices',
-    description: 'What a call uses to hear, speak and show you.',
-    keywords: ['mic', 'microphone', 'speaker', 'camera', 'input', 'output'],
+    'Video',
+    keywords: ['camera', 'webcam', 'video quality', 'watching'],
   ),
+  SettingsEntry('voice', 'Screen share', keywords: ['stream', 'sharing']),
   SettingsEntry(
     'voice',
-    'Video quality',
-    description: 'Lower it to save data, raise it to see more.',
+    'Call overlay',
+    keywords: ['overlay'],
+    conditional: true,
   ),
-  SettingsEntry('voice', 'Sharing and preview', keywords: ['screen share']),
   SettingsEntry(
     'voice',
     'Noise suppression',

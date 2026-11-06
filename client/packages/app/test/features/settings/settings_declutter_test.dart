@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The busiest settings panes keep their section headers few: voice groups its
-/// controls into four cards, appearance's display controls into two.
+/// controls into four cards (a fifth for the overlay where it exists), appearance's display controls into two.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -22,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SettingsSectionHeader), findsNWidgets(4));
-    expect(find.text('Devices'), findsOneWidget);
+    expect(find.text('Video'), findsOneWidget);
   });
 
   testWidgets('the appearance pane sits under four section headers', (

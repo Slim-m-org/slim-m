@@ -35,7 +35,7 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
 
   /// The least room the label keeps beside the control; with less, the
   /// control drops under it instead of squeezing it.
-  static const minLabelWidth = 160.0;
+  static const minLabelWidth = 220.0;
 
   @override
   Widget build(BuildContext context) =>

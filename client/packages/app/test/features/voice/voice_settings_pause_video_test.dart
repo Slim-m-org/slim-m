@@ -14,7 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_settings_screen_harness.dart';
 
-const _label = 'Pause video when slim-m is minimised';
+const _label = 'Pause video while slim-m is in the background';
 const _key = 'slimm.voice.pause_video_when_unfocused';
 
 Finder get _toggle =>
@@ -58,13 +58,13 @@ void main() {
     tester,
   ) async {
     await _pump(tester, desktop: false);
-    expect(find.text('Pause video when minimised'), findsNothing);
+    expect(find.text('Pause video in the background'), findsNothing);
     expect(_toggle, findsNothing);
   });
 
   test('the settings index finds it by its new label only', () {
     final hit = searchSettings('pause video', personalSettingsIndex);
-    expect(hit.map((e) => e.label), contains('Pause video when minimised'));
+    expect(hit.map((e) => e.label), contains('Pause video in the background'));
     expect(searchSettings('pause my preview', personalSettingsIndex), isEmpty);
   });
 }

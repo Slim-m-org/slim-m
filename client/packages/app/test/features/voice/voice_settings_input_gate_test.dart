@@ -63,7 +63,6 @@ void main() {
     await _pump(tester);
     expect(_meter(), findsOneWidget);
     expect(find.text('Line at -50 dB. Drag it to change.'), findsOneWidget);
-    expect(find.text('Sound below the line is not sent.'), findsOneWidget);
     expect(find.text('Voice activity sensitivity'), findsNothing);
   });
 

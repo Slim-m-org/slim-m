@@ -169,7 +169,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('Screen share resolution'), findsOneWidget);
+        expect(find.text('Resolution'), findsOneWidget);
         expect(
           find.text(shareSettingsPendingNote),
           pending ? findsWidgets : findsNothing,

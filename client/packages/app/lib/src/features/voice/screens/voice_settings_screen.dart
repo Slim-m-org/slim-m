@@ -18,7 +18,6 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
 import '../widgets/mic_trouble_notice.dart';
-import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
@@ -36,7 +35,7 @@ class VoiceSettingsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Column(
-    children: [_MicrophoneSection(), _DevicesSection(), VideoQualitySection()],
+    children: [_MicrophoneSection(), _SpeakerSection(), VideoQualitySection()],
   );
 }
 
@@ -111,13 +110,17 @@ class _MicrophoneSection extends ConsumerWidget {
     if (hostHasInputGate(ref)) {
       return const SettingsSectionCard(
         title: 'Microphone',
-        description: 'Sound below the line is not sent.',
         children: [
+          AudioDeviceSection(embedded: true, part: AudioDevicePart.microphone),
           InputSensitivityMeter(),
           AutoSensitivityToggle(),
           NoiseSuppressionSection(),
           EvenOutLoudSoundsToggle(),
           VoiceProcessingSection(),
+          AudioDeviceSection(
+            embedded: true,
+            part: AudioDevicePart.microphoneOptions,
+          ),
         ],
       );
     }
@@ -125,6 +128,10 @@ class _MicrophoneSection extends ConsumerWidget {
     return SettingsSectionCard(
       title: 'Microphone',
       children: [
+        const AudioDeviceSection(
+          embedded: true,
+          part: AudioDevicePart.microphone,
+        ),
         MicPreviewHold(
           child: SettingsCardBlock(
             gap: AppSpacing.s8,
@@ -154,22 +161,24 @@ class _MicrophoneSection extends ConsumerWidget {
           ),
         ),
         const _SensitivitySection(),
+        const AudioDeviceSection(
+          embedded: true,
+          part: AudioDevicePart.microphoneOptions,
+        ),
       ],
     );
   }
 }
 
-class _DevicesSection extends StatelessWidget {
-  const _DevicesSection();
+class _SpeakerSection extends StatelessWidget {
+  const _SpeakerSection();
 
   @override
   Widget build(BuildContext context) {
     return const SettingsSectionCard(
-      title: 'Devices',
+      title: 'Speaker',
       children: [
-        AudioDeviceSection(embedded: true),
-        CameraOnJoinSection(embedded: true),
-        MirrorSelfViewRow(),
+        AudioDeviceSection(embedded: true, part: AudioDevicePart.speaker),
       ],
     );
   }

@@ -61,12 +61,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      _pickerRow('Microphone'),
+      _pickerRow('Input device'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(_pickerRow('Microphone'));
+    await tester.tap(_pickerRow('Input device'));
     await tester.pumpAndSettle();
 
     // Both rows already read "System default" before either picker opens.
@@ -83,12 +83,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      _pickerRow('Microphone'),
+      _pickerRow('Input device'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(_pickerRow('Microphone'));
+    await tester.tap(_pickerRow('Input device'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('USB headset'));
     await tester.pumpAndSettle();
@@ -113,7 +113,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(_pickerRow('Speaker'), findsNothing);
+      expect(_pickerRow('Output device'), findsNothing);
       expect(
         find.textContaining('always plays a call through its default output'),
         findsOneWidget,
@@ -144,7 +144,7 @@ void main() {
         findsOneWidget,
       );
       final row = tester.widget<SettingsSelectRow<String>>(
-        _pickerRow('Microphone'),
+        _pickerRow('Input device'),
       );
       // Shown as the default, not as a phantom entry for a device that is gone.
       expect(row.value, '');
