@@ -28,6 +28,8 @@ Future<void> share(int n, {bool enumerate = true}) async {
     'audio': false,
   });
   stdout.writeln('PROBE share $n tracks=${stream.getVideoTracks().length}');
+  final picked = await _channel.invokeMethod<Object?>('portalStreamGeometry');
+  stdout.writeln('PROBE share $n monitor=$picked');
   await Future<void>.delayed(const Duration(seconds: 2));
   for (final track in stream.getTracks()) {
     await track.stop();

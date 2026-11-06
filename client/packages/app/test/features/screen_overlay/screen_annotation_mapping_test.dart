@@ -114,6 +114,37 @@ void main() {
       },
     );
 
+    test('the portal position settles identical monitors', () {
+      const twins = [
+        OverlayMonitor(x: 0, y: 0, width: 1920, height: 1080, primary: false),
+        OverlayMonitor(
+          x: 1920,
+          y: 0,
+          width: 1920,
+          height: 1080,
+          primary: false,
+        ),
+      ];
+      final size = const Size(1920, 1080);
+      expect(
+        pickSharedMonitors(
+          twins,
+          capturedSize: size,
+          portalOrigin: (x: 1920, y: 0),
+        ),
+        [1],
+      );
+      expect(
+        pickSharedMonitors(
+          twins,
+          capturedSize: size,
+          portalOrigin: (x: 5, y: 5),
+        ),
+        [0, 1],
+        reason: 'a position no monitor has falls back to the shape match',
+      );
+    });
+
     test('with nothing to go on every monitor is covered', () {
       expect(pickSharedMonitors([_monitor(800, 600), _monitor(800, 600)]), [
         0,

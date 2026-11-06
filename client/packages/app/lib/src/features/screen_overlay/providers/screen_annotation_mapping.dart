@@ -44,16 +44,24 @@ Offset fromNormalised(Offset normalised, Rect content) => Offset(
 /// The monitors a share may cover, as indexes into [monitors].
 ///
 /// [screenNumber] is the capturer's own 1-based "Screen N", trusted only where
-/// the platform lists real monitors in order. Otherwise every monitor whose
-/// shape matches the captured size is a candidate, and every monitor is one
-/// when the size is unknown: Wayland never says which monitor the portal
-/// picked and reports no primary, so guessing one would draw on the wrong screen.
+/// the platform lists real monitors in order. [portalOrigin] is where the
+/// Linux portal says the picked monitor sits, which KDE reports and GNOME does
+/// not. Otherwise every monitor whose shape matches the captured size is a
+/// candidate, and every monitor is one when the size is unknown: guessing one
+/// would draw on the wrong screen.
 List<int> pickSharedMonitors(
   List<OverlayMonitor> monitors, {
   int? screenNumber,
   Size? capturedSize,
+  ({int x, int y})? portalOrigin,
 }) {
   if (monitors.isEmpty) return const [0];
+  if (portalOrigin != null) {
+    final at = monitors.indexWhere(
+      (m) => m.x == portalOrigin.x && m.y == portalOrigin.y,
+    );
+    if (at >= 0) return [at];
+  }
   if (screenNumber != null &&
       screenNumber >= 1 &&
       screenNumber <= monitors.length) {

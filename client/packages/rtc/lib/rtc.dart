@@ -37,6 +37,7 @@ export 'src/camera_failure.dart';
 export 'src/camera_frame_scope.dart';
 export 'src/camera_switching.dart';
 export 'src/desktop_sources.dart';
+export 'src/portal_monitor.dart';
 export 'src/first_frame_gate.dart' show FirstFrameTracker;
 export 'src/join_timings.dart';
 export 'src/input_gate.dart'

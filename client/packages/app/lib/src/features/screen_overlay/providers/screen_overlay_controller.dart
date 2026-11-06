@@ -13,7 +13,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart'
-    show VoiceSessionState, localShareCapturedSize;
+    show
+        PortalMonitor,
+        VoiceSessionState,
+        localShareCapturedSize,
+        portalSharedMonitor;
 
 import '../../../providers/sync_controller.dart';
 import '../../../providers/toasts.dart';
@@ -72,6 +76,11 @@ class ScreenOverlayState {
 
 /// Interval between repaints while a mark is alive.
 const overlayFrameInterval = Duration(milliseconds: 33);
+
+/// Asks the Linux portal which monitor its chooser picked; a provider so a test can answer.
+final portalSharedMonitorProvider = Provider<Future<PortalMonitor?> Function()>(
+  (ref) => portalSharedMonitor,
+);
 
 class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   ScreenOverlayController(this._ref, {DateTime Function()? clock})
@@ -233,8 +242,11 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final monitors = _support.monitors;
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
+    final portal = isWindowsHost ? null : await _portalMonitor();
+    if (!mounted) return false;
     final covered = pickSharedMonitors(
       monitors,
+      portalOrigin: portal == null ? null : (x: portal.x, y: portal.y),
       screenNumber: isWindowsHost
           ? screenNumberFromLabel(controller.share.lastShareSource?.name ?? '')
           : null,
@@ -249,6 +261,9 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _overlayAspect = sharedAspect(monitors, covered);
     return mounted;
   }
+
+  Future<PortalMonitor?> _portalMonitor() =>
+      _ref.read(portalSharedMonitorProvider)();
 
   Future<void> _hideOverlay() async {
     _frames?.cancel();
