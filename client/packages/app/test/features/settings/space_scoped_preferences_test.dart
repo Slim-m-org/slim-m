@@ -158,6 +158,7 @@ const _deviceKeys = <String>{
   'slimm.desktop.window_geometry',
   'slimm.first_run.done.',
   'slimm.layout.rail_width',
+  'slimm.desktop.close_to_tray',
   'slimm.performance.desktop_splash_duration',
   'slimm.performance.desktop_splash_enabled',
   'slimm.performance.image_cache_mb',

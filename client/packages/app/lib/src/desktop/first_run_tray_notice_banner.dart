@@ -36,8 +36,8 @@ class FirstRunTrayNoticeBanner extends ConsumerWidget {
   /// window kept its taskbar and Alt-Tab entry.
   String _copyFor(CloseAction action) => switch (action) {
     CloseAction.hideToTray =>
-      'slim-m is still running in the tray. Use the tray icon to '
-          'reopen or quit it.',
+      'slim-m is still running in the tray. Use the tray icon to reopen '
+          'or quit it, or turn off Close to tray in Settings.',
     CloseAction.minimizeToTaskbar =>
       'slim-m is minimised, not closed. Reopen it from the taskbar '
           'or Alt-Tab.',

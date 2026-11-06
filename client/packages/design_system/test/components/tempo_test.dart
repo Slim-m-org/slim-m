@@ -114,7 +114,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    final target = AppTokens.light.surfaceSunken;
+    final target = AppTokens.light.textPrimary.withValues(alpha: 0.12);
     final mid = _paintedFill(tester, scope);
     expect(mid, isNot(Colors.transparent), reason: 'the tint has set off');
     expect(mid, isNot(target), reason: 'and has not already arrived');

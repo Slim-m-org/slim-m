@@ -151,9 +151,13 @@ class AppMenuLabel extends StatelessWidget {
       // '8px 10px 6px' in the source: asymmetric top/bottom, literal rather
       // than on the --space-* grid.
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
-      child: Text(
-        text.toUpperCase(),
-        style: AppText.label.copyWith(color: tokens.textSecondary),
+      // Full width, or a menu's column centres it over the left-aligned rows.
+      child: SizedBox(
+        width: double.infinity,
+        child: Text(
+          text.toUpperCase(),
+          style: AppText.label.copyWith(color: tokens.textSecondary),
+        ),
       ),
     );
   }
@@ -320,10 +324,13 @@ class _AppMenuItemState extends State<AppMenuItem> {
     AppMenuCascade.maybeOf(context, listen: false)?.closePanel();
   }
 
+  /// A wash of the text colour, so a hovered row lifts off the menu in every
+  /// theme; surfaceSunken read as a hole in a dark menu.
   Color _fill(AppTokens tokens) {
     if (widget.selected) return tokens.accentSoft;
-    return _hovered || _pressed || widget.highlighted
-        ? tokens.surfaceSunken
+    if (_pressed) return tokens.textPrimary.withValues(alpha: 0.12);
+    return _hovered || widget.highlighted
+        ? tokens.textPrimary.withValues(alpha: 0.07)
         : Colors.transparent;
   }
 

@@ -346,6 +346,20 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     desktopPane,
+    'Window',
+    description: 'What the close button does.',
+    keywords: ['close', 'quit', 'tray'],
+    available: _desktop,
+  ),
+  SettingsEntry(
+    desktopPane,
+    'Close to tray',
+    description: 'Closing the window keeps slim-m running in the tray.',
+    keywords: ['quit', 'exit', 'close button', 'minimize', 'tray'],
+    available: _desktop,
+  ),
+  SettingsEntry(
+    desktopPane,
     'Startup splash',
     description: 'How long the splash shows when the app opens.',
     keywords: ['startup', 'launch', 'loading'],

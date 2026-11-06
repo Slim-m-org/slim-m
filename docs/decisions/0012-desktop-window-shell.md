@@ -261,3 +261,12 @@ A runner delaying that show by 2.5s or more reproduces the failure every time.
 `prepareHandoff` now waits, bounded at 15s, for the runner to report the window mapped (`linux_window_mapped_channel.cc`: the window manager's map-event on X11, the map signal elsewhere) before it hides anything.
 The splash floor is measured from that map, not from bootstrap: once the runner reports the window mapped, `prepareHandoff` waits out whatever is left of the floor (the runner reports how long the window has been mapped) before it hides anything.
 A splash that mapped early loses nothing, and one that mapped late still gets its full dwell on screen.
+
+## Addendum, 2026-11-06: Close to tray is a setting
+
+Windows users read a close button that hides the app into the tray (which Windows 11 tucks behind the ^ overflow) as "the X does not close".
+Owner, 2026-11-06: add a setting, on by default like Discord.
+
+- Settings > Desktop > Window > "Close to tray", per device (`slimm.desktop.close_to_tray`), on by default.
+- Off, the close button, Alt+F4 and the taskbar's "Close window" quit the app the way the tray's Quit does; on, the routing above is unchanged, including the Linux minimise fallback with no tray host.
+- The first-run notice after a hide now names the setting.
