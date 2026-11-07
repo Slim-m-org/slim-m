@@ -175,11 +175,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('secret'), findsOneWidget);
 
-    await tester.tap(find.text('Dismiss'));
+    await tester.tap(find.byKey(EphemeralRow.dismissKey));
     await tester.pumpAndSettle();
 
     expect(find.text('secret'), findsNothing);
     expect(find.text('first'), findsOneWidget);
+    expect(h.container.read(channelEphemeralMessagesProvider('c1')), isEmpty);
+  });
+
+  testWidgets('a channel keeps only the three newest private answers', (
+    tester,
+  ) async {
+    final h = await _pump(tester, const []);
+    for (var i = 1; i <= 5; i++) {
+      h.send('e$i', 2000 + i, 'secret $i');
+    }
+    await tester.pump();
+    expect(
+      [
+        for (final m in h.container.read(
+          channelEphemeralMessagesProvider('c1'),
+        ))
+          m.id,
+      ],
+      ['e3', 'e4', 'e5'],
+    );
+  });
+
+  testWidgets('a private answer goes on its own after its lifetime', (
+    tester,
+  ) async {
+    final h = await _pump(tester, const []);
+    h.send('e1', DateTime.now().millisecondsSinceEpoch, 'secret');
+    await tester.pump();
+    expect(find.text('secret'), findsOneWidget);
+
+    await tester.pump(ephemeralLifetime - const Duration(seconds: 5));
+    expect(find.text('secret'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(find.text('secret'), findsNothing);
     expect(h.container.read(channelEphemeralMessagesProvider('c1')), isEmpty);
   });
 

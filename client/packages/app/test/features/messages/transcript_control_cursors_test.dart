@@ -106,7 +106,7 @@ void main() {
         onReport: () {},
       ),
     );
-    await _expectClickOver(tester, find.text('Dismiss'));
+    await _expectClickOver(tester, find.byKey(EphemeralRow.dismissKey));
     await _expectClickOver(tester, find.text('Report'));
   });
 

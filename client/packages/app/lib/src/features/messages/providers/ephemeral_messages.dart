@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A bot's private answers, held in memory until dismissed. The transcript draws them.
+/// A bot's private answers, held in memory until dismissed, three per channel
+/// at most. The transcript draws them and lets each lapse after a while.
 ///
 /// Nothing here is stored or fetched: the server never keeps one and offers no
 /// way to read it back, so a reload loses them by design. See
@@ -12,6 +13,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/live_events.dart';
+
+/// The most private answers one channel keeps; a new one drops the oldest.
+const maxEphemeralPerChannel = 3;
 
 class EphemeralMessagesController
     extends StateNotifier<Map<String, List<api.EphemeralMessage>>> {
@@ -32,12 +36,16 @@ class EphemeralMessagesController
         if (m.id != message.id) m,
       message,
     ];
-    state = {...state, message.channelId: kept};
+    final dropped = kept.length - maxEphemeralPerChannel;
+    state = {
+      ...state,
+      message.channelId: dropped > 0 ? kept.sublist(dropped) : kept,
+    };
   }
 
   void dismiss(String channelId, String id) {
     final current = state[channelId];
-    if (current == null) return;
+    if (current == null || !mounted) return;
     final kept = [
       for (final m in current)
         if (m.id != id) m,
