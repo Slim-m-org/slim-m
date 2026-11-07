@@ -20,19 +20,28 @@ import 'video_label_pill.dart';
 const double _shareAspect = 16 / 9;
 const double _gap = AppSpacing.s12;
 
-/// The narrowest a share tile may get before the grid drops a column.
-const double shareGridTwoColumnMinTile = 280;
-const double shareGridThreeColumnMinTile = 320;
+/// The gap and one caption line under each tile.
+const double shareGridCaptionHeight = AppSpacing.s4 + 20;
 
-/// Columns for [count] shares in a pane [paneWidth] wide: as many as keep each
-/// tile at its minimum, with four kept 2x2 and one column the fallback.
-int shareGridColumns(double paneWidth, int count) {
-  bool fits(int columns, double minTile) =>
-      paneWidth >= columns * minTile + (columns - 1) * _gap;
-  if (count >= 2 && count != 4 && fits(3, shareGridThreeColumnMinTile)) {
-    return 3;
+/// The columns, and the tile width, that give [count] shares the largest 16:9
+/// tiles that fit [pane]; an unbounded height leaves the width to decide.
+({int columns, double tileWidth}) shareGridFit(Size pane, int count) {
+  var best = (columns: 1, tileWidth: 0.0);
+  for (var columns = 1; columns <= count; columns++) {
+    final rows = (count / columns).ceil();
+    final byWidth = (pane.width - (columns - 1) * _gap) / columns;
+    final rowHeight =
+        (pane.height - (rows - 1) * _gap) / rows - shareGridCaptionHeight;
+    final byHeight = pane.height.isFinite
+        ? rowHeight * _shareAspect
+        : double.infinity;
+    final width = (byWidth < byHeight ? byWidth : byHeight).floorToDouble();
+    // Within a few percent, one even row reads tidier than a ragged extra one.
+    if (width >= best.tileWidth * 0.95) {
+      best = (columns: columns, tileWidth: width);
+    }
   }
-  return count >= 2 && fits(2, shareGridTwoColumnMinTile) ? 2 : 1;
+  return best;
 }
 
 /// The strip's inline volume for [sharer]'s share.
@@ -126,8 +135,8 @@ Widget _stageTile(
 String _shareCaption(VoiceParticipant p) =>
     p.isLocal ? 'Your screen' : "${p.name}'s screen";
 
-/// Every watched share at once, each 16:9 with its name underneath, in as many
-/// columns as the pane it sits in can give them.
+/// Every watched share at once, each 16:9 with its name underneath, as large
+/// as the pane it sits in allows.
 class ShareGrid extends StatelessWidget {
   const ShareGrid({
     super.key,
@@ -135,6 +144,7 @@ class ShareGrid extends StatelessWidget {
     required this.controller,
     required this.onStopWatching,
     required this.onFocus,
+    required this.maxHeight,
   });
 
   final List<VoiceParticipant> shares;
@@ -142,14 +152,18 @@ class ShareGrid extends StatelessWidget {
   final void Function(String identity) onStopWatching;
   final void Function(String identity) onFocus;
 
+  /// The height the grid may fill before it scrolls.
+  final double maxHeight;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cols = shareGridColumns(constraints.maxWidth, shares.length);
-        final width = ((constraints.maxWidth - (cols - 1) * _gap) / cols)
-            .floorToDouble();
+        final width = shareGridFit(
+          Size(constraints.maxWidth, maxHeight),
+          shares.length,
+        ).tileWidth;
         return Wrap(
           alignment: WrapAlignment.center,
           spacing: _gap,

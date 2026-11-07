@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The share grid picks its columns from the pane it is laid out in. With the
-/// member pane docked a 1400 px window leaves the call a pane of about 700 px,
-/// so a grid sized from the window made tiles of about 150 px.
+/// The share grid picks its columns from the pane it is laid out in, width and
+/// height both. With the member pane docked a 1400 px window leaves the call a
+/// pane of about 700 px, so a grid sized from the window made tiles of about
+/// 150 px; and two shares in a wide pane once got a third of it each.
 library;
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,8 @@ VoiceParticipant _sharer(String id) => VoiceParticipant(
   isScreenSharing: true,
 );
 
+const _paneHeight = 760.0;
+
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
 
 Future<void> _pumpGrid(
@@ -29,7 +32,7 @@ Future<void> _pumpGrid(
   required double pane,
   required int shares,
 }) async {
-  tester.view.physicalSize = const Size(1400, 1800);
+  tester.view.physicalSize = const Size(2400, 1800);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   final harness = VoiceHarness();
@@ -51,6 +54,7 @@ Future<void> _pumpGrid(
                   controller: controller,
                   onStopWatching: (_) {},
                   onFocus: (_) {},
+                  maxHeight: _paneHeight,
                 ),
               ),
             ),
@@ -67,15 +71,13 @@ void main() {
     (355.0, 2, 1),
     (355.0, 3, 1),
     (355.0, 4, 1),
-    (510.0, 2, 1),
-    (510.0, 3, 1),
-    (510.0, 4, 1),
-    (700.0, 2, 2),
-    (700.0, 3, 2),
+    (700.0, 2, 1),
+    (700.0, 3, 1),
     (700.0, 4, 2),
     (1400.0, 2, 2),
-    (1400.0, 3, 3),
+    (1400.0, 3, 2),
     (1400.0, 4, 2),
+    (2400.0, 3, 3),
   ]) {
     testWidgets('$shares shares in a ${pane.toInt()} px pane make $columns '
         'column(s) of tiles that fit', (tester) async {
@@ -89,8 +91,10 @@ void main() {
       expect(inFirstRow.length, columns);
       final width = tester.getSize(_tile('s0')).width;
       expect(width * columns + (columns - 1) * 12, lessThanOrEqualTo(pane));
-      if (columns == 2) expect(width, greaterThanOrEqualTo(280));
-      if (columns == 3) expect(width, greaterThanOrEqualTo(320));
+      final rows = (shares / columns).ceil();
+      final height = tester.getSize(_tile('s0')).height;
+      expect(rows * height + (rows - 1) * 12, lessThanOrEqualTo(_paneHeight));
+      if (pane >= 700) expect(width, greaterThanOrEqualTo(300));
       expect(tester.takeException(), isNull);
     });
   }

@@ -31,6 +31,7 @@ VoiceParticipant _p(String id, {bool sharing = true, bool local = false}) =>
     );
 
 const _wide = Size(1200, 900);
+const _ultrawide = Size(2400, 900);
 const _medium = Size(800, 900);
 const _phone = Size(390, 1400);
 
@@ -84,14 +85,22 @@ Future<void> _leave(_Call call) =>
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
 
 void main() {
-  test('columns follow the pane the grid sits in', () {
-    expect(shareGridColumns(355, 2), 1);
-    expect(shareGridColumns(571, 2), 1);
-    expect(shareGridColumns(572, 2), 2);
-    expect(shareGridColumns(983, 3), 2);
-    expect(shareGridColumns(984, 3), 3);
-    expect(shareGridColumns(1400, 4), 2);
-    expect(shareGridColumns(355, 4), 1);
+  test('the grid picks the columns that give each share the most room', () {
+    int cols(Size pane, int n) => shareGridFit(pane, n).columns;
+    // The owner's report: two shares in a tall wide pane got a third each.
+    expect(cols(const Size(1460, 760), 2), 2);
+    expect(shareGridFit(const Size(1460, 760), 2).tileWidth, 724);
+    expect(cols(const Size(358, 1100), 2), 1);
+    expect(cols(const Size(1400, 900), 4), 2);
+    expect(cols(const Size(1800, 400), 3), 3);
+    expect(cols(const Size(355, double.infinity), 4), 1);
+  });
+
+  test('a short pane shrinks the tiles to fit its height', () {
+    final fit = shareGridFit(const Size(1400, 300), 2);
+    expect(fit.columns, 2);
+    final tileHeight = fit.tileWidth / (16 / 9) + shareGridCaptionHeight;
+    expect(tileHeight, lessThanOrEqualTo(300));
   });
 
   testWidgets('your own share fills the stage like a remote one', (
@@ -126,7 +135,8 @@ void main() {
   });
 
   for (final (name, size, cols) in [
-    ('wide', _wide, 3),
+    ('wide', _wide, 2),
+    ('ultrawide', _ultrawide, 3),
     ('medium', _medium, 2),
     ('phone', _phone, 1),
   ]) {

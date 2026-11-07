@@ -296,6 +296,8 @@ class _StageWithFilmstrip extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ShareGrid(
+                  maxHeight:
+                      constraints.maxHeight - _filmstripHeight - AppSpacing.s12,
                   shares: shares,
                   controller: controller,
                   onStopWatching: onStopWatching,
