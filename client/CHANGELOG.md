@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.126.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.125.0...client-v0.126.0) (2026-11-07)
+
+
+### Features
+
+* **client:** android catches up - calls survive back, readable status bar, self-update ([#2355](https://github.com/Slim-m-org/slim-m/issues/2355)) ([2ffe06e](https://github.com/Slim-m-org/slim-m/commit/2ffe06edffafb6d653121233a1ae467f5a070faa))
+
 ## [0.125.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.124.0...client-v0.125.0) (2026-11-06)
 
 
