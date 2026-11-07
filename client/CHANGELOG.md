@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.126.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.126.0...client-v0.126.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **client:** a stop during the ws ticket request no longer opens a socket ([#2358](https://github.com/Slim-m-org/slim-m/issues/2358)) ([d4c97ae](https://github.com/Slim-m-org/slim-m/commit/d4c97ae30f19a0208684429900850ad7230bfe58))
+* **client:** pop-out, share grid, full screen dock, file search, pane lag, mentions ([#2360](https://github.com/Slim-m-org/slim-m/issues/2360)) ([70584ef](https://github.com/Slim-m-org/slim-m/commit/70584ef6b978688b8645ee454f18767ceb117e7f))
+
 ## [0.126.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.125.0...client-v0.126.0) (2026-11-07)
 
 
