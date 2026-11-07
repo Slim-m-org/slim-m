@@ -367,6 +367,9 @@ class ManualServerDialogState extends State<ManualServerDialog> {
             autofocus: true,
             keyboardType: TextInputType.url,
             semanticLabel: 'Server address',
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: AppSpacing.s12),

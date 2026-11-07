@@ -4,6 +4,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.activity.OnBackPressedCallback
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -27,8 +28,20 @@ class MainActivity : FlutterFragmentActivity() {
      * manifest: that attribute is read while parsing the package with the
      * default configuration, so the qualified resource would never be picked
      * and every tablet would be locked as well.
+     *
+     * The back callback is registered before `super.onCreate` creates the
+     * Flutter fragment, so the fragment's own callback outranks it and route
+     * pops still reach Dart. Only a Back that Flutter declines (the root
+     * route) falls through to it, and it sends the task to the background
+     * instead of finishing: finishing destroys the engine, which silently
+     * ended a voice call while WebRTC and the call notification lived on.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                moveTaskToBack(true)
+            }
+        })
         super.onCreate(savedInstanceState)
         requestedOrientation = if (resources.getBoolean(R.bool.slimm_portrait_only)) {
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT

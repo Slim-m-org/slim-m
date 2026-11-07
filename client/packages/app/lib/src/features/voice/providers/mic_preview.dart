@@ -94,9 +94,10 @@ class MicPreviewController extends StateNotifier<MicPreviewReading> {
   }
 
   void _sync({bool announce = true}) {
-    final resumed =
-        _ref.read(appLifecycleProvider) == AppLifecycleState.resumed;
-    if (!resumed) _disarm();
+    final lifecycle = _ref.read(appLifecycleProvider);
+    final resumed = lifecycle == AppLifecycleState.resumed;
+    // Inactive is also Android's permission prompt, which the tap itself raises.
+    if (!resumed && lifecycle != AppLifecycleState.inactive) _disarm();
     final wanted =
         _holds > 0 &&
         _armed &&
@@ -138,9 +139,17 @@ final micPreviewProvider =
 
 /// What a preview meter draws.
 class MicMeterView {
-  const MicMeterView(this.status, {this.levelDb, this.voice = false});
+  const MicMeterView(
+    this.status, {
+    this.levelDb,
+    this.voice = false,
+    this.awaitingTap = false,
+  });
 
   final MicPreviewStatus status;
+
+  /// A phone that has not had its "Test microphone" tap yet.
+  final bool awaitingTap;
 
   /// Null until the capture is live.
   final double? levelDb;
@@ -152,7 +161,10 @@ class MicMeterView {
 final micMeterProvider = Provider<MicMeterView>((ref) {
   final reading = ref.watch(micPreviewProvider);
   if (reading.status != MicPreviewStatus.live) {
-    return MicMeterView(reading.status);
+    final awaitingTap =
+        ref.watch(micPreviewNeedsTapProvider) &&
+        !ref.watch(micPreviewArmedProvider);
+    return MicMeterView(reading.status, awaitingTap: awaitingTap);
   }
   final level = ref.watch(micLevelBallisticsProvider).step(reading.levelDb);
   return MicMeterView(reading.status, levelDb: level, voice: reading.voice);
@@ -160,6 +172,8 @@ final micMeterProvider = Provider<MicMeterView>((ref) {
 
 extension MicMeterCaption on MicMeterView {
   String get caption => switch (status) {
+    MicPreviewStatus.idle when awaitingTap =>
+      'Tap Test microphone to see your level.',
     MicPreviewStatus.live => 'Say something to see it move.',
     MicPreviewStatus.unavailable =>
       'This microphone is not coming through. Check its permission.',

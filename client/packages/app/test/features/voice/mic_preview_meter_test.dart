@@ -10,6 +10,7 @@ import 'package:slimm_app/src/features/voice/widgets/input_level_meter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/first_run/widgets/first_run_device_steps.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/mic_preview.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/audio_device_section.dart';
@@ -259,5 +260,12 @@ void main() {
       );
     }
     await _leave(tester);
+  });
+
+  test('a phone waiting for its tap says to tap, not that it is opening', () {
+    const waiting = MicMeterView(MicPreviewStatus.idle, awaitingTap: true);
+    const opening = MicMeterView(MicPreviewStatus.opening);
+    expect(waiting.caption, 'Tap Test microphone to see your level.');
+    expect(opening.caption, 'Opening your microphone...');
   });
 }

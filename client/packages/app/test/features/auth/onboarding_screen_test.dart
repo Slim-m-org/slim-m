@@ -325,6 +325,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Use https'), findsOneWidget);
+
+      tester.testTextInput.enterText('https://chat.example.com');
+      await tester.pump();
+      expect(
+        find.textContaining('Use https'),
+        findsNothing,
+        reason: 'a corrected address must not keep the old error up',
+      );
     });
   });
 
