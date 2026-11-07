@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The profile footer can turn the camera on during a call, the same as the
-/// call's own controls (owner request: no way to do it from the sidebar).
+/// The profile footer is a secondary call control: mic and deafen while in a
+/// call, nothing out of one, and the camera left to the call dock (owner,
+/// 2026-11-07: keep just mic, headphones and settings).
 library;
 
 import 'package:flutter/material.dart';
@@ -13,27 +14,15 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../ui_snapshot_support.dart';
 import '../voice/voice_controller_harness.dart';
 
-class _CameraController extends FixedVoiceController {
-  _CameraController(super.ref, super.fixed);
-
-  int toggles = 0;
-
-  @override
-  Future<void> toggleCamera() async {
-    toggles++;
-    state = state.copyWith(cameraEnabled: !state.cameraEnabled);
-  }
-}
-
-Future<({_CameraController controller, Future<void> Function() end})> _pump(
+Future<({FixedVoiceController controller, Future<void> Function() end})> _pump(
   WidgetTester tester,
   VoiceState voice,
 ) async {
-  late _CameraController controller;
+  late FixedVoiceController controller;
   final fixture = await fixtureContainer(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => controller = _CameraController(ref, voice),
+        (ref) => controller = FixedVoiceController(ref, voice, FakeSession()),
       ),
     ],
   );
@@ -66,44 +55,21 @@ void main() {
     state: VoiceSessionState.connected,
   );
 
-  testWidgets('the footer turns the camera on and off during a call', (
+  testWidgets('in a call the footer has mic and deafen but no camera', (
     tester,
   ) async {
     final rig = await _pump(tester, inCall);
-
-    await tester.tap(find.bySemanticsLabel('Turn on camera'));
-    await tester.pump();
-    expect(rig.controller.toggles, 1);
-    expect(find.bySemanticsLabel('Turn off camera'), findsOneWidget);
-
-    await tester.tap(find.bySemanticsLabel('Turn off camera'));
-    await tester.pump();
-    expect(rig.controller.toggles, 2);
-    expect(find.bySemanticsLabel('Turn on camera'), findsOneWidget);
-    await rig.end();
-  });
-
-  testWidgets('outside a call the footer has no camera button', (tester) async {
-    final rig = await _pump(tester, const VoiceState());
-    expect(find.bySemanticsLabel('Turn on camera'), findsNothing);
     expect(find.bySemanticsLabel('Mute'), findsOneWidget);
+    expect(find.bySemanticsLabel('Deafen'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('camera')), findsNothing);
     await rig.end();
   });
 
-  testWidgets('a listen-only call shows the camera but cannot turn it on', (
-    tester,
-  ) async {
-    final rig = await _pump(
-      tester,
-      const VoiceState(
-        channelId: 'c-main',
-        state: VoiceSessionState.connected,
-        canPublish: false,
-      ),
-    );
-    await tester.tap(find.bySemanticsLabel('Turn on camera'));
-    await tester.pump();
-    expect(rig.controller.toggles, 0);
+  testWidgets('outside a call the footer has no call controls', (tester) async {
+    final rig = await _pump(tester, const VoiceState());
+    expect(find.bySemanticsLabel(RegExp('camera')), findsNothing);
+    expect(find.bySemanticsLabel('Mute'), findsNothing);
+    expect(find.bySemanticsLabel('Deafen'), findsNothing);
     await rig.end();
   });
 }
