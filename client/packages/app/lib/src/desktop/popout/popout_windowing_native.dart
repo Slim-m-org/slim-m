@@ -78,6 +78,9 @@ class _NativePopOutWindow
   void beginResize(ResizeEdge edge) => _drag.resize(edge);
 
   @override
+  void fitAspect(double aspect) => _drag.fitAspect(aspect, min: _minSize);
+
+  @override
   bool get drawsOwnFrame => !_decorated;
 
   @override

@@ -26,6 +26,9 @@ abstract interface class PopOutWindowHandle {
 
   void beginResize(ResizeEdge edge);
 
+  /// Holds the window to [aspect] (width over height) through every resize, so the picture fills it with no bars.
+  void fitAspect(double aspect);
+
   /// Keeps the window above every other one, as a pop-out should stay in view.
   Future<void> keepAbove();
 

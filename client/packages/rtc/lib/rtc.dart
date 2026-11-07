@@ -52,6 +52,7 @@ export 'src/input_gate.dart'
         supportsStrongestNoiseSuppression;
 export 'src/noise_floor_estimator.dart' show NoiseFloorEstimator;
 export 'src/camera_fit.dart';
+export 'src/video_shape.dart' show VideoShapeScope;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/mirror_self_view.dart';

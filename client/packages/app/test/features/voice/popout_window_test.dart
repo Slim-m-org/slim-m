@@ -50,6 +50,9 @@ class _FakeWindow implements PopOutWindowHandle {
   void beginResize(ResizeEdge edge) => resizes.add(edge);
 
   @override
+  void fitAspect(double aspect) {}
+
+  @override
   Widget host(Widget child) => const ViewCollection(views: []);
 
   @override

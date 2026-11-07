@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_rtc/rtc.dart' show VideoShapeScope;
 
 import '../../../desktop/popout/popout_windowing.dart';
 import '../providers/call_mini_player.dart';
@@ -112,15 +113,18 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
       view: handle == null || feed == null
           ? null
           : handle.host(
-              PopOutWindowView(
-                feed: feed,
-                frame: handle.drawsOwnFrame
-                    ? PopOutFrame(
-                        onMoveStart: handle.beginMove,
-                        onResizeStart: handle.beginResize,
-                        onClose: _close,
-                      )
-                    : null,
+              VideoShapeScope(
+                onShape: handle.fitAspect,
+                child: PopOutWindowView(
+                  feed: feed,
+                  frame: handle.drawsOwnFrame
+                      ? PopOutFrame(
+                          onMoveStart: handle.beginMove,
+                          onResizeStart: handle.beginResize,
+                          onClose: _close,
+                        )
+                      : null,
+                ),
               ),
             ),
       child: widget.child,

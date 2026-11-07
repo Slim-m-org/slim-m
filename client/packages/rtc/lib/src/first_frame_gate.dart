@@ -23,6 +23,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
+import 'video_shape.dart';
+
 /// Whether a video renderer has painted its first real frame.
 ///
 /// Starts false and latches true forever once [markFirstFrame] runs: a
@@ -119,7 +121,10 @@ class OwnedRendererView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => KeyedSubtree(
         key: ObjectKey(owned),
-        child: builder(owned.renderer),
+        child: VideoShapeReporter(
+          renderer: owned.renderer,
+          child: builder(owned.renderer),
+        ),
       );
 }
 
