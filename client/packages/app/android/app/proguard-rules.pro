@@ -10,3 +10,6 @@
 # webrtc-sdk 150 reaches jni_zero from native code and names a class that is generated at native build time.
 -keep class org.jni_zero.** { *; }
 -dontwarn org.jni_zero.JniZeroJni
+
+# Firebase finds its component registrars by class name from manifest metadata and calls their no-arg constructors reflectively.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }

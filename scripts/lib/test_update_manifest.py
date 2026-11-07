@@ -86,6 +86,14 @@ class UpdateManifestTest(unittest.TestCase):
             "slim-m-client-0.90.0-windows-x64.zip",
         )
 
+    def test_an_attached_apk_is_listed_for_android_and_never_required(self):
+        (self.assets / "slim-m-client-android.apk").write_bytes(b"apk" * 4)
+        self.assertEqual(self.build().returncode, 0)
+        android = json.loads(self.manifest.read_text())["artifacts"]["android"]
+        self.assertTrue(android["url"].endswith("/client-v0.90.0/slim-m-client-android.apk"))
+        (self.assets / "slim-m-client-android.apk").unlink()
+        self.assertEqual(self.build().returncode, 0)
+
     def test_build_is_deterministic(self):
         self.build()
         first = self.manifest.read_bytes()

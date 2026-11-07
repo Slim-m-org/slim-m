@@ -35,6 +35,7 @@ PLATFORMS = {
     "linux-x64": re.compile(r"^slim-m-client-.+-linux-amd64\.tar\.gz$"),
     "windows-x64": re.compile(r"^slim-m-client-.+-windows-x64\.zip$"),
     "macos": re.compile(r"^slim-m-client-.+-macos\.zip$"),
+    "android": re.compile(r"^slim-m-client-android\.apk$"),
 }
 DEFAULT_REQUIRE = "windows-x64,macos,linux-x64"
 MANIFEST_NAME = "manifest.json"

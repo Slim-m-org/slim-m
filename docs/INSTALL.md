@@ -103,7 +103,10 @@ You will be asked to allow installs from whatever app you downloaded with (usual
 
 Releases from 0.80.0 onward carry only the apk; older ones also list an `.aab`, which is a Play Store upload format and cannot be installed on a phone.
 
-Android also has no in-app update prompt yet, so you will not be told when a new version exists - check the releases page now and then.
+After that, slim-m tells you when a newer release is out and offers an Update button.
+It downloads the new apk, checks it against the release's signed manifest, and opens Android's installer for you to confirm.
+The first time, Android asks you to allow installs from slim-m, the same trip into Settings as the first install.
+A release from before 0.126.0 has no apk in its manifest, so on those the button opens the releases page instead.
 
 ## iPhone
 

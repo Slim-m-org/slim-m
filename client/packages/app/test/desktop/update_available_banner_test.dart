@@ -9,13 +9,18 @@
 /// the timer.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/desktop/self_update/android_apk_update.dart';
 import 'package:slimm_app/src/desktop/update_available_banner.dart';
 import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_app/src/desktop/update_watch.dart';
+import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -29,6 +34,7 @@ Future<void> _pump(
   WidgetTester tester,
   ClientUpdate? update, {
   bool restartApplies = true,
+  Future<ApkInstallOutcome?> Function(String)? runApkUpdate,
 }) async {
   SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(
@@ -39,6 +45,16 @@ Future<void> _pump(
         updateWatcherProvider.overrideWith(
           (ref) => UpdateWatcher(ref, shouldRun: () => false),
         ),
+        appInfoProvider.overrideWith(
+          (ref) async => PackageInfo(
+            appName: 'slim-m',
+            packageName: 'top.npcserver.slimm',
+            version: '1.0.0',
+            buildNumber: '1',
+          ),
+        ),
+        if (runApkUpdate != null)
+          apkUpdateRunnerProvider.overrideWithValue(runApkUpdate),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
@@ -82,7 +98,7 @@ void main() {
       expect(prefs.getString(dismissedUpdateVersionKey), '9.9.9');
     },
   );
-  testWidgets('a sideloaded build is offered the release page, not a restart', (
+  testWidgets('a sideloaded build is offered an update, not a restart', (
     tester,
   ) async {
     // No splash to pass back through, and no store to hand off to either.
@@ -94,7 +110,37 @@ void main() {
       findsNothing,
       reason: 'restarting a sideloaded apk does not update it',
     );
-    expect(find.text('Get it'), findsOneWidget);
+    expect(find.text('Update'), findsOneWidget);
+  });
+
+  testWidgets('Update installs over the running version, once at a time', (
+    tester,
+  ) async {
+    final started = <String>[];
+    final finish = Completer<ApkInstallOutcome?>();
+    await _pump(
+      tester,
+      _update,
+      restartApplies: false,
+      runApkUpdate: (version) {
+        started.add(version);
+        return finish.future;
+      },
+    );
+
+    await tester.tap(find.text('Update'));
+    await tester.pump();
+    await tester.pump();
+    expect(started, ['1.0.0']);
+    expect(find.text('Downloading...'), findsOneWidget);
+    await tester.tap(find.text('Downloading...'));
+    await tester.pump();
+    expect(started, hasLength(1), reason: 'a second download never starts');
+
+    finish.complete(ApkInstallOutcome.started);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Update'), findsOneWidget);
   });
 
   testWidgets('a build that restarts into its update is told to restart', (
@@ -104,7 +150,7 @@ void main() {
 
     expect(find.textContaining('Restart slim-m'), findsOneWidget);
     expect(
-      find.text('Get it'),
+      find.text('Update'),
       findsNothing,
       reason: 'the splash re-derives the real mechanism on restart',
     );

@@ -24,6 +24,9 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var notifier: IncomingCallNotifier
     private lateinit var appContext: Context
 
+    /** Whether this engine's last word was that a call or share is live; see [onDetachedFromEngine]. */
+    private var ownsCallService = false
+
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(this)
@@ -48,19 +51,32 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
                 result.success(null)
             }
             "updateCallService" -> {
+                val inCall = call.argument<Boolean>("call") ?: false
+                val sharing = call.argument<Boolean>("share") ?: false
                 CallForegroundService.update(
                     appContext,
-                    call = call.argument<Boolean>("call") ?: false,
+                    call = inCall,
                     camera = call.argument<Boolean>("camera") ?: false,
-                    share = call.argument<Boolean>("share") ?: false,
+                    share = sharing,
                 )
+                ownsCallService = inCall || sharing
                 result.success(null)
             }
             else -> result.notImplemented()
         }
     }
 
+    /**
+     * An engine that started the call service and is now going away can never
+     * stop it, so the call notification would outlive the call. Only the
+     * engine that started it stops it: the push isolate's engine also gets
+     * this plugin and detaches on its own schedule.
+     */
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        if (ownsCallService) {
+            CallForegroundService.update(appContext, call = false, camera = false, share = false)
+            ownsCallService = false
+        }
     }
 }

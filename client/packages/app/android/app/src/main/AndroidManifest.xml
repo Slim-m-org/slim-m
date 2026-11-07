@@ -25,6 +25,8 @@
     <!-- The composer photo strip: READ_MEDIA_IMAGES on API 33+, and the user-selected grant that backs limited access on API 34+; photo_manager supplies the pre-33 permission. -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+    <!-- A sideloaded apk updates itself by handing the verified download to the system installer; the user still confirms. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="slim-m"
         android:name="${applicationName}"
@@ -68,15 +70,15 @@
                 <data android:scheme="slimm" android:host="spotify-callback"/>
             </intent-filter>
         </activity>
-        <!-- Serves the image ClipboardImageChannel copies; nothing else is reachable through it. -->
+        <!-- Serves the image ClipboardImageChannel copies and the update apk ApkInstallChannel hands to the installer; res/xml/shared_files.xml lists all it can reach. -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.clipboard_images"
+            android:authorities="${applicationId}.files"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/clipboard_image_paths"/>
+                android:resource="@xml/shared_files"/>
         </provider>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

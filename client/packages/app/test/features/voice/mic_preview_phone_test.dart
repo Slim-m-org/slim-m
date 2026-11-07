@@ -81,4 +81,47 @@ void main() {
     expect(source.closes, greaterThan(0));
     expect(find.byKey(micTestButtonKey), findsOneWidget);
   });
+
+  testWidgets('the permission prompt does not cancel the test', (tester) async {
+    final source = FakeMicSource();
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: _phone(source)),
+    );
+    await _settle(tester);
+    await tester.tap(find.byKey(micTestButtonKey));
+    await _settle(tester);
+
+    // Android's permission dialog leaves the app inactive, never paused.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await _settle(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await _settle(tester);
+
+    expect(find.byKey(micTestStopKey), findsOneWidget);
+    expect(source.opened, hasLength(2));
+  });
+
+  testWidgets('going to the background cancels the test', (tester) async {
+    final source = FakeMicSource();
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: _phone(source)),
+    );
+    await _settle(tester);
+    await tester.tap(find.byKey(micTestButtonKey));
+    await _settle(tester);
+
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+    await _settle(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await _settle(tester);
+
+    expect(find.byKey(micTestButtonKey), findsOneWidget);
+    expect(source.opened, hasLength(1));
+  });
 }

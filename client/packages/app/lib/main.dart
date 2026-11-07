@@ -7,7 +7,8 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show BrowserContextMenu;
+import 'package:flutter/services.dart'
+    show BrowserContextMenu, SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' show TokenPair;
@@ -462,7 +463,7 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     final motionChoice = ref.watch(motionPreferenceControllerProvider);
     final lockedPhone = ref.watch(portraitLockedPhoneProvider);
     final scale = uiScaleFactor(ref.watch(uiScaleControllerProvider));
-    return MirrorSelfViewScope(
+    final mirrored = MirrorSelfViewScope(
       mirror: ref.watch(
         voiceSettingsControllerProvider.select((s) => s.mirrorSelfView),
       ),
@@ -505,5 +506,20 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
         ),
       ),
     );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _systemBarsFor(Theme.of(context).brightness),
+      child: mirrored,
+    );
   },
 );
+
+/// Bar icons that contrast with the theme; without this Android keeps the
+/// launch theme's white icons on every light screen.
+SystemUiOverlayStyle _systemBarsFor(Brightness theme) {
+  final icons = theme == Brightness.dark ? Brightness.light : Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarIconBrightness: icons,
+    statusBarBrightness: theme,
+    systemNavigationBarIconBrightness: icons,
+  );
+}
