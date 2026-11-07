@@ -85,7 +85,8 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
         if (_compact && room < holdMusicCompactWidth) {
           return const SizedBox.shrink();
         }
-        final inRow = dockHeight != null && dockHeight > 0;
+        // A folded dock leaves only its handle, shorter than the pill: sit on the edge rather than squeeze into it.
+        final inRow = dockHeight != null && dockHeight >= _pillHeight;
         return Align(
           alignment: Alignment.bottomLeft,
           child: Padding(
@@ -106,6 +107,9 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
     );
   }
 }
+
+/// The pill's own height: a small control plus its vertical padding and border.
+const double _pillHeight = AppSizes.controlSm + 2 * AppSpacing.s4 + 2;
 
 /// The pill without its timeline: style, play and volume.
 const double holdMusicCompactWidth =
