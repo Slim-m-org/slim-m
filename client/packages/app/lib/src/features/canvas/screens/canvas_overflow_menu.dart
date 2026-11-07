@@ -29,7 +29,7 @@ import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
 import 'canvas_people_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
-import 'canvas_dock_collapse.dart' show CanvasDockPopupPin;
+import '../../../widgets/dock_collapse.dart' show DockPopupPin;
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 
@@ -319,7 +319,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             ? Alignment.topRight
             : Alignment.bottomRight,
         offset: Offset(0, widget.opensBelow ? 4 : -4),
-        child: CanvasDockPopupPin(
+        child: DockPopupPin(
           child: TapRegion(
             groupId: _tapGroup,
             onTapOutside: (_) => _hide(),

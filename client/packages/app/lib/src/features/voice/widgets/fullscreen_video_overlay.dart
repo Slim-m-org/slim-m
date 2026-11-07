@@ -31,6 +31,7 @@ import '../providers/share_zoom_controller.dart';
 import '../../../widgets/double_click_detector.dart';
 import 'fullscreen_video_controls.dart';
 import 'share_zoom_view.dart';
+import 'stream_volume_pill.dart';
 import 'stream_controls_reveal.dart';
 
 /// Which live view a tile was showing when it was expanded.
@@ -223,23 +224,27 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                   : const SizedBox.shrink(),
             ),
           ),
-          Positioned(
-            bottom: 0,
-            left: AppSpacing.s16,
-            right: AppSpacing.s16,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.s16),
-                child: shown
-                    ? FullscreenVideoControls(
-                        identity: widget.identity,
-                        showVolume: remoteSound,
-                        onHold: hold,
-                      )
-                    : const SizedBox.shrink(),
+          if (shown && remoteSound)
+            Positioned(
+              left: AppSpacing.s16,
+              bottom: AppSpacing.s16,
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  child: StreamVolumePill(
+                    identity: widget.identity,
+                    controller: controller,
+                    onHold: hold,
+                  ),
+                ),
               ),
             ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(top: false, child: FullscreenVideoDock()),
           ),
         ],
       ),

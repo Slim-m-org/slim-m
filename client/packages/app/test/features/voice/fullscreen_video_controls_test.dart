@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Full screen video carries the call controls that matter while watching:
-/// the share's volume, mute and deafen, and never a one-tap Leave.
+/// Full screen video carries the call screen's own dock, folded behind a
+/// handle so nothing covers the picture, and a share's volume beside it.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_controls.dart';
 import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart'
+    show CallDockButton;
 import 'package:slimm_app/src/features/voice/widgets/stream_controls_reveal.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -99,25 +102,35 @@ final _deafen = find.byIcon(AppIcons.headphones);
 final _slider = find.bySubtype<AppSlider>();
 
 void main() {
-  testWidgets('a remote share with sound offers volume, mute and deafen', (
+  testWidgets('the dock starts folded, so a tap at the bottom does nothing', (
     tester,
   ) async {
     final controller = await _open(tester);
-    expect(_slider, findsOneWidget);
-    expect(_mic, findsOneWidget);
-    expect(_deafen, findsOneWidget);
+    expect(find.byTooltip('Show controls'), findsOneWidget);
+    await tester.tap(_mic, warnIfMissed: false);
+    expect(controller.calls, isEmpty);
+  });
+
+  testWidgets('the handle shows the whole call dock, Leave included', (
+    tester,
+  ) async {
+    final controller = await _open(tester);
+    await _reveal(tester);
+    expect(find.byKey(FullscreenVideoDock.dockKey), findsOneWidget);
+    expect(find.byIcon(AppIcons.leaveCall), findsOneWidget);
 
     await tester.tap(_mic);
     await tester.tap(_deafen);
     expect(controller.calls, ['mute', 'deafen']);
+
+    await tester.tap(find.byTooltip('Hide controls'));
+    await _settle(tester);
+    expect(find.byTooltip('Show controls'), findsOneWidget);
   });
 
-  testWidgets('there is no one-tap Leave on a video you are only watching', (
-    tester,
-  ) async {
+  testWidgets('a remote share with sound offers its volume', (tester) async {
     await _open(tester);
-    expect(find.byIcon(AppIcons.leaveCall), findsNothing);
-    expect(find.bySemanticsLabel('Leave call'), findsNothing);
+    expect(_slider, findsOneWidget);
   });
 
   for (final (name, sound, isLocal, camera) in [
@@ -125,59 +138,49 @@ void main() {
     ('your own share', true, true, false),
     ('a camera', true, false, true),
   ]) {
-    testWidgets('$name has no volume but keeps mute and deafen', (
-      tester,
-    ) async {
+    testWidgets('$name has no volume', (tester) async {
       await _open(tester, sound: sound, isLocal: isLocal, camera: camera);
       expect(_slider, findsNothing);
-      expect(_mic, findsOneWidget);
-      expect(_deafen, findsOneWidget);
     });
   }
 
-  testWidgets('the controls sit centred along the bottom edge', (tester) async {
+  testWidgets('the dock sits centred along the bottom edge', (tester) async {
     await _open(tester, sound: false);
-    final mic = tester.getRect(_mic);
-    final deafen = tester.getRect(_deafen);
+    await _reveal(tester);
+    final dock = tester.getRect(find.byKey(FullscreenVideoDock.dockKey));
     const window = Size(1200, 800);
-    expect(mic.bottom, lessThan(window.height));
-    expect(window.height - deafen.bottom, lessThan(48));
-    expect(
-      ((mic.left + deafen.right) / 2 - window.width / 2).abs(),
-      lessThan(8),
-    );
+    expect(window.height - dock.bottom, lessThan(48));
+    expect((dock.center.dx - window.width / 2).abs(), lessThan(8));
   });
 
-  testWidgets('dragging the volume holds the header and the controls up', (
-    tester,
-  ) async {
+  testWidgets('dragging the volume holds the header up', (tester) async {
     await _open(tester);
     final drag = await tester.startGesture(tester.getCenter(_slider));
     await drag.moveBy(const Offset(-40, 0));
     await tester.pump(kStreamControlsTouchHold * 2);
     expect(find.text("Ada's screen"), findsOneWidget);
-    expect(_mic, findsOneWidget);
 
     await drag.up();
     await tester.pump(kStreamControlsTouchHold + const Duration(seconds: 1));
     await tester.pump();
     expect(find.text("Ada's screen"), findsNothing);
-    expect(_mic, findsNothing);
+    expect(_slider, findsNothing);
   });
 
-  testWidgets('on a phone mute and deafen are 44 point targets', (
+  testWidgets('on a phone the dock buttons are 44 point targets', (
     tester,
   ) async {
     await _open(tester, window: const Size(390, 844));
-    for (final icon in [AppIcons.mic, AppIcons.headphones]) {
-      final size = tester.getSize(
-        find.ancestor(
-          of: find.byIcon(icon),
-          matching: find.bySubtype<AppIconButton>(),
-        ),
-      );
-      expect(size.width, greaterThanOrEqualTo(AppSizes.rowTouch));
-      expect(size.height, greaterThanOrEqualTo(AppSizes.rowTouch));
-    }
+    await _reveal(tester);
+    final size = tester.getSize(
+      find.ancestor(of: _mic, matching: find.bySubtype<CallDockButton>()),
+    );
+    expect(size.width, greaterThanOrEqualTo(AppSizes.rowTouch));
+    expect(size.height, greaterThanOrEqualTo(AppSizes.rowTouch));
   });
+}
+
+Future<void> _reveal(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Show controls'));
+  await _settle(tester);
 }

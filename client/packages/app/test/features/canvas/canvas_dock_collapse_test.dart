@@ -7,7 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_dock_collapse.dart';
+import 'package:slimm_app/src/widgets/dock_collapse.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Widget _host({required bool collapsible}) => MaterialApp(
@@ -15,7 +15,7 @@ Widget _host({required bool collapsible}) => MaterialApp(
   home: Scaffold(
     body: Align(
       alignment: Alignment.bottomCenter,
-      child: CanvasDockCollapse(
+      child: DockCollapse(
         collapsible: collapsible,
         builder: (_, __) => const SizedBox(
           height: 48,
@@ -44,8 +44,8 @@ void main() {
 
     expect(find.byKey(const Key('dock-field')).hitTestable(), findsNothing);
     expect(
-      tester.getSize(find.byType(CanvasDockCollapse)).height,
-      lessThan(canvasDockRevealZone + 1),
+      tester.getSize(find.byType(DockCollapse)).height,
+      lessThan(dockRevealZone + 1),
     );
     expect(find.byTooltip('Show controls'), findsOneWidget);
 
@@ -79,7 +79,7 @@ void main() {
     Future<TestGesture> hoverDock(WidgetTester tester) async {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await mouse.addPointer(location: const Offset(5, 5));
-      await mouse.moveTo(tester.getCenter(find.byType(CanvasDockCollapse)));
+      await mouse.moveTo(tester.getCenter(find.byType(DockCollapse)));
       await tester.pumpAndSettle();
       return mouse;
     }
@@ -94,7 +94,7 @@ void main() {
       await mouse.down(tester.getCenter(find.byTooltip('Hide controls')));
       await mouse.up();
       await mouse.moveTo(const Offset(5, 5));
-      await tester.pump(canvasDockHideDelay * 2);
+      await tester.pump(dockHideDelay * 2);
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('dock-field')).hitTestable(), findsOneWidget);
@@ -110,7 +110,7 @@ void main() {
           home: Scaffold(
             body: Align(
               alignment: Alignment.bottomCenter,
-              child: CanvasDockCollapse(
+              child: DockCollapse(
                 collapsible: true,
                 builder: (_, __) => ValueListenableBuilder<bool>(
                   valueListenable: open,
@@ -118,7 +118,7 @@ void main() {
                     height: 48,
                     width: 200,
                     child: isOpen
-                        ? const CanvasDockPopupPin(
+                        ? const DockPopupPin(
                             child: ColoredBox(
                               key: Key('dock-field'),
                               color: Colors.red,
@@ -137,7 +137,7 @@ void main() {
       );
       final mouse = await hoverDock(tester);
       await mouse.moveTo(const Offset(5, 5));
-      await tester.pump(canvasDockHideDelay * 3);
+      await tester.pump(dockHideDelay * 3);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('dock-field')).hitTestable(), findsOneWidget);
 
@@ -158,7 +158,7 @@ void main() {
         ValueListenableBuilder<bool>(
           valueListenable: open,
           builder: (_, isOpen, _) => isOpen
-              ? CanvasDockPopupPin(child: SizedBox(key: key))
+              ? DockPopupPin(child: SizedBox(key: key))
               : const SizedBox.shrink(),
         );
     await tester.pumpWidget(
@@ -167,7 +167,7 @@ void main() {
         home: Scaffold(
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: CanvasDockCollapse(
+            child: DockCollapse(
               collapsible: true,
               builder: (_, _) => SizedBox(
                 height: 48,

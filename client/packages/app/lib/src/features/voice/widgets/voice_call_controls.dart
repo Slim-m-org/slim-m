@@ -66,9 +66,13 @@ class CallControls extends ConsumerStatefulWidget {
     this.tight = false,
     this.menuExtras = const [],
     this.hints = true,
+    this.ownsShortcuts = true,
   });
 
   final VoiceController controller;
+
+  /// False for a second copy laid over the first, such as a full screen video's dock, which must not take the call shortcuts from it.
+  final bool ownsShortcuts;
 
   /// Camera switch and the extra control wrap to a second row, and the mic's caret gives way to a long press, for a card too narrow to hold them all.
   final bool tight;
@@ -127,7 +131,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   @override
   void initState() {
     super.initState();
-    if (isDesktopHost) {
+    if (isDesktopHost && widget.ownsShortcuts) {
       // A provider write is a build-time mutation when this mounts mid-build, so it waits a frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;

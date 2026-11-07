@@ -13,7 +13,7 @@ import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
 import '../../desktop/support/fake_desktop_window_port.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_compact_dock.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_dock_collapse.dart';
+import 'package:slimm_app/src/widgets/dock_collapse.dart';
 import 'package:slimm_app/src/providers/dock_reservation.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
@@ -182,7 +182,7 @@ void main() {
     expect(_pen, findsOneWidget);
 
     await mouse.moveTo(const Offset(640, 300));
-    await tester.pump(canvasDockHideDelay + const Duration(milliseconds: 50));
+    await tester.pump(dockHideDelay + const Duration(milliseconds: 50));
     await tester.pumpAndSettle();
     expect(_pen, findsNothing);
   });
@@ -278,28 +278,21 @@ void main() {
       'alone, then the whole dock once it is shown', (tester) async {
     final (:voice, :container) = await _pump(tester);
     await _focusTheShare(tester);
-    expect(
-      container.read(bottomDockReservationProvider),
-      canvasDockHandleHeight,
-    );
+    expect(container.read(bottomDockReservationProvider), dockHandleHeight);
 
     await tester.tap(find.byTooltip('Show controls'));
     await tester.pumpAndSettle();
     final reserved = container.read(bottomDockReservationProvider);
     expect(
       reserved,
-      tester.getSize(find.byType(CanvasCallDock)).height +
-          canvasDockHandleHeight,
+      tester.getSize(find.byType(CanvasCallDock)).height + dockHandleHeight,
       reason: 'shown, the dock and its handle are what the snackbars clear',
     );
-    expect(reserved, greaterThan(canvasDockHandleHeight));
+    expect(reserved, greaterThan(dockHandleHeight));
 
     await tester.tap(find.byTooltip('Hide controls'));
     await tester.pumpAndSettle();
-    expect(
-      container.read(bottomDockReservationProvider),
-      canvasDockHandleHeight,
-    );
+    expect(container.read(bottomDockReservationProvider), dockHandleHeight);
   });
 
   testWidgets('showing the folded dock in full screen leaves the view where it '

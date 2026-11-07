@@ -88,7 +88,7 @@ import 'canvas_presence_geometry.dart'
         presenceTileIdentity,
         presenceTileKeys,
         presenceTileKind;
-import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
+import '../../../widgets/dock_collapse.dart' show dockHandleHeight;
 import 'canvas_fullscreen.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_image_paste.dart';
@@ -243,7 +243,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// In fullscreen the dock floats over the board, so showing it never refits the view; only its handle is kept clear.
   double _boardInset(double dockReservation) =>
       ref.read(canvasFullscreenProvider) == widget.channelId
-      ? canvasDockHandleHeight
+      ? dockHandleHeight
       : dockReservation;
 
   @override
