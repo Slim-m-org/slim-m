@@ -124,10 +124,16 @@ void main() {
       );
     });
 
-    test('both offered ahead of real members once granted', () {
+    // A phone with the keyboard up shows two or three rows; @everyone first left every member below the fold.
+    test('both offered after the people on a bare @ once granted', () {
       final rows = _for(AutocompleteKind.mention, '', canMentionEveryone: true);
-      expect(rows.take(2).map((r) => r.label), ['@everyone', '@here']);
-      expect(rows.map((r) => r.isMassMention).take(2), [true, true]);
+      expect(rows.first.isMassMention, isFalse);
+      final mass = [
+        for (final r in rows)
+          if (r.isMassMention) r.label,
+      ];
+      expect(mass, ['@everyone', '@here']);
+      expect(rows.last.isMassMention, isTrue);
     });
 
     test('a prefix narrows to the one reserved word it matches', () {
