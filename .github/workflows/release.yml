@@ -326,11 +326,11 @@ jobs:
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-  # Re-signs the manifest after the tarball attaches, since desktop-clients may have finished first and signed without it. It defers when the Windows or macOS archive is not there yet, and desktop-clients then signs.
+  # Re-signs the manifest after the tarball and the apk attach (desktop-clients may have signed without them), deferring while the Windows or macOS archive is missing; always() so a failed apk never costs the desktops their update.
   update-manifest:
     name: signed update manifest
-    needs: [release-please, linux-client, verify-client-ci]
-    if: needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success'
+    needs: [release-please, linux-client, android-client, verify-client-ci]
+    if: always() && needs.verify-client-ci.result == 'success' && needs.linux-client.result == 'success'
     permissions:
       contents: write
     uses: ./.github/workflows/update-manifest.yml

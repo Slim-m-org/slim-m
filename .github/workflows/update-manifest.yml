@@ -78,7 +78,8 @@ jobs:
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
             --pattern 'slim-m-client-*-linux-amd64.tar.gz' \
             --pattern 'slim-m-client-*-windows-x64.zip' \
-            --pattern 'slim-m-client-*-macos.zip'
+            --pattern 'slim-m-client-*-macos.zip' \
+            --pattern 'slim-m-client-android.apk'
 
       # The Linux tarball (release) and the Windows and macOS archives (desktop-clients) land in either order, so each producer calls this with defer and the last one to attach signs.
       - name: build the manifest
