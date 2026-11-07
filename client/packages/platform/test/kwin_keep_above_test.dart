@@ -19,4 +19,10 @@ void main() {
     expect(keepAboveScript(pid: 1, caption: 'x'),
         contains('workspace.clientList()'));
   });
+
+  test('the full screen rule joins an existing rule list once', () {
+    expect(withRule('', 'r'), 'r');
+    expect(withRule('a,b', 'r'), 'a,b,r');
+    expect(withRule('a, r ,b', 'r'), 'a,r,b');
+  });
 }
