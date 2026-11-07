@@ -175,4 +175,37 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.126.1',
+    headline: 'Smoother calls, fixes from watching shares',
+    points: [
+      WhatsNewPoint(
+        'Opening the chat, member list or a thread beside a call no longer '
+        'stutters the app.',
+      ),
+      WhatsNewPoint(
+        'Two screen shares fill the room instead of sitting small in the '
+        'middle, and a pop-out window keeps the video\'s shape when resized.',
+      ),
+      WhatsNewPoint(
+        'Full screen video uses the call dock, tucked behind a handle at the '
+        'bottom edge.',
+      ),
+      WhatsNewPoint(
+        'Search finds files by name, and text like .iso no longer fails.',
+      ),
+      WhatsNewPoint(
+        'Typing @ lists people first, so a phone keyboard no longer hides '
+        'everyone below @everyone and @here.',
+      ),
+      WhatsNewPoint(
+        'The bottom bar shows mic and deafen only in a call, and an X '
+        'removes your background picture.',
+      ),
+      WhatsNewPoint(
+        'Fixed: circles drawn on a share showing as a pink block on Linux, '
+        'and private bot answers piling up; they now go after two minutes.',
+      ),
+    ],
+  ),
 ];
