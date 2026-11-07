@@ -34,15 +34,15 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 350));
-      await tester.showKeyboard(find.byType(EditableText).last);
-      await tester.enterText(find.byType(EditableText).last, '@');
+      await tester.showKeyboard(find.bySubtype<EditableText>().last);
+      await tester.enterText(find.bySubtype<EditableText>().last, '@');
       for (var i = 0; i < 10; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 50)),
         );
         await tester.pump(const Duration(milliseconds: 50));
       }
-      final list = find.byType(ComposerAutocomplete);
+      final list = find.bySubtype<ComposerAutocomplete>();
       expect(list, findsOneWidget, reason: 'the suggestion list is open');
       final box = tester.getRect(list);
       final ada = tester.getRect(
