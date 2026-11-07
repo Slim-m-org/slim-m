@@ -7,7 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/canvas/screens/canvas_dock_collapse.dart';
+import 'package:slimm_app/src/widgets/dock_collapse.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -45,15 +45,15 @@ void main() {
     final rig = await pumpA11yCanvas(tester);
     rig.container.read(canvasFullscreenProvider.notifier).state = 'c1';
     await settle(tester);
-    final folded = tester.getSize(find.byType(CanvasDockCollapse)).height;
+    final folded = tester.getSize(find.byType(DockCollapse)).height;
 
     await tester.tap(find.bySemanticsLabel('Show controls'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 40));
 
-    final partway = tester.getSize(find.byType(CanvasDockCollapse)).height;
+    final partway = tester.getSize(find.byType(DockCollapse)).height;
     await settle(tester);
-    final open = tester.getSize(find.byType(CanvasDockCollapse)).height;
+    final open = tester.getSize(find.byType(DockCollapse)).height;
     expect(partway, greaterThan(folded));
     expect(partway, lessThan(open));
   });
@@ -120,18 +120,18 @@ void main() {
         );
         rig.container.read(canvasFullscreenProvider.notifier).state = 'c1';
         await settle(tester);
-        final folded = tester.getSize(find.byType(CanvasDockCollapse)).height;
+        final folded = tester.getSize(find.byType(DockCollapse)).height;
 
         await tester.tap(find.bySemanticsLabel('Show controls'));
         await tester.pump();
 
         expect(
-          tester.getSize(find.byType(CanvasDockCollapse)).height,
+          tester.getSize(find.byType(DockCollapse)).height,
           greaterThan(folded),
         );
-        final first = tester.getSize(find.byType(CanvasDockCollapse)).height;
+        final first = tester.getSize(find.byType(DockCollapse)).height;
         await settle(tester);
-        expect(tester.getSize(find.byType(CanvasDockCollapse)).height, first);
+        expect(tester.getSize(find.byType(DockCollapse)).height, first);
       });
 
       a11yTest('a tile control is fully visible the frame it takes focus', (

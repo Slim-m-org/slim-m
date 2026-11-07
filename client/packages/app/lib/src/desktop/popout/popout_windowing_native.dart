@@ -14,7 +14,8 @@ import 'package:flutter/src/foundation/_features.dart' show isWindowingEnabled;
 import 'package:flutter/src/widgets/_window.dart';
 import 'package:flutter/src/widgets/_window_linux.dart';
 import 'package:flutter/widgets.dart';
-import 'package:slimm_platform/platform.dart' show isLinuxHost, kwinKeepAbove;
+import 'package:slimm_platform/platform.dart'
+    show isLinuxHost, kwinAboveFullScreen, kwinKeepAbove;
 
 import '../desktop_window_port.dart' show ResizeEdge;
 import 'popout_gtk_drag.dart';
@@ -78,11 +79,16 @@ class _NativePopOutWindow
   void beginResize(ResizeEdge edge) => _drag.resize(edge);
 
   @override
+  void fitAspect(double aspect) => _drag.fitAspect(aspect, min: _minSize);
+
+  @override
   bool get drawsOwnFrame => !_decorated;
 
   @override
   Future<void> keepAbove() async {
     _drag.keepAbove();
+    // Keep-above alone sits under a focused full screen game; KWin's layer rule lifts it past one.
+    await kwinAboveFullScreen(_title);
     if (_drag.onWayland) await kwinKeepAbove(_title);
   }
 }

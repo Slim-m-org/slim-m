@@ -221,6 +221,7 @@ List<AutocompleteSuggestion> _mentions(
   required bool canMentionEveryone,
 }) {
   final ranked = [
+    if (canMentionEveryone) ..._massMentionCandidates(term),
     ..._roleCandidates(term, members),
     for (final m in members)
       if (m.id != selfId)
@@ -238,13 +239,13 @@ List<AutocompleteSuggestion> _mentions(
           ),
   ]..sort((a, b) => a.compareTo(b));
   return [
-    if (canMentionEveryone) ..._massMentionRows(term),
     for (final r in ranked) r.suggestion,
   ].take(maxAutocompleteRows).toList(growable: false);
 }
 
-/// Declaration order is the tie-break between equally good matches.
-enum _MentionKind { person, role, bot }
+/// Declaration order is the tie-break between equally good matches; @everyone
+/// and @here come last, so a phone's short list opens on people rather than on them.
+enum _MentionKind { person, role, bot, mass }
 
 class _Ranked implements Comparable<_Ranked> {
   const _Ranked(this.rank, this.kind, this.sortKey, this.suggestion);
@@ -261,14 +262,19 @@ class _Ranked implements Comparable<_Ranked> {
   }
 }
 
-List<AutocompleteSuggestion> _massMentionRows(String term) => [
+List<_Ranked> _massMentionCandidates(String term) => [
   for (final (name, detail) in _massMentions)
     if (term.isEmpty || name.startsWith(term))
-      AutocompleteSuggestion(
-        insert: '@$name ',
-        label: '@$name',
-        detail: detail,
-        isMassMention: true,
+      _Ranked(
+        nameRank(term, [name]) ?? 1,
+        _MentionKind.mass,
+        name,
+        AutocompleteSuggestion(
+          insert: '@$name ',
+          label: '@$name',
+          detail: detail,
+          isMassMention: true,
+        ),
       ),
 ];
 

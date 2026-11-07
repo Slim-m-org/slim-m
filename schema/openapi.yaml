@@ -5714,8 +5714,9 @@ paths:
         `has`/`after_date`/`before_date` needs no free text at all, though at
         least one of `q` and those filters is required. Results are
         permission-filtered exactly like listing and keyset paginated on
-        `seq` the same way. A `q` that is not valid FTS5 syntax is a 400,
-        never a 500. `in` is the one filter with an oracle-safety rule of its
+        `seq` the same way. A `q` that is not valid FTS5 syntax, such as
+        `.iso`, searches its words as prefixes instead. Attachment file names
+        are searched along with message text and extracted file text. `in` is the one filter with an oracle-safety rule of its
         own: a channel name that does not exist, or that exists but the
         caller cannot view, answers with an empty array rather than a 403 or
         404, so it cannot be used to learn a hidden channel exists.
@@ -17129,7 +17130,7 @@ components:
           type: string
           description: >-
             Only on a search result found through an attachment: the id of the
-            attachment whose extracted text matched. Absent when the message's
+            attachment whose extracted text or file name matched. Absent when the message's
             own text matched. Text and code files and the text layer of PDFs
             are searched; there is no OCR for images.
         link_previews_removed:

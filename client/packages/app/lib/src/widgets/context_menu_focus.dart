@@ -71,7 +71,40 @@ class ContextMenuFocus extends StatefulWidget {
 }
 
 class _ContextMenuFocusState extends State<ContextMenuFocus> {
+  bool _highlight = false;
   bool _focused = false;
+  FocusNode? _ownNode;
+
+  FocusNode get _node => widget.focusNode ?? (_ownNode ??= FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _node.addListener(_sync);
+  }
+
+  @override
+  void didUpdateWidget(ContextMenuFocus oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final old = oldWidget.focusNode ?? _ownNode;
+    if (old == _node) return;
+    old?.removeListener(_sync);
+    _node.addListener(_sync);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _node.removeListener(_sync);
+    _ownNode?.dispose();
+    super.dispose();
+  }
+
+  // The row's own focus only: a focused control inside it, such as an app's grid, must not ring the whole message.
+  void _sync() {
+    final next = _highlight && _node.hasPrimaryFocus;
+    if (next != _focused && mounted) setState(() => _focused = next);
+  }
 
   Map<Type, Action<Intent>> get _actions => <Type, Action<Intent>>{
     OpenContextMenuIntent: CallbackAction<OpenContextMenuIntent>(
@@ -93,10 +126,13 @@ class _ContextMenuFocusState extends State<ContextMenuFocus> {
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return FocusableActionDetector(
-      focusNode: widget.focusNode,
+      focusNode: _node,
       shortcuts: _openShortcuts,
       actions: _actions,
-      onShowFocusHighlight: (value) => setState(() => _focused = value),
+      onShowFocusHighlight: (value) {
+        _highlight = value;
+        _sync();
+      },
       child: DecoratedBox(
         position: DecorationPosition.foreground,
         decoration: _focused

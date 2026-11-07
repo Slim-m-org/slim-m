@@ -139,7 +139,11 @@ void main() {
     for (final (kind, assertOn)
         in <(CanvasShapeKind, void Function(RecordingCanvas))>[
       (CanvasShapeKind.rectangle, (c) => expect(c.rectCalls, 1)),
-      (CanvasShapeKind.ellipse, (c) => expect(c.ovalCalls, 1)),
+      (
+        CanvasShapeKind.ellipse,
+        // A polyline, never drawOval, which Impeller's Linux GL renderer breaks.
+        (c) => expect((c.ovalCalls, c.pathCalls), (0, 1)),
+      ),
       (CanvasShapeKind.line, (c) => expect(c.lineCalls, 1)),
     ]) {
       final document = CanvasDocument()..setViewport(const Size(400, 400));

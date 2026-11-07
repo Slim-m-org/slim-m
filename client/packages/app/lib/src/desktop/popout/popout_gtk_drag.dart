@@ -8,6 +8,7 @@
 library;
 
 import 'dart:ffi' as ffi;
+import 'dart:ui' show Size;
 
 import '../desktop_window_port.dart' show ResizeEdge;
 
@@ -40,6 +41,39 @@ class GtkWindowDrag {
       _gdk.providesSymbol('gdk_wayland_display_get_type') &&
       _isInstanceOf(_defaultDisplay(), _waylandDisplayType()) != 0;
 
+  /// Locks the window's shape to [aspect] and snaps it there now, keeping its width.
+  void fitAspect(double aspect, {required Size min}) {
+    final hints = _gMalloc(_geometryBytes);
+    try {
+      final ints = hints.cast<ffi.Int32>();
+      for (var i = 0; i < _geometryInts; i++) {
+        ints[i] = 0;
+      }
+      ints[0] = min.width.round();
+      ints[1] = min.height.round();
+      final aspects = (hints.cast<ffi.Uint8>() + _aspectOffset)
+          .cast<ffi.Double>();
+      aspects[0] = aspect;
+      aspects[1] = aspect;
+      _setGeometryHints(
+        _window,
+        ffi.nullptr,
+        hints,
+        _hintMinSize | _hintAspect,
+      );
+    } finally {
+      _gFree(hints);
+    }
+    final size = _gMalloc(ffi.sizeOf<ffi.Int32>() * 2).cast<ffi.Int32>();
+    try {
+      _getSize(_window, size, size + 1);
+      final width = size[0];
+      _resizeWindow(_window, width, (width / aspect).round());
+    } finally {
+      _gFree(size.cast());
+    }
+  }
+
   void resize(ResizeEdge edge) {
     final at = _PointerState.read();
     _beginResize(_window, gdkWindowEdge(edge), 1, at.x, at.y, at.time);
@@ -57,6 +91,13 @@ int gdkWindowEdge(ResizeEdge edge) => switch (edge) {
   ResizeEdge.bottom => 6,
   ResizeEdge.bottomRight => 7,
 };
+
+/// `GdkGeometry`: eight `gint` fields, then `min_aspect` and `max_aspect` as doubles, then `win_gravity`.
+const _geometryInts = 8;
+const _aspectOffset = _geometryInts * 4;
+const _geometryBytes = _aspectOffset + 2 * 8 + 8;
+const _hintMinSize = 1 << 1;
+const _hintAspect = 1 << 4;
 
 class _PointerState {
   _PointerState(this.x, this.y, this.time);
@@ -104,6 +145,21 @@ final _setKeepAbove = _gtk
       ffi.Void Function(_Ptr, ffi.Int32),
       void Function(_Ptr, int)
     >('gtk_window_set_keep_above');
+final _setGeometryHints = _gtk
+    .lookupFunction<
+      ffi.Void Function(_Ptr, _Ptr, _Ptr, ffi.Int32),
+      void Function(_Ptr, _Ptr, _Ptr, int)
+    >('gtk_window_set_geometry_hints');
+final _getSize = _gtk
+    .lookupFunction<
+      ffi.Void Function(_Ptr, _IntOut, _IntOut),
+      void Function(_Ptr, _IntOut, _IntOut)
+    >('gtk_window_get_size');
+final _resizeWindow = _gtk
+    .lookupFunction<
+      ffi.Void Function(_Ptr, ffi.Int32, ffi.Int32),
+      void Function(_Ptr, int, int)
+    >('gtk_window_resize');
 final _widgetWindow = _gtk
     .lookupFunction<_Ptr Function(_Ptr), _Ptr Function(_Ptr)>(
       'gtk_widget_get_window',

@@ -123,6 +123,7 @@ Tokens: `duration.fast` 100ms (press, hover), `duration.base` 180ms (panel and r
 Nothing in the chrome runs longer than 280ms, and nothing is decorative motion with no functional purpose.
 The Voice Canvas is one exception: direct-manipulation gestures (drag, pan, zoom, pinch) run with zero added easing, tracking input 1:1 every frame, since eased motion under a live cursor feels laggy and works against the drag targets already set in `voice-canvas.md`; easing is reserved for system-initiated moves.
 All non-essential motion respects the OS "reduce motion" setting, collapsing to instant state changes.
+Motion animates paint, never layout: a side pane snaps to its width and its content slides or fades in (`AppPanelReveal`), because a width tween relays the whole neighbouring pane on every frame, and beside a live call that rebuilt the dock and tiles a dozen times per toggle and stuttered the app (2026-11-07).
 Rejected: backdrop-blur "frosted glass" overlays, a look several competitors are adopting, both for render cost on lower-end GPUs and because avoiding it serves differentiation.
 Risk: near-zero-motion chrome can read as lifeless; the Voice Canvas is the intentional counterweight, allowed more energetic motion since it is the feature meant to feel alive.
 

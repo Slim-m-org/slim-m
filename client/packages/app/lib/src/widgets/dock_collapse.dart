@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Lets the canvas dock tuck away in fullscreen behind a handle that a pointer near the bottom edge or a tap brings back
+/// Lets a call dock tuck away in fullscreen behind a handle that a pointer near the bottom edge or a tap brings back
 /// (docs/design/desktop-vs-mobile.md, law 3).
 library;
 
@@ -8,21 +8,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/hover_reveal.dart';
+import 'hover_reveal.dart';
 
 /// How close to the bottom edge a pointer must come to reveal a collapsed dock.
-const canvasDockRevealZone = 56.0;
+const dockRevealZone = 56.0;
 
 /// How long the dock lingers after the pointer leaves, so crossing a popup does not snap it shut.
-const canvasDockHideDelay = Duration(milliseconds: 500);
+const dockHideDelay = Duration(milliseconds: 500);
 
 const _handleSize = Size(64, 22);
 
 /// What a folded dock still occupies at the bottom edge.
-const canvasDockHandleHeight = 22.0;
+const dockHandleHeight = 22.0;
 
-class CanvasDockCollapse extends StatefulWidget {
-  const CanvasDockCollapse({
+class DockCollapse extends StatefulWidget {
+  const DockCollapse({
     super.key,
     required this.collapsible,
     required this.builder,
@@ -34,10 +34,10 @@ class CanvasDockCollapse extends StatefulWidget {
   final Widget Function(BuildContext context, bool revealed) builder;
 
   @override
-  State<CanvasDockCollapse> createState() => _CanvasDockCollapseState();
+  State<DockCollapse> createState() => _DockCollapseState();
 }
 
-class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
+class _DockCollapseState extends State<DockCollapse> {
   bool _pinned = false;
   bool _hovering = false;
   int _popupPins = 0;
@@ -52,7 +52,7 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
       _focusWithin;
 
   @override
-  void didUpdateWidget(covariant CanvasDockCollapse oldWidget) {
+  void didUpdateWidget(covariant DockCollapse oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.collapsible && !widget.collapsible) {
       _hideTimer?.cancel();
@@ -76,7 +76,7 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
 
   void _leave() {
     _hideTimer?.cancel();
-    _hideTimer = Timer(canvasDockHideDelay, () {
+    _hideTimer = Timer(dockHideDelay, () {
       if (mounted) setState(() => _hovering = false);
     });
   }
@@ -133,7 +133,7 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
         onExit: widget.collapsible ? (_) => _leave() : null,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: widget.collapsible ? canvasDockRevealZone : 0,
+            minHeight: widget.collapsible ? dockRevealZone : 0,
           ),
           child: Align(
             alignment: Alignment.bottomCenter,
@@ -146,7 +146,7 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
                   Padding(
                     padding: EdgeInsets.only(
                       top: AppTouchTargets.of(context)
-                          ? AppSizes.rowTouch - canvasDockHandleHeight
+                          ? AppSizes.rowTouch - dockHandleHeight
                           : 0,
                     ),
                     child: _DockHandle(revealed: revealed, onPressed: _toggle),
@@ -174,16 +174,16 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
 }
 
 /// Keeps the enclosing dock revealed for as long as a popup it opened is mounted.
-class CanvasDockPopupPin extends StatefulWidget {
-  const CanvasDockPopupPin({super.key, required this.child});
+class DockPopupPin extends StatefulWidget {
+  const DockPopupPin({super.key, required this.child});
 
   final Widget child;
 
   @override
-  State<CanvasDockPopupPin> createState() => _CanvasDockPopupPinState();
+  State<DockPopupPin> createState() => _DockPopupPinState();
 }
 
-class _CanvasDockPopupPinState extends State<CanvasDockPopupPin> {
+class _DockPopupPinState extends State<DockPopupPin> {
   HoverRevealScope? _scope;
 
   @override

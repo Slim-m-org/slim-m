@@ -11,6 +11,9 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart'
+    show CallControls;
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
@@ -31,6 +34,7 @@ VoiceParticipant _p(String id, {bool sharing = true, bool local = false}) =>
     );
 
 const _wide = Size(1200, 900);
+const _ultrawide = Size(2400, 900);
 const _medium = Size(800, 900);
 const _phone = Size(390, 1400);
 
@@ -84,14 +88,45 @@ Future<void> _leave(_Call call) =>
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
 
 void main() {
-  test('columns follow the pane the grid sits in', () {
-    expect(shareGridColumns(355, 2), 1);
-    expect(shareGridColumns(571, 2), 1);
-    expect(shareGridColumns(572, 2), 2);
-    expect(shareGridColumns(983, 3), 2);
-    expect(shareGridColumns(984, 3), 3);
-    expect(shareGridColumns(1400, 4), 2);
-    expect(shareGridColumns(355, 4), 1);
+  test('the grid picks the columns that give each share the most room', () {
+    int cols(Size pane, int n) => shareGridFit(pane, n).columns;
+    // The owner's report: two shares in a tall wide pane got a third each.
+    expect(cols(const Size(1460, 760), 2), 2);
+    expect(shareGridFit(const Size(1460, 760), 2).tileWidth, 724);
+    expect(cols(const Size(358, 1100), 2), 1);
+    expect(cols(const Size(1400, 900), 4), 2);
+    expect(cols(const Size(1800, 400), 3), 3);
+    expect(cols(const Size(355, double.infinity), 4), 1);
+  });
+
+  test('a short pane shrinks the tiles to fit its height', () {
+    final fit = shareGridFit(const Size(1400, 300), 2);
+    expect(fit.columns, 2);
+    final tileHeight = fit.tileWidth / (16 / 9) + shareGridCaptionHeight;
+    expect(tileHeight, lessThanOrEqualTo(300));
+  });
+
+  testWidgets('opening the chat beside a share relays the call out once', (
+    tester,
+  ) async {
+    final call = await _connected(tester, [
+      _p('a'),
+      _p('me', sharing: false, local: true),
+    ], const Size(1600, 900));
+    var dockBuilds = 0;
+    debugOnRebuildDirtyWidget = (element, _) {
+      if (element.widget is CallControls) dockBuilds++;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    call.harness.container.read(voiceChatPaneVisibleProvider.notifier).state =
+        true;
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    debugOnRebuildDirtyWidget = null;
+    // A width tween rebuilt the dock on each of its dozen frames, which stuttered the whole app.
+    expect(dockBuilds, lessThanOrEqualTo(2));
+    await _leave(call);
   });
 
   testWidgets('your own share fills the stage like a remote one', (
@@ -126,7 +161,8 @@ void main() {
   });
 
   for (final (name, size, cols) in [
-    ('wide', _wide, 3),
+    ('wide', _wide, 2),
+    ('ultrawide', _ultrawide, 3),
     ('medium', _medium, 2),
     ('phone', _phone, 1),
   ]) {

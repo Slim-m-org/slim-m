@@ -18,6 +18,7 @@ import 'canvas_ink.dart';
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';
 import 'canvas_smooth_path.dart';
+import 'ellipse_path.dart';
 import 'canvas_painters.dart'
     show arrowheadLength, arrowheadWings, minInkScreenPx;
 import 'canvas_stroke_drafts.dart';
@@ -212,7 +213,7 @@ class DraftShapePainter extends CustomPainter {
     if (!isSegment && (rect.width == 0 || rect.height == 0)) return;
     switch (draft.kind) {
       case CanvasShapeKind.ellipse:
-        canvas.drawOval(rect, paint);
+        drawEllipse(canvas, rect, paint);
       case CanvasShapeKind.line:
         canvas.drawLine(start, end, paint);
       case CanvasShapeKind.arrow:

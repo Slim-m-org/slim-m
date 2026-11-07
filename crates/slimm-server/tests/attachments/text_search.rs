@@ -200,7 +200,8 @@ async fn an_unreadable_pdf_and_a_binary_file_are_skipped_once_and_not_retried() 
         0,
         "a processed attachment is not looked at again"
     );
-    assert!(w.search("pdf").await.is_empty());
+    // A word only inside the broken file; its name "broken.pdf" is searchable by itself.
+    assert!(w.search("not").await.is_empty());
 }
 
 #[tokio::test]

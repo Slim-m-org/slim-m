@@ -119,9 +119,9 @@ async fn search_requires_view_permission() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
-/// Malformed FTS5 query syntax is a clean 400, never a 500.
+/// Text that is not FTS5 syntax searches its words instead of failing.
 #[tokio::test]
-async fn a_malformed_query_is_a_bad_request_not_a_server_error() {
+async fn a_query_that_is_not_fts_syntax_searches_its_words() {
     let (store, _guard) = new_store().await;
     store
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
@@ -142,7 +142,7 @@ async fn a_malformed_query_is_a_bad_request_not_a_server_error() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 /// An empty query is rejected before ever reaching FTS5.

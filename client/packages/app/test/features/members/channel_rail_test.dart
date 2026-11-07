@@ -305,9 +305,9 @@ void main() {
     );
   });
 
-  // Padding may shrink, but the mic, deafen and settings hit targets must not.
-  testWidgets('the footer\'s mic, deafen and settings controls keep their '
-      'pointer-density hit target after the padding trim', (tester) async {
+  // Padding may shrink, but the settings hit target must not; out of a call it is the only control.
+  testWidgets('out of a call the footer shows only settings, at the '
+      'pointer-density hit target', (tester) async {
     final setup = _setup(SyncStatus.live);
     addTearDown(setup.container.dispose);
     await _pumpFooter(tester, setup.container, width: 1400);
@@ -316,7 +316,11 @@ void main() {
       of: find.byType(RailUserFooter),
       matching: find.byType(AppIconButton),
     );
-    expect(buttons, findsNWidgets(3), reason: 'mic, deafen, settings');
+    expect(
+      buttons,
+      findsNWidgets(1),
+      reason: 'settings only, no idle mic or deafen',
+    );
     for (final element in buttons.evaluate()) {
       final size = tester.getSize(find.byWidget(element.widget));
       expect(size.shortestSide, greaterThanOrEqualTo(AppSizes.rowPointer));

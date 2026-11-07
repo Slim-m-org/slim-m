@@ -61,6 +61,7 @@ class RecordingCanvas implements Canvas {
   /// arrow draws the same line plus two more via [drawLine] for its head.
   int rectCalls = 0;
   int ovalCalls = 0;
+  int pathCalls = 0;
   int lineCalls = 0;
 
   /// Every plain-rect draw carrying a blur, which is what an elevation
@@ -123,6 +124,7 @@ class RecordingCanvas implements Canvas {
 
   @override
   void drawPath(Path path, Paint paint) {
+    pathCalls++;
     deviceStrokeWidths.add(paint.strokeWidth * _current.scale);
     deviceBounds.add(_current.apply(path.getBounds()));
     pathColors.add(paint.color);

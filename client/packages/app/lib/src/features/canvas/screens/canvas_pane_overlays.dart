@@ -15,7 +15,7 @@ import '../../../providers/dock_reservation.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
 import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';
-import 'canvas_dock_collapse.dart';
+import '../../../widgets/dock_collapse.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_follow_status.dart';
 import 'canvas_follow_targets.dart';
@@ -116,7 +116,7 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
     return Align(
       alignment: Alignment.bottomCenter,
       // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
-      child: CanvasDockCollapse(
+      child: DockCollapse(
         collapsible: canvas().fullscreen,
         builder: (context, revealed) => Padding(
           padding: EdgeInsets.fromLTRB(
@@ -127,8 +127,8 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
             AppSpacing.s12,
           ),
           child: DockHeightReporter(
-            foldedHeight: revealed ? null : canvasDockHandleHeight,
-            extraHeight: canvas().fullscreen ? canvasDockHandleHeight : 0,
+            foldedHeight: revealed ? null : dockHandleHeight,
+            extraHeight: canvas().fullscreen ? dockHandleHeight : 0,
             // Nothing else here rebuilds for a tile hide or show.
             child: ListenableBuilder(
               listenable: _hidden,

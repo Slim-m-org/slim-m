@@ -272,6 +272,16 @@ async fn run_search(
     before: Option<i64>,
     limit: i64,
 ) -> Result<Json<Vec<MessageDto>>, ApiError> {
+    let fts = match query {
+        Some(q) => match state.store.fts_query_for(q).await {
+            Ok(Some(fts)) => Some(fts),
+            Ok(None) => return Ok(Json(Vec::new())),
+            Err(SearchError::Internal(e)) => return Err(e.into()),
+            Err(_) => return Err(ApiError::BadRequest("that search query is not valid")),
+        },
+        None => None,
+    };
+    let query = fts.as_deref();
     let messages = match state
         .store
         .search_messages(channel_ids, query, filters, before, limit)

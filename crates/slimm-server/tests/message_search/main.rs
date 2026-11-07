@@ -14,6 +14,7 @@
 //! route the rest of this suite pins. [`fixtures`] is the temp database,
 //! router and request builders they all share.
 
+mod attachment_names;
 mod basic;
 mod cross_channel;
 mod cross_channel_paging;

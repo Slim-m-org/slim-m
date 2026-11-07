@@ -5,3 +5,9 @@ library;
 String keepAboveScript({required int pid, required String caption}) => '';
 
 Future<bool> kwinKeepAbove(String caption) async => false;
+
+const kwinAboveFullScreenRule = 'slimm-above-fullscreen';
+
+String withRule(String list, String id) => list;
+
+Future<bool> kwinAboveFullScreen(String caption) async => false;

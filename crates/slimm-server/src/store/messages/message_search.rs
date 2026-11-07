@@ -139,6 +139,30 @@ impl Store {
     /// The probe has nothing to join against, so FTS5 must parse `query` to
     /// answer it at all, and a bad one fails there every time regardless of
     /// how many rows exist.
+    /// The FTS5 query to run for what the user typed: `q` itself when it parses,
+    /// else its words ([`literal_fts_query`]); `None` when no word is left.
+    pub async fn fts_query_for(&self, q: &str) -> Result<Option<String>, SearchError> {
+        match self.probe_fts(q).await {
+            Ok(()) => Ok(Some(q.to_owned())),
+            Err(SearchError::InvalidQuery) => {
+                let literal = literal_fts_query(q);
+                Ok((!literal.is_empty()).then_some(literal))
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Join-free probe so FTS5 must parse `q`; not dead work, see [`Self::search_messages`].
+    async fn probe_fts(&self, q: &str) -> Result<(), SearchError> {
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "one!: i64" FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"#,
+            q
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn search_messages(
         &self,
         channel_ids: &[ChannelId],
@@ -151,13 +175,7 @@ impl Store {
             return Ok(Vec::new());
         }
         if let Some(q) = query {
-            // Join-free probe so FTS5 must parse `query`; not dead work, see the doc above.
-            sqlx::query_scalar!(
-                r#"SELECT 1 AS "one!: i64" FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"#,
-                q
-            )
-            .fetch_optional(&self.pool)
-            .await?;
+            self.probe_fts(q).await?;
         }
 
         if let Some(before_id) = filters.before_id {
@@ -187,6 +205,13 @@ impl Store {
                  JOIN messages am ON am.id = ma.message_id \
                  WHERE am.is_encrypted = 0 AND t.fts_rowid IN \
                  (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
+            );
+            builder.push_bind(q.to_owned());
+            builder.push(
+                ") UNION ALL SELECT nm.fts_rowid FROM attachment_name_index n \
+                 JOIN messages nm ON nm.id = n.message_id \
+                 WHERE nm.is_encrypted = 0 AND n.fts_rowid IN \
+                 (SELECT rowid FROM attachment_name_fts WHERE attachment_name_fts MATCH ",
             );
             builder.push_bind(q.to_owned());
             builder.push(")) AND ");
@@ -256,5 +281,30 @@ impl Store {
             })
             .collect::<Result<Vec<_>, sqlx::Error>>()?;
         Ok(messages)
+    }
+}
+
+/// [q]'s words as FTS5 prefix phrases, so text that is not query syntax still
+/// finds what it names: `.iso` becomes `"iso"*`. Empty when no word remains.
+pub(crate) fn literal_fts_query(q: &str) -> String {
+    q.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(|w| format!("\"{w}\"*"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod literal_tests {
+    use super::literal_fts_query;
+
+    #[test]
+    fn punctuation_becomes_quoted_prefix_words() {
+        assert_eq!(literal_fts_query(".iso"), "\"iso\"*");
+        assert_eq!(
+            literal_fts_query("ubuntu-24.04"),
+            "\"ubuntu\"* \"24\"* \"04\"*"
+        );
+        assert_eq!(literal_fts_query("..."), "");
     }
 }

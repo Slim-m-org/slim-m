@@ -4,6 +4,8 @@
 /// docs/decisions/0037-ephemeral-bot-messages.md.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
@@ -16,6 +18,12 @@ import 'message_row_identity.dart';
 import 'message_text.dart';
 
 const String ephemeralNotice = 'Only you can see this';
+
+/// How long a private answer stays on screen before it goes on its own.
+const ephemeralLifetime = Duration(minutes: 2);
+
+/// The least time an answer shows, so one sent while the channel was away still flashes up.
+const _ephemeralMinShown = Duration(seconds: 10);
 
 class EphemeralRow extends StatelessWidget {
   const EphemeralRow({
@@ -35,6 +43,8 @@ class EphemeralRow extends StatelessWidget {
   final VoidCallback onDismiss;
   final VoidCallback onReport;
 
+  static const Key dismissKey = Key('ephemeral_dismiss');
+
   /// The row widgets read a stored message; this one is never stored.
   Message get _asMessage => Message(
     id: message.id,
@@ -53,38 +63,59 @@ class EphemeralRow extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final asMessage = _asMessage;
     final gutter = paneGutterOf(context);
-    return Semantics(
-      container: true,
-      label: ephemeralNotice,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: tokens.surfaceSunken,
-          border: Border(
-            left: BorderSide(color: tokens.borderStrong, width: 2),
+    return _LapseAfter(
+      createdAtMs: message.createdAt,
+      onLapse: onDismiss,
+      child: Semantics(
+        container: true,
+        label: ephemeralNotice,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.surfaceSunken,
+            border: Border(
+              left: BorderSide(color: tokens.borderStrong, width: 2),
+            ),
           ),
-        ),
-        child: _RowLayout(
-          gutter: gutter,
-          leading: MessageRowLeading(
-            grouped: false,
-            message: asMessage,
-            hovered: false,
-          ),
-          children: [
-            MessageRowHeader(message: asMessage, assumeBot: true),
-            if (message.content.isNotEmpty)
-              MessageBody(
-                content: message.content,
-                messageId: message.id,
-                knownUsernames: knownUsernames,
-                knownRoleNames: knownRoleNames,
-                customEmoji: customEmoji,
+          child: _RowLayout(
+            gutter: gutter,
+            leading: MessageRowLeading(
+              grouped: false,
+              message: asMessage,
+              hovered: false,
+            ),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: MessageRowHeader(
+                      message: asMessage,
+                      assumeBot: true,
+                    ),
+                  ),
+                  AppIconButton(
+                    key: EphemeralRow.dismissKey,
+                    icon: AppIcons.dismiss,
+                    size: AppIconButtonSize.sm,
+                    semanticLabel: 'Dismiss',
+                    tooltip: 'Dismiss',
+                    onPressed: onDismiss,
+                  ),
+                ],
               ),
-            EmbedList(embeds: message.embeds),
-            if (message.attachments.isNotEmpty)
-              MessageAttachments(attachments: message.attachments),
-            _Footer(onDismiss: onDismiss, onReport: onReport),
-          ],
+              if (message.content.isNotEmpty)
+                MessageBody(
+                  content: message.content,
+                  messageId: message.id,
+                  knownUsernames: knownUsernames,
+                  knownRoleNames: knownRoleNames,
+                  customEmoji: customEmoji,
+                ),
+              EmbedList(embeds: message.embeds),
+              if (message.attachments.isNotEmpty)
+                MessageAttachments(attachments: message.attachments),
+              _Footer(onReport: onReport),
+            ],
+          ),
         ),
       ),
     );
@@ -128,9 +159,8 @@ class _RowLayout extends StatelessWidget {
 }
 
 class _Footer extends StatelessWidget {
-  const _Footer({required this.onDismiss, required this.onReport});
+  const _Footer({required this.onReport});
 
-  final VoidCallback onDismiss;
   final VoidCallback onReport;
 
   @override
@@ -159,8 +189,6 @@ class _Footer extends StatelessWidget {
               ],
             ),
           ),
-          dot,
-          _FooterLink(label: 'Dismiss', onTap: onDismiss),
           dot,
           _FooterLink(label: 'Report', onTap: onReport),
         ],
@@ -205,4 +233,45 @@ class _FooterLink extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Calls [onLapse] once [ephemeralLifetime] has passed since [createdAtMs].
+class _LapseAfter extends StatefulWidget {
+  const _LapseAfter({
+    required this.createdAtMs,
+    required this.onLapse,
+    required this.child,
+  });
+
+  final int createdAtMs;
+  final VoidCallback onLapse;
+  final Widget child;
+
+  @override
+  State<_LapseAfter> createState() => _LapseAfterState();
+}
+
+class _LapseAfterState extends State<_LapseAfter> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    final age = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(widget.createdAtMs),
+    );
+    final left = ephemeralLifetime - age;
+    _timer = Timer(left < _ephemeralMinShown ? _ephemeralMinShown : left, () {
+      if (mounted) widget.onLapse();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
