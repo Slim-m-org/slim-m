@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.110.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.109.0...server-v0.110.0) (2026-11-07)
+
+
+### Bug Fixes
+
+* **client:** pop-out, share grid, full screen dock, file search, pane lag, mentions ([#2360](https://github.com/Slim-m-org/slim-m/issues/2360)) ([70584ef](https://github.com/Slim-m-org/slim-m/commit/70584ef6b978688b8645ee454f18767ceb117e7f))
+
 ## [0.109.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.108.0...server-v0.109.0) (2026-11-06)
 
 
