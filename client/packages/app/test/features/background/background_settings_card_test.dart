@@ -140,6 +140,28 @@ void main() {
     expect(find.byKey(BackgroundSettingsCard.dimSliderKey), findsNothing);
   });
 
+  testWidgets('the X on the picture row removes it in one tap', (tester) async {
+    final container = await _mount(tester);
+    expect(find.byKey(BackgroundSettingsCard.removeKey), findsNothing);
+    await tester.runAsync(
+      () => container
+          .read(appBackgroundControllerProvider.notifier)
+          .importPicture(
+            File('test/fixtures/background_forest.png').readAsBytesSync(),
+          ),
+    );
+    await tester.runAsync(
+      () => container.read(backgroundPictureProvider.future),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(BackgroundSettingsCard.removeKey));
+    await tester.pump();
+    await _settle(tester);
+    expect(container.read(appBackgroundControllerProvider).hasImage, isFalse);
+    expect(find.text('Choose photo'), findsNothing);
+    expect(find.byKey(BackgroundSettingsCard.removeKey), findsNothing);
+  });
+
   testWidgets('a file that is not a picture shows a persistent error', (
     tester,
   ) async {

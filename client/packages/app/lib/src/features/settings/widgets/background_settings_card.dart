@@ -28,6 +28,7 @@ class BackgroundSettingsCard extends ConsumerStatefulWidget {
   const BackgroundSettingsCard({super.key});
 
   static const Key pictureRowKey = Key('background_picture_row');
+  static const Key removeKey = Key('background_remove_picture');
   static const Key dimSliderKey = Key('background_dim_slider');
   static const Key blurSliderKey = Key('background_blur_slider');
 
@@ -88,13 +89,31 @@ class _State extends ConsumerState<BackgroundSettingsCard>
           key: BackgroundSettingsCard.pictureRowKey,
           label: 'Picture',
           meta: settings.hasImage ? 'Custom' : 'None',
-          // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
-          trailing: Icon(
-            MediaQuery.sizeOf(context).width >= kCompactWidth
-                ? AppIcons.chevronDown
-                : AppIcons.chevronRight,
-            size: AppSizes.icon16,
-            color: tokens.textSecondary,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpacing.s8,
+            children: [
+              if (settings.hasImage)
+                AppIconButton(
+                  key: BackgroundSettingsCard.removeKey,
+                  icon: AppIcons.dismiss,
+                  size: AppIconButtonSize.sm,
+                  semanticLabel: 'Remove picture',
+                  tooltip: 'Remove picture',
+                  onPressed: () {
+                    clearActionError();
+                    unawaited(_controller.remove());
+                  },
+                ),
+              // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
+              Icon(
+                MediaQuery.sizeOf(context).width >= kCompactWidth
+                    ? AppIcons.chevronDown
+                    : AppIcons.chevronRight,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+            ],
           ),
           onTap: () => unawaited(_openMenu()),
         ),
