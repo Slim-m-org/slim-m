@@ -345,6 +345,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     MessageStore store,
   ) async {
     final ticket = await api.webSocketTicket();
+    if (generation != _generation) return null;
     final connection = await EventConnection.connect(
       url: api.webSocketUrl,
       ticket: ticket.ticket,

@@ -43,6 +43,7 @@ class _OrderedServer {
   final log = <Map<String, dynamic>>[_msg(1)];
   final subscribers = <WebSocket>[];
   void Function()? onTicket;
+  var socketsOpened = 0;
 
   Future<void> start() async {
     http = await HttpServer.bind('127.0.0.1', 0);
@@ -60,6 +61,7 @@ class _OrderedServer {
   Future<void> _handle(HttpRequest req) async {
     final path = req.uri.path;
     if (path == '/ws') {
+      socketsOpened++;
       final ws = await WebSocketTransformer.upgrade(req);
       ws.listen((raw) {
         final frame = jsonDecode(raw as String) as Map<String, dynamic>;
@@ -209,5 +211,14 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     expect(await rig.heldSeqs(), containsAll([1, 2, 3]));
+  });
+
+  test('a stop during the ticket request opens no socket', () async {
+    final rig = await _rig();
+    rig.server.onTicket = () => unawaited(rig.controller.stop());
+    rig.controller;
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    expect(rig.server.socketsOpened, 0);
   });
 }
