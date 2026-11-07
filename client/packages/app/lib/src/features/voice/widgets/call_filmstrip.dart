@@ -5,9 +5,11 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/voice_flags.dart' show speakingIdentitiesProvider;
 import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
 
@@ -52,7 +54,7 @@ bool stripOverflows(List<double> widths, double viewport) =>
 /// It never scrolls itself to a speaker (the stage is not a speaker view).
 /// A bar that stays visible while it overflows, drag with a mouse, a plain
 /// wheel, and a chip for speakers out of view are how people find them.
-class CallFilmstrip extends StatefulWidget {
+class CallFilmstrip extends ConsumerStatefulWidget {
   const CallFilmstrip({
     super.key,
     required this.leading,
@@ -73,10 +75,10 @@ class CallFilmstrip extends StatefulWidget {
   tileBuilder;
 
   @override
-  State<CallFilmstrip> createState() => _CallFilmstripState();
+  ConsumerState<CallFilmstrip> createState() => _CallFilmstripState();
 }
 
-class _CallFilmstripState extends State<CallFilmstrip> {
+class _CallFilmstripState extends ConsumerState<CallFilmstrip> {
   final _controller = ScrollController();
 
   List<double> get _widths => [
@@ -84,9 +86,10 @@ class _CallFilmstripState extends State<CallFilmstrip> {
     for (final _ in widget.participants) kCallTileMinWidth,
   ];
 
-  List<bool> get _speaking => [
+  /// The roster passed in carries no speaking flags (see `voiceSilentRosterProvider`); [talking] does.
+  List<bool> _speaking(Set<String> talking) => [
     for (final _ in widget.leading) false,
-    for (final p in widget.participants) p.isSpeaking,
+    for (final p in widget.participants) talking.contains(p.identity),
   ];
 
   @override
@@ -114,7 +117,7 @@ class _CallFilmstripState extends State<CallFilmstrip> {
 
   void _reveal(bool before, double viewport) {
     final widths = _widths;
-    final speaking = _speaking;
+    final speaking = _speaking(ref.read(speakingIdentitiesProvider));
     final offset = _controller.hasClients ? _controller.offset : 0.0;
     var start = 0.0;
     double? target;
@@ -155,39 +158,62 @@ class _CallFilmstripState extends State<CallFilmstrip> {
         final overflows = stripOverflows(widths, viewport);
         return Listener(
           onPointerSignal: _onWheel,
-          child: ListenableBuilder(
-            listenable: _controller,
-            builder: (context, _) {
-              final hidden = overflows
-                  ? hiddenSpeakers(
-                      offset: _controller.hasClients ? _controller.offset : 0,
-                      viewport: viewport,
-                      widths: widths,
-                      speaking: _speaking,
-                    )
-                  : (before: 0, after: 0);
-              return Stack(
-                children: [
-                  ScrollConfiguration(
-                    behavior: behavior,
-                    child: Scrollbar(
-                      key: filmstripScrollbarKey,
-                      controller: _controller,
-                      thumbVisibility: overflows,
-                      child: Center(child: _strip()),
-                    ),
+          // The strip builds once; only the edge chips follow scrolling and speaking.
+          child: Stack(
+            children: [
+              ScrollConfiguration(
+                behavior: behavior,
+                child: Scrollbar(
+                  key: filmstripScrollbarKey,
+                  controller: _controller,
+                  thumbVisibility: overflows,
+                  child: Center(child: _strip()),
+                ),
+              ),
+              if (overflows)
+                Positioned.fill(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final speaking = _speaking(
+                        ref.watch(speakingIdentitiesProvider),
+                      );
+                      return ListenableBuilder(
+                        listenable: _controller,
+                        builder: (context, _) {
+                          final hidden = hiddenSpeakers(
+                            offset: _controller.hasClients
+                                ? _controller.offset
+                                : 0,
+                            viewport: viewport,
+                            widths: widths,
+                            speaking: speaking,
+                          );
+                          return Stack(
+                            children: [
+                              if (hidden.before > 0)
+                                _chipAt(
+                                  Alignment.centerLeft,
+                                  hidden.before,
+                                  () {
+                                    _reveal(true, viewport);
+                                  },
+                                ),
+                              if (hidden.after > 0)
+                                _chipAt(
+                                  Alignment.centerRight,
+                                  hidden.after,
+                                  () {
+                                    _reveal(false, viewport);
+                                  },
+                                ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   ),
-                  if (hidden.before > 0)
-                    _chipAt(Alignment.centerLeft, hidden.before, () {
-                      _reveal(true, viewport);
-                    }),
-                  if (hidden.after > 0)
-                    _chipAt(Alignment.centerRight, hidden.after, () {
-                      _reveal(false, viewport);
-                    }),
-                ],
-              );
-            },
+                ),
+            ],
           ),
         );
       },

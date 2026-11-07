@@ -166,7 +166,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
 
   @override
   Widget build(BuildContext context) {
-    final participants = ref.watch(voiceParticipantsProvider);
+    final participants = ref.watch(voiceSilentRosterProvider);
     final controller = ref.read(voiceControllerProvider.notifier);
     final live = _stillLive(participants);
     // Scheduled: a build method must not itself change the navigator stack.

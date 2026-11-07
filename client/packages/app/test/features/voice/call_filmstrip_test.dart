@@ -5,7 +5,10 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart'
+    show speakingIdentitiesProvider;
 import 'package:slimm_app/src/features/voice/widgets/call_filmstrip.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -27,32 +30,39 @@ Future<void> _pump(
   double width = 600,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              SizedBox(
-                width: width,
-                height: 128,
-                child: CallFilmstrip(
-                  key: _stripKey,
-                  leading: const [],
-                  leadingItemWidth: 199,
-                  participants: [
-                    for (var i = 0; i < people; i++)
-                      _p(i, speaking: i == speaker),
-                  ],
-                  tileBuilder: (context, p) => SizedBox(
-                    key: ValueKey('tile-${p.identity}'),
-                    width: kCallTileMinWidth,
-                    height: 90,
+    ProviderScope(
+      overrides: [
+        speakingIdentitiesProvider.overrideWithValue({
+          if (speaker != null) 'p$speaker',
+        }),
+      ],
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                SizedBox(
+                  width: width,
+                  height: 128,
+                  child: CallFilmstrip(
+                    key: _stripKey,
+                    leading: const [],
+                    leadingItemWidth: 199,
+                    participants: [
+                      for (var i = 0; i < people; i++)
+                        _p(i, speaking: i == speaker),
+                    ],
+                    tileBuilder: (context, p) => SizedBox(
+                      key: ValueKey('tile-${p.identity}'),
+                      width: kCallTileMinWidth,
+                      height: 90,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(key: _pageMarkerKey, height: 2000),
-            ],
+                const SizedBox(key: _pageMarkerKey, height: 2000),
+              ],
+            ),
           ),
         ),
       ),
