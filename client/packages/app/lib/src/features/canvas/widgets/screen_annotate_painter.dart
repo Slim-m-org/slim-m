@@ -4,7 +4,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_voice_canvas/voice_canvas.dart' show resolveCanvasInk;
+import 'package:slimm_voice_canvas/voice_canvas.dart'
+    show drawEllipse, resolveCanvasInk;
 
 import '../../screen_overlay/providers/screen_annotation_board.dart';
 import '../../screen_overlay/providers/screen_annotation_mapping.dart';
@@ -50,7 +51,7 @@ class ScreenMarksPainter extends CustomPainter {
           if (mark.points.length == 4) {
             final a = _at(mark.points[0], mark.points[1]);
             final b = _at(mark.points[2], mark.points[3]);
-            canvas.drawOval(Rect.fromPoints(a, b), paint);
+            drawEllipse(canvas, Rect.fromPoints(a, b), paint);
           }
         case ScreenAnnotationKind.note:
           break;

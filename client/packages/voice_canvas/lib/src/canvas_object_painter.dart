@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 
 import 'canvas_ink.dart';
+import 'ellipse_path.dart';
 import 'canvas_document.dart';
 import 'canvas_text_box.dart';
 import 'note_label_cache.dart';
@@ -222,7 +223,7 @@ class ObjectPainter {
       ..strokeWidth = math.max(shapeOutlineWorld, minInkScreenPx / camera.zoom);
     switch (stroke.shapeKind) {
       case CanvasShapeKind.ellipse:
-        canvas.drawOval(local, paint);
+        drawEllipse(canvas, local, paint);
       case CanvasShapeKind.line:
         canvas.drawLine(tail, head, paint);
       case CanvasShapeKind.arrow:
