@@ -119,7 +119,8 @@ Widget railLeaveCallButton(VoidCallback onLeave) => AppIconButton(
   icon: AppIcons.leaveCall,
   semanticLabel: 'Leave call',
   tooltip: 'Leave call',
-  variant: AppIconButtonVariant.danger,
+  // Red glyph, no box: the footer row keeps one weight, and leaving needs colour, not a frame.
+  variant: AppIconButtonVariant.dangerGhost,
   // Instant: the in-call bar's own leave button asks nothing either.
   onPressed: onLeave,
 );

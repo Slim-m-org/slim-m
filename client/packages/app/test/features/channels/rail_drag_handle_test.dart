@@ -206,8 +206,8 @@ void main() {
     },
   );
 
-  testWidgets('compact, the footer drops only its name line: presence, mic, '
-      'deafen and settings all stay', (tester) async {
+  testWidgets('compact, the footer drops only its name line: presence and '
+      'settings stay', (tester) async {
     final semantics = tester.ensureSemantics();
     final s = setup(httpClient: quietClient(), signedIn: true);
     await pumpAtWidth(tester, s.container, 1400);
@@ -225,11 +225,7 @@ void main() {
       find.descendant(of: footer, matching: find.text('Bob')),
       findsNothing,
     );
-    for (final label in [
-      RegExp(r'^(Mute|Unmute)$'),
-      RegExp(r'^Deafen$'),
-      RegExp(r'^Personal settings'),
-    ]) {
+    for (final label in [RegExp(r'^Personal settings')]) {
       expect(
         find.descendant(of: footer, matching: find.bySemanticsLabel(label)),
         findsOneWidget,

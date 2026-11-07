@@ -3,8 +3,6 @@
 /// and the signed-in user's footer.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +20,6 @@ import '../../../sync/providers/sync_failure.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/mic_status.dart';
 import '../../voice/providers/voice_flags.dart';
-import '../../voice/widgets/call_availability.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../../members/widgets/presence_menu.dart';
@@ -233,7 +230,8 @@ VoidCallback? _micAction({
       : voiceController.toggleMicrophone;
 }
 
-/// The mic/deafen toggles in [RailUserFooter]'s row, plus the camera while in a call.
+/// The mic/deafen toggles in [RailUserFooter]'s row, shown only while in a
+/// call: out of one they could do nothing, and the call dock carries the rest.
 ///
 /// Takes [VoiceFlags] rather than the full [VoiceState] on purpose: the
 /// footer has no use for the roster, and typing this as the narrower flags
@@ -242,9 +240,8 @@ List<Widget> railVoiceToggleButtons({
   required VoiceFlags voice,
   required VoiceController voiceController,
   MicStatus micStatus = MicStatus.ok,
-  String? listenOnly,
 }) {
-  final inCall = voice.callLive;
+  if (!voice.callLive) return const [];
   final trouble = voice.microphoneEnabled ? micStatus.trouble : null;
   return [
     AppIconButton(
@@ -252,36 +249,24 @@ List<Widget> railVoiceToggleButtons({
           ? AppIcons.mic
           : AppIcons.micOff,
       semanticLabel: trouble ?? (voice.microphoneEnabled ? 'Mute' : 'Unmute'),
-      tooltip: inCall ? trouble : 'Not in a call',
+      tooltip: trouble,
+      variant: voice.microphoneEnabled && trouble == null
+          ? AppIconButtonVariant.ghost
+          : AppIconButtonVariant.dangerGhost,
       onPressed: _micAction(
-        inCall: inCall,
+        inCall: true,
         stuck: micStatus == MicStatus.unavailable && trouble != null,
         voiceController: voiceController,
       ),
     ),
-    // Same icon either way, the toggle carried by `active`: there is no
-    // dedicated "deafened" glyph in AppIcons.
     AppIconButton(
-      icon: AppIcons.headphones,
+      icon: voice.deafened ? AppIcons.headphonesOff : AppIcons.headphones,
       semanticLabel: voice.deafened ? 'Undeafen' : 'Deafen',
-      active: voice.deafened,
-      tooltip: inCall ? null : 'Not in a call',
-      onPressed: inCall ? voiceController.toggleDeafen : null,
+      variant: voice.deafened
+          ? AppIconButtonVariant.dangerGhost
+          : AppIconButtonVariant.ghost,
+      onPressed: voiceController.toggleDeafen,
     ),
-    if (inCall)
-      AppIconButton(
-        icon: voice.cameraEnabled && listenOnly == null
-            ? AppIcons.camera
-            : AppIcons.cameraOff,
-        semanticLabel: voice.cameraEnabled
-            ? 'Turn off camera'
-            : 'Turn on camera',
-        active: voice.cameraEnabled && listenOnly == null,
-        tooltip: listenOnly,
-        onPressed: listenOnly != null || voice.cameraPending
-            ? null
-            : () => unawaited(voiceController.toggleCamera()),
-      ),
   ];
 }
 
@@ -414,7 +399,6 @@ class RailUserFooter extends ConsumerWidget {
                   voice: voice,
                   voiceController: voiceController,
                   micStatus: micStatus,
-                  listenOnly: listenOnlyReason(ref, voice),
                 ),
                 if (inCallElsewhere) railLeaveCallButton(voiceController.leave),
                 railSettingsButton(context),
