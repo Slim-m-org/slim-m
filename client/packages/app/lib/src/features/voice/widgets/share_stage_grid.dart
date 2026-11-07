@@ -41,7 +41,22 @@ const double shareGridCaptionHeight = AppSpacing.s4 + 20;
       best = (columns: columns, tileWidth: width);
     }
   }
-  return best;
+  if (best.tileWidth >= shareGridMinTile) return best;
+  return _scrollingFit(pane.width, count);
+}
+
+/// The narrowest tile worth fitting the height for; below it the grid scrolls.
+const double shareGridMinTile = 240;
+
+/// As many columns as keep each tile at [shareGridMinTile], letting the rows run past the pane.
+({int columns, double tileWidth}) _scrollingFit(double paneWidth, int count) {
+  var columns = 1;
+  while (columns < count &&
+      (paneWidth - columns * _gap) / (columns + 1) >= shareGridMinTile) {
+    columns++;
+  }
+  final width = (paneWidth - (columns - 1) * _gap) / columns;
+  return (columns: columns, tileWidth: width.floorToDouble());
 }
 
 /// The strip's inline volume for [sharer]'s share.
