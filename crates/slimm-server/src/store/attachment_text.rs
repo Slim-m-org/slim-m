@@ -103,8 +103,8 @@ impl Store {
     }
 
     /// For each of `message_ids` that matches `query` only through an
-    /// attachment, the hex id of the first attachment whose extracted text
-    /// matches. A message whose own text matches is left out, since the
+    /// attachment, the hex id of the first attachment whose extracted text or
+    /// file name matches. A message whose own text matches is left out, since the
     /// attachment is then not why it was found.
     pub async fn attachments_matching_text(
         &self,
@@ -117,13 +117,19 @@ impl Store {
         let mut builder = QueryBuilder::new(
             "SELECT ma.message_id AS message_id, ma.sha256 AS sha256
              FROM message_attachments ma
-             JOIN attachment_text t ON t.sha256 = ma.sha256
+             LEFT JOIN attachment_text t ON t.sha256 = ma.sha256
              JOIN messages m ON m.id = ma.message_id
-             WHERE m.is_encrypted = 0 AND t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
+             WHERE m.is_encrypted = 0 AND (t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
         );
         builder.push_bind(query.to_owned());
         builder.push(
-            ") AND m.fts_rowid NOT IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ",
+            ") OR EXISTS (SELECT 1 FROM attachment_name_index n WHERE n.message_id = ma.message_id \
+             AND n.sha256 = ma.sha256 AND n.fts_rowid IN \
+             (SELECT rowid FROM attachment_name_fts WHERE attachment_name_fts MATCH ",
+        );
+        builder.push_bind(query.to_owned());
+        builder.push(
+            "))) AND m.fts_rowid NOT IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ",
         );
         builder.push_bind(query.to_owned());
         builder.push(") AND ma.message_id IN (");
