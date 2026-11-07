@@ -61,10 +61,9 @@ class MemberPaneSlot extends ConsumerWidget {
     );
   }
 
+  // Snapped, not tweened: a width tween relays the whole main pane, a live call included, on every frame.
   Widget _animated(BuildContext context, WidgetRef ref, bool show) => ClipRect(
-    child: AnimatedContainer(
-      duration: AppMotion.reduced(context, AppMotion.base),
-      curve: AppMotion.entrance,
+    child: SizedBox(
       width: show ? AppMemberPane.width : 0,
       child: show
           ? OverflowBox(
@@ -82,8 +81,8 @@ class MemberPaneSlot extends ConsumerWidget {
 }
 
 /// The docked thread, beside the transcript at expanded widths (UX1). Mirrors
-/// [MemberPaneSlot]'s reveal exactly - an [AnimatedContainer] width that
-/// unmounts its content when closed so a hidden pane stops fetching - but wraps
+/// [MemberPaneSlot]'s reveal exactly - a snapped width that unmounts its
+/// content when closed so a hidden pane stops fetching - but wraps
 /// [ThreadScreen], whose close affordance clears [openThreadProvider] rather
 /// than popping, since docked there is no route entry to pop.
 class ThreadPaneSlot extends ConsumerWidget {
@@ -102,9 +101,7 @@ class ThreadPaneSlot extends ConsumerWidget {
     final id = channelId;
     final show = requested && id != null;
     return ClipRect(
-      child: AnimatedContainer(
-        duration: AppMotion.reduced(context, AppMotion.base),
-        curve: AppMotion.entrance,
+      child: SizedBox(
         width: show ? kThreadPaneWidth : 0,
         child: show
             ? OverflowBox(
