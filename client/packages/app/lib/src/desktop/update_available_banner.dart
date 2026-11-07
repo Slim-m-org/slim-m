@@ -16,20 +16,22 @@
 /// for it to drift out of sync with the splash's own copy.
 ///
 /// Android has no such splash and no store to hand off to, so telling
-/// somebody there to restart would be advice that does nothing. It gets the
-/// release page instead, which is the only thing that actually helps a
-/// sideloaded install.
+/// somebody there to restart would be advice that does nothing. It gets an
+/// Update button instead, which downloads the signed apk and opens the system
+/// installer, and falls back to the release page whenever that cannot work.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/providers.dart';
+import 'self_update/android_apk_update.dart';
 import 'update_check.dart';
 import 'update_watch.dart';
 
@@ -50,6 +52,7 @@ class UpdateAvailableBanner extends ConsumerWidget {
 
     // A sideloaded apk never re-runs the splash, so a restart gets it nothing.
     final restartApplies = this.restartApplies ?? !isAndroidHost;
+    final busy = ref.watch(apkUpdateBusyProvider);
 
     return AppCallout(
       tone: AppCalloutTone.info,
@@ -66,9 +69,9 @@ class UpdateAvailableBanner extends ConsumerWidget {
           ),
           if (!restartApplies)
             AppButton(
-              label: 'Get it',
+              label: busy ? 'Downloading...' : 'Update',
               variant: AppButtonVariant.ghost,
-              onPressed: () => unawaited(_openRelease(update)),
+              onPressed: busy ? null : () => unawaited(_updateApk(ref, update)),
             ),
           AppIconButton(
             icon: AppIcons.dismiss,
@@ -79,6 +82,24 @@ class UpdateAvailableBanner extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Downloads, verifies and offers the apk to the installer; anything that
+  /// stops it, an older release with no apk in its manifest included, opens
+  /// the release page instead so the button always gets somewhere.
+  Future<void> _updateApk(WidgetRef ref, ClientUpdate update) async {
+    final busy = ref.read(apkUpdateBusyProvider.notifier);
+    final run = ref.read(apkUpdateRunnerProvider);
+    busy.state = true;
+    try {
+      final info = await ref.read(appInfoProvider.future);
+      if (await run(info.version) == null) await _openRelease(update);
+    } catch (error, stack) {
+      reportFailure(LogTag.platform, 'update the apk', error, stack);
+      await _openRelease(update);
+    } finally {
+      busy.state = false;
+    }
   }
 
   /// Opens the release page, where the apk is attached. Best-effort like

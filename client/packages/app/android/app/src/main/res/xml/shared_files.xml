@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only these two cache folders are reachable through the app's FileProvider. -->
+<paths>
+    <cache-path name="clipboard_images" path="clipboard_images/"/>
+    <cache-path name="updates" path="updates/"/>
+</paths>

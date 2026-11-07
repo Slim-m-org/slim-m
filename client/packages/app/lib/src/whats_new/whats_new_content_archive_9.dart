@@ -153,4 +153,26 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.126.0',
+    headline: 'Android catches up',
+    points: [
+      WhatsNewPoint(
+        'On Android, slim-m updates itself: tap Update when a new version is '
+        'out and confirm in the installer.',
+      ),
+      WhatsNewPoint(
+        'On Android, Back from the channel list no longer ends a call you are '
+        'in; the app goes to the background and the call carries on.',
+      ),
+      WhatsNewPoint(
+        'On Android, the status bar is readable on the light themes, and the '
+        'mic test works on the first tap after you allow the microphone.',
+      ),
+      WhatsNewPoint(
+        'Fixed: an old https error staying up in Connect to a Space after '
+        'the address was corrected.',
+      ),
+    ],
+  ),
 ];

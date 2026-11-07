@@ -54,6 +54,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         ClipboardImageChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
         pictureInPicture.attach(flutterEngine.dartExecutor.binaryMessenger)
+        ApkInstallChannel(this).attach(flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_LOCK_WINDOW_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

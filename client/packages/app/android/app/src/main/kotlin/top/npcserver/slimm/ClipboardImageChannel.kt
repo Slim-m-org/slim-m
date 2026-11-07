@@ -81,7 +81,7 @@ class ClipboardImageChannel(private val context: Context) : MethodChannel.Method
       val dir = File(context.cacheDir, "clipboard_images").apply { mkdirs() }
       dir.listFiles()?.forEach { it.delete() }
       val file = File(dir, "copied-image.png").apply { writeBytes(bytes) }
-      val uri = FileProvider.getUriForFile(context, "${context.packageName}.clipboard_images", file)
+      val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
       clipboardManager().setPrimaryClip(ClipData.newUri(context.contentResolver, "image", uri))
       result.success(null)
     } catch (e: Exception) {
