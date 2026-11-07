@@ -41,9 +41,10 @@ final voiceChatPaneVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// The docked pane at desktop widths: [call] full width, or split with the
 /// channel's own transcript and composer beside it. Mirrors
-/// `_MemberPaneSlot`/`_ThreadPaneSlot` in `home_shell_pane_slots.dart`: an
-/// `AnimatedContainer` width that unmounts its content when closed, so a
-/// hidden pane's `ChannelScreen` is not sitting behind it still fetching.
+/// `_MemberPaneSlot`/`_ThreadPaneSlot` in `home_shell_pane_slots.dart` in
+/// unmounting its content when closed, so a hidden pane's `ChannelScreen` is
+/// not sitting behind it still fetching; its width snaps rather than tweens,
+/// and the content's own reveal carries the motion.
 class VoiceCallWithChatPane extends ConsumerWidget {
   const VoiceCallWithChatPane({
     required this.channelId,
@@ -61,10 +62,9 @@ class VoiceCallWithChatPane extends ConsumerWidget {
     return Row(
       children: [
         Expanded(child: call),
+        // Snapped, not animated: every frame of a width tween relaid the call's dock and tiles beside a live share.
         ClipRect(
-          child: AnimatedContainer(
-            duration: AppMotion.reduced(context, AppMotion.base),
-            curve: AppMotion.entrance,
+          child: SizedBox(
             width: open ? kThreadPaneWidth : 0,
             child: open
                 ? OverflowBox(

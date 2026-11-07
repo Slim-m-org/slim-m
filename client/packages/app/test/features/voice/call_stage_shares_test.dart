@@ -11,6 +11,9 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart'
+    show CallControls;
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
@@ -101,6 +104,29 @@ void main() {
     expect(fit.columns, 2);
     final tileHeight = fit.tileWidth / (16 / 9) + shareGridCaptionHeight;
     expect(tileHeight, lessThanOrEqualTo(300));
+  });
+
+  testWidgets('opening the chat beside a share relays the call out once', (
+    tester,
+  ) async {
+    final call = await _connected(tester, [
+      _p('a'),
+      _p('me', sharing: false, local: true),
+    ], const Size(1600, 900));
+    var dockBuilds = 0;
+    debugOnRebuildDirtyWidget = (element, _) {
+      if (element.widget is CallControls) dockBuilds++;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    call.harness.container.read(voiceChatPaneVisibleProvider.notifier).state =
+        true;
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    debugOnRebuildDirtyWidget = null;
+    // A width tween rebuilt the dock on each of its dozen frames, which stuttered the whole app.
+    expect(dockBuilds, lessThanOrEqualTo(2));
+    await _leave(call);
   });
 
   testWidgets('your own share fills the stage like a remote one', (
