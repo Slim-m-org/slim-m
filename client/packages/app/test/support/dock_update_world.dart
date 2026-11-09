@@ -40,6 +40,11 @@ class DockUpdateMod {
     this.approvedBefore = const [],
     this.newBuild = false,
     this.refuse = false,
+    this.hosts = const [],
+    this.local = false,
+    this.localBefore = false,
+    this.failAfterInstalls,
+    this.dropsOnCarry = const [],
   });
 
   final String id;
@@ -59,8 +64,27 @@ class DockUpdateMod {
   /// The install call answers 409.
   final bool refuse;
 
+  /// The hosts `net.fetch` may reach, on the installed build and the offered one.
+  final List<String> hosts;
+
+  /// The offered manifest also asks for the private network.
+  final bool local;
+
+  /// This space approved the private network on the installed build.
+  final bool localBefore;
+
+  /// After this many installs of the module, the next ones commit and then
+  /// answer 500, as a connection that dropped after the server wrote.
+  final int? failAfterInstalls;
+
+  /// Access the server withdraws from an install that carries what was
+  /// approved, which the client's own carry rules do not foresee.
+  final List<String> dropsOnCarry;
+
   String get name => 'Mod $id';
 }
+
+const _reaskedOnNewBuild = {'message.post', 'net.fetch'};
 
 final _sha = List.filled(64, 'a').join();
 final _oldSha = List.filled(64, 'b').join();
@@ -70,6 +94,16 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
   status,
   headers: {'content-type': 'application/json'},
 );
+
+/// Runs [body] once for each phone and desktop size [dockUpdateSizes] names.
+void eachDockUpdateSize(
+  String name,
+  Future<void> Function(WidgetTester tester, Size size) body,
+) {
+  for (final MapEntry(key: label, value: size) in dockUpdateSizes.entries) {
+    testWidgets('$name ($label)', (tester) => body(tester, size));
+  }
+}
 
 class DockUpdateWorld {
   DockUpdateWorld(this.mods) {
@@ -81,6 +115,8 @@ class DockUpdateWorld {
         'artifact_sha256': m.newBuild ? _oldSha : _sha,
         'approved_capabilities': m.approvedBefore,
         'approved_host_capabilities': m.approvedBefore,
+        'network_hosts': m.hosts,
+        'local_network_approved': m.localBefore,
         'extension_points': <Map<String, dynamic>>[],
         'enabled': true,
         'installed_at': 1000,
@@ -92,6 +128,10 @@ class DockUpdateWorld {
   final List<DockUpdateMod> mods;
   final installed = <String, Map<String, dynamic>>{};
   final bodies = <Map<String, dynamic>>[];
+  final _committed = <String, int>{};
+
+  /// How many times the installed list was fetched, which the catalog does on every refresh.
+  int catalogReads = 0;
 
   List<String> get installs => [for (final b in bodies) b['id'] as String];
 
@@ -103,19 +143,26 @@ class DockUpdateWorld {
   };
 
   Map<String, dynamic> _install(DockUpdateMod m, Map<String, dynamic> body) {
-    final approved =
-        (body['approved_host_capabilities'] as List<dynamic>?)
-            ?.cast<String>() ??
-        [
-          for (final c in m.approvedBefore)
-            if (m.asks.contains(c) && !(m.newBuild && c == 'message.post')) c,
-        ];
+    final carried = body['approved_host_capabilities'] == null;
+    final approved = carried
+        ? [
+            for (final c in m.approvedBefore)
+              if (m.asks.contains(c) &&
+                  !(m.newBuild && _reaskedOnNewBuild.contains(c)) &&
+                  !m.dropsOnCarry.contains(c))
+                c,
+          ]
+        : (body['approved_host_capabilities'] as List<dynamic>).cast<String>();
+    final local =
+        body['approve_local_network'] as bool? ??
+        (carried && m.localBefore && approved.contains('net.fetch'));
     return installed[m.id] = {
       ...installed[m.id]!,
       'version': body['version'],
       'artifact_sha256': _sha,
       'approved_capabilities': m.asks,
       'approved_host_capabilities': approved,
+      'local_network_approved': local,
     };
   }
 
@@ -135,6 +182,7 @@ class DockUpdateWorld {
       ]);
     }
     if (path == '/space/dock/installed') {
+      catalogReads++;
       return _json(installed.values.toList());
     }
     final id = RegExp(
@@ -150,6 +198,9 @@ class DockUpdateWorld {
           mod.id,
           '2.0.0',
           capabilities: mod.asks,
+          network: mod.hosts.isEmpty
+              ? null
+              : {'hosts': mod.hosts, 'local': mod.local},
           reviewDigest: 'digest-${mod.id}',
           extras: {'name': mod.name},
         ),
@@ -160,7 +211,14 @@ class DockUpdateWorld {
       return _json({'error': 'moved on'}, 409);
     }
     bodies.add({...body, 'id': mod.id});
-    return _json(_install(mod, body));
+    final done = _committed[mod.id] ?? 0;
+    _committed[mod.id] = done + 1;
+    final answer = _install(mod, body);
+    final failAfter = mod.failAfterInstalls;
+    if (failAfter != null && done >= failAfter) {
+      return _json({'error': 'connection lost'}, 500);
+    }
+    return _json(answer);
   }
 }
 

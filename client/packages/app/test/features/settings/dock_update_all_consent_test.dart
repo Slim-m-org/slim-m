@@ -25,17 +25,8 @@ const _approve = 'Approve and update';
 /// The UPDATE badge on each module row still behind.
 Finder get _updateChips => find.text('UPDATE');
 
-void _eachSize(
-  String name,
-  Future<void> Function(WidgetTester tester, Size size) body,
-) {
-  for (final MapEntry(key: label, value: size) in dockUpdateSizes.entries) {
-    testWidgets('$name ($label)', (tester) => body(tester, size));
-  }
-}
-
 void main() {
-  _eachSize('update all asks about new access instead of failing', (
+  eachDockUpdateSize('update all asks about new access instead of failing', (
     tester,
     size,
   ) async {
@@ -57,7 +48,7 @@ void main() {
     expect(world.installs, ['a']);
   });
 
-  _eachSize(
+  eachDockUpdateSize(
     'the module that needed nothing has landed while the prompt is open',
     (tester, size) async {
       final world = DockUpdateWorld([
@@ -74,72 +65,77 @@ void main() {
     },
   );
 
-  _eachSize('approving installs the module with the access it was shown', (
+  eachDockUpdateSize(
+    'approving installs the module with the access it was shown',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod('a'),
+        const DockUpdateMod('b', asks: ['kv.store']),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+
+      await tapDock(tester, _approve);
+
+      expect(world.installs, ['a', 'b']);
+      expect(world.bodies.last['approved_host_capabilities'], ['kv.store']);
+      expect(world.bodies.last['reviewed_digest'], 'digest-b');
+      expect(_updateChips, findsNothing);
+      expect(find.text('Update all'), findsNothing);
+      expect(find.text('Dismiss'), findsNothing);
+    },
+  );
+
+  eachDockUpdateSize(
+    'skipping keeps the update and goes on to the next module',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod('a', asks: ['kv.store']),
+        const DockUpdateMod('b'),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+
+      await tapDock(tester, 'Skip');
+
+      expect(world.installs, [
+        'b',
+      ], reason: 'b still goes through after a skip');
+      expect(_updateChips, findsOneWidget);
+      expect(find.text('Updated 1 of 2. Skipped Mod a.'), findsOneWidget);
+      expect(
+        find.text('Dismiss'),
+        findsNothing,
+        reason: 'a skip is not an error',
+      );
+      expect(find.text('Update all'), findsOneWidget);
+    },
+  );
+
+  eachDockUpdateSize(
+    'closing the prompt counts as a skip for that module only',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod('a', asks: ['kv.store']),
+        const DockUpdateMod('b'),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+      expect(find.text('Update Mod a?'), findsOneWidget);
+
+      await _tapBarrier(tester);
+
+      expect(find.text('Update Mod a?'), findsNothing);
+      expect(world.installs, ['b']);
+      expect(find.text('Updated 1 of 2. Skipped Mod a.'), findsOneWidget);
+      expect(find.text('Dismiss'), findsNothing);
+    },
+  );
+
+  eachDockUpdateSize('every module asking is asked in order', (
     tester,
     size,
   ) async {
-    final world = DockUpdateWorld([
-      const DockUpdateMod('a'),
-      const DockUpdateMod('b', asks: ['kv.store']),
-    ]);
-    await openDockUpdateWorld(tester, world, size);
-    await tapDock(tester, 'Update all');
-
-    await tapDock(tester, _approve);
-
-    expect(world.installs, ['a', 'b']);
-    expect(world.bodies.last['approved_host_capabilities'], ['kv.store']);
-    expect(world.bodies.last['reviewed_digest'], 'digest-b');
-    expect(_updateChips, findsNothing);
-    expect(find.text('Update all'), findsNothing);
-    expect(find.text('Dismiss'), findsNothing);
-  });
-
-  _eachSize('skipping keeps the update and goes on to the next module', (
-    tester,
-    size,
-  ) async {
-    final world = DockUpdateWorld([
-      const DockUpdateMod('a', asks: ['kv.store']),
-      const DockUpdateMod('b'),
-    ]);
-    await openDockUpdateWorld(tester, world, size);
-    await tapDock(tester, 'Update all');
-
-    await tapDock(tester, 'Skip');
-
-    expect(world.installs, ['b'], reason: 'b still goes through after a skip');
-    expect(_updateChips, findsOneWidget);
-    expect(find.text('Updated 1 of 2. Skipped Mod a.'), findsOneWidget);
-    expect(
-      find.text('Dismiss'),
-      findsNothing,
-      reason: 'a skip is not an error',
-    );
-    expect(find.text('Update all'), findsOneWidget);
-  });
-
-  _eachSize('closing the prompt counts as a skip for that module only', (
-    tester,
-    size,
-  ) async {
-    final world = DockUpdateWorld([
-      const DockUpdateMod('a', asks: ['kv.store']),
-      const DockUpdateMod('b'),
-    ]);
-    await openDockUpdateWorld(tester, world, size);
-    await tapDock(tester, 'Update all');
-    expect(find.text('Update Mod a?'), findsOneWidget);
-
-    await _tapBarrier(tester);
-
-    expect(find.text('Update Mod a?'), findsNothing);
-    expect(world.installs, ['b']);
-    expect(find.text('Updated 1 of 2. Skipped Mod a.'), findsOneWidget);
-    expect(find.text('Dismiss'), findsNothing);
-  });
-
-  _eachSize('every module asking is asked in order', (tester, size) async {
     final world = DockUpdateWorld([
       const DockUpdateMod('a', asks: ['kv.store']),
       const DockUpdateMod('b', asks: ['log.read']),
@@ -156,7 +152,7 @@ void main() {
     expect(_updateChips, findsNothing);
   });
 
-  _eachSize('a verified module is a lighter list with no tick', (
+  eachDockUpdateSize('a verified module is a lighter list with no tick', (
     tester,
     size,
   ) async {
@@ -177,85 +173,87 @@ void main() {
     expect(approve.disabled, isFalse);
   });
 
-  _eachSize('an unreviewed module needs the tick before it can be approved', (
-    tester,
-    size,
-  ) async {
-    final world = DockUpdateWorld([
-      const DockUpdateMod('a', community: true, asks: ['kv.store']),
-    ]);
-    await openDockUpdateWorld(tester, world, size);
-    await tapDock(tester, 'Update all');
-    expect(
-      find.text('Not verified. slim-m has not reviewed this module.'),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .widget<AppButton>(find.widgetWithText(AppButton, _approve))
-          .disabled,
-      isTrue,
-    );
+  eachDockUpdateSize(
+    'an unreviewed module needs the tick before it can be approved',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod('a', community: true, asks: ['kv.store']),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+      expect(
+        find.text('Not verified. slim-m has not reviewed this module.'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<AppButton>(find.widgetWithText(AppButton, _approve))
+            .disabled,
+        isTrue,
+      );
 
-    await tapDock(tester, _tick);
-    await tapDock(tester, _approve);
+      await tapDock(tester, _tick);
+      await tapDock(tester, _approve);
 
-    expect(world.installs, ['a']);
-    expect(world.bodies.single['approved_host_capabilities'], ['kv.store']);
-  });
+      expect(world.installs, ['a']);
+      expect(world.bodies.single['approved_host_capabilities'], ['kv.store']);
+    },
+  );
 
-  _eachSize('access taken back by a new build is asked again, not reported', (
-    tester,
-    size,
-  ) async {
-    final world = DockUpdateWorld([
-      const DockUpdateMod(
-        'a',
-        asks: ['message.post'],
-        approvedBefore: ['message.post'],
-        newBuild: true,
-      ),
-    ]);
-    await openDockUpdateWorld(tester, world, size);
+  eachDockUpdateSize(
+    'access taken back by a new build is asked again, not reported',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod(
+          'a',
+          asks: ['message.post'],
+          approvedBefore: ['message.post'],
+          newBuild: true,
+        ),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
 
-    await tapDock(tester, 'Update all');
+      await tapDock(tester, 'Update all');
 
-    expect(find.text('Update Mod a?'), findsOneWidget);
-    expect(
-      find.text('This version needs approval again. It can:'),
-      findsOneWidget,
-    );
-    expect(world.installs, isEmpty, reason: 'nothing is taken back unasked');
+      expect(find.text('Update Mod a?'), findsOneWidget);
+      expect(
+        find.text('This version needs approval again. It can:'),
+        findsOneWidget,
+      );
+      expect(world.installs, isEmpty, reason: 'nothing is taken back unasked');
 
-    await tapDock(tester, _approve);
+      await tapDock(tester, _approve);
 
-    expect(world.bodies.single['approved_host_capabilities'], ['message.post']);
-    expect(_updateChips, findsNothing);
-    expect(find.text('Dismiss'), findsNothing);
-  });
+      expect(world.bodies.single['approved_host_capabilities'], [
+        'message.post',
+      ]);
+      expect(_updateChips, findsNothing);
+      expect(find.text('Dismiss'), findsNothing);
+    },
+  );
 
-  _eachSize('skipping a re-approval leaves the module on its old build', (
-    tester,
-    size,
-  ) async {
-    final world = DockUpdateWorld([
-      const DockUpdateMod(
-        'a',
-        asks: ['message.post'],
-        approvedBefore: ['message.post'],
-        newBuild: true,
-      ),
-    ]);
-    await openDockUpdateWorld(tester, world, size);
-    await tapDock(tester, 'Update all');
+  eachDockUpdateSize(
+    'skipping a re-approval leaves the module on its old build',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod(
+          'a',
+          asks: ['message.post'],
+          approvedBefore: ['message.post'],
+          newBuild: true,
+        ),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
 
-    await tapDock(tester, 'Skip');
+      await tapDock(tester, 'Skip');
 
-    expect(world.installs, isEmpty);
-    expect(_updateChips, findsOneWidget);
-  });
+      expect(world.installs, isEmpty);
+      expect(_updateChips, findsOneWidget);
+    },
+  );
 
-  _eachSize('access that is kept carries over without a prompt', (
+  eachDockUpdateSize('access that is kept carries over without a prompt', (
     tester,
     size,
   ) async {
@@ -279,7 +277,7 @@ void main() {
     );
   });
 
-  _eachSize('a failed install is an inline error with the reason', (
+  eachDockUpdateSize('a failed install is an inline error with the reason', (
     tester,
     size,
   ) async {
@@ -297,7 +295,7 @@ void main() {
     expect(find.text('Updated 1 of 2.'), findsOneWidget);
   });
 
-  _eachSize('a failure after an approval is still an inline error', (
+  eachDockUpdateSize('a failure after an approval is still an inline error', (
     tester,
     size,
   ) async {
