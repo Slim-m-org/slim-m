@@ -360,6 +360,7 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
       itemBuilder: (context, i) => i == 0
           ? _AllPhotosTile(onTap: widget.onBrowse)
           : _PhotoTile(
+              key: ValueKey(_photos[i - 1].id),
               photo: _photos[i - 1],
               onTap: () => _attach(_photos[i - 1]),
             ),
@@ -384,7 +385,7 @@ class _GrabHandle extends StatelessWidget {
 }
 
 class _PhotoTile extends ConsumerStatefulWidget {
-  const _PhotoTile({required this.photo, required this.onTap});
+  const _PhotoTile({super.key, required this.photo, required this.onTap});
   final RecentPhoto photo;
   final VoidCallback onTap;
 
