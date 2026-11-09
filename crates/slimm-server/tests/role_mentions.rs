@@ -231,6 +231,42 @@ async fn role_name_matching_is_case_insensitive() {
     );
 }
 
+/// SQLite's `LOWER` only folds ASCII, so a role whose uppercase letters are
+/// not ASCII has to be matched by folding in Rust.
+#[tokio::test]
+async fn role_name_matching_folds_non_ascii_letters() {
+    let (store, _guard) = new_store("slimm-role-mentions-unicode-case").await;
+    let (alice, alice_device) = account(&store, "alice").await;
+    let (bob, bob_device) = account(&store, "bob").await;
+    let channel = store.list_channels().await.unwrap()[0].id;
+    register(&store, alice, alice_device, "alice-token").await;
+    register(&store, bob, bob_device, "bob-token").await;
+    mentions_only(&store, bob).await;
+
+    let team = role(&store, "\u{c9}quipe \u{416}", true).await;
+    store.assign_role(bob, team).await.unwrap();
+
+    for typed in [
+        "\u{c9}quipe \u{416}",
+        "\u{e9}quipe \u{436}",
+        "\u{c9}QUIPE \u{416}",
+    ] {
+        let recipients = slimm_server::push::message_recipients(
+            &store,
+            channel,
+            alice,
+            &format!("@[{typed}] stand-up in five"),
+            &PresenceTracker::new(),
+        )
+        .await
+        .unwrap();
+        assert!(
+            recipients.contains(&bob),
+            "@[{typed}] must reach the role, got {recipients:?}"
+        );
+    }
+}
+
 /// A role's own members list is not the same set as the message's viewers:
 /// somebody who holds the role but cannot see this particular channel must
 /// not be woken by a mention of it here.
