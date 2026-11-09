@@ -88,6 +88,7 @@ async fn a_description_a_noise_default_and_the_invite_switch_each_publish() {
         json!({"description": "a small place"}),
         json!({"strong_noise_suppression": true}),
         json!({"members_can_invite": true}),
+        json!({"hide_bots_in_member_list": true}),
         json!({"module_member_badges": true}),
     ] {
         w.patch(body.clone()).await;

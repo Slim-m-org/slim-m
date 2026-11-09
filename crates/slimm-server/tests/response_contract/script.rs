@@ -177,7 +177,7 @@ pub async fn run(c: &mut Contract) {
         "PATCH",
         "/space/settings",
         root,
-        json!({"join_policy": "invite", "welcome_message": "Welcome {user} to {space}"}),
+        json!({"join_policy": "invite", "hide_bots_in_member_list": false, "welcome_message": "Welcome {user} to {space}"}),
     )
     .await;
     c.bare("getJoinGate", "GET", "/space/join-gate", root).await;

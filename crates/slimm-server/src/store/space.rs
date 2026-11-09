@@ -179,6 +179,30 @@ impl Store {
         Ok(())
     }
 
+    /// Whether the member list leaves bots out, for every viewer.
+    pub async fn hide_bots_in_member_list(&self) -> anyhow::Result<bool> {
+        let hidden = sqlx::query_scalar!(
+            r#"SELECT hide_bots_in_member_list AS "v!: bool" FROM space_settings WHERE id = 1"#
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("read hide bots in member list")?;
+        Ok(hidden.unwrap_or(false))
+    }
+
+    pub async fn set_hide_bots_in_member_list(&self, hidden: bool) -> anyhow::Result<()> {
+        let now = now_ms();
+        sqlx::query!(
+            "UPDATE space_settings SET hide_bots_in_member_list = ?, updated_at = ? WHERE id = 1",
+            hidden,
+            now
+        )
+        .execute(&self.pool)
+        .await
+        .context("set hide bots in member list")?;
+        Ok(())
+    }
+
     /// Sets the screen-share height ceiling. The caller is responsible for
     /// range-checking against `MIN_SCREEN_SHARE_MAX_HEIGHT` and
     /// `MAX_SCREEN_SHARE_MAX_HEIGHT`; the DB CHECK only guards the `>= 1`

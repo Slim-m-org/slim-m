@@ -12124,6 +12124,12 @@ components:
           description: >
             Whether any member, not only holders of CREATE_INVITE, may create
             invites. Absent on older servers, which a client reads as false.
+        hide_bots_in_member_list:
+          type: boolean
+          description: >
+            Whether the member list leaves bots out, for everyone. Bots stay
+            in mentions, voice and profiles. Absent on older servers, which a
+            client reads as false.
         module_member_badges:
           type: boolean
           description: >
@@ -12865,6 +12871,9 @@ components:
         members_can_invite:
           type: boolean
           description: Whether every member may create invites; see `/version`.
+        hide_bots_in_member_list:
+          type: boolean
+          description: Whether the member list leaves bots out; see `/version`.
         module_member_badges:
           type: boolean
           description: See `/version`.
@@ -12943,6 +12952,8 @@ components:
         strong_noise_suppression:
           type: boolean
         members_can_invite:
+          type: boolean
+        hide_bots_in_member_list:
           type: boolean
         module_member_badges:
           type: boolean
