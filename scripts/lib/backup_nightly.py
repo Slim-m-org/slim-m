@@ -5,6 +5,9 @@ This is the body of the `backup` compose profile (deploy/README.md, "Nightly ver
 backups"). The server reads `status.json` from a read-only mount and shows it in Storage; it
 never starts a backup itself. The file is replaced atomically, and a failed run keeps the
 time of the last good one so "last verified" stays truthful through an outage.
+
+A backup that finished but found gaps in the live deployment is still drilled: the drill is
+the judge of the mirror, and the backup's notes ride along in the status as `warnings`.
 """
 import argparse
 import contextlib
@@ -42,14 +45,15 @@ def _last_line(text):
 
 
 def _captured(fn, argv):
+    """What fn returned (None if it raised, which counts as a failure) and what it printed."""
     out, err = io.StringIO(), io.StringIO()
+    result = None
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
-            code = fn(argv)
+            result = fn(argv)
         except Exception as exc:  # noqa: BLE001 - any failure is a failed backup, not a crash
             err.write(f"{type(exc).__name__}: {exc}\n")
-            code = 1
-    return code, out.getvalue(), err.getvalue()
+    return result, out.getvalue(), err.getvalue()
 
 
 def _backup_argv(args):
@@ -61,9 +65,12 @@ def _backup_argv(args):
 
 
 def _backup(args):
-    code, out, err = _captured(lambda argv: backup_lib.run(backup_lib.parse_args(argv)),
-                               _backup_argv(args))
-    return code == 0, _last_line(err) or _last_line(out)
+    result, out, err = _captured(lambda argv: backup_lib.take_backup(backup_lib.parse_args(argv)),
+                                 _backup_argv(args))
+    code, warnings = result or (backup_lib.EXIT_FAILED, [])
+    if code in (0, backup_lib.EXIT_WARNINGS):
+        return True, "", warnings
+    return False, _last_line(err) or _last_line(out), warnings
 
 
 def _drill(args):
@@ -97,10 +104,10 @@ def write_status(status_dir, status):
 
 
 def run_once(args, now_ms=None):
-    """One backup then one drill; returns the status that was written."""
+    """One backup then one drill, unless the backup failed; returns the status that was written."""
     started = time.time()
     previous = _previous(args.status_dir)
-    ok, error = _backup(args)
+    ok, error, warnings = _backup(args)
     stage = "backup"
     if ok:
         stage = "drill"
@@ -115,6 +122,7 @@ def run_once(args, now_ms=None):
         "finished_at_ms": finished_ms,
         "duration_s": round(time.time() - started, 1),
         "snapshot_bytes": size,
+        "warnings": warnings,
         "last_verified_at_ms": finished_ms if ok else previous.get("last_verified_at_ms"),
         "last_verified_bytes": size if ok else previous.get("last_verified_bytes"),
     }

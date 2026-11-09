@@ -10,10 +10,12 @@ stopped, and it does not need write access to the source (opened
 `mode=ro`).
 
 The media half exploits content addressing: every attachment and custom
-emoji is named after its own sha256, so a byte-identical file already
-present in the backup mirror is provably already backed up and is never
-re-copied. Avatars are not content-addressed (one mutable file per account),
-so they are copied every run, which is cheap since they are capped and few.
+emoji is named after its own sha256, so a mirror file whose size and
+recomputed sha256 both match is provably already backed up and is never
+re-copied, while one that has rotted or been truncated is replaced from
+the live copy. Avatars are not content-addressed (one mutable file per
+account), so they are copied every run, which is cheap since they are
+capped and few.
 Nothing is ever deleted from the media mirror by this script - it grows
 by addition only, which is the safe direction for a backup to err in.
 
@@ -47,7 +49,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 import backup_modules
+import backup_report
+import file_digest
 import path_guard
+
+EXIT_FAILED = 1
+EXIT_WARNINGS = 3
 
 
 def _default(env_name, fallback):
@@ -121,8 +128,7 @@ def sync_attachments(snapshot_db, source_media_dir, mirror_dir):
         except path_guard.PathValidationError as error:
             malformed.append(str(error))
             continue
-        # A cheap size check, not a full hash: catches a truncated mirror file.
-        if dest.is_file() and dest.stat().st_size == size:
+        if _mirror_is_intact(dest, digest, size):
             already_present += 1
             continue
         was_present = dest.is_file()
@@ -141,6 +147,16 @@ def sync_attachments(snapshot_db, source_media_dir, mirror_dir):
         "missing_source": missing_source,
         "malformed": malformed,
     }
+
+
+def _mirror_is_intact(dest, digest, size):
+    """The size is checked first because a truncated file needs no hashing."""
+    if not dest.is_file() or dest.stat().st_size != size:
+        return False
+    try:
+        return file_digest.sha256_of_file(dest)[0] == digest
+    except OSError:
+        return False
 
 
 def sync_avatars(snapshot_db, source_media_dir, mirror_dir):
@@ -196,11 +212,16 @@ def prune_snapshots(db_dir, keep):
     return removed
 
 
-def run(args):
+def take_backup(args):
+    """Takes one backup and returns its exit code with the warnings of a run that completed.
+
+    EXIT_WARNINGS means the snapshot and mirrors were written but the live deployment
+    has gaps the backup could not close; EXIT_FAILED means something was not backed up.
+    """
     source_db = Path(args.database_path)
     if not source_db.is_file():
         print(f"no database at {source_db}", file=sys.stderr)
-        return 1
+        return EXIT_FAILED, []
 
     backup_root = Path(args.backup_root)
     db_dir = backup_root / "db"
@@ -240,48 +261,16 @@ def run(args):
         ],
     }
     Path(str(dest_db) + ".manifest.json").write_text(json.dumps(manifest, indent=2))
+    backup_report.print_report(dest_db, manifest, removed)
 
-    print(f"snapshot: {dest_db} ({manifest['snapshot_bytes']} bytes, {vacuum_seconds:.3f}s)")
-    print(
-        f"attachments: {attachments['copied']} copied "
-        f"({attachments['repaired']} repaired), "
-        f"{attachments['already_present']} already present, "
-        f"{len(attachments['missing_source'])} missing on disk"
-    )
-    for digest in attachments["missing_source"]:
-        print(f"  MISSING SOURCE FILE  attachments/{digest}", file=sys.stderr)
-    for reason in attachments["malformed"]:
-        print(f"  MALFORMED ID  attachments: {reason}", file=sys.stderr)
-    print(
-        f"avatars: {avatars['copied']} copied, "
-        f"{len(avatars['missing_source'])} missing on disk"
-    )
-    for name in avatars["missing_source"]:
-        print(f"  MISSING SOURCE FILE  avatars/{name}", file=sys.stderr)
-    for reason in avatars["malformed"]:
-        print(f"  MALFORMED ID  avatars: {reason}", file=sys.stderr)
-    print(f"modules: {len(modules['copied'])}/{modules['total']} data files copied")
-    for reason in modules["failed"]:
-        print(f"  FAILED  modules/{reason}", file=sys.stderr)
-    if removed:
-        print(f"pruned {len(removed)} older snapshot(s): {', '.join(removed)}")
-
-    if attachments["missing_source"] or avatars["missing_source"]:
-        print(
-            "backup completed, but the LIVE deployment already has orphaned "
-            "database rows with no file behind them; the restore drill will "
-            "report the same gap",
-            file=sys.stderr,
-        )
-        return 1
+    warnings = backup_report.warnings_for(attachments, avatars)
+    for warning in warnings:
+        print(f"backup completed, but {warning}", file=sys.stderr)
     if modules["failed"]:
         print("backup completed, but a module data file could not be copied", file=sys.stderr)
-        return 1
-    if attachments["malformed"] or avatars["malformed"]:
-        print(
-            "backup completed, but the database holds a row whose id is not "
-            "a well-formed reference; it was skipped rather than mirrored",
-            file=sys.stderr,
-        )
-        return 1
-    return 0
+        return EXIT_FAILED, warnings
+    return (EXIT_WARNINGS if warnings else 0), warnings
+
+
+def run(args):
+    return take_backup(args)[0]
