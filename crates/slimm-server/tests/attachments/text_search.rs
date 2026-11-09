@@ -168,6 +168,23 @@ async fn a_word_only_inside_a_text_file_finds_the_message_and_names_the_attachme
 }
 
 #[tokio::test]
+async fn a_message_whose_own_text_matches_does_not_name_its_attachment() {
+    let w = world().await;
+    w.send(
+        "the zebrafish report",
+        "notes.txt",
+        b"zebrafish everywhere".to_vec(),
+    )
+    .await;
+    w.extract().await;
+
+    let found = w.search("zebrafish").await;
+
+    assert_eq!(found.len(), 1);
+    assert!(found[0].get("matched_attachment_id").is_none());
+}
+
+#[tokio::test]
 async fn code_files_are_read_by_extension() {
     let w = world().await;
     w.send("code", "main.rs", b"fn quarantine_widget() {}".to_vec())
