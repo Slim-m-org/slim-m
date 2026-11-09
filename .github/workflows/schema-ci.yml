@@ -15,6 +15,7 @@ on:
     paths:
       - "schema/**"
       - "redocly.yaml"
+      - "scripts/redocly/**"
       - ".github/workflows/schema-ci.yml"
 
 permissions:
@@ -39,8 +40,8 @@ jobs:
 
       - name: redocly lint
         run: |
-          npm install --no-save --ignore-scripts @redocly/cli@2.40.0
-          ./node_modules/.bin/redocly lint schema/openapi.yaml
+          npm ci --ignore-scripts --prefix scripts/redocly
+          ./scripts/redocly/node_modules/.bin/redocly lint schema/openapi.yaml
 
   breaking-change-gate:
     name: breaking-change gate (additive-only)
