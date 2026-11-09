@@ -181,3 +181,70 @@ async fn a_frame_over_the_4_kib_cap_closes_an_authenticated_socket() {
         "the socket stayed open after an oversized frame"
     );
 }
+
+#[tokio::test]
+async fn a_guessed_ticket_is_refused_without_waiting_for_the_write_lock() {
+    let (_addr, store, pool, _guard) = serve_with("slimm-ws-hs", Hub::new()).await;
+    let mut holder = pool.acquire().await.unwrap();
+    sqlx::query("BEGIN IMMEDIATE")
+        .execute(&mut *holder)
+        .await
+        .unwrap();
+
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(2),
+        store.redeem_ws_ticket("not-a-ticket"),
+    )
+    .await;
+    sqlx::query("ROLLBACK").execute(&mut *holder).await.unwrap();
+
+    assert!(
+        matches!(outcome, Ok(Ok(None))),
+        "a guessed ticket queued for the writer: {outcome:?}"
+    );
+}
+
+/// More failed hellos than any honest client makes, far fewer than a flood.
+const FAILED_HELLOS: usize = 25;
+
+/// Sends bad hellos from `forwarded` until the upgrade is refused; returns how many were answered.
+async fn bad_hellos_until_refused(addr: SocketAddr, forwarded: &str) -> usize {
+    for answered in 0..FAILED_HELLOS {
+        let Ok(mut ws) = connect_from(addr, forwarded).await else {
+            return answered;
+        };
+        hello(&mut ws, "not-a-ticket", 1).await;
+        assert_error_frame(&mut ws, "invalid ticket").await;
+    }
+    FAILED_HELLOS
+}
+
+#[tokio::test]
+async fn an_address_that_keeps_failing_hellos_is_refused_at_the_upgrade() {
+    let (addr, store, _pool, _guard) = serve_with("slimm-ws-hs", Hub::new()).await;
+    let answered = bad_hellos_until_refused(addr, "1.1.1.1").await;
+    assert!(
+        (3..FAILED_HELLOS).contains(&answered),
+        "{answered} bad hellos were answered before the address was refused"
+    );
+    let refused = connect_from(addr, "1.1.1.1").await.unwrap_err();
+    assert!(refused.contains("429"), "expected a 429, got {refused}");
+
+    let ticket = ticket_only(&store, "alice").await;
+    let mut other = connect_from(addr, "2.2.2.2")
+        .await
+        .expect("another address is unaffected");
+    hello(&mut other, &ticket, 1).await;
+    assert_eq!(read_frame(&mut other).await["type"], "hello");
+}
+
+#[tokio::test]
+async fn honest_reconnects_never_spend_the_failed_hello_budget() {
+    let (addr, store, _pool, _guard) = serve_with("slimm-ws-hs", Hub::new()).await;
+    for n in 0..FAILED_HELLOS {
+        let ticket = ticket_only(&store, &format!("user{n}")).await;
+        let mut ws = connect_from(addr, "1.1.1.1").await.unwrap();
+        hello(&mut ws, &ticket, 1).await;
+        assert_eq!(read_frame(&mut ws).await["type"], "hello");
+    }
+}

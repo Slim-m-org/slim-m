@@ -17,10 +17,9 @@
 use std::time::Duration;
 
 use axum::Router;
+use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{FromRequestParts, State};
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use futures_util::stream::{SplitSink, SplitStream};
@@ -32,13 +31,14 @@ use super::AppState;
 use super::PROTOCOL_VERSION;
 use super::canvas::CanvasObjectDto;
 use super::channels::ChannelDto;
-use super::extract::limit_key;
 use super::messages::{AttachmentDto, MessageDto};
 use crate::hub::{Event, PendingGuard};
+use crate::ratelimit::Class;
 use crate::store::SessionContext;
 use authorization::{Authorization, authorize};
 use client_frames::ClientFrame;
 use frames::ServerFrame;
+use pending_key::PendingKey;
 use permission_cache::PermissionCache;
 
 mod account_frames;
@@ -54,6 +54,7 @@ mod ephemeral_frames;
 mod frames;
 mod interaction_frames;
 mod message_frames;
+mod pending_key;
 mod permission_cache;
 mod signals;
 mod signals_canvas;
@@ -76,25 +77,15 @@ pub fn routes() -> Router<AppState> {
     Router::new().route("/ws", get(connect))
 }
 
-/// The address key an unauthenticated socket is counted under, from the same trusted-hops logic as rate limits.
-struct PendingKey(String);
-
-impl FromRequestParts<AppState> for PendingKey {
-    type Rejection = std::convert::Infallible;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
-        Ok(Self(limit_key(parts, None, state.limiter.trusted_hops())))
-    }
-}
-
 async fn connect(
     ws: WebSocketUpgrade,
     PendingKey(address): PendingKey,
     State(state): State<AppState>,
 ) -> Response {
+    // Cheapest refusal first: an address that keeps presenting bad tickets never reaches the store.
+    if state.limiter.exhausted(Class::HelloFailure, &address) {
+        return (StatusCode::TOO_MANY_REQUESTS, "too many failed hellos").into_response();
+    }
     // Checked before the connection-count slot: cheaper to refuse here than to claim and release one.
     if !state.hub.admit_memory() {
         return (
@@ -137,10 +128,11 @@ async fn serve(
     let mut events = state.hub.subscribe();
     let mut ephemeral_events = state.hub.subscribe_ephemeral();
 
-    let (ctx, reported_active) = match authenticate(&mut sink, &mut stream, &state).await {
-        Some(opened) => opened,
-        None => return,
-    };
+    let (ctx, reported_active) =
+        match authenticate(&mut sink, &mut stream, &state, pending.address()).await {
+            Some(opened) => opened,
+            None => return,
+        };
     drop(pending);
 
     // Per connection, and dropped with it; see `permission_cache`.
@@ -450,6 +442,7 @@ async fn authenticate(
     sink: &mut Sink,
     stream: &mut Stream,
     state: &AppState,
+    address: &str,
 ) -> Option<(SessionContext, Option<bool>)> {
     let opening = tokio::time::timeout(state.hub.auth_deadline(), stream.next()).await;
     let text = match opening {
@@ -471,7 +464,11 @@ async fn authenticate(
 
     match state.store.redeem_ws_ticket(&ticket).await {
         Ok(Some(ctx)) => Some((ctx, active)),
-        _ => reject(sink, "invalid ticket").await,
+        Ok(None) => {
+            state.limiter.check(Class::HelloFailure, address);
+            reject(sink, "invalid ticket").await
+        }
+        Err(_) => reject(sink, "invalid ticket").await,
     }
 }
 

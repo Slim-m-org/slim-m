@@ -39,6 +39,7 @@ impl Class {
             Class::WatchTick => "watch_tick",
             Class::DiagnosticPing => "diagnostic_ping",
             Class::DiagnosticTransfer => "diagnostic_transfer",
+            Class::HelloFailure => "hello_failure",
         }
     }
 }

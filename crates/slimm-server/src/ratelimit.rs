@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 mod capacity;
 mod class;
 mod class_label;
+mod peek;
 pub use class::Class;
 
 /// Most distinct keys tracked at once, across all classes.
