@@ -15,7 +15,8 @@
 # closes itself when the cause goes away.
 #
 # Reads ADVISORY_STATUS ("clean" or "found") and RUN_URL from the
-# environment. WATCHDOG_LABEL, WATCHDOG_TITLE, WATCHDOG_BODY,
+# environment, and ADVISORY_LOCKFILES (the lockfiles the scan flagged) when
+# the caller knows them. WATCHDOG_LABEL, WATCHDOG_TITLE, WATCHDOG_BODY,
 # WATCHDOG_LABEL_DESCRIPTION and WATCHDOG_CLOSE_COMMENT let another
 # watchdog reuse the same open/dedupe/close flow. GH_TOKEN and GITHUB_REPOSITORY come from the workflow.
 set -euo pipefail
@@ -24,6 +25,7 @@ LABEL="${WATCHDOG_LABEL:-security-advisory}"
 TITLE="${WATCHDOG_TITLE:-a dependency has an open security advisory}"
 STATUS="${ADVISORY_STATUS:?ADVISORY_STATUS must be clean or found}"
 RUN_URL="${RUN_URL:-}"
+LOCKFILES="${ADVISORY_LOCKFILES:-}"
 LABEL_DESCRIPTION="${WATCHDOG_LABEL_DESCRIPTION:-an open advisory against a dependency}"
 CLOSE_COMMENT="${WATCHDOG_CLOSE_COMMENT:-No advisories reported on the latest scheduled scan; closing.}"
 
@@ -50,17 +52,19 @@ if [[ "$STATUS" = "found" ]]; then
 
 Run: ${RUN_URL}"
   else
+    flagged="${LOCKFILES:-Cargo.lock}"
     body="$(
       cat <<EOF
 \`cargo deny check advisories\` reported at least one advisory against a
-dependency in \`Cargo.lock\`.
+dependency in: ${flagged}
 
 The run log names each advisory, the crate it is against, and the version
 range affected: $RUN_URL
 
-To reproduce locally:
+To reproduce locally, per lockfile:
 
     cargo deny check advisories
+    cargo deny --manifest-path crates/slimm-listener/Cargo.toml check advisories
 
 This check runs on a schedule rather than on pull requests, so nothing is
 blocked by it right now. It is reported as an issue so a real advisory cannot

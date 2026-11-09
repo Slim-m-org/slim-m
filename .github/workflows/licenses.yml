@@ -18,6 +18,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**/Cargo.toml"
+      - "crates/slimm-listener/Cargo.lock"
       - "deny.toml"
       - "client/pubspec.yaml"
       - "client/pubspec.lock"
@@ -44,6 +45,13 @@ jobs:
       # -A because the allow list is shared and a Dart-only entry is not a finding.
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
+          command: check licenses
+          command-arguments: "-A license-exception-not-encountered"
+
+      # The listener is its own workspace with its own lockfile, so the root scan above never sees it.
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: crates/slimm-listener/Cargo.toml
           command: check licenses
           command-arguments: "-A license-exception-not-encountered"
 
