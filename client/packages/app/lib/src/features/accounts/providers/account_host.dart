@@ -68,6 +68,7 @@ class AccountHost extends ChangeNotifier {
   AccountRuntime? _active;
   AccountRuntime? _returnTo;
   AccountIndex _index = const AccountIndex();
+  bool _indexUnread = false;
   bool _disposed = false;
 
   AccountRuntime? get active => _active;
@@ -133,6 +134,7 @@ class AccountHost extends ChangeNotifier {
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'read the saved accounts', error, stack);
       _index = const AccountIndex();
+      _indexUnread = true;
     }
     final first = _active;
     final account = _index.active;
@@ -259,12 +261,16 @@ class AccountHost extends ChangeNotifier {
     }
   }
 
-  /// Puts [origin]'s account on screen.
+  /// Puts [origin]'s account on screen, dropping an add flow it interrupts.
   Future<void> switchTo(String origin) async {
     final next = runtimeFor(origin);
     if (next == null) return;
+    final interrupted = _returnTo != null ? _active : null;
     await _activate(next);
     _returnTo = null;
+    if (interrupted != null && interrupted != next) {
+      await _discardIfUnused(interrupted);
+    }
     _changed();
   }
 
@@ -371,7 +377,7 @@ class AccountHost extends ChangeNotifier {
   }
 
   void _retire(AccountRuntime runtime) {
-    _runtimes.remove(runtime);
+    if (!_runtimes.remove(runtime)) return;
     for (final cancel in runtime._cancels) {
       cancel();
     }
@@ -386,6 +392,7 @@ class AccountHost extends ChangeNotifier {
 
   Future<void> _saveIndex() async {
     try {
+      if (_indexUnread) await _mergeIntoStoredIndex();
       await store.save(_index);
     } catch (error, stack) {
       AppLog.swallowed(
@@ -395,6 +402,24 @@ class AccountHost extends ChangeNotifier {
         stack,
       );
     }
+  }
+
+  /// A failed read at launch left the real list unknown, so the first save
+  /// reads it again and adds to it instead of replacing it; still unreadable
+  /// throws, and nothing is written.
+  Future<void> _mergeIntoStoredIndex() async {
+    final stored = await store.loadOrMigrate();
+    var merged = AccountIndex(
+      accounts: stored.accounts,
+      activeOrigin: _index.activeOrigin ?? stored.activeOrigin,
+    );
+    for (final account in _index.accounts) {
+      if (merged.byOrigin(account.origin) == null) {
+        merged = merged.withAccount(account);
+      }
+    }
+    _index = merged;
+    _indexUnread = false;
   }
 
   bool _notifyQueued = false;
@@ -423,4 +448,8 @@ class AccountHost extends ChangeNotifier {
 
   @visibleForTesting
   String debugIndexJson() => jsonEncode(_index.toJson());
+
+  /// Every tracked container, including an add flow's before it has a server.
+  @visibleForTesting
+  int get debugRuntimeCount => _runtimes.length;
 }
