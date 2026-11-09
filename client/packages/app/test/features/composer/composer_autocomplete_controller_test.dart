@@ -44,6 +44,35 @@ void main() {
     expect(c.isOpen, isTrue);
   });
 
+  test('a list that shrinks under the selection keeps Enter inside it', () {
+    final c = _open()..select(2);
+    c.setSuggestions(_offers.sublist(0, 1));
+    expect(c.selected, 0);
+
+    String? accepted;
+    final result = c.handleKey(
+      _down(LogicalKeyboardKey.enter),
+      onAccept: (s) => accepted = s.label,
+    );
+
+    expect(result, KeyEventResult.handled);
+    expect(accepted, 'alice');
+  });
+
+  test('a list that shrinks to nothing closes without a stale row', () {
+    final c = _open()..select(2);
+    c.setSuggestions(const []);
+    expect(c.isOpen, isFalse);
+    c.setSuggestions(_offers);
+    expect(c.selected, 0);
+  });
+
+  test('a list that grows leaves the selection where it was', () {
+    final c = _open()..select(1);
+    c.setSuggestions([..._offers, ..._offers]);
+    expect(c.selected, 1);
+  });
+
   test('a new query returns to row one and notifies once', () {
     final c = _open()..select(2);
     var notified = 0;

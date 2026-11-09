@@ -2,6 +2,8 @@
 /// The open `@`, `#`, `:` or `/` trigger and which of its offers is current.
 library;
 
+import 'dart:math' show min;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -20,9 +22,14 @@ class ComposerAutocompleteController extends ChangeNotifier {
   /// Whether the list is showing, and so owns the arrow, Tab and Enter keys.
   bool get isOpen => _query != null && _suggestions.isNotEmpty;
 
-  /// Silent: the offers are rebuilt on every build from watched providers.
-  void setSuggestions(List<AutocompleteSuggestion> suggestions) =>
-      _suggestions = suggestions;
+  /// Silent: the offers are rebuilt on every build from watched providers, and
+  /// a shorter list pulls the current row back inside it.
+  void setSuggestions(List<AutocompleteSuggestion> suggestions) {
+    _suggestions = suggestions;
+    _selected = suggestions.isEmpty
+        ? 0
+        : min(_selected, suggestions.length - 1);
+  }
 
   /// Back to row one on a new trigger, so Enter takes whatever ranks first.
   void setQuery(AutocompleteQuery? query) {
