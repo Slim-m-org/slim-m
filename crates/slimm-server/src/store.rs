@@ -194,7 +194,7 @@ pub use media_compression::{MediaCompression, MediaCompressionUpdate, default_ex
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};
-pub use message_history::MessageRevision;
+pub use message_history::{MAX_EDIT_REVISIONS, MessageRevision};
 pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};

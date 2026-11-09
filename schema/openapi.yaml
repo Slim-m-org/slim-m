@@ -4129,7 +4129,9 @@ paths:
         current content. Gated on VIEW_CHANNEL, the same as reading the
         message; a message that does not exist, is not in this channel, or is
         deleted answers 404. A never-edited message returns a single element,
-        its original content.
+        its original content. A message edited more than 50 times keeps its
+        original and its newest 49 replaced versions, so the list holds at most
+        51 versions including the current one.
       responses:
         "200":
           description: The message's versions, oldest first.
