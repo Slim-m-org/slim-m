@@ -43,11 +43,13 @@ class ViewingReporter implements InputListener {
     required void Function(Set<String> channels, bool active) send,
     Duration interval = viewingRefreshInterval,
   }) : _send = send,
-       _interval = interval {
-    _ref.read(mountedChannelsProvider).addListener(refresh);
+       _interval = interval,
+       _mounted = _ref.read(mountedChannelsProvider) {
+    _mounted.addListener(refresh);
   }
 
   final Ref _ref;
+  final MountedChannels _mounted;
   final void Function(Set<String> channels, bool active) _send;
   final Duration _interval;
   Timer? _timer;
@@ -57,8 +59,7 @@ class ViewingReporter implements InputListener {
   bool get _focused =>
       _ref.read(appFocusedProvider) && _ref.read(accountActiveProvider);
 
-  Set<String> _open() =>
-      _focused ? _ref.read(mountedChannelsProvider).openChannelIds : const {};
+  Set<String> _open() => _focused ? _mounted.openChannelIds : const {};
 
   bool _recentInput() {
     final last = _lastInput;
@@ -92,7 +93,7 @@ class ViewingReporter implements InputListener {
 
   void dispose() {
     _timer?.cancel();
-    _ref.read(mountedChannelsProvider).removeListener(refresh);
+    _mounted.removeListener(refresh);
   }
 }
 
