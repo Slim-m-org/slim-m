@@ -9,6 +9,8 @@
 //! via [`record_sweep_run`], best-effort, so `GET /space/storage` can show an
 //! operator when each last ran and roughly what it reclaimed.
 
+#[cfg(test)]
+mod tests;
 mod voice;
 pub(crate) use voice::{
     spawn_call_history_sweep, spawn_call_sweep, spawn_ring_sweep, spawn_room_sweep,

@@ -118,6 +118,7 @@ It was 20 MiB until v123 (2026-11-03), which reached 21,020,600 bytes with no ne
 
 `tower`'s `ServiceExt::oneshot` drives the HTTP round-trip tests in-process without binding a socket.
 `tokio-tungstenite` is a real WebSocket client for the two-client fan-out test.
+`tokio`'s `test-util` feature gives `src/sweeps/tests.rs` a paused clock, so the wait-first timing of the background sweeps is checked without waiting; it adds no crate.
 
 `jsonschema` backs `tests/response_contract.rs`, which validates real responses against `schema/openapi.yaml`.
 An OpenAPI 3.1 schema object *is* a JSON Schema 2020-12 schema, so a general JSON Schema validator checks it directly, rather than a hand-written copy of each shape drifting alongside the real one.
