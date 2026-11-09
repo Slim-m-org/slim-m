@@ -35,6 +35,7 @@ class Version {
     this.screenShareMaxHeight,
     this.strongNoiseSuppression = false,
     this.membersCanInvite = false,
+    this.hideBotsInMemberList = false,
     this.moduleMemberBadges = false,
     this.moduleProfileSections = true,
     this.canvasScopedClear,
@@ -109,6 +110,9 @@ class Version {
 
   /// Whether any member may create invites; absent on older servers.
   final bool membersCanInvite;
+
+  /// Whether the member list leaves bots out; absent on older servers, which list them.
+  final bool hideBotsInMemberList;
 
   /// Whether module badges show beside names in the member list; an admin's Space-wide choice.
   final bool moduleMemberBadges;
@@ -193,6 +197,8 @@ class Version {
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
         membersCanInvite: json['members_can_invite'] as bool? ?? false,
+        hideBotsInMemberList:
+            json['hide_bots_in_member_list'] as bool? ?? false,
         moduleMemberBadges: json['module_member_badges'] as bool? ?? false,
         moduleProfileSections: json['module_profile_sections'] as bool? ?? true,
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,

@@ -56,6 +56,8 @@ struct SpaceSettingsDto {
     strong_noise_suppression: bool,
     /// Whether every member may create invites, not only holders of CREATE_INVITE.
     members_can_invite: bool,
+    /// Whether the member list leaves bots out, for everyone.
+    hide_bots_in_member_list: bool,
     /// Whether module badges show beside names in the member list, for everyone.
     module_member_badges: bool,
     /// Whether module sections show on profile cards, for everyone.
@@ -77,6 +79,7 @@ struct UpdateSpaceSettingsDto {
     description: Option<String>,
     strong_noise_suppression: Option<bool>,
     members_can_invite: Option<bool>,
+    hide_bots_in_member_list: Option<bool>,
     module_member_badges: Option<bool>,
     module_profile_sections: Option<bool>,
     welcome_enabled: Option<bool>,
@@ -98,6 +101,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         icon_updated_at: landing.icon_updated_at,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         members_can_invite: state.store.members_can_invite().await?,
+        hide_bots_in_member_list: state.store.hide_bots_in_member_list().await?,
         module_member_badges: display.member_badges,
         module_profile_sections: display.profile_sections,
         welcome_enabled: welcome.enabled,
@@ -257,6 +261,7 @@ async fn update(
         && body.description.is_none()
         && body.strong_noise_suppression.is_none()
         && body.members_can_invite.is_none()
+        && body.hide_bots_in_member_list.is_none()
         && body.module_member_badges.is_none()
         && body.module_profile_sections.is_none()
         && body.welcome_enabled.is_none()
@@ -264,7 +269,7 @@ async fn update(
         && body.welcome_message.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, a module display switch or a welcome field",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch or a welcome field",
         ));
     }
     let welcome = merged_welcome(&state, &body).await?;
@@ -273,6 +278,7 @@ async fn update(
         || body.description.is_some()
         || body.strong_noise_suppression.is_some()
         || body.members_can_invite.is_some()
+        || body.hide_bots_in_member_list.is_some()
         || body.module_member_badges.is_some()
         || body.module_profile_sections.is_some();
     let description = body
@@ -316,6 +322,9 @@ async fn update(
         if !enabled {
             revoke_member_invites(&state, ctx.user_id).await?;
         }
+    }
+    if let Some(hidden) = body.hide_bots_in_member_list {
+        state.store.set_hide_bots_in_member_list(hidden).await?;
     }
     if body.module_member_badges.is_some() || body.module_profile_sections.is_some() {
         state

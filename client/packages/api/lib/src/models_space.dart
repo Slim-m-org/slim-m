@@ -36,6 +36,7 @@ class SpaceSettings {
     this.iconUpdatedAt,
     this.strongNoiseSuppression = false,
     this.membersCanInvite = false,
+    this.hideBotsInMemberList = false,
     this.moduleMemberBadges = false,
     this.moduleProfileSections = true,
     this.welcomeEnabled = false,
@@ -63,6 +64,9 @@ class SpaceSettings {
 
   /// Whether every member may create invites, not only holders of CREATE_INVITE.
   final bool membersCanInvite;
+
+  /// Whether the member list leaves bots out, for everyone.
+  final bool hideBotsInMemberList;
 
   /// Whether module badges show beside names in the member list, for everyone.
   final bool moduleMemberBadges;
@@ -94,6 +98,8 @@ class SpaceSettings {
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
         membersCanInvite: json['members_can_invite'] as bool? ?? false,
+        hideBotsInMemberList:
+            json['hide_bots_in_member_list'] as bool? ?? false,
         moduleMemberBadges: json['module_member_badges'] as bool? ?? false,
         moduleProfileSections: json['module_profile_sections'] as bool? ?? true,
         welcomeEnabled: json['welcome_enabled'] as bool? ?? false,
@@ -112,6 +118,7 @@ class SpaceSettingsUpdate {
     this.description,
     this.strongNoiseSuppression,
     this.membersCanInvite,
+    this.hideBotsInMemberList,
     this.moduleMemberBadges,
     this.moduleProfileSections,
     this.welcomeEnabled,
@@ -125,6 +132,7 @@ class SpaceSettingsUpdate {
   final String? description;
   final bool? strongNoiseSuppression;
   final bool? membersCanInvite;
+  final bool? hideBotsInMemberList;
   final bool? moduleMemberBadges;
   final bool? moduleProfileSections;
   final bool? welcomeEnabled;

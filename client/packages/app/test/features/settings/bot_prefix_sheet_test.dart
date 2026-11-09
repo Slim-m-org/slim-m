@@ -57,7 +57,7 @@ Future<void> _pump(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      mockApiOverride((request) async => handler(request)),
+      mockApiOverride(withSpaceSettings(handler)),
     ],
   );
   addTearDown(container.dispose);

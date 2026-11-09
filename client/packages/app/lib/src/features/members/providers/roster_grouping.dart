@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// How the member pane sections its roster: one section per hoisted role,
-/// then Online, Offline and Bots.
+/// then Online, Offline and Bots, which a Space can leave out.
 ///
 /// A member is listed under the highest-position hoisted role they hold, as
 /// the server reports it on the profile, and only while online. `GET /roles`
@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/server_info.dart';
 import 'member_presence.dart';
 import 'presence_controller.dart';
 import 'presence_view.dart';
@@ -55,19 +56,39 @@ class RosterGroups {
   return (id: id, name: member.roles[index], position: position);
 }
 
+/// Whether the Space leaves bots out of the member list, from `/version`.
+///
+/// False until `/version` has loaded, so bots are listed rather than briefly hidden.
+final hideBotsInMemberListProvider = Provider.autoDispose<bool>(
+  (ref) => ref.watch(
+    serverInfoProvider.select(
+      (info) => info.valueOrNull?.hideBotsInMemberList ?? false,
+    ),
+  ),
+);
+
+/// How many [members] the pane lists, which leaves out bots when [hideBots].
+int listedMemberCount(
+  List<api.UserProfile> members, {
+  required bool hideBots,
+}) => hideBots ? members.where((m) => !m.isBot).length : members.length;
+
 /// Splits [members] into role sections, online, offline and bots, each
 /// name-sorted. A member absent from [statusOf] counts as offline, the only
-/// honest default when presence is unknown.
+/// honest default when presence is unknown. With [hideBots] there is no bots
+/// section at all.
 RosterGroups groupRoster(
   List<api.UserProfile> members,
-  Map<String, AppPresence> statusOf,
-) {
+  Map<String, AppPresence> statusOf, {
+  bool hideBots = false,
+}) {
   final byRole = <String, List<api.UserProfile>>{};
   final sectionOf = <String, ({String name, int position})>{};
   final online = <api.UserProfile>[];
   final offline = <api.UserProfile>[];
   final bots = <api.UserProfile>[];
-  for (final member in members) {
+  final listed = hideBots ? members.where((m) => !m.isBot) : members;
+  for (final member in listed) {
     if (member.isBot) {
       bots.add(member);
       continue;
@@ -168,7 +189,8 @@ final rosterEntriesProvider = Provider.autoDispose
           : ref.watch(channelMembersProvider(channelId));
       ref.watch(presenceControllerProvider.select(reachablePresenceKey));
       ref.watch(ownVisibilityProvider);
+      final hideBots = ref.watch(hideBotsInMemberListProvider);
       final roster = members.valueOrNull ?? [];
       final statusOf = presenceOfAll(ref, roster.map((m) => m.id));
-      return rosterEntries(groupRoster(roster, statusOf));
+      return rosterEntries(groupRoster(roster, statusOf, hideBots: hideBots));
     });

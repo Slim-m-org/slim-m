@@ -72,7 +72,7 @@ Future<void> _pump(
       liveEventsProvider.overrideWithValue(events ?? const Stream.empty()),
       myPermissionsProvider.overrideWithValue(mine),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      mockApiOverride((request) async => handler(request)),
+      mockApiOverride(withSpaceSettings(handler)),
     ],
   );
   addTearDown(container.dispose);
@@ -392,13 +392,13 @@ void main() {
   ) async {
     await _pump(tester, (request) => http.Response('[]', 200));
 
-    expect(find.byType(AppToggle), findsNothing);
+    expect(find.byType(AppToggle), findsOneWidget);
     expect(find.text('None granted'), findsOneWidget);
 
     await tester.tap(find.text('Permissions'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AppToggle), findsWidgets);
+    expect(find.byType(AppToggle), findsAtLeast(2));
   });
 
   AppToggle toggle(WidgetTester tester, String label) => tester

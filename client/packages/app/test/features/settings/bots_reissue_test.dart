@@ -64,26 +64,28 @@ Future<List<String>> _pump(
           ),
         ),
       ),
-      mockApiOverride((request) async {
-        if (request.method == 'POST' &&
-            request.url.path.startsWith('/bots/bot-helper') &&
-            request.url.path.endsWith('/token')) {
-          posted.add(request.url.path);
-          return reissueStatus == 200
-              ? _json({'bot': _bot(), 'token': _newToken})
-              : _json({'error': 'no such bot'}, reissueStatus);
-        }
-        if (request.method == 'POST' && request.url.path == '/bots') {
-          return _json({'bot': _bot(suffix: '2'), 'token': _newToken}, 201);
-        }
-        if (request.method == 'GET' && request.url.path == '/bots') {
-          return _json([
-            for (var i = 0; i < botCount; i++)
-              _bot(tokenName: tokenName, suffix: i == 0 ? '' : '$i'),
-          ]);
-        }
-        return http.Response('[]', 200);
-      }),
+      mockApiOverride(
+        withSpaceSettings((request) async {
+          if (request.method == 'POST' &&
+              request.url.path.startsWith('/bots/bot-helper') &&
+              request.url.path.endsWith('/token')) {
+            posted.add(request.url.path);
+            return reissueStatus == 200
+                ? _json({'bot': _bot(), 'token': _newToken})
+                : _json({'error': 'no such bot'}, reissueStatus);
+          }
+          if (request.method == 'POST' && request.url.path == '/bots') {
+            return _json({'bot': _bot(suffix: '2'), 'token': _newToken}, 201);
+          }
+          if (request.method == 'GET' && request.url.path == '/bots') {
+            return _json([
+              for (var i = 0; i < botCount; i++)
+                _bot(tokenName: tokenName, suffix: i == 0 ? '' : '$i'),
+            ]);
+          }
+          return http.Response('[]', 200);
+        }),
+      ),
     ],
   );
   addTearDown(container.dispose);

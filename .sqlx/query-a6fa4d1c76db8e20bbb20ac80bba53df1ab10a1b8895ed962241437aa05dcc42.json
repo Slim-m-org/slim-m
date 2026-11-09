@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT hide_bots_in_member_list AS \"v!: bool\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "v!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a6fa4d1c76db8e20bbb20ac80bba53df1ab10a1b8895ed962241437aa05dcc42"
+}

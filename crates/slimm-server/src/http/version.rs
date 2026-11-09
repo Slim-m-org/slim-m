@@ -69,6 +69,9 @@ pub(super) struct Version {
     /// Whether any member may create invites, on `/version` so a member's
     /// client can offer the action without reading admin settings.
     members_can_invite: bool,
+    /// Whether the member list leaves bots out, on `/version` so every member's
+    /// client can drop the section without reading admin settings.
+    hide_bots_in_member_list: bool,
     /// Whether module badges show beside names in the member list, for everyone.
     module_member_badges: bool,
     /// Whether module sections show on profile cards, for everyone.
@@ -185,6 +188,7 @@ pub(super) async fn version(
         screen_share_max_height: state.store.screen_share_max_height().await?,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         members_can_invite: state.store.members_can_invite().await?,
+        hide_bots_in_member_list: state.store.hide_bots_in_member_list().await?,
         module_member_badges: display.member_badges,
         module_profile_sections: display.profile_sections,
         canvas_scoped_clear: true,

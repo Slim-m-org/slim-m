@@ -86,6 +86,40 @@ void main() {
     },
   );
 
+  group('with bots hidden', () {
+    final members = [
+      _m('a', 'Ana'),
+      _m('o', 'Otto'),
+      _m('z', 'Zed bot', isBot: true),
+    ];
+    final status = {'a': AppPresence.online, 'z': AppPresence.online};
+    List<String> headings(RosterGroups groups) => [
+      for (final e in rosterEntries(groups))
+        if (e is RosterGroupLabel) e.text,
+    ];
+
+    test('no group holds a bot and the pane has no Bots heading', () {
+      final grouped = groupRoster(members, status, hideBots: true);
+      expect(grouped.bots, isEmpty);
+      expect(grouped.online.map((m) => m.id), ['a']);
+      expect(grouped.offline.map((m) => m.id), ['o']);
+      expect(headings(grouped), ['Online \u00b7 1', 'Offline \u00b7 1']);
+    });
+
+    test('listing them is the default', () {
+      expect(headings(groupRoster(members, status)), [
+        'Online \u00b7 1',
+        'Offline \u00b7 1',
+        'Bots \u00b7 1',
+      ]);
+    });
+
+    test('the header count leaves them out only while they are hidden', () {
+      expect(listedMemberCount(members, hideBots: false), 3);
+      expect(listedMemberCount(members, hideBots: true), 2);
+    });
+  });
+
   test('rosterEntries puts the Bots group after Offline', () {
     final entries = rosterEntries(
       RosterGroups(

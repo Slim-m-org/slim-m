@@ -273,6 +273,12 @@ const spaceSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry('bots', 'Create bot', keywords: ['bot token']),
+  SettingsEntry('bots', 'Member list', keywords: ['members', 'roster']),
+  SettingsEntry(
+    'bots',
+    'Hide bots',
+    keywords: ['member list', 'members', 'roster', 'sidebar'],
+  ),
   SettingsEntry('bots', 'Bots in this Space'),
   SettingsEntry('webhooks', 'Create webhook'),
   SettingsEntry('webhooks', 'Webhooks in this Space'),

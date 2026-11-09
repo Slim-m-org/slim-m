@@ -29,6 +29,7 @@ import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'bot_member_list_section.dart';
 import 'bot_permissions_sheet.dart';
 import 'bot_prefix_sheet.dart';
 export 'bot_permissions_sheet.dart' show showBotPermissionsSheet;
@@ -254,6 +255,7 @@ class _BotsPaneState extends ConsumerState<BotsPane>
             ),
           ],
         ),
+        const BotMemberListSection(),
         AppAsyncView<List<api.Bot>>(
           value: AppAsyncState(data: bots.valueOrNull, error: bots.error),
           center: false,
