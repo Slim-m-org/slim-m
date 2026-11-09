@@ -95,6 +95,14 @@ class CheckFileBudgetTest(unittest.TestCase):
         self._file(".sqlx/q.rs", 5000)
         self.assertEqual(self._run().returncode, 0)
 
+    def test_every_hand_written_source_type_is_budgeted(self):
+        for suffix in ("cc", "cpp", "h", "swift", "kt", "ts", "tsx", "mjs", "go", "css"):
+            with self.subTest(suffix=suffix):
+                self._file(f"a.{suffix}", 561)
+                self.assertEqual(self._run().returncode, 1)
+                self.assertEqual(self._run(f"a.{suffix}").returncode, 1)
+                (self.repo / f"a.{suffix}").unlink()
+
     def test_file_arguments_narrow_the_scan_and_skip_the_stale_entry_check(self):
         self.allow = "gone.rs 700 # why\n"
         self._file("a.rs", 561)

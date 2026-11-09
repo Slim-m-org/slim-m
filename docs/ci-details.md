@@ -243,7 +243,7 @@ the pre-trim CLAUDE.md's own contribution rule says "a CI gate checks the Rust o
 It warns at 300 and past 500, and fails only more than 60 lines past 500 (or past an allowlisted file's own ceiling), because 300 is the review budget rather than a limit and a file a few lines over 500 wants a split card, not a split in the middle of a feature (owner, 2026-10-13).
 When this was written 64 files were over 300 and 14 were over 500.
 
-The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.h`, `.gradle`.
+The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.mjs`, `.ts`, `.tsx`, `.go`, `.css`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.cpp`, `.h`, `.gradle`.
 Generated Dart (`.g.dart`, `.freezed.dart`, the protobuf suffixes), the committed `.sqlx/` cache, the vendored `node_modules/` and `schema/openapi.yaml` are excluded, because their size is nobody's decision here.
 The schema is the wire contract, already guarded by the router contract test and the additive-only breaking-change gate, and it had its own allowlist line that nearly every server PR edited, so any two of them conflicted.
 Markdown is excluded too, deliberately: the budget is a code-review budget, and prose is not reviewed by the line.
