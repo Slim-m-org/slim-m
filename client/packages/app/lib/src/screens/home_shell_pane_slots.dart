@@ -3,9 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import '../providers/providers.dart';
+import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/channels/providers/threads.dart';
 import '../routing/breakpoints.dart';
 import '../widgets/app_panel_reveal.dart';
@@ -18,15 +17,7 @@ Widget withChannelKind(
   WidgetRef ref,
   String channelId,
   Widget Function(bool isDm) build,
-) => ref
-    .watch(storeProvider)
-    .maybeWhen(
-      orElse: () => build(false),
-      data: (store) => StreamBuilder<Channel?>(
-        stream: store.watchChannelRow(channelId),
-        builder: (context, snapshot) => build(snapshot.data?.kind == 'dm'),
-      ),
-    );
+) => build(ref.watch(channelIsDmProvider(channelId)));
 
 /// The wide-layout member pane's slot: width-animated, and withheld for a
 /// DM regardless of [requested] (the header toggle's own answer, already
@@ -47,18 +38,9 @@ class MemberPaneSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!requested) return _animated(context, ref, false);
-    final channelId = this.channelId;
-    if (channelId == null) return _animated(context, ref, true);
-    final storeAsync = ref.watch(storeProvider);
-    return storeAsync.maybeWhen(
-      orElse: () => _animated(context, ref, true),
-      data: (store) => StreamBuilder<Channel?>(
-        stream: store.watchChannelRow(channelId),
-        builder: (context, snapshot) =>
-            _animated(context, ref, snapshot.data?.kind != 'dm'),
-      ),
-    );
+    final id = channelId;
+    final isDm = requested && id != null && ref.watch(channelIsDmProvider(id));
+    return _animated(context, ref, requested && !isDm);
   }
 
   // Snapped, not tweened: a width tween relays the whole main pane, a live call included, on every frame.

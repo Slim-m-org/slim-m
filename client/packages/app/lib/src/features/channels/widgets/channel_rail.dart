@@ -17,6 +17,7 @@ import '../../../permissions.dart';
 import '../providers/channel_order_controller.dart';
 import '../providers/dms.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/store_stream.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../sync/providers/sync_failure.dart';
 import '../../../routing/routes.dart';
@@ -105,6 +106,11 @@ class ChannelRail extends ConsumerStatefulWidget {
 }
 
 class _ChannelRailState extends ConsumerState<ChannelRail> {
+  final _channels = StoreStream<List<Channel>>((s) => s.watchRailChannels());
+  final _categories = StoreStream<List<ChannelCategoryRow>>(
+    (s) => s.watchCategories(),
+  );
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -242,10 +248,10 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
       ),
       data: (store) => StreamBuilder<List<Channel>>(
         // Deduped to what the rail draws; see MessageStore.watchRailChannels.
-        stream: store.watchRailChannels(),
+        stream: _channels.of(store),
         builder: (context, channelSnapshot) =>
             StreamBuilder<List<ChannelCategoryRow>>(
-              stream: store.watchCategories(),
+              stream: _categories.of(store),
               builder: (context, categorySnapshot) {
                 final channels = _withPendingOrder(
                   channelSnapshot.data ?? const <Channel>[],
