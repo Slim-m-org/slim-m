@@ -46,25 +46,19 @@ void jumpToMessage(
 /// watches it for [channelId]'s own arrival (if any, for
 /// `MessageTranscript`'s highlight params) and listens for a refusal to show
 /// a plain notice for rather than a silent no-op.
+///
+/// With [inlineNotice] the caller shows the refusal itself, where the tap was
+/// made, so no snack bar is raised and the notice is left standing for it.
 ({String messageId, int token})? watchMessageJump(
   WidgetRef ref,
   BuildContext context,
-  String channelId,
-) {
+  String channelId, {
+  bool inlineNotice = false,
+}) {
   final arrival = jumpArrivalFor(ref.watch(messageJumpProvider), channelId);
   ref.listen(messageJumpProvider, (_, next) {
-    final notice = switch (next) {
-      MessageJumpUnreachable(channelId: final c, :final token)
-          when c == channelId =>
-        (token: token, text: 'Could not find that message.'),
-      MessageJumpFailed(channelId: final c, :final token) when c == channelId =>
-        (
-          token: token,
-          text: 'Could not load older messages to find it. Try again.',
-        ),
-      _ => null,
-    };
-    if (notice == null) return;
+    final notice = jumpNoticeFor(next, channelId);
+    if (notice == null || inlineNotice) return;
     showAppSnackbar(context, notice.text);
     ref.read(messageJumpProvider.notifier).dismissNotice(notice.token);
   });

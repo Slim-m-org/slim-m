@@ -5716,9 +5716,12 @@ paths:
       tags: [messages]
       summary: Full-text search a channel's live messages, with Slack-style operators.
       description: >
-        Backed by FTS5; `q` reaches it close to as-is, so its mini query
-        language (`AND`/`OR`/`NOT`, `"phrase"`, a trailing `*` prefix) is
-        available. `q` is optional: a search made entirely of `from`/`in`/
+        Backed by FTS5. Plain words in `q` match as word prefixes, so `win`
+        finds `Windows` and a file named `Win11_24H2_English_x64.iso`, and
+        every word must match. A one-character word matches whole words only,
+        so `w` finds a lone `w` and not `Windows`. A `q` written in FTS5 syntax (`AND`/`OR`/`NOT`,
+        `"phrase"`, `NEAR(...)`, an explicit `*`) keeps its exact meaning.
+        `q` is optional: a search made entirely of `from`/`in`/
         `has`/`after_date`/`before_date` needs no free text at all, though at
         least one of `q` and those filters is required. Results are
         permission-filtered exactly like listing and keyset paginated on
@@ -5732,8 +5735,9 @@ paths:
         - name: q
           in: query
           description: >
-            Free-text FTS5 query. Optional when at least one other filter is
-            given; when present, still must be non-blank.
+            Free-text query: plain words match as prefixes (one-character
+            words match whole), FTS5 syntax keeps its meaning. Optional when at least one other filter is given;
+            when present, still must be non-blank.
           schema:
             type: string
             minLength: 1
@@ -5843,8 +5847,9 @@ paths:
         - name: q
           in: query
           description: >
-            Free-text FTS5 query. Optional when at least one other filter is
-            given; when present, still must be non-blank.
+            Free-text query: plain words match as prefixes (one-character
+            words match whole), FTS5 syntax keeps its meaning. Optional when at least one other filter is given;
+            when present, still must be non-blank.
           schema:
             type: string
             minLength: 1

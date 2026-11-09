@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// [MessageStore.hasMessage] and [MessageStore.oldestLocalSeq]: the two
-/// direct-database reads a message jump pages history backwards with, with
-/// no transcript or channel screen involved.
+/// [MessageStore.hasMessage], [MessageStore.transcriptDepthOf] and
+/// [MessageStore.oldestLocalSeq]: the direct-database reads a message jump
+/// pages history backwards with, with no transcript or channel screen
+/// involved.
 library;
 
 import 'package:drift/native.dart';
@@ -87,5 +88,28 @@ void main() {
   test('oldestLocalSeq is null for a channel with nothing delivered yet',
       () async {
     expect(await store.oldestLocalSeq('chan-1'), isNull);
+  });
+
+  test('transcriptDepthOf counts the rows the window must reach', () async {
+    await store.applyMessages([
+      for (var seq = 10; seq <= 50; seq += 10) _message(id: 'm$seq', seq: seq),
+    ]);
+    await store.addPending(
+      id: 'p1',
+      channelId: 'chan-1',
+      authorId: 'user-1',
+      content: 'not sent yet',
+    );
+
+    expect(
+      await store.transcriptDepthOf('chan-1', 'm50'),
+      2,
+      reason: 'the unsent row sits ahead of the newest delivered one',
+    );
+    expect(await store.transcriptDepthOf('chan-1', 'm20'), 5);
+    expect(await store.transcriptDepthOf('chan-1', 'm10'), 6);
+    expect(await store.transcriptDepthOf('chan-1', 'p1'), 1);
+    expect(await store.transcriptDepthOf('chan-1', 'gone'), isNull);
+    expect(await store.transcriptDepthOf('chan-2', 'm50'), isNull);
   });
 }

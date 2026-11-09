@@ -281,10 +281,10 @@ async fn run_search(
         },
         None => None,
     };
-    let query = fts.as_deref();
+    let query = fts.as_ref();
     let messages = match state
         .store
-        .search_messages(channel_ids, query, filters, before, limit)
+        .search_messages_prepared(channel_ids, query, filters, before, limit)
         .await
     {
         Ok(rows) => rows,
@@ -300,7 +300,10 @@ async fn run_search(
     let ids: Vec<MessageId> = messages.iter().map(|m| m.id).collect();
     let mut dtos = with_reactions(state, user_id, messages).await?;
     if let Some(q) = query {
-        let mut matched = state.store.attachments_matching_text(&ids, q).await?;
+        let mut matched = state
+            .store
+            .attachments_matching_text(&ids, q.as_str())
+            .await?;
         for (id, dto) in ids.iter().zip(dtos.iter_mut()) {
             dto.matched_attachment_id = matched.remove(id);
         }

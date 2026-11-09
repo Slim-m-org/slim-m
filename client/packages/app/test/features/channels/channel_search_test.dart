@@ -245,6 +245,59 @@ void main() {
 
     expect(find.text('No matches.'), findsOneWidget);
   });
+
+  testWidgets('a hit being found shows a line for it and announces it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const ChannelSearchResults(
+          results: [],
+          knownUsernames: {},
+          loading: false,
+          failed: false,
+          forbidden: false,
+          onRetry: _noop,
+          onSelect: _noopMessage,
+          seeking: true,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Finding that message'), findsOneWidget);
+    final region = tester.widget<Semantics>(
+      find.byKey(ChannelSearchResults.liveRegionKey),
+    );
+    expect(region.properties.label, 'Finding that message.');
+  });
+
+  testWidgets('a banner sits above the hits and leaves them in place', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const ChannelSearchResults(
+          results: [],
+          knownUsernames: {},
+          loading: false,
+          failed: false,
+          forbidden: false,
+          onRetry: _noop,
+          onSelect: _noopMessage,
+          banner: AppErrorState(message: 'That message is gone.'),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('That message is gone.'), findsOneWidget);
+    expect(find.text('No matches.'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('That message is gone.')).dy,
+      lessThan(tester.getTopLeft(find.text('No matches.')).dy),
+    );
+  });
 }
 
 void _noop() {}

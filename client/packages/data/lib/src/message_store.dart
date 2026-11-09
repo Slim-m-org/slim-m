@@ -192,6 +192,12 @@ class MessageStore {
     return row != null;
   }
 
+  /// How many of [channelId]'s newest rows the transcript must show to include
+  /// [messageId], or null where it is not held. A held message can still sit
+  /// outside the window [watchChannel] returns, which is what this measures.
+  Future<int?> transcriptDepthOf(String channelId, String messageId) =>
+      transcriptDepth(db, channelId, messageId);
+
   /// The smallest `seq` among [channelId]'s already-delivered rows, or null
   /// where none are delivered yet. Read straight off the database rather than
   /// off whatever a screen currently has loaded, so a caller can page a

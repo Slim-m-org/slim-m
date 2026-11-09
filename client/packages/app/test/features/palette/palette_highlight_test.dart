@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart' show WidgetSpan, SizedBox;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/palette/widgets/palette_highlight.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -34,5 +35,56 @@ void main() {
   test('a query longer than the text, or an absent one, bolds nothing', () {
     expect(_texts(paletteHighlightSpans('ab', 'abc')), ['ab']);
     expect(_texts(paletteHighlightSpans('abc', 'x')), ['abc']);
+  });
+
+  group('the words of a full-text query', () {
+    List<String> bold(List<InlineSpan> spans) => [
+      for (final span in spans)
+        if (span is TextSpan && span.style?.fontWeight == AppWeights.semi)
+          span.text!,
+    ];
+
+    test('every word is marked wherever it sits, in any case', () {
+      final spans = paletteHighlightWordSpans(
+        'Win the ISO, then win',
+        'iso WIN',
+      );
+      expect(bold(spans), ['Win', 'ISO', 'win']);
+      expect(_texts(spans).join(), 'Win the ISO, then win');
+    });
+
+    test('a query with no words, or none that match, marks nothing', () {
+      expect(bold(paletteHighlightWordSpans('abc', '  ')), isEmpty);
+      expect(bold(paletteHighlightWordSpans('abc', 'x')), isEmpty);
+      expect(_texts(paletteHighlightWordSpans('abc', 'x')), ['abc']);
+    });
+
+    test('a short message is kept whole, on one line', () {
+      expect(paletteSnippet('one\n two   three', 'two'), 'one two three');
+    });
+
+    test('a match far into a long message is brought into view at a word', () {
+      final text = '${List.filled(30, 'padding').join(' ')} needle after';
+      final snippet = paletteSnippet(text, 'needle');
+      expect(snippet, startsWith('\u2026'));
+      expect(snippet, contains('needle after'));
+      expect(snippet.length, lessThan(text.length ~/ 2));
+      expect(snippet.substring(1), isNot(startsWith(' ')));
+    });
+
+    test('marking inside spans leaves an emoji image and styles alone', () {
+      const style = TextStyle(fontStyle: FontStyle.italic);
+      const emoji = WidgetSpan(child: SizedBox());
+      final marked = paletteHighlightInline(const [
+        TextSpan(text: 'ship it', style: style),
+        emoji,
+      ], 'ship');
+
+      expect(marked.last, same(emoji));
+      final first = marked.first as TextSpan;
+      expect(first.style, style);
+      expect(bold(first.children!), ['ship']);
+      expect(first.toPlainText(), 'ship it');
+    });
   });
 }

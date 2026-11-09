@@ -2,30 +2,12 @@
 //! A message that is only a file is found by the file's name, including from
 //! text such as `.iso` that is not FTS5 syntax on its own.
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use serde_json::Value;
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
 use crate::fixtures::*;
-
-async fn upload_named(app: &axum::Router, token: &str, filename: &str) -> String {
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/attachments?filename={filename}"))
-                .header("authorization", format!("Bearer {token}"))
-                .body(Body::from(&b"\x89PNG\r\n\x1a\nrest"[..]))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::CREATED);
-    json_body(response).await["id"].as_str().unwrap().to_owned()
-}
 
 async fn search(app: &axum::Router, channel_id: &str, token: &str, q: &str) -> Vec<Value> {
     let response = app

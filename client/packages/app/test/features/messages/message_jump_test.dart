@@ -110,7 +110,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(
-        find.text('Could not find that message.'),
+        find.textContaining('Could not find that message'),
         findsOneWidget,
         reason:
             'a message that cannot be reached must say so plainly, never '

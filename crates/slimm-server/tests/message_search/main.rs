@@ -11,8 +11,9 @@
 //! [`operators_content`] (`has:`/`before:`/`after:`, which read a message's
 //! own bytes rather than resolving anything). [`cross_channel`] is the
 //! deployment-wide `GET /search/messages` scope instead of the per-channel
-//! route the rest of this suite pins. [`fixtures`] is the temp database,
-//! router and request builders they all share.
+//! route the rest of this suite pins. [`partial_words`] is how a plain word
+//! matches as a prefix while FTS5 syntax keeps its meaning. [`fixtures`] is
+//! the temp database, router and request builders they all share.
 
 mod attachment_names;
 mod basic;
@@ -22,6 +23,7 @@ mod fixtures;
 mod fts_order;
 mod operators_content;
 mod operators_identity;
+mod partial_words;
 
 #[path = "../support/mod.rs"]
 mod support;

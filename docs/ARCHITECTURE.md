@@ -132,7 +132,7 @@ Three client limits that are deliberate rather than bugs:
   Only Linux turns windowing on, so other platforms call `showDialog` and Linux uses the in-window route.
   When nothing reached `showDialog`, the macOS AOT snapshot generator crashed (`Class with illegal cid` in Flutter's `_window_macos.dart`) and 0.91.0 shipped without a macOS build.
   `no_bare_show_dialog_test.dart` and `sheet_not_windowed_test.dart` pin it.
-- A message deep link resolves by walking at most 10 pages (about 500 messages) of channel history, so an older link lands on the "unreachable" notice.
+- A message deep link resolves by paging channel history until the transcript window is full (about the newest 1000 messages), so an older link lands on the "unreachable" notice.
 
 ## The contract
 

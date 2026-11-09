@@ -22,7 +22,6 @@ import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart'
 import 'package:slimm_app/src/features/channels/providers/threads.dart';
 import 'package:slimm_app/src/features/messages/screens/thread_screen.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -217,18 +216,45 @@ void main() {
     await teardown(tester, s.container, s.db);
   });
 
-  testWidgets('search opens from the compact app bar', (tester) async {
+  testWidgets('search opens from the compact app bar as a page, and Cancel '
+      'brings the app bar back', (tester) async {
     final s = await _pumpCompactChannel(tester);
+    final cancel = find.byKey(const Key('channel-search-cancel'));
+    final appBarBack = find.byTooltip('Back to channels');
 
-    expect(find.byType(ChannelSearchBar), findsNothing);
+    expect(cancel, findsNothing);
     await tester.tap(find.bySemanticsLabel('Search messages'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ChannelSearchBar), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(cancel, findsOneWidget);
+    expect(
+      appBarBack,
+      findsNothing,
+      reason: 'the search page stands in for the app bar, not under it',
+    );
 
-    // And closes again, since the same control is the only way back.
+    await tester.tap(cancel);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(cancel, findsNothing);
+    expect(appBarBack, findsOneWidget);
+
+    await teardown(tester, s.container, s.db);
+  });
+
+  testWidgets('the system back gesture closes the search page and stays in '
+      'the channel', (tester) async {
+    final s = await _pumpCompactChannel(tester);
+    final cancel = find.byKey(const Key('channel-search-cancel'));
+
     await tester.tap(find.bySemanticsLabel('Search messages'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ChannelSearchBar), findsNothing);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(cancel, findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(cancel, findsNothing);
+    expect(find.byTooltip('Back to channels'), findsOneWidget);
+    expect(find.text('general'), findsOneWidget);
 
     await teardown(tester, s.container, s.db);
   });

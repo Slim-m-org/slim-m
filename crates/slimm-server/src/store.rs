@@ -198,7 +198,7 @@ pub use message_history::{MAX_EDIT_REVISIONS, MessageRevision};
 pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};
-pub use message_search::{MessageSearchFilters, SearchError};
+pub use message_search::{FtsQuery, MessageSearchFilters, SearchError};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
 pub use models::{Channel, ChannelCategory, ChannelRoom, Message, User};

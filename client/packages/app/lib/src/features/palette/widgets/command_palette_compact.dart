@@ -14,6 +14,56 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+/// The compact search row: the field beside an on-screen Cancel, over a
+/// hairline. Shared by the palette and a conversation's own search page, so
+/// both read as one gesture.
+class PaletteCompactSearchRow extends StatelessWidget {
+  const PaletteCompactSearchRow({
+    super.key,
+    required this.searchField,
+    required this.onCancel,
+    this.cancelKey = const Key('command-palette-cancel'),
+    this.divider = true,
+  });
+
+  final Widget searchField;
+  final VoidCallback onCancel;
+  final Key cancelKey;
+
+  /// Whether the row draws its own inset hairline; a page that edges the row
+  /// with a full-width border leaves it out.
+  final bool divider;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s12,
+          AppSpacing.s8,
+          AppSpacing.s8,
+          AppSpacing.s8,
+        ),
+        child: Row(
+          children: [
+            Expanded(child: searchField),
+            const SizedBox(width: AppSpacing.s8),
+            AppButton(
+              key: cancelKey,
+              label: 'Cancel',
+              variant: AppButtonVariant.ghost,
+              touch: true,
+              onPressed: onCancel,
+            ),
+          ],
+        ),
+      ),
+      if (divider) const AppMenuDivider(),
+    ],
+  );
+}
+
 /// [searchField] and [results] are built by `command_palette.dart` itself,
 /// so the search state, the result ranking and every row stay the one shared
 /// implementation; this widget only ever decides how they are framed.
@@ -48,28 +98,10 @@ class CommandPaletteCompactShell extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s12,
-                    AppSpacing.s8,
-                    AppSpacing.s8,
-                    AppSpacing.s8,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(child: searchField),
-                      const SizedBox(width: AppSpacing.s8),
-                      AppButton(
-                        key: const Key('command-palette-cancel'),
-                        label: 'Cancel',
-                        variant: AppButtonVariant.ghost,
-                        touch: true,
-                        onPressed: onCancel,
-                      ),
-                    ],
-                  ),
+                PaletteCompactSearchRow(
+                  searchField: searchField,
+                  onCancel: onCancel,
                 ),
-                const AppMenuDivider(),
                 results,
               ],
             ),

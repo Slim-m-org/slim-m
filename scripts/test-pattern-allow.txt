@@ -287,7 +287,7 @@ client/packages/app/test/features/channels/home_shell_breakpoint_bridge_test.dar
 client/packages/app/test/features/channels/home_shell_compact_appbar_test.dart 4 2
 client/packages/app/test/features/channels/home_shell_connection_bar_test.dart 3 0
 client/packages/app/test/features/channels/home_shell_reduce_motion_test.dart 2 6
-client/packages/app/test/features/channels/home_shell_test.dart 23 9
+client/packages/app/test/features/channels/home_shell_test.dart 20 7
 client/packages/app/test/features/channels/jump_to_latest_channel_switch_test.dart 2 0
 client/packages/app/test/features/channels/jump_to_latest_threshold_test.dart 1 0
 client/packages/app/test/features/channels/manage_category_failure_test.dart 2 3

@@ -3,7 +3,7 @@
 //! `(created_at, seq, id)` descending order, however the planner reaches them.
 
 use slimm_server::ids::{ChannelId, MessageId};
-use slimm_server::store::{MessageSearchFilters, NewMessage};
+use slimm_server::store::{MessageSearchFilters, NewMessage, SearchError};
 
 use crate::fixtures::*;
 
@@ -72,4 +72,28 @@ async fn search_returns_the_fts_matches_in_the_documented_order() {
         .unwrap();
     assert_eq!(limited.len(), 2);
     assert_eq!(limited[0].created_at, 300);
+}
+
+/// FTS5 only parses a query once something joins against the index, so an
+/// empty channel would answer a bad raw query with an empty page.
+#[tokio::test]
+async fn a_malformed_raw_query_fails_even_in_an_empty_channel() {
+    let (store, _guard) = new_store().await;
+    let quiet = store.create_channel("quiet", "text").await.unwrap().id;
+
+    for bad in ["\"unterminated", "hello AND", "nosuchcolumn:hello"] {
+        let result = store
+            .search_messages(
+                &[quiet],
+                Some(bad),
+                &MessageSearchFilters::default(),
+                None,
+                10,
+            )
+            .await;
+        assert!(
+            matches!(result, Err(SearchError::InvalidQuery)),
+            "query {bad:?} gave {result:?}"
+        );
+    }
 }

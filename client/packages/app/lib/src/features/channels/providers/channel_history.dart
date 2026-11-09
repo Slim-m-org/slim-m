@@ -176,6 +176,15 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
     }
   }
 
+  /// Grows [ChannelHistory.window] to hold at least [rows], for a row the
+  /// store already has but the window does not reach. False when [rows] is
+  /// past [channelWindowCeiling], which no window ever shows.
+  bool widenWindowTo(int rows) {
+    if (rows > channelWindowCeiling) return false;
+    if (rows > state.window) state = state.copyWith(window: rows);
+    return true;
+  }
+
   /// Clears a failed page and asks again, from the retry the top of the list
   /// offers.
   Future<void> retry() async {

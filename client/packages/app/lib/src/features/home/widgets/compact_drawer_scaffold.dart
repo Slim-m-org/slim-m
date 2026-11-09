@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart'
     show AppHaptics, AppTokens, OpaquePanes, PaneSurface;
 
 import '../../channels/providers/channel_by_id_provider.dart';
+import '../../channels/providers/channel_search_controller.dart';
 import '../../members/providers/member_selection.dart';
 import '../../../desktop/desktop_window_shell.dart';
 import '../../../routing/routes.dart';
@@ -73,6 +74,7 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
       frameless: ref.watch(desktopWindowShellProvider).frameless,
     );
     final chatOverCall = voiceChatOverCall(ref, channelId);
+    final searching = showAppBar && compactSearchPageOpen(ref, channelId);
     final onBack = widget.onBack;
     final customBack = onBack != null || chatOverCall;
     void back() {
@@ -93,7 +95,7 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
       child: DrawerEdgeDrag(
         builder: (context, restore) => Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: showAppBar
+          appBar: showAppBar && !searching
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(
                     CompactChannelAppBar.height,
@@ -148,4 +150,14 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
 bool voiceChatOverCall(WidgetRef ref, String channelId) {
   final kind = ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind;
   return kind == 'voice' && ref.watch(voiceChatPaneVisibleProvider);
+}
+
+/// Whether the phone's search page is what the channel shows, which stands in
+/// for the app bar. A voice channel's search is hidden with its chat.
+bool compactSearchPageOpen(WidgetRef ref, String channelId) {
+  if (!ref.watch(channelSearchProvider(channelId).select((s) => s.open))) {
+    return false;
+  }
+  final kind = ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind;
+  return kind != 'voice' || ref.watch(voiceChatPaneVisibleProvider);
 }
