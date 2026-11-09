@@ -63,6 +63,35 @@ void main() {
     expect(model.moments[2].durationMs, 40 * _min);
   });
 
+  test('someone who rejoins in the first minute started the call once', () {
+    final call = api.VoiceCall(
+      startedAt: 0,
+      endedAt: 10 * _min,
+      events: [
+        const api.VoiceCallEvent(
+          at: 10000,
+          userId: 'ana',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        const api.VoiceCallEvent(
+          at: 20000,
+          userId: 'ana',
+          kind: api.VoiceCallEventKind.left,
+        ),
+        const api.VoiceCallEvent(
+          at: 40000,
+          userId: 'ana',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        _ev(10, 'ana', api.VoiceCallEventKind.left),
+      ],
+      canvas: const [],
+    );
+    final model = CallTimelineModel.from(call, now: 0);
+    expect(model.moments.first.kind, CallMomentKind.started);
+    expect(model.moments.first.userIds, ['ana']);
+  });
+
   test(
     'an ongoing call runs to now, and a share still going is open-ended',
     () {
