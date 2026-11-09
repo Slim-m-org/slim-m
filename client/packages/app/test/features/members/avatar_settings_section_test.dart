@@ -22,6 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/avatar_settings_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../composer/composer_harness.dart' show usePicker;
 import '../../support/fake_api.dart';
@@ -68,7 +69,7 @@ void main() {
               headers: {'content-type': 'application/json'},
             );
           }
-          return http.Response('', 404);
+          return jsonHttpResponse({'error': 'user has no avatar'}, 404);
         }),
       ],
     );
@@ -98,7 +99,7 @@ void main() {
               headers: {'content-type': 'application/json'},
             );
           }
-          return http.Response('', 404);
+          return jsonHttpResponse({'error': 'user has no avatar'}, 404);
         }),
       ],
     );
@@ -132,7 +133,7 @@ void main() {
                 headers: {'content-type': 'application/json'},
               );
             }
-            return http.Response('', 404);
+            return jsonHttpResponse({'error': 'user has no avatar'}, 404);
           }),
         ],
       );
@@ -173,7 +174,7 @@ void main() {
               avatarUpdatedAt = null;
               return http.Response('', 204);
             }
-            return http.Response('', 404);
+            return jsonHttpResponse({'error': 'user has no avatar'}, 404);
           }),
         ],
       );
@@ -221,7 +222,7 @@ void main() {
                 headers: {'content-type': 'application/json'},
               );
             }
-            return http.Response('', 404);
+            return jsonHttpResponse({'error': 'user has no avatar'}, 404);
           }),
         ],
       );
@@ -268,7 +269,7 @@ void main() {
               headers: {'content-type': 'application/json'},
             );
           }
-          return http.Response('', 404);
+          return jsonHttpResponse({'error': 'user has no avatar'}, 404);
         }),
       ],
     );

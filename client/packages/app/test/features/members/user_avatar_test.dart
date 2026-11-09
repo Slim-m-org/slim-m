@@ -185,7 +185,10 @@ void main() {
           avatarUpdatedAt: 42,
           size: 40,
         ),
-        overrides: _apiOverrides((request) async => http.Response('', 404)),
+        overrides: _apiOverrides(
+          (request) async =>
+              jsonHttpResponse({'error': 'user has no avatar'}, 404),
+        ),
       ),
     );
     await tester.pumpAndSettle();

@@ -136,11 +136,12 @@ void main() {
         },
       );
 
-      test('a 404 with no reason is not retried either', () async {
-        final rig = _Rig(c.suffix, [http.Response('not found', 404)]);
+      test('a 404 with no reason may be a proxy mid-restart: it is retried '
+          'and the picture appears', () async {
+        final rig = _Rig(c.suffix, [http.Response('not found', 404), _ok()]);
 
-        expect(await c.future(rig.container), isNull);
-        expect(rig.asked, 1);
+        expect(await c.future(rig.container), _picture);
+        expect(rig.asked, 2);
       });
     });
   }

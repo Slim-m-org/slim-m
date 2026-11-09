@@ -42,7 +42,8 @@ Future<Uint8List?> fetchProfileMedia(
         try {
           return await fetch();
         } on NotFoundException catch (error, stack) {
-          // Not retried: a picture is only asked for when its profile says it has one.
+          // Only a 404 the server explained is "no picture"; a bare one may be a proxy mid-restart.
+          if (error.unexplained) rethrow;
           throw _NoPicture(error, stack);
         }
       },
