@@ -181,7 +181,8 @@ Server checks, and one test at a time:
 ```bash
 SQLX_OFFLINE=true cargo fmt --all --check
 SQLX_OFFLINE=true cargo clippy --all-targets --all-features -- -D warnings
-SQLX_OFFLINE=true cargo test --all
+SQLX_OFFLINE=true cargo nextest run --workspace   # what CI runs; one process per test
+SQLX_OFFLINE=true cargo test --workspace --doc        # nextest skips doctests
 
 # one integration test file, then one case inside it
 SQLX_OFFLINE=true cargo test --test channels
