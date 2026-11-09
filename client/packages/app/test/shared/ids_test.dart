@@ -36,4 +36,34 @@ void main() {
     final later = uuidV7At(1790812800001, Random(2));
     expect(earlier.compareTo(later), lessThan(0));
   });
+
+  group('RetryId', () {
+    test('hands back the same id for the same request', () {
+      var minted = 0;
+      final retry = RetryId(() => 'id-${minted++}');
+      expect(retry.forRequest((to: 'a', note: 'x')), 'id-0');
+      expect(retry.forRequest((to: 'a', note: 'x')), 'id-0');
+      expect(minted, 1);
+    });
+
+    test('mints a fresh id once the request changes', () {
+      var minted = 0;
+      final retry = RetryId(() => 'id-${minted++}');
+      expect(retry.forRequest((to: 'a', note: 'x')), 'id-0');
+      expect(retry.forRequest((to: 'b', note: 'x')), 'id-1');
+      expect(
+        retry.forRequest((to: 'a', note: 'x')),
+        'id-2',
+        reason: 'the server replays the first body for a reused id',
+      );
+    });
+
+    test('settling forgets the id so a repeat is a new request', () {
+      var minted = 0;
+      final retry = RetryId(() => 'id-${minted++}');
+      expect(retry.forRequest('same'), 'id-0');
+      retry.settle();
+      expect(retry.forRequest('same'), 'id-1');
+    });
+  });
 }

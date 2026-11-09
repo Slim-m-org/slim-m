@@ -321,7 +321,7 @@ client/packages/app/test/features/channels/dm_row_context_menu_test.dart 1 12
 client/packages/app/test/features/channels/dm_row_presence_test.dart 2 0
 client/packages/app/test/features/channels/drawer_edge_drag_test.dart 11 8
 client/packages/app/test/features/channels/emoji_wiring_test.dart 8 0
-client/packages/app/test/features/channels/group_dm_test.dart 6 13
+client/packages/app/test/features/channels/group_dm_test.dart 4 9
 client/packages/app/test/features/channels/home_shell_connection_bar_test.dart 3 0
 client/packages/app/test/features/channels/home_shell_test.dart 23 9
 client/packages/app/test/features/channels/jump_to_latest_threshold_test.dart 1 0
