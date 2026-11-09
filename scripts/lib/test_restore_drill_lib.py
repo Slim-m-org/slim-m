@@ -9,6 +9,7 @@ import contextlib
 import io
 import sys
 import tempfile
+import tracemalloc
 import unittest
 import uuid
 from pathlib import Path
@@ -95,6 +96,33 @@ class CheckAttachmentsTest(RestoreDrillTestCase):
         expected, actual, expected_size, actual_size = result["mismatched"][0]
         self.assertEqual(expected, sha.hex())
         self.assertNotEqual(actual, expected)
+
+    def test_a_file_the_row_misdescribes_in_size_is_a_mismatch(self):
+        data = b"bytes that do hash to their name"
+        sha = fixtures.sha256_of(data)
+        snapshot = self._write_snapshot(attachments=[(sha, len(data) + 5, "text/plain")])
+        fixtures.write_attachment_file(self.backup_root, sha, data)
+
+        result = restore_drill_lib.check_attachments(snapshot, self.backup_root)
+
+        self.assertEqual(result["verified"], 0)
+        self.assertEqual(result["mismatched"], [(sha.hex(), sha.hex(), len(data) + 5, len(data))])
+
+    def test_a_large_attachment_is_hashed_in_chunks_not_loaded_whole(self):
+        data = bytes(6 * 1024 * 1024)
+        sha = fixtures.sha256_of(data)
+        snapshot = self._write_snapshot(attachments=[(sha, len(data), "video/mp4")])
+        fixtures.write_attachment_file(self.backup_root, sha, data)
+
+        tracemalloc.start()
+        try:
+            result = restore_drill_lib.check_attachments(snapshot, self.backup_root)
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        self.assertEqual(result["verified"], 1)
+        self.assertLess(peak, len(data) // 2)
 
     def test_a_malformed_sha256_is_reported_as_malformed_not_missing(self):
         snapshot = self._write_snapshot(attachments=[(b"not-a-real-digest", 17, "text/plain")])
