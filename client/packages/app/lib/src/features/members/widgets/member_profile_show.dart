@@ -56,6 +56,8 @@ Future<void> showMemberProfile(
   return showAnchoredPopoverOrSheet<void>(
     anchor,
     sheetScrolls: true,
+    // The banner runs to the sheet's rounded top edge, as it does to the popover's.
+    sheetHandleOverContent: true,
     popoverBuilder: (context) => body(context, compact: false),
     sheetBuilder: (context) => body(context, compact: true),
   );

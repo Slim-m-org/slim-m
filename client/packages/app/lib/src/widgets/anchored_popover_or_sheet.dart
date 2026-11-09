@@ -18,12 +18,14 @@ Future<T?> showAnchoredPopoverOrSheet<T>(
   WidgetBuilder? sheetBuilder,
   Rect? anchorRect,
   bool sheetScrolls = false,
+  bool sheetHandleOverContent = false,
   String? semanticLabel,
 }) {
   if (MediaQuery.sizeOf(anchor).width < kCompactWidth) {
     return showAppSheet<T>(
       anchor,
       scrolls: sheetScrolls,
+      handleOverContent: sheetHandleOverContent,
       semanticLabel: semanticLabel,
       builder: sheetBuilder ?? popoverBuilder,
     );
