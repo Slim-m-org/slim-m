@@ -53,13 +53,20 @@ void jumpToMessage(
 ) {
   final arrival = jumpArrivalFor(ref.watch(messageJumpProvider), channelId);
   ref.listen(messageJumpProvider, (_, next) {
-    if (next case MessageJumpUnreachable(
-      channelId: final c,
-      :final token,
-    ) when c == channelId) {
-      showAppSnackbar(context, 'Could not find that message.');
-      ref.read(messageJumpProvider.notifier).dismissUnreachable(token);
-    }
+    final notice = switch (next) {
+      MessageJumpUnreachable(channelId: final c, :final token)
+          when c == channelId =>
+        (token: token, text: 'Could not find that message.'),
+      MessageJumpFailed(channelId: final c, :final token) when c == channelId =>
+        (
+          token: token,
+          text: 'Could not load older messages to find it. Try again.',
+        ),
+      _ => null,
+    };
+    if (notice == null) return;
+    showAppSnackbar(context, notice.text);
+    ref.read(messageJumpProvider.notifier).dismissNotice(notice.token);
   });
   return arrival;
 }
