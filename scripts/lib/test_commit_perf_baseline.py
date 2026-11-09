@@ -121,6 +121,22 @@ class CommitPerfBaselineTest(unittest.TestCase):
         self.assertIn("already on main", result.stdout)
         self.assertEqual(self._remote_ref("main"), before)
 
+    def test_a_commit_that_fails_fails_the_script_instead_of_reading_as_already_on_main(self):
+        hook = self.clone / ".git" / "hooks" / "pre-commit"
+        hook.write_text("#!/usr/bin/env bash\nexit 1\n")
+        hook.chmod(hook.stat().st_mode | stat.S_IEXEC)
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("already on main", result.stdout)
+        self.assertFalse(self._main_has_the_baseline())
+
+    def test_a_missing_baseline_file_fails_the_script_instead_of_reading_as_already_on_main(self):
+        (self.clone / "baseline-0.2.0.json").unlink()
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("already on main", result.stdout)
+        self.assertFalse(self._main_has_the_baseline())
+
     def test_a_lost_race_is_retried_until_the_push_lands(self):
         result = self._run(refuse=2, message="! [remote rejected] main -> main (fetch first)")
         self.assertEqual(result.returncode, 0, result.stderr)

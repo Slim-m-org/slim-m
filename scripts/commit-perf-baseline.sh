@@ -21,15 +21,11 @@ target="perf/baselines/${version}.json"
 branch="perf-baseline-${version}"
 sleep_unit="${RETRY_SLEEP_UNIT:-10}"
 
-commit_on_main() {
+stage_baseline() {
   git fetch -q origin main
   git switch -q -C perf-baseline origin/main
   cp "$baseline" "$target"
   git add "$target"
-  if git diff --cached --quiet; then
-    return 1
-  fi
-  git commit -q -s -m "chore(perf): baseline ${version}, measured by the release's own perf run"
 }
 
 open_pull_request() {
@@ -47,10 +43,12 @@ open_pull_request() {
 }
 
 for attempt in 1 2 3 4 5; do
-  if ! commit_on_main; then
+  stage_baseline
+  if git diff --cached --quiet; then
     echo "${target} is already on main"
     exit 0
   fi
+  git commit -q -s -m "chore(perf): baseline ${version}, measured by the release's own perf run"
   if pushed="$(git push -q origin HEAD:main 2>&1)"; then
     exit 0
   fi
