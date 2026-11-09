@@ -285,6 +285,9 @@ pub struct SentMessage {
     pub presence: PresenceTracker,
     /// The replied-to author a reply chose to ping; pushed as a mention.
     pub reply_ping: Option<UserId>,
+    /// Whose `MENTION_EVERYONE` decides how far `@everyone`, `@here` and role mentions reach.
+    /// The author for what they wrote; `None` gives text they did not write no mass reach.
+    pub mass_authority: Option<UserId>,
 }
 
 #[cfg(test)]

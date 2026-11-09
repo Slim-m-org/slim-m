@@ -188,6 +188,7 @@ pub(super) fn surface_posting_as(
         module_name: module.name.clone(),
         background,
         user_id,
+        mass_authority: module.bot_user_id,
         channel,
         reply_to: None,
     }))
@@ -208,6 +209,7 @@ pub(crate) async fn post_command_output(
         module_name: module.name.clone(),
         background: false,
         user_id,
+        mass_authority: module.bot_user_id,
         channel,
         reply_to,
     }
@@ -303,6 +305,8 @@ struct ChannelPoster {
     /// No person invoked the run, so the post is the module's own.
     background: bool,
     user_id: UserId,
+    /// Whose `MENTION_EVERYONE` the module's text is judged by: its own principal, never the invoker's.
+    mass_authority: Option<UserId>,
     /// The one channel this run may post into: where the command was invoked.
     channel: ChannelId,
     /// The message a slash command's output answers, if the member was replying.
@@ -404,10 +408,10 @@ impl ChannelPoster {
                 Vec::new()
             }
         };
-        if let Err(err) = super::message_mentions::resolve_and_store(
+        if let Err(err) = super::message_mentions::resolve_and_store_under(
             state,
             message.channel_id,
-            self.user_id,
+            (self.user_id, self.mass_authority),
             id,
             &message.content,
             None,
@@ -439,6 +443,7 @@ impl ChannelPoster {
                 content: message.content.clone(),
                 presence: state.hub.presence(),
                 reply_ping: None,
+                mass_authority: self.mass_authority,
             },
         );
         super::threads::notify_reply(state, message.channel_id).await;

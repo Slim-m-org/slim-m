@@ -31,10 +31,24 @@ pub(crate) async fn resolve_and_store(
     content: &str,
     reply_ping: Option<UserId>,
 ) -> anyhow::Result<()> {
-    let mut mentioned = crate::mentions::mentioned_viewers(
+    let under = (author_id, Some(author_id));
+    resolve_and_store_under(state, channel_id, under, message_id, content, reply_ping).await
+}
+
+/// [`resolve_and_store`] for text `author_id` did not write, where `mass_authority` decides how far
+/// `@everyone`, `@here` and role mentions reach; `None` gives them none.
+pub(crate) async fn resolve_and_store_under(
+    state: &AppState,
+    channel_id: ChannelId,
+    under: (UserId, Option<UserId>),
+    message_id: MessageId,
+    content: &str,
+    reply_ping: Option<UserId>,
+) -> anyhow::Result<()> {
+    let mut mentioned = crate::mentions::mentioned_viewers_under(
         &state.store,
         channel_id,
-        author_id,
+        under,
         content,
         &state.hub.presence(),
     )

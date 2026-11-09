@@ -275,6 +275,7 @@ async fn send(
                 content: sent.message.content.clone(),
                 presence: state.hub.presence(),
                 reply_ping,
+                mass_authority: Some(ctx.user_id),
             },
         );
         // A no-op for an ordinary channel; see `threads::notify_reply`.

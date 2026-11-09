@@ -18,6 +18,7 @@ mod alerts;
 mod call_signals;
 mod delivery;
 mod harness;
+mod mass_authority;
 mod missed_call;
 mod reply_ping;
 mod ring_refusals;

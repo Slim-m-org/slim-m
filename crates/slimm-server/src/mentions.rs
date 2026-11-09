@@ -36,6 +36,25 @@ pub async fn mentioned_viewers(
     content: &str,
     presence: &PresenceTracker,
 ) -> anyhow::Result<Vec<UserId>> {
+    mentioned_viewers_under(
+        store,
+        channel_id,
+        (author_id, Some(author_id)),
+        content,
+        presence,
+    )
+    .await
+}
+
+/// [`mentioned_viewers`] for text `author_id` did not write: `mass_authority`, not the author,
+/// decides how far `@everyone`, `@here` and role mentions reach, and `None` gives them none.
+pub async fn mentioned_viewers_under(
+    store: &Store,
+    channel_id: ChannelId,
+    (author_id, mass_authority): (UserId, Option<UserId>),
+    content: &str,
+    presence: &PresenceTracker,
+) -> anyhow::Result<Vec<UserId>> {
     let kinds = mention_kinds(content);
     if !kinds.names && !kinds.mass_or_role {
         return Ok(Vec::new());
@@ -47,12 +66,18 @@ pub async fn mentioned_viewers(
     } else {
         Vec::new()
     };
-    let mut mentioned: Vec<UserId> =
-        resolved_mentions(store, channel_id, author_id, content, &audience, presence)
-            .await?
-            .into_iter()
-            .filter(|id| *id != author_id)
-            .collect();
+    let mut mentioned: Vec<UserId> = resolved_mentions(
+        store,
+        channel_id,
+        mass_authority,
+        content,
+        &audience,
+        presence,
+    )
+    .await?
+    .into_iter()
+    .filter(|id| *id != author_id)
+    .collect();
     if kinds.mass_or_role {
         let audience: HashSet<UserId> = audience.into_iter().collect();
         mentioned.retain(|id| audience.contains(id));
