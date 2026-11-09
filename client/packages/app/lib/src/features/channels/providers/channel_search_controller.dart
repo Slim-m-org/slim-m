@@ -20,10 +20,11 @@ import '../../messages/providers/message_search.dart';
 ///
 /// [query] is the last query actually submitted, null once cleared. That is a
 /// different thing from [results] being null, which also happens before the
-/// first reply and on a failure, neither of which is "no search running". While
-/// a newer query [loading], [results] still holds the previous query's hits. [failed] is
-/// likewise kept apart from an empty [results], so "the request failed" never
-/// renders identically to "the request came back with nothing".
+/// first reply and on a failure, neither of which is "no search running".
+/// While a newer query is [loading], [results] still holds the previous
+/// query's hits. [failed] is likewise kept apart from an empty [results], so
+/// "the request failed" never renders identically to "the request came back
+/// with nothing".
 class ChannelSearchState {
   const ChannelSearchState({
     this.open = false,
