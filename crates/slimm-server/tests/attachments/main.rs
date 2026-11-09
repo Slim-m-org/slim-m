@@ -31,6 +31,7 @@ mod slow_upload;
 mod spoilers;
 mod stills;
 mod text_search;
+mod text_sweep;
 mod upload_session_channel;
 mod upload_sessions;
 mod uploading;
