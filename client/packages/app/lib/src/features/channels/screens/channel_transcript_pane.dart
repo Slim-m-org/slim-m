@@ -124,6 +124,55 @@ class ChannelTranscriptPane extends ConsumerWidget {
     unawaited(discardMessage(ref.read, message));
   }
 
+  /// A hit in another channel (an `in:` search) leaves this one, so its search clears.
+  void _openHit(BuildContext context, WidgetRef ref, api.Message hit) {
+    if (hit.channelId != channelId) {
+      ref.read(channelSearchProvider(channelId).notifier).toggle();
+    }
+    jumpToMessage(
+      GoRouter.of(context),
+      ref.read,
+      currentChannelId: channelId,
+      channelId: hit.channelId,
+      messageId: hit.id,
+    );
+  }
+
+  /// Results stay up while the hit is found, then give way to its row; a new query drops the jump.
+  void _closeSearchOnArrival(WidgetRef ref) {
+    ref.listen(messageJumpProvider, (_, next) {
+      final resultsShowing =
+          ref.read(channelSearchProvider(channelId)).query != null;
+      if (next is MessageJumpArrived &&
+          next.channelId == channelId &&
+          resultsShowing) {
+        ref.read(channelSearchProvider(channelId).notifier).toggle();
+      }
+    });
+    ref.listen(channelSearchProvider(channelId).select((s) => s.query), (
+      _,
+      query,
+    ) {
+      if (query != null) {
+        ref.read(messageJumpProvider.notifier).cancelFor(channelId);
+      }
+    });
+  }
+
+  Widget? _jumpBanner(WidgetRef ref, JumpNotice? notice) {
+    if (notice == null) return null;
+    final jump = ref.read(messageJumpProvider.notifier);
+    return AppErrorState(
+      message: notice.text,
+      onRetry: notice.retryable
+          ? () => unawaited(jump.jumpTo(channelId, notice.messageId))
+          : null,
+      onDismiss: notice.retryable
+          ? null
+          : () => jump.dismissNotice(notice.token),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final search = ref.watch(channelSearchProvider(channelId));
@@ -152,7 +201,20 @@ class ChannelTranscriptPane extends ConsumerWidget {
     final privateAnswers = ref.watch(
       channelEphemeralMessagesProvider(channelId),
     );
-    final jumpArrival = watchMessageJump(ref, context, channelId);
+    final searchShowing = search.query != null;
+    final jumpArrival = watchMessageJump(
+      ref,
+      context,
+      channelId,
+      inlineNotice: searchShowing,
+    );
+    final jumpSeeking = ref.watch(
+      messageJumpProvider.select((s) => jumpSeekingIn(s, channelId)),
+    );
+    final jumpNotice = ref.watch(
+      messageJumpProvider.select((s) => jumpNoticeFor(s, channelId)),
+    );
+    _closeSearchOnArrival(ref);
 
     return Expanded(
       child: DismissKeyboardOnDrag(
@@ -172,18 +234,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
                   onRetry: () => ref
                       .read(channelSearchProvider(channelId).notifier)
                       .run(search.query!),
-                  onSelect: (m) {
-                    ref
-                        .read(channelSearchProvider(channelId).notifier)
-                        .toggle();
-                    jumpToMessage(
-                      GoRouter.of(context),
-                      ref.read,
-                      currentChannelId: channelId,
-                      channelId: m.channelId,
-                      messageId: m.id,
-                    );
-                  },
+                  onSelect: (m) => _openHit(context, ref, m),
+                  seeking: jumpSeeking,
+                  banner: _jumpBanner(ref, jumpNotice),
                 )
               : Stack(
                   children: [

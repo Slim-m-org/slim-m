@@ -34,3 +34,30 @@ Selectable<MessageRow> channelTranscript(
     readsFrom: {db.messages},
   ).map((row) => db.messages.map(row.data));
 }
+
+/// How many rows [channelTranscript] must be asked for to include
+/// [messageId], or null when this channel holds no such message.
+///
+/// Counts unsent rows plus every delivered row at or above the message's own
+/// `seq`, which is exactly what the newest-first window has to reach.
+Future<int?> transcriptDepth(
+  SlimmDatabase db,
+  String channelId,
+  String messageId,
+) async {
+  final target = await (db.select(db.messages)
+        ..where((m) => m.channelId.equals(channelId) & m.id.equals(messageId)))
+      .getSingleOrNull();
+  if (target == null) return null;
+  final row = await db.customSelect(
+    'SELECT COUNT(*) AS depth FROM messages '
+    'WHERE channel_id = ? AND (seq = 0 OR (? > 0 AND seq >= ?))',
+    variables: [
+      Variable.withString(channelId),
+      Variable.withInt(target.seq),
+      Variable.withInt(target.seq),
+    ],
+    readsFrom: {db.messages},
+  ).getSingle();
+  return row.read<int>('depth');
+}

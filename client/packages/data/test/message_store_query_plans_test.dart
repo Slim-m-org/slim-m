@@ -73,6 +73,23 @@ void main() {
     expect(detail, isNot(_fullScan));
   });
 
+  test('the transcript depth count stays inside one channel\'s index',
+      () async {
+    await store.addPending(
+      id: 'm1',
+      channelId: 'c1',
+      authorId: 'u1',
+      content: 'hello',
+    );
+    capture.statements.clear();
+
+    await store.transcriptDepthOf('c1', 'm1');
+
+    final detail = await planOfLast('COUNT(*)');
+    expect(detail, contains('messages_channel_seq'));
+    expect(detail, isNot(_fullScan));
+  });
+
   test('failedMessages uses the partial failed index', () async {
     await store.failedMessages();
 

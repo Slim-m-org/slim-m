@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A jump cancelled by a channel switch must stop paging, and its page bound
-/// counts messages, not pages, so the page-size setting does not move it.
+/// A jump cancelled by a channel switch must stop paging, and its reach is
+/// the transcript window's ceiling in messages, not pages, so the page-size
+/// setting does not move it.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -77,14 +78,33 @@ void main() {
         isNotEmpty,
         reason:
             'states seen: ${seen.map((e) => e.runtimeType).toList()}; '
-            'm100 is 300 messages back, inside the documented 500 bound',
+            'm100 is 300 messages back, well inside the transcript ceiling',
       );
       await _unmount(tester);
     },
   );
 
-  testWidgets('a target past 500 messages is unreachable with the larger page '
-      'size too', (tester) async {
+  testWidgets('a target past the transcript ceiling is unreachable with the '
+      'larger page size too', (tester) async {
+    final harness = await mountChannel(
+      tester,
+      serverSeqs: _range(1, 1300),
+      seededSeqs: _range(1251, 1300),
+      messagePageSize: MessagePageSize.large,
+    );
+    final seen = <MessageJumpState>[];
+    harness.container.listen(messageJumpProvider, (_, n) => seen.add(n));
+    await harness.container
+        .read(messageJumpProvider.notifier)
+        .jumpTo('c1', 'm100');
+    expect(seen.whereType<MessageJumpUnreachable>(), isNotEmpty);
+    expect(seen.whereType<MessageJumpArrived>(), isEmpty);
+    await _unmount(tester);
+  });
+
+  testWidgets('a target past 500 messages is found with the larger page size', (
+    tester,
+  ) async {
     final harness = await mountChannel(
       tester,
       serverSeqs: _range(1, 900),
@@ -95,9 +115,8 @@ void main() {
     harness.container.listen(messageJumpProvider, (_, n) => seen.add(n));
     await harness.container
         .read(messageJumpProvider.notifier)
-        .jumpTo('c1', 'm150');
-    expect(seen.whereType<MessageJumpUnreachable>(), isNotEmpty);
-    expect(seen.whereType<MessageJumpArrived>(), isEmpty);
+        .jumpTo('c1', 'm300');
+    expect(seen.whereType<MessageJumpArrived>(), isNotEmpty);
     await _unmount(tester);
   });
 }

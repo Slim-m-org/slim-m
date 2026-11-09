@@ -72,6 +72,8 @@ class ChannelSearchResults extends ConsumerWidget {
     required this.forbidden,
     required this.onRetry,
     required this.onSelect,
+    this.seeking = false,
+    this.banner,
   });
 
   /// Exposed so a test can find this exact node rather than any other
@@ -102,6 +104,12 @@ class ChannelSearchResults extends ConsumerWidget {
   /// Jumps the transcript to a tapped hit.
   final ValueChanged<api.Message> onSelect;
 
+  /// A tapped hit is still being found, which can take several pages.
+  final bool seeking;
+
+  /// Why a tapped hit could not be opened, above the hits so another can be tried.
+  final Widget? banner;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -115,6 +123,27 @@ class ChannelSearchResults extends ConsumerWidget {
           label: _announcement(),
           child: const SizedBox.shrink(),
         ),
+        // Revealed rather than inserted, so a hit that is found at once never flashes the line.
+        AppRevealBand(
+          child: seeking || banner != null
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (seeking) const _SeekingLine(),
+                    if (banner != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.s16,
+                          AppSpacing.s8,
+                          AppSpacing.s16,
+                          0,
+                        ),
+                        child: banner,
+                      ),
+                  ],
+                )
+              : null,
+        ),
         Expanded(child: _body(context, ref, tokens)),
       ],
     );
@@ -123,6 +152,7 @@ class ChannelSearchResults extends ConsumerWidget {
   /// What a screen reader should hear once this state settles: a result
   /// count, an honest "no matches", or why nothing came back.
   String _announcement() {
+    if (seeking) return 'Finding that message.';
     if (loading) return 'Searching messages.';
     if (failed) {
       return forbidden
@@ -173,6 +203,32 @@ class ChannelSearchResults extends ConsumerWidget {
         knownRoleNames: knownRoleNames,
         customEmoji: customEmoji,
         onSelect: onSelect,
+      ),
+    );
+  }
+}
+
+/// Shown while a tapped hit's message is paged in, so the tap has a result.
+class _SeekingLine extends StatelessWidget {
+  const _SeekingLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16,
+        vertical: AppSpacing.s8,
+      ),
+      child: Row(
+        children: [
+          const AppSpinner(size: AppSpinnerSize.sm),
+          const SizedBox(width: AppSpacing.s8),
+          Text(
+            'Finding that message',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ],
       ),
     );
   }

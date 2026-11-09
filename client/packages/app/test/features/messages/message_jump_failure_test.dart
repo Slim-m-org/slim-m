@@ -61,7 +61,7 @@ void main() {
         find.text('Could not load older messages to find it. Try again.'),
         findsOneWidget,
       );
-      expect(find.text('Could not find that message.'), findsNothing);
+      expect(find.textContaining('Could not find that message'), findsNothing);
       expect(
         harness.container.read(messageJumpProvider),
         isA<MessageJumpIdle>(),

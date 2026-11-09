@@ -14,6 +14,7 @@ import 'package:slimm_data/data.dart' show MessageStore;
 
 import '../../channels/providers/channel_history.dart';
 import 'message_page_size.dart';
+import 'retention_policy.dart';
 import '../../../providers/providers.dart';
 
 /// What a jump is doing right now.
@@ -75,15 +76,14 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
   final Ref _ref;
   int _token = 0;
 
-  /// How many messages of paging [jumpTo] does before giving up - enough for
-  /// anything a search or a pin can name without one tap being able to fetch
-  /// a channel's entire history. Counted in messages, so the page-size
-  /// setting changes how many requests that takes, not how far a jump reaches.
-  static const int _maxRows = 500;
-
+  /// Pages needed to fill a full transcript window, which is as far back as a
+  /// jump can ever show anything: the store keeps no more than
+  /// [channelWindowCeiling] rows per channel. Counted in messages, so the
+  /// page-size setting changes how many requests that takes, not how far a
+  /// jump reaches.
   int get _maxPages {
     final rows = _ref.read(messagePageSizeControllerProvider).rows;
-    return (_maxRows / rows).ceil();
+    return (channelWindowCeiling / rows).ceil();
   }
 
   /// Looks for [messageId] in [channelId], paging older history in while it
@@ -99,8 +99,13 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
 
     for (var page = 0; page <= maxPages; page++) {
       if (_token != token) return;
-      if (await store.hasMessage(channelId, messageId)) {
-        state = MessageJumpArrived(channelId, messageId, token);
+      final depth = await store.transcriptDepthOf(channelId, messageId);
+      if (_token != token) return;
+      if (depth != null) {
+        // Held is not shown: the window must grow to reach a row the store has but the transcript's newest rows do not.
+        state = history.widenWindowTo(depth)
+            ? MessageJumpArrived(channelId, messageId, token)
+            : MessageJumpUnreachable(channelId, messageId, token);
         return;
       }
       if (page == maxPages) break;
@@ -123,6 +128,8 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
   ) async {
     // Seeded from the store, not trusted from the screen: a jump can run before any screen has built a frame for this channel.
     history.syncOldest(await store.oldestLocalSeq(channelId));
+    // A full window cannot take another page, so looking on would only spin.
+    if (history.state.window >= channelWindowCeiling) return _Paged.stop;
     // Retried rather than left failed, or one stale failure wedges every jump at page zero forever.
     if (history.state.failed) {
       await history.retry();
@@ -193,4 +200,45 @@ final messageJumpProvider =
     return (messageId: messageId, token: token);
   }
   return null;
+}
+
+/// Whether a jump into [channelId] is still looking for its message.
+bool jumpSeekingIn(MessageJumpState state, String channelId) =>
+    state is MessageJumpSeeking && state.channelId == channelId;
+
+/// A jump into [channelId] that ended without arriving: what to tell the
+/// person, which jump it was, and whether asking again could change anything.
+typedef JumpNotice = ({
+  String text,
+  String messageId,
+  int token,
+  bool retryable,
+});
+
+/// The notice for [state] when it is a refusal in [channelId], else null.
+///
+/// One place for the sentences, so the search panel and the snack bar a pin or
+/// a palette jump falls back on cannot word the same outcome two ways.
+JumpNotice? jumpNoticeFor(MessageJumpState state, String channelId) {
+  return switch (state) {
+    MessageJumpUnreachable(channelId: final c, :final messageId, :final token)
+        when c == channelId =>
+      (
+        text:
+            'Could not find that message. It may be deleted or too far back '
+            'to load.',
+        messageId: messageId,
+        token: token,
+        retryable: false,
+      ),
+    MessageJumpFailed(channelId: final c, :final messageId, :final token)
+        when c == channelId =>
+      (
+        text: 'Could not load older messages to find it. Try again.',
+        messageId: messageId,
+        token: token,
+        retryable: true,
+      ),
+    _ => null,
+  };
 }
