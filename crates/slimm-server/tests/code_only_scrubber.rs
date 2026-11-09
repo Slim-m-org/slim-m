@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! `support::code_only`, the scrubber every source-reading gate trusts, blanks
-//! what it must and leaves real code alone.
+//! what it must and leaves real code alone, and `support::query_literal_containing`
+//! reads a query out of real code only.
 //!
 //! A scrubber that mis-lexes a quote in a char literal opens a phantom string,
 //! reads the next real string as code and the code after it as string, and
@@ -107,5 +108,29 @@ fn every_source_file_is_brace_balanced_after_scrubbing() {
         skewed.is_empty(),
         "unbalanced after scrubbing, so the scrubber mis-lexed them:\n  {}",
         skewed.join("\n  ")
+    );
+}
+
+#[test]
+fn a_query_quoted_in_a_comment_is_not_the_query() {
+    let source = "// was r#\"SELECT 1 FROM t WHERE x = ?\"#\nfn q() { sqlx::query!(r#\"SELECT 2 FROM t WHERE y = ?\"#); }";
+    assert_eq!(
+        support::query_literal_containing(source, "FROM t"),
+        "SELECT 2 FROM t WHERE y = ?"
+    );
+    let stale_only =
+        std::panic::catch_unwind(|| support::query_literal_containing(source, "x = ?"));
+    assert!(
+        stale_only.is_err(),
+        "a stale comment must not stand in for a query that changed"
+    );
+}
+
+#[test]
+fn a_query_builder_literal_is_read_like_a_macro_one() {
+    let source = "fn q() { let mut b = sqlx::QueryBuilder::new(r#\"SELECT id FROM reports r\"#); let s = \"FROM reports r\"; }";
+    assert_eq!(
+        support::query_literal_containing(source, "FROM reports r"),
+        "SELECT id FROM reports r"
     );
 }

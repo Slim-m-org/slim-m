@@ -334,10 +334,10 @@ pub fn function_body(source: &str, marker: &str) -> String {
 }
 
 #[allow(dead_code)]
-/// The SQL of the first `sqlx::query*!` call whose literal contains [anchor],
-/// plain or raw.
+/// The SQL of the first `sqlx::query*!` macro or `QueryBuilder::new` call whose
+/// literal contains [anchor], plain or raw.
 ///
-/// Anchored to a real macro call rather than to the nearest quote, because the
+/// Anchored to a real call rather than to the nearest quote, because the
 /// nearest quote can belong to a comment. A comment quoting an older version of
 /// the query is extracted and validated in place of the code by a bare search,
 /// so the query itself can regress to a scan while this passes - the
@@ -351,6 +351,23 @@ pub fn function_body(source: &str, marker: &str) -> String {
 /// the literal is then read back out of the original source at that offset.
 pub fn query_literal_containing(source: &str, anchor: &str) -> String {
     let code = code_only(source);
+    for args in query_call_args(&code) {
+        if let Some(sql) = literal_at(source, args)
+            && sql.contains(anchor)
+        {
+            return sql;
+        }
+    }
+    panic!("no sqlx query literal contains {anchor:?}; has the query itself changed?")
+}
+
+/// Offsets just past the `(` of every `query*!(` macro call and `QueryBuilder::new(` call, in source order.
+fn query_call_args(code: &str) -> Vec<usize> {
+    const BUILDER: &str = "QueryBuilder::new(";
+    let mut found: Vec<usize> = code
+        .match_indices(BUILDER)
+        .map(|(at, _)| at + BUILDER.len())
+        .collect();
     let mut from = 0usize;
     while let Some(rel) = code[from..].find("query") {
         let at = from + rel;
@@ -363,16 +380,12 @@ pub fn query_literal_containing(source: &str, anchor: &str) -> String {
             && name[..name.len() - 1]
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '_');
-        if !macro_call {
-            continue;
-        }
-        if let Some(sql) = literal_at(source, at + paren + 1)
-            && sql.contains(anchor)
-        {
-            return sql;
+        if macro_call {
+            found.push(at + paren + 1);
         }
     }
-    panic!("no sqlx query literal contains {anchor:?}; has the query itself changed?")
+    found.sort_unstable();
+    found
 }
 
 /// The string literal starting at the next non-whitespace byte, `r#"..."#`
