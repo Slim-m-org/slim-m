@@ -104,6 +104,10 @@ pub enum CreatePollError {
     InvalidQuestion,
     InvalidOptionCount,
     InvalidOption,
+    /// The author last sent in this channel inside its slow-mode window.
+    SlowMode {
+        retry_after_seconds: i64,
+    },
     Internal(anyhow::Error),
 }
 
@@ -152,6 +156,8 @@ impl From<anyhow::Error> for VoteError {
 impl Store {
     /// Sends a message carrying a poll. Idempotent by `id` within its
     /// `(channel, author)` scope, exactly like [`super::messages::Store::send_message`].
+    /// A fresh send inside `slow_mode_window_ms` of the author's last message here is
+    /// refused under the write lock, as [`Store::send_message_with_slow_mode`] does.
     pub async fn send_poll_message(
         &self,
         channel_id: ChannelId,
@@ -159,6 +165,7 @@ impl Store {
         id: MessageId,
         content: &str,
         poll: NewPoll<'_>,
+        slow_mode_window_ms: Option<i64>,
     ) -> Result<Sent, CreatePollError> {
         let NewPoll {
             question,
@@ -195,6 +202,18 @@ impl Store {
                 tx.commit().await?;
                 return Err(CreatePollError::IdConflict);
             }
+        }
+
+        if let Some(window_ms) = slow_mode_window_ms
+            && let Some(retry_after_seconds) = crate::store::channel_slow_mode::retry_after_in_tx(
+                &mut tx, channel_id, author_id, window_ms, now,
+            )
+            .await?
+        {
+            tx.commit().await?;
+            return Err(CreatePollError::SlowMode {
+                retry_after_seconds,
+            });
         }
 
         // A poll message is never created as a reply.

@@ -130,7 +130,7 @@ pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
     ANALYTICS_WINDOW_DAYS, AnalyticsStats, DayCount, MemberAttachmentUsage, MetricSample,
 };
-pub use apps::{AppSurface, CreateAppSurfaceError};
+pub use apps::{AppLaunch, AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
 pub use attachment_text::TextCandidate;
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};

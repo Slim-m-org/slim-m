@@ -356,6 +356,33 @@ async fn a_retried_app_launch_is_not_refused_by_slow_mode() {
     );
 }
 
+/// The early read alone cannot hold the window: parallel launches all pass it before any commits.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn parallel_app_launches_pass_slow_mode_only_once() {
+    let (s, _guard) = store("slimm-apps-post-send-parallel").await;
+    let user = member(&s).await;
+    install(&s, true).await;
+    grant_play(&s, &user).await;
+    let channel = s.create_channel("general", "text").await.unwrap();
+    s.update_channel_slow_mode(channel.id, 60).await.unwrap();
+    let token = s.open_session(user.id, "phone").await.unwrap();
+    let router = app(s);
+    let c = channel.id.to_string();
+    let mut handles = Vec::new();
+    for i in 0..8 {
+        let router = router.clone();
+        let req = launch(&c, token.access_token.as_str(), &format!("p{i}"));
+        handles.push(tokio::spawn(async move {
+            router.oneshot(req).await.unwrap().status()
+        }));
+    }
+    let mut passed = 0;
+    for handle in handles {
+        passed += usize::from(handle.await.unwrap() == StatusCode::OK);
+    }
+    assert_eq!(passed, 1, "exactly one of 8 parallel launches may pass");
+}
+
 fn created_frames(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> usize {
     let mut n = 0;
     while let Ok(ev) = rx.try_recv() {

@@ -206,6 +206,7 @@ async fn delete_account_anonymizes_moderation_and_poll_authorship() {
                 close_at: None,
                 ranked: false,
             },
+            None,
         )
         .await
         .unwrap();
