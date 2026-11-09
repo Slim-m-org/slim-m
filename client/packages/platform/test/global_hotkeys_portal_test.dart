@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:async';
+
 import 'package:dbus/dbus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogRecord, LogSink;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/src/global_hotkeys_channel.dart';
 import 'package:slimm_platform/src/global_hotkeys_portal.dart';
@@ -29,6 +32,36 @@ class _RecordingBus extends DBusClient {
 
   @override
   Future<void> close() async => closed = true;
+}
+
+class _PortalBus extends _RecordingBus {
+  bool failCalls = false;
+
+  @override
+  String get uniqueName => ':1.42';
+
+  @override
+  Future<DBusMethodSuccessResponse> callMethod({
+    String? destination,
+    required DBusObjectPath path,
+    String? interface,
+    required String name,
+    Iterable<DBusValue> values = const [],
+    DBusSignature? replySignature,
+    bool noReplyExpected = false,
+    bool noAutoStart = false,
+    bool allowInteractiveAuthorization = false,
+  }) {
+    if (failCalls) throw StateError('portal gone');
+    return super.callMethod(path: path, name: name, interface: interface);
+  }
+}
+
+class _LogCapture implements LogSink {
+  final records = <LogRecord>[];
+
+  @override
+  void write(LogRecord record) => records.add(record);
 }
 
 const _ptt = GlobalHotkeyBinding(
@@ -207,5 +240,52 @@ void main() {
       ..adoptSessionForTest(_session);
     await source.dispose();
     expect(bus.calls, ['$_session org.freedesktop.portal.Session.Close']);
+  });
+
+  group('a bind that goes wrong', () {
+    late _PortalBus bus;
+    late StreamController<DBusSignal> responses;
+    late _LogCapture log;
+    late PortalGlobalHotkeySource source;
+
+    setUp(() {
+      bus = _PortalBus();
+      responses = StreamController<DBusSignal>.broadcast();
+      log = _LogCapture();
+      AppLog.install(log);
+      source = PortalGlobalHotkeySource(
+        clientFactory: () => bus,
+        responses: (bus, request) => responses.stream,
+        approvalTimeout: const Duration(milliseconds: 20),
+      );
+    });
+    tearDown(() async {
+      AppLog.install(null);
+      await source.dispose();
+      await responses.close();
+    });
+
+    test('leaves no Response subscription behind once the dialog times out',
+        () async {
+      final availability = await source.bind(const [_ptt]);
+      expect(availability.available, isFalse);
+      expect(responses.hasListener, isFalse);
+    });
+
+    test('leaves no Response subscription behind when the call fails',
+        () async {
+      bus.failCalls = true;
+      final availability = await source.bind(const [_ptt]);
+      expect(availability.available, isFalse);
+      expect(responses.hasListener, isFalse);
+    });
+
+    test('is logged as a bind failure, not a close failure', () async {
+      bus.failCalls = true;
+      await source.bind(const [_ptt]);
+      final messages = log.records.map((r) => r.message);
+      expect(messages, contains('Could not bind the global shortcuts'));
+      expect(messages.any((m) => m.contains('close')), isFalse);
+    });
   });
 }

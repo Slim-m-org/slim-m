@@ -101,8 +101,8 @@ void on_method_call(FlMethodChannel*, FlMethodCall* call, gpointer) {
   g_autoptr(FlMethodResponse) response = nullptr;
   if (g_strcmp0(fl_method_call_get_name(call), "idleMs") == 0) {
     gint64 ms = idle_ms();
-    response = FL_METHOD_RESPONSE(fl_method_success_response_new(
-        ms < 0 ? nullptr : fl_value_new_int(ms)));
+    g_autoptr(FlValue) reply = ms < 0 ? nullptr : fl_value_new_int(ms);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(reply));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }

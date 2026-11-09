@@ -9,13 +9,19 @@ library;
 
 // ignore_for_file: invalid_use_of_internal_member, implementation_imports
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show VoidCallback, kIsWeb;
 import 'package:flutter/src/foundation/_features.dart' show isWindowingEnabled;
 import 'package:flutter/src/widgets/_window.dart';
 import 'package:flutter/src/widgets/_window_linux.dart';
 import 'package:flutter/widgets.dart';
 import 'package:slimm_platform/platform.dart'
-    show isLinuxHost, kwinAboveFullScreen, kwinKeepAbove;
+    show
+        isLinuxHost,
+        kwinAboveFullScreen,
+        kwinKeepAbove,
+        kwinRemoveAboveFullScreen;
 
 import '../desktop_window_port.dart' show ResizeEdge;
 import 'popout_gtk_drag.dart';
@@ -70,7 +76,10 @@ class _NativePopOutWindow
       RegularWindow(controller: _controller, child: child);
 
   @override
-  void destroy() => _controller.destroy();
+  void destroy() {
+    _controller.destroy();
+    unawaited(kwinRemoveAboveFullScreen());
+  }
 
   @override
   void beginMove() => _drag.move();

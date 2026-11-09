@@ -28,7 +28,7 @@ void HandleHasImage(FlMethodCall* call) {
 void HandleReadImage(FlMethodCall* call) {
   GdkPixbuf* pixbuf = gtk_clipboard_wait_for_image(DefaultClipboard());
   if (pixbuf == nullptr) {
-    fl_method_call_respond_success(call, fl_value_new_null(), nullptr);
+    fl_method_call_respond_success(call, nullptr, nullptr);
     return;
   }
 
