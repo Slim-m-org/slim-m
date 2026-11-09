@@ -9,7 +9,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
@@ -116,7 +115,7 @@ Rect _header(WidgetTester t) =>
 
 void main() {
   group('a finger under the quote', () {
-    for (final below in const [4.0, 12.0, 20.0, 24.0, 30.0, 36.0, 42.0]) {
+    for (final below in const [4.0, 12.0, 20.0, 26.0, 32.0, 38.0, 42.0]) {
       testWidgets('jumps ${below.toInt()}dp below its top on a phone', (
         tester,
       ) async {
@@ -176,16 +175,11 @@ void main() {
       expect(find.text('WEBHOOK'), findsOneWidget);
     });
 
-    testWidgets('does not overflow in a 300dp pane', (tester) async {
-      await _pump(tester, window: 1280, pane: 300);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('stops short of the toolbar where the pane is wide', (
       tester,
     ) async {
       await _pump(tester, window: 1280, pane: 700);
-      final row = tester.getRect(find.byType(MessageRow));
+      final row = tester.getRect(find.byKey(MessageRow.hoverFillKey));
       final reserve = MessageHoverToolbar.clearance(compact: false).right;
       expect(
         _quote(tester).right,

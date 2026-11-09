@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The strip above a reply's avatar: its quote line, and the hooked connector
-/// that runs from the avatar up and right into it.
+/// The strip above a reply's avatar row: its quote line, and the hooked
+/// connector that runs from the avatar up and right into it.
 ///
 /// The connector lives in the avatar column and stops short of the content
 /// column, so it never crosses text. See `docs/design/desktop-vs-mobile.md`
 /// law 1: it follows the avatar step the density setting picks, not the
-/// platform.
+/// platform. Law 2: at touch density the quote's press area reaches down to
+/// 44dp over the author line, which is why the strip sits above the row in a
+/// [Stack] rather than ahead of it in a column that would clip the reach.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'continuation_marker.dart' show ContinuationRail;
@@ -19,6 +24,7 @@ class ReplyElbow extends StatelessWidget {
     super.key,
     required this.avatarSize,
     required this.quote,
+    required this.child,
     this.clearance = EdgeInsets.zero,
   });
 
@@ -27,6 +33,11 @@ class ReplyElbow extends StatelessWidget {
 
   /// Space between the connector's tip and the quote's first glyph.
   static const double tipGap = AppSpacing.s4;
+
+  /// The least width the quote keeps once [clearance] is taken off its right.
+  ///
+  /// Narrower than this it runs under the toolbar instead, as a body does.
+  static const double minQuoteWidth = 240;
 
   /// The strip's height at the reader's text scale.
   static double heightOf(BuildContext context) => ReplyQuote.heightOf(context);
@@ -37,24 +48,106 @@ class ReplyElbow extends StatelessWidget {
   /// The reply's [ReplyQuote].
   final Widget quote;
 
+  /// The avatar and message column the strip sits above.
+  final Widget child;
+
   /// Room the hover toolbar needs on the right of the row's first line.
   final EdgeInsets clearance;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final height = heightOf(context);
+    final touch = AppTouchTargets.of(context) ? AppSizes.rowTouch : 0.0;
+    return _StripFirstStack(
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: math.max(height, touch),
+          child: _Strip(
+            avatarSize: avatarSize,
+            height: height,
+            clearance: clearance,
+            quote: quote,
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.only(top: height),
+          child: child,
+        ),
+      ],
+    );
+  }
+}
+
+/// A [Stack] that hit-tests its first child before the rest.
+///
+/// The strip is first so a screen reader hears the quote before the row, and
+/// it must also win the press where its touch reach overlaps the author line.
+class _StripFirstStack extends Stack {
+  const _StripFirstStack({required super.children});
+
+  @override
+  RenderStack createRenderObject(BuildContext context) =>
+      _RenderStripFirstStack(
+        alignment: alignment,
+        textDirection: textDirection ?? Directionality.maybeOf(context),
+        fit: fit,
+        clipBehavior: clipBehavior,
+      );
+}
+
+class _RenderStripFirstStack extends RenderStack {
+  _RenderStripFirstStack({
+    super.alignment,
+    super.textDirection,
+    super.fit,
+    super.clipBehavior,
+  });
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final strip = firstChild;
+    if (strip == null) return false;
+    final offset = (strip.parentData! as StackParentData).offset;
+    final onStrip = result.addWithPaintOffset(
+      offset: offset,
+      position: position,
+      hitTest: (result, local) => strip.hitTest(result, position: local),
+    );
+    return onStrip || defaultHitTestChildren(result, position: position);
+  }
+}
+
+class _Strip extends StatelessWidget {
+  const _Strip({
+    required this.avatarSize,
+    required this.height,
+    required this.clearance,
+    required this.quote,
+  });
+
+  final double avatarSize;
+  final double height;
+  final EdgeInsets clearance;
+  final Widget quote;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     final gutter = avatarSize + AppSpacing.s12;
+    final left = gutter - ReplyQuote.ringInset;
     return Stack(
       children: [
         Positioned(
           left: 0,
           top: 0,
-          bottom: 0,
+          height: height,
           width: gutter,
           child: IgnorePointer(
             child: CustomPaint(
-              key: lineKey,
+              key: ReplyElbow.lineKey,
               painter: ReplyElbowPainter(
                 color: tokens.borderSubtle,
                 geometry: ReplyElbowGeometry(
@@ -66,16 +159,21 @@ class ReplyElbow extends StatelessWidget {
             ),
           ),
         ),
-        Padding(
-          padding:
-              EdgeInsets.only(left: gutter - ReplyQuote.ringInset) + clearance,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
-              child: quote,
-            ),
-          ),
+        LayoutBuilder(
+          builder: (context, box) {
+            final room = box.maxWidth - left - clearance.horizontal;
+            final reserve = room >= ReplyElbow.minQuoteWidth
+                ? clearance
+                : EdgeInsets.zero;
+            return Padding(
+              padding: EdgeInsets.only(left: left) + reserve,
+              // The cap wraps the Align: a cap around the quote cuts its reach.
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
+                child: Align(alignment: Alignment.topLeft, child: quote),
+              ),
+            );
+          },
         ),
       ],
     );

@@ -158,6 +158,23 @@ void main() {
     );
   });
 
+  testWidgets('the reply quote is pressable 44pt down, over the author line', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      Scaffold(
+        body: _row(replyTo: message(content: 'the parent')),
+      ),
+      overrides: _resolved,
+    );
+    expectTouchTarget(
+      tester,
+      find.byKey(ReplyQuote.quoteKey),
+      alignment: Alignment.topLeft,
+    );
+  });
+
   testWidgets('every profile colour swatch', (tester) async {
     await _pump(
       tester,

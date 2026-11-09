@@ -313,16 +313,11 @@ class MessageRow extends ConsumerWidget {
     final row = _avatarAndColumn(v);
     final quote = v.quote;
     if (quote == null) return row;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ReplyElbow(
-          avatarSize: v.density.avatarSize,
-          clearance: MessageHoverToolbar.clearance(compact: v.compact),
-          quote: quote,
-        ),
-        row,
-      ],
+    return ReplyElbow(
+      avatarSize: v.density.avatarSize,
+      clearance: MessageHoverToolbar.clearance(compact: v.compact),
+      quote: quote,
+      child: row,
     );
   }
 
