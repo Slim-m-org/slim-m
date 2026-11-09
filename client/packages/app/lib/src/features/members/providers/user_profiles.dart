@@ -73,8 +73,11 @@ class BatchProfilesController
     extends StateNotifier<Map<String, api.UserProfile?>> {
   BatchProfilesController(this._ref) : super(const {}) {
     _sub = _ref.read(liveEventsProvider).listen((event) {
-      if (event is api.ProfileChanged && state.containsKey(event.userId)) {
+      if (event is! api.ProfileChanged) return;
+      if (state.containsKey(event.userId)) {
         state = {...state}..remove(event.userId);
+      } else if (_isInFlight(event.userId)) {
+        _changedInFlight.add(event.userId);
       }
     });
   }
@@ -88,6 +91,13 @@ class BatchProfilesController
   /// The subset of [_waiting] not yet sent: what the next flush batches.
   final Set<String> _unsent = {};
   bool _flushScheduled = false;
+
+  /// Ids whose request was already sent when their profile changed, so the
+  /// answer predates the change and is asked for again instead of cached.
+  final Set<String> _changedInFlight = {};
+
+  bool _isInFlight(String id) =>
+      _waiting.containsKey(id) && !_unsent.contains(id);
 
   /// [id]'s profile, from the cache or from the next batch.
   ///
@@ -125,15 +135,30 @@ class BatchProfilesController
         wait: _ref.read(rateLimitWaitProvider),
       );
       final byId = {for (final profile in found) profile.id: profile};
-      if (mounted) state = {...state, for (final id in ids) id: byId[id]};
-      for (final id in ids) {
+      final stale = mounted
+          ? ids.where(_changedInFlight.remove).toSet()
+          : <String>{};
+      final current = ids.where((id) => !stale.contains(id)).toList();
+      if (mounted) state = {...state, for (final id in current) id: byId[id]};
+      for (final id in current) {
         _waiting.remove(id)?.complete(byId[id]);
       }
+      _requeue(stale);
     } catch (error, stack) {
+      _changedInFlight.removeAll(ids);
       for (final id in ids) {
         _waiting.remove(id)?.completeError(error, stack);
       }
     }
+  }
+
+  /// Queues [ids] for the next batch, their waiters still holding on.
+  void _requeue(Set<String> ids) {
+    if (ids.isEmpty) return;
+    _unsent.addAll(ids);
+    if (_flushScheduled) return;
+    _flushScheduled = true;
+    scheduleMicrotask(_flush);
   }
 
   /// Fetches whichever of [ids] are not already known. Best-effort: a failed
@@ -153,7 +178,10 @@ class BatchProfilesController
   /// [api.ProfileChanged] frames while disconnected: [SyncController.start]
   /// calls this on every (re)connect, since there is no cursor over renames
   /// to catch up from and asking fresh is always correct.
-  void clear() => state = const {};
+  void clear() {
+    _changedInFlight.addAll(_waiting.keys.where(_isInFlight));
+    state = const {};
+  }
 
   @override
   void dispose() {
