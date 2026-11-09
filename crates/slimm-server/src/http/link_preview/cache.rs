@@ -17,6 +17,7 @@ use crate::store::now_ms;
 
 use super::extract::Preview;
 use super::fetch::FetchError;
+use super::flight::{Flight, Flights};
 use super::image_token;
 use super::video::VideoInfo;
 
@@ -38,11 +39,6 @@ pub(super) enum Outcome {
     Missing,
     Refused,
 }
-
-type InFlight = std::sync::Arc<tokio::sync::OnceCell<Outcome>>;
-
-/// One upstream image fetch shared by every request for the same token while it runs.
-pub(super) type ImageFlight = std::sync::Arc<tokio::sync::OnceCell<Result<Bytes, FetchError>>>;
 
 /// The key a URL is cached under: parsed and re-serialized, so case in the
 /// scheme and host, a default port and a `#fragment` (never sent upstream)
@@ -82,9 +78,9 @@ pub(super) struct Cache {
     key: [u8; 32],
     previews: Mutex<HashMap<String, CachedPreview>>,
     misses: Mutex<HashMap<String, i64>>,
-    in_flight: Mutex<HashMap<String, InFlight>>,
+    in_flight: Flights<Outcome>,
     images: Mutex<HashMap<String, CachedImage>>,
-    image_in_flight: Mutex<HashMap<String, ImageFlight>>,
+    image_in_flight: Flights<Result<Bytes, FetchError>>,
 }
 
 impl Cache {
@@ -93,9 +89,9 @@ impl Cache {
             key,
             previews: Mutex::new(HashMap::new()),
             misses: Mutex::new(HashMap::new()),
-            in_flight: Mutex::new(HashMap::new()),
+            in_flight: Flights::new(),
             images: Mutex::new(HashMap::new()),
-            image_in_flight: Mutex::new(HashMap::new()),
+            image_in_flight: Flights::new(),
         }
     }
 
@@ -114,41 +110,13 @@ impl Cache {
     }
 
     /// The fetch every concurrent request for [key] shares.
-    pub(super) fn in_flight(&self, key: &str) -> InFlight {
-        lock(&self.in_flight)
-            .entry(key.to_owned())
-            .or_default()
-            .clone()
-    }
-
-    /// Forgets [cell] once it has resolved, unless a newer fetch replaced it.
-    pub(super) fn finish(&self, key: &str, cell: &InFlight) {
-        let mut in_flight = lock(&self.in_flight);
-        if in_flight
-            .get(key)
-            .is_some_and(|current| std::sync::Arc::ptr_eq(current, cell))
-        {
-            in_flight.remove(key);
-        }
+    pub(super) fn in_flight(&self, key: &str) -> Flight<'_, Outcome> {
+        self.in_flight.join(key)
     }
 
     /// The image fetch every concurrent request for [token] shares.
-    pub(super) fn image_in_flight(&self, token: &str) -> ImageFlight {
-        lock(&self.image_in_flight)
-            .entry(token.to_owned())
-            .or_default()
-            .clone()
-    }
-
-    /// Forgets [cell] once it has resolved, unless a newer fetch replaced it.
-    pub(super) fn finish_image(&self, token: &str, cell: &ImageFlight) {
-        let mut in_flight = lock(&self.image_in_flight);
-        if in_flight
-            .get(token)
-            .is_some_and(|current| std::sync::Arc::ptr_eq(current, cell))
-        {
-            in_flight.remove(token);
-        }
+    pub(super) fn image_in_flight(&self, token: &str) -> Flight<'_, Result<Bytes, FetchError>> {
+        self.image_in_flight.join(token)
     }
 
     /// The redeemable image token for [url]; the same for the same URL.
