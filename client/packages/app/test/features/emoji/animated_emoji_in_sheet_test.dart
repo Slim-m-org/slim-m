@@ -92,18 +92,27 @@ List<RenderImage> _drawnImages(WidgetTester tester) =>
 BuildContext _contextOf(RenderImage image) =>
     (image.debugCreator! as DebugCreator).element;
 
-/// Real time for the engine's frame decode, fake time for the frame timer.
-Future<void> _play(WidgetTester tester, {int steps = 12}) async {
+/// Every frame the emoji draws over [steps] rounds.
+///
+/// The engine decodes in real time and the frame timer runs in fake time, so each round gives both a turn. A looping gif hands out a fresh image per frame, so two handles are two frames.
+Future<Set<int>> _framesDrawn(WidgetTester tester, {int steps = 12}) async {
+  final frames = <int>{};
   for (var i = 0; i < steps; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 15)),
     );
     await tester.pump(const Duration(milliseconds: 60));
+    for (final drawn in _drawnImages(tester)) {
+      if (drawn.image != null) frames.add(drawn.image.hashCode);
+    }
   }
+  return frames;
 }
 
 /// Opens the composer's own picker through the real shell on a phone, the way the owner hit it.
-Future<void> _openComposerSheet(WidgetTester tester) async {
+///
+/// Returns what the test must await last: the shell holds timers a plain tear-down would leave pending.
+Future<Future<void> Function()> _openComposerSheet(WidgetTester tester) async {
   final s = setup(
     httpClient: quietClient(),
     signedIn: true,
@@ -113,7 +122,6 @@ Future<void> _openComposerSheet(WidgetTester tester) async {
       customEmojiImageProvider.overrideWith((ref, id) async => _twoFrameGif),
     ],
   );
-  addTearDown(() => teardown(tester, s.container, s.db));
   await MessageStore(s.db).upsertChannels([
     const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
   ]);
@@ -131,10 +139,11 @@ Future<void> _openComposerSheet(WidgetTester tester) async {
   await tester.tap(emojiButton);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
+  return () => teardown(tester, s.container, s.db);
 }
 
 /// A phone-width page in a nested navigator, as the shell's pages are, with a button that calls [open].
-Future<void> _openFrom(
+Future<Future<void> Function()> _openFrom(
   WidgetTester tester,
   Future<void> Function(BuildContext context) open,
 ) async {
@@ -177,25 +186,33 @@ Future<void> _openFrom(
   await tester.tap(find.text('open'));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
+  return () async {};
 }
 
-final _sheets = <String, Future<void> Function(WidgetTester)>{
-  "the composer's emoji and GIF sheet": _openComposerSheet,
-  'the reaction picker sheet': (tester) => _openFrom(
-    tester,
-    (context) => showEmojiPickerSheet(context, onSelect: (_) {}),
-  ),
-  "the composer's Space emoji sheet": (tester) => _openFrom(
-    tester,
-    (context) => showSpaceEmojiSheet(context, onSelect: (_) {}),
-  ),
-};
+final _sheets =
+    <String, Future<Future<void> Function()> Function(WidgetTester)>{
+      "the composer's emoji and GIF sheet": _openComposerSheet,
+      'the reaction picker sheet': (tester) => _openFrom(
+        tester,
+        (context) => showEmojiPickerSheet(context, onSelect: (_) {}),
+      ),
+      "the composer's Space emoji sheet": (tester) => _openFrom(
+        tester,
+        (context) => showSpaceEmojiSheet(context, onSelect: (_) {}),
+      ),
+    };
 
 void main() {
+  // One gif's bytes are one cache key, and its frame timer belongs to the test that started it.
+  setUp(() {
+    imageCache.clear();
+    imageCache.clearLiveImages();
+  });
+
   for (final MapEntry(key: name, value: open) in _sheets.entries) {
     testWidgets('an animated emoji in $name plays', (tester) async {
-      await open(tester);
-      await _play(tester, steps: 3);
+      final finish = await open(tester);
+      final frames = await _framesDrawn(tester);
 
       final shown = _drawnImages(tester);
       expect(shown, hasLength(1), reason: 'the one custom emoji in the grid');
@@ -204,15 +221,12 @@ void main() {
         isTrue,
         reason: 'the sheet is the topmost route, so nothing covers its emoji',
       );
-
-      final first = _drawnImages(tester).single.image!;
-      await _play(tester);
-      final later = _drawnImages(tester).single.image!;
       expect(
-        later.isCloneOf(first),
-        isFalse,
-        reason: 'the second frame must have replaced the first',
+        frames.length,
+        greaterThan(1),
+        reason: 'the emoji must move, not hold its first frame',
       );
+      await finish();
     });
   }
 }

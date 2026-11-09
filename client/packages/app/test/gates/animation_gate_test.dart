@@ -179,6 +179,43 @@ void main() {
       expect(first, isTrue, reason: 'uncovered again: it plays');
     });
 
+    testWidgets(
+      'a dialog that replaces a sheet takes its place in the stack at '
+      'width $width',
+      (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final page = await _pump(tester);
+        final root = Navigator.of(page, rootNavigator: true);
+        bool? replacement;
+
+        unawaited(
+          showAppSheet<void>(page, builder: (_) => const Text('first sheet')),
+        );
+        await _settleRoute(tester);
+        unawaited(
+          root.pushReplacement(
+            RawDialogRoute<void>(
+              pageBuilder: (_, _, _) =>
+                  AnimationGate(child: _Probe((v) => replacement = v)),
+            ),
+          ),
+        );
+        await _settleRoute(tester);
+        expect(replacement, isTrue, reason: 'it is the only overlay left');
+        expect(_gated, isFalse, reason: 'the page is still covered');
+
+        root.pop();
+        await _settleRoute(tester);
+        expect(
+          _gated,
+          isTrue,
+          reason: 'the replaced sheet left no trace behind',
+        );
+      },
+    );
+
     testWidgets('a page stays paused beneath an opaque route and a sheet, and '
         'plays once both are gone at width $width', (tester) async {
       tester.view.physicalSize = Size(width, 900);
