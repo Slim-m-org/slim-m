@@ -65,15 +65,17 @@ void main() {
           _repeat(30, () => doc.liveCountsByKind));
 
       const crowd = Offset(960, 540);
+      bool strokesOnly(CanvasStroke stroke) =>
+          stroke.kind == CanvasObjectKind.stroke;
       log.add(
-          'hitTestStroke in the middle of the crowd, $count',
+          'hitTestTopmost in the middle of the crowd, $count',
           _repeat(60, () {
-            hitTestStroke(doc, crowd, allowed: (_) => true);
+            hitTestTopmost(doc, crowd, accepts: strokesOnly);
           }));
       log.add(
-          'hitTestStroke that misses everything, $count',
+          'hitTestTopmost that misses everything, $count',
           _repeat(60, () {
-            hitTestStroke(doc, const Offset(5, 5), allowed: (_) => true);
+            hitTestTopmost(doc, const Offset(5, 5), accepts: strokesOnly);
           }));
       doc.dispose();
     });

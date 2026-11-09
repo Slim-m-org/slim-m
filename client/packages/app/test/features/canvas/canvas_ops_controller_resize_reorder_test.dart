@@ -49,7 +49,7 @@ CanvasStrokeInput _image(
 );
 
 /// A straight horizontal stroke from (x, y) to (x + 40, y), so a tap
-/// anywhere along that line is within `hitTestStroke`'s own tolerance.
+/// anywhere along that line is within `hitTestTopmost`'s own tolerance.
 CanvasStrokeInput _stroke(
   String id, {
   double x = 100,

@@ -32,10 +32,8 @@ extension CanvasDocumentQueries on CanvasDocument {
     return (stroke != null && stroke.alive) ? stroke : null;
   }
 
-  /// The slot [id] currently occupies, or null if it is unknown or no longer
-  /// alive. The companion to [strokeAt], which takes a slot: together they
-  /// let a caller holding an id reach the object without this document
-  /// handing out its own map.
+  /// The slot [id] currently occupies, or null if it is unknown or no longer alive.
+  @visibleForTesting
   int? slotOf(String id) {
     final slot = _slotById[id];
     if (slot == null) return null;

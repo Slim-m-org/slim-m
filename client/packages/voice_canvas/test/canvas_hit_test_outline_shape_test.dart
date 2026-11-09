@@ -5,6 +5,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'support/canvas_hit_probes.dart';
+
 CanvasStrokeInput _shape(CanvasShapeKind kind, {int zIndex = 2}) =>
     CanvasStrokeInput(
       id: 'frame',
@@ -28,7 +30,7 @@ void main() {
       ..applyPlaced(_shape(CanvasShapeKind.rectangle))
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(200, 200)), isNull);
+    expect(boxHitAt(document, const Offset(200, 200)), isNull);
   });
 
   test('a note inside a rectangle frame stays reachable under the frame', () {
@@ -53,6 +55,6 @@ void main() {
       ..applyPlaced(_shape(CanvasShapeKind.rectangle))
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(200, 200)), 'note');
+    expect(boxHitAt(document, const Offset(200, 200)), 'note');
   });
 }
