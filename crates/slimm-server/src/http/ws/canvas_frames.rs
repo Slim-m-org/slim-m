@@ -10,9 +10,11 @@
 //! non-canvas event straight back unconsumed, so `authorize`'s own general
 //! match is what falls through to for anything this file does not know.
 
+use std::sync::Arc;
+
 use super::CanvasObjectDto;
 use super::frames::ServerFrame;
-use crate::hub::{CanvasEvent, Event};
+use crate::hub::{CanvasEvent, Event, ScreenAnnotationEvent};
 use crate::ids::ChannelId;
 
 /// The channel a canvas event concerns, or `None` for anything else.
@@ -178,19 +180,9 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             ended,
         },
-        Event::Canvas(CanvasEvent::ScreenAnnotation(a)) => ServerFrame::CanvasScreenAnnotation {
-            channel_id: a.channel_id.to_string(),
-            user_id: a.user_id.to_string(),
-            target_user_id: a.target_user_id.to_string(),
-            kind: a.kind.as_str().to_owned(),
-            annotation_id: a.annotation_id.map(|id| id.to_string()),
-            points: a.points,
-            color: a.color,
-            text: a.text,
-            ended: a.ended,
-            allowed: a.allowed,
-            aspect: a.aspect,
-        },
+        Event::Canvas(CanvasEvent::ScreenAnnotation(a)) => {
+            annotation_frame(Arc::unwrap_or_clone(a))
+        }
         Event::Canvas(CanvasEvent::View {
             channel_id,
             user_id,
@@ -291,4 +283,20 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         },
         other => return Err(Box::new(other)),
     })
+}
+
+fn annotation_frame(a: ScreenAnnotationEvent) -> ServerFrame {
+    ServerFrame::CanvasScreenAnnotation {
+        channel_id: a.channel_id.to_string(),
+        user_id: a.user_id.to_string(),
+        target_user_id: a.target_user_id.to_string(),
+        kind: a.kind.as_str().to_owned(),
+        annotation_id: a.annotation_id.map(|id| id.to_string()),
+        points: a.points,
+        color: a.color,
+        text: a.text,
+        ended: a.ended,
+        allowed: a.allowed,
+        aspect: a.aspect,
+    }
 }
