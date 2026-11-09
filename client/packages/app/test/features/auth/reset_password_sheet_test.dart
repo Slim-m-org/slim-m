@@ -117,6 +117,24 @@ void main() {
     expect(find.textContaining('at least $kPasswordMinChars'), findsWidgets);
   });
 
+  testWidgets('the minimum counts characters, not UTF-16 units', (
+    tester,
+  ) async {
+    final sent = <Map<String, dynamic>>[];
+    await _open(tester, client: _resetClient(sent));
+
+    await _fill(
+      tester,
+      code: 'a-real-looking-code',
+      password: '\u{1F600}' * (kPasswordMinChars ~/ 2),
+    );
+    await tester.tap(find.text('Set new password'));
+    await tester.pump();
+
+    expect(sent, isEmpty);
+    expect(find.textContaining('at least $kPasswordMinChars'), findsWidgets);
+  });
+
   testWidgets('an empty code is refused before any request', (tester) async {
     final sent = <Map<String, dynamic>>[];
     await _open(tester, client: _resetClient(sent));

@@ -14,6 +14,8 @@ import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../api_failure.dart' show sentenceCase;
+
 /// What a caller does with the proof, returning null on success or the
 /// sentence to show if it failed. [code] is null unless the sheet asked for one.
 typedef ReauthSubmit = Future<String?> Function(String password, String? code);
@@ -24,15 +26,20 @@ bool _isWrongPassword(String message) =>
 /// The sentence for a failed proof. A wrong password is the ordinary case and
 /// gets its own words; any other 403 says what the server said, since a policy
 /// refusal is not a typo. A 403 is never a signed-out session here.
-String reauthFailure(api.ApiException e) => switch (e) {
-  api.ForbiddenException(:final message) when _isWrongPassword(message) =>
-    'That password is not correct.',
-  api.RateLimitedException() =>
-    'Too many attempts. Wait a few minutes and try again.',
-  api.BadRequestException() =>
-    'That code was not accepted. Check the code and try again.',
-  _ => e.message,
-};
+///
+/// A 400 blames the code only when the sheet asked for one ([askedForCode]);
+/// otherwise it is some other refusal and the server's own sentence is shown.
+String reauthFailure(api.ApiException e, {bool askedForCode = false}) =>
+    switch (e) {
+      api.ForbiddenException(:final message) when _isWrongPassword(message) =>
+        'That password is not correct.',
+      api.RateLimitedException() =>
+        'Too many attempts. Wait a few minutes and try again.',
+      api.BadRequestException() when askedForCode =>
+        'That code was not accepted. Check the code and try again.',
+      api.BadRequestException() => sentenceCase(e.message),
+      _ => e.message,
+    };
 
 /// Opens the sheet. Resolves true once [onSubmit] reported success, and null if
 /// it was dismissed.

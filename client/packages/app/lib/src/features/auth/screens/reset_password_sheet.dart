@@ -26,6 +26,7 @@ import '../../../providers/providers.dart';
 import '../../../server_scheme_policy.dart';
 import '../../../widgets/labeled_field.dart';
 import '../widgets/server_identity_confirmation.dart';
+import '../widgets/sign_in_credential_fields.dart' show passwordRule;
 
 /// Validates [target], confirms the server's identity, then opens the sheet.
 ///
@@ -89,7 +90,7 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
   /// Checked here as well as on the server so the rule is visible before a
   /// round trip spends the code, which is the one thing that cannot be undone.
   bool get _passwordLongEnough =>
-      _password.text.length >= api.kPasswordMinChars;
+      _password.text.runes.length >= api.kPasswordMinChars;
 
   Future<void> _submit() async {
     if (_code.text.trim().isEmpty) {
@@ -172,7 +173,7 @@ class _ResetPasswordSheetState extends ConsumerState<_ResetPasswordSheet> {
             const SizedBox(height: AppSpacing.s16),
             LabeledField(
               label: 'New password',
-              helper: 'At least ${api.kPasswordMinChars} characters.',
+              helper: passwordRule,
               child: AppInput(
                 maxLength: api.InputLimits.password,
                 controller: _password,

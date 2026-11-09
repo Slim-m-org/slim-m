@@ -28,6 +28,7 @@ void main() {
     WidgetTester tester, {
     required bool twoFactor,
     int status = 204,
+    String error = 'that password is not correct',
   }) async {
     final sent = <Map<String, dynamic>>[];
     final container = ProviderContainer(
@@ -51,7 +52,7 @@ void main() {
           if (request.url.path == '/auth/password') {
             sent.add(jsonDecode(request.body) as Map<String, dynamic>);
             return http.Response(
-              jsonEncode({'error': 'that password is not correct'}),
+              jsonEncode({'error': error}),
               status,
               headers: {'content-type': 'application/json'},
             );
@@ -94,6 +95,14 @@ void main() {
 
     await type(tester, ['old-password', 'short', 'short']);
     expect(submit(tester).disabled, isTrue, reason: 'under 8 characters');
+
+    final astral = '\u{1F600}' * 4;
+    await type(tester, ['old-password', astral, astral]);
+    expect(
+      submit(tester).disabled,
+      isTrue,
+      reason: 'four characters, though eight UTF-16 units',
+    );
 
     await type(tester, ['old-password', 'long-enough-1', 'long-enough-2']);
     expect(submit(tester).disabled, isTrue, reason: 'does not match');
@@ -140,5 +149,46 @@ void main() {
     expect(find.text('That password is not correct.'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(3));
     expect(find.text('Password changed.'), findsNothing);
+  });
+
+  testWidgets('a refusal that is not about a code says what the server said', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      twoFactor: false,
+      status: 400,
+      error: 'a current two-factor code is required',
+    );
+    await type(tester, ['old-password', 'long-enough-1', 'long-enough-1']);
+    await tester.tap(find.widgetWithText(AppButton, 'Change password'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('A current two-factor code is required.'), findsOneWidget);
+    expect(find.textContaining('That code was not accepted'), findsNothing);
+  });
+
+  testWidgets('a refused code is called a code when the sheet asked for one', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      twoFactor: true,
+      status: 400,
+      error: 'that code is not correct',
+    );
+    await type(tester, [
+      'old-password',
+      'long-enough-1',
+      'long-enough-1',
+      '123456',
+    ]);
+    await tester.tap(find.widgetWithText(AppButton, 'Change password'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('That code was not accepted. Check the code and try again.'),
+      findsOneWidget,
+    );
   });
 }
