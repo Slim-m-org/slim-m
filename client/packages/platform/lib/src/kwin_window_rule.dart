@@ -140,9 +140,8 @@ Future<bool> _serially(Future<bool> Function() run) {
   return result;
 }
 
-/// Puts a rule in the user's KWin config that keeps windows titled [caption]
-/// above full screen ones, and has KWin reload its rules only when it changed;
-/// false where KWin or its config tools are absent.
+/// Keeps windows titled [caption] above full screen ones with a KWin rule, reloading rules only when it changed.
+/// False where KWin or its config tools are absent.
 Future<bool> kwinAboveFullScreen(
   String caption, {
   DBusClient? client,
