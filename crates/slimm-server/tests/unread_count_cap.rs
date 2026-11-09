@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Unread counts stop at `UNREAD_COUNT_CAP` instead of counting a whole
-//! never-opened history, in both the single and the batched read.
+//! never-opened history, in the single, the batched and the read-states reads.
 
 use slimm_server::ids::{ChannelId, MessageId, UserId};
 use slimm_server::store::{NewMessage, Store, UNREAD_COUNT_CAP};
@@ -73,4 +73,25 @@ async fn thread_unread_counts_stop_at_the_cap_too() {
     assert_eq!(counts.get(&big), Some(&UNREAD_COUNT_CAP));
     assert_eq!(counts.get(&small), Some(&3));
     assert_eq!(counts.get(&read), None, "a fully read thread is absent");
+}
+
+#[tokio::test]
+async fn read_states_stop_at_the_cap_too() {
+    let (store, _guard) = support::new_store("slimm-read-states-cap").await;
+    let author = register(&store, "author").await;
+    let reader = register(&store, "reader").await;
+    let big = store.create_channel("big", "text").await.unwrap().id;
+    let small = store.create_channel("small", "text").await.unwrap().id;
+    fill(&store, big, author, UNREAD_COUNT_CAP + 5).await;
+    fill(&store, small, author, 3).await;
+
+    let states: std::collections::HashMap<_, _> = store
+        .read_states_for(reader, &[big, small])
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|state| (state.channel_id, state.unread))
+        .collect();
+    assert_eq!(states.get(&big), Some(&UNREAD_COUNT_CAP));
+    assert_eq!(states.get(&small), Some(&3));
 }
