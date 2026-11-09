@@ -22,10 +22,12 @@ import '../../voice/screens/hold_music_dock_toggle.dart';
 import '../../voice/widgets/voice_call_controls.dart';
 
 /// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
-bool soloMusicInDock(BuildContext context, WidgetRef ref) =>
-    ref.watch(holdMusicAvailableProvider) &&
-    ref.watch(callAloneProvider) &&
-    !holdMusicBadgeFits(context);
+bool soloMusicInDock(BuildContext context, WidgetRef ref) {
+  final available = ref.watch(holdMusicAvailableProvider);
+  final alone = ref.watch(callAloneProvider);
+  final badgeAside = ref.watch(holdMusicBadgeAsideProvider);
+  return available && alone && (badgeAside || !holdMusicBadgeFits(context));
+}
 
 /// The music button's width: its focus-ring reserve and the gap before it, and its options caret at pointer density.
 double dockExtraExtent(BuildContext context) {

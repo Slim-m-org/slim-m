@@ -19,6 +19,12 @@ import 'voice_settings_controller.dart';
 bool holdMusicBadgeFits(BuildContext context) =>
     MediaQuery.sizeOf(context).width >= kCompactWidth;
 
+/// Whether the floating badge has stepped aside because its pane has no room for it.
+///
+/// The window's width alone cannot say so: a pane beside the rail and the member list is narrower than the window.
+/// The dock offers the music controls while this is set.
+final holdMusicBadgeAsideProvider = StateProvider<bool>((ref) => false);
+
 void toggleHoldMusic(WidgetRef ref) {
   final on = ref.read(voiceSettingsControllerProvider).holdMusicEnabled;
   unawaited(

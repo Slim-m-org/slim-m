@@ -5,7 +5,8 @@
 /// Drawn only on a wide window while you are the only one in the call
 /// (desktop-vs-mobile.md rules 1 and 2: width decides, and the style pick is
 /// a dropdown for a control that stays on screen). A compact window keeps the
-/// dock button and the mic-menu rows.
+/// dock button and the mic-menu rows, and so does a pane with no room for the
+/// badge, which says so through [holdMusicBadgeAsideProvider].
 library;
 
 import 'package:flutter/material.dart';
@@ -24,7 +25,8 @@ import '../../../providers/dock_reservation.dart';
 const _musicVolumeLabel = 'Music volume';
 
 /// Pins the badge to the bottom-left of a call surface, in the dock's own row;
-/// short of room it drops its timeline rather than stacking above the dock.
+/// short of room it drops its timeline rather than stacking above the dock, and
+/// short of room for even that it hands the music to the dock.
 class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
   const HoldMusicBadgeOverlay({
     super.key,
@@ -53,8 +55,13 @@ class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
 
 class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
   final _badgeKey = GlobalKey();
+  late final StateController<bool> _aside = ref.read(
+    holdMusicBadgeAsideProvider.notifier,
+  );
   double? _fullWidth;
   bool _compact = false;
+  bool _wantAside = false;
+  bool _publishQueued = false;
 
   // The full pill's width is only measurable while it is full; a compact one keeps the last.
   void _measure() {
@@ -63,13 +70,39 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
     setState(() => _fullWidth = width);
   }
 
+  /// Written after the frame, since the dock that reads it is built in this one.
+  void _publishAside(bool aside) {
+    _wantAside = aside;
+    if (_publishQueued || _aside.state == aside) return;
+    _publishQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _publishQueued = false;
+      if (mounted) _aside.state = _wantAside;
+    });
+  }
+
+  /// Deferred to a microtask, as Riverpod refuses a write made while the tree is torn down.
+  @override
+  void dispose() {
+    if (_wantAside) {
+      final aside = _aside;
+      Future.microtask(() {
+        if (aside.mounted) aside.state = false;
+      });
+    }
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final shown =
         ref.watch(holdMusicAvailableProvider) &&
         ref.watch(callAloneProvider) &&
         holdMusicBadgeFits(context);
-    if (!shown) return const SizedBox.shrink();
+    if (!shown) {
+      _publishAside(false);
+      return const SizedBox.shrink();
+    }
     final sharedDockWidth = ref.watch(bottomDockWidthProvider);
     final double dockWidth = widget.dockWidth ?? sharedDockWidth;
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
@@ -81,10 +114,10 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
             (constraints.maxWidth - dockWidth) / 2 - AppSpacing.s12 * 2;
         final full = _fullWidth;
         _compact = full != null && room < full;
-        // Always the dock's row, never stacked above it; too narrow even for the compact pill, it steps aside.
-        if (_compact && room < holdMusicCompactWidth) {
-          return const SizedBox.shrink();
-        }
+        final aside = _compact && room < holdMusicCompactWidth;
+        _publishAside(aside);
+        // Always the dock's row, never stacked above it; too narrow even for the compact pill, the dock carries the music instead.
+        if (aside) return const SizedBox.shrink();
         // A folded dock leaves only its handle, shorter than the pill: sit on the edge rather than squeeze into it.
         final inRow = dockHeight != null && dockHeight >= _pillHeight;
         return Align(
