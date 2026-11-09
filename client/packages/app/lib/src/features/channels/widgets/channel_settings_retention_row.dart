@@ -49,7 +49,8 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
     final own = choice == _followSpace ? null : choice;
     final from = current.days ?? current.spaceDays;
     final to = own ?? current.spaceDays;
-    final actions = ref.read(channelActionsProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final actions = container.read(channelActionsProvider);
     if (retentionDeletesHistory(from: from, to: to)) {
       int? count;
       try {
@@ -77,7 +78,7 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
       whatFailed: 'change this channel\'s retention',
       action: () async {
         await actions.setRetention(widget.channelId, own);
-        ref.invalidate(channelRetentionProvider(widget.channelId));
+        container.invalidate(channelRetentionProvider(widget.channelId));
       },
     );
     if (mounted) setState(() => _saving = false);

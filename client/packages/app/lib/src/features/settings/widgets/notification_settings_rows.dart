@@ -101,13 +101,16 @@ class _NotificationPreferenceRowState
     extends ConsumerState<NotificationPreferenceRow>
     with GuardedActionState<NotificationPreferenceRow> {
   Future<void> _set(api.NotificationPreference preference) async {
-    final ok = await guard(
+    final container = ProviderScope.containerOf(context, listen: false);
+    await guard(
       whatFailed: 'update your notification preference',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .setNotificationPreference(preference),
+      action: () async {
+        await container
+            .read(settingsActionsProvider)
+            .setNotificationPreference(preference);
+        container.invalidate(notificationPreferenceProvider);
+      },
     );
-    if (ok) ref.invalidate(notificationPreferenceProvider);
   }
 
   @override

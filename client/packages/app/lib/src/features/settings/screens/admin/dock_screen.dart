@@ -226,7 +226,7 @@ class _DockPaneState extends ConsumerState<DockPane>
               filter: filter,
               onFilter: (f) => setState(() => _filter = f),
               onInstallFile: () => unawaited(
-                installDockModuleFromFile(context, ref, guard, setActionError),
+                installDockModuleFromFile(context, guard, setActionError),
               ),
               onAddSource: () => unawaited(showAddDockSourceSheet(context)),
               onManageSources: () =>

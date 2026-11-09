@@ -69,15 +69,19 @@ class _DisplayToggleState extends ConsumerState<_DisplayToggle>
     with
         GuardedActionState<_DisplayToggle>,
         OptimisticSettingState<_DisplayToggle, bool> {
-  Future<void> _set(bool value) async {
-    await saveOptimistic(
+  Future<void> _set(bool value) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return saveOptimistic(
       value,
       whatFailed: 'change where module output shows',
-      action: () =>
-          ref.read(apiProvider).setSpaceSettings(widget.update(value)),
+      action: () async {
+        await container
+            .read(apiProvider)
+            .setSpaceSettings(widget.update(value));
+        container.invalidate(moduleDisplayProvider);
+      },
       refresh: spaceSettingsProvider,
     );
-    ref.invalidate(moduleDisplayProvider);
   }
 
   @override

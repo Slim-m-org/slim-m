@@ -2,6 +2,8 @@
 /// The Start on login setting shows what the system reports and changes it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,12 +13,17 @@ import 'package:slimm_app/src/features/settings/widgets/start_on_login_row.dart'
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../support/async_wait.dart';
+
 class _FakeAutostart implements Autostart {
   _FakeAutostart({this.registered = false, this.fails = false});
 
   bool registered;
   final bool fails;
   int repairs = 0;
+
+  /// When set, a change waits for it before it is applied.
+  Future<void>? hold;
 
   @override
   Future<void> repair() async => repairs++;
@@ -26,6 +33,7 @@ class _FakeAutostart implements Autostart {
 
   @override
   Future<void> setEnabled(bool on) async {
+    await hold;
     if (fails) throw StateError('no');
     registered = on;
   }
@@ -82,6 +90,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Could not change this, try again.'), findsOneWidget);
     expect(_switchValue(tester), isFalse);
+  });
+
+  testWidgets('leaving before the system answers still reads the state back', (
+    tester,
+  ) async {
+    final answer = Completer<void>();
+    final autostart = _FakeAutostart(registered: false)..hold = answer.future;
+    final container = ProviderContainer(
+      overrides: [autostartProvider.overrideWith((ref) async => autostart)],
+    );
+    addTearDown(container.dispose);
+    container.listen(autostartEnabledProvider, (_, _) {});
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(body: StartOnLoginRow()),
+        ),
+      ),
+    );
+    await pumpFrames(tester);
+
+    await tester.tap(find.bySubtype<AppToggle>());
+    await tester.pump();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    answer.complete();
+    await pumpFrames(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(container.read(autostartEnabledProvider).value, isTrue);
   });
 
   testWidgets('a host with no login launch shows nothing', (tester) async {

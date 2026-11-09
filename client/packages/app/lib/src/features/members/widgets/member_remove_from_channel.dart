@@ -111,7 +111,7 @@ class MemberRemoveFromChannelItem extends ConsumerWidget {
           confirmLabel: 'Remove',
         );
         if (!confirmed) return;
-        final client = ref.read(apiProvider);
+        final client = container.read(apiProvider);
         final ok = await guard(
           whatFailed: 'remove $name from #${channel.name}',
           action: () => denyMemberChannel(

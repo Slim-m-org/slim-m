@@ -43,24 +43,42 @@ Future<bool> reportedChannelReachable(WidgetRef ref, String channelId) async {
   }
 }
 
-Future<void> _closeReport(WidgetRef ref, Guard guard, String reportId) => guard(
+Future<void> _closeReport(
+  ProviderContainer container,
+  Guard guard,
+  String reportId,
+) => guard(
   whatFailed: 'close the report',
   action: () async {
-    await ref
+    await container
         .read(apiProvider)
         .resolveReport(
           reportId: reportId,
           resolution: api.ReportResolution.resolved,
         );
-    await ref.read(reportsControllerProvider.notifier).refresh();
+    if (container.exists(reportsControllerProvider)) {
+      await container.read(reportsControllerProvider.notifier).refresh();
+    }
   },
 );
+
+/// Runs [action], then closes the report, which still happens if the card has left the screen.
+Future<void> _actThenClose(
+  ProviderContainer container,
+  Guard guard,
+  String reportId, {
+  required String whatFailed,
+  required Future<void> Function() action,
+}) async {
+  final acted = await guard(whatFailed: whatFailed, action: action);
+  if (acted) await _closeReport(container, guard, reportId);
+}
 
 /// Deletes the reported message, after confirming - a delete removes it for
 /// everyone in the channel and cannot be undone.
 Future<void> deleteReportedMessage(
   BuildContext context,
-  WidgetRef ref,
+  ProviderContainer container,
   Guard guard, {
   required String channelId,
   required String messageId,
@@ -73,42 +91,45 @@ Future<void> deleteReportedMessage(
     confirmLabel: 'Delete',
   );
   if (!confirmed || !context.mounted) return;
-  final acted = await guard(
+  await _actThenClose(
+    container,
+    guard,
+    reportId,
     whatFailed: 'delete the message',
     action: () async {
-      await ref
+      await container
           .read(apiProvider)
           .deleteMessage(channelId: channelId, messageId: messageId);
-      final store = await ref.read(storeProvider.future);
+      final store = await container.read(storeProvider.future);
       await store.discard(messageId);
     },
   );
-  if (acted) await _closeReport(ref, guard, reportId);
 }
 
 /// Times the reported author out. No confirmation, matching
 /// `TimeoutDurationChips`'s own reasoning: it lapses on its own and the undo
 /// sits on the resulting badge, so a dialog here would only be a speed bump.
 Future<void> timeOutReportedAuthor(
-  WidgetRef ref,
+  ProviderContainer container,
   Guard guard, {
   required String userId,
   required Duration duration,
   required String reportId,
-}) async {
-  final acted = await guard(
-    whatFailed: 'time this member out',
-    action: () =>
-        ref.read(apiProvider).timeOutMember(userId: userId, duration: duration),
-  );
-  if (acted) await _closeReport(ref, guard, reportId);
-}
+}) => _actThenClose(
+  container,
+  guard,
+  reportId,
+  whatFailed: 'time this member out',
+  action: () => container
+      .read(apiProvider)
+      .timeOutMember(userId: userId, duration: duration),
+);
 
 /// Removes the reported author from the Space, after confirming - this is a
 /// ban in behaviour: they are signed out and cannot sign back in.
 Future<void> removeReportedAuthor(
   BuildContext context,
-  WidgetRef ref,
+  ProviderContainer container,
   Guard guard, {
   required String userId,
   required String name,
@@ -127,9 +148,11 @@ Future<void> removeReportedAuthor(
     confirmLabel: 'Remove',
   );
   if (!confirmed || !context.mounted) return;
-  final acted = await guard(
+  await _actThenClose(
+    container,
+    guard,
+    reportId,
     whatFailed: 'remove $name',
-    action: () => ref.read(apiProvider).removeMember(userId: userId),
+    action: () => container.read(apiProvider).removeMember(userId: userId),
   );
-  if (acted) await _closeReport(ref, guard, reportId);
 }

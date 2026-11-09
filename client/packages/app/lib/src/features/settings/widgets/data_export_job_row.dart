@@ -29,13 +29,18 @@ class DataExportJobRow extends ConsumerStatefulWidget {
 
 class _DataExportJobRowState extends ConsumerState<DataExportJobRow>
     with GuardedActionState<DataExportJobRow> {
-  Future<void> _remove() => guard(
-    whatFailed: 'delete the export',
-    action: () async {
-      await ref.read(settingsActionsProvider).deleteExport(widget.job.id);
-      ref.invalidate(dataExportsProvider);
-    },
-  );
+  Future<void> _remove() {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return guard(
+      whatFailed: 'delete the export',
+      action: () async {
+        await container
+            .read(settingsActionsProvider)
+            .deleteExport(widget.job.id);
+        container.invalidate(dataExportsProvider);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

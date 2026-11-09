@@ -19,10 +19,10 @@ import '../providers/notification_schedule_controller.dart';
 import '../../../providers/providers.dart';
 import '../../members/widgets/member_picker.dart';
 import '../../../widgets/run_guarded.dart';
+import 'notification_schedule_write.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import '../../members/widgets/user_avatar.dart';
-import '../providers/settings_actions.dart';
 
 /// "Always notify me about" - People: the member card's own shortcut
 /// (`member_card_notification_schedule_action.dart`) writes to the same
@@ -45,26 +45,23 @@ class _NotificationScheduleAllowedPeopleState
     extends ConsumerState<NotificationScheduleAllowedPeople>
     with GuardedActionState<NotificationScheduleAllowedPeople> {
   Future<void> _add() async {
+    final container = ProviderScope.containerOf(context, listen: false);
     final member = await pickMember(context);
     if (member == null) return;
-    final ok = await guard(
+    await writeNotificationSchedule(
+      container,
+      guard,
       whatFailed: 'add that person to your off-hours list',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .addNotificationScheduleAllowedUser(member.id),
+      write: (actions) => actions.addNotificationScheduleAllowedUser(member.id),
     );
-    if (ok) ref.invalidate(notificationScheduleProvider);
   }
 
-  Future<void> _remove(String userId) async {
-    final ok = await guard(
-      whatFailed: 'remove that person from your off-hours list',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .removeNotificationScheduleAllowedUser(userId),
-    );
-    if (ok) ref.invalidate(notificationScheduleProvider);
-  }
+  Future<void> _remove(String userId) => writeNotificationSchedule(
+    ProviderScope.containerOf(context, listen: false),
+    guard,
+    whatFailed: 'remove that person from your off-hours list',
+    write: (actions) => actions.removeNotificationScheduleAllowedUser(userId),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +120,8 @@ class _NotificationScheduleAllowedChannelsState
   late final Stream<List<Channel>> _channels = _channelsStream();
 
   Future<void> _add() async {
-    final store = await ref.read(storeProvider.future);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final store = await container.read(storeProvider.future);
     final channels = await store.allChannels();
     if (!mounted) return;
     final picked = await showAppSheet<Channel>(
@@ -131,24 +129,22 @@ class _NotificationScheduleAllowedChannelsState
       builder: (context) => ChannelPickerSheet(channels: channels),
     );
     if (picked == null) return;
-    final ok = await guard(
+    await writeNotificationSchedule(
+      container,
+      guard,
       whatFailed: 'add that channel to your off-hours list',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .addNotificationScheduleAllowedChannel(picked.id),
+      write: (actions) =>
+          actions.addNotificationScheduleAllowedChannel(picked.id),
     );
-    if (ok) ref.invalidate(notificationScheduleProvider);
   }
 
-  Future<void> _remove(String channelId) async {
-    final ok = await guard(
-      whatFailed: 'remove that channel from your off-hours list',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .removeNotificationScheduleAllowedChannel(channelId),
-    );
-    if (ok) ref.invalidate(notificationScheduleProvider);
-  }
+  Future<void> _remove(String channelId) => writeNotificationSchedule(
+    ProviderScope.containerOf(context, listen: false),
+    guard,
+    whatFailed: 'remove that channel from your off-hours list',
+    write: (actions) =>
+        actions.removeNotificationScheduleAllowedChannel(channelId),
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -133,13 +133,14 @@ class SavedMessageRow extends ConsumerStatefulWidget {
 class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
     with GuardedActionState<SavedMessageRow> {
   Future<void> _remove() async {
+    final container = ProviderScope.containerOf(context, listen: false);
     await guard(
       whatFailed: 'remove the saved message',
       action: () async {
-        await ref
+        await container
             .read(messageApiActionsProvider)
             .unsaveMessage(widget.saved.message.id);
-        ref.invalidate(savedMessagesProvider);
+        container.invalidate(savedMessagesProvider);
       },
     );
   }

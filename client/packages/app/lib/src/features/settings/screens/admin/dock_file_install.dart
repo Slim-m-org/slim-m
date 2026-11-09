@@ -71,11 +71,11 @@ String dockPackageFileName(String moduleId, String version) =>
 /// Failures land in the caller's persistent error state through [guard].
 Future<void> installDockModuleFromFile(
   BuildContext context,
-  WidgetRef ref,
   Guard guard,
   void Function(String message) fail,
 ) async {
-  final pick = await ref.read(dockPackagePickerProvider)();
+  final container = ProviderScope.containerOf(context, listen: false);
+  final pick = await container.read(dockPackagePickerProvider)();
   if (pick == null || !context.mounted) return;
   final Map<String, dynamic> package;
   try {
@@ -87,8 +87,9 @@ Future<void> installDockModuleFromFile(
   api.DockManifest? manifest;
   final readable = await guard(
     whatFailed: 'read ${pick.fileName}',
-    action: () async =>
-        manifest = await ref.read(apiProvider).previewDockPackage(package),
+    action: () async => manifest = await container
+        .read(apiProvider)
+        .previewDockPackage(package),
   );
   final found = manifest;
   if (!readable || found == null || !context.mounted) return;
@@ -102,22 +103,23 @@ Future<void> installDockModuleFromFile(
   if (!agreed || !context.mounted) return;
   final installed = await guard(
     whatFailed: 'install ${found.name}',
-    action: () => ref
-        .read(apiProvider)
-        .installDockPackage(
-          package: package,
-          version: found.version,
-          approvedHostCapabilities: const [],
-          reviewedDigest: found.reviewDigest,
-        ),
+    action: () async {
+      await container
+          .read(apiProvider)
+          .installDockPackage(
+            package: package,
+            version: found.version,
+            approvedHostCapabilities: const [],
+            reviewedDigest: found.reviewDigest,
+          );
+      container.invalidate(dockCatalogProvider);
+      container.invalidate(modulePermissionsProvider);
+      container.invalidate(codeBlockRunnerProvider);
+      container.invalidate(slashCommandProvider);
+      container.invalidate(appLaunchProvider);
+    },
   );
-  if (!installed) return;
-  ref.invalidate(dockCatalogProvider);
-  ref.invalidate(modulePermissionsProvider);
-  ref.invalidate(codeBlockRunnerProvider);
-  ref.invalidate(slashCommandProvider);
-  ref.invalidate(appLaunchProvider);
-  if (!context.mounted) return;
+  if (!installed || !context.mounted) return;
   await context.push(
     Routes.adminDockModule(found.id, source: api.kFileDockSource),
   );
@@ -125,15 +127,18 @@ Future<void> installDockModuleFromFile(
 
 /// Saves an installed module as a package file.
 Future<void> exportDockModuleToFile(
-  WidgetRef ref,
+  BuildContext context,
   Guard guard,
   api.DockManifest manifest,
 ) async {
+  final container = ProviderScope.containerOf(context, listen: false);
   await guard(
     whatFailed: 'export ${manifest.name}',
     action: () async {
-      final package = await ref.read(apiProvider).exportDockModule(manifest.id);
-      await ref.read(dockPackageSaverProvider)(
+      final package = await container
+          .read(apiProvider)
+          .exportDockModule(manifest.id);
+      await container.read(dockPackageSaverProvider)(
         dockPackageFileName(manifest.id, manifest.version),
         utf8.encode(jsonEncode(package)),
       );

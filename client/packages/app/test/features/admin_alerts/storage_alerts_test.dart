@@ -3,10 +3,13 @@
 /// recovered alerts, and the mute.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/admin_alerts/providers/admin_alerts.dart';
 import 'package:slimm_app/src/features/admin_alerts/widgets/backup_status_card.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -26,12 +29,14 @@ Future<FakeServer> _pump(
   FakeServer server, {
   Size size = const Size(390, 844),
   Brightness brightness = Brightness.light,
+  void Function(ProviderContainer container)? withContainer,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   final container = server.container(permissions: manageServerBit);
   addTearDown(container.dispose);
+  withContainer?.call(container);
   addTearDown(server.events.close);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -190,6 +195,68 @@ void main() {
 
     expect(server.muted, isTrue);
     expect(server.requests, contains('PUT /space/alerts/mute'));
+    expect(server.requests.where((r) => r == 'GET /space/alerts').length, 2);
+  });
+
+  testWidgets('a mute that fails says so inline and offers a retry', (
+    tester,
+  ) async {
+    final server = FakeServer()..failMute = true;
+    await _pump(tester, server);
+
+    final toggle = find.bySemanticsLabel('Mute server alerts');
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await _settle(tester);
+
+    final error = find.byKey(const Key('admin-alerts-mute-error'));
+    expect(error, findsOneWidget);
+    expect(
+      find.descendant(
+        of: error,
+        matching: find.textContaining('Could not change the alert mute'),
+      ),
+      findsOneWidget,
+    );
+
+    server.failMute = false;
+    final retry = find.descendant(of: error, matching: find.text('Retry'));
+    await tester.ensureVisible(retry);
+    await tester.tap(retry);
+    await _settle(tester);
+
+    expect(server.muted, isTrue);
+    expect(error, findsNothing);
+  });
+
+  testWidgets('leaving Storage mid-save still refreshes the alert list', (
+    tester,
+  ) async {
+    final server = FakeServer()..muteGate = Completer<void>();
+    late final ProviderContainer container;
+    await _pump(
+      tester,
+      server,
+      withContainer: (made) {
+        container = made;
+        made.listen(adminAlertsProvider, (_, _) {});
+      },
+    );
+
+    final toggle = find.bySemanticsLabel('Mute server alerts');
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await _settle(tester);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    server.muteGate!.complete();
+    await _settle(tester);
+
+    expect(tester.takeException(), isNull);
     expect(server.requests.where((r) => r == 'GET /space/alerts').length, 2);
   });
 

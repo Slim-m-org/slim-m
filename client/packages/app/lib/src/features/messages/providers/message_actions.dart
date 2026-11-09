@@ -308,31 +308,34 @@ bool canBlockMessageAuthor(Message message, String? myUserId) =>
 /// fresh `edited_at`) to the local store and the extras cache the same way
 /// a live `message.edited` event would, so the row's own edited marker
 /// updates without waiting for that broadcast to loop back.
+///
+/// Takes a [ProviderReader] from a container, not a `WidgetRef`: the pane that
+/// started the edit can be gone before the request answers.
 Future<void> editMessageAction(
-  WidgetRef ref,
+  ProviderReader read,
   Message message,
   String content,
 ) async {
-  final updated = await ref
-      .read(apiProvider)
-      .editMessage(
-        channelId: message.channelId,
-        messageId: message.id,
-        content: content,
-      );
-  final store = await ref.read(storeProvider.future);
+  final updated = await read(apiProvider).editMessage(
+    channelId: message.channelId,
+    messageId: message.id,
+    content: content,
+  );
+  final store = await read(storeProvider.future);
   await store.applyMessage(updated);
-  ref.read(messageExtrasProvider.notifier).applyMessage(updated);
+  read(messageExtrasProvider.notifier).applyMessage(updated);
 }
 
 /// Deletes a message server-side, then drops its local row so it vanishes
 /// from this device immediately rather than waiting for the `message.deleted`
 /// broadcast [SyncController] applies the same way.
-Future<void> deleteMessageAction(WidgetRef ref, Message message) async {
-  await ref
-      .read(apiProvider)
-      .deleteMessage(channelId: message.channelId, messageId: message.id);
-  final store = await ref.read(storeProvider.future);
+///
+/// Takes a [ProviderReader] for the reason [editMessageAction] does.
+Future<void> deleteMessageAction(ProviderReader read, Message message) async {
+  await read(
+    apiProvider,
+  ).deleteMessage(channelId: message.channelId, messageId: message.id);
+  final store = await read(storeProvider.future);
   await store.discard(message.id);
 }
 

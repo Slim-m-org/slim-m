@@ -91,9 +91,9 @@ class CategoryHeaderMenu extends ConsumerWidget {
           showRenameCategorySheet(context, category);
         },
       ),
-      if (categoryIndex > 0) _moveItem(context, ref, close, up: true),
+      if (categoryIndex > 0) _moveItem(context, close, up: true),
       if (categoryIndex >= 0 && categoryIndex < categories.length - 1)
-        _moveItem(context, ref, close, up: false),
+        _moveItem(context, close, up: false),
       AppMenuItem(
         label: isCollapsed ? 'Expand category' : 'Collapse category',
         leading: isCollapsed ? AppIcons.unfold : AppIcons.fold,
@@ -133,7 +133,6 @@ class CategoryHeaderMenu extends ConsumerWidget {
 
   Widget _moveItem(
     BuildContext context,
-    WidgetRef ref,
     VoidCallback close, {
     required bool up,
   }) => AppMenuItem(
@@ -142,7 +141,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
     onTap: () {
       close();
       unawaited(
-        moveCategoryAndReport(context, ref, categories, category, up ? -1 : 1),
+        moveCategoryAndReport(context, categories, category, up ? -1 : 1),
       );
     },
   );

@@ -111,13 +111,14 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
       _saving = true;
       _optimistic = private;
     });
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: private ? 'make the channel private' : 'make it public',
       action: () async {
-        final client = ref.read(apiProvider);
+        final client = container.read(apiProvider);
         final roles = await client.listRoles();
         final everyone = roles.firstWhere((r) => r.isEveryone);
-        final selfId = ref.read(sessionProvider).tokens!.userId;
+        final selfId = container.read(sessionProvider).tokens!.userId;
         if (private) {
           await makeChannelPrivate(
             client,
@@ -132,7 +133,7 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
             everyoneRoleId: everyone.id,
           );
         }
-        ref.invalidate(channelOverwritesProvider(widget.channel.id));
+        container.invalidate(channelOverwritesProvider(widget.channel.id));
       },
     );
     if (!mounted) return;

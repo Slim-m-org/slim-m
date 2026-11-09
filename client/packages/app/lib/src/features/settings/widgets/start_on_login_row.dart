@@ -20,7 +20,8 @@ class _StartOnLoginRowState extends ConsumerState<StartOnLoginRow> {
   bool _failed = false;
 
   Future<void> _set(bool on) async {
-    final autostart = await ref.read(autostartProvider.future);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final autostart = await container.read(autostartProvider.future);
     if (autostart == null) return;
     try {
       await autostart.setEnabled(on);
@@ -29,7 +30,7 @@ class _StartOnLoginRowState extends ConsumerState<StartOnLoginRow> {
       reportFailure(LogTag.ui, 'change start on login', error, stack);
       if (mounted) setState(() => _failed = true);
     }
-    ref.invalidate(autostartEnabledProvider);
+    container.invalidate(autostartEnabledProvider);
   }
 
   @override

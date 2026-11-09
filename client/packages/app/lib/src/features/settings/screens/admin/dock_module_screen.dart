@@ -302,7 +302,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
 
   Future<void> _export(api.DockManifest manifest) async {
     setState(() => _busy = true);
-    await exportDockModuleToFile(ref, guard, manifest);
+    await exportDockModuleToFile(context, guard, manifest);
     if (mounted) setState(() => _busy = false);
   }
 

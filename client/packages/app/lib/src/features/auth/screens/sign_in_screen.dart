@@ -177,6 +177,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     } finally {
       client.close();
     }
+    if (!mounted) return;
     final status = await identityStatusFor(
       ref.read(keyStoreProvider),
       target,
