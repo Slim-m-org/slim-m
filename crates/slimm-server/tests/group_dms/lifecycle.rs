@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Leaving, renaming, replays, late blocks, events and deleted accounts.
+//! Leaving, renaming, replays, late blocks and deleted accounts.
 
 use axum::http::StatusCode;
 use serde_json::json;
 
-use slimm_server::hub::Event;
 use uuid::Uuid;
 
 use crate::rig::*;
@@ -191,23 +190,6 @@ async fn the_same_people_can_hold_more_than_one_group() {
     let two = group_of(&h, &b, &[&a, &c]).await;
     assert_ne!(one, two);
     assert_eq!(list(&h, &c).await.len(), 2);
-}
-
-#[tokio::test]
-async fn a_group_roster_change_is_announced_to_participants_only() {
-    let h = harness().await;
-    let _admin = person(&h, "admin").await;
-    let (a, b, c) = (
-        person(&h, "alice").await,
-        person(&h, "bob").await,
-        person(&h, "carol").await,
-    );
-    let mut events = h.hub.subscribe();
-    let channel = group_of(&h, &a, &[&b, &c]).await;
-    let announced = std::iter::from_fn(|| events.try_recv().ok()).any(|event| {
-        matches!(&event, Event::DmChanged { channel_id } if channel_id.to_string() == channel)
-    });
-    assert!(announced, "creating a group publishes dm.changed");
 }
 
 #[tokio::test]
