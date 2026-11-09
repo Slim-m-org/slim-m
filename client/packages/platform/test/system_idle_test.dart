@@ -45,6 +45,24 @@ void main() {
     });
   });
 
+  test('Linux idle asks a source again once it starts answering', () {
+    fakeAsync((async) {
+      var up = false;
+      final idle = LinuxSystemIdle(
+        probes: [
+          () async => up ? const Duration(seconds: 3) : throw StateError('x'),
+        ],
+        pollInterval: const Duration(seconds: 10),
+      );
+      async.flushMicrotasks();
+      expect(idle.idleTime(), isNull);
+      up = true;
+      async.elapse(const Duration(seconds: 10));
+      expect(idle.idleTime(), const Duration(seconds: 3));
+      idle.dispose();
+    });
+  });
+
   test('Linux idle is unknown when no source answers', () {
     fakeAsync((async) {
       final idle = LinuxSystemIdle(probes: [() async => null]);

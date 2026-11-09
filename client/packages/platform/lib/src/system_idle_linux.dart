@@ -21,8 +21,8 @@ const _pollInterval = Duration(seconds: 10);
 /// One idle reading from the session, or null when this source cannot say.
 typedef IdleProbe = Future<Duration?> Function();
 
-/// Sources in preference order; the first one that answers wins, and one that
-/// reports unsupported is not asked again.
+/// Sources in preference order; the first one that answers wins.
+/// Each poll asks from the top again, since a source that failed once can come up later.
 class LinuxSystemIdle implements SystemIdle {
   LinuxSystemIdle({
     required List<IdleProbe> probes,
