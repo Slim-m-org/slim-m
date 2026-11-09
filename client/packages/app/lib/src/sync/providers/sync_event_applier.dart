@@ -12,6 +12,7 @@ import '../../features/channels/providers/channel_notification_overrides_control
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
 import '../../providers/op_adjacency.dart';
+import '../../providers/server_info.dart';
 
 class SyncEventApplier {
   SyncEventApplier(
@@ -101,6 +102,8 @@ class SyncEventApplier {
           store,
           isCurrent: isCurrent,
         );
+      case SpaceSettingsChanged():
+        _ref.invalidate(serverInfoProvider);
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
         unawaited(_resyncAfterLag());

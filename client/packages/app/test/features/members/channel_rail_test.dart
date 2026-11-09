@@ -23,6 +23,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';

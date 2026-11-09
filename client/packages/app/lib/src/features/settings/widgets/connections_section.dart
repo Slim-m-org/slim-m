@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../../members/widgets/linked_account_picture.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';

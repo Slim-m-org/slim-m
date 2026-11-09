@@ -12,7 +12,7 @@ import '../../../widgets/space_icon.dart';
 import '../../members/widgets/invite_landing_card.dart'
     show kInviteBannerAspect;
 import '../../members/widgets/avatar_settings_section.dart';
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../providers/first_run_controller.dart';
 
 const double _iconSize = 56;

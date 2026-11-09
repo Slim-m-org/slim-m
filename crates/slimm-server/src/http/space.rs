@@ -269,6 +269,12 @@ async fn update(
     }
     let welcome = merged_welcome(&state, &body).await?;
     let name = body.name.as_deref().map(validate_name).transpose()?;
+    let changes_version = name.is_some()
+        || body.description.is_some()
+        || body.strong_noise_suppression.is_some()
+        || body.members_can_invite.is_some()
+        || body.module_member_badges.is_some()
+        || body.module_profile_sections.is_some();
     let description = body
         .description
         .as_deref()
@@ -316,6 +322,9 @@ async fn update(
             .store
             .set_module_display(body.module_member_badges, body.module_profile_sections)
             .await?;
+    }
+    // Everything above that `/version` shows, so every member's client re-reads it.
+    if changes_version {
         state.hub.publish(Event::SpaceSettingsChanged);
     }
     if let Some(welcome) = welcome {

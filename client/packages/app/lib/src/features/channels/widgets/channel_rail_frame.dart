@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -14,6 +13,7 @@ import '../../../desktop/update_watch.dart';
 import '../../accounts/widgets/account_switcher.dart';
 import '../../members/providers/presence_view.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/server_info.dart';
 import '../../members/providers/status_text.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../sync/providers/sync_failure.dart';
@@ -26,20 +26,12 @@ import '../../members/widgets/presence_menu.dart';
 import 'rail_call_summary.dart';
 import 'space_icon_badge.dart';
 import 'space_menu_button.dart';
-import '../../settings/providers/settings_actions.dart';
 
 /// Whether this rail has content beside it, so its own right edge is never
 /// the physical screen edge: true at every width the app shows it beside a
 /// conversation, false for the one compact case where it fills the screen.
 bool _railHasNeighbour(BuildContext context) =>
     LayoutClass.of(context).showsBothPanes;
-
-/// The server's own identity, for the header's name line. Real endpoint;
-/// there is no separate per-deployment "workspace name" concept, so this is
-/// `/version`'s `name`.
-final serverInfoProvider = FutureProvider.autoDispose<api.Version>(
-  (ref) => ref.watch(settingsActionsProvider).version(),
-);
 
 /// No subtitle any more: it used to carry the member count and this build's
 /// version, both dropped (design review note 22/7). A version is not a

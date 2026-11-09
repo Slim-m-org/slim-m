@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/channels/providers/channel_notification_o
 import 'package:slimm_app/src/features/settings/providers/notification_preference_controller.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/testing.dart';
@@ -46,6 +47,8 @@ class _Rig {
   int overrideHits = 0;
   int scheduleHits = 0;
   int preferenceHits = 0;
+  int versionHits = 0;
+  String spaceName = 'Before';
 
   /// Answered by `GET /notifications/schedule` and `GET /push/preference`.
   int? snoozeUntil;
@@ -85,6 +88,15 @@ class _Rig {
       ..on('GET', '/push/preference', (_) {
         preferenceHits++;
         return jsonResponse({'preference': preference});
+      })
+      ..on('GET', '/version', (_) {
+        if (++versionHits <= failFirst) return http.Response('boom', 500);
+        return jsonResponse({
+          'name': 'slim-m',
+          'space_name': spaceName,
+          'version': '0.1.0',
+          'protocol': 1,
+        });
       })
       ..on('GET', '/channels', (_) => jsonResponse(<dynamic>[]))
       ..on('POST', '/sync', (_) => jsonResponse({'scopes': <dynamic>[]}))
@@ -126,6 +138,7 @@ class _Rig {
     // Held alive for the session the way home_shell holds them.
     container.listen(notificationScheduleProvider, (_, _) {});
     container.listen(notificationPreferenceProvider, (_, _) {});
+    container.listen(serverInfoProvider, (_, _) {});
     container.read(syncControllerProvider.notifier);
     container.read(sessionProvider).set(_tokens);
     await untilLive();
@@ -169,6 +182,11 @@ void main() {
               .isMuted('c1'),
           isTrue,
         );
+        expect(rig.versionHits, 2);
+        expect(
+          rig.container.read(serverInfoProvider).valueOrNull?.displayName,
+          'Before',
+        );
       } finally {
         await rig.close();
       }
@@ -185,6 +203,7 @@ void main() {
 
         expect(rig.blockHits, 1);
         expect(rig.overrideHits, 1);
+        expect(rig.versionHits, 1);
       } finally {
         await rig.close();
       }
@@ -212,6 +231,48 @@ void main() {
       );
       expect(overrides.isMuted('c1'), isFalse);
       expect(overrides.overrideFor('c2'), api.NotificationPreference.mentions);
+    } finally {
+      await rig.close();
+    }
+  });
+
+  testWidgets('a reconnect picks up a Space renamed meanwhile', (tester) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+      rig.spaceName = 'After';
+
+      await rig.dropAndReconnect();
+
+      expect(rig.versionHits, 2);
+      expect(
+        rig.container.read(serverInfoProvider).valueOrNull?.displayName,
+        'After',
+      );
+    } finally {
+      await rig.close();
+    }
+  });
+
+  testWidgets('a Space settings frame refetches the server info', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+      rig.spaceName = 'Pushed';
+
+      await tester.runAsync(() async {
+        rig.server.pushEvent({'type': 'space.settings_changed'});
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+
+      expect(
+        rig.container.read(serverInfoProvider).valueOrNull?.displayName,
+        'Pushed',
+      );
     } finally {
       await rig.close();
     }
