@@ -370,6 +370,13 @@ classes! {
     /// A full run over two routes makes eight, and the burst of twelve leaves
     /// room for a retry while a sustained refill stays at twelve a minute.
     DiagnosticTransfer,
+    /// A `/ws` hello whose ticket did not redeem, charged to the connecting address.
+    ///
+    /// Spent only on a miss, and checked before the upgrade without spending, so an honest
+    /// reconnect after a deploy costs nothing while a loop of guessed tickets is refused
+    /// before it reaches the store. A real client misses only when its 30-second ticket
+    /// lapsed or its session was revoked, so the burst of ten is generous.
+    HelloFailure,
 }
 
 impl Class {
@@ -423,6 +430,8 @@ impl Class {
             // See this variant's own doc comment for how these were sized.
             Class::DiagnosticPing => (30.0, 5.0),
             Class::DiagnosticTransfer => (12.0, 1.0 / 5.0),
+            // See this variant's own doc comment for how these were sized.
+            Class::HelloFailure => (10.0, 1.0 / 2.0),
         }
     }
 }

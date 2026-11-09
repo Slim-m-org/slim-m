@@ -141,6 +141,8 @@ Both now need the same kind of proof that turning the factor off needs, so a tok
 
 A wrong password is a 403, not a 401, because a client reads a 401 as "your session ended" and signs the member out for a typo.
 The routes are rate limited on the password class (enrol and delete) and the TOTP class (confirm), so a stolen token cannot be used to guess the password.
+The limiter alone allowed about 28,800 guesses a day, so every wrong password here also feeds the sign-in throttle (`store/login_throttle.rs`) under the caller's own `u:` key (amended 2026-11-09).
+After ten wrong guesses the route answers 429 with a `Retry-After` that grows to fifteen minutes, and the account-wide count from `/auth/login` guessing applies here too.
 In `schema/openapi.yaml` the `password` property, and the request body of enrol and delete, are declared optional.
 The schema gate is additive-only (`docs/ci.md`), and a newly required property counts as breaking.
 The server behaviour is as if they were required: a well-formed request without the password is a 400.

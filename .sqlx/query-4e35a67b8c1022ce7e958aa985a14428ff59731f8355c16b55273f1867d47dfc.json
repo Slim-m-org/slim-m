@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT MAX(locked_until) AS \"locked_until: i64\" FROM login_throttle\n             WHERE user_id = ? AND source IN (?, ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "locked_until: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "4e35a67b8c1022ce7e958aa985a14428ff59731f8355c16b55273f1867d47dfc"
+}
