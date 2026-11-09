@@ -253,7 +253,8 @@ Two routes share every bit of this file beyond their own permission scoping: `GE
 Neither ever reaches a channel the caller cannot view: [`resolve_scope`] is the one place `in:` is resolved and permission-filtered for both, and the cross-channel route's default scope is `visible_channels` itself, which only ever returns channels `VIEW_CHANNEL` already grants.
 `visible_channels` also excludes DMs and threads (see its own doc comment), so cross-channel search never reaches a DM the caller was not searching directly.
 
-`q` reaches FTS5 close to as-is, so a caller may use its mini query language (`AND`/`OR`/`NOT`, `"phrase"`, a trailing `*` prefix).
+Plain words in `q` match as prefixes (`Win` finds `Windows` and `Win11_24H2.iso`): the tokenizer indexes that file name as `win11`, `24h2` and so on, and a typed `Win` is none of those whole.
+A `q` that uses FTS5's mini query language (`AND`/`OR`/`NOT`, `"phrase"`, `NEAR(...)`, an explicit `*`) reaches FTS5 as written, and `uses_fts_syntax` is what tells the two apart.
 That is safe against leaking another channel: the index has exactly one column (`content`), so a query string has no other column to pivot to, and the channel restriction is an ordinary SQL predicate the query text can never reach, never part of the `MATCH` expression itself.
 See [`crate::store::Store::search_messages`] for the rest of that reasoning and for how a malformed query surfaces as [`SearchError::InvalidQuery`] rather than a 500: SQLite only validates FTS5 syntax once the statement runs.
 

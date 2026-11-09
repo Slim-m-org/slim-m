@@ -100,6 +100,33 @@ impl Store {
         Ok(ids)
     }
 
+    /// The FTS5 query to run for what the user typed. Plain words become prefix
+    /// phrases ([`literal_fts_query`]), so `Win` finds `Win11_24H2.iso` and
+    /// `Windows`. Text written in FTS5 syntax ([`uses_fts_syntax`]) is `q`
+    /// itself when it parses, else its words. `None` when no word is left.
+    pub async fn fts_query_for(&self, q: &str) -> Result<Option<String>, SearchError> {
+        if uses_fts_syntax(q) {
+            match self.probe_fts(q).await {
+                Ok(()) => return Ok(Some(q.to_owned())),
+                Err(SearchError::InvalidQuery) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        let words = literal_fts_query(q);
+        Ok((!words.is_empty()).then_some(words))
+    }
+
+    /// Join-free probe so FTS5 must parse `q`; not dead work, see [`Self::search_messages`].
+    async fn probe_fts(&self, q: &str) -> Result<(), SearchError> {
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "one!: i64" FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"#,
+            q
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     /// Full-text searches live messages across `channel_ids`, newest match
     /// first by `created_at` (server-assigned at insert), with `seq` as the
     /// tiebreak. Ordering by wall-clock time rather than `seq` matters once
@@ -115,13 +142,14 @@ impl Store {
     /// passes no cursor; paginating a cross-channel result would need a
     /// `created_at` keyset, not this per-channel `seq` one.
     ///
-    /// `query` reaches FTS5 close to as-is, so a caller may use its mini query
-    /// language (`AND`/`OR`/`NOT`, `"phrase"`, a trailing `*` prefix). That is
-    /// safe against leaking another channel: the index has exactly one column
-    /// (`content`), so a query string has no other column to pivot to, and
-    /// the channel and `deleted_at` restriction below are ordinary SQL
-    /// predicates the query text can never reach - never part of the `MATCH`
-    /// expression itself, so nothing in `query` can widen or redirect them.
+    /// `query` is an FTS5 expression as [`Store::fts_query_for`] builds it, so
+    /// a caller may use its mini query language (`AND`/`OR`/`NOT`, `"phrase"`,
+    /// a trailing `*` prefix). That is safe against leaking another channel:
+    /// the index has exactly one column (`content`), so a query string has no
+    /// other column to pivot to, and the channel and `deleted_at` restriction
+    /// below are ordinary SQL predicates the query text can never reach -
+    /// never part of the `MATCH` expression itself, so nothing in `query` can
+    /// widen or redirect them.
     /// `None` means an advanced search with no free text at all: every
     /// operator in `filters` still applies, only the FTS5 join is skipped.
     ///
@@ -139,30 +167,6 @@ impl Store {
     /// The probe has nothing to join against, so FTS5 must parse `query` to
     /// answer it at all, and a bad one fails there every time regardless of
     /// how many rows exist.
-    /// The FTS5 query to run for what the user typed: `q` itself when it parses,
-    /// else its words ([`literal_fts_query`]); `None` when no word is left.
-    pub async fn fts_query_for(&self, q: &str) -> Result<Option<String>, SearchError> {
-        match self.probe_fts(q).await {
-            Ok(()) => Ok(Some(q.to_owned())),
-            Err(SearchError::InvalidQuery) => {
-                let literal = literal_fts_query(q);
-                Ok((!literal.is_empty()).then_some(literal))
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Join-free probe so FTS5 must parse `q`; not dead work, see [`Self::search_messages`].
-    async fn probe_fts(&self, q: &str) -> Result<(), SearchError> {
-        sqlx::query_scalar!(
-            r#"SELECT 1 AS "one!: i64" FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"#,
-            q
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(())
-    }
-
     pub async fn search_messages(
         &self,
         channel_ids: &[ChannelId],
@@ -284,19 +288,34 @@ impl Store {
     }
 }
 
+/// Whether `q` is written in FTS5's query language rather than being plain
+/// words: a quote, `*`, a bracket, a column filter or an upper-case operator.
+/// Lower-case `and`/`or`/`not` are words to FTS5 as well.
+fn uses_fts_syntax(q: &str) -> bool {
+    q.contains(['"', '*', '(', ')', ':', '^', '+', '{', '}'])
+        || q.split_whitespace()
+            .any(|w| matches!(w, "AND" | "OR" | "NOT"))
+}
+
 /// [q]'s words as FTS5 prefix phrases, so text that is not query syntax still
 /// finds what it names: `.iso` becomes `"iso"*`. Empty when no word remains.
 pub(crate) fn literal_fts_query(q: &str) -> String {
-    q.split(|c: char| !c.is_alphanumeric())
+    q.split(|c: char| !is_word_char(c))
         .filter(|w| !w.is_empty())
         .map(|w| format!("\"{w}\"*"))
         .collect::<Vec<_>>()
         .join(" ")
 }
 
+/// A character FTS5's `unicode61` tokenizer keeps inside a word, including the
+/// combining accents it folds away, so a decomposed `é` is not a word break.
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || ('\u{0300}'..='\u{036F}').contains(&c)
+}
+
 #[cfg(test)]
 mod literal_tests {
-    use super::literal_fts_query;
+    use super::{literal_fts_query, uses_fts_syntax};
 
     #[test]
     fn punctuation_becomes_quoted_prefix_words() {
@@ -306,5 +325,42 @@ mod literal_tests {
             "\"ubuntu\"* \"24\"* \"04\"*"
         );
         assert_eq!(literal_fts_query("..."), "");
+    }
+
+    #[test]
+    fn a_combining_accent_stays_inside_its_word() {
+        assert_eq!(literal_fts_query("cafe\u{301}s"), "\"cafe\u{301}s\"*");
+    }
+
+    #[test]
+    fn plain_words_are_not_fts_syntax() {
+        for q in [
+            "Win",
+            "win11 english",
+            ".iso",
+            "ubuntu-24.04",
+            "war and peace",
+            "a or b",
+        ] {
+            assert!(!uses_fts_syntax(q), "q={q}");
+        }
+    }
+
+    #[test]
+    fn quotes_stars_brackets_filters_and_operators_are_fts_syntax() {
+        for q in [
+            "\"quick brown\"",
+            "wind*",
+            "NEAR(a b)",
+            "content:win",
+            "^win",
+            "a + b",
+            "{content} : win",
+            "win AND iso",
+            "win OR iso",
+            "win NOT iso",
+        ] {
+            assert!(uses_fts_syntax(q), "q={q}");
+        }
     }
 }
