@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use futures_util::SinkExt;
-use serde_json::{Value, json};
+use serde_json::json;
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
@@ -13,26 +13,10 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
-
-async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
-    let outcome = tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            let frame = read_frame(ws).await;
-            if frame["type"] == frame_type {
-                return frame;
-            }
-        }
-    })
-    .await;
-    outcome.unwrap_or_else(|_| panic!("no {frame_type} arrived in time"))
-}
-
-async fn assert_nothing_of_type(ws: &mut Client, frame_type: &str) {
-    let outcome =
-        tokio::time::timeout(Duration::from_millis(300), next_of_type(ws, frame_type)).await;
-    assert!(outcome.is_err(), "unexpected {frame_type}");
-}
+use support::ws::{
+    Client, assert_no_frame_of_type, connect, read_frame, read_frame_of_type, serve,
+    user_ticket_and_id,
+};
 
 /// Previews a fresh note of `author`'s, since a preview of an object nobody holds is dropped.
 async fn send_preview(
@@ -95,7 +79,7 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
     )
     .await;
 
-    let frame = next_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
     assert_eq!(frame["channel_id"], channel.to_string());
     assert_eq!(frame["user_id"], alice_id.to_string());
     assert_eq!(frame["x"], 12.5);
@@ -137,7 +121,7 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
     )
     .await;
 
-    assert_nothing_of_type(&mut carol_ws, "canvas.object_preview.updated").await;
+    assert_no_frame_of_type(&mut carol_ws, "canvas.object_preview.updated").await;
 }
 
 /// Hiding presence does not hide live ink from people who can view the
@@ -171,7 +155,7 @@ async fn a_hidden_users_preview_reaches_a_viewer_of_the_same_canvas() {
     )
     .await;
 
-    let frame = next_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
     assert_eq!(frame["user_id"], alice_id.to_string());
 }
 
@@ -201,7 +185,7 @@ async fn an_out_of_bounds_preview_is_dropped() {
     )
     .await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    assert_no_frame_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
 }
 
 /// Cursor frames are rate limited independently of the channel: a tight loop
@@ -277,7 +261,7 @@ async fn a_timed_out_member_cannot_send_a_preview() {
 
     send_preview(&mut bob_ws, &store, bob_id, &channel.to_string(), 1.0, 1.0).await;
 
-    assert_nothing_of_type(&mut alice_ws, "canvas.object_preview.updated").await;
+    assert_no_frame_of_type(&mut alice_ws, "canvas.object_preview.updated").await;
 }
 
 /// A preview box wider than any committed object can be is dropped: a
@@ -329,7 +313,7 @@ async fn an_oversize_preview_box_is_dropped() {
     )
     .await;
 
-    let first = next_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    let first = read_frame_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
     assert_eq!(first["w"], 40.0, "the oversize box was relayed: {first}");
 }
 
@@ -380,7 +364,7 @@ async fn a_member_cannot_preview_another_members_object() {
         .unwrap();
     send_preview(&mut bob_ws, &store, bob_id, &channel.to_string(), 5.0, 5.0).await;
 
-    let first = next_of_type(&mut alice_ws, "canvas.object_preview.updated").await;
+    let first = read_frame_of_type(&mut alice_ws, "canvas.object_preview.updated").await;
     assert_ne!(
         first["object_id"],
         object_id.to_string(),
@@ -424,6 +408,6 @@ async fn a_canvas_manager_can_preview_another_members_object() {
         .await
         .unwrap();
 
-    let frame = next_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
     assert_eq!(frame["object_id"], theirs.to_string());
 }

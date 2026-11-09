@@ -12,55 +12,19 @@
 //! `tests/member_moderation_evicts_dm_calls.rs` shape, so the proof is a
 //! `DeleteRoom` call actually reaching the SFU rather than a status code.
 
-use std::sync::{Arc, Mutex};
-
-use axum::Router as SfuRouter;
-use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
-use axum::routing::post;
-use axum::{Json, Router};
+use axum::Router;
+use axum::http::StatusCode;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::Value;
 use slimm_server::store::Store;
 use slimm_server::voice::{VoiceService, room_for_channel};
-use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
 use support::app::request_bearer as request;
-
-/// Records every `DeleteRoom` call, so a test asserts the SFU was actually
-/// told rather than that the handler happened not to error.
-#[derive(Clone, Default)]
-struct RecordingRoomService {
-    deleted: Arc<Mutex<Vec<Value>>>,
-    bearers: Arc<Mutex<Vec<String>>>,
-}
-
-async fn delete_room(
-    State(recorder): State<RecordingRoomService>,
-    headers: HeaderMap,
-    Json(body): Json<Value>,
-) -> StatusCode {
-    let bearer = headers["authorization"].to_str().unwrap().to_owned();
-    recorder.bearers.lock().unwrap().push(bearer);
-    recorder.deleted.lock().unwrap().push(body);
-    StatusCode::OK
-}
-
-async fn spawn_sfu(recorder: RecordingRoomService) -> String {
-    let router = SfuRouter::new()
-        .route("/twirp/livekit.RoomService/DeleteRoom", post(delete_room))
-        .with_state(recorder);
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    format!("http://{addr}")
-}
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 
 fn app(store: Store, voice: VoiceService) -> Router {
     support::app::builder(store).voice(voice).router()

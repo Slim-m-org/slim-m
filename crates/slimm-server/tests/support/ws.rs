@@ -69,8 +69,22 @@ pub async fn connect(addr: SocketAddr, ticket: &str) -> Client {
     ws
 }
 
-/// The next text frame as JSON, whatever it is.
+/// How long a frame may take on a loaded runner before the test fails instead of hanging.
+pub const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The next text frame as JSON, whatever it is; fails the test when none arrives within [`FRAME_TIMEOUT`].
 pub async fn read_frame(ws: &mut Client) -> Value {
+    read_frame_within(ws, FRAME_TIMEOUT).await
+}
+
+/// [`read_frame`] with the bound chosen by the caller.
+pub async fn read_frame_within(ws: &mut Client, window: Duration) -> Value {
+    tokio::time::timeout(window, next_text_frame(ws))
+        .await
+        .unwrap_or_else(|_| panic!("no frame arrived within {window:?}"))
+}
+
+async fn next_text_frame(ws: &mut Client) -> Value {
     loop {
         match ws.next().await {
             Some(Ok(WsMessage::Text(text))) => {
@@ -80,6 +94,44 @@ pub async fn read_frame(ws: &mut Client) -> Value {
             other => panic!("expected a text frame, got {other:?}"),
         }
     }
+}
+
+/// Waits up to `window` for a frame whose `type` is `kind`, discarding the rest; `None` when it never comes.
+pub async fn wait_for_frame(ws: &mut Client, kind: &str, window: Duration) -> Option<Value> {
+    tokio::time::timeout(window, async {
+        loop {
+            let frame = next_text_frame(ws).await;
+            if frame["type"] == kind {
+                return frame;
+            }
+        }
+    })
+    .await
+    .ok()
+}
+
+/// The next frame of type `kind`, failing the test by name when it does not arrive within [`FRAME_TIMEOUT`].
+pub async fn read_frame_of_type(ws: &mut Client, kind: &str) -> Value {
+    wait_for_frame(ws, kind, FRAME_TIMEOUT)
+        .await
+        .unwrap_or_else(|| panic!("no `{kind}` frame arrived within {FRAME_TIMEOUT:?}"))
+}
+
+/// How long [`assert_no_frame_of_type`] listens; a frame that was going to arrive has long since.
+pub const QUIET_WINDOW: Duration = Duration::from_millis(300);
+
+/// Fails the test when a frame of type `kind` arrives within [`QUIET_WINDOW`].
+pub async fn assert_no_frame_of_type(ws: &mut Client, kind: &str) {
+    let frame = wait_for_frame(ws, kind, QUIET_WINDOW).await;
+    assert!(frame.is_none(), "unexpected `{kind}` frame: {frame:?}");
+}
+
+/// A pong proves the server has handled every frame this client sent before the ping.
+pub async fn settle(ws: &mut Client) {
+    ws.send(WsMessage::Text(json!({ "type": "ping" }).to_string()))
+        .await
+        .unwrap();
+    read_frame_of_type(ws, "pong").await;
 }
 
 /// [`read_frame`] minus `presence.changed`, which every connect publishes.
@@ -92,7 +144,7 @@ pub async fn read_frame_skipping_presence(ws: &mut Client) -> Value {
     }
 }
 
-/// Bounded so a missing publish fails fast instead of hanging the runner.
+/// [`read_frame_skipping_presence`] under the tighter 2 s bound some tests want.
 pub async fn read_frame_skipping_presence_timed(ws: &mut Client) -> Value {
     tokio::time::timeout(Duration::from_secs(2), read_frame_skipping_presence(ws))
         .await

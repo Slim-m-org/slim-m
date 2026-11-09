@@ -6,51 +6,23 @@
 //! together at all: a sweep wired to a different `VoiceService` clone would
 //! have passed every other test in this crate.
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use axum::Router;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::routing::post;
-use axum::{Json, http::StatusCode};
-use serde_json::{Value, json};
+use serde_json::json;
 use slimm_server::hub::{Event, Hub};
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
 
-/// A room service that records every `RemoveParticipant` call it receives,
-/// rather than just answering one canned response: the point of these tests
-/// is proving the call actually arrives, not merely that the handler does
-/// not error.
-#[derive(Clone, Default)]
-struct RecordingRoomService {
-    removed: Arc<Mutex<Vec<Value>>>,
-}
+mod support;
 
-async fn remove_participant(
-    State(recorder): State<RecordingRoomService>,
-    Json(body): Json<Value>,
-) -> StatusCode {
-    recorder.removed.lock().unwrap().push(body);
-    StatusCode::OK
-}
-
-async fn spawn(recorder: RecordingRoomService) -> String {
-    let router = Router::new()
-        .route(
-            "/twirp/livekit.RoomService/RemoveParticipant",
-            post(remove_participant),
-        )
-        .with_state(recorder);
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    format!("http://{addr}")
-}
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 
 fn voice_at(url: &str) -> VoiceService {
     VoiceService::for_test(url, "APIkey", "a-secret-at-least-32-chars-long!")
@@ -59,7 +31,7 @@ fn voice_at(url: &str) -> VoiceService {
 #[tokio::test]
 async fn a_stale_heartbeat_reaches_a_real_remove_participant_call() {
     let recorder = RecordingRoomService::default();
-    let url = spawn(recorder.clone()).await;
+    let url = spawn_sfu(recorder.clone()).await;
     let voice = voice_at(&url);
     let hub = Hub::new();
 
@@ -86,7 +58,7 @@ async fn a_stale_heartbeat_reaches_a_real_remove_participant_call() {
 #[tokio::test]
 async fn a_swept_entry_is_forgotten_so_a_later_sweep_does_not_re_evict_it() {
     let recorder = RecordingRoomService::default();
-    let url = spawn(recorder.clone()).await;
+    let url = spawn_sfu(recorder.clone()).await;
     let voice = voice_at(&url);
     let hub = Hub::new();
 
@@ -110,7 +82,7 @@ async fn a_swept_entry_is_forgotten_so_a_later_sweep_does_not_re_evict_it() {
 #[tokio::test]
 async fn a_refreshed_heartbeat_is_never_swept_or_evicted() {
     let recorder = RecordingRoomService::default();
-    let url = spawn(recorder.clone()).await;
+    let url = spawn_sfu(recorder.clone()).await;
     let voice = voice_at(&url);
     let hub = Hub::new();
 
@@ -133,7 +105,7 @@ async fn a_refreshed_heartbeat_is_never_swept_or_evicted() {
 #[tokio::test]
 async fn the_recorded_call_carries_no_more_than_room_and_identity() {
     let recorder = RecordingRoomService::default();
-    let url = spawn(recorder.clone()).await;
+    let url = spawn_sfu(recorder.clone()).await;
     let voice = voice_at(&url);
     let hub = Hub::new();
 
@@ -246,7 +218,7 @@ async fn the_concurrent_eviction_stays_under_a_ceiling() {
 #[tokio::test]
 async fn a_swept_stale_heartbeat_publishes_voice_activity_changed() {
     let recorder = RecordingRoomService::default();
-    let url = spawn(recorder.clone()).await;
+    let url = spawn_sfu(recorder.clone()).await;
     let voice = voice_at(&url);
     let hub = Hub::new();
     let mut rx = hub.subscribe();

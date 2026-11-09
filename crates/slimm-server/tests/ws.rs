@@ -27,7 +27,7 @@ use uuid::Uuid;
 
 mod support;
 
-use support::ws::{Client, connect, serve, user_ticket};
+use support::ws::{Client, connect, read_frame_within, serve, user_ticket};
 
 /// Like [`new_store`], but also hands back the raw pool so a test can break a
 /// single query for real; see
@@ -50,20 +50,24 @@ async fn new_store_with_pool() -> (Store, SqlitePool, support::TestDbGuard) {
 /// on the shared hub (`presence.rs` covers it), and `read_state.changed`,
 /// which a send publishes for its author (`read_state_devices.rs` covers it).
 async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                let kind = frame["type"].as_str().unwrap_or_default();
-                if kind == "presence.changed" || kind == "read_state.changed" {
-                    continue;
+    tokio::time::timeout(support::ws::FRAME_TIMEOUT, async {
+        loop {
+            match ws.next().await {
+                Some(Ok(WsMessage::Text(text))) => {
+                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
+                    let kind = frame["type"].as_str().unwrap_or_default();
+                    if kind == "presence.changed" || kind == "read_state.changed" {
+                        continue;
+                    }
+                    return frame;
                 }
-                return frame;
+                Some(Ok(_)) => continue,
+                other => panic!("expected a text frame, got {other:?}"),
             }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
         }
-    }
+    })
+    .await
+    .expect("no frame arrived in time")
 }
 
 /// Resolves once the socket has closed (a close frame, end of stream, or error).
@@ -358,4 +362,24 @@ async fn durable_lag_still_forces_a_resync_close() {
         closed.is_ok(),
         "a durable-channel lag must still close the connection"
     );
+}
+
+/// A frame that never comes has to fail the test, because nothing else ends a test blocked on the socket.
+#[tokio::test]
+async fn a_frame_that_never_comes_fails_the_read_instead_of_hanging_it() {
+    let (store, _guard) = support::new_store("slimm-ws-test").await;
+    let state = support::app::state(store.clone());
+    let (ticket, _id) = support::ws::user_ticket_and_id(&store, "alice").await;
+    let addr = serve(state).await;
+    let mut ws = connect(addr, &ticket).await;
+
+    let read = tokio::spawn(async move {
+        loop {
+            read_frame_within(&mut ws, Duration::from_millis(300)).await;
+        }
+    });
+
+    let panic = read.await.expect_err("the read must give up").into_panic();
+    let message = panic.downcast_ref::<String>().expect("a formatted panic");
+    assert!(message.contains("no frame arrived within"), "{message}");
 }

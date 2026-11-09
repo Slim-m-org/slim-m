@@ -5,55 +5,19 @@
 //! revoke. The control is a plain removal. The fake room service is the shape
 //! `tests/member_moderation_evicts_dm_calls.rs` uses.
 
-use std::sync::{Arc, Mutex};
-
-use axum::Router as SfuRouter;
-use axum::extract::State;
+use axum::Router;
 use axum::http::StatusCode;
-use axum::routing::post;
-use axum::{Json, Router};
-use serde_json::{Value, json};
+use serde_json::json;
 use slimm_server::auth::Auth;
 use slimm_server::hub::{Event, Hub};
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
 use support::app::request_authed as request;
-
-/// A room service that records every `RemoveParticipant` call it receives,
-/// the same shape `tests/voice_sweep.rs` uses to prove eviction reaches the
-/// SFU rather than only a code path that happens not to error.
-#[derive(Clone, Default)]
-struct RecordingRoomService {
-    removed: Arc<Mutex<Vec<Value>>>,
-}
-
-async fn remove_participant(
-    State(recorder): State<RecordingRoomService>,
-    Json(body): Json<Value>,
-) -> StatusCode {
-    recorder.removed.lock().unwrap().push(body);
-    StatusCode::OK
-}
-
-async fn spawn_sfu(recorder: RecordingRoomService) -> String {
-    let router = SfuRouter::new()
-        .route(
-            "/twirp/livekit.RoomService/RemoveParticipant",
-            post(remove_participant),
-        )
-        .with_state(recorder);
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    format!("http://{addr}")
-}
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 
 fn app(store: Store, voice: VoiceService) -> Router {
     app_with_hub(store, voice, Hub::new())

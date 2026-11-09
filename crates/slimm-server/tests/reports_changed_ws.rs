@@ -32,20 +32,25 @@ use support::app::request_json as request;
 /// filters for the same reason (every connect/disconnect here publishes one
 /// on the shared hub).
 async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                // The author's own read marker moves with every send; not what this file measures.
-                if frame["type"] == "presence.changed" || frame["type"] == "read_state.changed" {
-                    continue;
+    tokio::time::timeout(support::ws::FRAME_TIMEOUT, async {
+        loop {
+            match ws.next().await {
+                Some(Ok(WsMessage::Text(text))) => {
+                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
+                    // The author's own read marker moves with every send; not what this file measures.
+                    if frame["type"] == "presence.changed" || frame["type"] == "read_state.changed"
+                    {
+                        continue;
+                    }
+                    return frame;
                 }
-                return frame;
+                Some(Ok(_)) => continue,
+                other => panic!("expected a text frame, got {other:?}"),
             }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
         }
-    }
+    })
+    .await
+    .expect("no frame arrived in time")
 }
 
 /// Waits up to `within` for a non-`presence.changed` frame; `None` means

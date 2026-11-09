@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use futures_util::SinkExt;
-use serde_json::{Value, json};
+use serde_json::json;
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
@@ -13,26 +13,10 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
-
-async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
-    let outcome = tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            let frame = read_frame(ws).await;
-            if frame["type"] == frame_type {
-                return frame;
-            }
-        }
-    })
-    .await;
-    outcome.unwrap_or_else(|_| panic!("no {frame_type} arrived in time"))
-}
-
-async fn assert_nothing_of_type(ws: &mut Client, frame_type: &str) {
-    let outcome =
-        tokio::time::timeout(Duration::from_millis(300), next_of_type(ws, frame_type)).await;
-    assert!(outcome.is_err(), "unexpected {frame_type}");
-}
+use support::ws::{
+    Client, assert_no_frame_of_type, connect, read_frame, read_frame_of_type, serve,
+    user_ticket_and_id,
+};
 
 async fn send_preview(ws: &mut Client, channel: ChannelId, owner: UserId, x: f64) {
     ws.send(WsMessage::Text(
@@ -64,7 +48,7 @@ async fn a_viewer_receives_a_streamed_tile_drag() {
 
     send_preview(&mut alice_ws, channel, bob_id, 42.5).await;
 
-    let frame = next_of_type(&mut bob_ws, KIND).await;
+    let frame = read_frame_of_type(&mut bob_ws, KIND).await;
     assert_eq!(frame["user_id"], alice_id.to_string());
     assert_eq!(frame["slot_user_id"], bob_id.to_string());
     assert_eq!(frame["kind"], "camera");
@@ -98,7 +82,7 @@ async fn a_locked_tile_streams_nothing() {
 
     send_preview(&mut alice_ws, channel, bob_id, 42.5).await;
 
-    assert_nothing_of_type(&mut bob_ws, KIND).await;
+    assert_no_frame_of_type(&mut bob_ws, KIND).await;
 }
 
 #[tokio::test]
@@ -124,12 +108,12 @@ async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
     let mut carol_ws = connect(addr, &carol_ticket).await;
 
     send_preview(&mut alice_ws, channel, alice_id, 1.0).await;
-    assert_nothing_of_type(&mut carol_ws, KIND).await;
+    assert_no_frame_of_type(&mut carol_ws, KIND).await;
     // The sender is not sent its own frame, so alice sees nothing from herself.
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 
     send_preview(&mut carol_ws, channel, alice_id, 2.0).await;
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }
 
 #[tokio::test]
@@ -147,7 +131,7 @@ async fn an_out_of_bounds_box_is_dropped() {
 
     send_preview(&mut alice_ws, channel, bob_id, 50_000_000.0).await;
 
-    assert_nothing_of_type(&mut bob_ws, KIND).await;
+    assert_no_frame_of_type(&mut bob_ws, KIND).await;
 }
 
 #[tokio::test]
@@ -174,7 +158,7 @@ async fn a_timed_out_member_cannot_stream_a_tile() {
 
     send_preview(&mut bob_ws, channel, bob_id, 1.0).await;
 
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }
 
 #[tokio::test]

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Live screen-annotation relay: a viewer's mark reaches the sharer, consent is believed only from the sharer, and the canvas gates still apply.
 
-use std::time::Duration;
-
 use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::hub::Hub;
@@ -12,28 +10,11 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
+use support::ws::{
+    Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, user_ticket_and_id,
+};
 
 const KIND: &str = "canvas.screen_annotation.updated";
-
-async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
-    let outcome = tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            let frame = read_frame(ws).await;
-            if frame["type"] == frame_type {
-                return frame;
-            }
-        }
-    })
-    .await;
-    outcome.unwrap_or_else(|_| panic!("no {frame_type} arrived in time"))
-}
-
-async fn assert_nothing_of_type(ws: &mut Client, frame_type: &str) {
-    let outcome =
-        tokio::time::timeout(Duration::from_millis(300), next_of_type(ws, frame_type)).await;
-    assert!(outcome.is_err(), "unexpected {frame_type}");
-}
 
 async fn send(ws: &mut Client, body: Value) {
     ws.send(WsMessage::Text(body.to_string())).await.unwrap();
@@ -85,7 +66,7 @@ async fn a_viewers_stroke_reaches_the_sharer_in_normalised_coordinates() {
     )
     .await;
 
-    let frame = next_of_type(&mut alice_ws, KIND).await;
+    let frame = read_frame_of_type(&mut alice_ws, KIND).await;
     assert_eq!(frame["user_id"], bob_id.to_string());
     assert_eq!(frame["target_user_id"], alice_id.to_string());
     assert_eq!(frame["kind"], "stroke");
@@ -109,7 +90,7 @@ async fn consent_from_the_sharer_is_relayed_with_the_screen_shape() {
 
     send_consent(&mut alice_ws, channel, alice_id).await;
 
-    let frame = next_of_type(&mut bob_ws, KIND).await;
+    let frame = read_frame_of_type(&mut bob_ws, KIND).await;
     assert_eq!(frame["kind"], "consent");
     assert_eq!(frame["allowed"], true);
     assert_eq!(frame["aspect"], 1.7778);
@@ -130,7 +111,7 @@ async fn a_viewer_cannot_speak_consent_for_the_sharer() {
 
     send_consent(&mut bob_ws, channel, alice_id).await;
 
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }
 
 #[tokio::test]
@@ -148,7 +129,7 @@ async fn a_mark_outside_the_screen_is_dropped() {
 
     send_stroke(&mut bob_ws, channel, alice_id, json!([0.5, 1.5])).await;
 
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }
 
 #[tokio::test]
@@ -174,11 +155,11 @@ async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
     let mut carol_ws = connect(addr, &carol_ticket).await;
 
     send_stroke(&mut alice_ws, channel, alice_id, json!([0.1, 0.1])).await;
-    assert_nothing_of_type(&mut carol_ws, KIND).await;
-    next_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut carol_ws, KIND).await;
+    read_frame_of_type(&mut alice_ws, KIND).await;
 
     send_stroke(&mut carol_ws, channel, alice_id, json!([0.2, 0.2])).await;
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }
 
 #[tokio::test]
@@ -205,5 +186,5 @@ async fn a_timed_out_member_cannot_annotate() {
 
     send_stroke(&mut bob_ws, channel, alice_id, json!([0.3, 0.3])).await;
 
-    assert_nothing_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
 }

@@ -15,63 +15,17 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::http::{self};
 use slimm_server::permissions::Permissions;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
 
-use support::ws::{Client, serve, user_ticket};
+use support::ws::{connect, read_frame_of_type, serve, user_ticket, wait_for_frame};
 
 use support::app::json_body;
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = wait_for(&mut ws, "hello", Duration::from_secs(2))
-        .await
-        .expect("hello ack");
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// Waits up to `timeout` for a frame whose `type` is `kind`, discarding
-/// anything else (a presence ping, or the `message.created` a reply into a
-/// thread also produces) - `None` on timeout, never a panic, so this doubles
-/// as both the positive and the negative half of a delivery assertion.
-async fn wait_for(ws: &mut Client, kind: &str, timeout: Duration) -> Option<Value> {
-    tokio::time::timeout(timeout, async {
-        loop {
-            match ws.next().await {
-                Some(Ok(WsMessage::Text(text))) => {
-                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                    if frame["type"] == kind {
-                        return frame;
-                    }
-                }
-                Some(Ok(_)) => continue,
-                other => panic!("expected a text frame, got {other:?}"),
-            }
-        }
-    })
-    .await
-    .ok()
-}
-
-async fn read_frame_of_type(ws: &mut Client, kind: &str) -> Value {
-    wait_for(ws, kind, Duration::from_secs(2))
-        .await
-        .unwrap_or_else(|| panic!("timed out waiting for a `{kind}` frame"))
-}
 
 fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
     let mut builder = Request::builder()
@@ -162,7 +116,7 @@ async fn thread_opened_reaches_a_parent_viewer_and_not_someone_denied_it() {
     assert!(frame["last_reply_at"].is_null());
 
     assert!(
-        wait_for(&mut carol_ws, "thread.updated", Duration::from_millis(300))
+        wait_for_frame(&mut carol_ws, "thread.updated", Duration::from_millis(300))
             .await
             .is_none(),
         "carol was denied view of the parent and must not learn a thread opened on it"

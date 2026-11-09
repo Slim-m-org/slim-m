@@ -10,33 +10,17 @@
 use std::time::Duration;
 
 use futures_util::SinkExt;
-use serde_json::{Value, json};
+use serde_json::json;
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
-
-async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
-    let outcome = tokio::time::timeout(Duration::from_secs(15), async {
-        loop {
-            let frame = read_frame(ws).await;
-            if frame["type"] == frame_type {
-                return frame;
-            }
-        }
-    })
-    .await;
-    outcome.unwrap_or_else(|_| panic!("no {frame_type} arrived in time"))
-}
-
-async fn assert_nothing_of_type(ws: &mut Client, frame_type: &str) {
-    let outcome =
-        tokio::time::timeout(Duration::from_millis(300), next_of_type(ws, frame_type)).await;
-    assert!(outcome.is_err(), "unexpected {frame_type}");
-}
+use support::ws::{
+    Client, assert_no_frame_of_type, connect, read_frame, read_frame_of_type, serve,
+    user_ticket_and_id,
+};
 
 async fn send_preview(
     ws: &mut Client,
@@ -97,7 +81,7 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
     )
     .await;
 
-    let frame = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
     assert_eq!(frame["channel_id"], channel.to_string());
     assert_eq!(frame["user_id"], alice_id.to_string());
     assert_eq!(frame["object_id"], object_id);
@@ -137,7 +121,7 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
     )
     .await;
 
-    assert_nothing_of_type(&mut carol_ws, "canvas.stroke_preview.updated").await;
+    assert_no_frame_of_type(&mut carol_ws, "canvas.stroke_preview.updated").await;
 }
 
 /// Hiding presence does not hide live ink from people who can view the
@@ -170,7 +154,7 @@ async fn a_hidden_users_preview_reaches_a_viewer_of_the_same_canvas() {
     )
     .await;
 
-    let frame = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
     assert_eq!(frame["user_id"], alice_id.to_string());
 }
 
@@ -198,7 +182,7 @@ async fn an_out_of_bounds_point_is_dropped() {
     )
     .await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    assert_no_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
 }
 
 /// A frame carrying more coordinate pairs than one preview may ever hold is
@@ -228,7 +212,7 @@ async fn a_frame_carrying_too_many_points_is_dropped() {
     )
     .await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    assert_no_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
 }
 
 /// The bit a timeout cannot express reaches this path too. `TIMEOUT_DENY`
@@ -263,7 +247,7 @@ async fn a_timed_out_member_cannot_send_a_preview() {
     )
     .await;
 
-    assert_nothing_of_type(&mut alice_ws, "canvas.stroke_preview.updated").await;
+    assert_no_frame_of_type(&mut alice_ws, "canvas.stroke_preview.updated").await;
 }
 
 /// Preview frames are rate limited by the bytes they carry, not by count: a
@@ -348,7 +332,7 @@ async fn an_odd_length_point_list_is_dropped_before_the_next_frame_arrives() {
     )
     .await;
 
-    let first = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    let first = read_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
     assert_eq!(first["object_id"], sentinel, "the odd list was relayed");
 }
 
@@ -385,7 +369,7 @@ async fn a_preview_carries_the_pen_colour_and_width_and_drops_bad_ones() {
             ))
             .await
             .unwrap();
-        let frame = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+        let frame = read_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
         if color == json!("annotation") {
             assert_eq!(frame["color"], "annotation");
             assert_eq!(frame["width"], 6.5);
@@ -425,7 +409,7 @@ async fn a_cancelled_stroke_preview_relays_with_cancelled_true() {
         .await
         .unwrap();
 
-    let frame = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
     assert_eq!(frame["object_id"], object_id);
     assert_eq!(frame["ended"], true);
     assert_eq!(frame["cancelled"], true);
