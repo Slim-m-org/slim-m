@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'autostart.dart';
 import 'autostart_target.dart';
 import 'install_format.dart';
+import 'portal_request.dart';
 
 const _appName = 'slim-m';
 
@@ -97,9 +98,14 @@ class XdgAutostart implements Autostart {
 /// read back from inside the sandbox, so an entry in the sandbox's own config
 /// directory records the last answer.
 class FlatpakAutostart implements Autostart {
-  FlatpakAutostart({required this.marker});
+  /// [request] lets a test stand in for the portal.
+  FlatpakAutostart({
+    required this.marker,
+    Future<PortalResponse> Function(bool autostart)? request,
+  }) : _request = request ?? _requestBackground;
 
   final File marker;
+  final Future<PortalResponse> Function(bool autostart) _request;
 
   @override
   Future<bool> isEnabled() async => marker.existsSync();
@@ -110,31 +116,58 @@ class FlatpakAutostart implements Autostart {
 
   @override
   Future<void> setEnabled(bool on) async {
-    final client = DBusClient.session();
-    try {
-      await client.callMethod(
-        destination: 'org.freedesktop.portal.Desktop',
-        path: DBusObjectPath('/org/freedesktop/portal/desktop'),
-        interface: 'org.freedesktop.portal.Background',
-        name: 'RequestBackground',
-        values: [
-          const DBusString(''),
-          DBusDict.stringVariant({
-            'reason': const DBusString('Start slim-m when you sign in'),
-            'autostart': DBusBoolean(on),
-            'commandline': DBusArray.string([_appName, autostartArgument]),
-          }),
-        ],
-      );
-    } finally {
-      await client.close();
-    }
-    if (on) {
+    final response = await _request(on);
+    if (response.code != 0) throw AutostartDeniedException(response.code);
+    final registered = response.results['autostart'];
+    final autostarts = registered is DBusBoolean ? registered.value : on;
+    if (autostarts) {
       await marker.parent.create(recursive: true);
       await marker.writeAsString(XdgAutostart.desktopEntry(_appName));
     } else if (marker.existsSync()) {
       await marker.delete();
     }
+    if (on && !autostarts) throw AutostartDeniedException(response.code);
+  }
+}
+
+/// The portal answered a login launch request with a no, or with a registration other than the one asked for.
+class AutostartDeniedException implements Exception {
+  const AutostartDeniedException(this.responseCode);
+
+  /// The portal's response code; 0 means it answered but did not register the launch.
+  final int responseCode;
+
+  @override
+  String toString() => 'The portal did not register the login launch '
+      '(response $responseCode)';
+}
+
+Future<PortalResponse> _requestBackground(bool autostart) async {
+  const token = 'slimm_autostart';
+  final client = DBusClient.session();
+  try {
+    await client.ping();
+    final path = DBusObjectPath(portalRequestPath(client.uniqueName, token));
+    return await awaitPortalResponse(
+      responses: portalResponses(client, path),
+      call: () => client.callMethod(
+        destination: portalBusName,
+        path: DBusObjectPath(portalPath),
+        interface: 'org.freedesktop.portal.Background',
+        name: 'RequestBackground',
+        values: [
+          const DBusString(''),
+          DBusDict.stringVariant({
+            'handle_token': const DBusString(token),
+            'reason': const DBusString('Start slim-m when you sign in'),
+            'autostart': DBusBoolean(autostart),
+            'commandline': DBusArray.string([_appName, autostartArgument]),
+          }),
+        ],
+      ),
+    );
+  } finally {
+    await client.close();
   }
 }
 
