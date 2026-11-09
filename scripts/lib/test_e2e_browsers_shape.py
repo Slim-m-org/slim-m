@@ -29,10 +29,11 @@ class BrowsersShapeTest(unittest.TestCase):
 class StaleBrowsersTest(unittest.TestCase):
     BASE = 61000
 
-    def spawn(self, port):
-        """A stand-in for a Chrome: any process carrying the debugging flag as its own argument."""
-        proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)",
-                                 f"--remote-debugging-port={port}"])
+    def spawn(self, port, joined=False):
+        """A stand-in for a Chrome: any process carrying the debugging flag, as its own argument or inside one string."""
+        flag = f"--remote-debugging-port={port}"
+        args = [f"--headless=new {flag} --no-first-run"] if joined else [flag]
+        proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", *args])
         self.addCleanup(proc.wait)
         self.addCleanup(proc.kill)
         return proc
@@ -50,9 +51,14 @@ class StaleBrowsersTest(unittest.TestCase):
         for proc in left:
             proc.wait(timeout=10)
 
+    def test_a_browser_that_rewrote_its_command_line_into_one_string_is_found(self):
+        joined = self.spawn(self.BASE + 17, joined=True)
+        self.assertEqual(e2e_browsers.stop_stale_browsers(self.BASE), [joined.pid])
+        joined.wait(timeout=10)
+
     def test_another_run_s_browser_and_a_longer_port_number_are_left_alone(self):
         other_run = self.spawn(self.BASE + 1000 + 1)
-        longer = self.spawn(f"{self.BASE + 1}0")
+        longer = self.spawn(f"{self.BASE + 1}0", joined=True)
         self.assertEqual(e2e_browsers.stop_stale_browsers(self.BASE), [])
         self.assertIsNone(other_run.poll())
         self.assertIsNone(longer.poll())

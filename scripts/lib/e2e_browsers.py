@@ -9,6 +9,7 @@ hold a port or a microphone.
 import contextlib
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -44,20 +45,21 @@ def debug_ports(base):
     return [base + offset for offset in (*MAIN_OFFSETS, *EXTRA_OFFSETS.values())]
 
 
-def _argv(pid):
+def _words(pid):
+    """The command line's words; Chrome rewrites its own argv into one space-joined string."""
     with open(f"/proc/{pid}/cmdline", "rb") as fh:
-        return fh.read().split(b"\0")
+        return re.split(rb"[\0 ]+", fh.read())
 
 
 def stale_pids(base):
-    """Processes still holding one of this run's debugging ports, matched on the exact flag."""
+    """Processes still holding one of this run's debugging ports, matched on the exact flag word."""
     flags = {f"--remote-debugging-port={port}".encode() for port in debug_ports(base)}
     found = []
     for entry in os.listdir("/proc"):
         if not entry.isdigit() or int(entry) == os.getpid():
             continue
         try:
-            if flags.intersection(_argv(entry)):
+            if flags.intersection(_words(entry)):
                 found.append(int(entry))
         except OSError:
             continue
