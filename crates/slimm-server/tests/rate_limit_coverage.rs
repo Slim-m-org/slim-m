@@ -26,7 +26,7 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 mod support;
 
@@ -37,29 +37,17 @@ const MIN_HTTP_FILES: usize = 100;
 /// (path relative to `src/http`, comment- and string-scrubbed source).
 fn http_sources() -> Vec<(String, String)> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/http");
-    let mut found = Vec::new();
-    collect_rs_files(&root, &mut found);
-    found.sort();
-    found
+    support::rust_files_under(&root)
         .into_iter()
         .map(|path| {
             let rel = path.strip_prefix(&root).expect("under src/http");
             let source = std::fs::read_to_string(&path).expect("read source");
-            let name = rel.to_string_lossy().into_owned();
-            (name, support::code_only(&source))
+            (
+                rel.to_string_lossy().into_owned(),
+                support::code_only(&source),
+            )
         })
         .collect()
-}
-
-fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in std::fs::read_dir(dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display())) {
-        let path = entry.expect("dir entry").path();
-        if path.is_dir() {
-            collect_rs_files(&path, out);
-        } else if path.extension().is_some_and(|ext| ext == "rs") {
-            out.push(path);
-        }
-    }
 }
 
 /// Handlers deliberately left uncharged, each with the reason it is safe.
