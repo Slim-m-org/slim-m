@@ -111,6 +111,7 @@ class _ComposerState extends ConsumerState<Composer> {
       pasteClipboardImageFromKeystroke(
         _actions.stageAttachment,
         _setAttachmentError,
+        textWins: true,
       ),
     ),
     onEditLast: () =>

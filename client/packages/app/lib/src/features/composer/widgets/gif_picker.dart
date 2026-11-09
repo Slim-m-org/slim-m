@@ -167,6 +167,9 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   final _queryFocus = FocusNode();
   Timer? _debounce;
 
+  /// Bumped by every search and by clearing the box, so an older reply can tell it was overtaken.
+  int _searchGeneration = 0;
+
   bool _loading = false;
   String? _error;
   List<api.GifResult>? _results;
@@ -203,6 +206,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     _debounce?.cancel();
     final query = value.trim();
     if (query.isEmpty) {
+      _searchGeneration++;
       // Falls back to the trending grid rather than a blank one.
       setState(() {
         _results = null;
@@ -215,6 +219,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   }
 
   Future<void> _search(String query) async {
+    final generation = ++_searchGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -223,14 +228,14 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       final results = await ref
           .read(composerActionsProvider)
           .searchGifs(query, channelId: widget.channelId);
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _results = results;
         _loading = false;
       });
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.media, 'search GIFs', e, stack);
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _error = describeApiFailure('search for gifs', e);
         _loading = false;

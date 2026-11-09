@@ -124,6 +124,25 @@ void main() {
     });
   });
 
+  group('a digit run too long to be a list number', () {
+    const id = '20250101120000123456. pasted id';
+
+    test('is not a list line, so no key on it throws', () {
+      expect(ListLine.parse(id), isNull);
+      expect(continueList(_at(id)), isNull);
+      expect(indentList(_at(id)), isNull);
+      expect(outdentList(_at(id)), isNull);
+      expect(leaveEmptyItem(_at('20250101120000123456. ')), isNull);
+    });
+
+    test('nine digits still number a list', () {
+      expect(
+        continueList(_at('123456789. nine'))!.text,
+        '123456789. nine\n123456790. ',
+      );
+    });
+  });
+
   group('keys in a focus tree', () {
     late TextEditingController controller;
     late FocusNode field;
