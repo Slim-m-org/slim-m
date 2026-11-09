@@ -280,6 +280,41 @@ void main() {
     expect(tasks().single.phase, DownloadPhase.done);
   });
 
+  test('retrying a failed original asks for the original again', () async {
+    harness();
+    dialog.make = () => FakeTarget()..failWrite = dialog.targets.isEmpty;
+    const kept = api.Attachment(
+      id: 'img1',
+      filename: 'IMG_1.jpg',
+      contentType: 'image/jpeg',
+      size: 4,
+      original: api.AttachmentOriginal(size: 8, filename: 'IMG_1.heic'),
+    );
+    var started = controller().start(kept, original: true);
+    await until(() => server.body.hasListener);
+    server.body.add([1]);
+    await started;
+    expect(tasks().single.phase, DownloadPhase.failed);
+    expect(tasks().single.original, isTrue);
+
+    started = controller().retry(tasks().single.id);
+    await until(() => server.requests == 2 && server.body.hasListener);
+
+    expect(server.lastUri!.queryParameters['original'], 'true');
+    expect(dialog.filenames, ['IMG_1.heic', 'IMG_1.heic']);
+    server.body.add([1, 2, 3, 4, 5, 6, 7, 8]);
+    await server.body.close();
+    await started;
+    expect(tasks().single.phase, DownloadPhase.done);
+  });
+
+  test('retrying an unknown row starts nothing', () async {
+    harness();
+    await controller().retry(99);
+
+    expect(dialog.filenames, isEmpty);
+  });
+
   test(
     'dismiss removes a row, and a new download prunes finished ones',
     () async {

@@ -27,6 +27,7 @@ class DownloadTask {
     required this.id,
     required this.attachment,
     required this.meter,
+    this.original = false,
     this.received = 0,
     this.total,
     this.phase = DownloadPhase.running,
@@ -36,6 +37,9 @@ class DownloadTask {
   final int id;
   final api.Attachment attachment;
   final TransferMeter meter;
+
+  /// Whether [attachment] is the file as uploaded, which a retry must fetch the same way.
+  final bool original;
   final int received;
 
   /// Null when the server sent no length.
@@ -56,6 +60,7 @@ class DownloadTask {
     id: id,
     attachment: attachment,
     meter: meter,
+    original: original,
     received: received ?? this.received,
     total: total ?? this.total,
     phase: phase ?? this.phase,
@@ -136,6 +141,13 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
     await _start(source, original: original);
   }
 
+  /// Starts a failed download again, as the same variant of the file.
+  Future<void> retry(int id) async {
+    final task = state.where((t) => t.id == id).firstOrNull;
+    if (task == null) return;
+    await _start(task.attachment, original: task.original);
+  }
+
   Future<void> _start(
     api.Attachment attachment, {
     required bool original,
@@ -154,7 +166,13 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
         error,
         stack,
       );
-      _add(_failed(attachment, 'Could not save ${attachment.filename}.'));
+      _add(
+        _failed(
+          attachment,
+          'Could not save ${attachment.filename}.',
+          original: original,
+        ),
+      );
       return;
     } finally {
       _asking.remove(attachment.id);
@@ -167,6 +185,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
         _failed(
           attachment,
           '${attachment.filename} is too large to save on this device.',
+          original: original,
         ),
       );
       return;
@@ -184,6 +203,7 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       DownloadTask(
         id: id,
         attachment: attachment,
+        original: original,
         meter: TransferMeter(ref.read(downloadClockProvider)),
         total: attachment.size > 0 ? attachment.size : null,
       ),
@@ -294,12 +314,16 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
 
   void _add(DownloadTask task) => state = [...state, task];
 
-  DownloadTask _failed(api.Attachment attachment, String message) =>
-      DownloadTask(
-        id: _nextId++,
-        attachment: attachment,
-        meter: TransferMeter(),
-        phase: DownloadPhase.failed,
-        message: message,
-      );
+  DownloadTask _failed(
+    api.Attachment attachment,
+    String message, {
+    required bool original,
+  }) => DownloadTask(
+    id: _nextId++,
+    attachment: attachment,
+    original: original,
+    meter: TransferMeter(),
+    phase: DownloadPhase.failed,
+    message: message,
+  );
 }
