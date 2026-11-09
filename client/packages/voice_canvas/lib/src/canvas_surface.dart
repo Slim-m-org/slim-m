@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'canvas_board_clip.dart';
+import 'canvas_camera_pinch.dart';
 import 'canvas_camera_wheel.dart';
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';

@@ -9,6 +9,8 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'support/canvas_hit_probes.dart';
+
 CanvasStrokeInput _stroke(
   String id, {
   double x = 10,
@@ -169,7 +171,7 @@ void main() {
       ),
     );
 
-    final edge = hitTestStroke(document, const Offset(500 + 5, 500 + 140));
+    final edge = strokeHitAt(document, const Offset(500 + 5, 500 + 140));
 
     expect(edge, 'wide',
         reason: 'the point is 140 from the line and the ink reaches 150');

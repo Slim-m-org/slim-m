@@ -12,6 +12,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'support/canvas_hit_probes.dart';
+
 /// A minimal real [ui.Image], built from raw pixels rather than a PNG/JPEG
 /// codec: what these tests need is a disposable bitmap the document can
 /// hold, never anything about its content.
@@ -48,13 +50,13 @@ void main() {
       ..applyPlaced(strokeAt('a', x: 0, y: 0))
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(5, 2.5)), 'a');
+    expect(strokeHitAt(document, const Offset(5, 2.5)), 'a');
 
     expect(document.moveObject('a', 100, 100, 10, 5), isTrue);
     document.refresh();
 
-    expect(hitTestStroke(document, const Offset(5, 2.5)), isNull);
-    expect(hitTestStroke(document, const Offset(105, 102.5)), 'a');
+    expect(strokeHitAt(document, const Offset(5, 2.5)), isNull);
+    expect(strokeHitAt(document, const Offset(105, 102.5)), 'a');
   });
 
   test('moveObject translates a stroke\'s own points, not only its box', () {
@@ -68,8 +70,8 @@ void main() {
       ..refresh();
 
     // The drawn line, not merely its box, must have moved: the old end misses.
-    expect(hitTestStroke(document, const Offset(10, 5)), isNull);
-    expect(hitTestStroke(document, const Offset(110, 105)), 'a');
+    expect(strokeHitAt(document, const Offset(10, 5)), isNull);
+    expect(strokeHitAt(document, const Offset(110, 105)), 'a');
   });
 
   test('moveObject preserves zIndex, kind and attachmentId', () {
@@ -95,7 +97,7 @@ void main() {
 
     document.moveObject('pic', 50, 50, 20, 20);
 
-    final slot = hitTestBoxAt(document, const Offset(60, 60));
+    final slot = boxHitAt(document, const Offset(60, 60));
     expect(slot, 'pic');
     final bounds = document.objectBounds('pic')!;
     expect((bounds.x, bounds.y, bounds.w, bounds.h), (50.0, 50.0, 20.0, 20.0));

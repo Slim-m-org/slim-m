@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_document_model.dart';
+import 'canvas_hit_probes.dart';
 
 /// What [DocumentFuzzRun] holds the document to after every step.
 class DocumentFuzzChecks {
@@ -187,8 +188,8 @@ class DocumentFuzzChecks {
       if (o.kind == CanvasObjectKind.stroke && o.rel.isEmpty) continue;
       final probe = o.hitProbe;
       final hitId = o.kind == CanvasObjectKind.stroke
-          ? hitTestStroke(document, probe)
-          : hitTestBoxAt(document, probe);
+          ? strokeHitAt(document, probe)
+          : boxHitAt(document, probe);
       // The board's clip hides everything past its edge, so nothing there is hit.
       if (hitId == null && !(document.board?.contains(probe) ?? true)) continue;
       if (hitId == null) {
@@ -207,8 +208,7 @@ class DocumentFuzzChecks {
     for (final id in model.tombstones) {
       final stale = _graveyard[id];
       if (stale == null) continue;
-      final hitId =
-          hitTestStroke(document, stale) ?? hitTestBoxAt(document, stale);
+      final hitId = strokeHitAt(document, stale) ?? boxHitAt(document, stale);
       if (hitId == id) {
         violate(
             'removed id hit-testable', 'removed id $id is still hit at $stale');

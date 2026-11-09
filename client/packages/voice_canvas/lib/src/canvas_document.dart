@@ -119,6 +119,9 @@ class CanvasDocument extends ChangeNotifier {
   /// off the plane rather than for as long as it merely sits selected.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
 
+  /// Objects a remote preview is moving; the cached ink leaves them out and paints them live (see [holdLive]).
+  final Set<String> _heldLive = <String>{};
+
   /// Alignment guides of a drag or resize that is snapping right now.
   final ValueNotifier<List<SnapGuide>> snapGuides = ValueNotifier(const []);
 
@@ -220,15 +223,18 @@ class CanvasDocument extends ChangeNotifier {
       existing.alive = true;
       objectCount.value = objectCount.value + 1;
       _trackOutside(existing);
+      _paintOrder.reordered(known);
     }
     // A repeated placement reply must not undo a reorder that landed after the original.
     if (overwrite || input.seq == 0 || input.seq > existing.seq) {
+      if (existing.zIndex != input.zIndex || existing.seq != input.seq) {
+        _paintOrder.reordered(known);
+      }
       existing
         ..zIndex = input.zIndex
         ..seq = input.seq;
     }
     if (overwrite) _overwriteFrom(existing, input);
-    _paintOrder.markDirty();
     _changed();
     return known;
   }
@@ -279,7 +285,7 @@ class CanvasDocument extends ChangeNotifier {
     _maxStrokeWidth = math.max(_maxStrokeWidth, input.width);
     _trackOutside(_strokes[slot]);
     objectCount.value = objectCount.value + 1;
-    _paintOrder.markDirty();
+    _paintOrder.added(slot);
     return slot;
   }
 
@@ -341,13 +347,13 @@ class CanvasDocument extends ChangeNotifier {
   void kill(String id) {
     final slot = _slotById[id];
     final stroke = slot == null ? null : _strokes[slot];
-    if (stroke == null || !stroke.alive) return;
+    if (slot == null || stroke == null || !stroke.alive) return;
     stroke.alive = false;
     unsavedInk.set(id, unsaved: false);
     _releaseSelection(id);
     _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
-    _paintOrder.markDirty();
+    _paintOrder.removed(slot);
     _changed();
   }
 
@@ -431,6 +437,7 @@ class CanvasDocument extends ChangeNotifier {
     objectCount.value = 0;
     selectedObjectId.value = null;
     elevatedObjectId.value = null;
+    _heldLive.clear();
     _maxStrokeWidth = 0;
     _changed();
     notifyListeners();
@@ -449,7 +456,7 @@ class CanvasDocument extends ChangeNotifier {
     _strokes[slot] = null;
     // A killed stroke was already counted out.
     if (stroke.alive) objectCount.value = objectCount.value - 1;
-    _paintOrder.markDirty();
+    _paintOrder.removed(slot);
     _changed();
   }
 

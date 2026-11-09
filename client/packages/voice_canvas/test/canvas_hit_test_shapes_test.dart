@@ -7,6 +7,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'support/canvas_hit_probes.dart';
+
 CanvasStrokeInput _shape(String id, CanvasShapeKind kind, {int z = 1}) =>
     CanvasStrokeInput(
       id: id,
@@ -35,17 +37,17 @@ void main() {
       () {
     final document = _with([_shape('e', CanvasShapeKind.ellipse)]);
 
-    expect(hitTestBoxAt(document, const Offset(300, 150)), 'e');
-    expect(hitTestBoxAt(document, const Offset(200, 100)), 'e');
-    expect(hitTestBoxAt(document, const Offset(200, 150)), isNull);
-    expect(hitTestBoxAt(document, const Offset(104, 104)), isNull);
+    expect(boxHitAt(document, const Offset(300, 150)), 'e');
+    expect(boxHitAt(document, const Offset(200, 100)), 'e');
+    expect(boxHitAt(document, const Offset(200, 150)), isNull);
+    expect(boxHitAt(document, const Offset(104, 104)), isNull);
   });
 
   test('a line is hit along its diagonal and nowhere else in its box', () {
     final document = _with([_shape('l', CanvasShapeKind.line)]);
 
-    expect(hitTestBoxAt(document, const Offset(200, 150)), 'l');
-    expect(hitTestBoxAt(document, const Offset(290, 100)), isNull);
+    expect(boxHitAt(document, const Offset(200, 150)), 'l');
+    expect(boxHitAt(document, const Offset(290, 100)), isNull);
   });
 
   test('a flipped line is hit along the diagonal it was drawn', () {
@@ -67,8 +69,8 @@ void main() {
     final document = _with([flipped]);
 
     // Tail at the top right, head at the bottom left.
-    expect(hitTestBoxAt(document, const Offset(290, 105)), 'f');
-    expect(hitTestBoxAt(document, const Offset(110, 105)), isNull);
+    expect(boxHitAt(document, const Offset(290, 105)), 'f');
+    expect(boxHitAt(document, const Offset(110, 105)), isNull);
   });
 
   test('a rectangle is hit on any of its four sides', () {
@@ -80,9 +82,9 @@ void main() {
       Offset(200, 100),
       Offset(200, 200),
     ]) {
-      expect(hitTestBoxAt(document, edge), 'r', reason: '$edge');
+      expect(boxHitAt(document, edge), 'r', reason: '$edge');
     }
-    expect(hitTestBoxAt(document, const Offset(200, 150)), isNull);
+    expect(boxHitAt(document, const Offset(200, 150)), isNull);
   });
 
   test('a finger reaches further from the outline than a mouse', () {
