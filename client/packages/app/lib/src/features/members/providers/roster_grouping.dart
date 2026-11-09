@@ -87,9 +87,10 @@ RosterGroups groupRoster(
   final online = <api.UserProfile>[];
   final offline = <api.UserProfile>[];
   final bots = <api.UserProfile>[];
-  for (final member in members) {
+  final listed = hideBots ? members.where((m) => !m.isBot) : members;
+  for (final member in listed) {
     if (member.isBot) {
-      if (!hideBots) bots.add(member);
+      bots.add(member);
       continue;
     }
     final status = statusOf[member.id];
