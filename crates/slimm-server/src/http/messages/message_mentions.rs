@@ -63,9 +63,29 @@ pub(crate) async fn reply_ping_target(
     pingable(state, channel_id, sender, candidate).await
 }
 
+/// [`resolve_and_store`] for an edited message, under its stored `author`, keeping the reply ping
+/// its send stored. A failure at either step leaves the previous mention set untouched.
+pub(crate) async fn refresh_after_edit(
+    state: &AppState,
+    channel_id: ChannelId,
+    author: UserId,
+    message: &crate::store::Message,
+) -> anyhow::Result<()> {
+    let reply_ping = kept_reply_ping(state, channel_id, author, message.id).await?;
+    resolve_and_store(
+        state,
+        channel_id,
+        author,
+        message.id,
+        &message.content,
+        reply_ping,
+    )
+    .await
+}
+
 /// The ping an edit of `message_id` keeps: the one its send stored, if that
 /// person can still see the channel.
-pub(crate) async fn kept_reply_ping(
+async fn kept_reply_ping(
     state: &AppState,
     channel_id: ChannelId,
     sender: UserId,

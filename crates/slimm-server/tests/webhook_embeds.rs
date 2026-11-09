@@ -187,6 +187,11 @@ const OCT_4_NOON_UTC_MS: i64 = 1_791_115_200_000;
 
 /// Posts one embed through a fresh webhook; returns the delivery status and the listed message embeds.
 async fn deliver_one_embed(name: &str, embed: Value) -> (StatusCode, Value) {
+    deliver_body(name, json!({ "content": "grabbed", "embeds": [embed] })).await
+}
+
+/// Posts `body` through a fresh webhook; returns the delivery status and the channel's messages.
+async fn deliver_body(name: &str, body: Value) -> (StatusCode, Value) {
     let (store, _guard) = new_store(name).await;
     let (viewer_token, channel_id, admin_id) = fixture(&store, "root").await;
     let minted = store
@@ -196,14 +201,7 @@ async fn deliver_one_embed(name: &str, embed: Value) -> (StatusCode, Value) {
     let app = app(store, LinkPreviews::disabled());
 
     let path = format!("/webhooks/{}/{}", minted.webhook.id, minted.token);
-    let posted = app
-        .clone()
-        .oneshot(post_json(
-            &path,
-            json!({ "content": "grabbed", "embeds": [embed] }),
-        ))
-        .await
-        .unwrap();
+    let posted = app.clone().oneshot(post_json(&path, body)).await.unwrap();
     let status = posted.status();
     let listed = app
         .clone()
@@ -427,4 +425,46 @@ async fn the_native_send_route_still_rejects_an_iso_timestamp() {
         StatusCode::BAD_REQUEST,
         "the same body with an integer must get past the type check"
     );
+}
+
+/// Sonarr and Radarr send `username` and `embeds` and no `content`, which decision 0030 promises works.
+#[tokio::test]
+async fn an_embed_only_delivery_posts_the_embed() {
+    for (name, body) in [
+        (
+            "slimm-webhook-embeds-only-absent",
+            json!({ "username": "Sonarr", "embeds": [one_embed()] }),
+        ),
+        (
+            "slimm-webhook-embeds-only-null",
+            json!({ "content": null, "embeds": [one_embed()] }),
+        ),
+        (
+            "slimm-webhook-embeds-only-empty",
+            json!({ "content": "", "embeds": [one_embed()] }),
+        ),
+    ] {
+        let (status, messages) = deliver_body(name, body).await;
+        assert_eq!(status, StatusCode::NO_CONTENT, "{name}");
+        assert_eq!(messages[0]["content"], "", "{name}");
+        assert_eq!(messages[0]["embeds"][0]["title"], "Disk alert", "{name}");
+    }
+}
+
+#[tokio::test]
+async fn a_delivery_with_no_content_and_nothing_visible_in_its_embeds_is_still_a_400() {
+    for (name, body) in [
+        (
+            "slimm-webhook-embeds-nothing",
+            json!({ "username": "Sonarr" }),
+        ),
+        (
+            "slimm-webhook-embeds-blank",
+            json!({ "embeds": [{ "color": 123 }, {}] }),
+        ),
+    ] {
+        let (status, messages) = deliver_body(name, body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{name}");
+        assert_eq!(messages.as_array().unwrap().len(), 0, "{name}");
+    }
 }
