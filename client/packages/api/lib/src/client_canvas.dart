@@ -56,7 +56,8 @@ extension SlimmApiCanvas on SlimmApi {
       '/channels/$channelId/canvas/objects',
       query: query,
     );
-    return CanvasViewport.fromJson(json as Map<String, dynamic>);
+    return decodeShape(json, 'GET /channels/$channelId/canvas/objects',
+        CanvasViewport.fromJson);
   }
 
   /// Places one object, idempotent by [id].
