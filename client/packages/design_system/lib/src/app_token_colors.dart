@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 /// Presence colours, one per state.
@@ -66,6 +67,14 @@ class AppStatusColors {
   );
 
   List<Color> get all => [online, away, dnd, offline];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppStatusColors && listEquals(all, other.all);
+
+  @override
+  int get hashCode => Object.hashAll(all);
 }
 
 /// Syntax colours for fenced code blocks, five roles per theme.
@@ -154,4 +163,12 @@ class AppCodeColors {
 
   /// Every role, for a contrast gate that must not miss one.
   List<Color> get all => [keyword, string, number, comment, punctuation];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppCodeColors && listEquals(all, other.all);
+
+  @override
+  int get hashCode => Object.hashAll(all);
 }
