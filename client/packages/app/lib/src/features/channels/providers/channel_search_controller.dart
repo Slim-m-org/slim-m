@@ -71,6 +71,10 @@ class ChannelSearchController extends StateNotifier<ChannelSearchState> {
 
   /// What typing in the field calls: waits for a pause, then [run]s.
   void queryChanged(String query) {
+    if (query.trim().isEmpty) {
+      unawaited(run(query));
+      return;
+    }
     _debounce?.cancel();
     _debounce = Timer(channelSearchDebounce, () => unawaited(run(query)));
   }

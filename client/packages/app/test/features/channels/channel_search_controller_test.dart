@@ -227,6 +227,26 @@ void main() {
     });
   });
 
+  test('emptying the field clears the hits without waiting for a pause', () {
+    fakeAsync((async) {
+      final container = _harness(
+        searchHandler: (request) async =>
+            http.Response(jsonEncode([_hit('m1', 'other', 'first')]), 200),
+      );
+      final controller = _held(container)..toggle();
+      controller.queryChanged('first');
+      async.elapse(channelSearchDebounce);
+      async.flushMicrotasks();
+      expect(container.read(channelSearchProvider('ch1')).results, isNotEmpty);
+
+      controller.queryChanged('');
+
+      final state = container.read(channelSearchProvider('ch1'));
+      expect(state.query, isNull);
+      expect(state.results, isNull);
+    });
+  });
+
   test('closing the panel cancels a search that has not been sent yet', () {
     fakeAsync((async) {
       final queries = <String>[];
