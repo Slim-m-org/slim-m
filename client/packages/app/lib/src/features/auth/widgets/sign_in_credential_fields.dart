@@ -17,13 +17,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_api/api.dart' show InputLimits, usernameCharacters;
+import 'package:slimm_api/api.dart'
+    show InputLimits, kPasswordMinChars, usernameCharacters;
 
 import '../../../widgets/labeled_field.dart';
 import 'sign_in_error.dart';
 
 const usernameRule = 'Letters, digits, _ . and - only. Up to 32 characters.';
-const passwordRule = 'At least 8 characters.';
+const passwordRule = 'At least $kPasswordMinChars characters.';
 const displayNameHelper =
     'What others see. Defaults to your username. Up to 64 characters.';
 

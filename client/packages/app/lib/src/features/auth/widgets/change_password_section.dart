@@ -71,7 +71,7 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
       return null;
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.auth, 'change the password', e, stack);
-      return reauthFailure(e);
+      return reauthFailure(e, askedForCode: code != null);
     }
   }
 

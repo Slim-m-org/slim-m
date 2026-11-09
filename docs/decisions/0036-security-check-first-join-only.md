@@ -41,3 +41,10 @@ That is the safe direction: losing a pin can only cost an extra screen, never sk
 A relaunch of a signed-in session re-probes `/version` behind `ServerIdentityChangeGate`, and again on every reconnect.
 A key that contradicts the pin shows the same acknowledgement step as sign-in; trusting it re-pins, cancelling ends the session.
 An unreachable server, or nothing pinned yet, leaves the session alone.
+
+The recheck gates the screen, not the connection.
+On a relaunch, sync starts as soon as the session is restored, so the authenticated socket and REST catch-up are made before the first `/version` answer arrives.
+While the changed-identity step is up, sync, push and presence keep running with the token, and only Cancel stops sync and ends the session.
+The first connect of a restored session therefore reaches a server whose key has not been checked yet.
+Closing that means running the first recheck before sync connects, at the cost of one `/version` round trip on every launch, and having sync and push stand down while a mismatch holds.
+That tradeoff is open and not part of this decision.

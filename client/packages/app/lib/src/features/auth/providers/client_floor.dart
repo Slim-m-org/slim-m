@@ -15,10 +15,9 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/providers.dart';
-import '../../../providers/sync_controller.dart';
+import 'server_version_probe.dart';
 
 /// How this client stands against the server's floor.
 enum ClientFloor {
@@ -76,32 +75,13 @@ List<int>? _parse(String? raw) {
 /// Resolves to [ClientFloor.unknown] while it is still asking, so nothing is
 /// blocked on a pending request.
 final clientFloorProvider = FutureProvider<ClientFloor>((ref) async {
-  // Re-asks on reconnect: that is when the server on the other end may have changed under us.
-  ref.watch(syncControllerProvider);
   if (!ref.watch(sessionProvider).isSignedIn) return ClientFloor.fine;
 
   final appInfo = await ref.watch(appInfoProvider.future);
-  try {
-    final version = await ref.watch(apiProvider).version();
-    return clientFloorFor(
-      minClientVersion: version.minClientVersion,
-      clientVersion: appInfo.version,
-    );
-  } on api.ApiException catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.ui,
-      "read the server's minimum app version",
-      error,
-      stack,
-    );
-    return ClientFloor.unknown;
-  } catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.ui,
-      "read the server's minimum app version",
-      error,
-      stack,
-    );
-    return ClientFloor.unknown;
-  }
+  final version = await ref.watch(serverVersionProbeProvider.future);
+  if (version == null) return ClientFloor.unknown;
+  return clientFloorFor(
+    minClientVersion: version.minClientVersion,
+    clientVersion: appInfo.version,
+  );
 });

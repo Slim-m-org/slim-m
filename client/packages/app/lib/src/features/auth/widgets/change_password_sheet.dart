@@ -10,7 +10,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:slimm_api/api.dart' show InputLimits, LogTag, reportFailure;
+import 'package:slimm_api/api.dart'
+    show InputLimits, LogTag, kPasswordMinChars, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'sign_in_credential_fields.dart' show passwordRule;
@@ -20,9 +21,6 @@ import '../../../widgets/labeled_field.dart';
 /// sentence to show if it failed.
 typedef ChangePasswordSubmit =
     Future<String?> Function(String current, String next, String? code);
-
-/// Matches the server's rule and the sign-up form's `passwordRule`.
-const minPasswordLength = 8;
 
 /// Opens the sheet. Resolves true once [onSubmit] reported success.
 Future<bool?> showChangePasswordSheet(
@@ -71,7 +69,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
 
   bool get _ready =>
       _current.text.isNotEmpty &&
-      _next.text.length >= minPasswordLength &&
+      _next.text.runes.length >= kPasswordMinChars &&
       _confirm.text == _next.text &&
       (!widget.askForCode || _codeText.isNotEmpty);
 

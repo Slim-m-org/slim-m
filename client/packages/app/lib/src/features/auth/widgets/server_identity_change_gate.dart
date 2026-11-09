@@ -4,6 +4,8 @@
 ///
 /// Trusting re-pins and carries on; cancelling ends the session, since staying
 /// signed in would keep sending the token to a server nobody vouched for.
+/// This only covers the screen: on a relaunch the recheck answers after sync has
+/// already connected, and sync keeps running behind the step until Cancel.
 library;
 
 import 'package:flutter/material.dart';
