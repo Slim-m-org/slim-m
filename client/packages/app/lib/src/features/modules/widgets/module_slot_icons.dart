@@ -18,5 +18,6 @@ IconData? moduleSlotIcon(String? name) => switch (name) {
   'shuffle' => AppIcons.callShuffle,
   'list' => AppIcons.callList,
   'settings' => AppIcons.settings,
+  'captions' => AppIcons.callCaptions,
   _ => null,
 };

@@ -18,6 +18,7 @@ const Set<String> kModuleSlotIcons = {
   'shuffle',
   'list',
   'settings',
+  'captions',
 };
 
 const int kModuleSlotMaxNodes = 40;

@@ -127,6 +127,15 @@ void main() {
       expect((item.nodes[1] as ModuleSlotBadge).icon, isNull);
     });
 
+    test('every glyph in the closed list is kept, captions included', () {
+      final item = _parse([
+        for (final name in kModuleSlotIcons) {'type': 'icon', 'name': name},
+      ]);
+      final kept = item.nodes.map((n) => (n as ModuleSlotIcon).name);
+      expect(kept, kModuleSlotIcons);
+      expect(kModuleSlotIcons, contains('captions'));
+    });
+
     test('progress needs numbers and a positive max', () {
       final item = _parse([
         {'type': 'progress', 'value': 1, 'max': 0},

@@ -145,6 +145,25 @@ void main() {
     expect(find.text('Quiet'), findsNothing);
   });
 
+  testWidgets(
+    'a captions control draws its own glyph and an unknown name a fallback',
+    (tester) async {
+      const subtitled = api.ChannelBotUi(
+        botUserId: 'jelly',
+        botUsername: 'jellyfin',
+        botDisplayName: 'Jellyfin',
+        messageMenu: [],
+        callControls: [
+          api.BotUiEntry(id: 'cc', label: 'Captions', icon: 'captions'),
+          api.BotUiEntry(id: 'odd', label: 'Odd', icon: 'skull'),
+        ],
+      );
+      await _pump(tester, [], bots: [subtitled]);
+      expect(find.byIcon(AppIcons.callCaptions), findsOneWidget);
+      expect(find.byIcon(AppIcons.callControl), findsOneWidget);
+    },
+  );
+
   testWidgets('an offline bot dims its controls and a tap sends nothing', (
     tester,
   ) async {
