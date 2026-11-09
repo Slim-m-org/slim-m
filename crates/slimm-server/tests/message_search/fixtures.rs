@@ -157,3 +157,21 @@ pub async fn set_created_at(pool: &SqlitePool, message_id: &str, created_at_ms: 
         .await
         .unwrap();
 }
+
+/// Uploads a minimal valid PNG under `filename` and returns its hex id.
+pub async fn upload_named(app: &axum::Router, token: &str, filename: &str) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/attachments?filename={filename}"))
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::from(&b"\x89PNG\r\n\x1a\nrest"[..]))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    json_body(response).await["id"].as_str().unwrap().to_owned()
+}
