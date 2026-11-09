@@ -201,6 +201,11 @@ When this is unset the listener uses the address clients use.
 Litestream is off by default because it needs a real S3-compatible bucket.
 To turn it on: fill in the `LITESTREAM_*` values in `.env`, uncomment `COMPOSE_PROFILES=litestream`, then re-run `docker compose up -d`.
 
+The sidecar refuses to start while the bucket or either key is empty, so a half-filled `.env` shows as a restarting container with the missing name in `docker compose logs litestream`.
+Once it runs, it reports its own health: `docker compose ps` shows `unhealthy` when the bucket cannot be listed (wrong bucket, endpoint or key) or the replica is more than five minutes behind the database.
+The check runs every ten minutes, because each run lists the replica in the bucket, and it needs a first generation to exist, so a large database can show `starting` for a while after the first start.
+Nothing sends an alert on its own: point whatever already watches your containers at the health status.
+
 **Litestream replicates only the SQLite database file. Attachment and avatar bytes are not covered, neither are the module data files in `SLIMM_MODULES_DIR` (default `/data/modules`), and neither is `slimm-data.key`, the key that opens the stored two-factor secrets (docs/OPERATING.md, The data key).**
 Back that key up apart from the replica: a restore without it leaves two-factor members unable to sign in until an administrator clears their factor.
 They live on disk beside the database, at `SLIMM_ATTACHMENTS_DIR` (default `/data/media` inside the container, so the same `slimm_data` volume as the database), specifically because multi-megabyte blobs in the SQLite file would bloat what Litestream streams for no benefit.
@@ -659,6 +664,7 @@ Every service runs with a read-only root filesystem, all Linux capabilities drop
 What must be written is a volume or a tmpfs: the server writes under `/data`, Caddy under `/data` and `/config`, and the server, Caddy and the web image get a small `/tmp`.
 Caddy keeps only `NET_BIND_SERVICE`.
 Litestream runs as uid 65532, the user the server image runs as, because the database files belong to that user and root without capabilities cannot write beside them.
+Its config and health script are the two files in `deploy/litestream/`, mounted read-only.
 If you add a service or an overlay of your own, merge the same block in (`<<: *hardened`) and give it the volume or tmpfs it writes to.
 `docker inspect <container>` shows `ReadonlyRootfs` and `CapDrop` for each.
 
