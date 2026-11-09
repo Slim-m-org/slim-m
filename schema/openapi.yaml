@@ -18867,8 +18867,9 @@ components:
       description: >
         The canvases this connection has open, replacing its previous report;
         an empty list says none is open. Live cursors, stroke previews, object
-        previews and tile previews are then sent only for the listed channels,
-        and never back to the member who sent them. A connection that has not
+        previews, tile previews and view rectangles are then sent only for the
+        listed channels, and never back to the member who sent them. A summon
+        is a one-off request and is always sent. A connection that has not
         sent this frame receives them for every channel it can view. It is
         never broadcast, and at most 8 ids are honoured.
       properties:

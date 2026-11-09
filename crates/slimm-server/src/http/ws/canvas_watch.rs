@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Which canvases one connection has open, so a live cursor or preview is only
-//! sent to a socket that can draw it.
+//! Which canvases one connection has open, so a live cursor, preview or followed
+//! view is only sent to a socket that can draw it.
 
 use std::collections::HashSet;
 
@@ -31,7 +31,8 @@ impl CanvasWatch {
     }
 
     /// Whether an ephemeral canvas frame is worth sending to this connection.
-    /// Every other event passes: only the pointer-rate frames are filtered.
+    /// Every other event passes: only the pointer-rate frames are filtered, and
+    /// a summon is not one of them, being a one-off request meant for everyone.
     pub(super) fn admits(&self, event: &Event, viewer: UserId) -> bool {
         let Some((channel_id, sender)) = ephemeral_canvas_origin(event) else {
             return true;
@@ -66,6 +67,12 @@ fn ephemeral_canvas_origin(event: &Event) -> Option<(ChannelId, UserId)> {
         | Event::Canvas(CanvasEvent::MediaSlotPreview {
             channel_id,
             user_id,
+            ..
+        })
+        | Event::Canvas(CanvasEvent::View {
+            channel_id,
+            user_id,
+            summon: false,
             ..
         }) => Some((*channel_id, *user_id)),
         _ => None,
