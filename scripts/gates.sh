@@ -38,6 +38,7 @@ run_gate "orientation is locked on phones only" bash scripts/check-orientation-l
 run_gate "no emoji in UI source" bash scripts/check-no-emoji.sh
 run_gate "SPDX headers on Dart source" bash scripts/check-spdx-dart.sh
 run_gate "SPDX headers on Rust source" bash scripts/check-spdx-rust.sh
+run_gate "SPDX headers on Kotlin and Swift source" bash scripts/check-spdx-native.sh
 run_gate "file size budget" bash scripts/check-file-budget.sh
 run_gate "comment cap" bash scripts/check-comment-cap.sh
 run_gate "no API failure is caught and shown with a SnackBar" python3 scripts/check-error-surface.py

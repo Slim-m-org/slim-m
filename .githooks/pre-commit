@@ -16,6 +16,7 @@ mapfile -t CHANGED < <(git diff --cached --name-only --diff-filter=ACMR)
 
 mapfile -t dart_files < <(pick '^client/.*\.dart$' | grep -Ev '\.(g|freezed)\.dart$')
 mapfile -t rust_files < <(pick '^crates/.*\.rs$')
+mapfile -t native_files < <(pick '^client/.*/(android/.*\.kt|ios/.*\.swift)$')
 mapfile -t ui_files < <(pick '^client/.*\.(dart|ya?ml|arb)$')
 
 if [ "${#dart_files[@]}" -gt 0 ]; then
@@ -49,6 +50,10 @@ fi
 if [ "${#rust_files[@]}" -gt 0 ]; then
   FIX="make 'SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0' the first line"
   step "SPDX header, Rust (staged)" bash scripts/check-spdx-rust.sh "${rust_files[@]}"
+fi
+if [ "${#native_files[@]}" -gt 0 ]; then
+  FIX="make 'SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0' the first line"
+  step "SPDX header, Kotlin and Swift (staged)" bash scripts/check-spdx-native.sh "${native_files[@]}"
 fi
 
 FIX="make plain comments one line; lower the entry in scripts/comment-cap-allow.txt if you fixed a listed file"

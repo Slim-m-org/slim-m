@@ -64,6 +64,7 @@ step "every workflow is in docs/ci.md" python3 scripts/check-ci-docs.py
 step "no emoji in UI source" bash scripts/check-no-emoji.sh
 step "SPDX headers, Dart" bash scripts/check-spdx-dart.sh
 step "SPDX headers, Rust" bash scripts/check-spdx-rust.sh
+step "SPDX headers, Kotlin and Swift" bash scripts/check-spdx-native.sh
 step "ios purpose strings" bash scripts/check-ios-purpose-strings.sh
 step "ios broadcast extension wired" bash scripts/check-ios-broadcast-wired.sh
 step "ios notification extension wired" bash scripts/check-ios-nse-wired.sh
