@@ -148,7 +148,9 @@ class InkLayerCache {
     );
     final slots = [
       for (final slot in document.orderedSlotsIn(world))
-        if (document.strokeAt(slot).id != elevated) slot,
+        if (document.strokeAt(slot).id case final id
+            when id != elevated && !document.isHeldLive(id))
+          slot,
     ];
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..scale(dpr);

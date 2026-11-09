@@ -119,6 +119,9 @@ class CanvasDocument extends ChangeNotifier {
   /// off the plane rather than for as long as it merely sits selected.
   final ValueNotifier<String?> elevatedObjectId = ValueNotifier<String?>(null);
 
+  /// Objects a remote preview is moving; the cached ink leaves them out and paints them live (see [holdLive]).
+  final Set<String> _heldLive = <String>{};
+
   /// Alignment guides of a drag or resize that is snapping right now.
   final ValueNotifier<List<SnapGuide>> snapGuides = ValueNotifier(const []);
 
@@ -431,6 +434,7 @@ class CanvasDocument extends ChangeNotifier {
     objectCount.value = 0;
     selectedObjectId.value = null;
     elevatedObjectId.value = null;
+    _heldLive.clear();
     _maxStrokeWidth = 0;
     _changed();
     notifyListeners();
