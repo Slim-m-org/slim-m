@@ -31,8 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart' show appInfoProvider;
-import '../features/channels/widgets/channel_rail_frame.dart'
-    show serverInfoProvider;
+import '../providers/server_info.dart';
 import 'close_behavior.dart';
 import 'desktop_window_port.dart';
 import 'update_chip.dart';

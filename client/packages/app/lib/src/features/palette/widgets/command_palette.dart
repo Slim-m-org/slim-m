@@ -26,6 +26,7 @@ import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../messages/providers/message_search.dart';
 import '../../settings/providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'command_palette_compact.dart';
@@ -101,6 +102,10 @@ class _CommandPaletteContentState
     extends ConsumerState<_CommandPaletteContent> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _channels = StoreStream<List<Channel>>((s) => s.watchChannels());
+  final _categories = StoreStream<List<ChannelCategoryRow>>(
+    (s) => s.watchCategories(),
+  );
   String _query = '';
   int _highlighted = 0;
   List<api.Message> _messageResults = const [];
@@ -250,12 +255,12 @@ class _CommandPaletteContentState
       loading: () => const SizedBox.shrink(),
       error: (e, _) => const SizedBox.shrink(),
       data: (store) => StreamBuilder<List<Channel>>(
-        stream: store.watchChannels(),
+        stream: _channels.of(store),
         builder: (context, snapshot) {
           final channels = snapshot.data ?? const <Channel>[];
           // The category names ride a second stream so a rename shows live.
           return StreamBuilder<List<ChannelCategoryRow>>(
-            stream: store.watchCategories(),
+            stream: _categories.of(store),
             builder: (context, categorySnapshot) => _animatedResults((
               tokens: tokens,
               channels: channels,

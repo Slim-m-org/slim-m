@@ -13,7 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../../../providers/cache_for.dart';
 import '../../../providers/providers.dart';
 import 'attachment_bytes.dart' show fetchRetrying;

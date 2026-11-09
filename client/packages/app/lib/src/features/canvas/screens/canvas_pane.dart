@@ -64,7 +64,7 @@ import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../channels/providers/threads.dart' show openThreadProvider;
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../../../providers/providers.dart';
 import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/share_watch.dart';

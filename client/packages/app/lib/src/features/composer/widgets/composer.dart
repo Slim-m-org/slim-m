@@ -20,7 +20,7 @@ import '../providers/slash_command.dart';
 import '../../channels/providers/slow_mode_controller.dart';
 import '../../messages/providers/typing_controller.dart';
 import '../../messages/widgets/attachment_picker.dart';
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import 'composer_action_bar.dart';
 import 'composer_attachment_actions.dart';
 import 'composer_attachments.dart';

@@ -28,3 +28,10 @@ final channelByIdProvider = StreamProvider.autoDispose.family<Channel?, String>(
   if (store == null) return const Stream.empty();
   return store.watchChannelRow(channelId);
 });
+
+/// Whether the channel is a DM; false until its row loads, so only a confirmed DM reads true.
+final channelIsDmProvider = Provider.autoDispose.family<bool, String>(
+  (ref, channelId) => ref.watch(
+    channelByIdProvider(channelId).select((c) => c.valueOrNull?.kind == 'dm'),
+  ),
+);

@@ -20452,7 +20452,8 @@ components:
       type: object
       required: [type]
       description: >
-        A Space-wide display setting changed. Carries no fields; a receiving
+        A Space setting that `/version` shows changed: the name, description
+        or icon, or a Space-wide display switch. Carries no fields; a receiving
         client re-reads `/version`, which every member can read.
       properties:
         type:

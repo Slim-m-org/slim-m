@@ -18,6 +18,7 @@ use super::extract::{
     ASSET, Authed, AuthedLimited, Bytes, INVITE_CHECK, Json, RateLimited, enforce,
     require_manage_server,
 };
+use crate::hub::Event;
 use crate::media;
 use crate::ratelimit::Class;
 use crate::store::{InviteCheck, now_ms};
@@ -72,6 +73,7 @@ async fn upload_icon(
         })?;
     let at = now_ms();
     state.store.set_space_icon(Some(at)).await?;
+    state.hub.publish(Event::SpaceSettingsChanged);
     Ok(Json(IconDto {
         icon_updated_at: at,
     }))
@@ -85,6 +87,7 @@ async fn delete_icon(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     state.store.set_space_icon(None).await?;
+    state.hub.publish(Event::SpaceSettingsChanged);
     if let Err(err) = state.media.delete_space_icon().await {
         tracing::warn!(error = %err, "failed to delete a cleared space icon file");
     }

@@ -131,4 +131,73 @@ void main() {
     expect(
         snapshots.single.firstWhere((c) => c.id == 'chan-1').restricted, true);
   });
+
+  group('voice channel fields the rail draws re-emit', () {
+    Future<void> reemits(
+        api.Channel next, bool Function(Channel) changed) async {
+      await store.upsertChannels([next]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(snapshots, hasLength(1));
+      expect(
+          changed(snapshots.single.firstWhere((c) => c.id == 'voice')), isTrue);
+    }
+
+    setUp(() async {
+      await store.upsertChannels([
+        const api.Channel(
+            id: 'voice', name: 'lounge', kind: 'voice', createdAt: 3),
+      ]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      snapshots.clear();
+    });
+
+    test('join muted', () {
+      return reemits(
+        const api.Channel(
+            id: 'voice',
+            name: 'lounge',
+            kind: 'voice',
+            createdAt: 3,
+            joinMuted: true),
+        (c) => c.joinMuted,
+      );
+    });
+
+    test('user limit', () {
+      return reemits(
+        const api.Channel(
+            id: 'voice',
+            name: 'lounge',
+            kind: 'voice',
+            createdAt: 3,
+            userLimit: 4),
+        (c) => c.userLimit == 4,
+      );
+    });
+
+    test('room locked', () {
+      return reemits(
+        const api.Channel(
+            id: 'voice',
+            name: 'lounge',
+            kind: 'voice',
+            createdAt: 3,
+            roomLocked: true),
+        (c) => c.roomLocked == true,
+      );
+    });
+
+    test('creates rooms', () {
+      return reemits(
+        const api.Channel(
+            id: 'voice',
+            name: 'lounge',
+            kind: 'voice',
+            createdAt: 3,
+            createsRooms: true),
+        (c) => c.createsRooms == true,
+      );
+    });
+  });
 }

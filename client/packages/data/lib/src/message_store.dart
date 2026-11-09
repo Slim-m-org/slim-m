@@ -153,9 +153,12 @@ class MessageStore {
   /// showing a channel's messages should use to find its own name and read
   /// marker, including a thread's, which [watchChannels] deliberately
   /// excludes.
+  ///
+  /// Drift re-selects on any write to `channels`, other channels' included,
+  /// and rows compare by value, so an unchanged row is dropped here.
   Stream<Channel?> watchChannelRow(String channelId) {
     final query = db.select(db.channels)..where((c) => c.id.equals(channelId));
-    return query.watchSingleOrNull();
+    return query.watchSingleOrNull().distinct();
   }
 
   /// [watchChannelRow]'s own snapshot: a thread included, unlike

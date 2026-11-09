@@ -13,6 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/dm_call_activity.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/rate_limit_retry.dart';
 import '../../support/fake_api.dart';
 
 typedef _Roster = http.Response Function(String channelId, int call);
@@ -34,10 +35,11 @@ http.Response _status(int code) => http.Response(
 );
 
 class _Fixture {
-  _Fixture(this.container, this.events, this.calls);
+  _Fixture(this.container, this.events, this.calls, this.waits);
   final ProviderContainer container;
   final StreamController<api.ServerEvent> events;
   final Map<String, int> calls;
+  final List<Duration> waits;
 
   DmCallActivityController get controller =>
       container.read(dmCallActivityProvider.notifier);
@@ -47,8 +49,10 @@ class _Fixture {
 _Fixture _fixture(_Roster answer) {
   final events = StreamController<api.ServerEvent>.broadcast();
   final calls = <String, int>{};
+  final waits = <Duration>[];
   final container = ProviderContainer(
     overrides: [
+      rateLimitWaitProvider.overrideWithValue((d) async => waits.add(d)),
       sessionProvider.overrideWithValue(
         api.SessionStore(
           tokens: const api.TokenPair(
@@ -71,7 +75,7 @@ _Fixture _fixture(_Roster answer) {
     container.dispose();
     events.close();
   });
-  return _Fixture(container, events, calls);
+  return _Fixture(container, events, calls, waits);
 }
 
 Future<void> _settle() async {
@@ -119,6 +123,22 @@ void main() {
 
     expect(f.state['dm-1'], isTrue);
   });
+
+  test(
+    'a rate-limited lookup waits and tries again without a new ask',
+    () async {
+      final f = _fixture(
+        (_, call) => call == 1 ? _status(429) : _roster(['other']),
+      );
+
+      f.controller.ensureTracked('dm-1');
+      await _settle();
+
+      expect(f.waits, hasLength(1));
+      expect(f.calls['dm-1'], 2);
+      expect(f.state['dm-1'], isTrue);
+    },
+  );
 
   test('a deployment without voice is asked once and never again', () async {
     final f = _fixture((_, _) => _status(501));
