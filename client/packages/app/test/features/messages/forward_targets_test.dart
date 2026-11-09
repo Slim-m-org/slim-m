@@ -58,6 +58,22 @@ Map<String, dynamic> _dmJson({
   'created_at': 0,
 };
 
+Map<String, dynamic> _groupDmJson({
+  required String channelId,
+  required List<(String, String)> members,
+  String? name,
+}) => {
+  ..._dmJson(
+    channelId: channelId,
+    userId: members.firstWhere((m) => m.$1 != 'self').$1,
+    displayName: members.firstWhere((m) => m.$1 != 'self').$2,
+  ),
+  'group': {
+    'name': name,
+    'members': [for (final (id, display) in members) _userJson(id, display)],
+  },
+};
+
 ProviderContainer _containerWith({
   required List<Map<String, dynamic>> channels,
   required List<Map<String, dynamic>> dms,
@@ -217,6 +233,71 @@ void main() {
     );
 
     expect(targets, isEmpty);
+  });
+
+  group('a group DM', () {
+    const members = [
+      ('self', 'Self'),
+      ('u-priya', 'Priya'),
+      ('u-sam', 'Sam'),
+      ('u-kit', 'Kit'),
+    ];
+
+    Future<List<ForwardTarget>> targetsFor(
+      List<Map<String, dynamic>> dms, {
+      List<String> blocked = const [],
+    }) async {
+      final container = _containerWith(
+        channels: const [],
+        dms: dms,
+        blocked: blocked,
+      );
+      await container.read(blocksProvider.notifier).refresh();
+      return container.read(
+        forwardTargetsProvider((
+          excludeChannelId: 'nowhere',
+          hasAttachments: false,
+        )).future,
+      );
+    }
+
+    test('is labelled as the group, not as its first member', () async {
+      final targets = await targetsFor([
+        _groupDmJson(channelId: 'g1', members: members),
+        _dmJson(channelId: 'dm1', userId: 'u-priya', displayName: 'Priya'),
+      ]);
+
+      expect(targets.map((t) => t.label), ['Priya, Sam and Kit', 'Priya']);
+      expect(targets.map((t) => t.channelId), ['g1', 'dm1']);
+    });
+
+    test('a custom name wins over the default', () async {
+      final targets = await targetsFor([
+        _groupDmJson(channelId: 'g1', members: members, name: 'trip'),
+      ]);
+
+      expect(targets.single.label, 'trip');
+    });
+
+    test('carries its other members and no single person', () async {
+      final targets = await targetsFor([
+        _groupDmJson(channelId: 'g1', members: members),
+      ]);
+
+      expect(targets.single.isDm, isTrue);
+      expect(targets.single.groupMemberIds, ['u-priya', 'u-sam', 'u-kit']);
+      expect(targets.single.userId, isNull);
+      expect(targets.single.username, isNull);
+    });
+
+    test('stays offered when its first other member is blocked', () async {
+      final targets = await targetsFor(
+        [_groupDmJson(channelId: 'g1', members: members)],
+        blocked: ['u-priya'],
+      );
+
+      expect(targets.map((t) => t.channelId), ['g1']);
+    });
   });
 
   test('the caller\'s own personal space is labelled "Notes"', () async {
