@@ -5718,7 +5718,8 @@ paths:
       description: >
         Backed by FTS5. Plain words in `q` match as word prefixes, so `win`
         finds `Windows` and a file named `Win11_24H2_English_x64.iso`, and
-        every word must match. A `q` written in FTS5 syntax (`AND`/`OR`/`NOT`,
+        every word must match. A one-character word matches whole words only,
+        so `w` finds a lone `w` and not `Windows`. A `q` written in FTS5 syntax (`AND`/`OR`/`NOT`,
         `"phrase"`, `NEAR(...)`, an explicit `*`) keeps its exact meaning.
         `q` is optional: a search made entirely of `from`/`in`/
         `has`/`after_date`/`before_date` needs no free text at all, though at
@@ -5734,8 +5735,8 @@ paths:
         - name: q
           in: query
           description: >
-            Free-text query: plain words match as prefixes, FTS5 syntax keeps
-            its meaning. Optional when at least one other filter is given;
+            Free-text query: plain words match as prefixes (one-character
+            words match whole), FTS5 syntax keeps its meaning. Optional when at least one other filter is given;
             when present, still must be non-blank.
           schema:
             type: string
@@ -5846,8 +5847,8 @@ paths:
         - name: q
           in: query
           description: >
-            Free-text query: plain words match as prefixes, FTS5 syntax keeps
-            its meaning. Optional when at least one other filter is given;
+            Free-text query: plain words match as prefixes (one-character
+            words match whole), FTS5 syntax keeps its meaning. Optional when at least one other filter is given;
             when present, still must be non-blank.
           schema:
             type: string

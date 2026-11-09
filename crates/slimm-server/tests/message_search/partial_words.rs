@@ -138,3 +138,19 @@ async fn fts_syntax_keeps_its_exact_meaning() {
         ["windows installer"]
     );
 }
+
+/// A one-character prefix would walk every term starting with that letter in
+/// every channel, so such a word matches whole tokens only.
+#[tokio::test]
+async fn a_one_character_word_matches_whole_words_only() {
+    let (setup, _guard) = Setup::new().await;
+    let iso = upload_named(&setup.app, &setup.token, ISO).await;
+    send_with_attachments(&setup.app, &setup.channel_id, &setup.token, "", &[&iso]).await;
+    setup.send("w marks the spot").await;
+    setup.send("windows is installed").await;
+
+    assert_eq!(setup.contents("w").await, ["w marks the spot"]);
+    assert!(setup.hits("x").await.is_empty());
+    assert_eq!(setup.contents("w sp").await, ["w marks the spot"]);
+    assert_eq!(setup.contents("W").await, ["w marks the spot"]);
+}

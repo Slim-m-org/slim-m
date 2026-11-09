@@ -236,4 +236,27 @@ async fn hot_reads_and_writes_cost_a_flat_number_of_statements() {
     let few = sync_statements(&log, &app, &admin.token, current[..3].to_vec()).await;
     let many = sync_statements(&log, &app, &admin.token, current).await;
     assert_eq!(many, few, "sync grew from {few} to {many} statements");
+
+    // A search parses its FTS5 query at most once, and plain words need no parse at all.
+    for (q, probes) in [("hello", 0), ("hel*", 1)] {
+        let (ran, status) = statements_of(&log, async {
+            app.clone()
+                .oneshot(
+                    Request::get(format!("/channels/{general}/messages/search?q={q}"))
+                        .header("authorization", format!("Bearer {}", admin.token))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap()
+                .status()
+        })
+        .await;
+        assert_eq!(status, 200);
+        let parsed = ran
+            .iter()
+            .filter(|sql| sql.contains("FROM messages_fts WHERE messages_fts MATCH ? LIMIT 1"))
+            .count();
+        assert_eq!(parsed, probes, "search for {q:?} ran {ran:?}");
+    }
 }

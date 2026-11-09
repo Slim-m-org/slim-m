@@ -78,6 +78,17 @@ pub struct MessageSearchFilters {
     pub before_id: Option<MessageId>,
 }
 
+/// An FTS5 expression [`Store::fts_query_for`] parsed or built from plain
+/// words, so [`Store::search_messages_prepared`] runs it without probing again.
+#[derive(Debug, Clone)]
+pub struct FtsQuery(String);
+
+impl FtsQuery {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl Store {
     /// Every live, non-DM channel named exactly `name`. Plural because
     /// nothing in this schema enforces a unique channel name (see
@@ -102,18 +113,19 @@ impl Store {
 
     /// The FTS5 query to run for what the user typed. Plain words become prefix
     /// phrases ([`literal_fts_query`]), so `Win` finds `Win11_24H2.iso` and
-    /// `Windows`. Text written in FTS5 syntax ([`uses_fts_syntax`]) is `q`
-    /// itself when it parses, else its words. `None` when no word is left.
-    pub async fn fts_query_for(&self, q: &str) -> Result<Option<String>, SearchError> {
+    /// `Windows`, except a one-character word, which must match whole. Text
+    /// written in FTS5 syntax ([`uses_fts_syntax`]) is `q` itself when it
+    /// parses, else its words. `None` when no word is left.
+    pub async fn fts_query_for(&self, q: &str) -> Result<Option<FtsQuery>, SearchError> {
         if uses_fts_syntax(q) {
             match self.probe_fts(q).await {
-                Ok(()) => return Ok(Some(q.to_owned())),
+                Ok(()) => return Ok(Some(FtsQuery(q.to_owned()))),
                 Err(SearchError::InvalidQuery) => {}
                 Err(e) => return Err(e),
             }
         }
         let words = literal_fts_query(q);
-        Ok((!words.is_empty()).then_some(words))
+        Ok((!words.is_empty()).then_some(FtsQuery(words)))
     }
 
     /// Join-free probe so FTS5 must parse `q`; not dead work, see [`Self::search_messages`].
@@ -142,8 +154,8 @@ impl Store {
     /// passes no cursor; paginating a cross-channel result would need a
     /// `created_at` keyset, not this per-channel `seq` one.
     ///
-    /// `query` is an FTS5 expression as [`Store::fts_query_for`] builds it, so
-    /// a caller may use its mini query language (`AND`/`OR`/`NOT`, `"phrase"`,
+    /// `query` is a raw FTS5 expression, so a caller may use its mini query
+    /// language (`AND`/`OR`/`NOT`, `"phrase"`,
     /// a trailing `*` prefix). That is safe against leaking another channel:
     /// the index has exactly one column (`content`), so a query string has no
     /// other column to pivot to, and the channel and `deleted_at` restriction
@@ -175,11 +187,40 @@ impl Store {
         before_seq: Option<i64>,
         limit: i64,
     ) -> Result<Vec<Message>, SearchError> {
+        if !channel_ids.is_empty()
+            && let Some(q) = query
+        {
+            self.probe_fts(q).await?;
+        }
+        self.run_message_search(channel_ids, query, filters, before_seq, limit)
+            .await
+    }
+
+    /// [`Self::search_messages`] for a query [`Self::fts_query_for`] already
+    /// parsed or built, which is why it skips the probe.
+    pub async fn search_messages_prepared(
+        &self,
+        channel_ids: &[ChannelId],
+        query: Option<&FtsQuery>,
+        filters: &MessageSearchFilters,
+        before_seq: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<Message>, SearchError> {
+        let query = query.map(FtsQuery::as_str);
+        self.run_message_search(channel_ids, query, filters, before_seq, limit)
+            .await
+    }
+
+    async fn run_message_search(
+        &self,
+        channel_ids: &[ChannelId],
+        query: Option<&str>,
+        filters: &MessageSearchFilters,
+        before_seq: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<Message>, SearchError> {
         if channel_ids.is_empty() {
             return Ok(Vec::new());
-        }
-        if let Some(q) = query {
-            self.probe_fts(q).await?;
         }
 
         if let Some(before_id) = filters.before_id {
@@ -297,12 +338,20 @@ fn uses_fts_syntax(q: &str) -> bool {
             .any(|w| matches!(w, "AND" | "OR" | "NOT"))
 }
 
-/// [q]'s words as FTS5 prefix phrases, so text that is not query syntax still
-/// finds what it names: `.iso` becomes `"iso"*`. Empty when no word remains.
+/// Words with fewer base characters than this match whole: with no `prefix=`
+/// index, `"w"*` walks every term starting with `w` in every channel.
+const MIN_PREFIX_CHARS: usize = 2;
+
+/// [q]'s words as FTS5 phrases, so text that is not query syntax still finds
+/// what it names: `.iso` becomes `"iso"*`, a one-character `a` stays `"a"`.
+/// Empty when no word remains.
 pub(crate) fn literal_fts_query(q: &str) -> String {
     q.split(|c: char| !is_word_char(c))
         .filter(|w| !w.is_empty())
-        .map(|w| format!("\"{w}\"*"))
+        .map(|w| match base_char_count(w) < MIN_PREFIX_CHARS {
+            true => format!("\"{w}\""),
+            false => format!("\"{w}\"*"),
+        })
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -310,7 +359,15 @@ pub(crate) fn literal_fts_query(q: &str) -> String {
 /// A character FTS5's `unicode61` tokenizer keeps inside a word, including the
 /// combining accents it folds away, so a decomposed `é` is not a word break.
 fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || ('\u{0300}'..='\u{036F}').contains(&c)
+    c.is_alphanumeric() || is_combining_accent(c)
+}
+
+fn base_char_count(word: &str) -> usize {
+    word.chars().filter(|&c| !is_combining_accent(c)).count()
+}
+
+fn is_combining_accent(c: char) -> bool {
+    ('\u{0300}'..='\u{036F}').contains(&c)
 }
 
 #[cfg(test)]
@@ -325,6 +382,14 @@ mod literal_tests {
             "\"ubuntu\"* \"24\"* \"04\"*"
         );
         assert_eq!(literal_fts_query("..."), "");
+    }
+
+    #[test]
+    fn a_one_character_word_matches_whole_instead_of_as_a_prefix() {
+        assert_eq!(literal_fts_query("a"), "\"a\"");
+        assert_eq!(literal_fts_query("w 7"), "\"w\" \"7\"");
+        assert_eq!(literal_fts_query("c ab"), "\"c\" \"ab\"*");
+        assert_eq!(literal_fts_query("e\u{301}"), "\"e\u{301}\"");
     }
 
     #[test]

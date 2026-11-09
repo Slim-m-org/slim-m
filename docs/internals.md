@@ -254,6 +254,7 @@ Neither ever reaches a channel the caller cannot view: [`resolve_scope`] is the 
 `visible_channels` also excludes DMs and threads (see its own doc comment), so cross-channel search never reaches a DM the caller was not searching directly.
 
 Plain words in `q` match as prefixes (`Win` finds `Windows` and `Win11_24H2.iso`): the tokenizer indexes that file name as `win11`, `24h2` and so on, and a typed `Win` is none of those whole.
+A word of one character matches whole tokens only: there is no `prefix=` index, so `"w"*` would walk every term starting with `w` across all channels (0.06-0.18 s measured per letter, more on a large deployment).
 A `q` that uses FTS5's mini query language (`AND`/`OR`/`NOT`, `"phrase"`, `NEAR(...)`, an explicit `*`) reaches FTS5 as written, and `uses_fts_syntax` is what tells the two apart.
 That is safe against leaking another channel: the index has exactly one column (`content`), so a query string has no other column to pivot to, and the channel restriction is an ordinary SQL predicate the query text can never reach, never part of the `MATCH` expression itself.
 See [`crate::store::Store::search_messages`] for the rest of that reasoning and for how a malformed query surfaces as [`SearchError::InvalidQuery`] rather than a 500: SQLite only validates FTS5 syntax once the statement runs.
