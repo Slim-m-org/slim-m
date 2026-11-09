@@ -98,9 +98,10 @@ summary() {
   return 0
 }
 
+# Reads the whole list: grep -q quits at its first match, and under pipefail the writer's SIGPIPE turns a hit into a miss.
 matches() { # matches <regex> <file-list-var-name>
   local -n list=$2
-  printf '%s\n' "${list[@]}" | grep -Eq "$1"
+  printf '%s\n' "${list[@]}" | grep -E "$1" >/dev/null
 }
 
 pick() { # pick <regex>: lines of CHANGED matching the regex
