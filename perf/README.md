@@ -117,6 +117,7 @@ unqualified `idle_rss`/`peak_rss` names 0.8.0 used before this split existed.
 **Every server release now measures itself in CI.**
 `perf.yml`'s `baseline` job runs on each published `server-v*` release, on that release's own commit: the criterion benchmarks, then `perf/measure-idle-rss.sh` five times on both libcs, and `scripts/lib/perf_baseline.py` keeps each benchmark's mean and each RSS figure's median.
 It commits the result to main as `perf/baselines/<version>.json`, with an `environment` field naming the runner.
+If a branch rule refuses the push to main (the merge queue ruleset does), `scripts/commit-perf-baseline.sh` opens a pull request for the same file instead, and it needs merging by hand.
 The owner chose this on 2026-10-07 over hand-measuring each release, because the server releases several times a week and the hand step lapsed twice.
 
 A runner is not the machine a deployment runs on, so a CI baseline's RSS is comparable only with another baseline from the same `environment`, never with the hand-measured ones from 0.38.0 and earlier, which carry no `environment` field.

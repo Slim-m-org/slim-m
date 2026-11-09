@@ -39,8 +39,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The same gate release.yml puts in front of its client publish jobs; keep this list equal to its verify-client-ci one.
+  verify-client-ci:
+    permissions:
+      checks: read
+      contents: read
+    uses: ./.github/workflows/verify-release-checks.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
+      required_checks: "analyze, format check|test and web build|linux desktop compiles|linux desktop shell smoke (Xvfb)|ios unit tests (callkit invariant)|ios sources are registered in project.pbxproj|hygiene|pub dependency licenses|breaking-change gate (additive-only, push to main)"
+
   windows-client:
     name: windows tester build
+    needs: [verify-client-ci]
     runs-on: windows-2025
     timeout-minutes: 45
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
@@ -136,6 +147,7 @@ jobs:
 
   macos-client:
     name: macos tester build (ad-hoc signed)
+    needs: [verify-client-ci]
     runs-on: macos-latest
     timeout-minutes: 30
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.

@@ -463,6 +463,10 @@ jobs:
       contents: read
       packages: write
     steps:
+      # A dispatch from another ref would otherwise tag that ref's build :latest.
+      - name: refuse a ref other than main
+        if: github.ref != 'refs/heads/main'
+        run: echo "::error::server-image moves :latest, which only main may do; this run is on ${GITHUB_REF}" && exit 1
       - name: name the image after this repo's owner, lowercased for GHCR
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/slim-m-server" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -472,6 +476,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # A re-run of an older run keeps its sha tag but must not move :main and :latest back (scripts/main-latest-allowed.sh).
+      - name: decide whether main and latest may move
+        id: move
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          allowed="$(bash scripts/main-latest-allowed.sh "$IMAGE" "$GITHUB_SHA")"
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
 
       # sbom and provenance because this is the image Watchtower actually
       # pulls: release.yml's own build carries both plus a cosign signature,
@@ -486,8 +497,8 @@ jobs:
           build-args: SLIMM_BUILD_ID=${{ github.sha }}
           tags: |
             ${{ env.IMAGE }}:sha-${{ github.sha }}
-            ${{ env.IMAGE }}:main
-            ${{ env.IMAGE }}:latest
+            ${{ steps.move.outputs.allowed == 'true' && format('{0}:main', env.IMAGE) || '' }}
+            ${{ steps.move.outputs.allowed == 'true' && format('{0}:latest', env.IMAGE) || '' }}
           push: true
           sbom: true
           provenance: mode=max
