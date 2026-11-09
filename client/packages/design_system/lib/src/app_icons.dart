@@ -162,13 +162,6 @@ abstract final class AppIcons {
   /// Picking a `.zip` for bulk emoji import; see `emoji_add_card.dart`.
   static const IconData fileArchive = LucideIcons.fileArchive300;
 
-  /// The GIF picker; see `gif_picker.dart`. Distinct from [image], which
-  /// opens a device's own photo library rather than a search.
-  static const IconData gif = LucideIcons.clapperboard300;
-
-  /// The "Automatic updates" switch in Settings > About.
-  static const IconData autoUpdate = LucideIcons.packageCheck300;
-
   /// Saving an attachment this app cannot render inline - a PDF, an archive,
   /// or a video before it finishes buffering. See `downloads/downloads_controller.dart`.
   static const IconData download = LucideIcons.download300;
@@ -224,9 +217,7 @@ abstract final class AppIcons {
   /// Leaving full screen playback - the shrink counterpart to [expand].
   static const IconData collapse = LucideIcons.shrink300;
 
-  /// Zooming a watched share in or out, and back to fit.
-  static const IconData zoomIn = LucideIcons.zoomIn300;
-  static const IconData zoomOut = LucideIcons.zoomOut300;
+  /// Fitting a watched share back to the window.
   static const IconData zoomFit = LucideIcons.scan300;
 
   /// Starting or joining a DM call, distinct from [voice] (a voice channel's
@@ -332,11 +323,9 @@ abstract final class AppIcons {
   /// The personal space: your own notes, not another person's avatar.
   static const IconData notebook = LucideIcons.notebookPen300;
 
-  /// The personal settings nav: theme and type, and the devices a session
-  /// lives on. Distinct from [camera]/[avatarCamera], which are about a
-  /// picture rather than a screen.
+  /// The personal settings nav: theme and type. Distinct from
+  /// [camera]/[avatarCamera], which are about a picture.
   static const IconData appearance = LucideIcons.palette300;
-  static const IconData devices = LucideIcons.monitorSmartphone300;
 
   /// One signed-in device, drawn as the kind of thing it is. A list of
   /// sessions is read to spot the one you do not recognise, and three
