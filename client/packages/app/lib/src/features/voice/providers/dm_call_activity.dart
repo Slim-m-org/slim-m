@@ -30,11 +30,12 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/rate_limit_retry.dart';
 
 /// How many roster lookups may be in flight at once while catching up on a
-/// freshly mounted DM list. Bounded well under the write-class rate
-/// budget's burst (30, `ratelimit.rs`) so populating even a large DM list
-/// never starves a message send sharing the same bucket.
+/// freshly mounted DM list. Bounded well under the authed-read rate budget's
+/// burst (40, `ratelimit/class.rs`) so populating even a large DM list never
+/// starves the other reads sharing that bucket.
 const dmCallActivityMaxConcurrentFetches = 4;
 
 class DmCallActivityController extends StateNotifier<Map<String, bool>> {
@@ -87,7 +88,10 @@ class DmCallActivityController extends StateNotifier<Map<String, bool>> {
   Future<void> _fetch(String channelId) async {
     try {
       final client = _ref.read(apiProvider);
-      final roster = await client.voiceRoster(channelId);
+      final roster = await retryWhenRateLimited(
+        () => client.voiceRoster(channelId),
+        wait: _ref.read(rateLimitWaitProvider),
+      );
       final selfId = client.session.tokens?.userId;
       final inCall = roster.any((p) => p.userId != selfId);
       if (mounted) state = {...state, channelId: inCall};
