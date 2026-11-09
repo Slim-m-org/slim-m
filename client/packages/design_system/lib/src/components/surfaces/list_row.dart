@@ -17,6 +17,7 @@ import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../press_tracking.dart';
 import '../../touch_targets.dart';
 import 'list_row_label.dart';
 import 'list_row_scopes.dart';
@@ -200,14 +201,9 @@ class AppListRow extends StatefulWidget {
   State<AppListRow> createState() => _AppListRowState();
 }
 
-class _AppListRowState extends State<AppListRow> {
+class _AppListRowState extends State<AppListRow> with PressTracking {
   bool _hovered = false;
   bool _focused = false;
-
-  /// A finger has no hover, so on a phone this is the only sign a tap landed
-  /// before its action runs. Shown as the same raised fill hover uses, but it
-  /// appears the instant the finger touches down rather than on release.
-  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -358,7 +354,7 @@ class _AppListRowState extends State<AppListRow> {
     BorderRadius radius,
     Widget content,
   ) {
-    final hoverFill = !widget.selected && (_pressed || _hovered);
+    final hoverFill = !widget.selected && (pressed || _hovered);
     return SizedBox(
       height: rowHeight,
       child: AnimatedContainer(
@@ -440,10 +436,9 @@ class _AppListRowState extends State<AppListRow> {
   Widget _gestures(Widget visual) {
     final onTap = widget.onTap;
     return GestureDetector(
-      onTapDown: onTap == null ? null : (_) => setState(() => _pressed = true),
-      onTapUp: onTap == null ? null : (_) => setState(() => _pressed = false),
-      onTapCancel:
-          onTap == null ? null : () => setState(() => _pressed = false),
+      onTapDown: onTap == null ? null : (_) => setPressed(true),
+      onTapUp: onTap == null ? null : (_) => setPressed(false),
+      onTapCancel: onTap == null ? null : () => setPressed(false),
       onTap: onTap == null
           ? null
           : () {
