@@ -218,7 +218,7 @@ The macOS runner pool is five jobs, so this keeps slots free for the release's `
 `client-macos-ci` builds `client/packages/app/macos/`, which is still a fresh `flutter create` scaffold with no signing identity, no notarization credential and no Apple Developer team behind it.
 It builds `--debug` on this project's SPM-only plugin tree with no CocoaPods step, exactly as `client-ios-ci` does, which produces a local "Sign to Run Locally" binary needing no Apple account.
 `docs/os_backlog/macos_backlog.md` holds what a distributable build still needs.
-It also runs the macOS self-update install tests, because that file's last test is the only one that drives the real `ditto`, `xattr` and `codesign` and it skips everywhere else.
+It also runs `test/desktop/self_update/macos_install_test.dart` after the build, because that file's last test is the only one that drives the real `ditto`, `xattr` and `codesign` and it skips everywhere else.
 
 `client-windows-ci` is the first CI job that has ever built a Windows target here.
 A green run proves the native plugin graph links; it does not prove the app runs, looks right, or that the tray and window-shell behaviour decision 0012 designed works on a real desktop.
