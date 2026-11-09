@@ -59,7 +59,7 @@ async fn a_heartbeat_is_recorded_against_the_caller_and_channel() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let voice = enabled_voice();
     let (user_id, token) = member(&store, "alice").await;
     let app = app(store.clone(), voice.clone());
@@ -99,7 +99,7 @@ async fn a_keepalive_from_someone_already_in_the_call_does_not_answer_a_ring() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let voice = enabled_voice();
     let (callee_id, callee_token) = member(&store, "bob").await;
     let (caller_id, _caller_token) = member(&store, "alice").await;
@@ -139,7 +139,7 @@ async fn a_heartbeat_without_connect_is_refused() {
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let voice = enabled_voice();
     let (user_id, token) = member(&store, "alice").await;
     let app = app(store.clone(), voice.clone());
@@ -159,7 +159,7 @@ async fn a_heartbeat_without_connect_is_refused() {
 #[tokio::test]
 async fn a_heartbeat_requires_authentication() {
     let (store, _guard) = support::new_store("slimm-voice-heartbeat-test").await;
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store, enabled_voice());
 
     let response = app
@@ -184,7 +184,7 @@ async fn a_heartbeat_on_a_text_only_deployment_says_so_instead_of_pretending() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     // No SFU configured, which is a supported way to run this.
     let app = app(store.clone(), VoiceService::disabled());
     let (_, token) = member(&store, "alice").await;
@@ -214,7 +214,7 @@ async fn a_channel_denying_connect_beats_the_role_that_grants_it() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     store
         .set_role_overwrite(
             channel.id,
@@ -253,7 +253,7 @@ async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_join() {
         )
         .await
         .unwrap();
-    store.create_channel("general", "text").await.unwrap();
+    store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), enabled_voice());
     let (_, token) = member(&store, "alice").await;
 

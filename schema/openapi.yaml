@@ -7528,6 +7528,10 @@ paths:
         a button.
 
 
+        Only a voice channel or a direct message has a room; a text channel or
+        a thread answers 400.
+
+
         The room name is derived from the channel id on the server and echoed
         back; it is never accepted from the caller, so a token can only ever be
         for the channel that was authorized. The token is deliberately
@@ -7818,6 +7822,10 @@ paths:
         nothing.
 
 
+        Only a voice channel or a direct message has a room; any other channel
+        answers 400.
+
+
         A LiveKit room eventually reaps a connection that vanished without a
         clean close on its own, but that timing is the SFU's, not this
         server's to promise. A client still on the call sends this on a plain
@@ -7989,8 +7997,8 @@ paths:
       summary: Tell the room whether the caller has deafened themselves.
       description: >
         Sets or clears a participant attribute that everyone in the call
-        reads. Needs VIEW_CHANNEL and CONNECT. Idempotent, and a no-op when
-        the caller is not in the room.
+        reads. Needs VIEW_CHANNEL and CONNECT, on a voice channel or a direct
+        message. Idempotent, and a no-op when the caller is not in the room.
       requestBody:
         required: true
         content:
