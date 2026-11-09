@@ -5,9 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderOpacity;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
-import 'package:slimm_app/src/features/messages/widgets/transcript_slots.dart';
 import 'package:slimm_data/data.dart';
 
 import '../../message_transcript_extent_harness.dart';
@@ -82,21 +81,14 @@ void main() {
     addTearDown(controller.dispose);
     final all = shortMessages(10);
     await _mount(tester, controller, all.sublist(0, 9));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     await _mount(tester, controller, all);
     await tester.pump(const Duration(milliseconds: 20));
 
-    double opacityOf(String id) {
-      final row = find.descendant(
-        of: find.byKey(ValueKey(id)),
-        matching: find.byType(MessageRow),
-      );
-      final fades = find.ancestor(of: row, matching: find.byType(Opacity));
-      return fades.evaluate().isEmpty
-          ? 1
-          : tester.widget<Opacity>(fades.first).opacity;
-    }
+    double opacityOf(String id) =>
+        (tester.renderObject(find.byKey(ValueKey(id))) as RenderOpacity)
+            .opacity;
 
     expect(opacityOf('s9'), lessThan(1));
     expect(opacityOf('s8'), 1);
@@ -126,12 +118,12 @@ void main() {
     addTearDown(controller.dispose);
     final all = shortMessages(6);
     await _mount(tester, controller, all.sublist(0, 5));
-    final start = tester.element(find.byType(TranscriptTopSlot));
+    final start = tester.element(find.text('Welcome to #general'));
 
     await _mount(tester, controller, all);
 
     expect(
-      identical(tester.element(find.byType(TranscriptTopSlot)), start),
+      identical(tester.element(find.text('Welcome to #general')), start),
       isTrue,
     );
   });

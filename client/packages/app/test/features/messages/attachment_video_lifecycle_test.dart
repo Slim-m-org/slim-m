@@ -67,7 +67,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(
-      find.byType(AttachmentVideoPlayer, skipOffstage: false),
+      find.textContaining('clip.mp4', skipOffstage: false),
       findsOneWidget,
     );
     expect(players, 0, reason: 'built in the cache extent, never seen');
