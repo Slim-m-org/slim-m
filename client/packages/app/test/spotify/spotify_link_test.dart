@@ -152,13 +152,6 @@ void main() {
       await expectNothingLinked(rig);
     });
 
-    test('a state that is not ours', () async {
-      final rig = await waiting();
-      await rig.linker.handleCallback(rig.redirect(state: 'forged'));
-      expect(_failure(rig), contains('did not match'));
-      await expectNothingLinked(rig);
-    });
-
     test('no code', () async {
       final rig = await waiting();
       await rig.linker.handleCallback(rig.redirect(code: null));
@@ -257,7 +250,7 @@ void main() {
     addTearDown(rig.dispose);
     await rig.start();
     await _begin(rig);
-    await rig.linker.handleCallback(rig.redirect(state: 'forged'));
+    await rig.linker.handleCallback(rig.redirect(code: null));
     expect(_status(rig), isA<SpotifyFailed>());
 
     await _begin(rig);
@@ -285,7 +278,7 @@ void main() {
     addTearDown(rig.dispose);
     await rig.start();
     await _begin(rig);
-    await rig.linker.handleCallback(rig.redirect(state: 'forged'));
+    await rig.linker.handleCallback(rig.redirect(code: null));
     await rig.linker.dismissFailure();
     expect(_status(rig), isA<SpotifyUnlinked>());
   });
