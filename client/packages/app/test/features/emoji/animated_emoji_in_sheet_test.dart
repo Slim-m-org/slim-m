@@ -7,7 +7,7 @@
 /// the sheet's own included.
 library;
 
-import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -19,6 +19,9 @@ import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.da
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_sheets.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/overlay_cover.dart';
+import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/routing/router.dart';
+import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -27,57 +30,10 @@ import '../composer/composer_harness.dart' show emojiButton;
 import '../settings/home_shell_harness.dart';
 
 /// Two 1x1 frames, red then blue, 100ms apart, looping forever.
-final _twoFrameGif = Uint8List.fromList([
-  ...'GIF89a'.codeUnits,
-  0x01,
-  0x00,
-  0x01,
-  0x00,
-  0x80,
-  0x00,
-  0x00,
-  0xFF,
-  0x00,
-  0x00,
-  0x00,
-  0x00,
-  0xFF,
-  0x21,
-  0xFF,
-  0x0B,
-  ...'NETSCAPE2.0'.codeUnits,
-  0x03,
-  0x01,
-  0x00,
-  0x00,
-  0x00,
-  for (final pixel in [0x44, 0x4C]) ...[
-    0x21,
-    0xF9,
-    0x04,
-    0x00,
-    0x0A,
-    0x00,
-    0x00,
-    0x00,
-    0x2C,
-    0x00,
-    0x00,
-    0x00,
-    0x00,
-    0x01,
-    0x00,
-    0x01,
-    0x00,
-    0x00,
-    0x02,
-    0x02,
-    pixel,
-    0x01,
-    0x00,
-  ],
-  0x3B,
-]);
+final _twoFrameGif = base64Decode(
+  'R0lGODlhAQABAIAAAP8AAAAA/yH/C05FVFNDQVBFMi4wAwEAAAAh+QQACgAAACwAAAAAAQABAAAC'
+  'AkQBACH5BAAKAAAALAAAAAABAAEAAAICTAEAOw==',
+);
 
 const _party = api.CustomEmoji(
   id: 'e-party',
@@ -92,9 +48,9 @@ List<RenderImage> _drawnImages(WidgetTester tester) =>
 BuildContext _contextOf(RenderImage image) =>
     (image.debugCreator! as DebugCreator).element;
 
-/// Every frame the emoji draws over [steps] rounds.
+/// The distinct frames drawn over [steps] rounds that give the real-time decode and the fake-time frame timer a turn each.
 ///
-/// The engine decodes in real time and the frame timer runs in fake time, so each round gives both a turn. A looping gif hands out a fresh image per frame, so two handles are two frames.
+/// A looping gif hands out a fresh image per frame, so two handles are two frames.
 Future<Set<int>> _framesDrawn(WidgetTester tester, {int steps = 12}) async {
   final frames = <int>{};
   for (var i = 0; i < steps; i++) {
@@ -109,7 +65,7 @@ Future<Set<int>> _framesDrawn(WidgetTester tester, {int steps = 12}) async {
   return frames;
 }
 
-/// Opens the composer's own picker through the real shell on a phone, the way the owner hit it.
+/// Opens the composer's own picker in the real app router on a phone, the way the owner hit it.
 ///
 /// Returns what the test must await last: the shell holds timers a plain tear-down would leave pending.
 Future<Future<void> Function()> _openComposerSheet(WidgetTester tester) async {
@@ -122,20 +78,29 @@ Future<Future<void> Function()> _openComposerSheet(WidgetTester tester) async {
       customEmojiImageProvider.overrideWith((ref, id) async => _twoFrameGif),
     ],
   );
+  s.container
+      .read(chosenServerProvider.notifier)
+      .restore(Uri.parse('http://localhost:8080'));
   await MessageStore(s.db).upsertChannels([
     const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
   ]);
-  await pumpAtWidth(
-    tester,
-    s.container,
-    390,
-    location: '/channels/c1',
-    observers: [
-      OverlayCoverObserver(
-        (n) => s.container.read(overlayCoverProvider.notifier).state = n,
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final router = s.container.read(routerProvider);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: s.container,
+      child: MaterialApp.router(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        routerConfig: router,
       ),
-    ],
+    ),
   );
+  router.go(Routes.channel('c1'));
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
   await tester.tap(emojiButton);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));

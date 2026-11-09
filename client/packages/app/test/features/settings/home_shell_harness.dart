@@ -148,12 +148,8 @@ Future<void> teardown(
 /// onboarding, which is not what this test is about) with a router that
 /// unconditionally shows [HomeShell], nesting the conversation route under
 /// the shell exactly as `router.dart` does.
-GoRouter testRouter(
-  String location, {
-  List<NavigatorObserver> observers = const [],
-}) => GoRouter(
+GoRouter testRouter(String location) => GoRouter(
   initialLocation: location,
-  observers: observers,
   routes: [
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),
@@ -194,7 +190,6 @@ Future<void> pumpAtWidth(
   double height = 900,
   String location = '/channels',
   bool reduceMotion = false,
-  List<NavigatorObserver> observers = const [],
 }) async {
   tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1.0;
@@ -202,7 +197,7 @@ Future<void> pumpAtWidth(
 
   final app = MaterialApp.router(
     theme: buildTheme(Brightness.light, AppTokens.light),
-    routerConfig: testRouter(location, observers: observers),
+    routerConfig: testRouter(location),
   );
   await tester.pumpWidget(
     UncontrolledProviderScope(
