@@ -94,8 +94,11 @@ class ShareAudioIsolation {
   Future<int?> _awaitMix(bool Function() ended) async {
     for (var i = 0; i < 30 && !ended(); i++) {
       final dump = await _graph.dump();
-      final node = dump == null ? null : nodeIdNamed(dump, shareMixNode);
-      if (node != null && mixState(dump!, node).inPorts.isNotEmpty) return node;
+      final snapshot = dump == null ? null : ShareGraphSnapshot.parse(dump);
+      final node = snapshot?.nodeIdNamed(shareMixNode);
+      if (node != null && snapshot!.mixState(node).inPorts.isNotEmpty) {
+        return node;
+      }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
     return null;
@@ -109,10 +112,10 @@ class ShareAudioIsolation {
     try {
       final dump = await _graph.dump();
       if (dump == null || !active) return;
-      final state = mixState(dump, mix);
-      final channels = channelsOf(dump);
-      final foreign = foreignPlayback(
-        dump,
+      final snapshot = ShareGraphSnapshot.parse(dump);
+      final state = snapshot.mixState(mix);
+      final channels = snapshot.portChannels();
+      final foreign = snapshot.foreignPlayback(
         _graph.processId,
         binary: _graph.executableName,
       );
