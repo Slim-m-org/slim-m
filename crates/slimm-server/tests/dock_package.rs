@@ -283,6 +283,25 @@ async fn only_someone_who_manages_the_server_can_import_or_export() {
 }
 
 #[tokio::test]
+async fn a_non_manager_is_refused_before_the_package_is_read() {
+    let w = world("slimm-pkg-unread").await;
+    for uri in [
+        "/space/dock/packages/preview",
+        "/space/dock/packages/install",
+    ] {
+        let request = Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("authorization", format!("Bearer {}", w.token))
+            .header("content-type", "application/json")
+            .body(Body::from("{ this is not json"))
+            .unwrap();
+        let response = w.router.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{uri}");
+    }
+}
+
+#[tokio::test]
 async fn a_file_cannot_take_over_an_id_another_source_installed() {
     let wasm = canned_ok_wasm("hello");
     let w = world("slimm-pkg-clash").await;

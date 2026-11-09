@@ -67,6 +67,7 @@ mod join_gate;
 pub mod link_preview;
 pub mod linked_accounts;
 mod linked_avatar;
+mod manager_limited;
 mod member_permissions;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
