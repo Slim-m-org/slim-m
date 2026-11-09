@@ -26,7 +26,7 @@ async fn a_join_wakes_an_opted_in_device_with_a_sealed_voice_envelope() {
     let (mock, relay_url) = spawn_mock_relay().await;
     let push = PushSender::with_debounce_window_ms(&push_config(&relay_url), SHORT_DEBOUNCE_MS)
         .expect("relay config is valid");
-    let voice = VoiceService::for_test("wss://livekit.example.com", KEY, SECRET);
+    let voice = VoiceService::for_test("http://127.0.0.1:1", KEY, SECRET);
     let app = app_with_voice(store.clone(), push, voice, Hub::new());
     let channel = store.create_channel("lounge", "voice").await.unwrap();
 

@@ -35,7 +35,7 @@ const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
 
 fn enabled_voice() -> VoiceService {
-    VoiceService::for_test("wss://livekit.example.com", API_KEY, API_SECRET)
+    VoiceService::for_test("http://127.0.0.1:1", API_KEY, API_SECRET)
 }
 
 fn state_for(store: &Store) -> AppState {

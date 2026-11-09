@@ -20,9 +20,12 @@ struct ParticipantState {
     /// earlier session of the same member arrives with a different sid and
     /// must not act on the current one.
     sid: String,
-    /// Whether a join was published for this sid. An entry a track webhook
-    /// created before (or after) its join is provisional until then.
+    /// Whether this member is known to be on the call. An entry a track
+    /// webhook created before (or after) its join is provisional until then.
     announced: bool,
+    /// Whether the SFU's roster put the entry here rather than a join webhook,
+    /// so the join webhook for this sid, if it still arrives, is a real join.
+    from_roster: bool,
     /// Sids of currently-published screen-share-sourced tracks. A screen
     /// share with audio publishes two tracks, so "is sharing" is "this set
     /// is non-empty", not "a track was published".
@@ -34,6 +37,7 @@ impl ParticipantState {
         Self {
             sid: sid.to_owned(),
             announced,
+            from_roster: false,
             screen_share_tracks: HashSet::new(),
         }
     }
@@ -47,6 +51,9 @@ struct Inner {
     /// The sid whose leave was last published per member, so a duplicate
     /// leave is dropped even though the member's entry is already gone.
     ended: HashMap<Key, String>,
+    /// Channels whose members were read off the SFU since this process started,
+    /// or whose room finished empty, so webhook state can be trusted for them.
+    reconciled: HashSet<ChannelId>,
 }
 
 /// Tracks who a LiveKit webhook has told us is on a call, and whether they
@@ -75,7 +82,44 @@ impl RoomLiveState {
         if entry.sid != sid {
             *entry = ParticipantState::new(sid, false);
         }
-        !std::mem::replace(&mut entry.announced, true)
+        let real = !entry.announced || entry.from_roster;
+        entry.announced = true;
+        entry.from_roster = false;
+        real
+    }
+
+    /// Records who the SFU says is on a call this process did not see them join,
+    /// and marks the channel reconciled.
+    ///
+    /// A webhook's own knowledge wins: someone already tracked, or whose leave
+    /// was already published, is left alone, so a roster read that raced a
+    /// webhook cannot bring them back.
+    pub fn seed(&self, channel_id: ChannelId, roster: impl IntoIterator<Item = (UserId, String)>) {
+        let mut state = lock(&self.state);
+        for (user_id, sid) in roster.into_iter().filter(|(_, sid)| !sid.is_empty()) {
+            let key = (channel_id, user_id);
+            if state.ended.get(&key) == Some(&sid) {
+                continue;
+            }
+            match state.participants.get_mut(&key) {
+                Some(entry) if entry.sid == sid && !entry.announced => {
+                    entry.announced = true;
+                    entry.from_roster = true;
+                }
+                Some(_) => {}
+                None => {
+                    let mut entry = ParticipantState::new(&sid, true);
+                    entry.from_roster = true;
+                    state.participants.insert(key, entry);
+                }
+            }
+        }
+        state.reconciled.insert(channel_id);
+    }
+
+    /// Whether [`Self::seed`] has run for the channel since the room last emptied.
+    pub fn is_reconciled(&self, channel_id: ChannelId) -> bool {
+        lock(&self.state).reconciled.contains(&channel_id)
     }
 
     /// Forgets a participant, reporting whether this leave should publish. A
@@ -174,6 +218,7 @@ impl RoomLiveState {
             .participants
             .retain(|(channel, _), _| *channel != channel_id);
         state.ended.retain(|(channel, _), _| *channel != channel_id);
+        state.reconciled.remove(&channel_id);
     }
 }
 
@@ -188,6 +233,26 @@ impl VoiceService {
     /// The shared, cloneable live-state tracker; see this module's own doc.
     pub fn live_state(&self) -> RoomLiveState {
         self.live_state.clone()
+    }
+
+    /// Reads a channel's members off the SFU into [`RoomLiveState`] the first
+    /// time it is asked after a restart.
+    ///
+    /// LiveKit never repeats `participant_joined` for people already in a room,
+    /// so without this a mid-call deploy leaves them uncounted. A failed read
+    /// leaves the channel unreconciled and the next webhook tries again.
+    pub async fn reconcile_live_state(&self, channel_id: ChannelId) {
+        if self.live_state.is_reconciled(channel_id) {
+            return;
+        }
+        match self.list_participants(channel_id).await {
+            Ok(listed) => self
+                .live_state
+                .seed(channel_id, listed.into_iter().map(|p| (p.user_id, p.sid))),
+            Err(err) => {
+                tracing::warn!(?err, %channel_id, "could not read a call's members from the SFU")
+            }
+        }
     }
 }
 
@@ -347,5 +412,79 @@ mod tests {
         state.mark_joined(channel, user, "PA");
         state.forget_room(channel);
         assert!(state.mark_joined(channel, user, "PA"));
+    }
+
+    fn roster(users: &[(UserId, &str)]) -> Vec<(UserId, String)> {
+        users
+            .iter()
+            .map(|(u, sid)| (*u, (*sid).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn a_seeded_member_is_present_and_their_own_join_still_publishes_once() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.seed(channel, roster(&[(user, "PA")]));
+        assert_eq!(state.present(channel), vec![user]);
+        assert!(state.mark_joined(channel, user, "PA"));
+        assert!(!state.mark_joined(channel, user, "PA"));
+    }
+
+    #[test]
+    fn a_seeded_member_leaving_publishes_the_leave() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.seed(channel, roster(&[(user, "PA")]));
+        assert!(state.mark_left(channel, user, "PA"));
+        assert!(state.present(channel).is_empty());
+    }
+
+    #[test]
+    fn seeding_never_brings_back_someone_whose_leave_was_already_published() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        assert!(state.mark_left(channel, user, "PA"));
+        state.seed(channel, roster(&[(user, "PA")]));
+        assert!(state.present(channel).is_empty());
+    }
+
+    #[test]
+    fn seeding_leaves_a_member_a_webhook_already_tracks_alone() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.mark_joined(channel, user, "PB");
+        state.seed(channel, roster(&[(user, "PA")]));
+        assert!(!state.mark_joined(channel, user, "PB"), "kept PB's entry");
+    }
+
+    #[test]
+    fn seeding_announces_a_member_a_track_webhook_only_hinted_at() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.track_published(channel, (user, "PA"), "track-video");
+        assert!(state.present(channel).is_empty());
+        state.seed(channel, roster(&[(user, "PA")]));
+        assert_eq!(state.present(channel), vec![user]);
+    }
+
+    #[test]
+    fn a_member_the_sfu_gave_no_session_id_is_not_seeded() {
+        let state = RoomLiveState::new();
+        let (channel, user) = (cid(), uid());
+        state.seed(channel, roster(&[(user, "")]));
+        assert!(state.present(channel).is_empty());
+        assert!(state.is_reconciled(channel));
+    }
+
+    #[test]
+    fn a_channel_is_reconciled_until_its_room_finishes() {
+        let state = RoomLiveState::new();
+        let channel = cid();
+        assert!(!state.is_reconciled(channel));
+        state.seed(channel, roster(&[]));
+        assert!(state.is_reconciled(channel));
+        state.forget_room(channel);
+        assert!(!state.is_reconciled(channel));
     }
 }

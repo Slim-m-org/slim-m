@@ -23,6 +23,8 @@ use super::{VoiceError, VoiceService, room_for_channel};
 pub struct RoomParticipant {
     /// The token's `sub`, the identity LiveKit trusts because we signed it.
     pub user_id: UserId,
+    /// LiveKit's id for this connection, which tells one session of a member from the next.
+    pub sid: String,
     /// The token's `name`, as it was when this participant joined.
     pub display_name: String,
     /// Whether any of this participant's published tracks is screen-share
@@ -100,6 +102,8 @@ struct ListParticipantsResponse {
 #[derive(serde::Deserialize)]
 struct ParticipantInfo {
     identity: String,
+    #[serde(default)]
+    sid: String,
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
@@ -187,6 +191,7 @@ impl VoiceService {
                 let has_video = p.tracks.iter().any(|t| t.track_type == "VIDEO");
                 Some(RoomParticipant {
                     user_id,
+                    sid: p.sid,
                     display_name: p.name.unwrap_or_default(),
                     is_sharing_screen,
                     has_video,
@@ -312,6 +317,7 @@ mod tests {
             participants,
             vec![RoomParticipant {
                 user_id: alice,
+                sid: String::new(),
                 display_name: "Alice".to_owned(),
                 is_sharing_screen: false,
                 has_video: false,
@@ -348,6 +354,7 @@ mod tests {
             participants,
             vec![RoomParticipant {
                 user_id: alice,
+                sid: String::new(),
                 display_name: "Alice".to_owned(),
                 is_sharing_screen: true,
                 has_video: true,

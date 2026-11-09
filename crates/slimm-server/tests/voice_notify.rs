@@ -19,6 +19,7 @@ use tower::ServiceExt;
 mod support;
 
 use support::livekit_webhook::webhook_request;
+use support::room_service::RoomService;
 use support::ws::{Client, connect, serve, user_ticket};
 
 const API_KEY: &str = "APItestkey";
@@ -52,6 +53,11 @@ struct Member {
 
 impl World {
     async fn new() -> Self {
+        Self::on("http://127.0.0.1:1").await
+    }
+
+    /// A deployment whose LiveKit room service answers at `sfu_url`.
+    async fn on(sfu_url: &str) -> Self {
         let (store, guard) = support::new_store("slimm-voice-notify-test").await;
         store
             .create_role("everyone", Permissions::VIEW_CHANNEL, true)
@@ -59,11 +65,7 @@ impl World {
             .unwrap();
         let channel = store.create_channel("lounge", "voice").await.unwrap().id;
         let state = support::app::builder(store.clone())
-            .voice(VoiceService::for_test(
-                "wss://livekit.example.com",
-                API_KEY,
-                API_SECRET,
-            ))
+            .voice(VoiceService::for_test(sfu_url, API_KEY, API_SECRET))
             .build();
         let addr = serve(state.clone()).await;
         Self {
@@ -359,4 +361,37 @@ async fn without_a_choice_nobody_is_told() {
     world.go_live(alice.id).await;
 
     assert!(notice(&mut bob.ws, SILENT).await.is_none());
+}
+
+#[tokio::test]
+async fn a_join_after_a_restart_is_a_join_into_a_call_under_way() {
+    let sfu = RoomService::spawn().await;
+    let world = World::on(&sfu.url).await;
+    let mut alice = world.member("alice", Some(EVERY)).await;
+    let mut bob = world.member("bob", Some(EVERY)).await;
+    let mut dave = world.member("dave", Some(EVERY)).await;
+    let carol = world.member("carol", None).await;
+    // Alice and bob joined before the restart, so no webhook of theirs ever reached this process.
+    sfu.seat(&[alice.id, bob.id, carol.id]);
+
+    world.join(carol.id).await;
+
+    let frame = notice(&mut dave.ws, HEARS).await.expect("dave is told");
+    assert_eq!(frame["activity"], "joined");
+    assert!(notice(&mut alice.ws, SILENT).await.is_none());
+    assert!(notice(&mut bob.ws, SILENT).await.is_none());
+}
+
+#[tokio::test]
+async fn the_first_join_after_a_restart_into_an_empty_room_still_starts_the_call() {
+    let sfu = RoomService::spawn().await;
+    let world = World::on(&sfu.url).await;
+    let mut bob = world.member("bob", Some(EVERY)).await;
+    let alice = world.member("alice", None).await;
+    sfu.seat(&[alice.id]);
+
+    world.join(alice.id).await;
+
+    let frame = notice(&mut bob.ws, HEARS).await.expect("bob is told");
+    assert_eq!(frame["activity"], "call_started");
 }
