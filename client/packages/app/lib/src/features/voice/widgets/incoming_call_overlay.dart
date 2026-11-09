@@ -75,27 +75,34 @@ class IncomingCallOverlay extends ConsumerWidget {
     );
     if (ring == null) return const SizedBox.shrink();
 
-    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
-    final content = compact
-        ? CompactIncomingCall(ring: ring)
-        : Align(
-            alignment: Alignment.topCenter,
-            child: SafeArea(
-              minimum: const EdgeInsets.only(top: AppSpacing.s12),
-              child: ExpandedIncomingCall(ring: ring),
-            ),
-          );
-
     // A Material and an Overlay of its own; see this file's own library doc.
     return Material(
       type: MaterialType.transparency,
-      child: Overlay(
-        initialEntries: [
-          OverlayEntry(
-            builder: (context) =>
-                AppFadeIn(key: ValueKey('ring-${ring.ringId}'), child: content),
-          ),
-        ],
+      child: Overlay.wrap(
+        child: AppFadeIn(
+          key: ValueKey('ring-${ring.ringId}'),
+          child: _RingCard(ring: ring),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingCard extends StatelessWidget {
+  const _RingCard({required this.ring});
+
+  final IncomingDmCallRing ring;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < kCompactWidth) {
+      return CompactIncomingCall(ring: ring);
+    }
+    return Align(
+      alignment: Alignment.topCenter,
+      child: SafeArea(
+        minimum: const EdgeInsets.only(top: AppSpacing.s12),
+        child: ExpandedIncomingCall(ring: ring),
       ),
     );
   }

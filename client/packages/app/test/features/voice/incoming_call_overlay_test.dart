@@ -100,6 +100,14 @@ Future<_Setup> _pump(
         ringController = _TestDmCallRingController(ref);
         return ringController;
       }),
+      userProfileProvider('caller-2').overrideWith(
+        (ref) async => const api.UserProfile(
+          id: 'caller-2',
+          username: 'bob',
+          displayName: 'Bob',
+          createdAt: 0,
+        ),
+      ),
       userProfileProvider('caller-1').overrideWith(
         (ref) async => const api.UserProfile(
           id: 'caller-1',
@@ -126,6 +134,12 @@ Future<_Setup> _pump(
   await tester.pump();
 
   return _Setup(container, events, ringController, router);
+}
+
+Future<void> _frames(WidgetTester tester) async {
+  for (var i = 0; i < 8; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 void _emitRing(_Setup s) => s.events.add(
@@ -208,6 +222,46 @@ void main() {
 
     expect(s.ring.declineCalls, 1);
     expect(find.text('Incoming call'), findsNothing);
+  });
+
+  testWidgets('a second ring replaces the card and is the one accepted', (
+    tester,
+  ) async {
+    final s = await _pump(tester);
+    _emitRing(s);
+    await _frames(tester);
+    expect(find.text('Alice'), findsOneWidget);
+
+    s.events.add(
+      const api.CallRinging(
+        channelId: 'dm-2',
+        ringId: 'ring-2',
+        callerId: 'caller-2',
+      ),
+    );
+    await _frames(tester);
+    expect(find.text('Bob'), findsOneWidget);
+    expect(find.text('Alice'), findsNothing);
+
+    await tester.tap(find.bySemanticsLabel('Accept'));
+    await _frames(tester);
+    expect(s.container.read(dmCallOpenProvider), 'dm-2');
+    expect(_where(s.router), Routes.channel('dm-2'));
+  });
+
+  testWidgets('the card follows the window across the compact width', (
+    tester,
+  ) async {
+    final s = await _pump(tester, width: 1200);
+    _emitRing(s);
+    await _frames(tester);
+    final label = find.text('Incoming call');
+    expect(tester.getTopLeft(label).dy, lessThan(100));
+
+    tester.view.physicalSize = const Size(400, 900);
+    await _frames(tester);
+    expect(tester.getTopLeft(label).dy, greaterThan(300));
+    expect(s.ring.declineCalls, 0);
   });
 
   testWidgets('a new ring raises and focuses an active desktop window', (
