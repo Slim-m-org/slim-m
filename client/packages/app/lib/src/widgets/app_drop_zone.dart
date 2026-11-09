@@ -110,9 +110,9 @@ class AppDropOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return IgnorePointer(
-      child: AnimatedOpacity(
-        opacity: 1,
-        duration: AppMotion.reduced(context, AppMotion.fast),
+      child: AppFadeIn(
+        offset: 0,
+        duration: AppMotion.fast,
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: tokens.surfaceRaised.withValues(alpha: 0.92),

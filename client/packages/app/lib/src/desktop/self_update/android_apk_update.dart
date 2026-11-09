@@ -9,8 +9,10 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'install_fs.dart';
 import 'self_update.dart';
 import 'self_update_failure.dart';
 
@@ -55,6 +57,16 @@ typedef FetchVerifiedUpdate =
       required http.Client client,
     });
 
+/// Deletes everything staged in [staging] except [keep], so the folder never
+/// holds more than the apk being installed. The system installer reads that
+/// file after this returns, which is why it cannot be deleted here.
+void pruneStagedUpdates(Directory staging, {File? keep}) {
+  if (!staging.existsSync()) return;
+  for (final entry in staging.listSync(followLinks: false)) {
+    if (keep == null || !p.equals(entry.path, keep.path)) safeDelete(entry);
+  }
+}
+
 /// Downloads and verifies the newest apk, then hands it to [installer].
 /// Null when nothing is newer; a [SelfUpdateFailure] when it cannot be had.
 Future<ApkInstallOutcome?> updateAndroidApk({
@@ -64,12 +76,14 @@ Future<ApkInstallOutcome?> updateAndroidApk({
   ApkInstaller installer = const ChannelApkInstaller(),
   FetchVerifiedUpdate fetch = fetchVerifiedUpdate,
 }) async {
+  final staging = Directory('${cacheDir.path}/$androidUpdateCacheDir');
   final update = await fetch(
     currentVersion: currentVersion,
     platformKey: androidUpdatePlatformKey,
-    stagingDir: Directory('${cacheDir.path}/$androidUpdateCacheDir'),
+    stagingDir: staging,
     client: client,
   );
+  pruneStagedUpdates(staging, keep: update?.file);
   if (update == null) return null;
   try {
     return await installer.install(update.file);

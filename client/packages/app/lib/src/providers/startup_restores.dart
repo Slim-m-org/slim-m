@@ -102,25 +102,27 @@ Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
   if (flags.state == VoiceSessionState.connected || flags.rejoining) return;
   final voice = container.read(voiceControllerProvider.notifier);
   await Future.wait([
-    for (final entry in {
-      'camera on join': voice.restoreCameraPreference(),
-      'voice activity sensitivity': voice.input
-          .restoreVoiceActivitySensitivity(),
-      'input threshold': voice.input.restoreInputThreshold().then(
-        (_) => voice.input.restoreInputThresholdAuto(),
-      ),
-      'even out loud sounds': voice.input.restoreEvenOutLoudSounds(),
-      'noise suppression': voice.input.restoreNoiseSuppression(),
-      'voice processing': voice.input.restoreVoiceProcessing(),
-      'video quality': voice.input.restoreVideoQuality(),
-      'push to talk': voice.input.restorePushToTalkPreference(),
-      'audio devices': voice.devices.restoreAudioDevicePreferences(),
-      'mic fallback': voice.devices.restoreMicFallback(),
-      'speaker route': voice.devices.restoreSpeakerPreference(),
-    }.entries)
+    for (final entry in _voiceDeviceRestores(voice).entries)
       restoreOrDefault(container, entry.key, entry.value),
   ]);
 }
+
+/// Starts the voice restores that startup and an account switch both run.
+Map<String, Future<void>> _voiceDeviceRestores(VoiceController voice) => {
+  'camera on join': voice.restoreCameraPreference(),
+  'voice activity sensitivity': voice.input.restoreVoiceActivitySensitivity(),
+  'input threshold': voice.input.restoreInputThreshold().then(
+    (_) => voice.input.restoreInputThresholdAuto(),
+  ),
+  'even out loud sounds': voice.input.restoreEvenOutLoudSounds(),
+  'noise suppression': voice.input.restoreNoiseSuppression(),
+  'voice processing': voice.input.restoreVoiceProcessing(),
+  'video quality': voice.input.restoreVideoQuality(),
+  'push to talk': voice.input.restorePushToTalkPreference(),
+  'audio devices': voice.devices.restoreAudioDevicePreferences(),
+  'mic fallback': voice.devices.restoreMicFallback(),
+  'speaker route': voice.devices.restoreSpeakerPreference(),
+};
 
 /// Restores every preference bootstrap needs, concurrently off the one cached
 /// preferences future, each degrading on its own.
@@ -129,19 +131,7 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
   final restores = <String, Future<void>>{
     for (final entry in restorablePreferences.entries)
       entry.key: entry.value(container).restore(),
-    'camera on join': voice.restoreCameraPreference(),
-    'voice activity sensitivity': voice.input.restoreVoiceActivitySensitivity(),
-    'input threshold': voice.input.restoreInputThreshold().then(
-      (_) => voice.input.restoreInputThresholdAuto(),
-    ),
-    'even out loud sounds': voice.input.restoreEvenOutLoudSounds(),
-    'noise suppression': voice.input.restoreNoiseSuppression(),
-    'voice processing': voice.input.restoreVoiceProcessing(),
-    'video quality': voice.input.restoreVideoQuality(),
-    'push to talk': voice.input.restorePushToTalkPreference(),
-    'audio devices': voice.devices.restoreAudioDevicePreferences(),
-    'mic fallback': voice.devices.restoreMicFallback(),
-    'speaker route': voice.devices.restoreSpeakerPreference(),
+    ..._voiceDeviceRestores(voice),
     'participant volumes': voice.volumes.restoreParticipantVolumes(),
     'hidden cameras': voice.cameras.restoreHiddenCameras(),
   };
