@@ -205,7 +205,7 @@ import UserNotifications
     }
     clipboardImageChannel = clipboardImage
     // See ClipboardPasteBridge.m: this is the callback its swizzled `paste:`
-    // hands an image to, from inside iOS's own dispatch of that action.
+    // hands an encoded image to, on the main queue.
     _ = SlimmInstallClipboardPasteBridge {
       [weak self] pngData in
       self?.clipboardImageChannel?.invokeMethod("pastedImage", arguments: pngData)

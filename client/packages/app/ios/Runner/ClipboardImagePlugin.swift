@@ -26,7 +26,7 @@ enum ClipboardImagePlugin {
     case "hasImage":
       result(UIPasteboard.general.hasImages)
     case "readImage":
-      result(UIPasteboard.general.image?.pngData())
+      readImage(result)
     case "writeImage":
       guard let data = (call.arguments as? FlutterStandardTypedData)?.data,
         let image = UIImage(data: data)
@@ -38,6 +38,19 @@ enum ClipboardImagePlugin {
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  /// The pasteboard read stays on the main thread, where the consent prompt belongs.
+  /// The PNG encode of a full photo does not.
+  private static func readImage(_ result: @escaping FlutterResult) {
+    guard let image = UIPasteboard.general.image else {
+      result(nil)
+      return
+    }
+    DispatchQueue.global(qos: .userInitiated).async {
+      let png = image.pngData()
+      DispatchQueue.main.async { result(png) }
     }
   }
 }

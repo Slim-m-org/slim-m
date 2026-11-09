@@ -7,9 +7,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// `FlutterTextInputView`'s own `canPerformAction:`/`paste:` accept an image
 /// rather than only a string.
 ///
-/// `onImage` is invoked synchronously, from inside iOS's own dispatch of the
-/// native `paste:` action, with the pasteboard's image already read as PNG
-/// data; see the .m file for why that ordering is load-bearing.
+/// `onImage` is invoked on the main queue with the pasteboard's image as PNG
+/// data. The pasteboard itself is read synchronously, from inside iOS's own
+/// dispatch of the native `paste:` action; see the .m file for why that
+/// ordering is load-bearing.
 ///
 /// Returns whether the swizzle installed, never whether it is actually
 /// reachable. Confirmed on a real device 2026-08-01 that those differ: on a
