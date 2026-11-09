@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT r.id AS \"id!: ChannelId\",\n                  r.category_id AS \"was_in: ChannelCategoryId\",\n                  l.category_id AS \"category_id: ChannelCategoryId\",\n                  l.position AS \"position!: i64\"\n           FROM channels r JOIN channels l ON l.id = r.room_lobby_id\n           WHERE r.deleted_at IS NULL\n             AND (r.position != l.position OR r.category_id IS NOT l.category_id)",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "was_in: ChannelCategoryId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "category_id: ChannelCategoryId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "e81c92317831827f5c7dd017fa1bd86e090f9159f6e111de12c6c8927abedc6d"
+}
