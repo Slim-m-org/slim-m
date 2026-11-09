@@ -52,14 +52,15 @@ class FakePeer extends Fake implements lk.RemoteParticipant {
 
   final FakeCameraPublication? camera;
 
+  /// The level the SFU last reported for this person.
+  @override
+  double audioLevel = 0;
+
   @override
   String get name => identity;
 
   @override
   bool get isSpeaking => false;
-
-  @override
-  double get audioLevel => 0;
 
   @override
   UnmodifiableMapView<String, String> get attributes => UnmodifiableMapView({});

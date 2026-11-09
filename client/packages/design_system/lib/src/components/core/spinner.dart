@@ -22,6 +22,7 @@ enum AppSpinnerSize {
   final double stroke;
 }
 
+/// Spins in its own repaint layer, so a frame of the spin never repaints the pane around it.
 class AppSpinner extends StatelessWidget {
   const AppSpinner({
     super.key,
@@ -44,12 +45,14 @@ class AppSpinner extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final spinner = ExcludeSemantics(
       // The static sweep is a drawing, not a progress value to announce.
-      child: SizedBox.square(
-        dimension: size.dimension,
-        child: CircularProgressIndicator(
-          strokeWidth: size.stroke,
-          color: color ?? tokens.accentFill,
-          value: AppMotion.isReduced(context) ? _reducedSweep : null,
+      child: RepaintBoundary(
+        child: SizedBox.square(
+          dimension: size.dimension,
+          child: CircularProgressIndicator(
+            strokeWidth: size.stroke,
+            color: color ?? tokens.accentFill,
+            value: AppMotion.isReduced(context) ? _reducedSweep : null,
+          ),
         ),
       ),
     );

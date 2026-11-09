@@ -279,6 +279,7 @@ extension VoiceSessionTracks on VoiceSession {
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer =
         recheck == null ? null : Timer(recheck, _rebuildRoster);
+    _reportLocalLevel(next);
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
     if (listEquals(next, _participants)) return;
     _participants = List.unmodifiable(next);

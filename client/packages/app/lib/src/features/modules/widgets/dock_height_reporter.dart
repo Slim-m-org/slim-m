@@ -9,6 +9,10 @@
 /// either under-reserve on the tallest shape or waste space on the shortest
 /// one. Publishes 0 on dispose, since a dock that has unmounted reserves
 /// nothing.
+///
+/// A reader that takes [DockHeightReporter.onHeight] or `onWidth` relays out a
+/// screen per report, so it hears a size only once the card has stopped
+/// tweening; the shared reservation still follows every frame.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -63,12 +67,42 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   );
   double _lastReported = 0;
   double _lastWidth = 0;
+  Size? _lastSeen;
+  bool _published = false;
+  bool _reportQueued = false;
 
   /// Who published each reservation last, so a dock leaving does not zero a height another dock now holds.
   static final _publisher = Expando<_DockHeightReporterState>();
 
+  bool get _local => widget.onHeight != null || widget.onWidth != null;
+
+  /// One report per frame, so two consecutive reports are always two frames apart.
+  void _queueReport() {
+    if (_reportQueued) return;
+    _reportQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reportQueued = false;
+      _report();
+    });
+  }
+
+  /// A local reader relays out a whole screen per report, so it waits for the card to stop tweening.
+  bool _stillMoving(Size? size) {
+    final moving = _local && _published && size != _lastSeen;
+    _lastSeen = size;
+    if (moving) {
+      _queueReport();
+      // The tween's last frame leaves nothing else to look again.
+      WidgetsBinding.instance.scheduleFrame();
+    }
+    return moving;
+  }
+
   void _report() {
+    if (!mounted) return;
     final size = _key.currentContext?.size;
+    if (_stillMoving(size)) return;
+    _published = true;
     final measured = size?.height ?? 0;
     final height = widget.foldedHeight ?? measured + widget.extraHeight;
     _reportWidth(widget.foldedHeight == null ? size?.width ?? 0 : 0);
@@ -114,11 +148,11 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _report());
+    _queueReport();
     // The card animates its own size, which no rebuild of this widget would see.
     return NotificationListener<SizeChangedLayoutNotification>(
       onNotification: (_) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _report());
+        _queueReport();
         return false;
       },
       child: SizeChangedLayoutNotifier(

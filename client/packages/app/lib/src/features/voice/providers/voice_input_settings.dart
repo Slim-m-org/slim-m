@@ -51,6 +51,9 @@ class VoiceInputSettings {
 
   Stream<InputGateReading> get inputGateReadings => _session.inputGateReadings;
 
+  /// See [VoiceSession.localAudioLevels].
+  Stream<double> get localAudioLevels => _session.localAudioLevels;
+
   /// Seeds the input gate's threshold before any call.
   Future<void> restoreInputThreshold() async {
     setInputThreshold(await loadInputThreshold(_ref));

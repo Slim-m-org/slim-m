@@ -103,8 +103,11 @@ class VoiceParticipant {
   /// watched through `screenShareViewFor`.
   final bool isCameraOn;
 
-  /// The last level LiveKit reported for this participant's mic, 0 to 1,
-  /// refreshed with its active-speaker updates rather than per audio frame.
+  /// The level LiveKit reported when this roster was built, 0 to 1.
+  ///
+  /// Left out of `==` because the SFU re-reports it about twice a second per
+  /// talker, and a roster that differs on it rebuilds the whole call; your
+  /// own live level is `VoiceSession.localAudioLevels`.
   final double audioLevel;
 
   /// Whether they cannot hear the call; published by the server as a
@@ -144,7 +147,6 @@ class VoiceParticipant {
       other.isLocal == isLocal &&
       other.isScreenSharing == isScreenSharing &&
       other.isCameraOn == isCameraOn &&
-      other.audioLevel == audioLevel &&
       other.isDeafened == isDeafened;
 
   @override
@@ -156,7 +158,6 @@ class VoiceParticipant {
         isLocal,
         isScreenSharing,
         isCameraOn,
-        audioLevel,
         isDeafened,
       );
 }

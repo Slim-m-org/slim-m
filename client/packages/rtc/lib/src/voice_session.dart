@@ -380,6 +380,7 @@ class VoiceSession
     await _teardown();
     if (generation != _generation) return;
     _participants = const [];
+    _reportLocalLevel(_participants);
     _audio.deafened = false;
     _audio.muted.clear();
     _audio.screenMuted.clear();

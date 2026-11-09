@@ -236,6 +236,11 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Stream<double> get autoInputThresholds => const Stream.empty();
 
+  final localLevelController = StreamController<double>.broadcast();
+
+  @override
+  Stream<double> get localAudioLevels => localLevelController.stream;
+
   @override
   double get inputThresholdDb => currentInputThresholdDb;
 
@@ -315,6 +320,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     await _participants.close();
     await _audioDeviceChanges.close();
     await inputGateController.close();
+    await localLevelController.close();
   }
 
   void emitParticipants(List<VoiceParticipant> p) => _participants.add(p);

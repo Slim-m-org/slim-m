@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/lounge_tracks.dart';
+import 'package:slimm_app/src/features/voice/providers/settled_double_writes.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/hold_music_badge.dart';
@@ -269,6 +270,7 @@ void main() {
         .read(voiceSettingsControllerProvider)
         .holdMusicVolume;
     expect(volume, greaterThan(0.2));
+    await tester.pump(kSettledWriteDelay);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.hold_music_volume'), volume);
   });
