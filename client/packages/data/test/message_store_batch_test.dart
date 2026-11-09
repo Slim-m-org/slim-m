@@ -86,10 +86,11 @@ void main() {
       _message(id: 'm6', seq: 4, content: 'second'), // equal seq: later wins
       _message(id: 'm5', seq: 12),
     ];
+    // The sync stream's policy, since this pins ordering rules and not what a gap does to the cursor.
     for (final m in messages) {
-      await loop.applyMessage(m);
+      await loop.applyMessage(m, advance: CursorAdvance.always);
     }
-    await batch.applyMessages(messages);
+    await batch.applyMessages(messages, advance: CursorAdvance.always);
 
     for (final channel in ['chan-1', 'chan-2']) {
       expect(

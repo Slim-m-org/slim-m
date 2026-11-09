@@ -64,7 +64,7 @@ class _WebhooksPaneState extends ConsumerState<WebhooksPane>
 
   Future<void> _pickChannel() async {
     final store = await ref.read(storeProvider.future);
-    final channels = await store.watchChannels().first;
+    final channels = await store.allChannels();
     if (!mounted) return;
     final picked = await showAppSheet<Channel>(
       context,

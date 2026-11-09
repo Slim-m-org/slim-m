@@ -28,12 +28,15 @@ class _FailingApplyStore extends MessageStore {
   bool failNext = false;
 
   @override
-  Future<void> applyMessages(Iterable<api.Message> messages) async {
+  Future<void> applyMessages(
+    Iterable<api.Message> messages, {
+    CursorAdvance advance = CursorAdvance.whenContiguous,
+  }) async {
     if (failNext) {
       failNext = false;
       throw StateError('disk full');
     }
-    await super.applyMessages(messages);
+    await super.applyMessages(messages, advance: advance);
   }
 }
 

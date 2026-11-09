@@ -95,7 +95,10 @@ void main() {
 
   test('the cursor only ever moves forward', () async {
     await store.applyMessage(_message(id: 'm1', seq: 1));
-    await store.applyMessage(_message(id: 'm3', seq: 3));
+    await store.applyMessage(
+      _message(id: 'm3', seq: 3),
+      advance: CursorAdvance.always,
+    );
     expect(await _cursorOf(store, 'chan-1'), 3);
 
     // Backfilling an older message must not rewind the resume point.

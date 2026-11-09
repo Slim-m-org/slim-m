@@ -143,7 +143,7 @@ class SyncCatchUp {
       await _resetScope(generation, api, store, delta.channelId);
       return isCurrent() ? false : null;
     }
-    await store.applyMessages(delta.messages);
+    await store.applyMessages(delta.messages, advance: CursorAdvance.always);
     if (!isCurrent()) return null;
     _ref.read(messageExtrasProvider.notifier).applyMessages(delta.messages);
 
@@ -202,7 +202,7 @@ class SyncCatchUp {
       wait: _ref.read(rateLimitWaitProvider),
     );
     if (!_isCurrent(generation)) return;
-    await store.applyMessages(fresh);
+    await store.applyMessages(fresh, advance: CursorAdvance.always);
     _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
   }
 }

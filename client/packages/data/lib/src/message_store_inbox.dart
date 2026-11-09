@@ -55,10 +55,12 @@ extension MessageStoreInbox on MessageStore {
         final seq = mentionSeqByChannel[id];
         variables.add(Variable<String>(id));
         if (seq == null) {
+          // Bound to the channel, not correlated to m, so it runs once and the seq is an index key.
           clauses.add(
             '(m.channel_id = ? AND m.seq = '
-            '(SELECT MAX(seq) FROM messages WHERE channel_id = m.channel_id))',
+            '(SELECT MAX(seq) FROM messages WHERE channel_id = ?))',
           );
+          variables.add(Variable<String>(id));
         } else {
           clauses.add('(m.channel_id = ? AND m.seq = ?)');
           variables.add(Variable<int>(seq));

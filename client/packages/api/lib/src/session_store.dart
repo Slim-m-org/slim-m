@@ -8,6 +8,11 @@ import 'logging/app_log.dart';
 import 'logging/failure.dart';
 import 'models.dart';
 
+/// How long a rotation waits on the platform key store before carrying on without it.
+///
+/// Every 401 retry funnels through one rotation, so a wedged key store must cost one slow rotation, never every later request.
+const storageDeadline = Duration(seconds: 5);
+
 /// Holds the current session and hands out the access token.
 ///
 /// Kept separate from the client so storage (secure storage on device, memory
@@ -152,10 +157,13 @@ class SessionStore {
     final source = sync;
     final held = _tokens;
     if (source == null || held == null) return null;
-    await settled;
+    // A write still pending past the deadline means storage may hold an older pair than this one.
+    var written = true;
+    await settled.timeout(storageDeadline, onTimeout: () => written = false);
+    if (!written) return null;
     final TokenPair? stored;
     try {
-      stored = await source.readStored();
+      stored = await source.readStored().timeout(storageDeadline);
     } on Object catch (error, stack) {
       AppLog.swallowed(
           LogTag.net, 'Could not read the shared session', error, stack);

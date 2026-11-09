@@ -114,6 +114,30 @@ void main() {
     expect(sql, isNot(contains('*')));
   });
 
+  group('inbox query', () {
+    test('finds each newest row and mention row from the channel/seq index',
+        () async {
+      await db.batch((b) => b.insertAll(db.messages, [
+            for (var i = 1; i <= 30; i++)
+              _row('a$i', 'c1', seq: i, createdAt: i),
+            for (var i = 1; i <= 30; i++)
+              _row('b$i', 'c2', seq: i, createdAt: i),
+            for (var i = 1; i <= 30; i++)
+              _row('d$i', 'c3', seq: i, createdAt: i),
+          ]));
+
+      final found =
+          await store.inboxMessages({'c1': null, 'c2': 7, 'c3': null});
+
+      expect({for (final e in found.entries) e.key: e.value.seq},
+          {'c1': 30, 'c2': 7, 'c3': 30});
+      final detail = await planOfLast('SELECT m.*');
+      expect(detail, contains('messages_channel_seq (channel_id=? AND seq=?)'));
+      expect(detail, isNot(contains('CORRELATED')));
+      expect(detail, isNot(_fullScan));
+    });
+  });
+
   group('transcript query', () {
     Future<void> seed() async {
       final rows = <MessagesCompanion>[];

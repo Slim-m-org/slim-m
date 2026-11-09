@@ -68,7 +68,7 @@ class MessageAlertPolicy {
     }
 
     final store = await _ref.read(storeProvider.future);
-    final channel = await store.watchChannelRow(message.channelId).first;
+    final channel = await store.channelRow(message.channelId);
     final isDm = channel?.kind == 'dm';
     // The server resolves this per viewer, including role and broadcast rights the client cannot see.
     final mentionsSelf = !isDm && message.mentionsMe;
@@ -121,7 +121,7 @@ class MessageAlertPolicy {
       return channel == null ? null : channelDefaultOf(channel);
     }
     final store = await _ref.read(storeProvider.future);
-    final parent = await store.watchChannelRow(parentId).first;
+    final parent = await store.channelRow(parentId);
     return parent == null ? null : channelDefaultOf(parent);
   }
 

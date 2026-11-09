@@ -68,14 +68,7 @@ extension SlimmApiTransport on SlimmApi {
           over: over,
         );
 
-    http.Response response;
-    try {
-      response = await attempt();
-    } on ConnectionDroppedException {
-      // A phone back from the background finds its pooled sockets dead; a fresh one answers.
-      if (!_replayable.contains(method)) rethrow;
-      response = await attempt();
-    }
+    final response = await replayingDroppedSocket(method, attempt);
     onHeaders?.call(response.headers);
 
     // One automatic rotation, then replay. Only for authenticated calls, and
@@ -84,8 +77,7 @@ extension SlimmApiTransport on SlimmApi {
         authenticated &&
         !isRetry &&
         session.tokens != null) {
-      // Another call already rotated while this one was out: replay with that token, since rotating again voids it.
-      if (session.tokens?.accessToken == sentWith) await refresh();
+      await refreshUnlessRotated(sentWith);
       return send(
         method,
         path,
@@ -108,6 +100,28 @@ extension SlimmApiTransport on SlimmApi {
       return _decodeBody(response, method, path);
     }
     throw errorFor(response);
+  }
+
+  /// Rotates the session for a 401 on a call sent with [sentWith], unless another call already did.
+  ///
+  /// Rotating again would void the token that call minted, so a late 401 only replays.
+  Future<void> refreshUnlessRotated(String? sentWith) async {
+    if (session.tokens?.accessToken == sentWith) await refresh();
+  }
+
+  /// Runs [attempt], and once more when it died on a dropped socket and [method] is safe to repeat.
+  ///
+  /// A phone back from the background finds its pooled sockets dead; a fresh one answers.
+  Future<T> replayingDroppedSocket<T>(
+    String method,
+    Future<T> Function() attempt,
+  ) async {
+    try {
+      return await attempt();
+    } on ConnectionDroppedException {
+      if (!_replayable.contains(method)) rethrow;
+      return attempt();
+    }
   }
 
   http.Request _buildRequest(
@@ -144,14 +158,18 @@ extension SlimmApiTransport on SlimmApi {
         (status >= 200 && status < 300);
   }
 
-  Object? _decodeBody(http.Response response, String method, String path) {
+  Object? _decodeBody(http.Response response, String method, String path) =>
+      decodeJsonReply(response, '$method $path');
+
+  /// The JSON in a success reply to [what], or an [UnreadableReplyException] when it is not JSON.
+  ///
+  /// For the calls that read a response themselves instead of going through [send].
+  Object? decodeJsonReply(http.Response response, String what) {
     if (response.body.isEmpty) return null;
     try {
       return jsonDecode(response.body) as Object;
     } catch (e) {
-      throw UnreadableReplyException(
-        'could not decode the reply to $method $path: $e',
-      );
+      throw UnreadableReplyException('could not decode the reply to $what: $e');
     }
   }
 
@@ -164,21 +182,22 @@ extension SlimmApiTransport on SlimmApi {
     Map<String, String>? query,
     bool isRetry = false,
   }) async {
-    final request = http.Request('GET', requestUri(path, query));
     final token = session.tokens?.accessToken;
     if (token == null) {
       throw const UnauthorizedException('not signed in');
     }
-    request.headers['authorization'] = 'Bearer $token';
-
-    final response = await _perform(
-      request,
-      'GET $path',
-      deadline: transferDeadline,
+    final uri = requestUri(path, query);
+    final response = await replayingDroppedSocket(
+      'GET',
+      () => _perform(
+        http.Request('GET', uri)..headers['authorization'] = 'Bearer $token',
+        'GET $path',
+        deadline: transferDeadline,
+      ),
     );
 
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
-      await refresh();
+      await refreshUnlessRotated(token);
       return fetchBytes(path, query: query, isRetry: true);
     }
 

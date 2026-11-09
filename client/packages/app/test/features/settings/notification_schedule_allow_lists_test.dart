@@ -301,6 +301,7 @@ void main() {
         contains('PUT /notifications/schedule/allowed-channels/c-lounge'),
       );
       expect(wired.scheduleReads, greaterThan(reads));
+      expect(wired.store.watches, 1, reason: 'the picker reads a snapshot');
       await _unmount(tester);
     });
 

@@ -58,7 +58,11 @@ class AlertRig {
     this.accountFails = false,
     this.overrides = const {},
     this.parentFails = false,
+    this.makeStore = MessageStore.new,
   });
+
+  /// Builds the store the policy reads, for a test that wants to observe how it is read.
+  final MessageStore Function(SlimmDatabase db) makeStore;
 
   /// Both can change under the policy, like a setting changed on another device.
   String account;
@@ -93,7 +97,7 @@ class AlertRig {
 
   Future<void> start() async {
     db = SlimmDatabase(NativeDatabase.memory());
-    final store = MessageStore(db);
+    final store = makeStore(db);
     await store.upsertChannels([
       const api.Channel(
         id: 'group-1',
