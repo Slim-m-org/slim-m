@@ -94,4 +94,14 @@ void main() {
     expect(first.read(firstRunTrayNoticeCloseActionProvider), isNull);
     expect(second.read(firstRunTrayNoticeCloseActionProvider), isNotNull);
   });
+
+  test('closing still works once the first Space has been removed', () async {
+    final first = h.host.runtimeFor(_a)!.container;
+    await h.host.removeAccount(_a);
+    first.dispose();
+
+    await shell.windowController!.requestClose();
+
+    expect(port.hideCalls + port.minimizeCalls, 1);
+  });
 }

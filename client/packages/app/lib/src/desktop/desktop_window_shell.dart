@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/accounts/providers/account_host.dart';
 import '../features/accounts/providers/account_providers.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
@@ -128,6 +129,7 @@ class DesktopWindowShell {
 
   DesktopWindowController? _controller;
   DesktopTrayController? _trayController;
+  AccountHost? _accounts;
   bool _active;
   bool _framelessApplied;
 
@@ -442,6 +444,7 @@ class DesktopWindowShell {
       probe: const MethodChannelLinuxTrayProbe(),
     );
 
+    _accounts = container.read(accountHostProvider);
     _controller = DesktopWindowController(
       port: port,
       store: store,
@@ -462,7 +465,7 @@ class DesktopWindowShell {
     _trayController = DesktopTrayController(
       port: port,
       container: container,
-      host: container.read(accountHostProvider),
+      host: _accounts,
     );
     await _trayController!.start();
   }
@@ -475,15 +478,15 @@ class DesktopWindowShell {
     CloseAction? action,
   ) async {
     if (action == null) return;
-    final notice = await container.read(firstRunTrayNoticeProvider.future);
-    if (notice.hasBeenShown(action)) return;
     final screen = _onScreen(container);
+    final notice = await screen.read(firstRunTrayNoticeProvider.future);
+    if (notice.hasBeenShown(action)) return;
     screen.read(firstRunTrayNoticeCloseActionProvider.notifier).state = action;
   }
 
-  /// The account on screen owns the settings a close acts on, not the first one built.
+  /// The account on screen owns the settings a close acts on; the first one built may be gone.
   ProviderContainer _onScreen(ProviderContainer fallback) =>
-      fallback.read(accountHostProvider)?.active?.container ?? fallback;
+      _accounts?.active?.container ?? fallback;
 }
 
 final desktopWindowShellProvider = Provider<DesktopWindowShell>(
