@@ -30,13 +30,19 @@ COLLECTED = {
 PURPOSE = "NSPrivacyCollectedDataTypePurposeAppFunctionality"
 
 # Symbols behind Apple's required-reason API categories.
-REQUIRED_REASON_SYMBOLS = re.compile(
-    r"\b(UserDefaults|NSUserDefaults|fstat|lstat|stat\(|getattrlist|"
-    r"creationDate|modificationDate|contentModificationDateKey|"
-    r"creationDateKey|NSFileCreationDate|NSFileModificationDate|"
-    r"systemUptime|mach_absolute_time|volumeAvailableCapacity|"
-    r"systemFreeSize|statfs|statvfs|activeInputModes)\b"
-)
+SYMBOLS_BY_CATEGORY = {
+    "NSPrivacyAccessedAPICategoryUserDefaults": r"UserDefaults|NSUserDefaults",
+    "NSPrivacyAccessedAPICategoryFileTimestamp": (
+        r"fstat|lstat|stat\(|getattrlist|creationDate|modificationDate|"
+        r"contentModificationDateKey|creationDateKey|NSFileCreationDate|NSFileModificationDate"
+    ),
+    "NSPrivacyAccessedAPICategorySystemBootTime": r"systemUptime|mach_absolute_time",
+    "NSPrivacyAccessedAPICategoryDiskSpace": (
+        r"volumeAvailableCapacity|systemFreeSize|statfs|statvfs"
+    ),
+    "NSPrivacyAccessedAPICategoryActiveKeyboards": r"activeInputModes",
+}
+REQUIRED_REASON_SYMBOLS = re.compile(r"\b(" + "|".join(SYMBOLS_BY_CATEGORY.values()) + r")\b")
 
 MANIFEST_BUNDLES = ("Runner",)
 EXTENSIONS = ("BroadcastExtension", "NotificationService")
@@ -109,6 +115,16 @@ class PrivacyManifests(unittest.TestCase):
             self.assertTrue(api["NSPrivacyAccessedAPITypeReasons"])
             for reason in api["NSPrivacyAccessedAPITypeReasons"]:
                 self.assertRegex(reason, r"^[0-9A-F]{4}\.\d$")
+
+    def test_runner_declares_every_category_its_own_sources_use(self):
+        declared = {a["NSPrivacyAccessedAPIType"] for a in load("Runner")["NSPrivacyAccessedAPITypes"]}
+        sources = [p for p in (IOS / "Runner").iterdir() if p.suffix in (".swift", ".m")]
+        for source in sources:
+            text = strip_comments(source.read_text())
+            for category, symbols in SYMBOLS_BY_CATEGORY.items():
+                hit = re.search(rf"\b({symbols})\b", text)
+                if hit:
+                    self.assertIn(category, declared, f"{source.name} uses {hit.group(0)}")
 
     def test_manifest_is_in_the_project_and_the_runner_resources_phase(self):
         refs = [i for i, b in blocks("PBXFileReference").items() if MANIFEST in b]
