@@ -50,7 +50,12 @@ impl<S: Subscriber> Layer<S> for RecordStatements {
         }
         let mut statement = Statement(String::new());
         event.record(&mut statement);
-        self.0.lock().unwrap().push(statement.0.trim().to_owned());
+        let sql = statement.0.trim();
+        // sqlx's own setup for a connection the pool opens mid-window, not a statement the work ran.
+        if sql.starts_with("PRAGMA ") {
+            return;
+        }
+        self.0.lock().unwrap().push(sql.to_owned());
     }
 }
 
@@ -170,12 +175,12 @@ async fn hot_reads_and_writes_cost_a_flat_number_of_statements() {
     assert_eq!(
         six_commands.len(),
         one_commands.len(),
-        "bot-commands statements grew with the bot count"
+        "bot-commands statements grew with the bot count: {six_commands:?}"
     );
     assert_eq!(
         six_ui.len(),
         one_ui.len(),
-        "bot-ui statements grew with the bot count"
+        "bot-ui statements grew with the bot count: {six_ui:?}"
     );
 
     // A message mentioning nobody takes no write turn, and clearing a stored mention still does.
