@@ -18,6 +18,8 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../ids.dart';
+import '../../../providers/app_lifecycle.dart';
+import '../../accounts/providers/account_slot.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_drafts.dart';
 import '../providers/channel_search_controller.dart';
@@ -309,13 +311,23 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   void _toggleSearch() =>
       ref.read(channelSearchProvider(widget.channelId).notifier).toggle();
 
-  void _markReadUpToLatest(int seq, int lastReadSeq, bool manuallyUnread) =>
-      _readMarker.advance(
-        widget.channelId,
-        seq: seq,
-        lastReadSeq: lastReadSeq,
-        manuallyUnread: manuallyUnread,
-      );
+  /// The same test `ViewingReporter` applies before telling the server a channel is open.
+  bool get _watched =>
+      ref.read(appFocusedProvider) && ref.read(accountActiveProvider);
+
+  void _markReadUpToLatest(int seq, int lastReadSeq, bool manuallyUnread) {
+    if (!_watched) return;
+    _readMarker.advance(
+      widget.channelId,
+      seq: seq,
+      lastReadSeq: lastReadSeq,
+      manuallyUnread: manuallyUnread,
+    );
+  }
+
+  void _readWhatArrivedUnwatched() {
+    if (_watched) _scrollTracker.markReadIfAtLatest();
+  }
 
   void _scrollToLatest() {
     if (!mounted) return;
@@ -337,6 +349,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     ) {
       if (!open) _searchController.clear();
     });
+    ref.listen(appFocusedProvider, (_, _) => _readWhatArrivedUnwatched());
+    ref.listen(accountActiveProvider, (_, _) => _readWhatArrivedUnwatched());
     final blocked = ref.watch(blocksProvider.select((state) => state.ids));
 
     return storeAsync.when(

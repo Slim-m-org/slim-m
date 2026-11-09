@@ -128,6 +128,12 @@ class TranscriptScrollTracker {
     if (wasAtLatest) markRead(_latestSeq, _lastReadSeq, _manuallyUnread);
   }
 
+  /// Marks read again against the last seqs seen, for a reader who could not
+  /// see the newest message until now (a window just brought to the front).
+  void markReadIfAtLatest() {
+    if (atLatest) markRead(_latestSeq, _lastReadSeq, _manuallyUnread);
+  }
+
   /// Called on every transcript rebuild, so a scroll event arriving between
   /// rebuilds always marks read against the channel actually on screen.
   void updateKnownSeqs({
