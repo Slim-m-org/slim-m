@@ -119,7 +119,11 @@ class EveryRequiredCheckRunsOnPushTest(unittest.TestCase):
 
     def setUp(self):
         self.owner = _job_owner(WORKFLOWS)
-        self.lists = _required_checks(RELEASE_WORKFLOW.read_text())
+        self.lists = [
+            entries
+            for path in sorted(WORKFLOWS.glob("*.yml"))
+            for entries in _required_checks(path.read_text())
+        ]
 
     def test_the_owner_map_was_parsed_at_all(self):
         self.assertGreater(
@@ -130,7 +134,7 @@ class EveryRequiredCheckRunsOnPushTest(unittest.TestCase):
         )
 
     def test_every_required_check_can_run_on_a_push_to_main(self):
-        self.assertTrue(self.lists, "no required_checks string in release.yml")
+        self.assertTrue(self.lists, "no required_checks string in .github/workflows/")
         for entries in self.lists:
             for check in entries.split("|"):
                 with self.subTest(check=check):
