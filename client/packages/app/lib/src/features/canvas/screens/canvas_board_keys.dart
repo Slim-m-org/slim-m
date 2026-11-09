@@ -196,9 +196,9 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     return true;
   }
 
-  /// Moves the selection to the next or previous object in view, in paint order.
+  /// Moves the selection to the next or previous object in view, notes and images before drawings, each in paint order.
   bool _step(int direction) {
-    final ids = _document.visibleIds.toList();
+    final ids = _document.visibleIdsInReadingOrder();
     if (ids.isEmpty) return false;
     final current = _document.selectedObjectId.value;
     final at = current == null ? -1 : ids.indexOf(current);

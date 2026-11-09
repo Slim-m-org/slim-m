@@ -236,15 +236,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   /// the guides it earned. Strokes are skipped: their bounds are not edges a
   /// person lines anything up with.
   Offset _snapped(String movingId, Rect moving) {
-    final targets = [
-      for (final id in document.visibleIds)
-        if (id != movingId && document.kindOf(id) != CanvasObjectKind.stroke)
-          if (document.objectBounds(id) case final b?)
-            Rect.fromLTWH(b.x, b.y, b.w, b.h),
-    ];
     final result = snapRect(
       moving,
-      targets,
+      document.visibleBoxRects(exceptId: movingId),
       threshold: snapScreenThreshold / document.camera.zoom,
     );
     document.snapGuides.value = result.guides;

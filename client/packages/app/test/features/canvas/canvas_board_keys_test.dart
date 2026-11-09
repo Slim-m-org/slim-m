@@ -12,15 +12,20 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_tool_wheel.dart';
 
 import 'canvas_pane_harness.dart';
 
-Future<CanvasPaneFixture> _pump(WidgetTester tester) async {
+Future<CanvasPaneFixture> _pump(
+  WidgetTester tester, {
+  List<Map<String, dynamic>>? objects,
+}) async {
   tester.view.physicalSize = const Size(1280, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final fixture = CanvasPaneFixture()
-    ..objects = [
-      canvasNoteJson('a', x: 40, text: 'first'),
-      canvasNoteJson('b', x: 300, seq: 2, text: 'second'),
-    ];
+    ..objects =
+        objects ??
+        [
+          canvasNoteJson('a', x: 40, text: 'first'),
+          canvasNoteJson('b', x: 300, seq: 2, text: 'second'),
+        ];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
@@ -42,8 +47,37 @@ void main() {
     final second = document.selectedObjectId.value;
     await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
 
-    expect({first, second}, {'a', 'b'});
+    expect([first, second], ['a', 'b']);
     expect(document.selectedObjectId.value, first);
+  });
+
+  testWidgets('] walks notes bottom to top, then the drawings, and wraps', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      objects: [
+        canvasObjectJson('ink-top', x: 500, seq: 4),
+        canvasNoteJson('note-top', x: 300, seq: 3, text: 'top'),
+        canvasObjectJson('ink-bottom', x: 200, seq: 1),
+        canvasNoteJson('note-bottom', x: 40, seq: 2, text: 'bottom'),
+      ],
+    );
+    final document = surfaceDocument(tester);
+
+    final walked = <String?>[];
+    for (var i = 0; i < 5; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+      walked.add(document.selectedObjectId.value);
+    }
+
+    expect(walked, [
+      'note-bottom',
+      'note-top',
+      'ink-bottom',
+      'ink-top',
+      'note-bottom',
+    ]);
   });
 
   testWidgets('Enter opens the selected object\'s menu', (tester) async {

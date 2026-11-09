@@ -57,8 +57,10 @@ void main() {
           }));
       log.add('paintOrder, nothing changed, $count strokes',
           _repeat(60, () => doc.paintOrder.length));
-      log.add('visibleIds at fit zoom (a drag snaps against this), $count',
-          _repeat(30, () => doc.visibleIds.length));
+      log.add('visibleBoxRects at fit zoom (a drag snaps against this), $count',
+          _repeat(30, () => doc.visibleBoxRects().length));
+      log.add('visibleIdsInReadingOrder (a screen reader reads this), $count',
+          _repeat(30, () => doc.visibleIdsInReadingOrder(limit: 40).length));
       log.add('liveCountsByKind (the activity summary), $count',
           _repeat(30, () => doc.liveCountsByKind));
 
