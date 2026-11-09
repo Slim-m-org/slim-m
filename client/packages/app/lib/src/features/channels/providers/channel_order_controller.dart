@@ -108,10 +108,10 @@ class CategoryOrderState {
 }
 
 /// Setting the deployment's channel-category order: one `PATCH
-/// /categories/{id}` per category ([api.SlimmApiChannelAdmin.updateCategory]'s
-/// own `position` argument), never a bulk request - categories have no
-/// `PUT .../order` equivalent, only the single-row route `updateCategory`'s
-/// own doc comment already names.
+/// /categories/{id}` per category whose position changes
+/// ([api.SlimmApiChannelAdmin.updateCategory]'s own `position` argument),
+/// never a bulk request - categories have no `PUT .../order` equivalent, only
+/// the single-row route `updateCategory`'s own doc comment already names.
 ///
 /// Same optimistic shape as [ChannelOrderController] above, with one real
 /// difference: a channel reorder is one atomic request, so a refusal reverts
@@ -132,22 +132,24 @@ class CategoryOrderController extends StateNotifier<CategoryOrderState> {
   int _generation = 0;
 
   /// Submits [categoryIds] - every live category, in the arrangement a drag
-  /// produced - as sequential positions 0..N-1, one request per category,
-  /// run together rather than one at a time.
+  /// produced - as sequential positions 0..N-1, one request per category
+  /// whose stored position differs, run together rather than one at a time.
   Future<void> reorder(List<String> categoryIds) async {
     _lastAttempt = categoryIds;
     final generation = ++_generation;
     state = CategoryOrderState(pendingOrder: categoryIds);
     final client = _ref.read(apiProvider);
+    final moves = await _positionsToWrite(categoryIds);
+    if (!mounted || generation != _generation) return;
     final succeeded = <api.ChannelCategory>[];
     api.ApiException? firstFailure;
     await Future.wait(
-      categoryIds.asMap().entries.map((entry) async {
+      moves.entries.map((move) async {
         try {
           succeeded.add(
             await client.updateCategory(
-              categoryId: entry.value,
-              position: entry.key,
+              categoryId: move.key,
+              position: move.value,
             ),
           );
         } on api.ApiException catch (e, stack) {
@@ -176,6 +178,23 @@ class CategoryOrderController extends StateNotifier<CategoryOrderState> {
         : CategoryOrderState(
             error: _failureMessage('reorder categories', failure),
           );
+  }
+
+  /// A category already at its new index needs no request: each one spends a write-class token and fans an event out to every client.
+  Future<Map<String, int>> _positionsToWrite(List<String> categoryIds) async {
+    final stored = <String, int>{};
+    try {
+      final store = await _ref.read(storeProvider.future);
+      for (final row in await store.allCategories()) {
+        stored[row.id] = row.position;
+      }
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'read the category order', e, stack);
+    }
+    return {
+      for (final (index, id) in categoryIds.indexed)
+        if (stored[id] != index) id: index,
+    };
   }
 
   /// Retries the arrangement that last failed, or does nothing if none did.

@@ -163,6 +163,50 @@ void main() {
     );
   });
 
+  test('only the categories whose position changes are sent', () async {
+    final requested = <String>[];
+    FutureOr<http.Response> Function(http.Request) answer(String id, int at) =>
+        (_) async {
+          requested.add(id);
+          return http.Response(jsonEncode(_categoryJson(id, id, at)), 200);
+        };
+    final container = _container(
+      _perCategoryHandler({
+        'a': answer('a', 0),
+        'b': answer('b', 2),
+        'c': answer('c', 1),
+        'd': answer('d', 3),
+      }),
+    );
+    final store = await container.read(storeProvider.future);
+    await store.replaceCategories([
+      for (final (i, id) in ['a', 'b', 'c', 'd'].indexed)
+        ChannelCategory(id: id, name: id, position: i, createdAt: 0),
+    ]);
+    final controller = container.read(categoryOrderControllerProvider.notifier);
+
+    await controller.reorder(['a', 'c', 'b', 'd']);
+
+    expect(requested..sort(), ['b', 'c']);
+    final rows = await store.allCategories();
+    expect(rows.map((c) => c.id), ['a', 'c', 'b', 'd']);
+  });
+
+  test('a reorder that changes nothing sends nothing', () async {
+    final container = _container(_perCategoryHandler(const {}));
+    final store = await container.read(storeProvider.future);
+    await store.replaceCategories([
+      for (final (i, id) in ['a', 'b'].indexed)
+        ChannelCategory(id: id, name: id, position: i, createdAt: 0),
+    ]);
+    final controller = container.read(categoryOrderControllerProvider.notifier);
+
+    await controller.reorder(['a', 'b']);
+
+    expect(container.read(categoryOrderControllerProvider).error, null);
+    expect(container.read(categoryOrderControllerProvider).pendingOrder, null);
+  });
+
   test('retry resubmits the same arrangement that last failed', () async {
     var calls = 0;
     final container = _container(
