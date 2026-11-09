@@ -76,6 +76,76 @@ void main() {
     expect(installer.installed, [apk.path]);
   });
 
+  group('the staging folder', () {
+    late Directory cache;
+    late Directory staging;
+
+    setUp(() {
+      cache = Directory.systemTemp.createTempSync('slimm-apk-update');
+      staging = Directory('${cache.path}/$androidUpdateCacheDir')..createSync();
+      addTearDown(() => cache.deleteSync(recursive: true));
+    });
+
+    File stage(String name) =>
+        File('${staging.path}/$name')..writeAsStringSync('x');
+
+    Future<ApkInstallOutcome?> runWith(
+      Future<VerifiedUpdate?> Function() fetch,
+    ) => updateAndroidApk(
+      currentVersion: '1.0.0',
+      cacheDir: cache,
+      client: client,
+      installer: _Installer(),
+      fetch:
+          ({
+            required currentVersion,
+            required platformKey,
+            required stagingDir,
+            required client,
+          }) => fetch(),
+    );
+
+    List<String> left() =>
+        [for (final e in staging.listSync()) e.path.split('/').last]..sort();
+
+    test('keeps only the apk being installed', () async {
+      stage('slim-m-1.0.0.apk');
+      stage('slim-m-1.5.0.apk.part');
+      final fresh = stage('slim-m-2.0.0.apk');
+
+      await runWith(
+        () async =>
+            VerifiedUpdate.forTest(version: '2.0.0', tag: 't', file: fresh),
+      );
+
+      expect(left(), ['slim-m-2.0.0.apk']);
+    });
+
+    test('nothing newer leaves nothing staged', () async {
+      stage('slim-m-1.0.0.apk');
+
+      expect(await runWith(() async => null), isNull);
+
+      expect(left(), isEmpty);
+    });
+
+    test('a download that failed keeps its partial file to resume', () async {
+      stage('slim-m-2.0.0.apk.part');
+
+      await expectLater(
+        runWith(
+          () async => throw const SelfUpdateFailure(
+            SelfUpdateFailureKind.downloadFailed,
+            'interrupted',
+          ),
+        ),
+        throwsA(isA<SelfUpdateFailure>()),
+      );
+
+      expect(left(), ['slim-m-2.0.0.apk.part']);
+    });
+  });
+
   test('an installer that cannot open the apk is a failure, not a crash', () {
     expect(
       run(
