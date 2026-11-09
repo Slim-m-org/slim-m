@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart';
 
 import '../../../providers/cache_for.dart';
 import '../../../providers/providers.dart';
+import 'profile_media_fetch.dart';
 
 /// [updatedAt] is the link's `avatar_updated_at`: relinking changes it and
 /// so mints a fresh fetch, the same cache key scheme as `avatarBytesProvider`.
@@ -20,13 +21,12 @@ final _recent = KeepAliveCache(32);
 final linkedAvatarBytesProvider = FutureProvider.autoDispose
     .family<Uint8List?, LinkedAvatarKey>((ref, key) async {
       _recent.hold(ref, key);
-      try {
-        final fetched = await ref
-            .watch(apiProvider)
-            .fetchLinkedDiscordAvatar(key.userId);
-        return fetched.bytes;
-      } on NotFoundException catch (error, stack) {
-        AppLog.swallowed(LogTag.media, 'No linked picture', error, stack);
-        return null;
-      }
+      final api = ref.watch(apiProvider);
+      return fetchProfileMedia(
+        ref,
+        () => api.fetchLinkedDiscordAvatar(key.userId),
+        cache: _recent,
+        key: key,
+        noneMessage: 'No linked picture',
+      );
     });
