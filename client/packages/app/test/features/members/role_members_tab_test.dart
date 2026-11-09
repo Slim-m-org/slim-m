@@ -146,6 +146,45 @@ void main() {
 
     expect(find.text('Nadia'), findsOneWidget);
     // Kiki already holds the role, so is never offered as a candidate to add.
-    expect(find.textContaining('⏎ add'), findsOneWidget);
+    expect(find.widgetWithText(AppButton, 'Add'), findsOneWidget);
+  });
+
+  group('with several candidates', () {
+    final candidates = [
+      _member('p1', 'Nadia', holds: false),
+      _member('p2', 'Nadine', holds: false),
+      _member('p3', 'Nadir', holds: false),
+    ];
+
+    Future<void> search(WidgetTester tester, Size size) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_wrap(candidates));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.enterText(
+        find.byWidgetPredicate((w) => w is TextField),
+        'nad',
+      );
+      await tester.pump();
+    }
+
+    testWidgets('each has an Add button and only the first names Enter', (
+      tester,
+    ) async {
+      await search(tester, const Size(1000, 900));
+
+      expect(find.widgetWithText(AppButton, 'Add'), findsNWidgets(3));
+      expect(find.text('Enter'), findsOneWidget);
+      expect(find.textContaining('\u23ce'), findsNothing);
+    });
+
+    testWidgets('a phone has no Enter key to name', (tester) async {
+      await search(tester, const Size(390, 844));
+
+      expect(find.widgetWithText(AppButton, 'Add'), findsNWidgets(3));
+      expect(find.text('Enter'), findsNothing);
+    });
   });
 }
