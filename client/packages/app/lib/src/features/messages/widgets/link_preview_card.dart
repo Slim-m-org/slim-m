@@ -432,10 +432,6 @@ class _LinkPreviewMedia extends ConsumerWidget {
   }
 }
 
-/// Links whose preview was refetched for a stale image token, so a token that
-/// stays dead (the image really is gone) costs one refetch, not a loop.
-final _refreshedStale = <String>{};
-
 /// The decoded thumbnail image, honoring the same preview-quality setting
 /// [AttachmentView] applies to an inline attachment image.
 class _LinkPreviewThumbnail extends ConsumerWidget {
@@ -450,7 +446,9 @@ class _LinkPreviewThumbnail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // A stale token (a server restart before signed tokens) answers 404; one fresh preview brings a fresh token.
     ref.listen(linkPreviewImageBytesProvider(token), (_, next) {
-      if (next.hasValue && next.value == null && _refreshedStale.add(url)) {
+      if (next.hasValue &&
+          next.value == null &&
+          ref.read(refreshedStalePreviewsProvider).add(url)) {
         ref.invalidate(linkPreviewProvider(url));
       }
     });
