@@ -55,14 +55,49 @@ class RunOnceTest(NightlyTestCase):
         self.assertIn("no database", status["error"])
         self.assertIsNone(status["last_verified_at_ms"])
 
-    def test_a_missing_attachment_file_fails_and_names_the_stage(self):
+    def test_an_attachment_the_mirror_never_held_fails_the_drill_and_keeps_the_warning(self):
         sha = fixtures.sha256_of(b"gone")
         fixtures.build_database(self.source_db, attachments=[(sha, 4, "text/plain")])
 
         status = backup_nightly.run_once(self._args(), now_ms=5)
 
         self.assertFalse(status["ok"])
-        self.assertTrue(status["error"].startswith("backup: "))
+        self.assertEqual(status["stage"], "drill")
+        self.assertIn(sha.hex(), status["error"])
+        self.assertEqual(len(status["warnings"]), 1)
+
+    def test_an_avatar_gone_from_the_live_volume_is_drilled_and_its_mirror_copy_verifies(self):
+        user = fixtures.new_user_id()
+        fixtures.build_database(self.source_db, avatar_users=[(user, "ada")])
+        live = fixtures.write_avatar_file(self.media, user, b"avatar bytes")
+        backup_nightly.run_once(self._args(), now_ms=1_000)
+        live.unlink()
+
+        status = backup_nightly.run_once(self._args(), now_ms=2_000)
+
+        self.assertTrue(status["ok"])
+        self.assertEqual(status["stage"], "drill")
+        self.assertEqual(self._status()["last_verified_at_ms"], 2_000)
+        self.assertEqual(len(status["warnings"]), 1)
+        self.assertIn("orphaned database rows", status["warnings"][0])
+
+    def test_a_clean_run_carries_no_warnings(self):
+        fixtures.build_database(self.source_db)
+
+        status = backup_nightly.run_once(self._args(), now_ms=1)
+
+        self.assertEqual(status["warnings"], [])
+
+    def test_a_module_file_that_cannot_be_copied_stays_a_backup_failure(self):
+        fixtures.build_database(self.source_db)
+        modules = self.source_db.parent / "modules"
+        modules.mkdir()
+        (modules / "broken.db").write_bytes(b"not a database" * 100)
+
+        status = backup_nightly.run_once(self._args(), now_ms=1)
+
+        self.assertFalse(status["ok"])
+        self.assertEqual(status["stage"], "backup")
 
     def test_a_failure_keeps_the_last_verified_time(self):
         fixtures.build_database(self.source_db)
@@ -83,7 +118,7 @@ class RunOnceTest(NightlyTestCase):
         newest = sorted((self.backup_root / "db").glob("slimm-*.db"))[-1]
         newest.write_bytes(b"not a database" * 100)
         original = backup_nightly._backup
-        backup_nightly._backup = lambda _args: (True, "")
+        backup_nightly._backup = lambda _args: (True, "", [])
         self.addCleanup(setattr, backup_nightly, "_backup", original)
 
         status = backup_nightly.run_once(args, now_ms=2)
