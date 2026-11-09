@@ -28,6 +28,11 @@ import seed_backoff
 import seed_content
 
 
+def default_cache_dir():
+    """Where tokens live unless told otherwise: private, and never inside a checkout."""
+    return os.path.join(os.path.expanduser("~"), ".cache", "slim-m-load")
+
+
 class AccountSetupError(RuntimeError):
     """Raised when the accounts this run needs cannot be obtained."""
 
@@ -67,7 +72,7 @@ def _save_cache(path, accounts):
     mkstemp creates the temp file 0600, so there is no readable window either.
     """
     payload = [_entry(a) for a in accounts]
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
