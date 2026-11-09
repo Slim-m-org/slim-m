@@ -105,16 +105,18 @@ Future<void> _pump(
   await tester.pump();
 }
 
-Rect _quote(WidgetTester t) => t.getRect(find.byType(ReplyQuote));
+Rect _quote(WidgetTester t) => t.getRect(find.byKey(ReplyQuote.quoteKey));
 
-Rect _header(WidgetTester t) => t.getRect(find.byType(MessageRowHeader));
+Rect _header(WidgetTester t) =>
+    t.getRect(find.byKey(MessageRowHeader.headerKey));
 
-Rect _avatar(WidgetTester t) => t.getRect(
-  find.descendant(
-    of: find.byType(MessageRowLeading),
-    matching: find.byType(AppAvatar),
-  ),
-);
+Rect _avatar(WidgetTester t) =>
+    t.getRect(find.byKey(MessageRowLeading.leadingKey));
+
+final _quoteAvatar = find.byKey(ReplyQuote.avatarKey);
+
+/// Where the quote's own content begins, inside its focus ring's margin.
+Rect _quoteContent(WidgetTester t) => t.getRect(_quoteAvatar);
 
 Rect _elbow(WidgetTester t) => t.getRect(find.byKey(ReplyElbow.lineKey));
 
@@ -135,7 +137,7 @@ void main() {
           final quote = _quote(tester);
           final header = _header(tester);
           expect(quote.bottom, lessThanOrEqualTo(header.top));
-          expect(quote.left, header.left);
+          expect(tester.getRect(_quoteAvatar).left, header.left);
           expect(
             quote.height,
             lessThanOrEqualTo(AppSizes.rowPointer),
@@ -148,7 +150,7 @@ void main() {
         testWidgets('the reply keeps its own avatar and name, level with each '
             'other', (tester) async {
           await _pump(tester, width: width, density: density);
-          expect(find.byType(MessageRowHeader), findsOneWidget);
+          expect(find.byKey(MessageRowHeader.headerKey), findsOneWidget);
           expect(find.text('Nick'), findsWidgets);
           expect(_avatar(tester).width, density.avatarSize);
           expect(_avatar(tester).top, closeTo(_header(tester).top, 0.01));
@@ -159,11 +161,12 @@ void main() {
           await _pump(tester, width: width, density: density);
           final avatar = _avatar(tester);
           final quote = _quote(tester);
+          final content = _quoteContent(tester);
           final elbow = _elbow(tester);
           final geometry = _geometry(tester);
 
           expect(elbow.left, avatar.left);
-          expect(elbow.right, quote.left, reason: 'the column ends at text');
+          expect(elbow.right, content.left, reason: 'the column ends at text');
           expect(elbow.bottom, avatar.top);
 
           final tail = elbow.topLeft + geometry.tail;
@@ -171,8 +174,7 @@ void main() {
           expect(tail.dy, closeTo(avatar.top, 0.01));
 
           final tip = elbow.topLeft + geometry.tip;
-          expect(tip.dx, lessThan(quote.left));
-          expect(tip.dx, closeTo(quote.left - ReplyElbow.tipGap, 0.01));
+          expect(tip.dx, closeTo(content.left - ReplyElbow.tipGap, 0.01));
           expect(tip.dy, closeTo(quote.center.dy, 0.01));
         });
 
@@ -204,11 +206,12 @@ void main() {
           );
           expect(tester.takeException(), isNull);
           final quote = _quote(tester);
+          final content = _quoteContent(tester);
           expect(quote.overlaps(_header(tester)), isFalse);
           expect(quote.overlaps(_avatar(tester)), isFalse);
-          expect(_elbow(tester).overlaps(quote), isFalse);
+          expect(_elbow(tester).overlaps(content), isFalse);
           expect(_elbow(tester).overlaps(_header(tester)), isFalse);
-          expect(quote.right, lessThanOrEqualTo(width));
+          expect(content.right, lessThanOrEqualTo(width));
         });
       });
     }
@@ -225,23 +228,15 @@ void main() {
     testWidgets('tapping the little avatar jumps too', (tester) async {
       var jumps = 0;
       await _pump(tester, width: 1280, onReplyTap: () => jumps++);
-      final avatar = find.descendant(
-        of: find.byType(ReplyQuote),
-        matching: find.byType(AppAvatar),
-      );
-      expect(tester.getSize(avatar).width, AppAvatarSize.s16);
-      await tester.tap(avatar);
+      expect(tester.getSize(_quoteAvatar).width, AppAvatarSize.s16);
+      await tester.tap(_quoteAvatar);
       expect(jumps, 1);
     });
 
     testWidgets('the parent author is drawn as a 16dp avatar', (tester) async {
       await _pump(tester, width: 390);
-      final avatar = find.descendant(
-        of: find.byType(ReplyQuote),
-        matching: find.byType(AppAvatar),
-      );
-      expect(avatar, findsOneWidget);
-      expect(tester.getSize(avatar), const Size(16, 16));
+      expect(_quoteAvatar, findsOneWidget);
+      expect(tester.getSize(_quoteAvatar), const Size(16, 16));
     });
 
     testWidgets('a pinged reply names the author with an @', (tester) async {
@@ -275,12 +270,7 @@ void main() {
     ) async {
       await _pump(tester, width: 390, noParent: true);
       expect(find.text('Message unavailable'), findsOneWidget);
-      final quote = find.byType(ReplyQuote);
-      expect(
-        find.descendant(of: quote, matching: find.byType(AppAvatar)),
-        findsNothing,
-        reason: 'there is nobody to draw',
-      );
+      expect(_quoteAvatar, findsNothing, reason: 'there is nobody to draw');
       expect(_quote(tester).bottom, lessThanOrEqualTo(_header(tester).top));
       expect(find.byKey(ReplyElbow.lineKey), findsOneWidget);
     });
@@ -301,22 +291,35 @@ void main() {
       tester,
     ) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
       await _pump(tester, width: 390);
-      final node = tester.getSemantics(find.byType(ReplyQuote));
-      expect(node.label, 'Reply to Matthew: why is this app 189 MB');
+      final node = tester.getSemantics(
+        find.bySemanticsLabel(RegExp('^Reply to Matthew: why is this app')),
+      );
+      expect(
+        node.label,
+        startsWith('Reply to Matthew: why is this app 189 MB'),
+      );
       expect(node.flagsCollection.isButton, isTrue);
       expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      handle.dispose();
     });
 
     testWidgets('a deleted parent is announced without a name', (tester) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
       await _pump(tester, width: 390, noParent: true);
-      expect(
-        tester.getSemantics(find.byType(ReplyQuote)).label,
-        'Reply to a message that is not available',
+      final node = tester.getSemantics(
+        find.bySemanticsLabel(RegExp('^Reply to a message that is not')),
       );
+      expect(
+        node.label,
+        startsWith('Reply to a message that is not available'),
+      );
+      expect(
+        node.label,
+        contains('Message unavailable'),
+        reason: 'the e2e harness finds the placeholder by this text',
+      );
+      handle.dispose();
     });
   });
 }

@@ -22,11 +22,14 @@ class ContinuationGeometry {
   });
 
   /// The rail's centre sits on the avatar column's centre.
+  ///
+  /// [lead] is the height of anything drawn above the avatar, such as a reply's quote line.
   factory ContinuationGeometry.of(
     BuildContext context, {
     required double gutter,
     required AppDensity density,
     int groupSpacing = 0,
+    double lead = 0,
   }) {
     final avatar = density.avatarSize;
     final bodyLine =
@@ -39,7 +42,11 @@ class ContinuationGeometry {
       elbowWidth:
           textLeft - ContinuationRail.textGap - avatar / 2 + _halfThickness,
       headTop:
-          density.rowGap + groupSpacing + avatar + ContinuationRail.headGap,
+          density.rowGap +
+          groupSpacing +
+          lead +
+          avatar +
+          ContinuationRail.headGap,
     );
   }
 

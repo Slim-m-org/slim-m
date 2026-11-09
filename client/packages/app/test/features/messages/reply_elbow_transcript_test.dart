@@ -4,6 +4,7 @@
 /// same way a channel does.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -80,7 +81,11 @@ Future<void> _pump(
     ],
   );
   addTearDown(container.dispose);
-  container.read(continuationMarkerControllerProvider.notifier).select(marker);
+  unawaited(
+    container
+        .read(continuationMarkerControllerProvider.notifier)
+        .select(marker),
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -123,18 +128,12 @@ Future<void> _pump(
 Finder _in(String id, Finder matching) =>
     find.descendant(of: find.byKey(ValueKey(id)), matching: matching);
 
-MessageRow _row(WidgetTester t, String id) =>
-    t.widget<MessageRow>(_in(id, find.byType(MessageRow)));
+Finder _header(String id) => _in(id, find.byKey(MessageRowHeader.headerKey));
 
-Rect _avatar(WidgetTester t, String id) => t.getRect(
-  _in(
-    id,
-    find.descendant(
-      of: find.byType(MessageRowLeading),
-      matching: find.byType(AppAvatar),
-    ),
-  ),
-);
+bool _grouped(String id) => _header(id).evaluate().isEmpty;
+
+Rect _avatar(WidgetTester t, String id) =>
+    t.getRect(_in(id, find.byKey(MessageRowLeading.leadingKey)));
 
 List<Message> _burst() => [
   _msg('m1', 1, 'ada'),
@@ -149,31 +148,36 @@ void main() {
         tester,
       ) async {
         await _pump(tester, _burst(), width: width);
-        expect(_row(tester, 'm1').grouped, isFalse);
-        expect(_row(tester, 'm2').grouped, isFalse);
+        expect(_grouped('m1'), isFalse);
+        expect(_grouped('m2'), isFalse);
         expect(
-          _row(tester, 'm3').grouped,
+          _grouped('m3'),
           isTrue,
           reason: 'a plain follow-up still tucks under the reply above it',
         );
-        expect(_in('m2', find.byType(MessageRowHeader)), findsOneWidget);
-        expect(_in('m2', find.byType(MessageRowLeading)), findsOneWidget);
-        expect(_in('m3', find.byType(MessageRowHeader)), findsNothing);
+        expect(_header('m2'), findsOneWidget);
+        expect(
+          _in('m2', find.byKey(MessageRowLeading.leadingKey)),
+          findsOneWidget,
+        );
+        expect(_header('m3'), findsNothing);
       });
 
       testWidgets('the quote and its connector sit on top of the reply', (
         tester,
       ) async {
         await _pump(tester, _burst(), width: width);
-        final quote = tester.getRect(_in('m2', find.byType(ReplyQuote)));
-        final header = tester.getRect(_in('m2', find.byType(MessageRowHeader)));
+        final quote = tester.getRect(
+          _in('m2', find.byKey(ReplyQuote.quoteKey)),
+        );
+        final header = tester.getRect(_header('m2'));
         final elbow = tester.getRect(_in('m2', find.byKey(ReplyElbow.lineKey)));
         final avatar = _avatar(tester, 'm2');
         expect(quote.bottom, lessThanOrEqualTo(header.top));
         expect(elbow.bottom, avatar.top);
         expect(elbow.left, avatar.left);
-        expect(_in('m1', find.byType(ReplyQuote)), findsNothing);
-        expect(_in('m3', find.byType(ReplyQuote)), findsNothing);
+        expect(_in('m1', find.byKey(ReplyQuote.quoteKey)), findsNothing);
+        expect(_in('m3', find.byKey(ReplyQuote.quoteKey)), findsNothing);
       });
 
       testWidgets('the continuation pipe still leaves the reply\'s avatar', (
@@ -193,7 +197,7 @@ void main() {
         expect(pipe.top, avatar.bottom + ContinuationRail.headGap);
         expect(
           pipe.bottom,
-          tester.getRect(_in('m2', find.byType(MessageRow))).bottom,
+          tester.getRect(_in('m2', find.byKey(MessageRow.hoverFillKey))).bottom,
         );
       });
 
@@ -208,10 +212,12 @@ void main() {
           width: width,
           thread: true,
         );
-        expect(_row(tester, 't2').grouped, isFalse);
+        expect(_grouped('t2'), isFalse);
         for (final id in ['t2', 't3']) {
-          final quote = tester.getRect(_in(id, find.byType(ReplyQuote)));
-          final header = tester.getRect(_in(id, find.byType(MessageRowHeader)));
+          final quote = tester.getRect(
+            _in(id, find.byKey(ReplyQuote.quoteKey)),
+          );
+          final header = tester.getRect(_header(id));
           final elbow = tester.getRect(_in(id, find.byKey(ReplyElbow.lineKey)));
           expect(quote.bottom, lessThanOrEqualTo(header.top), reason: id);
           expect(elbow.bottom, _avatar(tester, id).top, reason: id);

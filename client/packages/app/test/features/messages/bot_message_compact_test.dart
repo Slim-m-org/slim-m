@@ -19,6 +19,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_buttons.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_transcript.dart';
+import 'package:slimm_app/src/features/messages/widgets/reply_elbow.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -198,12 +199,18 @@ void main() {
       testWidgets('an adjacent bot reply drops the echoed command', (t) async {
         await _pump(t, [_command(), _reply()], width: width);
         expect(find.byType(ReplyQuote), findsNothing);
+        expect(
+          find.byKey(ReplyElbow.lineKey),
+          findsNothing,
+          reason: 'no quote means no connector either',
+        );
       });
 
       testWidgets('a far parent keeps its quote', (t) async {
         final between = h.message(id: 'mid', authorId: 'eve', content: 'hi');
         await _pump(t, [_command(), between, _reply()], width: width);
         expect(find.byType(ReplyQuote), findsOneWidget);
+        expect(find.byKey(ReplyElbow.lineKey), findsOneWidget);
       });
 
       testWidgets('a human replier keeps the quote', (t) async {

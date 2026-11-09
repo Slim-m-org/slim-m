@@ -222,6 +222,8 @@ class _ContinuationGutterMark extends StatelessWidget {
 }
 
 class MessageRowLeading extends ConsumerWidget {
+  static const Key leadingKey = Key('message_row_leading');
+
   const MessageRowLeading({
     super.key,
     required this.grouped,
@@ -309,6 +311,8 @@ class MessageRowLeading extends ConsumerWidget {
 }
 
 class MessageRowHeader extends ConsumerWidget {
+  static const Key headerKey = Key('message_row_header');
+
   const MessageRowHeader({
     super.key,
     required this.message,

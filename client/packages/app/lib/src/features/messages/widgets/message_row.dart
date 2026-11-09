@@ -24,7 +24,9 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../settings/providers/display_density.dart';
+import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
+import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/breakpoints.dart';
 
 import 'continuation_marker.dart';
@@ -38,6 +40,8 @@ import 'message_row_column.dart';
 import 'message_row_parts.dart';
 import 'reactions_row.dart';
 import 'message_toolbar_anchor.dart';
+import 'reply_elbow.dart';
+import 'reply_quote.dart';
 import 'swipe_to_reply.dart';
 import 'message_text.dart';
 
@@ -154,6 +158,7 @@ class MessageRow extends ConsumerWidget {
     // Without a body there is no line to end on, so the gutter keeps the time.
     final inlineTime =
         marked && !_unsent && !editing && message.content.isNotEmpty;
+    final quote = _replyQuote(ref);
     return HoverReveal(
       enterDelay: kRowHoverIntent,
       calmWhileScrolling: true,
@@ -166,6 +171,7 @@ class MessageRow extends ConsumerWidget {
           gutter: gutter,
           marker: marker,
           headMarker: headMarker,
+          quote: quote,
           inlineTime: inlineTime,
           hovered: hovered,
           menuOpen: menuOpen,
@@ -184,6 +190,24 @@ class MessageRow extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+
+  ReplyQuote? _replyQuote(WidgetRef ref) {
+    final shown = showsReplyQuote(
+      message: message,
+      parent: replyTo,
+      authorIsBot: ref.watch(authorIsBotProvider(message.authorId)),
+      parentAdjacent: replyParentAdjacent,
+    );
+    if (!shown) return null;
+    final selfId = ref.watch(sessionProvider.select((s) => s.tokens?.userId));
+    final parentAuthor = replyTo?.authorId;
+    return ReplyQuote(
+      resolved: replyTo,
+      onTap: callbacks.onReplyTap ?? () {},
+      pinged:
+          extras.mentionsMe && parentAuthor != null && parentAuthor == selfId,
     );
   }
 
@@ -225,6 +249,7 @@ class MessageRow extends ConsumerWidget {
                   gutter: v.gutter,
                   density: v.density,
                   groupSpacing: v.groupSpacing,
+                  lead: v.quote == null ? 0 : ReplyElbow.heightOf(context),
                 ),
               ),
             if (v.marked)
@@ -285,10 +310,28 @@ class MessageRow extends ConsumerWidget {
   }
 
   Widget _rowContents(_RowView v) {
+    final row = _avatarAndColumn(v);
+    final quote = v.quote;
+    if (quote == null) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ReplyElbow(
+          avatarSize: v.density.avatarSize,
+          clearance: MessageHoverToolbar.clearance(compact: v.compact),
+          quote: quote,
+        ),
+        row,
+      ],
+    );
+  }
+
+  Widget _avatarAndColumn(_RowView v) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         MessageRowLeading(
+          key: MessageRowLeading.leadingKey,
           grouped: grouped,
           message: message,
           hovered: v.hovered && !v.inlineTime,
@@ -323,8 +366,6 @@ class MessageRow extends ConsumerWidget {
       customEmoji: customEmoji,
       callbacks: callbacks,
       extras: extras,
-      replyTo: replyTo,
-      replyParentAdjacent: replyParentAdjacent,
       viewerIsCaller: viewerIsCaller,
       hoverTime: v.inlineTime
           ? _InlineHoverTime(shown: v.hovered || v.menuOpen, message: message)
@@ -343,6 +384,7 @@ class _RowView {
     required this.gutter,
     required this.marker,
     required this.headMarker,
+    required this.quote,
     required this.inlineTime,
     required this.hovered,
     required this.menuOpen,
@@ -356,6 +398,9 @@ class _RowView {
   final double gutter;
   final ContinuationMarker marker;
   final ContinuationMarker headMarker;
+
+  /// The reply's context line, when this row draws one above its avatar.
+  final ReplyQuote? quote;
   final bool inlineTime;
   final bool hovered;
   final bool menuOpen;
