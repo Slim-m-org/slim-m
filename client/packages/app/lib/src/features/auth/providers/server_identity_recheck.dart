@@ -12,7 +12,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../widgets/server_identity_confirmation.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/sync_controller.dart';
+import 'server_version_probe.dart';
 
 /// What a pinned server presents instead of its pinned key.
 class IdentityMismatch {
@@ -48,7 +48,6 @@ class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
   @override
   Future<IdentityMismatch?> build() async {
     final proven = state.valueOrNull;
-    ref.watch(syncControllerProvider);
     if (!ref.watch(sessionProvider).isSignedIn) return null;
 
     final server = ref.watch(serverUrlProvider);
@@ -57,21 +56,15 @@ class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
         .read(identityHandleFor(server));
     if (pinned == null) return null;
 
-    try {
-      final identity = (await ref.watch(apiProvider).version()).identity;
-      if (identity == null) {
-        return _missingAccepted ? null : const IdentityMismatch(null);
-      }
-      if (identity.publicKey == pinned) return null;
-      return IdentityMismatch(identity);
-    } catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.auth,
-        're-check the server identity',
-        error,
-        stack,
-      );
+    final version = await ref.watch(serverVersionProbeProvider.future);
+    if (version == null) {
       return proven?.presented?.publicKey == pinned ? null : proven;
     }
+    final identity = version.identity;
+    if (identity == null) {
+      return _missingAccepted ? null : const IdentityMismatch(null);
+    }
+    if (identity.publicKey == pinned) return null;
+    return IdentityMismatch(identity);
   }
 }
