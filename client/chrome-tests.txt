@@ -99,7 +99,6 @@ app/test/features/emoji/effective_category_test.dart
 app/test/features/accounts/effective_me_refresh_test.dart
 app/test/features/emoji/emoji_image_provider_cache_test.dart
 app/test/features/settings/emoji_name_test.dart
-app/test/features/emoji/emoji_section_scroll_offset_test.dart
 app/test/features/messages/extract_link_preview_urls_test.dart
 app/test/features/members/filed_reports_test.dart
 app/test/desktop/flutter_test_config_test.dart
@@ -145,6 +144,7 @@ app/test/features/palette/palette_match_query_test.dart
 app/test/features/palette/palette_result_builders_test.dart
 app/test/features/members/perm_groups_test.dart
 app/test/features/settings/personal_space_visibility_test.dart
+app/test/features/emoji/picker_search_test.dart
 app/test/features/emoji/picker_sections_test.dart
 app/test/features/emoji/picker_tabs_test.dart
 app/test/features/members/presence_activity_test.dart

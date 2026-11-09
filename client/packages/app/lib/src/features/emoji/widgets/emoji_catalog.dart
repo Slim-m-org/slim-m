@@ -197,15 +197,52 @@ EmojiCategory effectiveCategory(
   return chosen;
 }
 
+/// One catalog entry with everything a search or a browse view reads from it
+/// prepared up front, so neither lower-cases or wraps anything per keystroke.
+final class _CatalogEntry {
+  _CatalogEntry(Emoji emoji)
+    : tile = UnicodeEmoji(emoji),
+      group = emoji.emojiGroup,
+      name = emoji.name.toLowerCase(),
+      shortName = emoji.shortName.toLowerCase(),
+      keywords = [for (final keyword in emoji.keywords) keyword.toLowerCase()];
+
+  final UnicodeEmoji tile;
+  final EmojiGroup group;
+  final String name;
+  final String shortName;
+  final List<String> keywords;
+
+  bool matches(String q) =>
+      name.contains(q) ||
+      shortName.contains(q) ||
+      keywords.any((keyword) => keyword.contains(q));
+}
+
 /// The full catalog once, with [EmojiGroup.component] dropped. A top-level
 /// `final` initializes lazily on first read and stays cached after, so this
 /// is computed once per app run rather than once per keystroke.
-final List<Emoji> _catalog = Emoji.all()
-    .where((emoji) => emoji.emojiGroup != EmojiGroup.component)
-    .toList(growable: false);
+final List<_CatalogEntry> _catalog = [
+  for (final emoji in Emoji.all())
+    if (emoji.emojiGroup != EmojiGroup.component) _CatalogEntry(emoji),
+];
+
+/// The browse tiles of each catalog group, shared by every build.
+final Map<EmojiGroup, List<PickerEmoji>> _tilesByGroup = () {
+  final tiles = <EmojiGroup, List<PickerEmoji>>{};
+  for (final entry in _catalog) {
+    (tiles[entry.group] ??= []).add(entry.tile);
+  }
+  return {
+    for (final group in tiles.entries)
+      group.key: List<PickerEmoji>.unmodifiable(group.value),
+  };
+}();
 
 /// The tiles to show, for a query and a tab. A non-empty query searches
 /// everything and ignores the tab, with the deployment's own matches first.
+///
+/// The returned list is read-only for a catalog tab, which is shared.
 List<PickerEmoji> pickerResults({
   required String query,
   required EmojiCategory category,
@@ -217,20 +254,15 @@ List<PickerEmoji> pickerResults({
   return switch (category) {
     EmojiCategory.custom => [for (final e in custom) DeploymentEmoji(e)],
     EmojiCategory.recent => recentEmojiEntries(recent, custom),
-    _ => [
-      for (final e in _catalog)
-        if (e.emojiGroup == category.group) UnicodeEmoji(e),
-    ],
+    _ => _tilesByGroup[category.group] ?? const [],
   };
 }
 
-/// Substring match over name, short name, and keywords.
+/// Case-insensitive substring match over name, short name, and keywords; [q]
+/// is already lower-cased.
 List<PickerEmoji> _searchUnicode(String q) => [
-  for (final emoji in _catalog)
-    if (emoji.name.contains(q) ||
-        emoji.shortName.contains(q) ||
-        emoji.keywords.any((keyword) => keyword.contains(q)))
-      UnicodeEmoji(emoji),
+  for (final entry in _catalog)
+    if (entry.matches(q)) entry.tile,
 ];
 
 /// Whether a custom emoji named [name] belongs in a list filtered by
