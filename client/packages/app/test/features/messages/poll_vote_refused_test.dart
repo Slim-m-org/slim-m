@@ -19,7 +19,6 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.da
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../../channel_history_harness.dart' show channelMessage;
 import '../../support/fake_api.dart';

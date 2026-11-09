@@ -70,7 +70,7 @@ ProviderContainer _container(_Server server) {
       ]),
       serverInfoProvider.overrideWith(
         (ref) => Future.value(
-          Version(
+          const Version(
             name: 'slim-m',
             version: '0.30.0',
             protocol: 1,
