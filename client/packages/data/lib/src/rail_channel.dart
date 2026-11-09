@@ -31,6 +31,10 @@ typedef RailChannelKey = ({
   String? dmMemberIds,
   bool? restricted,
   String? defaultNotification,
+  bool joinMuted,
+  bool? createsRooms,
+  int? userLimit,
+  bool? roomLocked,
   bool unread,
   bool mentioned,
 });
@@ -46,6 +50,10 @@ RailChannelKey railChannelKey(Channel channel) => (
       dmMemberIds: channel.dmMemberIds,
       restricted: channel.restricted,
       defaultNotification: channel.defaultNotification,
+      joinMuted: channel.joinMuted,
+      createsRooms: channel.createsRooms,
+      userLimit: channel.userLimit,
+      roomLocked: channel.roomLocked,
       unread: channel.cursor > channel.lastReadSeq ||
           (channel.manuallyUnread ?? false),
       mentioned: channel.mentionedSeq > channel.lastReadSeq,
