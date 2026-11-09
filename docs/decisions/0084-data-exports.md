@@ -47,6 +47,7 @@ A thread is judged by the channel and message it hangs from: one under a direct 
 A deleted account is already anonymized, so its messages have no author and it is not listed as a member.
 
 Starting a space export is written to the admin audit log as `space.export`, and each download as `space.export_download`.
+A request for an archive within an hour of an audited one by the same administrator counts as that download resuming, whatever its `Range`, so a ranged request cannot be used to fetch an archive unaudited.
 
 ## Both ask for the password
 
