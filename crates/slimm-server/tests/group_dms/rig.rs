@@ -19,6 +19,7 @@ pub(crate) struct Harness {
     pub(crate) app: Router,
     pub(crate) store: Store,
     pub(crate) hub: Hub,
+    pub(crate) pool: sqlx::SqlitePool,
     pub(crate) _guard: support::TestDbGuard,
 }
 
@@ -30,7 +31,8 @@ pub(crate) async fn harness() -> Harness {
         hash_concurrency: 2,
         ..Config::default()
     };
-    let store = Store::new(db::connect(&config).await.expect("connect + migrate"));
+    let pool = db::connect(&config).await.expect("connect + migrate");
+    let store = Store::new(pool.clone());
     let hub = Hub::new();
     let voice = VoiceService::for_test(
         "wss://livekit.example.com",
@@ -45,6 +47,7 @@ pub(crate) async fn harness() -> Harness {
         app,
         store,
         hub,
+        pool,
         _guard: guard,
     }
 }
