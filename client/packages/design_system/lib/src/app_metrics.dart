@@ -207,37 +207,19 @@ abstract final class AppShadows {
   ];
 }
 
-/// Vertical rhythm, which is the only thing a density setting would move.
+/// The vertical rhythm the message density setting selects (decision 0062).
 ///
-/// No setting selects a step yet: the app reads [normal] everywhere, and
-/// [compact] and [spacious] are reserved for the setting decision 0004 describes.
-///
-/// Type sizes, avatar sizes and touch targets deliberately do not respond to
-/// it. Someone choosing "compact" wants more messages on screen, not smaller
-/// text, and conflating the two produces a mode nobody can read.
-/// [groupWindow] is how long one author keeps writing into the same block
-/// before the next message starts a fresh one with their picture and name
-/// above it again. It was minutes long, which read as one wall of text with
-/// nobody's name on it whenever a conversation was slow (owner, 2026-08-13:
-/// "even if there is a minute between messages, we should paste the users
-/// profile picture instead of extending the text wall with no name on left
-/// side"). A minute is the floor rather than a scale point: below it a burst
-/// of someone typing three lines in a row splits into three headed blocks,
-/// which is noisier than the problem being fixed - so normal and spacious
-/// share it, and only compact still groups for longer.
+/// Type sizes and touch targets deliberately do not respond to it: "compact"
+/// wants more messages on screen, not smaller text.
 enum AppDensity {
-  compact(rowGap: 4, groupedRowGap: 1, groupWindow: Duration(minutes: 2)),
-  normal(rowGap: 8, groupedRowGap: 2, groupWindow: Duration(minutes: 1)),
-  spacious(rowGap: 12, groupedRowGap: 4, groupWindow: Duration(minutes: 1));
+  compact(rowGap: 4, groupedRowGap: 1),
+  normal(rowGap: 8, groupedRowGap: 2),
+  spacious(rowGap: 12, groupedRowGap: 4);
 
-  const AppDensity({
-    required this.rowGap,
-    required this.groupedRowGap,
-    required this.groupWindow,
-  });
+  const AppDensity({required this.rowGap, required this.groupedRowGap});
 
   /// Space above a message that starts a new group: a different author, or the
-  /// same author past the [groupWindow]. This is the separation between one
+  /// same author past the grouping window. This is the separation between one
   /// person's turn and the next, so it stays generous.
   final double rowGap;
 
@@ -245,10 +227,6 @@ enum AppDensity {
   /// [rowGap]: a run of one person's messages should read as one block, not a
   /// ladder of evenly-spaced lines, which is what a uniform gap produced.
   final double groupedRowGap;
-
-  /// How long after a message the same author's next one still counts as part
-  /// of the same group and drops its avatar and header.
-  final Duration groupWindow;
 }
 
 /// How wide a message column is allowed to get.
