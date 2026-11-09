@@ -163,6 +163,7 @@ void main() {
         syncControllerProvider.overrideWith(
           (ref) => sync = _RecordingSync(ref),
         ),
+        systemIdleProvider.overrideWithValue(null),
       ],
     );
     addTearDown(container.dispose);
@@ -177,6 +178,20 @@ void main() {
       () => expect(sync.activeAtHello!(), isTrue, reason: 'inside the window'),
     );
     container.dispose();
+  });
+
+  test('every account container shares one host idle source', () {
+    final first = ProviderContainer();
+    final second = ProviderContainer();
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    expect(
+      identical(
+        first.read(systemIdleProvider),
+        second.read(systemIdleProvider),
+      ),
+      isTrue,
+    );
   });
 }
 

@@ -97,6 +97,12 @@ final _localSpeakingProvider = Provider<bool>(
   ),
 );
 
+/// One source for the whole process: host-wide input is the same for every account, so none polls it again.
+final SystemIdle? _processSystemIdle = createSystemIdle();
+
+/// The host's idle source, or null where there is none. Overridden in tests with a fake.
+final systemIdleProvider = Provider<SystemIdle?>((ref) => _processSystemIdle);
+
 final presenceActivityReporterProvider = Provider<PresenceActivityReporter>((
   ref,
 ) {
@@ -106,7 +112,7 @@ final presenceActivityReporterProvider = Provider<PresenceActivityReporter>((
     inCall: () =>
         ref.read(voiceFlagsProvider).state == VoiceSessionState.connected,
     speaking: () => ref.read(_localSpeakingProvider),
-    systemIdle: createSystemIdle(),
+    systemIdle: ref.read(systemIdleProvider),
   );
   sync.activeAtHello = reporter.hereAtHello;
   ViewingInput.instance.add(reporter);
