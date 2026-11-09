@@ -203,7 +203,7 @@ class _FullscreenImageViewerState extends ConsumerState<FullscreenImageViewer> {
     // image floats in a panel and a click beside it puts the image away.
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     return Theme(
-      data: buildTheme(Brightness.dark, AppTokens.dark),
+      data: forcedDarkTheme,
       // Material ancestor for Text/Icon; see this file's library doc.
       child: Material(
         type: MaterialType.transparency,

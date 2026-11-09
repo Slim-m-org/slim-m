@@ -49,8 +49,10 @@ Widget _harness({
   );
 }
 
+Finder get _bar => find.byType(AnimatedOpacity);
+
 double _barOpacity(WidgetTester tester) =>
-    tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity;
+    tester.widget<AnimatedOpacity>(_bar).opacity;
 
 /// A tap near the top of the frame, clear of the touch-sized control bar
 /// pinned to the bottom - the bar alone can run taller than this harness's
@@ -70,6 +72,19 @@ void main() {
   });
 
   tearDownAll(() => player.dispose());
+
+  testWidgets('the forced dark theme is the same one across rebuilds', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(player: player));
+    ThemeData bar() => Theme.of(tester.element(_bar));
+    final before = bar();
+
+    await _tapVideoArea(tester);
+    await tester.pump(kDoubleTapTimeout ~/ 4);
+
+    expect(identical(bar(), before), isTrue);
+  });
 
   testWidgets(
     'a single tap toggles the bar immediately, well under the double tap '

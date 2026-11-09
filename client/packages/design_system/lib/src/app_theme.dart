@@ -298,3 +298,6 @@ ThemeData buildTheme(Brightness brightness, AppTokens tokens) {
     ),
   );
 }
+
+/// The dark theme a surface forces over the app theme, built once rather than on every rebuild of a player.
+final ThemeData forcedDarkTheme = buildTheme(Brightness.dark, AppTokens.dark);

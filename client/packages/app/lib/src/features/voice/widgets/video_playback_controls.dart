@@ -284,7 +284,7 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls>
           ),
           // Forced dark: see the class doc for why this ignores the app theme.
           Theme(
-            data: buildTheme(Brightness.dark, AppTokens.dark),
+            data: forcedDarkTheme,
             child: Stack(
               fit: StackFit.expand,
               children: [

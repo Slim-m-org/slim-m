@@ -92,7 +92,7 @@ class _AttachmentVideoFullscreenState extends State<AttachmentVideoFullscreen> {
       child: Focus(
         autofocus: true,
         child: Theme(
-          data: buildTheme(Brightness.dark, AppTokens.dark),
+          data: forcedDarkTheme,
           child: Material(
             type: MaterialType.transparency,
             child: ColoredBox(

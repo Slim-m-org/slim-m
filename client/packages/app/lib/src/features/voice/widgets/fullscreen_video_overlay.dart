@@ -258,7 +258,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
             ? _zoom.handleKey(event)
             : KeyEventResult.ignored,
         child: Theme(
-          data: buildTheme(Brightness.dark, AppTokens.dark),
+          data: forcedDarkTheme,
           child: Material(
             type: MaterialType.transparency,
             child: ColoredBox(color: Colors.black, child: stage),
