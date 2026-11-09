@@ -56,39 +56,59 @@ class NotificationScheduleSection extends ConsumerStatefulWidget {
       _NotificationScheduleSectionState();
 }
 
+typedef _Draft = ({
+  List<api.NotificationScheduleDay> days,
+  api.OffHoursMode mode,
+});
+
+api.NotificationScheduleDay _day(int weekday, TimeOfDay start, TimeOfDay end) =>
+    api.NotificationScheduleDay(
+      weekday: weekday,
+      startMinute: start.hour * 60 + start.minute,
+      endMinute: end.hour * 60 + end.minute,
+    );
+
+TimeOfDay _atMinute(int minute) =>
+    TimeOfDay(hour: minute ~/ 60, minute: minute % 60);
+
 class _NotificationScheduleSectionState
     extends ConsumerState<NotificationScheduleSection>
     with GuardedActionState<NotificationScheduleSection> {
-  Future<void> _save({
-    required Set<int> weekdays,
-    required TimeOfDay start,
-    required TimeOfDay end,
-    required api.OffHoursMode mode,
-  }) async {
-    final timezone = await ref.read(deviceTimezoneProvider.future);
-    final startMinute = start.hour * 60 + start.minute;
-    final endMinute = end.hour * 60 + end.minute;
-    final ok = await guard(
+  /// What the person asked for and the server has not confirmed yet. Shown at
+  /// once, so quick taps stack on each other instead of overwriting.
+  _Draft? _draft;
+  bool _flushing = false;
+
+  Future<bool> _save(_Draft draft) async {
+    final String timezone;
+    try {
+      timezone = await ref.read(deviceTimezoneProvider.future);
+    } on Object catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.platform,
+        'read the device time zone',
+        error,
+        stack,
+      );
+      setActionError(
+        'Could not update your notification schedule. This device did not '
+        'say which time zone it is in.',
+      );
+      return false;
+    }
+    return guard(
       whatFailed: 'update your notification schedule',
       action: () => ref
           .read(settingsActionsProvider)
           .setNotificationSchedule(
             timezone: timezone,
-            offHoursMode: mode,
-            days: [
-              for (final weekday in weekdays)
-                api.NotificationScheduleDay(
-                  weekday: weekday,
-                  startMinute: startMinute,
-                  endMinute: endMinute,
-                ),
-            ],
+            offHoursMode: draft.mode,
+            days: draft.days,
           ),
     );
-    if (ok) ref.invalidate(notificationScheduleProvider);
   }
 
-  Future<void> _toggle(bool enabled, api.NotificationSchedule? current) async {
+  Future<void> _toggle(bool enabled) async {
     if (!enabled) {
       final ok = await guard(
         whatFailed: 'turn off your notification schedule',
@@ -98,28 +118,67 @@ class _NotificationScheduleSectionState
       if (ok) ref.invalidate(notificationScheduleProvider);
       return;
     }
-    await _save(
-      weekdays: _defaultWeekdays,
-      start: _defaultStart,
-      end: _defaultEnd,
+    final ok = await _save((
+      days: [
+        for (final weekday in _defaultWeekdays)
+          _day(weekday, _defaultStart, _defaultEnd),
+      ],
       mode: api.OffHoursMode.mentions,
-    );
+    ));
+    if (ok) ref.invalidate(notificationScheduleProvider);
   }
 
-  Future<void> _toggleDay(
+  void _edit(api.NotificationSchedule current, _Draft Function(_Draft) change) {
+    final basis = _draft ?? (days: current.days, mode: current.offHoursMode);
+    setState(() => _draft = change(basis));
+    unawaited(_flush());
+  }
+
+  Future<void> _flush() async {
+    if (_flushing) return;
+    _flushing = true;
+    try {
+      for (var target = _draft; target != null; target = _draft) {
+        final ok = await _save(target);
+        if (!mounted) return;
+        if (ok) await _refetch();
+        if (!mounted) return;
+        if (!ok || identical(_draft, target)) setState(() => _draft = null);
+      }
+    } finally {
+      _flushing = false;
+    }
+  }
+
+  /// Waits for the saved schedule to come back, so the draft is not dropped
+  /// in favour of the old one for a round trip.
+  Future<void> _refetch() async {
+    try {
+      ref.invalidate(notificationScheduleProvider);
+      await ref.read(notificationScheduleProvider.future);
+    } on Object {
+      // The section shows its own load error; this only waits for an answer.
+    }
+  }
+
+  void _toggleDay(
     int weekday,
     api.NotificationSchedule current,
     TimeOfDay start,
     TimeOfDay end,
-  ) async {
-    final weekdays = current.days.map((d) => d.weekday).toSet();
-    if (!weekdays.remove(weekday)) weekdays.add(weekday);
-    await _save(
-      weekdays: weekdays,
-      start: start,
-      end: end,
-      mode: current.offHoursMode,
-    );
+  ) {
+    _edit(current, (basis) {
+      final kept = [
+        for (final day in basis.days)
+          if (day.weekday != weekday) day,
+      ];
+      final added = kept.length == basis.days.length;
+      return (
+        days: [...kept, if (added) _day(weekday, start, end)]
+          ..sort((a, b) => a.weekday.compareTo(b.weekday)),
+        mode: basis.mode,
+      );
+    });
   }
 
   Future<void> _pickHours(
@@ -136,27 +195,20 @@ class _NotificationScheduleSectionState
       context: context,
       initialTime: end,
     );
-    if (pickedEnd == null) return;
-    await _save(
-      weekdays: current.days.map((d) => d.weekday).toSet(),
-      start: pickedStart,
-      end: pickedEnd,
-      mode: current.offHoursMode,
-    );
+    if (pickedEnd == null || !mounted) return;
+    _edit(current, (basis) {
+      return (
+        days: [
+          for (final day in basis.days)
+            _day(day.weekday, pickedStart, pickedEnd),
+        ],
+        mode: basis.mode,
+      );
+    });
   }
 
-  Future<void> _setMode(
-    api.OffHoursMode mode,
-    api.NotificationSchedule current,
-    TimeOfDay start,
-    TimeOfDay end,
-  ) async {
-    await _save(
-      weekdays: current.days.map((d) => d.weekday).toSet(),
-      start: start,
-      end: end,
-      mode: mode,
-    );
+  void _setMode(api.OffHoursMode mode, api.NotificationSchedule current) {
+    _edit(current, (basis) => (days: basis.days, mode: mode));
   }
 
   @override
@@ -168,25 +220,18 @@ class _NotificationScheduleSectionState
     final loadFailed = schedule.hasError && schedule.valueOrNull == null;
     final current = schedule.valueOrNull;
     final enabled = current != null;
+    final shown = current == null
+        ? null
+        : (_draft ?? (days: current.days, mode: current.offHoursMode));
 
     // The window shown for editing: the first configured day's, or the default for a schedule with every day off.
-    final firstDay = current?.days.isNotEmpty ?? false
-        ? current!.days.first
-        : null;
+    final firstDay = shown?.days.firstOrNull;
     final start = firstDay == null
         ? _defaultStart
-        : TimeOfDay(
-            hour: firstDay.startMinute ~/ 60,
-            minute: firstDay.startMinute % 60,
-          );
-    final end = firstDay == null
-        ? _defaultEnd
-        : TimeOfDay(
-            hour: firstDay.endMinute ~/ 60,
-            minute: firstDay.endMinute % 60,
-          );
+        : _atMinute(firstDay.startMinute);
+    final end = firstDay == null ? _defaultEnd : _atMinute(firstDay.endMinute);
     final activeWeekdays =
-        current?.days.map((d) => d.weekday).toSet() ?? const {};
+        shown?.days.map((d) => d.weekday).toSet() ?? const {};
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final hours = Text(
@@ -202,7 +247,7 @@ class _NotificationScheduleSectionState
           label: 'Notification schedule',
           description: 'Only notify during the hours you set.',
           value: enabled,
-          onChanged: schedule.isLoading ? null : (v) => _toggle(v, current),
+          onChanged: schedule.isLoading || _flushing ? null : _toggle,
           semanticLabel: 'Notification schedule',
         ),
         if (enabled) ...[
@@ -250,7 +295,7 @@ class _NotificationScheduleSectionState
             sub: true,
             label: 'Outside these hours',
             sheetTitle: 'Outside your notification schedule',
-            value: current.offHoursMode,
+            value: shown!.mode,
             choices: const [
               SettingsChoice(
                 value: api.OffHoursMode.mentions,
@@ -258,7 +303,7 @@ class _NotificationScheduleSectionState
               ),
               SettingsChoice(value: api.OffHoursMode.nothing, label: 'Nothing'),
             ],
-            onChanged: (mode) => _setMode(mode, current, start, end),
+            onChanged: (mode) => _setMode(mode, current),
           ),
           const SettingsInfoLine(
             'Calls still ring even outside your hours; only chat '
