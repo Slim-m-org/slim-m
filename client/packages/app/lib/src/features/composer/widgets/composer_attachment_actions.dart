@@ -44,6 +44,9 @@ class ComposerAttachmentActions {
     required void Function(String) onCommandError,
   }) {
     final context = this.context();
+    final hadKeyboard = focus.hasFocus;
+    // Else the closing sheet hands focus back to the field, which undoes Photo library swapping the keyboard for the strip.
+    focus.unfocus();
     unawaited(
       showComposerActionsSheet(
         context,
@@ -67,7 +70,9 @@ class ComposerAttachmentActions {
         onApps: apps.isEmpty
             ? null
             : () => launchApps(channelId, onCommandError),
-      ),
+      ).then((picked) {
+        if (!picked && hadKeyboard && isMounted()) focus.requestFocus();
+      }),
     );
   }
 

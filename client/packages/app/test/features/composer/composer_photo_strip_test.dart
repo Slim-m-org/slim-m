@@ -132,6 +132,26 @@ void main() {
     expect(tester.testTextInput.isVisible, isFalse);
   });
 
+  testWidgets('dismissing the actions sheet gives the keyboard back', (
+    tester,
+  ) async {
+    await pump(tester, _FakeLibrary(PhotoAccess.full));
+    await tester.tap(find.byWidgetPredicate((w) => w is EditableText));
+    await tester.pump();
+    await tester.tap(moreActionsButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Photo library'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Photo library'), findsNothing);
+    expect(tester.testTextInput.isVisible, isTrue);
+    expect(find.bySemanticsLabel('Attach photo'), findsNothing);
+  });
+
   testWidgets('the All photos tile opens the full system picker', (
     tester,
   ) async {

@@ -227,7 +227,11 @@ class ComposerBanners extends StatelessWidget {
 /// rather than the whole sheet waiting on a platform-channel round trip to
 /// open at all. Deliberate, not an oversight - awaiting it first was tried
 /// and reverted; see this file's neighbour for why.
-Future<void> showComposerActionsSheet(
+///
+/// The picked entry runs once the sheet has closed, and the result says
+/// whether one was picked, so the caller can give the keyboard back only
+/// when the sheet was dismissed.
+Future<bool> showComposerActionsSheet(
   BuildContext context, {
   required VoidCallback onPhotoLibrary,
   required VoidCallback onBrowseFiles,
@@ -236,8 +240,8 @@ Future<void> showComposerActionsSheet(
   required VoidCallback onPoll,
   required VoidCallback onCode,
   VoidCallback? onApps,
-}) {
-  return showAppSheet<void>(
+}) async {
+  final picked = await showAppSheet<VoidCallback>(
     context,
     builder: (sheetContext) => FutureBuilder<bool>(
       future: canPasteImage,
@@ -271,10 +275,7 @@ Future<void> showComposerActionsSheet(
                       size: AppSizes.icon16,
                       color: tokens.textSecondary,
                     ),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      action();
-                    },
+                    onTap: () => Navigator.of(sheetContext).pop(action),
                   ),
               ],
             ),
@@ -283,4 +284,6 @@ Future<void> showComposerActionsSheet(
       },
     ),
   );
+  picked?.call();
+  return picked != null;
 }
