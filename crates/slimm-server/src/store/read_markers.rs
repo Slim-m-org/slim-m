@@ -4,6 +4,7 @@
 use sqlx::QueryBuilder;
 
 use super::Store;
+use super::read_state::UNREAD_COUNT_CAP;
 use crate::ids::{ChannelId, UserId};
 
 /// One channel's read state for one user, the same three facts the per-channel route answers.
@@ -20,8 +21,9 @@ impl Store {
     ///
     /// A channel the user never opened is still answered, with a zero marker
     /// and every live message unread, exactly as [`Store::last_read_seq`] and
-    /// [`Store::unread_count`] answer it one channel at a time. Authorizing
-    /// the ids is the caller's job; this only reads this one user's rows.
+    /// [`Store::unread_count`] answer it one channel at a time, `unread` stopping
+    /// at [`UNREAD_COUNT_CAP`]. Authorizing the ids is the caller's job; this
+    /// only reads this one user's rows.
     pub async fn read_states_for(
         &self,
         user_id: UserId,
@@ -30,16 +32,22 @@ impl Store {
         use sqlx::Row;
 
         let mut states = Vec::with_capacity(channel_ids.len());
-        // One bind is the user, so the chunk leaves room for it under the cap.
-        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY - 1) {
+        // Two binds are the cap and the user, so the chunk leaves room for them under the limit.
+        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY - 2) {
             // Built, not a fixed query!: a variable-length id list with no SQLite array binding.
             let mut builder = QueryBuilder::new(
                 "SELECT c.id AS channel_id, \
                         COALESCE(r.last_read_seq, 0) AS last_read_seq, \
                         COALESCE(r.manually_unread, 0) AS manually_unread, \
-                        (SELECT COUNT(*) FROM messages m \
-                          WHERE m.channel_id = c.id AND m.deleted_at IS NULL \
-                            AND m.seq > COALESCE(r.last_read_seq, 0)) AS unread \
+                        (SELECT COUNT(*) FROM ( \
+                           SELECT 1 FROM messages m \
+                           WHERE m.channel_id = c.id AND m.deleted_at IS NULL \
+                             AND m.seq > COALESCE(r.last_read_seq, 0) \
+                           LIMIT ",
+            );
+            builder.push_bind(UNREAD_COUNT_CAP);
+            builder.push(
+                ")) AS unread \
                  FROM channels c \
                  LEFT JOIN read_states r ON r.channel_id = c.id AND r.user_id = ",
             );

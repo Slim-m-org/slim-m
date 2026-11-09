@@ -14,6 +14,13 @@ use sqlx::QueryBuilder;
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
+/// The highest message seq and message-op seq allocated in one channel, 0 where none has been.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SeqHeads {
+    pub message: i64,
+    pub message_op: i64,
+}
+
 /// Most unread messages one count reports; the client shows anything past 99 as "99+".
 pub const UNREAD_COUNT_CAP: i64 = 1000;
 
@@ -244,6 +251,39 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         Ok(seq.unwrap_or(0))
+    }
+
+    /// [`Self::latest_message_seq`] and [`Self::latest_message_op_seq`] for many channels in one read.
+    ///
+    /// A channel with no counter yet is absent from the map; callers read it as zero heads.
+    pub async fn seq_heads(
+        &self,
+        channel_ids: &[ChannelId],
+    ) -> anyhow::Result<HashMap<ChannelId, SeqHeads>> {
+        use sqlx::Row;
+
+        let mut heads: HashMap<ChannelId, SeqHeads> = HashMap::new();
+        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY) {
+            // Built, not a fixed query!: a variable-length id list with no SQLite array binding.
+            let mut builder = QueryBuilder::new(
+                "SELECT channel_id, stream, next_seq - 1 AS head FROM channel_seq_counters \
+                 WHERE stream IN ('message', 'message_op') AND channel_id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                let entry = heads.entry(row.try_get("channel_id")?).or_default();
+                let head: i64 = row.try_get("head")?;
+                match row.try_get::<String, _>("stream")?.as_str() {
+                    "message" => entry.message = head,
+                    _ => entry.message_op = head,
+                }
+            }
+        }
+        Ok(heads)
     }
 
     /// Live messages after `after_seq`, oldest first, for catch-up. The caller

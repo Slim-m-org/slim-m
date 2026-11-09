@@ -230,6 +230,7 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        message_history::trim_edit_history(&mut tx, id).await?;
         sqlx::query!(
             "UPDATE messages SET content = ?, edited_at = ? WHERE id = ?",
             content,

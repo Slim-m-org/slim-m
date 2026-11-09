@@ -23,6 +23,7 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::routing::{delete, get, put};
+use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -445,6 +446,9 @@ pub(super) async fn voice_room_ids(state: &AppState) -> Option<Vec<ChannelId>> {
     }
 }
 
+/// How many of one member's rooms are swept at once; the bulk path multiplies it by its own bound.
+const ROOM_EVICT_CONCURRENCY: usize = 4;
+
 /// Drops one member from [voice_rooms] and from every DM they are party to.
 ///
 /// The DM half stays per member because it is per member; only the shared
@@ -459,13 +463,15 @@ pub(super) async fn evict_from_rooms(state: &AppState, target: UserId, voice_roo
         }
     };
     let rooms = voice_rooms.iter().copied().chain(dm_channel_ids);
-    for channel_id in rooms {
-        match state.voice.remove_participant(channel_id, target).await {
-            // No SFU configured at all: there is no call to evict anyone from.
-            Ok(()) | Err(VoiceError::Unavailable) => {}
-            Err(VoiceError::Internal(err)) => {
-                tracing::warn!(%err, "could not evict a moderated member from voice");
+    stream::iter(rooms)
+        .for_each_concurrent(ROOM_EVICT_CONCURRENCY, |channel_id| async move {
+            match state.voice.remove_participant(channel_id, target).await {
+                // No SFU configured at all: there is no call to evict anyone from.
+                Ok(()) | Err(VoiceError::Unavailable) => {}
+                Err(VoiceError::Internal(err)) => {
+                    tracing::warn!(%err, "could not evict a moderated member from voice");
+                }
             }
-        }
-    }
+        })
+        .await;
 }

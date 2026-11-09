@@ -64,6 +64,13 @@ pub(super) struct OpsHalf {
     pub reset: bool,
 }
 
+/// One scope's op stream head and retained floor, read for every scope in one batch.
+pub(super) struct OpHead {
+    pub latest: i64,
+    /// `None` where the stream holds nothing; only read when the request carried an op cursor.
+    pub floor: Option<i64>,
+}
+
 /// Reads one scope's ops, or answers empty when the request carried no cursor.
 ///
 /// A request with no `after_op_seq` gets no ops and, crucially, can never be
@@ -75,9 +82,10 @@ pub(super) async fn ops_for_scope(
     state: &AppState,
     channel_id: ChannelId,
     after_op_seq: Option<i64>,
+    head: OpHead,
     byte_budget: &mut usize,
 ) -> anyhow::Result<OpsHalf> {
-    let latest = state.store.latest_message_op_seq(channel_id).await?;
+    let latest = head.latest;
     let Some(after) = after_op_seq else {
         return Ok(OpsHalf {
             ops: Vec::new(),
@@ -87,17 +95,16 @@ pub(super) async fn ops_for_scope(
         });
     };
 
-    let floor = state.store.earliest_message_op_seq(channel_id).await?;
-    let floor = effective_floor(floor, latest);
+    let floor = effective_floor(head.floor, latest);
     // `after > latest` is what a Litestream restore produces; see the reset doc.
     let reset =
         after > latest || latest.saturating_sub(after) > OP_SNAPSHOT_GAP || after < floor - 1;
-    if reset {
+    if reset || after == latest {
         return Ok(OpsHalf {
             ops: Vec::new(),
             op_latest_seq: latest,
             ops_has_more: false,
-            reset: true,
+            reset,
         });
     }
 
