@@ -155,6 +155,40 @@ void main() {
     await _unmount(tester);
   });
 
+  for (final (name, answer) in [
+    ('lands', () => _saved('slow rewrite')),
+    ('is refused', _refused),
+  ]) {
+    testWidgets('a save that $name after its field was cancelled and '
+        'reopened leaves the new field alone', (tester) async {
+      final edits = _Edits([answer])..gate = Completer<void>();
+      final harness = await _pump(tester, edits);
+      final editing = harness.container.read(
+        editingMessageIdProvider('c1').notifier,
+      );
+      await tester.enterText(_field, 'slow rewrite');
+      await tester.tap(find.text('Save'));
+      await _until(tester, () => edits.patches.isNotEmpty);
+
+      editing.state = null;
+      await flush(tester);
+      editing.state = 'm3';
+      await flush(tester);
+      await tester.enterText(_field, 'second draft');
+      edits.gate!.complete();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await flush(tester);
+
+      expect(harness.container.read(editingMessageIdProvider('c1')), 'm3');
+      expect(find.widgetWithText(TextField, 'second draft'), findsOneWidget);
+      expect(find.textContaining('Could not save the edit'), findsNothing);
+      expect(edits.patches, hasLength(1));
+      await _unmount(tester);
+    });
+  }
+
   testWidgets('an edit past the message limit is not sent', (tester) async {
     final edits = _Edits([() => _saved('x')]);
     final harness = await _pump(tester, edits);

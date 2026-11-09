@@ -67,17 +67,24 @@ Future<void> submitMessageEdit(
 ) async {
   final container = ProviderScope.containerOf(context, listen: false);
   final progress = messageEditProgressProvider(message.id);
+  final editing = editingMessageIdProvider(message.channelId);
   if (container.read(progress).saving) return;
   if (content != message.content) {
     container.read(progress.notifier).state = (saving: true, failure: null);
+    var left = false;
+    final watch = container.listen<String?>(editing, (_, id) {
+      if (id != message.id) left = true;
+    });
     final failure = await runGuarded(
       whatFailed: 'save the edit',
       action: () => editMessageAction(ref, message, content),
     );
+    watch.close();
+    // The field this save came from is gone, and a reopened one is not its to close or fail.
+    if (left) return;
     container.read(progress.notifier).state = (saving: false, failure: failure);
     if (failure != null) return;
   }
-  final editing = editingMessageIdProvider(message.channelId);
   if (container.read(editing) == message.id) {
     container.read(editing.notifier).state = null;
   }
