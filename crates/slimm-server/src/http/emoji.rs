@@ -32,7 +32,8 @@ use super::error::ApiError;
 use super::extract::Authed;
 use super::extract::enforce;
 use super::extract::require_manage_server;
-use super::extract::{ASSET, AUTHED_READ, AuthedLimited, Bytes, Json, Query};
+use super::extract::{ASSET, AUTHED_READ, AuthedLimited, Bytes, Json, Query, UPLOAD};
+use super::manager_limited::ManagerLimited;
 use crate::emoji::bulk::{self, BulkAddError};
 use crate::emoji::{self, AddError};
 use crate::ids::EmojiId;
@@ -163,14 +164,10 @@ async fn upload(
 /// remaining storage, refuses the same way - never truncated to what would
 /// have fit.
 async fn bulk_upload(
-    Authed(ctx): Authed,
-    parts: Parts,
+    ManagerLimited(ctx): ManagerLimited<UPLOAD>,
     State(state): State<AppState>,
     Json(req): Json<BulkUploadRequest>,
 ) -> Result<(StatusCode, Json<Vec<CustomEmojiDto>>), ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Upload)?;
-    require_manage_server(&state, ctx.user_id).await?;
-
     if req.images.is_empty() {
         return Err(ApiError::BadRequest("no images given"));
     }

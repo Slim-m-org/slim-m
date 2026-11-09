@@ -297,6 +297,35 @@ async fn bulk_upload_requires_manage_server() {
     assert_eq!(emoji_count(&app, &member).await, 0);
 }
 
+/// A caller who may not manage the server is refused before the body is read:
+/// a body that could not be parsed is still answered 403, never 400.
+#[tokio::test]
+async fn bulk_upload_refuses_a_non_manager_before_reading_the_body() {
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-unread").await;
+    let app = app(store.clone());
+    let _admin = register(&store, "admin").await;
+    let member = register(&store, "member").await;
+
+    let request = Request::builder()
+        .method("POST")
+        .uri("/emoji/bulk")
+        .header("authorization", format!("Bearer {member}"))
+        .header("content-type", "application/json")
+        .body(Body::from("{ this is not json"))
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    let anonymous = Request::builder()
+        .method("POST")
+        .uri("/emoji/bulk")
+        .header("content-type", "application/json")
+        .body(Body::from("{ this is not json"))
+        .unwrap();
+    let response = app.clone().oneshot(anonymous).await.unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
 /// The single upload's 1 MiB cap is a body limit, not just the handler's own
 /// refusal: a 413 is the limit, the handler's `TooLarge` is a 400. It holds
 /// only while the `/emoji` layer outranks the bulk route's far larger one.

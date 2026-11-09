@@ -32,6 +32,8 @@ const MAX_BUCKETS: usize = 20_000;
 const IDLE_TTL: Duration = Duration::from_secs(300);
 /// How often the sweep runs, checked lazily on access.
 const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+/// Fewest seconds between two reclaims of a full map, each of which holds the lock across every bucket.
+const RECLAIM_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Debug)]
 struct Bucket {
@@ -52,6 +54,7 @@ pub struct ClassCounts {
 struct State {
     buckets: HashMap<(Class, String), Bucket>,
     last_sweep: Instant,
+    last_reclaim: Instant,
     counts: HashMap<Class, ClassCounts>,
 }
 
@@ -86,6 +89,7 @@ impl RateLimiter {
             state: Arc::new(Mutex::new(State {
                 buckets: HashMap::new(),
                 last_sweep: Instant::now(),
+                last_reclaim: Instant::now(),
                 counts: HashMap::new(),
             })),
             trusted_hops,
@@ -189,8 +193,11 @@ impl RateLimiter {
                 }
             }
             None => {
-                if state.buckets.len() >= MAX_BUCKETS {
+                if state.buckets.len() >= MAX_BUCKETS
+                    && now.duration_since(state.last_reclaim) >= RECLAIM_INTERVAL
+                {
                     capacity::reclaim(&mut state.buckets, now, IDLE_TTL);
+                    state.last_reclaim = now;
                 }
                 // Past the ceiling a fresh anonymous key is refused, so a flood cannot grow memory or buy requests.
                 let len = state.buckets.len();

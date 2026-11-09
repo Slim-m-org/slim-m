@@ -25,7 +25,8 @@ use super::validate_module_id;
 use super::wire::{InstalledModuleDto, ManifestDto};
 use crate::http::AppState;
 use crate::http::error::ApiError;
-use crate::http::extract::{Authed, Json, enforce, require_manage_server};
+use crate::http::extract::{Authed, Json, WRITE, enforce, require_manage_server};
+use crate::http::manager_limited::ManagerLimited;
 use crate::media::to_hex;
 use crate::ratelimit::Class;
 
@@ -91,25 +92,18 @@ fn open(package: &Package) -> Result<(Manifest, Vec<u8>), ApiError> {
 }
 
 async fn preview(
-    State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
+    _manager: ManagerLimited<WRITE>,
     Json(package): Json<Package>,
 ) -> Result<Json<ManifestDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let (manifest, _) = open(&package)?;
     Ok(Json(ManifestDto::from(manifest)))
 }
 
 async fn install_package(
+    _manager: ManagerLimited<WRITE>,
     State(state): State<AppState>,
-    parts: Parts,
-    Authed(ctx): Authed,
     Json(req): Json<PackageInstall>,
 ) -> Result<Json<InstalledModuleDto>, ApiError> {
-    enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    require_manage_server(&state, ctx.user_id).await?;
     let (manifest, artifact) = open(&req.package)?;
     if let Some(installed) = state.store.installed_module(&manifest.id).await?
         && installed.source_repo.as_deref() != Some(FILE_REPO)

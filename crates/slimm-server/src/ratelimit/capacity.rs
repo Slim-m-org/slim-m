@@ -6,6 +6,10 @@
 //! members included. Two things change that: a full bucket is the same as no
 //! bucket, so those are dropped before anything is refused; and past the
 //! ceiling only anonymous keys, the ones a caller can mint, are refused.
+//!
+//! The scan holds the limiter's one lock across every bucket, so a full map
+//! is reclaimed at most once per [`super::RECLAIM_INTERVAL`] rather than for
+//! every key a flood presents.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

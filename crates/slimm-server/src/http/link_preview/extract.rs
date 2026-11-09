@@ -133,10 +133,9 @@ impl Iterator for MetaTags<'_> {
                 .unwrap_or("")
                 .to_ascii_lowercase();
 
-            if !self.title_done
-                && lower.starts_with("title")
-                && let Some(open_end) = after.find('>')
-            {
+            if !self.title_done && lower.starts_with("title") {
+                // No `>` after this point means no later tag can end either.
+                let open_end = after.find('>')?;
                 let content_start = lt + 1 + open_end + 1;
                 if let Some(close) = self.rest[content_start..].find("</title") {
                     let text = &self.rest[content_start..content_start + close];
@@ -144,13 +143,16 @@ impl Iterator for MetaTags<'_> {
                     self.title_done = true;
                     return Some(Tag::Title(decode_entities(text.trim())));
                 }
+                // Nothing after this point closes a title, so searching again would rescan the page.
+                self.title_done = true;
             }
 
             let is_meta = lower.starts_with("meta ")
                 || lower.starts_with("meta\t")
                 || lower.starts_with("meta\n")
                 || lower.starts_with("meta>");
-            if is_meta && let Some(close) = after.find('>') {
+            if is_meta {
+                let close = after.find('>')?;
                 let inner = &after[4..close];
                 self.rest = &after[close + 1..];
                 if let Some(tag) = parse_meta(inner) {
@@ -179,8 +181,10 @@ fn parse_meta(inner: &str) -> Option<Tag> {
 /// match inside another attribute's name.
 fn attr(inner: &str, name: &str) -> Option<String> {
     let bytes = inner.as_bytes();
+    // ASCII lowercasing keeps every byte offset, and doing it per match made a long tag quadratic.
+    let lower = inner.to_ascii_lowercase();
     let mut from = 0;
-    while let Some(rel) = inner[from..].to_ascii_lowercase().find(name) {
+    while let Some(rel) = lower[from..].find(name) {
         let at = from + rel;
         let before_ok = at == 0 || !bytes[at - 1].is_ascii_alphanumeric();
         let mut i = at + name.len();
@@ -284,5 +288,41 @@ mod tests {
         let html =
             r#"<meta property="og:video:url" content="https://www.youtube.com/embed/dQw4w9WgXcQ">"#;
         assert!(extract(html).is_some());
+    }
+
+    #[test]
+    fn a_title_that_never_closes_does_not_hide_the_tags_after_it() {
+        let html = "<title>never closed <meta property=\"og:title\" content=\"Still here\">";
+        assert_eq!(extract(html).unwrap().title.as_deref(), Some("Still here"));
+    }
+
+    #[test]
+    fn a_tag_that_never_closes_ends_the_scan() {
+        let html = "<meta property=\"og:title\" content=\"Fine\"><meta property=\"og:description";
+        let p = extract(html).unwrap();
+        assert_eq!(p.title.as_deref(), Some("Fine"));
+        assert_eq!(p.description, None);
+    }
+
+    /// Hostile pages fill the whole 256 KiB fetch bound; each must scan in linear time.
+    fn assert_scans_quickly(html: &str) {
+        let started = std::time::Instant::now();
+        let _ = extract(html);
+        let took = started.elapsed();
+        assert!(
+            took < std::time::Duration::from_millis(500),
+            "scan took {took:?}"
+        );
+    }
+
+    #[test]
+    fn a_tag_of_repeated_attribute_names_scans_in_linear_time() {
+        let filler = "property ".repeat(28_000);
+        assert_scans_quickly(&format!("<meta {filler}>"));
+    }
+
+    #[test]
+    fn repeated_unclosed_titles_scan_in_linear_time() {
+        assert_scans_quickly(&"<title>".repeat(37_000));
     }
 }

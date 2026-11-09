@@ -5,10 +5,10 @@
 //! only 52 of 115 operations named `TooManyRequests` even though a handler's
 //! own signature already says whether it charges.
 //!
-//! A handler charges iff its signature takes a `RateLimited<C>` or
-//! `AuthedLimited<C>` extractor, or its body calls `enforce(`. That is
-//! exactly the convention `http/extract.rs`'s own doc comments describe, and
-//! the same rule `tests/rate_limit_coverage.rs` already enforces for a
+//! A handler charges iff its signature takes a `RateLimited<C>`,
+//! `AuthedLimited<C>` or `ManagerLimited<C>` extractor, or its body calls
+//! `enforce(`. That is exactly the convention `http/extract.rs`'s own doc
+//! comments describe, and the same rule `tests/rate_limit_coverage.rs` already enforces for a
 //! related but distinct invariant (every `Authed`-only handler is a bug); this
 //! gate is about the *documentation* of a charge that already exists, not
 //! about whether a charge should exist.
@@ -189,12 +189,13 @@ fn resolve_handler(manifest_dir: &Path, route: &RouterRoute) -> Option<(String, 
     Some((target_rel, f))
 }
 
-/// The exact charge rule this gate enforces: a `RateLimited<C>` or
-/// `AuthedLimited<C>` extractor in the signature, or an `enforce(` call in
-/// the body.
+/// The exact charge rule this gate enforces: a `RateLimited<C>`,
+/// `AuthedLimited<C>` or `ManagerLimited<C>` extractor in the signature, or an
+/// `enforce(` call in the body.
 fn charges(handler: &HandlerFn) -> bool {
     handler.signature.contains("RateLimited<")
         || handler.signature.contains("AuthedLimited<")
+        || handler.signature.contains("ManagerLimited<")
         || handler.body.contains("enforce(")
 }
 
@@ -334,19 +335,19 @@ fn charging_routes_document_429() {
     assert!(
         reverse_findings.is_empty(),
         "\nthese operations document \"429\" but their handler does not charge by this gate's \
-         rule (RateLimited<C>/AuthedLimited<C> in the signature, or an enforce( call in the \
-         body):\n\n{}\n",
+         rule (RateLimited<C>/AuthedLimited<C>/ManagerLimited<C> in the signature, or an \
+         enforce( call in the body):\n\n{}\n",
         reverse_findings.join("\n")
     );
 }
 
-/// The gate must be able to tell all three charge shapes apart, or it proves
+/// The gate must be able to tell every charge shape apart, or it proves
 /// nothing. Mirrors `tests/rate_limit_coverage.rs`'s own sample-based checks
 /// for the same reason: a detector's positive and negative cases both need
 /// direct proof, not just a green run over real source that might pass by
 /// coincidence.
 #[test]
-fn charges_recognizes_all_three_shapes_and_rejects_a_comment() {
+fn charges_recognizes_every_shape_and_rejects_a_comment() {
     let sample = r#"
 async fn charged_by_rate_limited(
     _limited: RateLimited<READ>,
@@ -355,6 +356,11 @@ async fn charged_by_rate_limited(
 
 async fn charged_by_authed_limited(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
+) -> Result<(), ApiError> { Ok(()) }
+
+async fn charged_by_manager_limited(
+    _manager: ManagerLimited<UPLOAD>,
+    Json(req): Json<Body>,
 ) -> Result<(), ApiError> { Ok(()) }
 
 async fn charged_by_enforce_call(
@@ -372,12 +378,13 @@ async fn charges_nothing(
     let fns = functions_in(&scrubbed);
     assert_eq!(
         fns.len(),
-        4,
-        "expected all four sample handlers to be found"
+        5,
+        "expected all five sample handlers to be found"
     );
 
     assert!(charges(&fns["charged_by_rate_limited"]));
     assert!(charges(&fns["charged_by_authed_limited"]));
+    assert!(charges(&fns["charged_by_manager_limited"]));
     assert!(charges(&fns["charged_by_enforce_call"]));
     assert!(
         !charges(&fns["charges_nothing"]),
