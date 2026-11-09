@@ -256,6 +256,19 @@ pub(crate) fn build_embeds(
     Ok(built)
 }
 
+/// Whether any embed shows something a reader can see, so a post of blank embeds is still empty.
+pub(crate) fn any_visible(embeds: &[NewEmbed]) -> bool {
+    embeds.iter().any(|embed| {
+        embed.title.is_some()
+            || embed.description.is_some()
+            || embed.author_name.is_some()
+            || embed.footer_text.is_some()
+            || embed.image_url.is_some()
+            || embed.thumbnail_url.is_some()
+            || !embed.fields.is_empty()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,6 +286,16 @@ mod tests {
             Ok(built) => built,
             Err(_) => panic!("expected build_embeds to succeed"),
         }
+    }
+
+    #[test]
+    fn a_blank_embed_shows_nothing_and_a_titled_one_does() {
+        let blank = expect_built(build_embeds(
+            vec![RawEmbed::default()],
+            &LinkPreviews::disabled(),
+        ));
+        let titled = expect_built(build_embeds(vec![embed("t")], &LinkPreviews::disabled()));
+        assert!(!any_visible(&blank) && any_visible(&titled));
     }
 
     #[test]

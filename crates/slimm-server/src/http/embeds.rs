@@ -6,7 +6,7 @@ mod build;
 mod rfc3339;
 mod webhook;
 
-pub(crate) use build::{RawEmbed, build_embeds};
+pub(crate) use build::{RawEmbed, any_visible, build_embeds};
 pub(crate) use webhook::{WebhookEmbed, null_as_empty};
 
 use std::sync::Arc;

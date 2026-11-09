@@ -7,7 +7,7 @@
 //! mutating route is neither audited nor listed as exempt.
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
+use axum::body::{Body, HttpBody, to_bytes};
 use axum::extract::{FromRequestParts, MatchedPath, Query, RawPathParams, Request, State};
 use axum::http::request::Parts;
 use axum::http::{Method, header};
@@ -118,8 +118,15 @@ async fn inspect_json(headers: &axum::http::HeaderMap, body: Body) -> (Body, Opt
     }
 }
 
+/// Whether the body is known to fit the inspection cap; one that may not is passed through whole.
+fn fits_inspection(body: &Body) -> bool {
+    HttpBody::size_hint(body)
+        .upper()
+        .is_some_and(|upper| upper <= MAX_INSPECTED_BODY as u64)
+}
+
 async fn created_id(response: Response) -> (Response, Option<String>) {
-    if !is_json(response.headers()) {
+    if !is_json(response.headers()) || !fits_inspection(response.body()) {
         return (response, None);
     }
     let (parts, body) = response.into_parts();

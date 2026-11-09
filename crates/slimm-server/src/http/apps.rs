@@ -35,7 +35,7 @@ use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{AppSurface as StoreAppSurface, CreateAppSurfaceError, Store};
+use crate::store::{AppLaunch, AppSurface as StoreAppSurface, CreateAppSurfaceError, Store};
 
 /// An app-launch body is tiny: which module and command, plus an optional
 /// caption and the client-generated id.
@@ -147,10 +147,11 @@ async fn create(
     let content = validate_content(&req.content, true)?;
     let id = MessageId(parse_uuid(&req.id)?);
     // Never on a retry: a launch that already landed must not be refused for arriving too soon.
-    if state.store.message_including_deleted(id).await?.is_none() {
-        // The app send has its own transaction, so only this early check guards it.
-        enforce_slow_mode(&state, channel_id, ctx.user_id).await?;
-    }
+    let stored_already = state.store.message_including_deleted(id).await?.is_some();
+    let slow_mode_window_ms = match stored_already {
+        true => None,
+        false => enforce_slow_mode(&state, channel_id, ctx.user_id).await?,
+    };
     let sent = match state
         .store
         .send_app_message(
@@ -158,14 +159,24 @@ async fn create(
             ctx.user_id,
             id,
             content,
-            &req.module_id,
-            &req.command,
+            AppLaunch {
+                module_id: &req.module_id,
+                command: &req.command,
+            },
+            slow_mode_window_ms,
         )
         .await
     {
         Ok(sent) => sent,
         Err(CreateAppSurfaceError::IdConflict) => {
             return Err(ApiError::Conflict("message id already used"));
+        }
+        Err(CreateAppSurfaceError::SlowMode {
+            retry_after_seconds,
+        }) => {
+            return Err(ApiError::SlowMode {
+                retry_after_seconds,
+            });
         }
         Err(CreateAppSurfaceError::Internal(e)) => return Err(e.into()),
     };

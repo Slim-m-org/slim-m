@@ -3316,7 +3316,9 @@ paths:
         and publishes nothing. Refused if the role carries a permission the
         caller does not themselves hold, since granting a role is granting
         whatever it carries. A bot is a role holder like any other, ADMINISTRATOR
-        included; see docs/decisions/0028-bot-accounts.md.
+        included; see docs/decisions/0028-bot-accounts.md. A member that does
+        not exist or was deleted is a 404, and a webhook, which holds no roles,
+        is a 400.
       responses:
         "204":
           description: The role is assigned.
@@ -5099,7 +5101,9 @@ paths:
         creation; a poll needs between 2 and 4 of them. `close_at`, if given,
         is a unix-millisecond deadline after which the server refuses votes;
         it must be in the future and at most 31 days out, or the poll is
-        refused with 400.
+        refused with 400. A fresh poll inside the channel's slow-mode window
+        is refused with 429, as `sendMessage` is; a retry of a stored `id` is
+        not.
       requestBody:
         required: true
         content:
@@ -5137,7 +5141,9 @@ paths:
         gated on the same VIEW_CHANNEL plus SEND_MESSAGES permissions, evaluated
         in this channel. The caller must also currently be able to reach the
         named app (installed, enabled, and holding its declared permission),
-        the same three checks `listApps` filters on. The message carries only
+        the same three checks `listApps` filters on. A fresh launch inside the
+        channel's slow-mode window is refused with 429, as `sendMessage` is;
+        a retry of a stored `id` is not. The message carries only
         which module and command to launch; the surface's live, shared state is
         the module's own output, run and seen by everyone through the shared
         code-run route at block 0, exactly like a fenced code block. slim has no
@@ -11984,7 +11990,8 @@ components:
           format: int64
           description: >
             How many seconds remain before the request would succeed. Present
-            on a slow-mode 429 from `sendMessage` and on every rate-limiter
+            on a slow-mode 429 from `sendMessage`, `sendPollMessage` and
+            `launchAppMessage` and on every rate-limiter
             429 (both also echoed as a `Retry-After` header); absent
             everywhere else, including the 429 of a two-factor lockout and of
             the private-message budget.
@@ -15829,7 +15836,9 @@ components:
           type: string
           maxLength: 4000
           description: >-
-            Honoured. The same 4000-character ceiling `SendMessageRequest.content`
+            Honoured. May be left out when at least one embed shows something,
+            as Sonarr and Radarr send; a post with neither is a 400. The same
+            4000-character ceiling `SendMessageRequest.content`
             carries, comfortably above Discord's own 2000, so no compatible
             caller can overflow it. `@name` mentions inside it resolve
             exactly as they do for a person; `@everyone`, `@here`, and role

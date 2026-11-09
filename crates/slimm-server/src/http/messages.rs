@@ -483,20 +483,12 @@ async fn edit(
         } => {
             intercepted.save_annotations(&state, message.id).await;
             let author = message.author_id.unwrap_or(ctx.user_id);
-            // A reply's ping is not in its text, so an edit keeps it only if the send stored one.
-            let reply_ping =
-                self::message_mentions::kept_reply_ping(&state, channel_id, author, message.id)
-                    .await?;
-            // Content changed, so the mention set may have too; see resolve_and_store's own doc for the author-vs-editor choice below.
-            self::message_mentions::resolve_and_store(
-                &state,
-                channel_id,
-                author,
-                message.id,
-                &message.content,
-                reply_ping,
-            )
-            .await?;
+            // Content changed, so the mention set may have too; see refresh_after_edit for the author-vs-editor choice.
+            after_commit(
+                "its mentions",
+                self::message_mentions::refresh_after_edit(&state, channel_id, author, &message)
+                    .await,
+            );
 
             state.hub.publish(Event::Message(MessageEvent::Edited {
                 message: Arc::new(message.clone()),

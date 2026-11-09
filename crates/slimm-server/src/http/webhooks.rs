@@ -143,7 +143,13 @@ async fn deliver(
     let principal_key = format!("u:{}", context.principal_id);
     state.limiter.admit(Class::Webhook, &principal_key)?;
 
-    let content = validate_content(body.content.as_deref().unwrap_or(""), false)?;
+    let embeds = embeds::build_embeds(
+        body.embeds.into_iter().map(Into::into).collect(),
+        &state.link_previews,
+    )?;
+    // Sonarr, Radarr and the like send an embed per event and no content at all.
+    let carries_more = embeds::any_visible(&embeds);
+    let content = validate_content(body.content.as_deref().unwrap_or(""), carries_more)?;
     let username = match body.username.as_deref().map(str::trim) {
         Some(name) if !name.is_empty() => {
             if name.chars().count() > USERNAME_MAX_CHARS {
@@ -161,10 +167,6 @@ async fn deliver(
         }
         _ => None,
     };
-    let embeds = embeds::build_embeds(
-        body.embeds.into_iter().map(Into::into).collect(),
-        &state.link_previews,
-    )?;
 
     let id = idempotent_message_id(&parts, webhook_id);
     let channel_id = context.channel_id;
@@ -183,7 +185,7 @@ async fn deliver(
                 actor: context.principal_id,
                 reply_to: None,
                 content,
-                carries_more: false,
+                carries_more,
                 own_module: None,
             };
             intercept(&state, &draft).await?
@@ -258,7 +260,10 @@ async fn deliver(
         super::threads::notify_reply(&state, channel_id).await;
     }
 
-    state.store.touch_webhook_delivery(webhook_id).await?;
+    after_commit(
+        "its delivery stamp",
+        state.store.touch_webhook_delivery(webhook_id).await,
+    );
 
     if params.wait {
         Ok((

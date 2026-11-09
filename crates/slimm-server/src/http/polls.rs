@@ -22,10 +22,12 @@ use axum::routing::{post, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use super::channel_slow_mode::enforce_slow_mode;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
+use super::post_commit::after_commit;
 use super::viewable_message::viewable_message;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -256,6 +258,12 @@ async fn create(
     refuse_hidden_poll_text(&req.question, &req.options)?;
     validate_close_at(req.close_at, now_ms())?;
     let id = MessageId(parse_uuid(&req.id)?);
+    // Never on a retry: a poll that already landed must not be refused for arriving too soon.
+    let stored_already = state.store.message_including_deleted(id).await?.is_some();
+    let slow_mode_window_ms = match stored_already {
+        true => None,
+        false => enforce_slow_mode(&state, channel_id, ctx.user_id).await?,
+    };
     let sent = match state
         .store
         .send_poll_message(
@@ -269,6 +277,7 @@ async fn create(
                 close_at: req.close_at,
                 ranked: req.ranked,
             },
+            slow_mode_window_ms,
         )
         .await
     {
@@ -289,10 +298,20 @@ async fn create(
                 "every poll option must be non-empty and fit the length limit",
             ));
         }
+        Err(CreatePollError::SlowMode {
+            retry_after_seconds,
+        }) => {
+            return Err(ApiError::SlowMode {
+                retry_after_seconds,
+            });
+        }
         Err(CreatePollError::Internal(e)) => return Err(e.into()),
     };
 
-    let poll = state.store.poll_for_message(id, ctx.user_id).await?;
+    let poll = after_commit(
+        "its poll",
+        state.store.poll_for_message(id, ctx.user_id).await,
+    );
     let mut dto = MessageDto::from(sent.message.clone());
     // Fresh or a retry, the poll itself already exists by the time this reads
     // it, so both branches attach the same way.
@@ -302,15 +321,19 @@ async fn create(
 
     if sent.fresh {
         // A poll's caption can carry a mention exactly like an ordinary message's content.
-        super::message_mentions::resolve_and_store(
-            &state,
-            channel_id,
-            ctx.user_id,
-            sent.message.id,
-            &sent.message.content,
-            None,
-        )
-        .await?;
+        after_commit(
+            "its mentions",
+            super::message_mentions::resolve_and_store(
+                &state,
+                channel_id,
+                ctx.user_id,
+                sent.message.id,
+                &sent.message.content,
+                None,
+            )
+            .await,
+        );
+        super::read_sync::advance_for_author(&state, ctx.user_id, &sent.message).await;
 
         // Nobody can have voted before this, the poll's own creation.
         let poll_for_event = poll.map(|mut poll| {
@@ -343,6 +366,7 @@ async fn create(
                 reply_ping: None,
             },
         );
+        super::threads::notify_reply(&state, channel_id).await;
     }
 
     Ok(Json(dto))

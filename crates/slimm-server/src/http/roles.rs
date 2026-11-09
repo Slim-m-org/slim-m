@@ -311,7 +311,7 @@ async fn delete(
 
 /// Grants a role to a member. Idempotent. Refused if the role carries a
 /// permission the caller does not themselves hold, since granting a role is
-/// granting whatever it carries.
+/// granting whatever it carries, and if the target is missing or a webhook.
 async fn assign(
     Authed(ctx): Authed,
     parts: Parts,
@@ -329,6 +329,15 @@ async fn assign(
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
     escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
+
+    let target = state
+        .store
+        .user_profile(user_id)
+        .await?
+        .ok_or(ApiError::NotFound("user not found"))?;
+    if target.is_webhook {
+        return Err(ApiError::BadRequest("a webhook holds no roles"));
+    }
 
     if state.store.assign_role(user_id, role_id).await? {
         state.hub.publish(Event::MemberRoleChanged {
