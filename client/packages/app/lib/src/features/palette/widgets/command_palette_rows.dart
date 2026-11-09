@@ -18,16 +18,17 @@ import '../../messages/widgets/message_row_identity.dart' show formatMessageDay;
 
 export 'palette_highlight.dart' show paletteHighlightSpans;
 
-/// An uppercase mono section name with its right-aligned result count.
+/// How far a row's content sits in from its edge, which a section header
+/// shares so the two start on one line.
+const double paletteRowInset = 10;
+
+/// An uppercase mono section name with its right-aligned result count, when it
+/// has one worth showing.
 class PaletteSectionHeader extends StatelessWidget {
-  const PaletteSectionHeader({
-    super.key,
-    required this.label,
-    required this.count,
-  });
+  const PaletteSectionHeader({super.key, required this.label, this.count});
 
   final String label;
-  final int count;
+  final int? count;
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +42,9 @@ class PaletteSectionHeader extends StatelessWidget {
       header: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          10,
+          paletteRowInset,
           AppSpacing.s12,
-          10,
+          paletteRowInset,
           AppSpacing.s4,
         ),
         child: Row(
@@ -52,10 +53,13 @@ class PaletteSectionHeader extends StatelessWidget {
               child: Text(
                 label.toUpperCase(),
                 semanticsLabel: label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: style,
               ),
             ),
-            Text('$count', style: style.copyWith(color: tokens.textDisabled)),
+            if (count case final count?)
+              Text('$count', style: style.copyWith(color: tokens.textDisabled)),
           ],
         ),
       ),
@@ -114,7 +118,7 @@ class _PaletteRowShellState extends State<PaletteRowShell> {
                       : AppSizes.controlLg,
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: paletteRowInset,
                   vertical: AppSpacing.s4,
                 ),
                 decoration: BoxDecoration(

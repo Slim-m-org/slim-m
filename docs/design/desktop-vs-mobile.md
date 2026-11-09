@@ -96,10 +96,11 @@ Every desktop affordance must state its compact equivalent, or it is not done.
 | inline edit-in-place | the same, composer expanded to fit | a separate edit screen |
 | drag to reorder (click and hold lifts, a line shows the landing place) | a still hold opens the options, a hold then a move lifts, same drop rules | a permanent grip, or reorder hidden behind an edit mode |
 | full-focus overlay (floating card) | full-screen takeover, same two actions | a desktop-only accept/decline pair |
+| search bar under the channel header, hits in place of the transcript | a search page in the palette's shape in place of the app bar: field with Cancel, a section header naming the channel, palette rows; the composer steps aside and back closes it | a second bar stacked under the app bar |
 
 ## The review question
 
 For any UI change, ask: **resize the window across 600 - what appears, what converts, what dies?**
 Anything that dies is the bug.
 
-Reference widgets that already do this right, whose shape new UI should follow: `command_palette`, `channel_rail_drawer`, `compact_channel_app_bar`, `context_menu_region`, `showAppSheet`, `modal_page`.
+Reference widgets that already do this right, whose shape new UI should follow: `command_palette`, `compact_channel_search`, `channel_rail_drawer`, `compact_channel_app_bar`, `context_menu_region`, `showAppSheet`, `modal_page`.

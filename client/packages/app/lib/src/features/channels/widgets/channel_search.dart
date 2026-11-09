@@ -15,6 +15,9 @@ import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_text.dart';
+import '../../palette/widgets/command_palette_rows.dart'
+    show PaletteSectionHeader;
+import 'compact_channel_search.dart';
 
 class ChannelSearchBar extends StatelessWidget {
   const ChannelSearchBar({
@@ -74,6 +77,9 @@ class ChannelSearchResults extends ConsumerWidget {
     required this.onSelect,
     this.seeking = false,
     this.banner,
+    this.compact = false,
+    this.query,
+    this.scope = '',
   });
 
   /// Exposed so a test can find this exact node rather than any other
@@ -110,6 +116,17 @@ class ChannelSearchResults extends ConsumerWidget {
   /// Why a tapped hit could not be opened, above the hits so another can be tried.
   final Widget? banner;
 
+  /// The phone's page: palette rows under a header naming [scope], and a hint
+  /// in place of hits while nothing has been typed.
+  final bool compact;
+
+  /// What was last searched for, null before anything is; only a page that is
+  /// open with an empty field leaves this unset.
+  final String? query;
+
+  /// What is being searched, such as "#general", for the compact header.
+  final String scope;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -123,6 +140,11 @@ class ChannelSearchResults extends ConsumerWidget {
           label: _announcement(),
           child: const SizedBox.shrink(),
         ),
+        if (compact)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+            child: PaletteSectionHeader(label: 'Messages in $scope'),
+          ),
         // Revealed rather than inserted, so a hit that is found at once never flashes the line.
         AppRevealBand(
           child: seeking || banner != null
@@ -152,6 +174,7 @@ class ChannelSearchResults extends ConsumerWidget {
   /// What a screen reader should hear once this state settles: a result
   /// count, an honest "no matches", or why nothing came back.
   String _announcement() {
+    if (compact && query == null) return '';
     if (seeking) return 'Finding that message.';
     if (loading) return 'Searching messages.';
     if (failed) {
@@ -166,6 +189,14 @@ class ChannelSearchResults extends ConsumerWidget {
   }
 
   Widget _body(BuildContext context, WidgetRef ref, AppTokens tokens) {
+    if (compact && query == null) {
+      return Center(
+        child: Text(
+          'Type to search.',
+          style: TextStyle(color: tokens.textSecondary),
+        ),
+      );
+    }
     if (loading && (results?.isEmpty ?? true)) {
       return const Center(child: AppSpinner(size: AppSpinnerSize.lg));
     }
@@ -192,6 +223,16 @@ class ChannelSearchResults extends ConsumerWidget {
       );
     }
     resolveAuthorProfiles(ref, list.map((m) => m.authorId));
+    if (compact) {
+      return CompactSearchHits(
+        hits: list,
+        query: query ?? '',
+        onSelect: onSelect,
+        knownUsernames: knownUsernames,
+        knownRoleNames: knownRoleNames,
+        customEmoji: customEmoji,
+      );
+    }
     final density = ref.watch(messageDensityControllerProvider);
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.s16),

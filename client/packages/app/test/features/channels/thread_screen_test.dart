@@ -178,6 +178,13 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// A few frames, not `pumpAndSettle`: the app bar's ripple keeps asking for one.
+Future<void> _frames(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}
+
 void main() {
   for (final entry in {
     'compact': const Size(500, 800),
@@ -303,11 +310,47 @@ void main() {
               "search in the thread must not touch the parent channel's "
               'copy of the same provider',
         );
+        expect(
+          find.byKey(const Key('channel-search-cancel')),
+          entry.key == 'compact' ? findsOneWidget : findsNothing,
+          reason: 'only the phone swaps its app bar for the search page',
+        );
 
         await _settle(tester);
       },
     );
   }
+
+  testWidgets('a phone thread search is a page in place of the app bar, and '
+      'back or Cancel returns the bar', (tester) async {
+    await _pumpThread(tester, const Size(500, 800));
+    final cancel = find.byKey(const Key('channel-search-cancel'));
+
+    await tester.tap(find.bySemanticsLabel('Search messages'));
+    await _frames(tester);
+    expect(cancel, findsOneWidget);
+    expect(find.text('Search this thread'), findsOneWidget);
+    expect(find.text('Thread'), findsNothing);
+
+    await tester.tap(cancel);
+    await _frames(tester);
+    expect(cancel, findsNothing);
+    expect(find.text('Thread'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Search messages'));
+    await _frames(tester);
+    await tester.binding.handlePopRoute();
+    await _frames(tester);
+    expect(cancel, findsNothing);
+    expect(find.text('Thread'), findsOneWidget);
+    expect(
+      find.text('open thread'),
+      findsNothing,
+      reason: 'still in the thread',
+    );
+
+    await _settle(tester);
+  });
 
   testWidgets(
     'the thread app bar carries a bottom border, as the phone one does',

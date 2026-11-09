@@ -224,7 +224,7 @@ void main() {
 
     expect(cancel, findsNothing);
     await tester.tap(find.bySemanticsLabel('Search messages'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(cancel, findsOneWidget);
     expect(
       appBarBack,
@@ -233,7 +233,7 @@ void main() {
     );
 
     await tester.tap(cancel);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(cancel, findsNothing);
     expect(appBarBack, findsOneWidget);
 
@@ -246,11 +246,11 @@ void main() {
     final cancel = find.byKey(const Key('channel-search-cancel'));
 
     await tester.tap(find.bySemanticsLabel('Search messages'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(cancel, findsOneWidget);
 
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(cancel, findsNothing);
     expect(find.byTooltip('Back to channels'), findsOneWidget);

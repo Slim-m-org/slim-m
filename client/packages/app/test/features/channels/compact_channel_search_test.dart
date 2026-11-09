@@ -8,9 +8,15 @@
 /// finding a file in. The wide panel's own behaviour is pinned at the end.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
+import 'package:slimm_app/src/features/channels/widgets/compact_channel_search.dart'
+    show channelSearchScope;
+import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channel_history_harness.dart';
@@ -193,5 +199,41 @@ void main() {
     expect(find.text('MESSAGES IN #GENERAL'), findsNothing);
     expect(find.text('Message #general'), findsOneWidget);
     await _unmount(tester);
+  });
+
+  testWidgets('a wide window leaves an open, empty search bar alone when a '
+      'jump lands', (tester) async {
+    final harness = await mountChannel(
+      tester,
+      serverSeqs: List.generate(120, (i) => i + 1),
+      seededSeqs: List.generate(50, (i) => i + 71),
+    );
+    tester.view.physicalSize = const Size(900, 800);
+    await flush(tester);
+    await _open(tester, harness);
+
+    unawaited(
+      harness.container.read(messageJumpProvider.notifier).jumpTo('c1', 'm100'),
+    );
+    final flash = find.byWidgetPredicate((w) => w is MessageJumpHighlight);
+    for (var i = 0; i < 100 && flash.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    expect(flash, findsOneWidget);
+    expect(harness.container.read(channelSearchProvider('c1')).open, isTrue);
+    await tester.pump(const Duration(seconds: 3));
+    await _unmount(tester);
+  });
+
+  test('a search is named for what it covers', () {
+    String scope(String? name, {bool voice = false, bool thread = false}) =>
+        channelSearchScope(name: name, isVoice: voice, isThread: thread);
+
+    expect(scope('general'), '#general');
+    expect(scope('Lounge', voice: true), 'Lounge');
+    expect(scope('ignored', thread: true), 'this thread');
+    expect(scope(null), 'this conversation');
+    expect(scope(''), 'this conversation');
   });
 }

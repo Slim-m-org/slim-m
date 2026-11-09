@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
+import 'package:slimm_app/src/features/channels/widgets/compact_channel_search.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 
@@ -47,7 +47,7 @@ Map<String, dynamic> _fileHit(int seq, {String channelId = 'c1'}) => {
   'matched_attachment_id': 'a$seq',
 };
 
-final _searchBar = find.byWidgetPredicate((w) => w is ChannelSearchBar);
+final _searchBar = find.byWidgetPredicate((w) => w is CompactChannelSearchBar);
 final _flash = find.byWidgetPredicate((w) => w is MessageJumpHighlight);
 final _snackBar = find.byWidgetPredicate((w) => w is SnackBar);
 
@@ -269,9 +269,8 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('a jump from elsewhere leaves an open, empty search bar alone', (
-    tester,
-  ) async {
+  testWidgets('a jump from elsewhere closes an empty search page, so the '
+      'row it lands on can be seen', (tester) async {
     final harness = await _mountPhone(
       tester,
       serverSeqs: _range(1, 120),
@@ -284,8 +283,8 @@ void main() {
     );
 
     expect(await _untilLanded(tester, harness), isTrue);
-    expect(harness.container.read(channelSearchProvider('c1')).open, isTrue);
-    expect(_searchBar, findsOneWidget);
+    expect(harness.container.read(channelSearchProvider('c1')).open, isFalse);
+    expect(_searchBar, findsNothing);
 
     await tester.pump(const Duration(seconds: 3));
     await _unmount(tester);

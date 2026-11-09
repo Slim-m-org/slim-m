@@ -280,14 +280,16 @@ class ChannelMentionChip extends ConsumerWidget {
 }
 
 /// Inline-only spans for a single line of text that is not a message body
-/// (a poll's question or option): no block markdown, links stay inert.
-/// [recognizers] collects what was created so the caller can dispose it.
+/// (a poll's question or option, a search hit): no block markdown, links stay
+/// inert. [recognizers] collects what was created so the caller can dispose it.
 List<InlineSpan> inlineTextSpans(
   String text, {
   required Map<String, String> customEmoji,
   required TextStyle ambientStyle,
   required Color linkColor,
   required List<TapGestureRecognizer> recognizers,
+  Set<String> knownUsernames = const {},
+  Set<String> knownRoleNames = const {},
 }) {
   TapGestureRecognizer inert(String _) {
     final recognizer = TapGestureRecognizer();
@@ -298,8 +300,8 @@ List<InlineSpan> inlineTextSpans(
   return buildSpans(
     parseInline(text),
     InlineContext(
-      knownUsernames: const {},
-      knownRoleNames: const {},
+      knownUsernames: knownUsernames,
+      knownRoleNames: knownRoleNames,
       customEmoji: customEmoji,
       ambientStyle: ambientStyle,
       linkColor: linkColor,

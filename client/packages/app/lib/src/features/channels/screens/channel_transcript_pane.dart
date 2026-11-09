@@ -40,6 +40,7 @@ import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../widgets/channel_search.dart';
+import '../widgets/compact_channel_search.dart' show channelSearchScope;
 import '../../../widgets/dismiss_keyboard_on_drag.dart';
 import '../../messages/widgets/ephemeral_report.dart';
 import '../../messages/widgets/jump_to_latest_button.dart';
@@ -63,6 +64,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.channelTopic,
     required this.isThread,
     this.isVoice = false,
+    this.searchPage = false,
     required this.lastReadSeq,
     required this.syncedSeq,
     required this.manuallyUnread,
@@ -85,6 +87,10 @@ class ChannelTranscriptPane extends ConsumerWidget {
 
   /// A voice channel's chat, whose empty state is not the text channel's.
   final bool isVoice;
+
+  /// The phone's search page is up: it shows in place of the transcript even
+  /// before a query, and a jump arriving from elsewhere closes it.
+  final bool searchPage;
   final int lastReadSeq;
 
   /// The highest seq synced into this channel, deleted messages included; a
@@ -142,6 +148,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
   void _closeSearchOnArrival(WidgetRef ref) {
     ref.listen(messageJumpProvider, (_, next) {
       final resultsShowing =
+          searchPage ||
           ref.read(channelSearchProvider(channelId)).query != null;
       if (next is MessageJumpArrived &&
           next.channelId == channelId &&
@@ -201,7 +208,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     final privateAnswers = ref.watch(
       channelEphemeralMessagesProvider(channelId),
     );
-    final searchShowing = search.query != null;
+    final searchShowing = search.query != null || searchPage;
     final jumpArrival = watchMessageJump(
       ref,
       context,
@@ -222,7 +229,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusScope.of(context).unfocus(),
-          child: search.query != null
+          child: searchShowing
               ? ChannelSearchResults(
                   results: search.results,
                   knownUsernames: knownUsernames,
@@ -237,6 +244,13 @@ class ChannelTranscriptPane extends ConsumerWidget {
                   onSelect: (m) => _openHit(context, ref, m),
                   seeking: jumpSeeking,
                   banner: _jumpBanner(ref, jumpNotice),
+                  compact: searchPage,
+                  query: search.query,
+                  scope: channelSearchScope(
+                    name: hashChannelName,
+                    isVoice: isVoice,
+                    isThread: isThread,
+                  ),
                 )
               : Stack(
                   children: [
