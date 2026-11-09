@@ -28,7 +28,9 @@ An unverified module with no capabilities gets one line saying it runs code on t
 Update all walks the updates in order and opens the same consent step for each module that asks for new access, or whose new build takes back an approved power.
 Approving installs it with exactly the access the step listed, and skipping or closing the step leaves that module on its old version with its update still offered.
 A skip is a choice, so it is only mentioned under the Update all bar; a failed install stays an inline error with its reason.
-A private-network yes already given carries over for unchanged hosts, and a new one is never granted from this step; it stays on the module's own page.
+A private-network yes already given carries over only while `net.fetch` itself carries over untouched, since the step shows nothing about it.
+When the step asks about `net.fetch` again, the private-network yes is not carried, exactly as for a single update, and the module's own page grants it.
+Access the server withdrew after the install is asked about once more as "updated, give back its access?", and declining it is noted under the Update all bar.
 
 The warning sentence per capability is one table, `dockHostCapabilities` in `dock_host_access_card.dart`.
 A capability that carries details, such as a host list, receives them in its sentence function.

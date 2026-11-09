@@ -19,10 +19,7 @@ import '../../../modules/providers/app_launch.dart';
 import '../../../modules/providers/code_block_runner.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
-
-/// An installed module that has an update, and the community source to install
-/// it from (null for the official one).
-typedef DockOutdated = ({api.DockIndexEntry entry, String? source});
+import 'dock_update_report.dart';
 
 /// What an update has to ask the admin before it installs.
 ///
@@ -54,45 +51,21 @@ DockUpdateAsk dockUpdateAsk(
   );
 }
 
-/// How the walk went, for the line under the Update all bar and the error box.
-class DockUpdateReport {
-  const DockUpdateReport({
-    required this.total,
-    required this.updated,
-    required this.skipped,
-    required this.failures,
-  });
-
-  final int total;
-  final int updated;
-
-  /// Modules the admin skipped, which keep their update.
-  final List<api.DockIndexEntry> skipped;
-
-  /// One sentence per install that failed, with the reason.
-  final List<String> failures;
-
-  /// The neutral line after a walk that left something undone, or null.
-  ///
-  /// Only skipped modules still behind are named: one updated from its own page
-  /// since is not "skipped" any more.
-  String? summary(List<DockOutdated> stillOutdated) {
-    final behind = {for (final o in stillOutdated) o.entry.id};
-    final skippedNow = [
-      for (final entry in skipped)
-        if (behind.contains(entry.id)) entry.name,
-    ];
-    if (skippedNow.isEmpty && failures.isEmpty) return null;
-    return [
-      'Updated $updated of $total.',
-      if (skippedNow.isNotEmpty) 'Skipped ${skippedNow.join(', ')}.',
-    ].join(' ');
-  }
-}
-
 enum _Outcome { updated, skipped, failed }
 
-typedef _Turn = ({_Outcome outcome, String? failure});
+class _Turn {
+  const _Turn(this.outcome, {this.failure, this.declined = const []});
+
+  final _Outcome outcome;
+  final String? failure;
+
+  /// Access the server withdrew after the update that the admin did not give back.
+  final List<String> declined;
+}
+
+/// The access an install replaces what the module held with, and whether the
+/// private-network yes goes with it.
+typedef _Grant = ({Set<String> host, bool localNetwork});
 
 /// Updates [outdated] one at a time, the sequence that keeps a partial result
 /// easy to explain: each install is a write against one space.
@@ -104,15 +77,15 @@ Future<DockUpdateReport?> updateAllDockModules({
   required WidgetRef ref,
   required List<DockOutdated> outdated,
 }) async {
-  final client = ref.read(apiProvider);
   final catalog = ref.read(dockCatalogProvider).valueOrNull;
   var updated = 0;
   final skipped = <api.DockIndexEntry>[];
   final failures = <String>[];
+  final withoutAccess = <DockLeftBare>[];
   for (final item in outdated) {
     final turn = await _updateOne(
       context,
-      client,
+      ref,
       item,
       catalog?.installedFor(item.entry.id),
     );
@@ -124,14 +97,18 @@ Future<DockUpdateReport?> updateAllDockModules({
         failures.add(turn.failure!);
       case _Outcome.updated:
         updated++;
-        _refreshAfterInstall(ref);
+        if (turn.declined.isNotEmpty) {
+          withoutAccess.add((entry: item.entry, lost: turn.declined));
+        }
     }
   }
+  ref.invalidate(dockCatalogProvider);
   return DockUpdateReport(
     total: outdated.length,
     updated: updated,
     skipped: skipped,
     failures: failures,
+    withoutAccess: withoutAccess,
   );
 }
 
@@ -147,42 +124,55 @@ void _refreshAfterInstall(WidgetRef ref) {
 /// One module's turn, or null when [context] went away while it was asked.
 Future<_Turn?> _updateOne(
   BuildContext context,
-  api.SlimmApi client,
+  WidgetRef ref,
   DockOutdated item,
   api.InstalledDockModule? current,
 ) async {
   try {
-    final manifest = await client.getDockModule(
-      item.entry.id,
-      source: item.source,
-    );
+    final manifest = await ref
+        .read(apiProvider)
+        .getDockModule(item.entry.id, source: item.source);
     if (!context.mounted) return null;
     final ask = dockUpdateAsk(manifest, current);
-    Set<String>? approved;
+    _Grant? grant;
     if (ask.capabilities.isNotEmpty) {
       final agreed = await _askAbout(context, item, manifest, current, ask);
       if (!context.mounted) return null;
-      if (!agreed) return (outcome: _Outcome.skipped, failure: null);
-      approved = {..._carried(manifest, current), ...ask.capabilities};
+      if (!agreed) return const _Turn(_Outcome.skipped);
+      grant = _grantFor(manifest, current, {
+        ..._carried(manifest, current),
+        ...ask.capabilities,
+      }, ask.capabilities);
     }
-    final installed = await _install(client, item, manifest, current, approved);
+    final installed = await _install(context, ref, item, manifest, grant);
     if (!context.mounted) return null;
-    final lost = approved == null
+    final lost = grant == null
         ? _lostAccess(manifest, current, installed)
         : const <String>[];
-    if (lost.isNotEmpty) {
-      final again = (capabilities: lost, reapproveOnly: true);
-      final agreed = await _askAbout(context, item, manifest, current, again);
-      if (!context.mounted) return null;
-      if (agreed) {
-        final regained = {...installed.approvedHostCapabilities, ...lost};
-        await _install(client, item, manifest, current, regained);
-      }
-    }
-    return (outcome: _Outcome.updated, failure: null);
+    if (lost.isEmpty) return const _Turn(_Outcome.updated);
+    final again = (capabilities: lost, reapproveOnly: true);
+    final agreed = await _askAbout(
+      context,
+      item,
+      manifest,
+      current,
+      again,
+      updated: true,
+    );
+    if (!context.mounted) return null;
+    if (!agreed) return _Turn(_Outcome.updated, declined: lost);
+    final regained = {...installed.approvedHostCapabilities, ...lost};
+    await _install(
+      context,
+      ref,
+      item,
+      manifest,
+      _grantFor(manifest, installed, regained, lost),
+    );
+    return const _Turn(_Outcome.updated);
   } catch (error, stack) {
-    return (
-      outcome: _Outcome.failed,
+    return _Turn(
+      _Outcome.failed,
       failure: reportFailureSentence(
         api.LogTag.ui,
         'update ${item.entry.name}',
@@ -193,43 +183,81 @@ Future<_Turn?> _updateOne(
   }
 }
 
+/// The consent step for [ask]. With [updated] the install already happened and
+/// the step asks whether to give back access it took away.
 Future<bool> _askAbout(
   BuildContext context,
   DockOutdated item,
   api.DockManifest manifest,
   api.InstalledDockModule? current,
-  DockUpdateAsk ask,
-) => showDockInstallConsent(
+  DockUpdateAsk ask, {
+  bool updated = false,
+}) => showDockInstallConsent(
   context,
   manifest: manifest,
   capabilities: ask.capabilities,
   verified: dockIsVerified(item.source),
   isUpdate: true,
-  reapprove: ask.reapproveOnly,
+  title: updated ? '${manifest.name} is updated. Give back its access?' : null,
+  intro: switch ((updated, ask.reapproveOnly)) {
+    (true, _) => 'The update took this access back. It can:',
+    (_, true) => 'This version needs approval again. It can:',
+    _ => null,
+  },
   changes: dockConsentChanges(manifest, current),
-  confirmLabel: 'Approve and update',
-  cancelLabel: 'Skip',
+  confirmLabel: updated ? 'Give access back' : 'Approve and update',
+  cancelLabel: updated ? 'Leave it off' : 'Skip',
 );
 
-/// Installs [item]'s offered version. [approved] null lets the server carry
-/// what the module held, and a set replaces it with what the admin was shown.
+/// Installs [item]'s offered version, then reads the module list again: the
+/// server may have committed even when the answer was an error.
+///
+/// A null [grant] lets the server carry what the module held, and a set
+/// replaces it with what the admin was shown.
 Future<api.InstalledDockModule> _install(
-  api.SlimmApi client,
+  BuildContext context,
+  WidgetRef ref,
   DockOutdated item,
   api.DockManifest manifest,
-  api.InstalledDockModule? current,
-  Set<String>? approved,
-) => client.installDockModule(
-  moduleId: item.entry.id,
-  version: item.entry.version,
-  approvedHostCapabilities: approved == null
-      ? null
-      : (approved.toList()..sort()),
-  approveLocalNetwork: approved == null || manifest.network == null
-      ? null
-      : dockLocalNetworkCarries(manifest, current, approved),
-  reviewedDigest: manifest.reviewDigest,
-  source: item.source,
+  _Grant? grant,
+) async {
+  try {
+    return await ref
+        .read(apiProvider)
+        .installDockModule(
+          moduleId: item.entry.id,
+          version: item.entry.version,
+          approvedHostCapabilities: grant == null
+              ? null
+              : (grant.host.toList()..sort()),
+          approveLocalNetwork: grant == null || manifest.network == null
+              ? null
+              : grant.localNetwork,
+          reviewedDigest: manifest.reviewDigest,
+          source: item.source,
+        );
+  } finally {
+    if (context.mounted) _refreshAfterInstall(ref);
+  }
+}
+
+/// [approved] with the private-network yes [held] gave, when it still stands.
+///
+/// It carries only while net.fetch itself does: when the step [asked] about
+/// net.fetch, the prompt never showed the yes, so it goes back to the module's
+/// own switch as it does for a single update.
+_Grant _grantFor(
+  api.DockManifest manifest,
+  api.InstalledDockModule? held,
+  Set<String> approved,
+  List<String> asked,
+) => (
+  host: approved,
+  localNetwork: dockLocalNetworkCarries(
+    manifest,
+    held,
+    approved.difference(asked.toSet()),
+  ),
 );
 
 /// What [current] approved that the new build keeps without asking again.

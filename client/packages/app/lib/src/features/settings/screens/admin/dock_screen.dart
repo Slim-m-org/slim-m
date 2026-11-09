@@ -32,6 +32,7 @@ import 'dock_module_row.dart';
 import 'dock_pane_header.dart';
 import 'dock_sources_section.dart';
 import 'dock_update_all.dart';
+import 'dock_update_report.dart';
 
 class DockScreen extends StatelessWidget {
   const DockScreen({super.key});
@@ -156,6 +157,7 @@ class _DockPaneState extends ConsumerState<DockPane>
       data: (context, catalog) {
         final filter = _filterFor(catalog);
         final outdated = _outdated(catalog);
+        final updateSummary = _updateReport?.summary(catalog, outdated);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -174,13 +176,15 @@ class _DockPaneState extends ConsumerState<DockPane>
               AppErrorState(message: message, onDismiss: clearActionError),
               const SizedBox(height: AppSpacing.s12),
             ],
-            if (outdated.isNotEmpty)
+            if (outdated.isNotEmpty || updateSummary != null) ...[
               _UpdateAllBar(
                 count: outdated.length,
                 busy: _updatingAll,
-                summary: _updateReport?.summary(outdated),
+                summary: updateSummary,
                 onUpdateAll: () => unawaited(_updateAll(outdated)),
               ),
+              const SizedBox(height: AppSpacing.s12),
+            ],
             RingFlush(
               child: AppInput(
                 controller: _query,
@@ -325,7 +329,8 @@ class _UpdateAllBar extends StatelessWidget {
   final int count;
   final bool busy;
 
-  /// What the last press left undone, when it left anything.
+  /// What the last press left undone, when it left anything. With no update
+  /// left the bar is only this note.
   final String? summary;
   final VoidCallback onUpdateAll;
 
@@ -333,19 +338,24 @@ class _UpdateAllBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final subject = count == 1 ? '1 module has' : '$count modules have';
     return SettingsSectionCard(
+      topGap: 0,
       children: [
         SettingsDetailRow(
           icon: AppIcons.dock,
-          title: '$subject an update',
+          title: count == 0
+              ? 'All modules are up to date'
+              : '$subject an update',
           detail: summary,
-          trailing: AppButton(
-            label: busy ? 'Updating...' : 'Update all',
-            variant: AppButtonVariant.primary,
-            size: AppButtonSize.sm,
-            disabled: busy,
-            onPressed: onUpdateAll,
-            semanticLabel: 'Update all modules',
-          ),
+          trailing: count == 0
+              ? null
+              : AppButton(
+                  label: busy ? 'Updating...' : 'Update all',
+                  variant: AppButtonVariant.primary,
+                  size: AppButtonSize.sm,
+                  disabled: busy,
+                  onPressed: onUpdateAll,
+                  semanticLabel: 'Update all modules',
+                ),
         ),
       ],
     );

@@ -215,8 +215,8 @@ class DockVerifiedBadge extends StatelessWidget {
 
 /// Resolves true once the admin agrees, false when they back out or close it.
 ///
-/// [reapprove] words an update that only takes back access the module held,
-/// and [confirmLabel] and [cancelLabel] rename the two buttons.
+/// [title] and [intro] replace the headline and the line above the list, and
+/// [confirmLabel] and [cancelLabel] rename the two buttons.
 Future<bool> showDockInstallConsent(
   BuildContext context, {
   required api.DockManifest manifest,
@@ -224,8 +224,9 @@ Future<bool> showDockInstallConsent(
   required bool verified,
   required bool isUpdate,
   bool localNetwork = false,
-  bool reapprove = false,
   List<String> changes = const [],
+  String? title,
+  String? intro,
   String? confirmLabel,
   String? cancelLabel,
 }) async {
@@ -238,7 +239,8 @@ Future<bool> showDockInstallConsent(
       verified: verified,
       isUpdate: isUpdate,
       localNetwork: localNetwork,
-      reapprove: reapprove,
+      title: title,
+      intro: intro,
       changes: changes,
       confirmLabel: confirmLabel,
       cancelLabel: cancelLabel,
@@ -254,7 +256,8 @@ class _ConsentSheet extends StatefulWidget {
     required this.verified,
     required this.isUpdate,
     required this.localNetwork,
-    required this.reapprove,
+    required this.title,
+    required this.intro,
     required this.changes,
     required this.confirmLabel,
     required this.cancelLabel,
@@ -265,7 +268,8 @@ class _ConsentSheet extends StatefulWidget {
   /// What an update changed about the module's reach or timer.
   final List<String> changes;
   final bool localNetwork;
-  final bool reapprove;
+  final String? title;
+  final String? intro;
   final String? confirmLabel;
   final String? cancelLabel;
   final List<String> capabilities;
@@ -334,7 +338,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        '$verb ${widget.manifest.name}?',
+        widget.title ?? '$verb ${widget.manifest.name}?',
         style: AppText.body.copyWith(
           color: tokens.textPrimary,
           fontWeight: AppWeights.semi,
@@ -344,11 +348,13 @@ class _ConsentSheetState extends State<_ConsentSheet> {
       _standing(tokens),
       const SizedBox(height: AppSpacing.s12),
       if (widget.capabilities.isNotEmpty) ...[
-        Text(switch ((widget.isUpdate, widget.reapprove)) {
-          (true, true) => 'This version needs approval again. It can:',
-          (true, false) => 'This version asks for new access. It can:',
-          _ => 'This module can:',
-        }, style: AppText.body.copyWith(color: tokens.textPrimary)),
+        Text(
+          widget.intro ??
+              (widget.isUpdate
+                  ? 'This version asks for new access. It can:'
+                  : 'This module can:'),
+          style: AppText.body.copyWith(color: tokens.textPrimary),
+        ),
         const SizedBox(height: AppSpacing.s8),
         for (final change in widget.changes)
           _CapabilityLine(text: change, verified: false),

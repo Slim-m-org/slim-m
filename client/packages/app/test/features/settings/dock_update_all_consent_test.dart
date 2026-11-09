@@ -7,7 +7,6 @@
 /// the walk now opens it for each module that needs it.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 

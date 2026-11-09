@@ -197,11 +197,11 @@ void main() {
     await tester.tap(find.text('Update all'));
     await _settle(tester);
 
-    expect(find.text('Update a?'), findsOneWidget);
-    expect(find.textContaining('needs approval again'), findsOneWidget);
+    expect(find.text('a is updated. Give back its access?'), findsOneWidget);
+    expect(find.textContaining('took this access back'), findsOneWidget);
     expect(find.textContaining('Updated 1 of 1'), findsNothing);
 
-    await tester.tap(find.text('Approve and update'));
+    await tester.tap(find.text('Give access back'));
     await _settle(tester);
 
     expect(world.installs, ['a source=null', 'a source=null']);
