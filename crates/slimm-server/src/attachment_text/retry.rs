@@ -40,6 +40,11 @@ impl Retries {
             .collect()
     }
 
+    /// Whether no file has a failure on record, backing off or due for another try.
+    pub fn is_empty(&self) -> bool {
+        self.seen().is_empty()
+    }
+
     /// Doubles the wait after each failure, up to an hour.
     pub fn failed(&self, sha256: &[u8]) {
         let mut seen = self.seen();

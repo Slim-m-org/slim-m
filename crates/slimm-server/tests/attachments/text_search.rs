@@ -185,6 +185,29 @@ async fn a_message_whose_own_text_matches_does_not_name_its_attachment() {
 }
 
 #[tokio::test]
+async fn a_caught_up_pass_skips_the_lookup_until_a_message_links_an_attachment() {
+    let w = world().await;
+    w.send("first", "first.txt", b"the first okapi".to_vec())
+        .await;
+    assert_eq!(w.extract().await, 1);
+
+    // Forgetting a marker makes the file eligible again without any link, so only a lookup would see it.
+    sqlx::query("DELETE FROM attachment_text")
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        w.extract().await,
+        0,
+        "nothing was linked since the last pass"
+    );
+
+    w.send("second", "second.txt", b"the second okapi".to_vec())
+        .await;
+    assert_eq!(w.extract().await, 2, "a new link wakes the pass up");
+}
+
+#[tokio::test]
 async fn code_files_are_read_by_extension() {
     let w = world().await;
     w.send("code", "main.rs", b"fn quarantine_widget() {}".to_vec())

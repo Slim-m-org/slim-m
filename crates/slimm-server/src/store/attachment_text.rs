@@ -5,6 +5,7 @@
 //! retried. See migration 0152.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 
 use sqlx::Row;
 
@@ -40,6 +41,18 @@ const MATCHING_TEXT_SQL: &str = "SELECT ma.message_id AS message_id, ma.sha256 A
     ORDER BY ma.position DESC";
 
 impl Store {
+    /// Changes whenever a message gains an attachment link, the only way a file becomes
+    /// eligible for extraction, so the background pass can tell nothing new is waiting.
+    pub fn attachment_link_epoch(&self) -> u64 {
+        self.attachment_link_epoch.load(Ordering::Acquire)
+    }
+
+    /// Call after the transaction that linked attachments has committed: bumping earlier
+    /// lets a pass read the new epoch, miss the uncommitted link, and then record itself caught up.
+    pub(in crate::store) fn touch_attachment_links(&self) {
+        self.attachment_link_epoch.fetch_add(1, Ordering::AcqRel);
+    }
+
     /// The newest attachments in live, unencrypted messages that have not been
     /// through extraction yet, so recent uploads become searchable first and
     /// older ones follow as the background pass catches up. `skip` holds files

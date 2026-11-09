@@ -317,6 +317,8 @@ pub struct Store {
     modules_dir: Option<Arc<std::path::PathBuf>>,
     /// Bumped by every change to what modules are installed or hooked; see [`Store::module_epoch`].
     module_epoch: Arc<std::sync::atomic::AtomicU64>,
+    /// Bumped after every commit that links an attachment to a message; see [`Store::attachment_link_epoch`].
+    attachment_link_epoch: Arc<std::sync::atomic::AtomicU64>,
     derived_keys: Arc<deployment_identity::DerivedKeys>,
 }
 
@@ -329,6 +331,7 @@ impl Store {
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
             modules_dir: None,
             module_epoch: Arc::default(),
+            attachment_link_epoch: Arc::default(),
             derived_keys: Arc::default(),
         }
     }

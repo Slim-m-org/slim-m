@@ -4,9 +4,13 @@
 //! Off the request path on purpose: an upload or a send never waits on it. One
 //! sweep finds attachments that are in a message and not yet processed, newest
 //! first, which covers new uploads and the backfill of old ones with the same
-//! code. Files are handled one at a time, reading at most the per-kind byte
-//! limit, so memory stays flat however many arrive at once. PDFs are parsed in
-//! a resource-limited child process (see [`pdf_worker`]); an encrypted,
+//! code. Once a pass finds nothing waiting, the next ones skip the lookup until
+//! a message links an attachment, so a caught-up server does not rescan every
+//! attachment on each tick.
+//!
+//! Files are handled one at a time, reading at most the per-kind byte limit, so
+//! memory stays flat however many arrive at once. PDFs are parsed in a
+//! resource-limited child process (see [`pdf_worker`]); an encrypted,
 //! oversized, hostile or scanned PDF simply yields no text. There is no OCR.
 //!
 //! A file is marked processed before a PDF is parsed, so a crash mid-parse
@@ -19,6 +23,7 @@ mod pdf_worker;
 mod retry;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use tokio::io::AsyncReadExt;
@@ -46,6 +51,8 @@ enum Outcome {
 pub struct TextExtractor {
     worker: Option<PdfWorker>,
     retries: Retries,
+    /// The [`Store::attachment_link_epoch`] at which a pass last found nothing waiting; none yet is `u64::MAX`.
+    caught_up_at: AtomicU64,
 }
 
 impl TextExtractor {
@@ -59,20 +66,28 @@ impl TextExtractor {
         Self {
             worker,
             retries: Retries::new(retry_backoff),
+            caught_up_at: AtomicU64::new(u64::MAX),
         }
     }
 
     /// One pass: extracts up to a bounded number of waiting attachments and
     /// returns how many it settled.
     pub async fn run_pass(&self, store: &Store, media: &Media) -> usize {
-        let (mut attempted, mut done) = (0, 0);
+        let epoch = store.attachment_link_epoch();
+        if self.caught_up_at.load(Ordering::Acquire) == epoch {
+            return 0;
+        }
+        let (mut attempted, mut done, mut drained) = (0, 0, false);
         while attempted < MAX_PER_PASS {
             let batch = match store
                 .attachments_awaiting_text(BATCH, &self.retries.waiting())
                 .await
             {
                 Ok(batch) if !batch.is_empty() => batch,
-                Ok(_) => break,
+                Ok(_) => {
+                    drained = true;
+                    break;
+                }
                 Err(err) => {
                     tracing::warn!(error = %err, "attachment text lookup failed");
                     break;
@@ -85,6 +100,9 @@ impl TextExtractor {
                 attempted += 1;
                 tokio::time::sleep(PAUSE_BETWEEN_FILES).await;
             }
+        }
+        if drained && self.retries.is_empty() {
+            self.caught_up_at.store(epoch, Ordering::Release);
         }
         done
     }
