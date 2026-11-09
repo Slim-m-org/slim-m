@@ -9,10 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../permissions.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../channels/providers/channel_permissions.dart';
+import '../providers/voice_flags.dart';
 import '../providers/voice_roster.dart';
 import '../providers/voice_actions.dart';
 
@@ -109,8 +111,16 @@ class _DestinationRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final present =
+    // The roster never lists this client, so a mover already in the channel is added back.
+    final selfInside = ref.watch(
+      voiceFlagsProvider.select(
+        (f) =>
+            f.state == VoiceSessionState.connected && f.channelId == channel.id,
+      ),
+    );
+    final others =
         ref.watch(voiceRosterProvider(channel.id)).valueOrNull?.length ?? 0;
+    final present = others + (selfInside ? 1 : 0);
     final full = !hasRoomFor(channel, present);
     return AppMenuItem(
       label: channel.name,
