@@ -355,6 +355,45 @@ async fn a_restore_protects_its_target_until_the_restore_itself_ages_out() {
     assert!(!op_survives(&pool, restore_op).await);
 }
 
+/// A backlog bigger than one batch drains in one tick instead of 500 rows per kind every six hours.
+#[tokio::test]
+async fn one_tick_sweeps_more_than_one_batch_of_each_kind() {
+    let (store, pool, _guard) = harness().await;
+    let actor = register(&store, "root").await;
+    let channel = general(&store).await;
+    let object = place(&store, channel, actor).await;
+    for _ in 0..600 {
+        let remove_op = submit(
+            &store,
+            channel,
+            actor,
+            CanvasOpRequest::Remove(vec![object]),
+        )
+        .await;
+        submit(
+            &store,
+            channel,
+            actor,
+            CanvasOpRequest::Restore {
+                target_op: remove_op,
+            },
+        )
+        .await;
+    }
+    age_all_ops(&pool, AGE_DAYS).await;
+
+    let swept = store.sweep_canvas_ops().await.unwrap();
+
+    assert_eq!(swept.restores, 600);
+    assert_eq!(swept.removes, 600);
+    let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM canvas_ops WHERE kind != 'place'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(left, 0, "nothing eligible waits for the next tick");
+    assert!(is_alive(&pool, object).await);
+}
+
 /// The account-deletion anonymization this table needs, the same treatment
 /// `canvas_ops.actor_id` and `message_ops.actor_id` already get - checked
 /// independently of the sweep, since a swept op's audit rows must be

@@ -5,8 +5,9 @@
 //! retried. See migration 0152.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 
-use sqlx::{QueryBuilder, Row};
+use sqlx::Row;
 
 use super::{Store, now_ms};
 use crate::ids::MessageId;
@@ -23,7 +24,35 @@ pub struct TextCandidate {
     pub filename: Option<String>,
 }
 
+/// `?1` is the search text and `{ids}` the message ids to check. The messages' own text is probed per
+/// candidate row with `NOT EXISTS` rather than `NOT IN`, which would build the whole corpus's hit set first.
+const MATCHING_TEXT_SQL: &str = "SELECT ma.message_id AS message_id, ma.sha256 AS sha256 \
+    FROM message_attachments ma \
+    LEFT JOIN attachment_text t ON t.sha256 = ma.sha256 \
+    JOIN messages m ON m.id = ma.message_id \
+    WHERE m.is_encrypted = 0 \
+      AND (t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ?1) \
+           OR EXISTS (SELECT 1 FROM attachment_name_index n \
+                      WHERE n.message_id = ma.message_id AND n.sha256 = ma.sha256 \
+                        AND n.fts_rowid IN (SELECT rowid FROM attachment_name_fts \
+                                            WHERE attachment_name_fts MATCH ?1))) \
+      AND NOT EXISTS (SELECT 1 FROM messages_fts WHERE rowid = m.fts_rowid AND messages_fts MATCH ?1) \
+      AND ma.message_id IN ({ids}) \
+    ORDER BY ma.position DESC";
+
 impl Store {
+    /// Changes whenever a message gains an attachment link, the only way a file becomes
+    /// eligible for extraction, so the background pass can tell nothing new is waiting.
+    pub fn attachment_link_epoch(&self) -> u64 {
+        self.attachment_link_epoch.load(Ordering::Acquire)
+    }
+
+    /// Call after the transaction that linked attachments has committed: bumping earlier
+    /// lets a pass read the new epoch, miss the uncommitted link, and then record itself caught up.
+    pub(in crate::store) fn touch_attachment_links(&self) {
+        self.attachment_link_epoch.fetch_add(1, Ordering::AcqRel);
+    }
+
     /// The newest attachments in live, unencrypted messages that have not been
     /// through extraction yet, so recent uploads become searchable first and
     /// older ones follow as the background pass catches up. `skip` holds files
@@ -114,32 +143,17 @@ impl Store {
         if message_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let mut builder = QueryBuilder::new(
-            "SELECT ma.message_id AS message_id, ma.sha256 AS sha256
-             FROM message_attachments ma
-             LEFT JOIN attachment_text t ON t.sha256 = ma.sha256
-             JOIN messages m ON m.id = ma.message_id
-             WHERE m.is_encrypted = 0 AND (t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
-        );
-        builder.push_bind(query.to_owned());
-        builder.push(
-            ") OR EXISTS (SELECT 1 FROM attachment_name_index n WHERE n.message_id = ma.message_id \
-             AND n.sha256 = ma.sha256 AND n.fts_rowid IN \
-             (SELECT rowid FROM attachment_name_fts WHERE attachment_name_fts MATCH ",
-        );
-        builder.push_bind(query.to_owned());
-        builder.push(
-            "))) AND m.fts_rowid NOT IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ",
-        );
-        builder.push_bind(query.to_owned());
-        builder.push(") AND ma.message_id IN (");
-        let mut separated = builder.separated(", ");
+        let placeholders = (2..message_ids.len() + 2)
+            .map(|n| format!("?{n}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = MATCHING_TEXT_SQL.replace("{ids}", &placeholders);
+        let mut matching = sqlx::query(&sql).bind(query.to_owned());
         for id in message_ids {
-            separated.push_bind(*id);
+            matching = matching.bind(*id);
         }
-        builder.push(") ORDER BY ma.position DESC");
         let mut found = HashMap::new();
-        for row in builder.build().fetch_all(&self.pool).await? {
+        for row in matching.fetch_all(&self.pool).await? {
             let sha256: Vec<u8> = row.try_get("sha256")?;
             // Descending by position, so the first attachment wins the overwrite.
             found.insert(row.try_get("message_id")?, to_hex(&sha256));

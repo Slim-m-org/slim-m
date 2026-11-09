@@ -159,6 +159,55 @@ async fn one_tick_clears_more_than_one_batch() {
 }
 
 #[tokio::test]
+async fn a_thread_follows_its_channels_longer_window_not_the_space_window() {
+    let (s, pool, _guard) = harness("slimm-chan-retention-thread-window").await;
+    let admin = register(&s, "root").await;
+    let feed = general(&s).await;
+    let other = s.create_channel("other", "text").await.unwrap().id;
+    let anchor = post(&s, &pool, feed, admin, 1).await;
+    let thread = s.open_thread(feed, anchor).await.unwrap().channel.id;
+    let kept_reply = post(&s, &pool, thread, admin, 20).await;
+    let old_reply = post(&s, &pool, thread, admin, 40).await;
+    let kept_feed = post(&s, &pool, feed, admin, 20).await;
+    let pruned_other = post(&s, &pool, other, admin, 20).await;
+    s.set_message_retention_days(7).await.unwrap();
+    s.set_channel_retention_days(feed, Some(30)).await.unwrap();
+
+    s.sweep_message_retention().await.unwrap();
+
+    assert!(
+        is_live(&s, kept_reply).await,
+        "the thread has the 30 day window"
+    );
+    assert!(is_live(&s, kept_feed).await);
+    assert!(!is_live(&s, old_reply).await);
+    assert!(
+        !is_live(&s, pruned_other).await,
+        "the Space window still applies elsewhere"
+    );
+}
+
+#[tokio::test]
+async fn deleted_channel_and_channel_window_backlogs_each_clear_in_one_tick() {
+    let (s, pool, _guard) = harness("slimm-chan-retention-two-backlogs").await;
+    let admin = register(&s, "root").await;
+    let gone = s.create_channel("gone", "text").await.unwrap().id;
+    let windowed = general(&s).await;
+    for _ in 0..250 {
+        post(&s, &pool, gone, admin, 0).await;
+        post(&s, &pool, windowed, admin, 40).await;
+    }
+    s.delete_channel(gone).await.unwrap();
+    s.set_channel_retention_days(windowed, Some(30))
+        .await
+        .unwrap();
+
+    let swept = s.sweep_message_retention().await.unwrap();
+
+    assert_eq!(swept.pruned.len(), 500, "neither source waits on the other");
+}
+
+#[tokio::test]
 async fn the_space_preview_leaves_out_channels_with_their_own_window() {
     let (s, pool, _guard) = harness("slimm-chan-retention-space-preview").await;
     let admin = register(&s, "root").await;

@@ -35,9 +35,10 @@ use super::super::forward_cascade::{
     Copy, DetachedForward, detach_forward, live_copies_of, orphaned_copies,
 };
 use super::super::{Store, now_ms};
+use super::retention_candidates::expired_candidates;
 use crate::ids::{ChannelId, MessageId, UserId};
 
-const DAY_MS: i64 = 24 * 60 * 60 * 1000;
+pub(super) const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 
 /// Bounds how long the content-pruning pass can hold the write lock: each
 /// row costs an op insert and an attachment release, so this is smaller than
@@ -173,28 +174,8 @@ impl Store {
 
         let mut tx = self.begin_write().await?;
         let now = now_ms();
-        // A deleted channel has no way back, so what is left in it (and its threads) only holds disk.
-        let candidates = sqlx::query_scalar!(
-            r#"SELECT m.id AS "id!: MessageId" FROM messages m
-               JOIN channels c ON c.id = m.channel_id
-               LEFT JOIN messages pm ON pm.id = c.parent_message_id
-               LEFT JOIN channels p ON p.id = pm.channel_id
-               LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(p.id, c.id)
-               WHERE m.deleted_at IS NULL
-                 AND (c.deleted_at IS NOT NULL
-                      OR p.deleted_at IS NOT NULL
-                      OR (COALESCE(cr.retention_days, ?1) > 0
-                          AND m.created_at < ?2 - COALESCE(cr.retention_days, ?1) * ?3))
-               ORDER BY m.created_at ASC
-               LIMIT ?4"#,
-            space_days,
-            now,
-            DAY_MS,
-            CONTENT_SWEEP_BATCH
-        )
-        .fetch_all(&mut *tx)
-        .await?;
-        let mut candidates = candidates;
+        let mut candidates =
+            expired_candidates(&mut tx, space_days, now, CONTENT_SWEEP_BATCH).await?;
         // Copies of this batch and leftovers from a capped earlier tick; those with a note are detached, the rest join the delete.
         let mut copies = live_copies_of(&mut tx, &candidates).await?;
         copies.truncate(COPY_SWEEP_CAP);

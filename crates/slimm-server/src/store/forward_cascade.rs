@@ -55,10 +55,11 @@ pub struct ForwardCascade {
     pub detached: Vec<DetachedForward>,
 }
 
+/// `CROSS JOIN` keeps the forwards table as the outer loop; without statistics SQLite walks every live message instead.
 const COPY_COLUMNS: &str = "SELECT m.id, m.channel_id, \
     (TRIM(m.content) <> '' OR EXISTS \
         (SELECT 1 FROM message_attachments a WHERE a.message_id = m.id)) AS has_note \
-    FROM message_forwards f JOIN messages m ON m.id = f.message_id ";
+    FROM message_forwards f CROSS JOIN messages m ON m.id = f.message_id ";
 
 fn copy_from(row: &sqlx::sqlite::SqliteRow) -> Result<Copy, sqlx::Error> {
     use sqlx::Row;
