@@ -408,6 +408,11 @@ impl Hub {
         self.sender.len()
     }
 
+    /// Connections and consumers currently subscribed to the durable channel.
+    pub fn durable_subscribers(&self) -> usize {
+        self.sender.receiver_count()
+    }
+
     /// The number of the latest moderation event, for the connect `hello`; see
     /// `hub::moderation_seq`.
     pub fn moderation_head(&self) -> u64 {
