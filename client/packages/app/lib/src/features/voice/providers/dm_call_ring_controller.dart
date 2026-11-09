@@ -160,10 +160,11 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   }
 
   void _onCallKitEnded(String callId) {
+    if (callId != _callKitCallId) return;
     final declined = state.callKit == CallKitPhase.ringing;
     final ring = state.incoming;
     final answeredChannel = _answeredChannelId;
-    if (callId == _callKitCallId) _forgetCallKit();
+    _forgetCallKit();
     state = state.copyWith(callKit: CallKitPhase.none);
     if (declined && ring != null) unawaited(decline(ring));
     if (!declined && answeredChannel != null) _hangUpIfStillOn(answeredChannel);

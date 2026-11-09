@@ -65,7 +65,9 @@ enum CallKitCallEvent: Equatable {
 /// asserting on happens here against an injected `CallReporting`.
 final class VoipCallHandler {
   private let provider: CallReporting
-  private var answered = Set<UUID>()
+  private let ringWindow: TimeInterval
+  private var ringTimers: [UUID: DispatchWorkItem] = [:]
+  private let ringTimersLock = NSLock()
 
   /// Set after construction so the tests' one-argument initializer still works.
   var onEvent: ((CallKitCallEvent) -> Void)?
@@ -73,33 +75,60 @@ final class VoipCallHandler {
   /// Matches the server's ring timeout, past which the ring is over.
   static let ringTimeout: TimeInterval = 30
 
-  init(provider: CallReporting) {
+  init(provider: CallReporting, ringTimeout: TimeInterval = VoipCallHandler.ringTimeout) {
     self.provider = provider
+    self.ringWindow = ringTimeout
   }
 
   /// A call the user picked up must outlive the unanswered-ring timeout below.
   func callAnswered(_ id: UUID) {
-    answered.insert(id)
+    cancelRingTimer(id)
     onEvent?(.answered(id))
   }
 
   /// The user ended or declined the call on the system screen.
   func callEnded(_ id: UUID) {
-    answered.remove(id)
+    cancelRingTimer(id)
     onEvent?(.ended(id))
   }
 
   /// Dart reports the ring or the in-app call over, so the system call must not linger.
   func endCall(_ id: UUID) {
-    answered.remove(id)
+    cancelRingTimer(id)
     provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
   }
 
-  /// The caller name shown when the payload does not say who is calling.
+  /// The push is content-free, so no later push can say the caller hung up.
+  private func startRingTimer(_ id: UUID) {
+    let timer = DispatchWorkItem { [weak self] in
+      guard let self = self else { return }
+      _ = self.replaceRingTimer(id, with: nil)
+      self.provider.reportCall(with: id, endedAt: Date(), reason: .unanswered)
+      self.onEvent?(.ended(id))
+    }
+    replaceRingTimer(id, with: timer)?.cancel()
+    DispatchQueue.main.asyncAfter(deadline: .now() + ringWindow, execute: timer)
+  }
+
+  /// A call that already ended must not report a second end that could hit a newer ring.
+  private func cancelRingTimer(_ id: UUID) {
+    replaceRingTimer(id, with: nil)?.cancel()
+  }
+
+  /// CallKit's completion and its delegate callbacks are not promised to share a queue.
+  private func replaceRingTimer(_ id: UUID, with timer: DispatchWorkItem?) -> DispatchWorkItem? {
+    ringTimersLock.lock()
+    defer { ringTimersLock.unlock() }
+    let previous = ringTimers[id]
+    ringTimers[id] = timer
+    return previous
+  }
+
+  /// The caller name every call shows.
   ///
-  /// The push envelope is content-free by design, so this is what most calls
-  /// will show until the app is foregrounded and can resolve the channel. A
-  /// generic string is the honest thing to display rather than a guess.
+  /// The relay delivers only the sealed envelope, which this target holds no key for,
+  /// so there is no caller to read until the app is foregrounded and can resolve the channel.
+  /// A generic string is the honest thing to display rather than a guess.
   static let unknownCaller = "Incoming call"
 
   /// The one entry point PushKit's delegate uses, so the type check lives where the
@@ -118,11 +147,12 @@ final class VoipCallHandler {
   }
 
   /// Handles one VoIP push. `completion` is PushKit's, and is called only
-  /// after CallKit has been told about the call.
+  /// after CallKit has been told about the call. The payload is sealed, so it is
+  /// never read: every push is its own call.
   func handle(payload: [AnyHashable: Any], completion: @escaping () -> Void) {
-    let callId = Self.callId(from: payload)
+    let callId = UUID()
     let update = CXCallUpdate()
-    update.localizedCallerName = payload["caller"] as? String ?? Self.unknownCaller
+    update.localizedCallerName = Self.unknownCaller
     update.hasVideo = false
     update.supportsGrouping = false
     update.supportsUngrouping = false
@@ -132,13 +162,7 @@ final class VoipCallHandler {
     provider.reportNewIncomingCall(with: callId, update: update) { [provider, weak self] error in
       if error == nil {
         self?.onEvent?(.ringing(callId))
-        // The push is content-free, so no later push can say the caller hung up.
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.ringTimeout) {
-          if self?.answered.contains(callId) != true {
-            provider.reportCall(with: callId, endedAt: Date(), reason: .unanswered)
-            self?.onEvent?(.ended(callId))
-          }
-        }
+        self?.startRingTimer(callId)
       }
       if error != nil {
         // CallKit refused it (a call already up, Do Not Disturb, and so on).
@@ -148,16 +172,6 @@ final class VoipCallHandler {
       }
       completion()
     }
-  }
-
-  /// The call's identity, taken from the payload when it carries a usable one
-  /// so that a repeated push for the same call updates it rather than stacking
-  /// a second call on screen, and freshly generated when it does not.
-  static func callId(from payload: [AnyHashable: Any]) -> UUID {
-    if let raw = payload["call_id"] as? String, let parsed = UUID(uuidString: raw) {
-      return parsed
-    }
-    return UUID()
   }
 }
 

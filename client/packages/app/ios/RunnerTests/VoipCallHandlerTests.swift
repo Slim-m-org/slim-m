@@ -48,15 +48,13 @@ final class VoipCallHandlerTests: XCTestCase {
 
   func testAWellFormedPushReportsBeforeCompleting() {
     let provider = RecordingProvider()
-    let id = UUID()
-    let before = handle(
-      ["call_id": id.uuidString, "caller": "Alice"],
-      on: provider
-    )
+    let before = handle(["kind": "call", "payload": "sealed"], on: provider)
     XCTAssertTrue(before, "CallKit must be told before PushKit is released")
     XCTAssertEqual(provider.reported.count, 1)
-    XCTAssertEqual(provider.reported.first?.uuid, id)
-    XCTAssertEqual(provider.reported.first?.update.localizedCallerName, "Alice")
+    XCTAssertEqual(
+      provider.reported.first?.update.localizedCallerName,
+      VoipCallHandler.unknownCaller
+    )
   }
 
   func testAnEmptyPayloadStillReportsACall() {
@@ -86,20 +84,13 @@ final class VoipCallHandlerTests: XCTestCase {
     )
   }
 
-  func testAnUnparseableCallIdGetsAFreshOneRatherThanBeingDropped() {
+  func testEveryPushIsItsOwnCall() {
+    // The envelope is sealed, so no id in a payload can say two pushes are one call.
     let provider = RecordingProvider()
-    let before = handle(["call_id": "not-a-uuid"], on: provider)
-    XCTAssertTrue(before)
-    XCTAssertEqual(provider.reported.count, 1)
-  }
-
-  func testTheSameCallIdReportsTheSameCallRatherThanASecondOne() {
-    // A duplicate push for one call must update it, not stack another on
-    // screen, which is what a freshly generated id every time would do.
-    let id = UUID()
-    let payload: [AnyHashable: Any] = ["call_id": id.uuidString]
-    XCTAssertEqual(VoipCallHandler.callId(from: payload), id)
-    XCTAssertEqual(VoipCallHandler.callId(from: payload), id)
+    _ = handle(["call_id": UUID().uuidString], on: provider)
+    _ = handle(["call_id": UUID().uuidString], on: provider)
+    XCTAssertEqual(provider.reported.count, 2)
+    XCTAssertNotEqual(provider.reported[0].uuid, provider.reported[1].uuid)
   }
 
   func testACallKitRefusalEndsTheCallAndStillCompletes() {
@@ -143,9 +134,9 @@ final class VoipCallHandlerTests: XCTestCase {
       reportedWhenTold = !provider.reported.isEmpty
       seen.append(event)
     }
-    let id = UUID()
-    handler.handle(payload: ["call_id": id.uuidString]) {}
-    XCTAssertEqual(seen, [.ringing(id)])
+    handler.handle(payload: [:]) {}
+    guard let id = provider.reported.first?.uuid else { return XCTFail("nothing was reported") }
+    XCTAssertEqual(seen, [CallKitCallEvent.ringing(id)])
     XCTAssertTrue(reportedWhenTold, "Dart is told only once CallKit has the call")
   }
 
@@ -190,5 +181,75 @@ final class VoipCallHandlerTests: XCTestCase {
     XCTAssertEqual(provider.ended.first?.uuid, id)
     XCTAssertEqual(provider.ended.first?.reason, .remoteEnded)
     XCTAssertTrue(seen.isEmpty, "Dart asked for this end, so it needs no echo")
+  }
+
+  private func ring(
+    _ handler: VoipCallHandler,
+    provider: RecordingProvider
+  ) -> UUID {
+    handler.handle(payload: [:]) {}
+    return provider.reported[provider.reported.count - 1].uuid
+  }
+
+  private func letTheRingWindowPass() {
+    let passed = expectation(description: "the ring window passed")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { passed.fulfill() }
+    wait(for: [passed], timeout: 2)
+  }
+
+  func testAnUnansweredRingEndsAfterTheTimeout() {
+    let provider = RecordingProvider()
+    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+
+    let id = ring(handler, provider: provider)
+    letTheRingWindowPass()
+
+    XCTAssertEqual(provider.ended.map { $0.reason }, [.unanswered])
+    XCTAssertEqual(seen, [.ringing(id), .ended(id)])
+  }
+
+  func testADeclinedRingNeverTimesOutLater() {
+    // A stale end could otherwise decline a newer ring Dart is holding.
+    let provider = RecordingProvider()
+    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+
+    let id = ring(handler, provider: provider)
+    handler.callEnded(id)
+    letTheRingWindowPass()
+
+    XCTAssertEqual(seen, [.ringing(id), .ended(id)])
+    XCTAssertTrue(provider.ended.isEmpty)
+  }
+
+  func testACallDartEndedNeverTimesOutLater() {
+    let provider = RecordingProvider()
+    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+
+    let id = ring(handler, provider: provider)
+    handler.endCall(id)
+    letTheRingWindowPass()
+
+    XCTAssertEqual(seen, [.ringing(id)])
+    XCTAssertEqual(provider.ended.map { $0.reason }, [.remoteEnded])
+  }
+
+  func testAnAnsweredRingOutlivesTheTimeout() {
+    let provider = RecordingProvider()
+    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    var seen: [CallKitCallEvent] = []
+    handler.onEvent = { seen.append($0) }
+
+    let id = ring(handler, provider: provider)
+    handler.callAnswered(id)
+    letTheRingWindowPass()
+
+    XCTAssertEqual(seen, [.ringing(id), .answered(id)])
+    XCTAssertTrue(provider.ended.isEmpty)
   }
 }

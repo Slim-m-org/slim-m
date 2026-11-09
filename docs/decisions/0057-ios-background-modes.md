@@ -59,3 +59,13 @@ It then accepts and joins like an in-app accept.
 An empty list means the ring timed out or was cancelled, and the system call is ended through the `endCall` method on the `callkit_incoming` channel.
 The same `endCall` runs when a ring ends unanswered, a join fails, or the in-app call ends, since Swift only ends a call itself while it is unanswered.
 Not verified without a device: the Swift `endCall` path and the audio session when the system call ends beside the in-app call's own CallKit call.
+
+## One ring, one call (amended 2026-11-09)
+
+The relay forwards the sealed envelope and the `kind` only, so `VoipCallHandler` never reads a caller name or a call id from the push.
+It used to look for plaintext `caller` and `call_id` keys that no sender produces, and its comments promised a per-call dedupe that never applied.
+Those reads are gone: every push is its own CallKit call with a fresh id, and the label stays "Incoming call".
+Each reported call owns a timeout that is cancelled when the call is answered, ended on the system screen, or ended by Dart, so a finished call never reports a late end that could decline a newer ring.
+`DmCallRingController` also ignores an end event whose id is not the call it is tracking.
+Showing the caller would mean compiling `PushSealedBox`, `PushKeychain` and `PushEnvelope` into the Runner (it already holds the push keychain group).
+That stays an open product call, not part of this change.
