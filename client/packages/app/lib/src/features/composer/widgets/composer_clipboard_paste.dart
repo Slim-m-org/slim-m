@@ -34,12 +34,18 @@ bool isClipboardPasteChord(KeyEvent event) {
 /// a plain text paste stays a true no-op: [pasteClipboardImage] clears the
 /// error banner as its first act, and every Ctrl+V wiping a failure the
 /// person had not read yet would be its own small bug.
+///
+/// [textWins] is for a text field: copied cells or a slide carry their text
+/// beside a picture, and pasted into a field the text is what was meant, as the
+/// web route already decides. The "Paste image" row still forces the picture.
 Future<void> pasteClipboardImageFromKeystroke(
   Future<void> Function(Uint8List bytes, String filename) stage,
-  void Function(String? message) setError,
-) async {
+  void Function(String? message) setError, {
+  bool textWins = false,
+}) async {
   if (!pasteKeystrokeReadsClipboardImage) return;
   if (!await hasClipboardImage()) return;
+  if (textWins && await Clipboard.hasStrings()) return;
   await pasteClipboardImage(stage, setError);
 }
 

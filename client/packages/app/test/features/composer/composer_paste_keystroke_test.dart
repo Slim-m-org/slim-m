@@ -44,6 +44,15 @@ void _answer({required bool hasImage, Uint8List? image, String? readError}) {
       });
 }
 
+void _holdsText(bool holds) {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        return call.method == 'Clipboard.hasStrings'
+            ? <String, Object?>{'value': holds}
+            : null;
+      });
+}
+
 /// Presses [keys] in order, releases them in reverse, and reports what
 /// [isClipboardPasteChord] answered for each event **as it was dispatched**.
 ///
@@ -77,6 +86,8 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, null);
     debugDefaultTargetPlatformOverride = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
   testWidgets('Ctrl+V is the paste chord, and exactly once per press', (
@@ -146,6 +157,60 @@ void main() {
     expect(staged, ['pasted-image.png']);
     expect(error, isNull);
   });
+
+  test(
+    'copied cells, an image beside text, paste as text into a field',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      _answer(hasImage: true, image: _png);
+      _holdsText(true);
+
+      final staged = <String>[];
+      var setErrorCalls = 0;
+      await pasteClipboardImageFromKeystroke(
+        (bytes, filename) async => staged.add(filename),
+        (message) => setErrorCalls++,
+        textWins: true,
+      );
+
+      expect(staged, isEmpty, reason: 'the text is what the person meant');
+      expect(setErrorCalls, 0);
+    },
+  );
+
+  test(
+    'an image beside text still stages where no text field is focused',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      _answer(hasImage: true, image: _png);
+      _holdsText(true);
+
+      final staged = <String>[];
+      await pasteClipboardImageFromKeystroke(
+        (bytes, filename) async => staged.add(filename),
+        (_) {},
+      );
+
+      expect(staged, ['pasted-image.png']);
+    },
+  );
+
+  test(
+    'a text field still takes an image that has no text beside it',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      _answer(hasImage: true, image: _png);
+
+      final staged = <String>[];
+      await pasteClipboardImageFromKeystroke(
+        (bytes, filename) async => staged.add(filename),
+        (_) {},
+        textWins: true,
+      );
+
+      expect(staged, ['pasted-image.png']);
+    },
+  );
 
   test(
     'a clipboard holding no image stages nothing and clears nothing',
