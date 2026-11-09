@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -121,6 +122,7 @@ Future<CallFixture> joinCall(
   bool dark = false,
   double height = 844,
   bool withCanvasBar = false,
+  bool withStrip = false,
 }) async {
   tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1.0;
@@ -148,9 +150,12 @@ Future<CallFixture> joinCall(
               ? buildTheme(Brightness.dark, AppTokens.dark)
               : buildTheme(Brightness.light, AppTokens.light),
           home: Scaffold(
-            body: _callBody(
-              voice: VoiceScreen(channelId: 'channel-1', isDm: isDm),
-              withCanvasBar: withCanvasBar && width >= kCompactWidth,
+            body: _withStrip(
+              withStrip,
+              _callBody(
+                voice: VoiceScreen(channelId: 'channel-1', isDm: isDm),
+                withCanvasBar: withCanvasBar && width >= kCompactWidth,
+              ),
             ),
           ),
         ),
@@ -162,6 +167,17 @@ Future<CallFixture> joinCall(
   await tester.pump();
   return CallFixture(tester, harness, session);
 }
+
+/// The collapsed call strip under the call, for tests of what rebuilds it.
+Widget _withStrip(bool strip, Widget body) => !strip
+    ? body
+    : Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: body),
+          const VoiceStripIndicator(),
+        ],
+      );
 
 /// Side by side like the real shell: the canvas pane never stacks above the stage, and a phone shows one or the other.
 Widget _callBody({required Widget voice, required bool withCanvasBar}) {

@@ -48,4 +48,44 @@ void main() {
     );
     expect(calls, hasLength(1));
   });
+
+  test('a byte fetch on a dead pooled connection is sent again too', () async {
+    final calls = <String>[];
+    final fetched = await _api(calls).fetchAttachment('a');
+    expect(calls, ['GET /attachments/a', 'GET /attachments/a']);
+    expect(fetched.bytes, isNotEmpty);
+  });
+
+  test('a streamed download on a dead pooled connection is sent again too',
+      () async {
+    final calls = <String>[];
+    final download = await _api(calls).openAttachmentDownload('a');
+    await download.body.drain<void>();
+    expect(calls, ['GET /attachments/a', 'GET /attachments/a']);
+  });
+
+  test('a download that keeps dropping gives up after the one repeat',
+      () async {
+    var sent = 0;
+    final api = SlimmApi(
+      baseUrl: _base,
+      session: SessionStore(
+        tokens: const TokenPair(
+          userId: 'user-1',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ),
+      httpClient: MockClient((request) async {
+        sent++;
+        throw http.ClientException('Connection closed');
+      }),
+    );
+    await expectLater(
+      api.openAttachmentDownload('a'),
+      throwsA(isA<ConnectionDroppedException>()),
+    );
+    expect(sent, 2);
+  });
 }

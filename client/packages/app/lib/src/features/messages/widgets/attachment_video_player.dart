@@ -30,7 +30,7 @@ import '../../../widgets/attachment_format.dart';
 import '../../favorites/providers/favorite_actions.dart';
 import '../providers/message_api_actions.dart';
 import 'attachment_video_fullscreen.dart';
-import 'attachment_video_reopen.dart';
+import 'attachment_video_playback.dart';
 import 'attachment_video_source.dart' show AttachmentVideoSource;
 import 'attachment_video_source_io.dart'
     if (dart.library.js_interop) 'attachment_video_source_web.dart';
@@ -90,6 +90,20 @@ final attachmentVideoSurfaceProvider = Provider<AttachmentVideoSurfaceBuilder>(
       ),
 );
 
+/// Opens the fullscreen route, injectable because the real one mounts a `Video`
+/// that a headless test cannot give a texture.
+typedef AttachmentFullscreenOpener =
+    Future<void> Function(
+      BuildContext context, {
+      required Player player,
+      required VideoController controller,
+      required String filename,
+    });
+
+final attachmentFullscreenOpenerProvider = Provider<AttachmentFullscreenOpener>(
+  (ref) => showFullscreenAttachmentVideo,
+);
+
 /// Puts a whole video on the clipboard, injectable because the real one talks
 /// to the desktop runner.
 final clipboardFileWriterProvider = Provider<ClipboardFileWriter>(
@@ -115,40 +129,30 @@ class AttachmentVideoPlayer extends ConsumerStatefulWidget {
 
 class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     with GuardedActionState<AttachmentVideoPlayer> {
-  late final Player _player = ref.read(attachmentPlayerProvider)();
-  late final VideoController _videoController = ref.read(
-    attachmentVideoControllerProvider,
-  )(_player);
-  late final AttachmentVideoSource _source = ref.read(
-    attachmentVideoSourceProvider,
-  )();
-
+  AttachmentPlayback? _playback;
   bool _ready = false;
   bool _onScreen = false;
   bool _loadStarted = false;
   double? _fetchProgress;
-  StreamSubscription<String>? _errorSub;
-  late final StaleTokenReopener _reopener;
 
   api.Attachment get attachment => widget.attachment;
 
-  @override
-  void initState() {
-    super.initState();
-    // A decode failure mid-playback surfaces here rather than a thrown Future, since it can fire after open() already succeeded.
-    _errorSub = _player.stream.error.listen((_) {
-      if (_reopener.reopenIfStale()) return;
-      if (mounted) setActionError('Could not play ${attachment.filename}.');
-    });
-    _reopener = StaleTokenReopener(
-      player: _player,
-      source: _source,
+  /// Built on first visibility: a libmpv context is too costly for rows that are only inside the list's cache extent.
+  AttachmentPlayback _ensurePlayback() {
+    final existing = _playback;
+    if (existing != null) return existing;
+    final player = ref.read(attachmentPlayerProvider)();
+    final createController = ref.read(attachmentVideoControllerProvider);
+    return _playback = AttachmentPlayback(
+      player: player,
+      source: ref.read(attachmentVideoSourceProvider)(),
       apiClient: ref.read(apiProvider),
       attachment: attachment,
-      onFailure: () {
+      createController: () => createController(player),
+      onPlaybackError: () {
         if (mounted) setActionError('Could not play ${attachment.filename}.');
       },
-    )..start();
+    );
   }
 
   /// Opening the source is the expensive part, so it waits until the row is
@@ -169,7 +173,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     }
     // A video covered by its own fullscreen route is still being watched.
     if (_ready && (ModalRoute.isCurrentOf(context) ?? true)) {
-      unawaited(_player.pause());
+      unawaited(_playback!.player.pause());
     }
   }
 
@@ -180,7 +184,8 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
       _fetchProgress = null;
     });
     try {
-      final media = await _source.open(
+      final playback = _ensurePlayback();
+      final media = await playback.source.open(
         apiClient: ref.read(apiProvider),
         attachment: attachment,
         onProgress: (progress) {
@@ -188,9 +193,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
         },
       );
       if (!mounted) return;
-      // mpv picks its video output when a file opens, so without a render context first the file plays as audio over black.
-      _videoController;
-      await _player.open(media, play: false);
+      await playback.openPaused(media);
       if (!mounted) return;
       setState(() => _ready = true);
     } on api.ApiException catch (e, stack) {
@@ -213,13 +216,18 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     if (failure != null && mounted) setActionError(failure);
   }
 
-  Future<void> _openFullscreen() {
-    return showFullscreenAttachmentVideo(
-      context,
-      player: _player,
-      controller: _videoController,
-      filename: attachment.filename,
-    );
+  Future<void> _openFullscreen() async {
+    final playback = _playback!..retain();
+    try {
+      await ref.read(attachmentFullscreenOpenerProvider)(
+        context,
+        player: playback.player,
+        controller: playback.controller,
+        filename: attachment.filename,
+      );
+    } finally {
+      playback.release();
+    }
   }
 
   void _save() {
@@ -260,10 +268,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
 
   @override
   void dispose() {
-    unawaited(_errorSub?.cancel());
-    unawaited(_reopener.dispose());
-    _player.dispose();
-    _source.dispose();
+    _playback?.release();
     super.dispose();
   }
 
@@ -330,8 +335,8 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
                     ),
                     child: _ready
                         ? ref.watch(attachmentVideoSurfaceProvider)(
-                            _player,
-                            () => _videoController,
+                            _playback!.player,
+                            () => _playback!.controller,
                             _openFullscreen,
                             _save,
                             saving,

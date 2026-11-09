@@ -289,6 +289,9 @@ impl Store {
     pub async fn redeem_ws_ticket(&self, ticket: &str) -> anyhow::Result<Option<SessionContext>> {
         let hash = hash_secret(ticket);
         let now = now_ms();
+        if !self.ws_ticket_is_live(&hash, now).await? {
+            return Ok(None);
+        }
         let mut tx = self.begin_write().await?;
 
         // Claimed atomically as the first statement, so a double redemption
@@ -329,6 +332,20 @@ impl Store {
             session_id: claimed.session_id,
             device_id: claimed.device_id,
         }))
+    }
+
+    /// Whether an unspent, unexpired ticket has this hash. A read, so a guessed ticket never
+    /// queues for the single writer.
+    async fn ws_ticket_is_live(&self, hash: &str, now: i64) -> anyhow::Result<bool> {
+        Ok(sqlx::query_scalar!(
+            "SELECT 1 AS \"one!: i64\" FROM ws_tickets
+             WHERE ticket_hash = ? AND used_at IS NULL AND expires_at > ?",
+            hash,
+            now
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .is_some())
     }
 
     /// Revokes one session immediately (logout). Its bearer tokens stop

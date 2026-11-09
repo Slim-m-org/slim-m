@@ -122,9 +122,10 @@ Future<MessageSearchResult> _runSearch(
   if (parsed.isEmpty) {
     return const MessageSearchFailed();
   }
+  // Read before the await: a caller closed meanwhile (the palette) no longer owns its ref.
+  final blocks = read(blocksProvider);
   try {
     final hits = await call(parsed);
-    final blocks = read(blocksProvider);
     return MessageSearchHits(
       hits
           .where((message) => !blocks.contains(message.authorId))

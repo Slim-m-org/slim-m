@@ -34,7 +34,7 @@ if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
   exit 0
 fi
 
-if git diff --name-only "$base"..HEAD -- "$@" | grep -q .; then
+if [[ -n "$(git diff --name-only "$base"..HEAD -- "$@")" ]]; then
   echo "$job inputs moved since $base, which is the commit latest holds"
   echo "$key=true" >> "${GITHUB_OUTPUT:-/dev/stdout}"
 else

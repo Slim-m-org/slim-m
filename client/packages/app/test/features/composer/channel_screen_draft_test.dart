@@ -64,10 +64,15 @@ Map<String, dynamic> _sentJson(String id, String content) => {
 };
 
 class _Harness {
-  _Harness({required this.container, required this.posted});
+  _Harness({
+    required this.container,
+    required this.posted,
+    required this.store,
+  });
 
   final ProviderContainer container;
   final List<String> posted;
+  final MessageStore store;
 }
 
 Future<_Harness> _mount(
@@ -143,7 +148,7 @@ Future<_Harness> _mount(
   );
   await _flush(tester);
 
-  return _Harness(container: container, posted: posted);
+  return _Harness(container: container, posted: posted, store: store);
 }
 
 /// A bounded pump count, not `pumpAndSettle`: see `channel_screen_test.dart`
@@ -226,6 +231,57 @@ void main() {
       'a message for c1',
       reason: 'the words typed before switching away must still be there',
     );
+
+    await _unmount(tester);
+  });
+
+  testWidgets('text typed in the open channel reaches the disk without '
+      'leaving it', (tester) async {
+    final h = await _mount(tester, initial: 'c1');
+
+    await tester.enterText(_composerField, 'typed, then the app was killed');
+    await tester.pump(const Duration(seconds: 2));
+
+    final onDisk = await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      return h.store.drafts();
+    });
+    expect(
+      h.container.read(channelDraftsProvider).draftFor('c1'),
+      'typed, then the app was killed',
+    );
+    expect(onDisk, {'c1': 'typed, then the app was killed'});
+
+    await _unmount(tester);
+  });
+
+  testWidgets('text typed just before the app loses the foreground is saved '
+      'at once', (tester) async {
+    final h = await _mount(tester, initial: 'c1');
+
+    await tester.enterText(_composerField, 'still typing');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+
+    expect(
+      h.container.read(channelDraftsProvider).draftFor('c1'),
+      'still typing',
+    );
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await _unmount(tester);
+  });
+
+  testWidgets('emptying the field forgets the saved draft', (tester) async {
+    final h = await _mount(tester, initial: 'c1', savedDraft: 'old words');
+    await tester.runAsync(
+      () => h.container.read(channelDraftsProvider).restored,
+    );
+    await _flush(tester);
+
+    await tester.enterText(_composerField, '');
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(h.container.read(channelDraftsProvider).draftFor('c1'), isEmpty);
 
     await _unmount(tester);
   });

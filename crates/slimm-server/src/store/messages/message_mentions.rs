@@ -22,6 +22,10 @@ impl Store {
         mentioned: &[UserId],
         reply_ping: Option<UserId>,
     ) -> anyhow::Result<()> {
+        // Nothing to clear or write is the ordinary send; skip the write gate's turn.
+        if mentioned.is_empty() && !self.has_stored_mentions(message_id).await? {
+            return Ok(());
+        }
         let mut tx = self.begin_write().await?;
         sqlx::query!(
             "DELETE FROM message_mentions WHERE message_id = ?",
@@ -42,6 +46,15 @@ impl Store {
         }
         tx.commit().await?;
         Ok(())
+    }
+
+    async fn has_stored_mentions(&self, message_id: MessageId) -> anyhow::Result<bool> {
+        Ok(sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM message_mentions WHERE message_id = ?)",
+        )
+        .bind(message_id)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     /// Which of `message_ids` mention `viewer`, for [`MessageDto::mentions_me`].

@@ -233,7 +233,7 @@ See `docs/decisions/0039-bot-message-buttons.md`.
 At most 5 menu entries and 8 call controls.
 A label is 32 characters and an id 64 of letters, digits and `-_.`.
 An entry may name one `permission` bit; members without it neither see nor can use it.
-`icon` is for call controls only: `play`, `pause`, `stop`, `skip_next`, `skip_previous`, `volume`, `volume_off`, `repeat`, `shuffle` or `list`.
+`icon` is for call controls only: `play`, `pause`, `stop`, `skip_next`, `skip_previous`, `volume`, `volume_off`, `repeat`, `shuffle`, `list`, `settings` or `captions`.
 Members see your menu rows under your name and a Bot badge, after the app's own rows, and your controls in a call only while you are on it.
 
 Using one sends you the same `interaction.created` frame as a button, with `kind` set to `message_menu` or `call_control`, `custom_id` set to your entry id and the member's id and name.

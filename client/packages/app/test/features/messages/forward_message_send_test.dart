@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/widgets/group_avatar_stack.dart';
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -23,6 +24,7 @@ import 'package:slimm_app/src/features/messages/widgets/forward_message.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 
@@ -46,12 +48,15 @@ const _sourceMessage = data.Message(
 );
 
 /// Everything a test here needs: a real local store and a mocked API whose
-/// `/channels/c2/messages` POST is captured rather than actually sent
+/// `/channels/{c2,c3}/messages` POST is captured rather than actually sent
 /// anywhere, plus whatever attachments [attachments] stages on
 /// [_sourceMessage] before the picker ever opens.
 class _Harness {
-  _Harness({List<api.Attachment> attachments = const [], int sendStatus = 200})
-    : postedBodies = [] {
+  _Harness({
+    List<api.Attachment> attachments = const [],
+    this.sendStatus = 200,
+    this.dms = const [],
+  }) : postedBodies = [] {
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -69,6 +74,13 @@ class _Harness {
                   'created_at': 0,
                   'permissions': 1 << 2 | 1 << 10,
                 },
+                {
+                  'id': 'c3',
+                  'name': 'random',
+                  'kind': 'text',
+                  'created_at': 0,
+                  'permissions': 1 << 2 | 1 << 10,
+                },
               ]),
               200,
               headers: {'content-type': 'application/json'},
@@ -76,7 +88,7 @@ class _Harness {
           }
           if (request.method == 'GET' && request.url.path == '/dms') {
             return http.Response(
-              '[]',
+              jsonEncode(dms),
               200,
               headers: {'content-type': 'application/json'},
             );
@@ -88,17 +100,24 @@ class _Harness {
               headers: {'content-type': 'application/json'},
             );
           }
-          if (request.method == 'POST' &&
-              request.url.path == '/channels/c2/messages') {
+          final send = RegExp(
+            r'^/channels/(c\d)/messages$',
+          ).firstMatch(request.url.path);
+          if (request.method == 'POST' && send != null) {
             final body = jsonDecode(request.body) as Map<String, dynamic>;
             postedBodies.add(body);
+            postedChannels.add(send.group(1)!);
+            if (dropNextReply) {
+              dropNextReply = false;
+              throw http.ClientException('connection closed');
+            }
             if (sendStatus != 200) {
               return http.Response('{"error":"nope"}', sendStatus);
             }
             return http.Response(
               jsonEncode({
                 'id': body['id'],
-                'channel_id': 'c2',
+                'channel_id': send.group(1),
                 'author_id': 'bob',
                 'author_display_name': 'Bob',
                 'seq': 2,
@@ -135,7 +154,14 @@ class _Harness {
   final db = data.SlimmDatabase(NativeDatabase.memory());
   late final store = data.MessageStore(db);
   final List<Map<String, dynamic>> postedBodies;
+  final postedChannels = <String>[];
+  final List<Map<String, dynamic>> dms;
   late final ProviderContainer container;
+
+  int sendStatus;
+
+  /// The server takes the next send but its reply never arrives.
+  bool dropNextReply = false;
 
   Future<void> dispose() async {
     container.dispose();
@@ -167,6 +193,26 @@ Future<void> _pump(WidgetTester tester, _Harness harness) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Forward'));
   await tester.pumpAndSettle();
+}
+
+const _unreachable =
+    'Could not forward the message: the server could not be reached. '
+    'Nothing was changed.';
+
+final _noteField = find.ancestor(
+  of: find.text('Say something about it (optional)'),
+  matching: find.byType(TextField),
+);
+
+/// Taps the row labelled [label] and waits for its send to reach the server.
+Future<void> _tapTarget(
+  WidgetTester tester,
+  _Harness harness,
+  String label,
+) async {
+  final before = harness.postedBodies.length;
+  await tester.tap(find.text(label));
+  await waitUntil(tester, () => harness.postedBodies.length > before);
 }
 
 void main() {
@@ -226,13 +272,7 @@ void main() {
     addTearDown(harness.dispose);
     await _pump(tester, harness);
 
-    await tester.enterText(
-      find.ancestor(
-        of: find.text('Say something about it (optional)'),
-        matching: find.byType(TextField),
-      ),
-      '  look at this  ',
-    );
+    await tester.enterText(_noteField, '  look at this  ');
     await tester.tap(find.text('general'));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 5));
@@ -261,5 +301,98 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
     // The picker never popped: the target row is still there to retry.
     expect(find.text('general'), findsOneWidget);
+  });
+
+  testWidgets('a retry after a lost reply forwards with the same id', (
+    tester,
+  ) async {
+    final harness = _Harness()..dropNextReply = true;
+    addTearDown(harness.dispose);
+    await _pump(tester, harness);
+
+    await _tapTarget(tester, harness, 'general');
+    expect(find.text(_unreachable), findsOneWidget);
+    await _tapTarget(tester, harness, 'general');
+    await tester.pump(const Duration(seconds: 5));
+
+    final ids = [for (final b in harness.postedBodies) b['id']];
+    expect(ids, hasLength(2));
+    expect(ids[1], ids[0], reason: 'the server replays the forward it kept');
+  });
+
+  testWidgets('a forward to another channel after a failure is a new one', (
+    tester,
+  ) async {
+    final harness = _Harness()..dropNextReply = true;
+    addTearDown(harness.dispose);
+    await _pump(tester, harness);
+
+    await _tapTarget(tester, harness, 'general');
+    await _tapTarget(tester, harness, 'random');
+    await tester.pump(const Duration(seconds: 5));
+
+    expect(harness.postedChannels, ['c2', 'c3']);
+    expect(
+      harness.postedBodies[1]['id'],
+      isNot(harness.postedBodies[0]['id']),
+      reason: 'the server refuses an id already used in another channel',
+    );
+  });
+
+  testWidgets('a note changed after a failure is a new forward', (
+    tester,
+  ) async {
+    final harness = _Harness()..dropNextReply = true;
+    addTearDown(harness.dispose);
+    await _pump(tester, harness);
+
+    await tester.enterText(_noteField, 'look');
+    await _tapTarget(tester, harness, 'general');
+    await tester.enterText(_noteField, 'look at this');
+    await _tapTarget(tester, harness, 'general');
+    await tester.pump(const Duration(seconds: 5));
+
+    final ids = [for (final b in harness.postedBodies) b['id']];
+    expect(ids, hasLength(2));
+    expect(
+      ids[1],
+      isNot(ids[0]),
+      reason: 'a replayed id would send the old note',
+    );
+  });
+
+  testWidgets('a group DM is named and drawn as the group', (tester) async {
+    Map<String, dynamic> person(String id, String name) => {
+      'id': id,
+      'username': id,
+      'display_name': name,
+      'created_at': 0,
+    };
+    final harness = _Harness(
+      dms: [
+        {
+          'channel_id': 'g1',
+          'user': person('priya', 'Priya'),
+          'unread': 0,
+          'created_at': 0,
+          'group': {
+            'name': null,
+            'members': [
+              person('bob', 'Bob'),
+              person('priya', 'Priya'),
+              person('sam', 'Sam'),
+            ],
+          },
+        },
+      ],
+    );
+    addTearDown(harness.dispose);
+    await _pump(tester, harness);
+
+    expect(find.text('Priya and Sam'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((w) => w is GroupAvatarStack),
+      findsOneWidget,
+    );
   });
 }

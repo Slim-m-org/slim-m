@@ -71,6 +71,9 @@ class _ConnectedSession with VideoQualityRecorder implements VoiceSession {
   Stream<double> get autoInputThresholds => const Stream.empty();
 
   @override
+  Stream<double> get localAudioLevels => const Stream.empty();
+
+  @override
   double get inputThresholdDb => -50;
 
   @override

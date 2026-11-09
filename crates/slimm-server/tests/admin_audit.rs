@@ -334,3 +334,44 @@ async fn a_bot_prefix_change_is_recorded_with_the_new_prefix_and_a_refused_one_i
     assert_eq!(log[0]["actor_id"], admin.id.to_string());
     assert_eq!(log[0]["detail"]["prefix"], "~");
 }
+
+/// The log only reads small responses for a created id; a large one must reach the client whole.
+#[tokio::test]
+async fn an_audited_response_past_the_inspection_cap_reaches_the_client_whole() {
+    const CHANNELS: usize = 300;
+    let (s, _guard) = support::new_store("slimm-admin-audit-large-response").await;
+    let (admin, _member) = deployment(&s).await;
+    let token = s
+        .open_session(admin.id, "laptop")
+        .await
+        .unwrap()
+        .access_token;
+    let mut ids = Vec::with_capacity(CHANNELS);
+    for n in 0..CHANNELS {
+        let channel = s.create_channel(&format!("channel-{n:03}"), "text").await;
+        ids.push(channel.unwrap().id.to_string());
+    }
+    ids.reverse();
+    let router = app(s);
+
+    let reordered = router
+        .clone()
+        .oneshot(call(
+            "PUT",
+            "/channels/order",
+            &token,
+            Some(json!({ "channel_ids": ids })),
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(reordered.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(reordered.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert!(bytes.len() > 64 * 1024, "only {} bytes", bytes.len());
+    let channels: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(channels.as_array().unwrap().len(), CHANNELS);
+    let log = audit_log(&router, &token).await;
+    assert_eq!(log[0]["action"], "channel.reorder", "{log:?}");
+}

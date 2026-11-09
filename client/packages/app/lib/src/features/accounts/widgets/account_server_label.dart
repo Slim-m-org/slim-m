@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/space_icon.dart';
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../providers/account_providers.dart';
 
 typedef ServerIdentityBuilder =

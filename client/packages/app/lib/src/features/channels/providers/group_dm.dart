@@ -11,7 +11,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../ids.dart';
+import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import 'dms.dart';
@@ -58,15 +58,10 @@ api.Channel channelFromGroupDm(
   );
 }
 
-/// What a group sentence says about a refusal, naming the block instead of
-/// the generic "not allowed" so the person adding knows what to change.
-String describeGroupDmFailure(String whatFailed, api.ApiException e) =>
-    switch (e) {
-      api.ForbiddenException() =>
-        'Could not $whatFailed: a block between two of these people stops '
-            'them sharing a group.',
-      _ => e.message,
-    };
+/// A refused group action says the server's own reason (a block, the rules
+/// not accepted, a removal) instead of the generic "not allowed".
+String describeGroupDmFailure(String whatFailed, api.ForbiddenException e) =>
+    'Could not $whatFailed. ${sentenceCase(e.message)}';
 
 Future<void> _store(
   ProviderContainer container,
@@ -80,14 +75,16 @@ Future<void> _store(
 }
 
 /// Starts a group with [userIds] (2 to 9 others) and returns its channel id.
+/// [id] is kept by the caller across a retry, so a lost reply replays.
 Future<String> createGroupDm(
   ProviderContainer container,
   List<String> userIds, {
+  required String id,
   String? name,
 }) async {
   final conversation = await container
       .read(apiProvider)
-      .createGroupDirectMessage(userIds, id: newChannelId(), name: name);
+      .createGroupDirectMessage(userIds, id: id, name: name);
   await _store(container, conversation);
   return conversation.channelId;
 }

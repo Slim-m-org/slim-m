@@ -8,11 +8,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
@@ -29,7 +29,7 @@ Future<List<String>> _pumpAvatar(WidgetTester tester, int? updatedAt) async {
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       mockApiOverride((request) async {
         requested.add(request.url.path);
-        return http.Response('', 404);
+        return jsonHttpResponse({'error': 'user has no avatar'}, 404);
       }),
     ],
   );

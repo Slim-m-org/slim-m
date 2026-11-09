@@ -28,10 +28,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 const _grinningFace = '\u{1F600}'; // The catalog's first entry.
 
-/// Fixed at the same width `ComposerPickerPanel`'s real `AppMenu` gives this
-/// widget, so the sectioned grid's own column count - and so the rail's
-/// jump-offset math, which uses the same width - matches production rather
-/// than whatever an unconstrained test viewport happens to hand it.
+/// Fixed at the picker's own default width rather than whatever an
+/// unconstrained test viewport hands it; `emoji_rail_jump_test.dart` covers
+/// the narrower grid `ComposerPickerPanel`'s `AppMenu` padding leaves.
 Widget _harness(ValueChanged<String> onSelect) => ProviderScope(
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),

@@ -40,6 +40,25 @@ class EmojiSectionNavigation {
 
   double get _stride => _cell + AppSpacing.s4;
 
+  double _gridHeight(int count) =>
+      count == 0 ? 0.0 : (count / columns).ceil() * _stride - AppSpacing.s4;
+
+  /// Where [category]'s header sits in the scroll extent, or the end of the
+  /// list when it has no section.
+  double sectionTop(EmojiCategory category) {
+    var offset = 0.0;
+    for (final section in sections) {
+      if (section.category == category) return offset;
+      offset += _sectionExtent(section);
+    }
+    return offset;
+  }
+
+  double _sectionExtent(EmojiSection section) =>
+      EmojiSectionedGrid.headerHeight +
+      _gridHeight(section.emoji.length) +
+      EmojiSectionedGrid.sectionGap;
+
   /// The flat index one row up ([rows] -1) or down (+1) from [highlighted].
   ///
   /// Leaving a section's first or last row enters its neighbour in the same
@@ -98,14 +117,12 @@ class EmojiSectionNavigation {
   double _rowTop(int index) {
     var offset = 0.0;
     for (var s = 0; s < sections.length; s++) {
-      final count = sections[s].emoji.length;
-      offset += EmojiSectionedGrid.headerHeight;
-      if (index < _starts[s] + count) {
-        return offset + (index - _starts[s]) ~/ columns * _stride;
+      if (index < _starts[s] + sections[s].emoji.length) {
+        return offset +
+            EmojiSectionedGrid.headerHeight +
+            (index - _starts[s]) ~/ columns * _stride;
       }
-      final rows = (count / columns).ceil();
-      final gridHeight = count == 0 ? 0.0 : rows * _stride - AppSpacing.s4;
-      offset += gridHeight + EmojiSectionedGrid.sectionGap;
+      offset += _sectionExtent(sections[s]);
     }
     return offset;
   }

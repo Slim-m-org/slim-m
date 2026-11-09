@@ -9,6 +9,8 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+import 'clipboard_lone_web_address.dart';
+
 /// False here: the browser hands the bytes over on its own `paste` event, so a polling keystroke would stage the image twice.
 const bool pasteKeystrokeReadsClipboardImage = false;
 
@@ -82,7 +84,7 @@ Future<void> _readPastedImage(web.ClipboardEvent event) async {
   final items = data?.items;
   if (onImage == null || data == null || items == null) return;
   // Copied cells or a document carry text beside their picture; pasted into a text field, the text is what was meant.
-  if (_targetsTextField(event) && data.getData('text/plain').isNotEmpty) {
+  if (_targetsTextField(event) && _holdsRealText(data.getData('text/plain'))) {
     return;
   }
   for (var i = 0; i < items.length; i++) {
@@ -97,6 +99,9 @@ Future<void> _readPastedImage(web.ClipboardEvent event) async {
     return;
   }
 }
+
+bool _holdsRealText(String text) =>
+    text.trim().isNotEmpty && !isLoneWebAddress(text);
 
 bool _targetsTextField(web.Event event) {
   final target = event.target;

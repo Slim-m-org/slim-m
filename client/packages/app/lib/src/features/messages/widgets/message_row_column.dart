@@ -13,6 +13,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/author_is_bot.dart';
+import '../providers/message_editing.dart' show messageEditProgressProvider;
 import '../providers/message_extras.dart' show MessageExtras;
 import '../../../providers/providers.dart' show sessionProvider;
 import '../../modules/widgets/app_surface_view.dart';
@@ -32,6 +33,7 @@ import 'card_spacing.dart';
 import 'message_inline.dart' show extractLinkPreviewUrls;
 import 'message_row_identity.dart';
 import 'message_row_parts.dart';
+import 'poll_vote_failure_line.dart';
 import 'message_text.dart';
 import '../../composer/widgets/poll_view.dart';
 import 'reactions_row.dart';
@@ -102,7 +104,7 @@ class MessageRowColumn extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ..._header(ref, isBot),
-        ..._body(edited),
+        ..._body(ref, edited),
         ..._cards(edited),
         ..._footer(),
         if (_endsInCard) const SizedBox(height: kCardBottomGap),
@@ -178,16 +180,12 @@ class MessageRowColumn extends ConsumerWidget {
       ),
   ];
 
-  List<Widget> _body(Widget? edited) => [
+  List<Widget> _body(WidgetRef ref, Widget? edited) => [
     if (editing)
       Padding(
         // The row is raised while editing; the field needs air above the fill's edge.
         padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-        child: MessageEditField(
-          initialContent: message.content,
-          onSubmit: callbacks.onSubmitEdit,
-          onCancel: callbacks.onCancelEdit,
-        ),
+        child: _editField(ref),
       )
     // An attachment-only message has no body; an empty one still adds a blank line above the image. A forward's own note is often empty too.
     else if (message.content.isNotEmpty)
@@ -228,6 +226,17 @@ class MessageRowColumn extends ConsumerWidget {
       ),
   ];
 
+  Widget _editField(WidgetRef ref) {
+    final progress = ref.watch(messageEditProgressProvider(message.id));
+    return MessageEditField(
+      initialContent: message.content,
+      onSubmit: callbacks.onSubmitEdit,
+      onCancel: callbacks.onCancelEdit,
+      saving: progress.saving,
+      failure: progress.failure,
+    );
+  }
+
   List<Widget> _cards(Widget? edited) => [
     BotUiFailureLine(messageId: message.id),
     if (message.forwarded case final forwarded?) _forwardedCard(forwarded),
@@ -242,6 +251,7 @@ class MessageRowColumn extends ConsumerWidget {
           onRank: callbacks.onRank,
         ),
       ),
+    if (extras.poll != null) PollVoteFailureLine(messageId: message.id),
     if (extras.call != null)
       Padding(
         padding: const EdgeInsets.only(top: AppSpacing.s4),

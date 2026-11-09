@@ -52,12 +52,24 @@ class PinsController extends StateNotifier<PinsState> {
       };
       if (matches) unawaited(refresh());
     });
+    _ref.listen(blocksProvider.select((blocks) => blocks.ids), (_, _) {
+      final fetched = _fetched;
+      if (fetched == null) return;
+      state = PinsState(
+        pinned: _unblocked(fetched),
+        failed: state.failed,
+        forbidden: state.forbidden,
+      );
+    });
     unawaited(refresh());
   }
 
   final Ref _ref;
   final String _channelId;
   late final StreamSubscription<api.ServerEvent> _sub;
+
+  /// The last fetch as the server sent it, so the block filter can be re-applied when it changes.
+  List<api.PinnedMessage>? _fetched;
 
   /// Bumped by every refresh, so an older response that lands after a newer
   /// one was started is dropped instead of overwriting it.
@@ -73,12 +85,8 @@ class PinsController extends StateNotifier<PinsState> {
     try {
       final all = await _ref.read(apiProvider).listPinnedMessages(_channelId);
       if (!mounted || generation != _generation) return;
-      // Somebody else's pin must not be a way around the viewer's own filter.
-      final blocks = _ref.read(blocksProvider);
-      final pinned = all
-          .where((pin) => !blocks.contains(pin.message.authorId))
-          .toList(growable: false);
-      state = PinsState(pinned: pinned);
+      _fetched = all;
+      state = PinsState(pinned: _unblocked(all));
     } on api.ForbiddenException catch (error, stack) {
       api.reportFailure(api.LogTag.ui, 'refresh pinned messages', error, stack);
       if (!mounted || generation != _generation) return;
@@ -88,6 +96,14 @@ class PinsController extends StateNotifier<PinsState> {
       if (!mounted || generation != _generation) return;
       state = PinsState(pinned: state.pinned, failed: true);
     }
+  }
+
+  /// Somebody else's pin must not be a way around the viewer's own filter.
+  List<api.PinnedMessage> _unblocked(List<api.PinnedMessage> all) {
+    final blocks = _ref.read(blocksProvider);
+    return all
+        .where((pin) => !blocks.contains(pin.message.authorId))
+        .toList(growable: false);
   }
 
   /// Pins a message, or leaves the timestamp alone if it already was one

@@ -24,7 +24,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, WRITE};
 use super::message_enrich::with_reactions;
 use super::messages::{MessageDto, parse_uuid};
-use super::sync_ops::{MessageOpDto, SYNC_RESPONSE_BYTES, ops_for_scope};
+use super::sync_ops::{MessageOpDto, OpHead, SYNC_RESPONSE_BYTES, ops_for_scope};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 
@@ -229,23 +229,40 @@ async fn sync(
         .permissions_in_channels(ctx.user_id, &channel_ids)
         .await?;
 
+    // Silently skip scopes the caller cannot view, so sync never confirms a
+    // hidden channel exists.
+    let viewable: Vec<(ScopeCursor, ChannelId)> = parsed
+        .into_iter()
+        .filter(|(_, channel_id)| {
+            permissions
+                .get(channel_id)
+                .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
+        })
+        .collect();
+
+    // Read after the permission check, never before it; two batched reads, not a few lookups per scope.
+    let viewable_ids: Vec<ChannelId> = viewable.iter().map(|(_, id)| *id).collect();
+    let heads = state.store.seq_heads(&viewable_ids).await?;
+    let op_cursor_ids: Vec<ChannelId> = viewable
+        .iter()
+        .filter(|(cursor, _)| cursor.after_op_seq.is_some())
+        .map(|(_, id)| *id)
+        .collect();
+    let floors = state.store.earliest_message_op_seqs(&op_cursor_ids).await?;
+
     let mut scopes = Vec::new();
     let mut budget = AGGREGATE_LIMIT;
     let mut bytes = SYNC_RESPONSE_BYTES;
-    for (cursor, channel_id) in parsed {
-        // Silently skip scopes the caller cannot view, so sync never confirms a
-        // hidden channel exists.
-        if !permissions
-            .get(&channel_id)
-            .is_some_and(|p| p.contains(Permissions::VIEW_CHANNEL))
-        {
-            continue;
-        }
+    for (cursor, channel_id) in viewable {
+        let head = heads.get(&channel_id).copied().unwrap_or_default();
+        let op_head = OpHead {
+            latest: head.message_op,
+            floor: floors.get(&channel_id).copied(),
+        };
+        let ops =
+            ops_for_scope(&state, channel_id, cursor.after_op_seq, op_head, &mut bytes).await?;
 
-        // Read after the permission check, never before it.
-        let ops = ops_for_scope(&state, channel_id, cursor.after_op_seq, &mut bytes).await?;
-
-        let latest = state.store.latest_message_seq(channel_id).await?;
+        let latest = head.message;
         let (messages, has_more, message_reset) = if cursor.after_seq > latest {
             // A cursor past the head is what a Litestream restore produces; see `sync_ops`.
             (Vec::new(), false, true)

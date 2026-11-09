@@ -101,7 +101,6 @@ class _ComposerPickerPanelState extends State<ComposerPickerPanel> {
               showGifTab: widget.showGifTab,
               // The richer pointer view; touch hosts SpaceEmojiSheetBody instead.
               emojiBody: ComposerEmojiPicker(
-                width: widget.width,
                 onSelect: widget.onSelectEmoji,
                 onClose: widget.onClose,
               ),

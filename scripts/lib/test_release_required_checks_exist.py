@@ -29,7 +29,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
-RELEASE_WORKFLOW = WORKFLOWS / "release.yml"
 
 JOBS_LINE = re.compile(r"^jobs:\s*$")
 JOB_KEY = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
@@ -61,15 +60,22 @@ def _job_names(text: str) -> list[str]:
     return found
 
 
+def required_check_lists() -> list[str]:
+    """Every `required_checks: "..."` handed to verify-release-checks, in any workflow."""
+    return [
+        entries
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        for entries in re.findall(r'required_checks:\s*"([^"]*)"', path.read_text())
+    ]
+
+
 class ReleaseRequiredChecksExistTest(unittest.TestCase):
     def setUp(self):
         self.all_names = []
         for path in sorted(WORKFLOWS.glob("*.yml")):
             self.all_names += _job_names(path.read_text())
         self.names = set(self.all_names)
-        self.lists = re.findall(
-            r'required_checks:\s*"([^"]*)"', RELEASE_WORKFLOW.read_text()
-        )
+        self.lists = required_check_lists()
 
     def test_the_parser_finds_jobs_at_all(self):
         self.assertGreater(
@@ -80,7 +86,7 @@ class ReleaseRequiredChecksExistTest(unittest.TestCase):
         )
 
     def test_every_required_check_names_a_real_job(self):
-        self.assertTrue(self.lists, "no required_checks string found in release.yml")
+        self.assertTrue(self.lists, "no required_checks string found in .github/workflows/")
         for entries in self.lists:
             for check in entries.split("|"):
                 self.assertIn(

@@ -39,7 +39,6 @@ class ComposerEmojiPicker extends ConsumerStatefulWidget {
     super.key,
     required this.onSelect,
     required this.onClose,
-    this.width = 320,
   });
 
   /// Exposed so a test can find this exact node rather than any other
@@ -48,7 +47,6 @@ class ComposerEmojiPicker extends ConsumerStatefulWidget {
 
   final ValueChanged<String> onSelect;
   final VoidCallback onClose;
-  final double width;
 
   @override
   ConsumerState<ComposerEmojiPicker> createState() =>
@@ -65,9 +63,15 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   List<PickerEmoji> _visible = const [];
   List<EmojiSection> _sections = const [];
 
+  /// What [_visible] and [_sections] were last derived from, so a hover or a
+  /// press, which only repaints, does not rebuild them.
+  String? _derivedQuery;
+  List<String>? _derivedRecent;
+  List<CustomEmoji>? _derivedCustom;
+
   /// Whichever tile the pointer sits over right now, by token rather than
-  /// by identity - a rebuild recomputes fresh [PickerEmoji] instances, so
-  /// comparing objects would drop a hover the moment anything else changed.
+  /// by identity - a new recent or custom list derives fresh [PickerEmoji]
+  /// instances, so comparing objects would drop a hover the moment one landed.
   String? _hoverToken;
   String? _pressToken;
 
@@ -92,11 +96,15 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
     });
   }
 
-  double get _gridCrossAxisExtent =>
-      widget.width -
-      EmojiCategoryRail.width -
-      AppSpacing.s4 -
-      2 * EmojiSectionedGrid.gridInset;
+  /// The grid's laid-out cross-axis extent, since the card around the picker
+  /// pads it below the card's own width.
+  double? _gridExtent;
+
+  EmojiSectionNavigation? _navigation(List<EmojiSection> sections) {
+    final extent = _gridExtent;
+    if (extent == null) return null;
+    return EmojiSectionNavigation(sections: sections, crossAxisExtent: extent);
+  }
 
   /// One cell left (-1) or right (+1), stopping at either end.
   void _moveCell(int delta) {
@@ -108,26 +116,21 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   /// flat grid by its own column count.
   void _moveRow(int rows) {
     if (_visible.isEmpty) return;
-    final searching = _query.trim().isNotEmpty;
-    _highlight(
-      searching
-          ? _searchGrid.step(_highlighted, _visible.length, rows)
-          : EmojiSectionNavigation(
-              sections: _sections,
-              crossAxisExtent: _gridCrossAxisExtent,
-            ).stepRow(_highlighted, rows),
-    );
+    if (_query.trim().isNotEmpty) {
+      _highlight(_searchGrid.step(_highlighted, _visible.length, rows));
+      return;
+    }
+    final navigation = _navigation(_sections);
+    if (navigation != null) _highlight(navigation.stepRow(_highlighted, rows));
   }
 
   void _highlight(int index) {
     if (_query.trim().isEmpty && _scrollController.hasClients) {
       final position = _scrollController.position;
-      _scrollController.jumpTo(
-        EmojiSectionNavigation(
-          sections: _sections,
-          crossAxisExtent: _gridCrossAxisExtent,
-        ).reveal(index, position.pixels, position.viewportDimension),
-      );
+      final offset = _navigation(
+        _sections,
+      )?.reveal(index, position.pixels, position.viewportDimension);
+      if (offset != null) _scrollController.jumpTo(offset);
     }
     setState(() => _highlighted = index);
   }
@@ -165,19 +168,37 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   }
 
   void _jumpTo(EmojiCategory category, List<EmojiSection> sections) {
-    final offset = emojiSectionScrollOffset(
-      category: category,
-      sections: sections,
-      crossAxisExtent: _gridCrossAxisExtent,
-    );
+    final navigation = _navigation(sections);
+    if (navigation == null) return;
     setState(() => _jumpedTo = category);
     unawaited(
       _scrollController.animateTo(
-        offset,
+        navigation.sectionTop(category),
         duration: AppMotion.base,
         curve: AppMotion.entrance,
       ),
     );
+  }
+
+  void _derive(List<String> recent, List<CustomEmoji> custom) {
+    if (_query == _derivedQuery &&
+        identical(recent, _derivedRecent) &&
+        identical(custom, _derivedCustom)) {
+      return;
+    }
+    _derivedQuery = _query;
+    _derivedRecent = recent;
+    _derivedCustom = custom;
+    _sections = pickerSections(recent: recent, custom: custom);
+    _visible = _query.trim().isNotEmpty
+        ? pickerResults(
+            query: _query,
+            // Ignored while searching; pickerResults only consults it otherwise.
+            category: EmojiCategory.smileysEmotion,
+            recent: recent,
+            custom: custom,
+          )
+        : [for (final section in _sections) ...section.emoji];
   }
 
   /// What a screen reader should hear once the view settles: a search's own
@@ -214,18 +235,9 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
     final custom =
         ref.watch(customEmojiProvider).valueOrNull ?? const <CustomEmoji>[];
     final searching = _query.trim().isNotEmpty;
-    final sections = pickerSections(recent: recent, custom: custom);
-    final results = searching
-        ? pickerResults(
-            query: _query,
-            // Ignored while searching; pickerResults only consults it otherwise.
-            category: EmojiCategory.smileysEmotion,
-            recent: recent,
-            custom: custom,
-          )
-        : [for (final section in sections) ...section.emoji];
-    _visible = results;
-    _sections = sections;
+    _derive(recent, custom);
+    final sections = _sections;
+    final results = _visible;
     if (_highlighted >= results.length) {
       _highlighted = results.isEmpty ? 0 : results.length - 1;
     }
@@ -276,13 +288,20 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
                       ),
                       const SizedBox(width: AppSpacing.s4),
                       Expanded(
-                        child: EmojiSectionedGrid(
-                          controller: _scrollController,
-                          sections: sections,
-                          highlighted: _highlighted,
-                          onTap: _pick,
-                          onHoverChange: _setHover,
-                          onPressChange: _setPress,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            _gridExtent =
+                                constraints.maxWidth -
+                                2 * EmojiSectionedGrid.gridInset;
+                            return EmojiSectionedGrid(
+                              controller: _scrollController,
+                              sections: sections,
+                              highlighted: _highlighted,
+                              onTap: _pick,
+                              onHoverChange: _setHover,
+                              onPressChange: _setPress,
+                            );
+                          },
                         ),
                       ),
                     ],

@@ -3,6 +3,7 @@
 /// focusing one share, and stopping then resuming watching.
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -87,6 +88,8 @@ Future<void> _leave(_Call call) =>
 
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
 
+Key _stage(String id) => ValueKey('share-stage-$id');
+
 void main() {
   test('the grid picks the columns that give each share the most room', () {
     int cols(Size pane, int n) => shareGridFit(pane, n).columns;
@@ -126,6 +129,45 @@ void main() {
     debugOnRebuildDirtyWidget = null;
     // A width tween rebuilt the dock on each of its dozen frames, which stuttered the whole app.
     expect(dockBuilds, lessThanOrEqualTo(2));
+    await _leave(call);
+  });
+
+  testWidgets('a speaking flip rebuilds only the talker\'s tile', (
+    tester,
+  ) async {
+    VoiceParticipant who(String id, {bool speaking = false}) =>
+        VoiceParticipant(
+          identity: id,
+          name: id,
+          isLocal: id == 'me',
+          isSpeaking: speaking,
+          isMuted: false,
+          isScreenSharing: id == 'a',
+        );
+    final call = await _connected(tester, [
+      who('a'),
+      who('b'),
+      who('me'),
+    ], const Size(1600, 900));
+    final rebuilt = <String, int>{};
+    debugOnRebuildDirtyWidget = (element, _) {
+      final name = element.widget.runtimeType.toString();
+      rebuilt[name] = (rebuilt[name] ?? 0) + 1;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    for (var i = 0; i < 6; i++) {
+      call.session.emitParticipants([
+        who('a'),
+        who('b', speaking: i.isEven),
+        who('me'),
+      ]);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    debugOnRebuildDirtyWidget = null;
+    // Each flip once rebuilt the whole stage, share and header included (about 220 widgets).
+    expect(rebuilt['ScreenShareStage'], isNull);
+    expect(rebuilt['CallStageLayout'], isNull);
+    expect(rebuilt['CallParticipantTile'] ?? 0, lessThanOrEqualTo(6));
     await _leave(call);
   });
 
@@ -227,6 +269,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
     expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
+    await _leave(call);
+  });
+
+  testWidgets('refocusing starts the next share at fit', (tester) async {
+    final call = await _connected(tester, [_p('a'), _p('b')], _wide);
+    await rightClickMenu(tester, find.byKey(_stage('a')));
+    await tester.tap(find.text("Focus a's screen"));
+    await tester.pump(const Duration(milliseconds: 600));
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(
+      pointer.hover(tester.getCenter(find.byKey(_stage('a')))),
+    );
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
+    await tester.pump();
+    expect(find.byKey(const Key('share-zoom-level')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('share-thumb-b')));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
+    expect(find.byKey(const Key('share-zoom-level')), findsNothing);
     await _leave(call);
   });
 

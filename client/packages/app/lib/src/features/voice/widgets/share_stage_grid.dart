@@ -111,6 +111,8 @@ Widget _stageTile(
   bool focused = false,
   bool showCaption = true,
 }) => ScreenShareStage(
+  // Keyed by sharer so a refocus builds a new stage, which starts at fit.
+  key: ValueKey('share-stage-${sharer.identity}'),
   sharerName: sharer.name,
   isLocal: sharer.isLocal,
   popOutIdentity: sharer.identity,

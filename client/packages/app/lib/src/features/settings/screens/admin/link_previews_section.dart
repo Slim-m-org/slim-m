@@ -10,8 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
-import '../../../channels/widgets/channel_rail_frame.dart'
-    show serverInfoProvider;
+import '../../../../providers/server_info.dart';
 import '../../../../widgets/optimistic_setting_state.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';

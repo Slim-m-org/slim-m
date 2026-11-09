@@ -47,6 +47,9 @@ import 'poll_option_row.dart';
 import 'poll_text.dart';
 import '../../messages/widgets/ranked_poll_view.dart';
 
+/// The widest a poll card grows, so what sits under it can line up.
+const double pollCardMaxWidth = 360;
+
 class PollView extends StatefulWidget {
   const PollView({
     super.key,
@@ -115,7 +118,7 @@ class _PollViewState extends State<PollView> {
     final leadingPosition = _leadingPosition(poll);
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
+      constraints: const BoxConstraints(maxWidth: pollCardMaxWidth),
       padding: const EdgeInsets.all(AppSpacing.s12),
       decoration: BoxDecoration(
         color: tokens.surfaceRaised,

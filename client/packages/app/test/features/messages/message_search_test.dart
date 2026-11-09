@@ -5,6 +5,7 @@
 /// nothing at all is refused locally rather than sent.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,4 +104,28 @@ void main() {
     expect(requested, isFalse);
     expect(result, isA<MessageSearchFailed>());
   });
+
+  test(
+    'a result that lands after the caller is gone never uses its reader',
+    () async {
+      final gate = Completer<void>();
+      final container = _harness((request) async {
+        await gate.future;
+        return http.Response(jsonEncode(<Object>[]), 200);
+      });
+      var callerGone = false;
+      T read<T>(ProviderListenable<T> provider) {
+        if (callerGone) {
+          throw StateError('Cannot use "ref" after it was disposed.');
+        }
+        return container.read(provider);
+      }
+
+      final pending = searchChannelMessages(read, 'ch1', 'hello');
+      callerGone = true;
+      gate.complete();
+
+      expect(await pending, isA<MessageSearchHits>());
+    },
+  );
 }

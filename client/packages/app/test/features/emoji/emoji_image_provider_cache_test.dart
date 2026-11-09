@@ -198,10 +198,11 @@ void main() {
         cache: _FakeCache(),
         httpClient: MockClient((request) async {
           requests++;
-          if (requests == 1) {
-            if (mode == 'a 503') {
-              return http.Response('{"error":"down"}', 503);
-            }
+          if (mode == 'a 503' && requests == 1) {
+            return http.Response('{"error":"down"}', 503);
+          }
+          // The transport replays one dropped socket itself, so the drop must outlast that replay.
+          if (mode == 'a dropped connection' && requests <= 2) {
             throw http.ClientException('connection reset');
           }
           return http.Response.bytes(

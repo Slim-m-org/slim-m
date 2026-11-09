@@ -117,10 +117,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     WidgetRef ref,
     Message message,
     String content,
-  ) {
-    ref.read(editingMessageIdProvider(channelId).notifier).state = null;
-    unawaited(submitMessageEdit(ref, context, message, content));
-  }
+  ) => unawaited(submitMessageEdit(ref, context, message, content));
 
   void _onEditFailed(WidgetRef ref, Message message) {
     composer.text = message.content;

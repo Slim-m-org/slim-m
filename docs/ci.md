@@ -24,7 +24,7 @@ Each section below is named for its workflow file.
 | `licenses` | changes to any dependency manifest or lockfile or to `deny.toml`; every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | every Rust crate's and every pub package's license is in the one allowlist |
 | `sonar` | every pull request from this repository (a fork's PR has no secret to scan with) and every push to `main` | advisory SonarQube Cloud analysis (maintainability, duplication, complexity) under the `SONAR_TOKEN` secret, scoped by `sonar-project.properties`; never a required check |
 | `load` | by hand only (workflow_dispatch) | nothing. It boots a disposable local server and runs one k6 scenario (`fanout`, `http_mix` or `connect_storm`) against it, optionally under a samply CPU profile, and uploads the results directory as an artifact. It refuses any non-loopback target and is never a PR check |
-| `perf` | changes under `crates/`, `perf/`, the Cargo files; plus published `server-v*` releases, and `workflow_dispatch` with a tag to redo a missed one | benches compile on PRs; on a server release, benches plus five idle RSS runs on both libcs, committed to main as `perf/baselines/<version>.json` |
+| `perf` | changes under `crates/`, `perf/`, the Cargo files; plus published `server-v*` releases, and `workflow_dispatch` with a tag to redo a missed one | benches compile on PRs; on a server release, benches plus five idle RSS runs on both libcs, committed to main as `perf/baselines/<version>.json` (as a pull request when a branch rule refuses the push) |
 | `compose-smoke` | changes to the self-host stack, a weekly schedule, and by hand | `docker compose up` on a fresh box produces a working deployment |
 | `e2e` | every push to `main`; a nightly schedule; by hand; and pull requests (opened, updated, reopened or marked ready for review, never while a draft) only when they touch voice, calls, the canvas, the rtc/api packages, server auth/ws/hub/voice, migrations, the image, the schema or the harness (a superseded PR run is cancelled) | the whole product through two real headless browsers; advisory, not required |
 | `e2e-playwright` | every push to `main`; by hand; and the same path-gated, draft-skipping pull requests as `e2e` (opened, updated, reopened or marked ready for review), plus changes under `e2e/` (a superseded PR run is cancelled) | the product through two real browsers driven by Playwright Test, with a video of each user for every test; advisory, not required |
@@ -132,7 +132,7 @@ GitHub Actions does not support path filters on the `release` event, so the rele
 
 `compile-gate` is a fast compile-only gate on every pull request: it proves the benchmarks still build without paying for a full measurement run on each push.
 
-`benchmark` runs the real benchmarks once a release is published and uploads the criterion report as a workflow artifact; the `baseline` job commits the measured `perf/baselines/<version>.json` to main itself (see `perf/README.md`).
+`benchmark` runs the real benchmarks once a release is published and uploads the criterion report as a workflow artifact; the `baseline` job commits the measured `perf/baselines/<version>.json` to main itself, or opens a pull request for it when a branch rule refuses the push (see `perf/README.md`).
 It has no environment gate, and that is deliberate: it uploads only an intra-run workflow artifact, not a published release asset, so it is exempt for the same reason the release workflow's `server-binaries` build stage is.
 Reviewer-gated Environments are applied at the true publish boundary (GHCR push, release assets, TestFlight), not to build-time artifacts.
 No secrets are used.
@@ -354,6 +354,9 @@ A catch-up only submits a Version COPR does not yet have, so it does not collide
 
 The two desktop platforms `release` does not package: iOS goes through TestFlight, Android attaches an apk (no aab), and `linux-client` ships a tarball, an rpm and a flatpak, all from `release` itself.
 This fills the gap with unsigned archives good enough to hand a tester, without touching `release`'s gated publish jobs.
+It starts on the same tag push as `release`, so it carries its own copy of the gate: a `verify-client-ci` job calls `verify-release-checks.yml` for the tag with the same `required_checks` as `release`'s, and both build jobs need it.
+A red release commit therefore attaches no Windows or macOS download either.
+`scripts/lib/test_desktop_clients_waits_for_the_release_gate.py` keeps the two lists equal, and the structural tests over `required_checks` read both workflows.
 The Windows zip also carries the `slim-m.exe` launcher built from `packaging/windows/launcher`, `install.cmd` and `install.ps1` for the first per-user install, and a `VERSION` file (decision 0041).
 The same job compiles `packaging/windows/slim-m.iss` with a pinned, checksummed Inno Setup (the `install-inno-setup` action) into `slim-m-setup-<version>.exe` and attaches it beside the zip.
 

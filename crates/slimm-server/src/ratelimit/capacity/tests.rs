@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 use std::time::{Duration, Instant};
 
-use super::super::{MAX_BUCKETS, RateLimiter};
+use super::super::{MAX_BUCKETS, RECLAIM_INTERVAL, RateLimiter};
 use super::*;
 
 /// Fills the map with anonymous keys that each spent their whole burst at `at`.
@@ -45,6 +45,25 @@ fn a_full_map_of_throttled_buckets_refuses_anonymous_callers_but_not_members() {
         limiter.check_at(Class::Write, "u:019fa3ad-4dc8-7cb3-940a-a297eae87adf", soon),
         "a member is not locked out by someone else's flood"
     );
+}
+
+#[test]
+fn a_full_map_is_scanned_for_reclaimable_buckets_at_most_once_a_second() {
+    let limiter = RateLimiter::new();
+    let start = Instant::now();
+    fill_spent(&limiter, start);
+    let (burst, refill) = Class::Password.budget();
+    let refilled_at = start + Duration::from_secs_f64(burst / refill);
+
+    let first = refilled_at - Duration::from_millis(200);
+    assert!(!limiter.check_at(Class::Password, "ip:192.0.2.1", first));
+    let too_soon = refilled_at + Duration::from_millis(100);
+    assert!(
+        !limiter.check_at(Class::Password, "ip:192.0.2.2", too_soon),
+        "a second scan within the interval would hold the lock for every new key"
+    );
+    let due = first + RECLAIM_INTERVAL + Duration::from_millis(100);
+    assert!(limiter.check_at(Class::Password, "ip:192.0.2.3", due));
 }
 
 #[test]

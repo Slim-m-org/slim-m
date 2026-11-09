@@ -10,15 +10,13 @@
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
-use axum::http::request::Parts;
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::routing::post;
 
 use super::super::AppState;
-use super::super::extract::enforce;
+use super::super::extract::{LIVEKIT_WEBHOOK, RateLimited};
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
-use crate::ratelimit::Class;
 use crate::store::{SessionScope, VoiceEventKind};
 use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
 use crate::voice_notify::Activity;
@@ -36,15 +34,11 @@ pub fn routes() -> Router<AppState> {
 /// is `403`; a deployment with no SFU configured (so no secret to verify
 /// against) is `501`, the same code every other voice route uses for it.
 async fn receive(
+    _limited: RateLimited<LIVEKIT_WEBHOOK>,
     State(state): State<AppState>,
-    parts: Parts,
     headers: HeaderMap,
     body: Bytes,
 ) -> StatusCode {
-    if enforce(&state, &parts, None, Class::LiveKitWebhook).is_err() {
-        return StatusCode::TOO_MANY_REQUESTS;
-    }
-
     let authorization = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok());

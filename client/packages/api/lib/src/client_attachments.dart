@@ -2,7 +2,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'exceptions.dart';
 import 'models.dart';
@@ -54,8 +53,11 @@ extension SlimmApiAttachments on SlimmApi {
       onProgress: onProgress,
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return Attachment.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>);
+      return decodeShape(
+        decodeJsonReply(response, 'POST /attachments'),
+        'POST /attachments',
+        Attachment.fromJson,
+      );
     }
     throw errorFor(response);
   }
@@ -110,7 +112,7 @@ extension SlimmApiAttachments on SlimmApi {
       throw TransportException('$method $path failed: $e');
     }
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
-      await refresh();
+      await refreshUnlessRotated(token);
       return sendStreamed(
         method,
         path,
@@ -169,19 +171,25 @@ extension SlimmApiAttachments on SlimmApi {
   }) async {
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final request = http.Request('GET', requestUri(path, query))
-      ..headers['authorization'] = 'Bearer $token';
-    final http.StreamedResponse response;
-    try {
-      response = await link.client.send(request).timeout(requestDeadline);
-    } on TimeoutException {
-      throw TransportException('GET $path got no answer');
-    } catch (e) {
-      throw TransportException('GET $path failed: $e');
+    final uri = requestUri(path, query);
+    Future<http.StreamedResponse> attempt() async {
+      final request = http.Request('GET', uri)
+        ..headers['authorization'] = 'Bearer $token';
+      try {
+        return await link.client.send(request).timeout(requestDeadline);
+      } on TimeoutException {
+        throw TransportException('GET $path got no answer');
+      } on http.ClientException catch (e) {
+        throw ConnectionDroppedException('GET $path failed: $e');
+      } catch (e) {
+        throw TransportException('GET $path failed: $e');
+      }
     }
+
+    final response = await replayingDroppedSocket('GET', attempt);
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await response.stream.drain<void>();
-      await refresh();
+      await refreshUnlessRotated(token);
       return openDownload(path, query, isRetry: true);
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {

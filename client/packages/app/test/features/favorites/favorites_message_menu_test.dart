@@ -74,8 +74,16 @@ class _Server {
 
   final bool refuse;
   final posts = <Map<String, Object?>>[];
+  final saved = <Map<String, Object?>>[];
 
   Future<http.Response> handle(http.Request request) async {
+    if (request.method == 'GET' && request.url.path == '/favorites') {
+      return http.Response(
+        jsonEncode(saved),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     if (request.method == 'POST' && request.url.path == '/favorites') {
       final body = jsonDecode(request.body) as Map<String, Object?>;
       posts.add(body);
@@ -86,16 +94,18 @@ class _Server {
           headers: {'content-type': 'application/json'},
         );
       }
+      final favorite = <String, Object?>{
+        'id': body['id'],
+        'kind': 'attachment',
+        'title': 'x',
+        'width': 0,
+        'height': 0,
+        'available': true,
+        'created_at': 1,
+      };
+      saved.add(favorite);
       return http.Response(
-        jsonEncode({
-          'id': body['id'],
-          'kind': 'attachment',
-          'title': 'x',
-          'width': 0,
-          'height': 0,
-          'available': true,
-          'created_at': 1,
-        }),
+        jsonEncode(favorite),
         201,
         headers: {'content-type': 'application/json'},
       );
@@ -183,7 +193,10 @@ void main() {
     expect(server.posts.single['kind'], 'attachment');
     expect(server.posts.single['message_id'], 'm1');
     expect(server.posts.single['attachment_id'], 'a1');
-    expect(container.read(favoritesProvider).requireValue, hasLength(1));
+    final listed = await tester.runAsync(
+      () => container.read(favoritesProvider.future),
+    );
+    expect(listed, hasLength(1));
   });
 
   testWidgets('a refusal shows in place instead of failing silently', (

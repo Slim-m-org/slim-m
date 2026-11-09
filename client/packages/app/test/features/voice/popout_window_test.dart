@@ -328,6 +328,39 @@ void main() {
       await teardownFixture(tester, rig.container, rig.db);
     });
 
+    testWidgets('the mute button follows the call state', (tester) async {
+      final rig = await content(tester, 640);
+      await tester.tap(find.byTooltip('Mute'));
+      await tester.pump();
+      expect(find.byTooltip('Unmute'), findsOneWidget);
+      expect(find.byTooltip('Mute'), findsNothing);
+      await tester.tap(find.byTooltip('Unmute'));
+      await tester.pump();
+      expect(find.byTooltip('Mute'), findsOneWidget);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('a new feed replaces the one on show', (tester) async {
+      final rig = await content(tester, 640, frame: frame);
+      expect(find.text("Ada's screen"), findsOneWidget);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: rig.container,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: PopOutWindowView(
+              feed: (identity: 'u-bo', name: 'Bo', kind: FeedKind.screenShare),
+              frame: frame,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text("Bo's screen"), findsOneWidget);
+      expect(find.text("Ada's screen"), findsNothing);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
     testWidgets('control density follows the window width', (tester) async {
       final wide = await content(tester, 900);
       final pointer = tester.getSize(find.byTooltip('Mute')).height;

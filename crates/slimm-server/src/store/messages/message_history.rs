@@ -7,6 +7,30 @@ use super::super::Store;
 use super::message_reads::fetch_message;
 use crate::ids::MessageId;
 
+/// Superseded versions kept per message: the original plus the newest edits.
+pub const MAX_EDIT_REVISIONS: i64 = 50;
+const KEPT_NEWEST: i64 = MAX_EDIT_REVISIONS - 1;
+
+/// Drops the oldest edits except the original, so a message holds at most [`MAX_EDIT_REVISIONS`].
+///
+/// A dropped version folds into the next, which then reads as live from the dropped one's start.
+pub(in crate::store) async fn trim_edit_history(
+    tx: &mut sqlx::SqliteConnection,
+    id: MessageId,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "DELETE FROM message_edits WHERE message_id = ?1
+           AND id > (SELECT MIN(id) FROM message_edits WHERE message_id = ?1)
+           AND id <= (SELECT id FROM message_edits WHERE message_id = ?1
+                      ORDER BY id DESC LIMIT 1 OFFSET ?2)",
+    )
+    .bind(id)
+    .bind(KEPT_NEWEST)
+    .execute(tx)
+    .await?;
+    Ok(())
+}
+
 /// One version a message has held, oldest first in a
 /// [`Store::message_edit_history`] list. `at` is when this version became the
 /// message's content: the message's own `created_at` for the original, and
@@ -24,6 +48,9 @@ impl Store {
     /// deleted, the same gate [`Store::message`] and [`Store::edit_message`]
     /// use, so a deleted message exposes no history.
     ///
+    /// Past [`MAX_EDIT_REVISIONS`] it returns the original and the newest
+    /// edits; versions between them were trimmed by [`trim_edit_history`].
+    ///
     /// A never-edited message returns a single element - its original content
     /// at its `created_at`. `message_edits` holds each version this message
     /// replaced, in insertion order; the version live before edit `k` sits in
@@ -38,22 +65,28 @@ impl Store {
         let Some(message) = fetch_message(&mut *tx, id).await? else {
             return Ok(None);
         };
-        let replaced = sqlx::query!(
-            r#"SELECT content AS "content!: String", replaced_at AS "replaced_at!: i64"
-               FROM message_edits WHERE message_id = ? ORDER BY id ASC"#,
-            id
+        // The same rows the trim keeps, so a message not yet trimmed still answers a bounded page.
+        let replaced = sqlx::query_as::<_, (String, i64)>(
+            "SELECT content, replaced_at FROM message_edits
+             WHERE message_id = ?1
+               AND (id = (SELECT MIN(id) FROM message_edits WHERE message_id = ?1)
+                    OR id > COALESCE((SELECT id FROM message_edits WHERE message_id = ?1
+                                      ORDER BY id DESC LIMIT 1 OFFSET ?2), 0))
+             ORDER BY id ASC",
         )
+        .bind(id)
+        .bind(KEPT_NEWEST)
         .fetch_all(&mut *tx)
         .await?;
 
         let mut history = Vec::with_capacity(replaced.len() + 1);
         let mut became_live = message.created_at;
-        for row in &replaced {
+        for (content, replaced_at) in replaced {
             history.push(MessageRevision {
-                content: row.content.clone(),
+                content,
                 at: became_live,
             });
-            became_live = row.replaced_at;
+            became_live = replaced_at;
         }
         history.push(MessageRevision {
             content: message.content.clone(),

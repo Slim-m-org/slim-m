@@ -6,19 +6,25 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 /// [text] with the first case-insensitive occurrence of [query] in bold.
+///
+/// Matches in [text] itself: a lower-cased copy can be longer than the
+/// original (dart2js maps U+0130 to two code units), which skews its offsets.
 List<InlineSpan> paletteHighlightSpans(String text, String query) {
-  final at = query.isEmpty
-      ? -1
-      : text.toLowerCase().indexOf(query.toLowerCase());
-  if (at < 0) return [TextSpan(text: text)];
-  final end = at + query.length;
+  final match = query.isEmpty
+      ? null
+      : RegExp(
+          RegExp.escape(query),
+          caseSensitive: false,
+          unicode: true,
+        ).firstMatch(text);
+  if (match == null) return [TextSpan(text: text)];
   return [
-    if (at > 0) TextSpan(text: text.substring(0, at)),
+    if (match.start > 0) TextSpan(text: text.substring(0, match.start)),
     TextSpan(
-      text: text.substring(at, end),
+      text: match.group(0),
       style: const TextStyle(fontWeight: AppWeights.semi),
     ),
-    if (end < text.length) TextSpan(text: text.substring(end)),
+    if (match.end < text.length) TextSpan(text: text.substring(match.end)),
   ];
 }
 

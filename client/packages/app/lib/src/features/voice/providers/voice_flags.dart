@@ -17,6 +17,7 @@
 /// thread the roster through by accident.
 library;
 
+import 'package:flutter/foundation.dart' show listEquals, setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -176,10 +177,78 @@ final voiceParticipantsProvider = Provider<List<VoiceParticipant>>(
   (ref) => ref.watch(voiceControllerProvider.select((s) => s.participants)),
 );
 
+/// The roster with every speaking flag cleared, so a surface that lays people
+/// out rebuilds on a join, leave, mute or share, never on someone talking.
+/// Tiles read their own ring from [participantSpeakingProvider].
+final voiceSilentRosterProvider = Provider<List<VoiceParticipant>>(
+  (ref) => ref
+      .watch(
+        voiceControllerProvider.select((s) => _SilentRoster(s.participants)),
+      )
+      .participants,
+);
+
+/// Whether [identity] is talking right now; only that tile's ring rebuilds.
+final participantSpeakingProvider = Provider.family<bool, String>(
+  (ref, identity) => ref.watch(
+    voiceControllerProvider.select(
+      (s) => s.participants.any((p) => p.identity == identity && p.isSpeaking),
+    ),
+  ),
+);
+
+/// Who is talking right now, as a set that only changes when someone starts or stops.
+final speakingIdentitiesProvider = Provider<Set<String>>(
+  (ref) => ref
+      .watch(
+        voiceControllerProvider.select(
+          (s) => _SpeakingIds({
+            for (final p in s.participants)
+              if (p.isSpeaking) p.identity,
+          }),
+        ),
+      )
+      .ids,
+);
+
+class _SilentRoster {
+  _SilentRoster(List<VoiceParticipant> all)
+    : participants = [
+        for (final p in all) p.isSpeaking ? p.copyWith(isSpeaking: false) : p,
+      ];
+
+  final List<VoiceParticipant> participants;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SilentRoster && listEquals(other.participants, participants);
+
+  @override
+  int get hashCode => Object.hashAll(participants);
+}
+
+class _SpeakingIds {
+  _SpeakingIds(this.ids);
+
+  final Set<String> ids;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SpeakingIds && setEquals(other.ids, ids);
+
+  @override
+  int get hashCode => Object.hashAllUnordered(ids);
+}
+
 /// Your microphone as the native input gate reads it, about 20 times a
 /// second in a call; never emits where the host has no gate.
 final inputGateReadingProvider = StreamProvider.autoDispose<InputGateReading>(
   (ref) => ref.watch(voiceControllerProvider.notifier).input.inputGateReadings,
+);
+
+/// Your mic's level as the SFU reports it, for hosts with no input gate.
+final localReportedLevelProvider = StreamProvider.autoDispose<double>(
+  (ref) => ref.watch(voiceControllerProvider.notifier).input.localAudioLevels,
 );
 
 /// Where automatic sensitivity has put the gate threshold, as it moves.
@@ -199,9 +268,6 @@ final localMicLevelProvider = Provider<double>((ref) {
     // Twenty steps is as fine as the bar can show, and spares the rebuilds.
     return (fraction * 20).round() / 20;
   }
-  return ref.watch(
-    voiceParticipantsProvider.select(
-      (all) => all.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0,
-    ),
-  );
+  final reported = ref.watch(localReportedLevelProvider).valueOrNull ?? 0;
+  return (reported * 20).round() / 20;
 });

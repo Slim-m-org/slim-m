@@ -2,7 +2,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'exceptions.dart';
 import 'logging/app_log.dart';
@@ -394,7 +393,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       throw errorFor(response);
     }
     return decodeShape(
-      jsonDecode(response.body),
+      decodeJsonReply(response, 'PUT /attachments/uploads/$id'),
       'PUT /attachments/uploads/$id',
       UploadSession.fromJson,
     );

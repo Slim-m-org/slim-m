@@ -14,6 +14,7 @@ import '../features/auth/providers/account_state_refresh.dart';
 import '../features/channels/providers/channel_refresher.dart';
 import '../features/messages/providers/failed_send_retry.dart';
 import 'providers.dart';
+import 'server_info.dart';
 import 'app_lifecycle.dart';
 import '../sync/providers/reconnect_backoff.dart';
 import '../sync/providers/sync_failure.dart';
@@ -304,6 +305,8 @@ class SyncController extends StateNotifier<SyncStatus> {
       _reconnector.connected();
       state = SyncStatus.live;
       refreshAccountNotificationState(_ref, reconnect: _wasLive);
+      if (_wasLive) refreshRosterAfterReconnect(_ref);
+      refreshServerInfo(_ref, reconnect: _wasLive);
       _wasLive = true;
       _ref.read(hasFailedSinceLiveProvider.notifier).state = false;
       _ref.read(syncFailureProvider.notifier).state = null;

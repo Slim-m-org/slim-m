@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/members/widgets/profile_banner.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../../support/fake_api.dart';
 
@@ -147,7 +148,7 @@ void main() {
               headers: {'content-type': 'application/json'},
             );
           }
-          return http.Response('', 404);
+          return jsonHttpResponse({'error': 'user has no banner'}, 404);
         }),
       ],
     );

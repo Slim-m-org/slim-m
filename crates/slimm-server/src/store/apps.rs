@@ -37,7 +37,18 @@ pub enum CreateAppSurfaceError {
     /// Mirrors `CreatePollError::IdConflict`: a reused id must never return a
     /// foreign message.
     IdConflict,
+    /// The author last sent in this channel inside its slow-mode window.
+    SlowMode {
+        retry_after_seconds: i64,
+    },
     Internal(anyhow::Error),
+}
+
+/// The installed module command an app message launches.
+#[derive(Debug, Clone, Copy)]
+pub struct AppLaunch<'a> {
+    pub module_id: &'a str,
+    pub command: &'a str,
 }
 
 impl From<sqlx::Error> for CreateAppSurfaceError {
@@ -53,18 +64,20 @@ impl From<anyhow::Error> for CreateAppSurfaceError {
 }
 
 impl Store {
-    /// Sends a message that launches `module_id`'s `command`. Idempotent by
-    /// `id` within its `(channel, author)` scope, exactly like
-    /// [`super::messages::Store::send_message`].
+    /// Sends a message that launches `launch`. Idempotent by `id` within its
+    /// `(channel, author)` scope, exactly like [`super::messages::Store::send_message`].
+    /// A fresh send inside `slow_mode_window_ms` of the author's last message here is
+    /// refused under the write lock, as [`Store::send_message_with_slow_mode`] does.
     pub async fn send_app_message(
         &self,
         channel_id: ChannelId,
         author_id: UserId,
         id: MessageId,
         content: &str,
-        module_id: &str,
-        command: &str,
+        launch: AppLaunch<'_>,
+        slow_mode_window_ms: Option<i64>,
     ) -> Result<Sent, CreateAppSurfaceError> {
+        let AppLaunch { module_id, command } = launch;
         let now = now_ms();
         // Reads the message before deciding what to write; see Store::begin_write.
         let mut tx = self.begin_write().await?;
@@ -82,6 +95,18 @@ impl Store {
                 tx.commit().await?;
                 return Err(CreateAppSurfaceError::IdConflict);
             }
+        }
+
+        if let Some(window_ms) = slow_mode_window_ms
+            && let Some(retry_after_seconds) = crate::store::channel_slow_mode::retry_after_in_tx(
+                &mut tx, channel_id, author_id, window_ms, now,
+            )
+            .await?
+        {
+            tx.commit().await?;
+            return Err(CreateAppSurfaceError::SlowMode {
+                retry_after_seconds,
+            });
         }
 
         let message = insert_message_row(

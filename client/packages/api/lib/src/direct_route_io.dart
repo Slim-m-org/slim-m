@@ -28,10 +28,12 @@ class IoDirectRoute implements DirectRoute {
     PublicConnect? connectPublic,
     PublicConnect? connectDirect,
     DateTime Function()? clock,
+    String Function(Uri url)? findProxy,
   })  : _context = context,
         _connectPublic = connectPublic,
         _connectDirect = connectDirect,
-        _clock = clock ?? DateTime.now {
+        _clock = clock ?? DateTime.now,
+        _findProxy = findProxy {
     _client = _freshClient();
   }
 
@@ -40,6 +42,9 @@ class IoDirectRoute implements DirectRoute {
   final PublicConnect? _connectPublic;
   final PublicConnect? _connectDirect;
   final DateTime Function() _clock;
+
+  /// Where requests go through a proxy; null keeps dart:io's environment lookup (https_proxy and friends).
+  final String Function(Uri url)? _findProxy;
 
   /// The current pool. Kept-alive connections outlive the decision that
   /// opened them, so a route change starts a new pool; the old one finishes
@@ -94,7 +99,13 @@ class IoDirectRoute implements DirectRoute {
   WebSocketChannel connectWebSocket(Uri url) =>
       IOWebSocketChannel.connect(url, customClient: _currentClient());
 
-  HttpClient _freshClient() => HttpClient()..connectionFactory = _connect;
+  HttpClient _freshClient() => _withProxyLookup(HttpClient(context: _context))
+    ..connectionFactory = _connect;
+
+  HttpClient _withProxyLookup(HttpClient client) {
+    if (_findProxy case final find?) client.findProxy = find;
+    return client;
+  }
 
   /// The pool to use now, renewed when a direct attempt is due and the
   /// current pool would otherwise keep reusing a public connection.
@@ -125,6 +136,10 @@ class IoDirectRoute implements DirectRoute {
     String? proxyHost,
     int? proxyPort,
   ) async {
+    if (proxyHost != null && proxyPort != null) {
+      // The client tunnels and starts TLS itself, so this hop stays a plain socket to the proxy.
+      return Socket.startConnect(proxyHost, proxyPort);
+    }
     final secure = url.isScheme('https');
     final direct = _candidate(url, secure);
     if (direct == null) {
@@ -185,13 +200,20 @@ class IoDirectRoute implements DirectRoute {
   http.Client? pinnedClient({required bool direct}) {
     if (direct && _addresses.isEmpty) return null;
     final to = _addresses.isEmpty ? null : _addresses.first;
-    final client = HttpClient()
-      ..connectionFactory = (url, _, __) async => ConnectionTask.fromSocket(
-            direct && to != null
-                ? _dial(to, url)
-                : _public(url, url.isScheme('https')),
-            () {},
-          );
+    final client = _withProxyLookup(HttpClient(context: _context))
+      ..connectionFactory = (url, proxyHost, proxyPort) async {
+        if (proxyHost != null && proxyPort != null) {
+          return Socket.startConnect(proxyHost, proxyPort);
+        }
+        return ConnectionTask.fromSocket(
+          direct && to != null
+              ? _dial(to, url)
+              : _public(url, url.isScheme('https')),
+          () {},
+        );
+      };
+    // A LAN address is dialled itself, so no proxy can stand in for it.
+    if (direct) client.findProxy = (_) => 'DIRECT';
     return IOClient(client);
   }
 

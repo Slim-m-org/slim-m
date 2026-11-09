@@ -38,7 +38,7 @@ use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::embeds;
 use super::error::ApiError;
-use super::extract::{Json, Query, enforce};
+use super::extract::{Json, Query, RateLimited, WEBHOOK};
 use super::messages::{parse_uuid, validate_content};
 use super::module_hooks::{Draft, HookPoint, intercept};
 use super::post_commit::after_commit;
@@ -114,27 +114,27 @@ const USERNAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 ///
 /// Rate limiting is two independent charges against [`Class::Webhook`],
 /// charged in the order `docs/decisions/0030-incoming-webhooks.md` requires.
-/// The first is `enforce(..., None, ...)`, address-keyed exactly the way any
-/// unauthenticated route's charge already is, and charged before the token
-/// lookup so an unknown-token flood costs a map probe rather than a database
+/// The first is the `RateLimited` extractor, address-keyed exactly the way any
+/// unauthenticated route's charge already is. It runs before the body is read,
+/// so a request that trickles its body in still pays, and before the token
+/// lookup, so an unknown-token flood costs a map probe rather than a database
 /// query. The second, only once the credential resolves, keys on the
 /// webhook's own principal id instead - never the caller's address, for the
 /// same reason 0028 keys a bot's budget on its account rather than wherever
-/// it happens to be calling from - which `enforce`'s own signature has no
-/// shape for, so it is charged directly against the limiter.
+/// it happens to be calling from - which the extractor has no shape for, so it
+/// is charged directly against the limiter.
 ///
 /// A malformed id is a 400. Every other failure past the rate limit - an
 /// unknown id, a wrong token, or a revoked one - answers with the same 404, so
 /// this route is never an existence oracle for which webhook ids are live.
 async fn deliver(
+    _limited: RateLimited<WEBHOOK>,
     State(state): State<AppState>,
     parts: Parts,
     Path((webhook_id, token)): Path<(String, String)>,
     Query(params): Query<DeliverParams>,
     Json(body): Json<DeliverRequest>,
 ) -> Result<Response, ApiError> {
-    enforce(&state, &parts, None, Class::Webhook)?;
-
     let webhook_id = WebhookId(parse_uuid(&webhook_id)?);
     let Some(context) = state.store.authenticate_webhook(webhook_id, &token).await? else {
         return Err(ApiError::NotFound("no such webhook"));
@@ -143,7 +143,13 @@ async fn deliver(
     let principal_key = format!("u:{}", context.principal_id);
     state.limiter.admit(Class::Webhook, &principal_key)?;
 
-    let content = validate_content(body.content.as_deref().unwrap_or(""), false)?;
+    let embeds = embeds::build_embeds(
+        body.embeds.into_iter().map(Into::into).collect(),
+        &state.link_previews,
+    )?;
+    // Sonarr, Radarr and the like send an embed per event and no content at all.
+    let carries_more = embeds::any_visible(&embeds);
+    let content = validate_content(body.content.as_deref().unwrap_or(""), carries_more)?;
     let username = match body.username.as_deref().map(str::trim) {
         Some(name) if !name.is_empty() => {
             if name.chars().count() > USERNAME_MAX_CHARS {
@@ -161,10 +167,6 @@ async fn deliver(
         }
         _ => None,
     };
-    let embeds = embeds::build_embeds(
-        body.embeds.into_iter().map(Into::into).collect(),
-        &state.link_previews,
-    )?;
 
     let id = idempotent_message_id(&parts, webhook_id);
     let channel_id = context.channel_id;
@@ -183,7 +185,7 @@ async fn deliver(
                 actor: context.principal_id,
                 reply_to: None,
                 content,
-                carries_more: false,
+                carries_more,
                 own_module: None,
             };
             intercept(&state, &draft).await?
@@ -258,7 +260,10 @@ async fn deliver(
         super::threads::notify_reply(&state, channel_id).await;
     }
 
-    state.store.touch_webhook_delivery(webhook_id).await?;
+    after_commit(
+        "its delivery stamp",
+        state.store.touch_webhook_delivery(webhook_id).await,
+    );
 
     if params.wait {
         Ok((

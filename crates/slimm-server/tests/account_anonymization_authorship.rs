@@ -10,7 +10,7 @@ use support::reports::StoreReportExt;
 
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, MessageId};
 use slimm_server::store::{
-    CanvasOpRequest, CodeRunRecord, NewMessage, PlaceRequest, ReportSubject, Store,
+    AppLaunch, CanvasOpRequest, CodeRunRecord, NewMessage, PlaceRequest, ReportSubject, Store,
 };
 use sqlx::SqlitePool;
 
@@ -131,7 +131,17 @@ async fn delete_account_anonymizes_every_remaining_authorship_column() {
         .unwrap();
     let app = MessageId::generate();
     store
-        .send_app_message(channel, bob.id, app, "/tic-tac-toe", "tic-tac-toe", "play")
+        .send_app_message(
+            channel,
+            bob.id,
+            app,
+            "/tic-tac-toe",
+            AppLaunch {
+                module_id: "tic-tac-toe",
+                command: "play",
+            },
+            None,
+        )
         .await
         .expect("app surface sent");
 

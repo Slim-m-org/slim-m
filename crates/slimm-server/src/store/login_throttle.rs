@@ -2,8 +2,9 @@
 //! Password guess throttle: a bounded, decaying backoff at two levels.
 //!
 //! The first count is keyed by account and the caller's rate-limit address key, so a stranger's
-//! guesses only slow that stranger and never keep the real owner out. Past [`FREE_FAILURES`] each
-//! further failure doubles a delay capped at [`MAX_DELAY_MS`].
+//! guesses only slow that stranger and never keep the real owner out. Password re-authentication
+//! counts under the caller's own `u:` key. Past [`FREE_FAILURES`] each further failure doubles a
+//! delay capped at [`MAX_DELAY_MS`].
 //!
 //! A second count per account, across every address, bounds distributed guessing: many addresses
 //! each stay under their own budget, but together they spend [`ACCOUNT_FREE_FAILURES`] and then
@@ -72,6 +73,25 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         Ok(locked.is_some())
+    }
+
+    /// Milliseconds until password checks for this account from this caller stop being refused,
+    /// zero when they are not being refused.
+    pub async fn login_delay_remaining_ms(
+        &self,
+        user_id: UserId,
+        source: &str,
+    ) -> anyhow::Result<i64> {
+        let locked_until = sqlx::query_scalar!(
+            "SELECT MAX(locked_until) AS \"locked_until: i64\" FROM login_throttle
+             WHERE user_id = ? AND source IN (?, ?)",
+            user_id,
+            source,
+            ACCOUNT_SOURCE
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(locked_until.map_or(0, |until| (until - now_ms()).max(0)))
     }
 
     /// Counts a wrong password against the account from this caller and sets the next delay.

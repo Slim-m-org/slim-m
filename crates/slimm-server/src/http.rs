@@ -2,12 +2,16 @@
 //! HTTP surface: liveness, version, the auth routes, and the message routes. The
 //! WebSocket routes are added as the protocol is built.
 
+use std::sync::Arc;
 use std::time::Duration;
 
-use axum::extract::MatchedPath;
-use axum::http::StatusCode;
+use axum::extract::{MatchedPath, Request};
+use axum::http::header::RETRY_AFTER;
+use axum::http::{HeaderValue, StatusCode};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use axum::{Extension, Router, extract::State, routing::get};
-use tower::limit::ConcurrencyLimitLayer;
+use tokio::sync::Semaphore;
 use tower_http::timeout::{RequestBodyTimeoutLayer, TimeoutLayer};
 use tower_http::trace::TraceLayer;
 
@@ -67,6 +71,7 @@ mod join_gate;
 pub mod link_preview;
 pub mod linked_accounts;
 mod linked_avatar;
+mod manager_limited;
 mod member_permissions;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
@@ -188,9 +193,59 @@ const BODY_READ_TIMEOUT: Duration = Duration::from_secs(15);
 /// The equivalent of `hub::MAX_CONNECTIONS` for the other surface, and set to
 /// the same order of magnitude for the same reason: past some number, admitting
 /// more work makes every request slower rather than serving anybody. Requests
-/// over it queue rather than fail, so a burst is absorbed and a flood is
-/// bounded.
+/// over it wait up to [`INFLIGHT_WAIT`] for a slot and are then shed, so a
+/// burst is absorbed and a flood is bounded. Attachment uploads count against
+/// [`MAX_INFLIGHT_UPLOADS`] instead, and `/healthz` against neither.
 const MAX_INFLIGHT_REQUESTS: usize = 1024;
+
+/// How long a request waits for an in-flight slot before it is shed with a 503.
+///
+/// Short because the slots are shared by every route: a client that holds them
+/// by trickling a body would otherwise queue unrelated requests for as long as
+/// it keeps them, up to [`REQUEST_TIMEOUT`].
+const INFLIGHT_WAIT: Duration = Duration::from_secs(2);
+
+/// How many attachment uploads and speed-test transfers may be in flight at once.
+///
+/// Its own pool because these run for minutes: counting them in
+/// [`MAX_INFLIGHT_REQUESTS`] would let a few slow uploads queue every ordinary request.
+const MAX_INFLIGHT_UPLOADS: usize = 1024;
+
+/// Caps `router` at `max` requests in flight across all its routes together.
+///
+/// A request that finds no slot free within `wait` is answered 503 with
+/// `Retry-After` instead of queueing on. Public so a test can wrap routes of
+/// its own. `tower`'s `ConcurrencyLimitLayer` builds a semaphore per service it
+/// wraps and `Router::layer` wraps every route and method separately, so it
+/// would cap each of them at `max` instead.
+pub fn cap_inflight<S: Clone + Send + Sync + 'static>(
+    router: Router<S>,
+    max: usize,
+    wait: Duration,
+) -> Router<S> {
+    let slots = Arc::new(Semaphore::new(max));
+    router.layer(axum::middleware::from_fn(
+        move |request: Request, next: Next| {
+            let slots = slots.clone();
+            async move {
+                let Ok(Ok(slot)) = tokio::time::timeout(wait, slots.acquire_owned()).await else {
+                    return shed_response();
+                };
+                let response = next.run(request).await;
+                drop(slot);
+                response
+            }
+        },
+    ))
+}
+
+fn shed_response() -> Response {
+    let mut response = error::ApiError::Unavailable.into_response();
+    response
+        .headers_mut()
+        .insert(RETRY_AFTER, HeaderValue::from_static("1"));
+    response
+}
 
 /// Wraps `router` so a panicking handler answers 500 and the process keeps
 /// serving; see [`panic_guard`]. Public so a test can wrap a route that panics.
@@ -219,15 +274,14 @@ pub fn router(state: AppState) -> Router {
     let uploads = attachments::upload_routes()
         .merge(diagnostics::transfer_routes())
         .route_layer(axum::middleware::from_fn(route_timing::record))
-        .layer(Extension(route_timings.clone()))
-        .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
+        .layer(Extension(route_timings.clone()));
+    let uploads = cap_inflight(uploads, MAX_INFLIGHT_UPLOADS, INFLIGHT_WAIT)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::GATEWAY_TIMEOUT,
             state.media.upload_timeout(),
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT));
     let app = Router::new()
-        .route("/healthz", get(healthz))
         .route("/version", get(version::version))
         .merge(admin_audit::routes())
         .merge(analytics::routes())
@@ -333,15 +387,16 @@ pub fn router(state: AppState) -> Router {
         // Only applies to a route above, once matched; see `route_timing`.
         .route_layer(axum::middleware::from_fn(route_timing::record))
         // Outer to the line above, so its `Extension` is on the request already.
-        .layer(Extension(route_timings))
-        // Bounded, and the socket is deliberately outside this: see below.
-        .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
+        .layer(Extension(route_timings));
+    // Bounded, and the socket and the liveness probe are deliberately outside this.
+    let app = cap_inflight(app, MAX_INFLIGHT_REQUESTS, INFLIGHT_WAIT)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::GATEWAY_TIMEOUT,
             REQUEST_TIMEOUT,
         ))
         .layer(RequestBodyTimeoutLayer::new(BODY_READ_TIMEOUT))
         .merge(uploads)
+        .merge(liveness_route())
         .merge(ws::routes());
     guard_panics(app)
         // Route-template span labeling; see this function's own doc comment.
@@ -358,14 +413,26 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
+/// `/healthz` with the request timeout but outside the in-flight cap.
+///
+/// Queued behind a saturated cap the probe would time out exactly when the
+/// process is busiest, which reads as unhealthy the same way a 429 would.
+fn liveness_route() -> Router<AppState> {
+    Router::new()
+        .route("/healthz", get(healthz))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::GATEWAY_TIMEOUT,
+            REQUEST_TIMEOUT,
+        ))
+}
+
 /// Liveness probe: 200 while the process is serving and the database answers.
 ///
 /// Deliberately the one route that charges no rate limit. A probe is what an
 /// orchestrator calls to decide whether this process is alive, and a 429 there
 /// reads as unhealthy and gets the container restarted - so throttling it turns
 /// a flood into an outage rather than preventing one. It costs one indexed
-/// `SELECT 1`, and the request timeout and concurrency limit on the router bound
-/// it the same way they bound everything else.
+/// `SELECT 1`, and the request timeout on [`liveness_route`] bounds it.
 async fn healthz(State(state): State<AppState>) -> Result<&'static str, StatusError> {
     state.store.ping().await.map_err(|_| StatusError)?;
     Ok("ok")

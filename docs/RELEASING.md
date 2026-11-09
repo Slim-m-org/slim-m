@@ -99,6 +99,7 @@ gh workflow run desktop-clients.yml --ref main -f tag=client-v<version>
 ```
 
 The job checks out the tag, but the workflow file that runs is the one on the ref you pass, so `--ref main` builds the tag's contents with main's workflow.
+It first verifies that the tag's commit passed the same client checks `release.yml` requires, so a tag whose checks predate a job rename cannot be backfilled this way.
 
 ### A missing manifest on its own
 

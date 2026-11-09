@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'clipboard_lone_web_address.dart';
 import 'composer_clipboard_image.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -34,13 +35,27 @@ bool isClipboardPasteChord(KeyEvent event) {
 /// a plain text paste stays a true no-op: [pasteClipboardImage] clears the
 /// error banner as its first act, and every Ctrl+V wiping a failure the
 /// person had not read yet would be its own small bug.
+///
+/// [textWins] is for a text field: copied cells or a slide carry their text
+/// beside a picture, and pasted into a field the text is what was meant. A lone
+/// web address does not count as text, since a browser adds its picture's own
+/// address to every "Copy image".
+/// The "Paste image" row still forces the picture.
 Future<void> pasteClipboardImageFromKeystroke(
   Future<void> Function(Uint8List bytes, String filename) stage,
-  void Function(String? message) setError,
-) async {
+  void Function(String? message) setError, {
+  bool textWins = false,
+}) async {
   if (!pasteKeystrokeReadsClipboardImage) return;
   if (!await hasClipboardImage()) return;
+  if (textWins && await _clipboardHoldsRealText()) return;
   await pasteClipboardImage(stage, setError);
+}
+
+Future<bool> _clipboardHoldsRealText() async {
+  if (!await Clipboard.hasStrings()) return false;
+  final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
+  return text != null && text.isNotEmpty && !isLoneWebAddress(text);
 }
 
 /// Whether the "+" sheet's own "Paste image" row is worth offering.

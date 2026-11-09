@@ -24,11 +24,14 @@ class PoorConnectionBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final poor = ref.watch(poorConnectionsProvider);
-    final me = ref
-        .watch(voiceParticipantsProvider)
-        .where((p) => p.isLocal && poor.contains(p.identity))
-        .firstOrNull;
-    if (me == null) return const SizedBox.shrink();
+    final me = ref.watch(
+      voiceParticipantsProvider.select(
+        (all) => all.where((p) => p.isLocal).firstOrNull,
+      ),
+    );
+    if (me == null || !poor.contains(me.identity)) {
+      return const SizedBox.shrink();
+    }
     return StatusBanner(
       key: poorConnectionBannerKey,
       severity: BannerSeverity.warning,

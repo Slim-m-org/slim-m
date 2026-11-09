@@ -20,6 +20,7 @@ import 'package:slimm_api/api.dart';
 import '../../../permissions.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../channels/providers/dms.dart' show personalSpaceName;
+import '../../channels/providers/group_dm.dart' show channelFromGroupDm;
 import '../../../providers/providers.dart';
 
 /// One place a message could be forwarded to.
@@ -33,6 +34,7 @@ class ForwardTarget {
     this.userId,
     this.username,
     this.avatarUpdatedAt,
+    this.groupMemberIds,
   });
 
   final String channelId;
@@ -66,6 +68,10 @@ class ForwardTarget {
   /// Cache-busts that picture the way every other avatar in the app does;
   /// without it a changed picture keeps showing the old bytes here.
   final int? avatarUpdatedAt;
+
+  /// The other people in a group DM, which the picker draws as a stack of
+  /// faces. Null for every target that is not a group.
+  final List<String>? groupMemberIds;
 
   /// Whether this target answers to [query], which callers pass already
   /// trimmed and lower-cased. Lives here rather than in the picker so the
@@ -116,8 +122,10 @@ final forwardTargetsProvider = FutureProvider.autoDispose
               restricted: channel.restricted ?? false,
             ),
         for (final dm in dms)
+          if (dm.channelId != query.excludeChannelId && dm.isGroup)
+            _groupTarget(dm, selfId)
           // `store/dms.rs`: a blocked party is denied SEND_MESSAGES/ATTACH_FILES both ways, and otherwise a DM always grants both to its two participants, so attachments need no extra check here.
-          if (dm.channelId != query.excludeChannelId &&
+          else if (dm.channelId != query.excludeChannelId &&
               !blocked.contains(dm.user.id))
             ForwardTarget(
               channelId: dm.channelId,
@@ -131,3 +139,15 @@ final forwardTargetsProvider = FutureProvider.autoDispose
             ),
       ];
     });
+
+/// A group is named and drawn as the group, and `dm.user` (its first other
+/// member) is neither its label nor a reason to hide it when blocked.
+ForwardTarget _groupTarget(DmConversation dm, String? selfId) => ForwardTarget(
+  channelId: dm.channelId,
+  label: channelFromGroupDm(dm, selfId: selfId).name,
+  isDm: true,
+  groupMemberIds: [
+    for (final m in dm.group!.members)
+      if (m.id != selfId) m.id,
+  ],
+);

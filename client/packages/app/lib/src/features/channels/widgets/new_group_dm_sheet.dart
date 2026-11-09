@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../entity_name.dart';
+import '../../../ids.dart';
 import '../../../routing/routes.dart';
 import '../providers/group_dm.dart';
 import 'group_dm_people_list.dart';
@@ -32,6 +33,7 @@ class NewGroupDmSheet extends ConsumerStatefulWidget {
 class _NewGroupDmSheetState extends ConsumerState<NewGroupDmSheet> {
   final _picked = <String>{};
   final _name = TextEditingController();
+  final _createId = RetryId(newChannelId);
   bool _submitting = false;
   String? _error;
 
@@ -65,11 +67,17 @@ class _NewGroupDmSheetState extends ConsumerState<NewGroupDmSheet> {
     });
     final container = ProviderScope.containerOf(context, listen: false);
     final router = GoRouter.of(context);
+    final userIds = _picked.toList();
+    final name = _name.text.trim().isEmpty ? null : _name.text.trim();
     try {
       final id = await createGroupDm(
         container,
-        _picked.toList(),
-        name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+        userIds,
+        id: _createId.forRequest((
+          people: (userIds.toList()..sort()).join(','),
+          name: name,
+        )),
+        name: name,
       );
       if (!mounted) return;
       Navigator.of(context).pop();

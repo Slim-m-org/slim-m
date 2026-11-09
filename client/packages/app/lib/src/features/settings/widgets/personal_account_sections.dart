@@ -60,8 +60,7 @@ class BlockedSection extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.s16),
             child: AppErrorState(
-              message: 'Could not load the block list.',
-              detail: error,
+              message: error,
               onRetry: () => ref.read(blocksProvider.notifier).refresh(),
             ),
           )

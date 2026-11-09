@@ -6,10 +6,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/widgets/channel_search.dart';
+import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/testing.dart';
+
+import '../../support/fake_api.dart';
 
 Widget _harness(Widget child) => MaterialApp(
   theme: buildTheme(Brightness.light, AppTokens.light),
@@ -76,6 +82,71 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('No matches.'), findsNothing);
+  });
+
+  testWidgets('hits from the previous query stay up while the next one loads', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(api.SessionStore()),
+          mockApiOverride((request) async => http.Response('[]', 200)),
+        ],
+        child: _harness(
+          const ChannelSearchResults(
+            results: [
+              api.Message(
+                id: 'm1',
+                channelId: 'c1',
+                authorId: 'alice',
+                authorDisplayName: 'alice',
+                seq: 1,
+                content: 'an earlier hit',
+                createdAt: 0,
+                editedAt: null,
+              ),
+            ],
+            knownUsernames: {},
+            loading: true,
+            failed: false,
+            forbidden: false,
+            onRetry: _noop,
+            onSelect: _noopMessage,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.bySemanticsLabel(RegExp('Message from alice: an earlier hit')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a stale "no matches" gives way to the spinner while loading', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const ChannelSearchResults(
+          results: [],
+          knownUsernames: {},
+          loading: true,
+          failed: false,
+          forbidden: false,
+          onRetry: _noop,
+          onSelect: _noopMessage,
+        ),
+      ),
+    );
+
+    expect(find.text('No matches.'), findsNothing);
+    final region = tester.widget<Semantics>(
+      find.byKey(ChannelSearchResults.liveRegionKey),
+    );
+    expect(region.properties.label, 'Searching messages.');
   });
 
   testWidgets('a failed search says so and offers a working retry', (

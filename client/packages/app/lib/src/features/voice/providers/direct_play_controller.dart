@@ -162,6 +162,9 @@ class DirectPlayController {
   /// Why the last sign-in was turned down, or null if it was not.
   String? get signInError => state.signInError;
 
+  /// The server a sign-in goes to right now, which the party's bot chooses.
+  String? get signInBaseUrl => _room?.directPlay?.baseUrl;
+
   /// The sharer whose stream this viewer's player stands in for, while it does.
   String? get heldBot => _heldBot;
 

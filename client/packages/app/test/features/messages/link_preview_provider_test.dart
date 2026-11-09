@@ -13,8 +13,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/messages/providers/link_preview.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
-    show serverInfoProvider;
+import 'package:slimm_app/src/providers/server_info.dart';
 
 const _tokens = TokenPair(
   userId: 'u1',
@@ -77,6 +76,23 @@ void main() {
     );
 
     expect(preview?.title, 'An example');
+    expect(fetches, 1);
+  });
+
+  test('a refetch of the server info that changes nothing does not refetch '
+      'the preview', () async {
+    var fetches = 0;
+    final container = _containerWith(
+      linkPreviewsEnabled: true,
+      onFetch: () => fetches += 1,
+    );
+    container.listen(linkPreviewProvider('https://example.com'), (_, _) {});
+    await container.read(linkPreviewProvider('https://example.com').future);
+
+    container.invalidate(serverInfoProvider);
+    await container.read(serverInfoProvider.future);
+    await Future<void>.delayed(Duration.zero);
+
     expect(fetches, 1);
   });
 

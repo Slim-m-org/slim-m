@@ -9,7 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../whats_new/providers/whats_new_controller.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/space_icon.dart';
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../../first_run/providers/first_run_controller.dart';
 import 'home_shortcuts.dart';
 import 'home_unread.dart';

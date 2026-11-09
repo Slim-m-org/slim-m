@@ -272,19 +272,18 @@ impl Store {
         if message_ids.is_empty() {
             return Ok(Vec::new());
         }
-        // LEFT JOIN, not INNER: a zero-reply thread still produces a row.
-        let mut builder = sqlx::QueryBuilder::new(
+        // Scalar subqueries, so a zero-reply thread still produces a row.
+        let mut builder = sqlx::QueryBuilder::new(format!(
             "SELECT c.parent_message_id AS parent_message_id, c.id AS thread_channel_id, \
-             COUNT(m.id) AS reply_count, MAX(m.created_at) AS last_reply_at \
+             {REPLY_STATS_SQL} \
              FROM channels c \
-             LEFT JOIN messages m ON m.channel_id = c.id AND m.deleted_at IS NULL \
-             WHERE c.deleted_at IS NULL AND c.parent_message_id IN (",
-        );
+             WHERE c.deleted_at IS NULL AND c.parent_message_id IN ("
+        ));
         let mut separated = builder.separated(", ");
         for id in message_ids {
             separated.push_bind(*id);
         }
-        builder.push(") GROUP BY c.parent_message_id, c.id");
+        builder.push(")");
         let rows = builder.build().fetch_all(&self.pool).await?;
 
         use sqlx::Row;
@@ -306,6 +305,16 @@ impl Store {
             .collect()
     }
 }
+
+/// A thread channel's live reply count and newest reply time, read from `messages_channel_live` alone.
+///
+/// The newest reply is the highest live seq, a single seek, rather than a MAX over every reply row.
+pub(super) const REPLY_STATS_SQL: &str = "\
+    (SELECT COUNT(*) FROM messages m \
+      WHERE m.channel_id = c.id AND m.deleted_at IS NULL) AS reply_count, \
+    (SELECT m.created_at FROM messages m \
+      WHERE m.channel_id = c.id AND m.deleted_at IS NULL \
+      ORDER BY m.seq DESC LIMIT 1) AS last_reply_at";
 
 /// A thread's channel id plus how busy it is, batch-loaded onto whichever
 /// message opened it - see [`Store::thread_summaries_for_messages`].

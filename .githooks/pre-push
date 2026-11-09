@@ -34,7 +34,7 @@ mapfile -t CHANGED < <(changed_files | sort -u)
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_QUARANTINE_PATH
 [ "${#CHANGED[@]}" -gt 0 ] || exit 0
 
-touched() { printf '%s\n' "${CHANGED[@]}" | grep -Eq "$1"; }
+touched() { matches "$1" CHANGED; }
 
 client=0 rust=0 migrations=0 queries=0 schema=0 workflows=0 shell=0
 touched '^client/' && client=1

@@ -39,6 +39,16 @@ async fn world(
     (store, router, hub, token, guard)
 }
 
+fn edited_events(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> usize {
+    let mut count = 0;
+    while let Ok(event) = rx.try_recv() {
+        if matches!(event, Event::Message(MessageEvent::Edited { .. })) {
+            count += 1;
+        }
+    }
+    count
+}
+
 fn created_events(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> usize {
     let mut count = 0;
     while let Ok(event) = rx.try_recv() {
@@ -111,4 +121,96 @@ async fn a_message_whose_mentions_cannot_be_stored_is_still_announced() {
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(created_events(&mut rx), 1);
+}
+
+const FAIL_MENTIONS: &str = "CREATE TRIGGER boom BEFORE INSERT ON message_mentions \
+     BEGIN SELECT RAISE(ABORT, 'boom'); END";
+
+/// A retry of an edit sees unchanged text and publishes nothing, so the first attempt's frame is the only one.
+#[tokio::test]
+async fn an_edit_whose_mentions_cannot_be_stored_is_still_announced() {
+    let (store, router, hub, token, _guard) = world("slimm-postcommit-edit", FAIL_MENTIONS).await;
+    store
+        .create_account("bob", "bob", "not-a-real-hash")
+        .await
+        .unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id.to_string();
+    let id = uuid::Uuid::now_v7().to_string();
+    let sent = router
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/channels/{channel}/messages"),
+            Some(&token),
+            Some(json!({"id": id, "content": "hello"})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(sent.status(), StatusCode::OK);
+
+    let mut rx = hub.subscribe();
+    let edit = |content: &str| {
+        request(
+            "PATCH",
+            &format!("/channels/{channel}/messages/{id}"),
+            Some(&token),
+            Some(json!({"content": content})),
+        )
+    };
+    let first = router.clone().oneshot(edit("hello @bob")).await.unwrap();
+    let announced = edited_events(&mut rx);
+    let retry = router.clone().oneshot(edit("hello @bob")).await.unwrap();
+
+    assert_eq!(
+        (
+            first.status(),
+            announced,
+            retry.status(),
+            edited_events(&mut rx)
+        ),
+        (StatusCode::OK, 1, StatusCode::OK, 0),
+        "the stored edit answers 200 and is announced exactly once"
+    );
+}
+
+#[tokio::test]
+async fn a_webhook_post_whose_delivery_stamp_cannot_be_written_is_still_delivered() {
+    let (store, router, hub, token, _guard) = world(
+        "slimm-postcommit-stamp",
+        "CREATE TRIGGER boom BEFORE UPDATE ON webhooks \
+         BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    )
+    .await;
+    let channel = store.list_channels().await.unwrap()[0].id.to_string();
+    let made = router
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/webhooks",
+            Some(&token),
+            Some(json!({"channel_id": channel, "label": "hook"})),
+        ))
+        .await
+        .unwrap();
+    let path = json_body(made).await["delivery_path"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let mut rx = hub.subscribe();
+    let response = router
+        .oneshot(request(
+            "POST",
+            &path,
+            None,
+            Some(json!({"content": "deployed"})),
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        (response.status(), created_events(&mut rx)),
+        (StatusCode::NO_CONTENT, 1),
+        "a delivery that landed must not answer 500 into a retry that posts it twice"
+    );
 }

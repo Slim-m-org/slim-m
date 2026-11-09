@@ -32,6 +32,7 @@ mod extract;
 mod fetch;
 #[cfg(test)]
 mod fetch_tests;
+mod flight;
 mod image_token;
 mod oembed;
 mod ssrf;
@@ -242,9 +243,10 @@ async fn preview(
     if service.cache.recently_missing(&key) {
         return Err(ApiError::NotFound("no preview available"));
     }
-    let cell = service.cache.in_flight(&key);
     let fetched_here = std::sync::atomic::AtomicBool::new(false);
-    let outcome = cell
+    let flight = service.cache.in_flight(&key);
+    let outcome = flight
+        .cell()
         .get_or_init(|| async {
             fetched_here.store(true, Ordering::Relaxed);
             match fetch_preview(&service.client, &params.url, service.allow_private).await {
@@ -258,7 +260,7 @@ async fn preview(
         })
         .await
         .clone();
-    service.cache.finish(&key, &cell);
+    drop(flight);
     match outcome {
         cache::Outcome::Found(cached) => {
             if fetched_here.load(Ordering::Relaxed) {
@@ -292,8 +294,9 @@ async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
     if service.cache.recently_missing(token) {
         return Err(ApiError::NotFound("no preview available"));
     }
-    let cell = service.cache.image_in_flight(token);
-    let outcome = cell
+    let flight = service.cache.image_in_flight(token);
+    let outcome = flight
+        .cell()
         .get_or_init(|| async {
             match fetch_image(&service.client, &url, service.allow_private).await {
                 Ok(bytes) => {
@@ -311,7 +314,7 @@ async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
         })
         .await
         .clone();
-    service.cache.finish_image(token, &cell);
+    drop(flight);
     Ok(outcome?)
 }
 

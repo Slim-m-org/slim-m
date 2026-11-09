@@ -54,6 +54,17 @@ class MessageJumpUnreachable extends MessageJumpState {
   final int token;
 }
 
+/// Paging stopped because a page of history could not be fetched, so nothing
+/// is known about whether the message exists.
+class MessageJumpFailed extends MessageJumpState {
+  const MessageJumpFailed(this.channelId, this.messageId, this.token);
+  final String channelId;
+  final String messageId;
+  final int token;
+}
+
+enum _Paged { more, stop, failed }
+
 /// Drives one jump at a time. A later [jumpTo] call always wins: its token
 /// invalidates whatever loop an earlier call is still running, so two taps in
 /// quick succession cannot have the first one's page finish and overwrite the
@@ -84,6 +95,7 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     final store = await _ref.read(storeProvider.future);
     final history = _ref.read(channelHistoryProvider(channelId).notifier);
     final maxPages = _maxPages;
+    var fetchFailed = false;
 
     for (var page = 0; page <= maxPages; page++) {
       if (_token != token) return;
@@ -92,15 +104,18 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
         return;
       }
       if (page == maxPages) break;
-      if (!await _pageOlder(history, store, channelId, token)) break;
+      final paged = await _pageOlder(history, store, channelId, token);
+      if (paged == _Paged.failed) fetchFailed = true;
+      if (paged != _Paged.more) break;
     }
-    if (_token == token) {
-      state = MessageJumpUnreachable(channelId, messageId, token);
-    }
+    if (_token != token) return;
+    state = fetchFailed
+        ? MessageJumpFailed(channelId, messageId, token)
+        : MessageJumpUnreachable(channelId, messageId, token);
   }
 
-  /// Pages one step older; false once the jump should stop looking.
-  Future<bool> _pageOlder(
+  /// Pages one step older, and says whether the jump should keep looking.
+  Future<_Paged> _pageOlder(
     ChannelHistoryController history,
     MessageStore store,
     String channelId,
@@ -114,8 +129,9 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     } else {
       await history.loadOlder();
     }
-    if (_token != token) return false;
-    return !history.state.atStart && !history.state.failed;
+    if (_token != token) return _Paged.stop;
+    if (history.state.failed) return _Paged.failed;
+    return history.state.atStart ? _Paged.stop : _Paged.more;
   }
 
   /// Called once the arrived message has actually been scrolled to and
@@ -127,11 +143,14 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     }
   }
 
-  /// Called once the "could not find that message" notice has been shown.
-  void dismissUnreachable(int token) {
-    if (state case MessageJumpUnreachable(token: final t) when t == token) {
-      state = const MessageJumpIdle();
-    }
+  /// Called once the notice for an unreachable or failed jump has been shown.
+  void dismissNotice(int token) {
+    final shown = switch (state) {
+      MessageJumpUnreachable(token: final t) => t,
+      MessageJumpFailed(token: final t) => t,
+      _ => null,
+    };
+    if (shown == token) state = const MessageJumpIdle();
   }
 
   /// Drops a jump still in flight or still waiting to be consumed for
@@ -144,6 +163,7 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       MessageJumpSeeking(channelId: final c) => c == channelId,
       MessageJumpArrived(channelId: final c) => c == channelId,
       MessageJumpUnreachable(channelId: final c) => c == channelId,
+      MessageJumpFailed(channelId: final c) => c == channelId,
     };
     if (!belongsHere) return;
     // Bumped so a seek still paging stops instead of writing Arrived for a channel nobody is on.

@@ -11,10 +11,13 @@
 library;
 
 import 'package:slimm_data/data.dart';
-import 'package:slimm_design_system/design_system.dart';
 
-/// A continuation of the same author's previous message inside the density's
-/// grouping window drops its avatar and header. A webhook posting under a
+/// Longer read as a wall of text with no name on it (owner, 2026-08-13), and
+/// shorter splits a burst of lines; the same at every message density.
+const messageGroupWindow = Duration(minutes: 1);
+
+/// A continuation of the same author's previous message inside
+/// [messageGroupWindow] drops its avatar and header. A webhook posting under a
 /// different username starts a new group so its label shows.
 bool isGrouped(
   Message message,
@@ -26,7 +29,7 @@ bool isGrouped(
     previous.authorId == message.authorId &&
     webhookUsername?.trim() == previousWebhookUsername?.trim() &&
     (message.createdAt - previous.createdAt).abs() <
-        AppDensity.normal.groupWindow.inMilliseconds;
+        messageGroupWindow.inMilliseconds;
 
 /// True for the first message past the read marker, so the "New" divider
 /// lands exactly once, directly above it.

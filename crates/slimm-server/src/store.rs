@@ -85,7 +85,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
-pub use read_state::UNREAD_COUNT_CAP;
+pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
 mod recovery;
 mod refresh_rotation;
 mod removals;
@@ -130,7 +130,7 @@ pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
     ANALYTICS_WINDOW_DAYS, AnalyticsStats, DayCount, MemberAttachmentUsage, MetricSample,
 };
-pub use apps::{AppSurface, CreateAppSurfaceError};
+pub use apps::{AppLaunch, AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
 pub use attachment_text::TextCandidate;
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
@@ -194,7 +194,7 @@ pub use media_compression::{MediaCompression, MediaCompressionUpdate, default_ex
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};
-pub use message_history::MessageRevision;
+pub use message_history::{MAX_EDIT_REVISIONS, MessageRevision};
 pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};
@@ -317,6 +317,7 @@ pub struct Store {
     modules_dir: Option<Arc<std::path::PathBuf>>,
     /// Bumped by every change to what modules are installed or hooked; see [`Store::module_epoch`].
     module_epoch: Arc<std::sync::atomic::AtomicU64>,
+    derived_keys: Arc<deployment_identity::DerivedKeys>,
 }
 
 impl Store {
@@ -328,6 +329,7 @@ impl Store {
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
             modules_dir: None,
             module_epoch: Arc::default(),
+            derived_keys: Arc::default(),
         }
     }
 

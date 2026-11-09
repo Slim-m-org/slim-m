@@ -40,6 +40,7 @@ import '../providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../channels/widgets/channel_kind_icon.dart';
+import '../../channels/widgets/group_avatar_stack.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/sheet_item_list.dart';
@@ -85,6 +86,7 @@ Future<void> forwardMessage(
 Future<void> _sendForward(
   WidgetRef ref, {
   required ForwardTarget target,
+  required String id,
   required String forwardedFromId,
   required String note,
   required List<String> attachmentIds,
@@ -93,7 +95,7 @@ Future<void> _sendForward(
       .read(messageApiActionsProvider)
       .sendMessage(
         channelId: target.channelId,
-        id: newMessageId(),
+        id: id,
         content: note,
         attachmentIds: attachmentIds,
         forwardedFromId: forwardedFromId,
@@ -147,6 +149,7 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
     with GuardedActionState<_ForwardTargetSheet> {
   final _searchController = TextEditingController();
   final _noteController = TextEditingController();
+  final _forwardId = RetryId(newMessageId);
   String _query = '';
 
   /// The target currently sending, or null. Disables every other row while
@@ -164,13 +167,15 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
   Future<void> _send(ForwardTarget target) async {
     clearActionError();
     setState(() => _sendingToChannelId = target.channelId);
+    final note = _noteController.text.trim();
     final ok = await guard(
       whatFailed: 'forward the message',
       action: () => _sendForward(
         ref,
         target: target,
+        id: _forwardId.forRequest((channelId: target.channelId, note: note)),
         forwardedFromId: widget.forwardedFromId,
-        note: _noteController.text.trim(),
+        note: note,
         attachmentIds: widget.attachmentIds,
       ),
     );
@@ -292,6 +297,13 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
   }
 
   Widget _leadingFor(ForwardTarget target, AppTokens tokens) {
+    final groupMemberIds = target.groupMemberIds;
+    if (groupMemberIds != null) {
+      return GroupAvatarStack(
+        memberIds: groupMemberIds,
+        size: AppAvatarSize.s24,
+      );
+    }
     // A DM is a person; one generic glyph made them all look alike.
     final userId = target.userId;
     if (target.isDm && userId != null) {

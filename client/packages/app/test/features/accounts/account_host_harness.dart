@@ -12,8 +12,7 @@ import 'package:slimm_app/src/features/accounts/providers/account_providers.dart
 import 'package:slimm_app/src/features/accounts/providers/account_restore.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_store.dart';
-import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
-    show serverInfoProvider;
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';

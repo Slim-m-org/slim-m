@@ -100,6 +100,6 @@ final inboxUnreadIdsProvider = FutureProvider.autoDispose<List<String>>((
 ) async {
   final store = await ref.watch(storeProvider.future);
   final overrides = ref.watch(channelNotificationOverridesProvider);
-  final channels = await store.watchChannels().first;
+  final channels = await store.allChannels();
   return unreadChannelIds(channels, overrides);
 });

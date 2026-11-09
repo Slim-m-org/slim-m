@@ -25,9 +25,9 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-const _refusal = 'about can be at most 5 lines';
+const _refusal = 'About can be at most 5 lines.';
 
-Future<void> _pump(WidgetTester tester) async {
+Future<void> _pump(WidgetTester tester, {bool unreachable = false}) async {
   tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -39,6 +39,7 @@ Future<void> _pump(WidgetTester tester) async {
         const json = {'content-type': 'application/json'};
         if (request.url.path != '/me') return http.Response('', 404);
         if (request.method == 'PATCH') {
+          if (unreachable) throw http.ClientException('Connection refused');
           return http.Response(
             jsonEncode({'error': _refusal}),
             400,
@@ -74,6 +75,14 @@ Future<void> _pump(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Types [text] into About and moves focus to Pronouns, which saves it.
+Future<void> _saveAbout(WidgetTester tester, String text) async {
+  await tester.tap(find.byType(TextField).last);
+  await tester.enterText(find.byType(TextField).last, text);
+  await tester.tap(find.byType(TextField).first);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -82,25 +91,38 @@ void main() {
   ) async {
     await _pump(tester);
 
-    await tester.tap(find.byType(TextField).last);
-    await tester.enterText(find.byType(TextField).last, '1\n2\n3\n4\n5\n6');
-    await tester.tap(find.byType(TextField).first);
-    await tester.pumpAndSettle();
+    await _saveAbout(tester, '1\n2\n3\n4\n5\n6');
 
-    expect(find.textContaining(_refusal), findsOneWidget);
+    expect(
+      find.textContaining('Could not save the about text. $_refusal'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('typing again clears the refusal', (tester) async {
     await _pump(tester);
 
-    await tester.tap(find.byType(TextField).last);
-    await tester.enterText(find.byType(TextField).last, 'too\nmany');
-    await tester.tap(find.byType(TextField).first);
-    await tester.pumpAndSettle();
+    await _saveAbout(tester, 'too\nmany');
     expect(find.textContaining(_refusal), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).last, 'fixed');
     await tester.pumpAndSettle();
     expect(find.textContaining(_refusal), findsNothing);
+  });
+
+  testWidgets('an unreachable server reads as a sentence, not the transport '
+      'string', (tester) async {
+    await _pump(tester, unreachable: true);
+
+    await _saveAbout(tester, 'hello');
+
+    expect(
+      find.text(
+        'Could not save the about text: the server could not be reached. '
+        'Nothing was changed.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('PATCH'), findsNothing);
   });
 }

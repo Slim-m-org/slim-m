@@ -128,7 +128,7 @@ void main() {
     final ref = await _refOf(tester, rig.container);
 
     final ok = await tester.runAsync(
-      () => launchApp(ref: ref, channelId: 'c1', app: _app),
+      () => launchApp(ref: ref, id: 'launch-1', channelId: 'c1', app: _app),
     );
 
     expect(ok, isTrue);
@@ -136,6 +136,7 @@ void main() {
     expect(rig.posts.single['module_id'], 'mod-1');
     expect(rig.posts.single['command'], 'whiteboard');
     final id = rig.posts.single['id'] as String;
+    expect(id, 'launch-1', reason: 'the caller owns the id, so it can keep it');
     final stored = await tester.runAsync(() => rig.store.channelSnapshot('c1'));
     expect(stored!.map((m) => m.id), [id]);
     expect(rig.container.read(messageExtrasProvider), contains(id));
@@ -147,8 +148,13 @@ void main() {
     final errors = <String>[];
 
     final ok = await tester.runAsync(
-      () =>
-          launchApp(ref: ref, channelId: 'c1', app: _app, onError: errors.add),
+      () => launchApp(
+        ref: ref,
+        id: 'launch-1',
+        channelId: 'c1',
+        app: _app,
+        onError: errors.add,
+      ),
     );
 
     expect(ok, isFalse);

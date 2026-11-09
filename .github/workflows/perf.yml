@@ -51,6 +51,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+      pull-requests: write
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
@@ -90,25 +91,13 @@ jobs:
             --environment "github-actions ubuntu-24.04, $(nproc) cpus" \
             --criterion-dir target/criterion --out "baseline-${VERSION}.json" rss/run-*.log
           cat "baseline-${VERSION}.json"
-      # Rebased and retried, since a merge can land on main between fetch and push.
+      # From the workflow's own commit, like perf_baseline.py; it opens a pull request when a branch rule refuses the push to main.
       - name: commit it to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for attempt in 1 2 3 4 5; do
-            git fetch -q origin main
-            git switch -q -C perf-baseline origin/main
-            cp "baseline-${VERSION}.json" "perf/baselines/${VERSION}.json"
-            git add "perf/baselines/${VERSION}.json"
-            if git diff --cached --quiet; then
-              echo "perf/baselines/${VERSION}.json is already on main"
-              exit 0
-            fi
-            git commit -q -s -m "chore(perf): baseline ${VERSION}, measured by the release's own perf run"
-            if git push -q origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 10))
-          done
-          echo "::error::could not push perf/baselines/${VERSION}.json to main"
-          exit 1
+          git show "${GITHUB_SHA}:scripts/commit-perf-baseline.sh" > "${RUNNER_TEMP}/commit-perf-baseline.sh"
+          bash "${RUNNER_TEMP}/commit-perf-baseline.sh" "$VERSION" "baseline-${VERSION}.json"

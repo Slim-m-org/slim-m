@@ -108,10 +108,7 @@ extension VoiceSessionTracks on VoiceSession {
     _audio.cancelRetry();
     await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
-    _participants = const [];
-    if (!_participantsController.isClosed) {
-      _participantsController.add(_participants);
-    }
+    _setRoster(const []);
     // Ends any open blip through the health summary, with the state already failed.
     _setState(VoiceSessionState.failed);
     await _share.control.dispose();
@@ -265,7 +262,10 @@ extension VoiceSessionTracks on VoiceSession {
     );
 
     // Only a full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
-    if (health.reconnect.restarting.value) return;
+    if (health.reconnect.restarting.value) {
+      _reportLocalLevel(const []);
+      return;
+    }
 
     final (next, recheck) = _speakingHold.apply(
       snapshotParticipants(
@@ -280,10 +280,19 @@ extension VoiceSessionTracks on VoiceSession {
     _speakingHoldTimer =
         recheck == null ? null : Timer(recheck, _rebuildRoster);
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
-    if (listEquals(next, _participants)) return;
-    _participants = List.unmodifiable(next);
+    if (listEquals(next, _participants)) {
+      _reportLocalLevel(next);
+      return;
+    }
+    _setRoster(List.unmodifiable(next));
+  }
+
+  /// The one place the roster changes, so your level is reported with it and never outlives the people it came from.
+  void _setRoster(List<VoiceParticipant> next) {
+    _participants = next;
+    _reportLocalLevel(next);
     if (!_participantsController.isClosed) {
-      _participantsController.add(_participants);
+      _participantsController.add(next);
     }
   }
 

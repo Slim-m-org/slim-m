@@ -13,6 +13,9 @@ use super::totp::factor_error;
 use crate::ids::UserId;
 
 /// Refuses unless `password` is the account's current password.
+///
+/// Wrong guesses feed the sign-in throttle under the caller's own `u:` key, so a stolen token
+/// cannot grind the password here faster than it could through `/auth/login`.
 pub(super) async fn require_password(
     state: &AppState,
     user_id: UserId,
@@ -26,13 +29,25 @@ pub(super) async fn require_password(
             "this account has no password to confirm with",
         ));
     };
+    let source = format!("u:{user_id}");
+    let wait_ms = state
+        .store
+        .login_delay_remaining_ms(user_id, &source)
+        .await?;
+    if wait_ms > 0 {
+        return Err(ApiError::RateLimited {
+            retry_after_seconds: (wait_ms as u64).div_ceil(1000),
+        });
+    }
     if state
         .auth
         .verify_password(password.to_owned(), hash)
         .await?
     {
+        state.store.clear_login_throttle(user_id, &source).await?;
         Ok(())
     } else {
+        state.store.record_login_failure(user_id, &source).await?;
         Err(ApiError::ForbiddenBecause("that password is not correct"))
     }
 }

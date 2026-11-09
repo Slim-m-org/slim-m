@@ -6,6 +6,7 @@ import 'exceptions.dart';
 import 'models.dart';
 import 'client.dart';
 import 'client_transport.dart';
+import 'session_store.dart' show storageDeadline;
 
 /// The `auth` tag: everything that starts, rotates, or ends a session.
 ///
@@ -105,16 +106,6 @@ extension SlimmApiAuth on SlimmApi {
     });
   }
 
-  /// How long a rotation waits for the new token to reach storage before
-  /// giving up on durability and returning anyway.
-  ///
-  /// Every 401 retry funnels through [refresh], so an unbounded wait here is
-  /// a wedged platform channel on one device turning into an app where no
-  /// request ever completes again. Past this the window the wait exists to
-  /// close is simply left open, which is what the behaviour was before the
-  /// wait existed at all.
-  static const Duration _persistDeadline = Duration(seconds: 5);
-
   Future<TokenPair> _refreshOnce() {
     final sync = session.sync;
     if (sync == null) return _rotate();
@@ -157,10 +148,10 @@ extension SlimmApiAuth on SlimmApi {
       throw const UnauthorizedException('signed out while refreshing');
     }
     session.set(tokens);
-    // Bounded: a wedged key store must cost one slow rotation, never every later request.
+    // Past the deadline the durability window is left open, as it was before the wait existed.
     var persisted = true;
     await session.settled.timeout(
-      _persistDeadline,
+      storageDeadline,
       onTimeout: () => persisted = false,
     );
     session.noteRotation(persisted: persisted);

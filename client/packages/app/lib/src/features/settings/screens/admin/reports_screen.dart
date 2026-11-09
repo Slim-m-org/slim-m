@@ -137,7 +137,6 @@ class _OpenQueuePane extends ConsumerWidget {
             ReportsLoadMoreRow(
               loading: reports.loading,
               error: reports.error,
-              failureMessage: 'Could not load more reports.',
               onTap: controller.loadMore,
             ),
         ],

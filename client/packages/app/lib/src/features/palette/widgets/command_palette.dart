@@ -22,15 +22,18 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../../providers/admin_providers.dart';
 import '../../../routing/modal_page.dart';
+import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../messages/providers/message_search.dart';
 import '../../settings/providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
 import 'command_palette_rows.dart';
+import 'palette_reveal.dart';
 
 /// The design's floating card width; not on the spacing grid because it is
 /// the palette's own measured size, like the rail widths beside it. Never
@@ -97,10 +100,14 @@ class _CommandPaletteContent extends ConsumerStatefulWidget {
       _CommandPaletteContentState();
 }
 
-class _CommandPaletteContentState
-    extends ConsumerState<_CommandPaletteContent> {
+class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
+    with GuardedActionState<_CommandPaletteContent> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _channels = StoreStream<List<Channel>>((s) => s.watchChannels());
+  final _categories = StoreStream<List<ChannelCategoryRow>>(
+    (s) => s.watchCategories(),
+  );
   String _query = '';
   int _highlighted = 0;
   List<api.Message> _messageResults = const [];
@@ -121,6 +128,9 @@ class _CommandPaletteContentState
   /// Where each section begins in [_visible], for Tab to jump between them.
   List<int> _sectionStarts = const [];
 
+  /// Set while a chosen result runs, so a second Enter or tap cannot start it again.
+  bool _running = false;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -133,8 +143,11 @@ class _CommandPaletteContentState
       _query = value;
       _highlighted = 0;
     });
+    clearActionError();
     final text = parsePaletteQuery(value);
     if (text.text.isEmpty || text.scope != PaletteScope.all) {
+      // Retires a search still in flight, so its hits cannot land under this query.
+      _searchGeneration++;
       setState(() {
         _messageResults = const [];
         _messagesForbidden = false;
@@ -200,8 +213,19 @@ class _CommandPaletteContentState
   }
 
   Future<void> _run(PaletteResultItem item) async {
-    await item.onSelect(context, ref);
-    if (mounted) Navigator.of(context).pop();
+    if (_running) return;
+    _running = true;
+    try {
+      final done = await guard(
+        whatFailed: item.kind == PaletteKind.person
+            ? 'message ${item.label}'
+            : 'open that result',
+        action: () => item.onSelect(context, ref),
+      );
+      if (done && mounted) Navigator.of(context).pop();
+    } finally {
+      _running = false;
+    }
   }
 
   Map<ShortcutActivator, VoidCallback> _bindings() {
@@ -246,16 +270,16 @@ class _CommandPaletteContentState
       trailing: compact ? null : PaletteEscKeycap(onTap: _close),
     );
 
-    final results = storeAsync.when(
+    final list = storeAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (e, _) => const SizedBox.shrink(),
       data: (store) => StreamBuilder<List<Channel>>(
-        stream: store.watchChannels(),
+        stream: _channels.of(store),
         builder: (context, snapshot) {
           final channels = snapshot.data ?? const <Channel>[];
           // The category names ride a second stream so a rename shows live.
           return StreamBuilder<List<ChannelCategoryRow>>(
-            stream: store.watchCategories(),
+            stream: _categories.of(store),
             builder: (context, categorySnapshot) => _animatedResults((
               tokens: tokens,
               channels: channels,
@@ -273,6 +297,18 @@ class _CommandPaletteContentState
           );
         },
       ),
+    );
+
+    final results = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        list,
+        if (actionError case final failure?)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.s8),
+            child: AppErrorState(message: failure, onDismiss: clearActionError),
+          ),
+      ],
     );
 
     final shell = compact
@@ -364,17 +400,28 @@ class _CommandPaletteContentState
     final rows = <Widget>[];
     var index = 0;
     for (final group in groups) {
-      rows.add(PaletteSectionHeader(label: group.$1, count: group.$2.length));
-      for (final item in group.$2) {
-        final at = index;
-        index++;
+      final header = PaletteSectionHeader(
+        label: group.$1,
+        count: group.$2.length,
+      );
+      for (final (i, item) in group.$2.indexed) {
+        final at = index++;
         rows.add(
-          PaletteResultRow(
-            item: item,
-            query: query,
-            highlighted: at == _highlighted,
-            touch: compact,
-            onTap: () => _run(item),
+          PaletteReveal(
+            active: at == _highlighted,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (i == 0) header,
+                PaletteResultRow(
+                  item: item,
+                  query: query,
+                  highlighted: at == _highlighted,
+                  touch: compact,
+                  onTap: () => _run(item),
+                ),
+              ],
+            ),
           ),
         );
       }

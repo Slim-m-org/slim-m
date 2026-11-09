@@ -84,12 +84,13 @@ class TranscriptExtentEstimator {
 /// Everything else is the delegate `ListView.builder` would have built - the
 /// same automatic keep-alives, repaint boundaries and semantic indexes - so
 /// swapping `ListView.builder` for `ListView.custom` changes only the one
-/// method below.
+/// method below and lets the caller say where a keyed row moved to.
 class TranscriptChildDelegate extends SliverChildBuilderDelegate {
   TranscriptChildDelegate(
     super.builder, {
     required int super.childCount,
     required this.estimator,
+    super.findChildIndexCallback,
   });
 
   final TranscriptExtentEstimator estimator;

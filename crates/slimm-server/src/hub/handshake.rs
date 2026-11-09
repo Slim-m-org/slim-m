@@ -38,6 +38,13 @@ pub struct PendingGuard {
     key: String,
 }
 
+impl PendingGuard {
+    /// The address key this claim was made under.
+    pub fn address(&self) -> &str {
+        &self.key
+    }
+}
+
 impl Drop for PendingGuard {
     fn drop(&mut self) {
         let mut pending = self

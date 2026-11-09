@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// [AttachmentVideoPlayer] constructs a real `media_kit` [Player] the moment
-/// it mounts (see the widget's own field initializer), so every test here
+/// it is first seen (see `_ensurePlayback`), so every test here
 /// needs [MediaKit.ensureInitialized] and a real libmpv on the machine
 /// running it - `client-ci.yml`'s test job installs the runtime `libmpv2` for exactly
 /// this. What is tested never needs that player to actually open anything:
@@ -8,8 +8,6 @@
 /// itself, before `Player.open` is ever reached, so this is deterministic
 /// rather than dependent on a real network fetch settling in time.
 library;
-
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
@@ -20,120 +18,14 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_video_player.dart';
-import 'package:slimm_app/src/features/messages/widgets/attachment_video_source.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-const _video = api.Attachment(
-  id: 'v1',
-  filename: 'clip.mp4',
-  contentType: 'video/mp4',
-  size: 12000000,
-);
-
-/// Answers [open] from a script instead of the network, cycling its outcomes.
-///
-/// Only failing outcomes are scripted: `Player.open` waits on the video
-/// controller's GL texture, which a headless test never gets, so a load that
-/// succeeds never resolves here and the ready path stays out of reach.
-class _ScriptedSource implements AttachmentVideoSource {
-  _ScriptedSource(this._outcomes);
-
-  final List<Object> _outcomes;
-  int opens = 0;
-  bool disposed = false;
-
-  @override
-  Future<Media> open({
-    required api.SlimmApi apiClient,
-    required api.Attachment attachment,
-    required void Function(double? progress) onProgress,
-  }) async {
-    final next = _outcomes[opens < _outcomes.length ? opens : 0];
-    opens += 1;
-    if (next is Media) return next;
-    throw next;
-  }
-
-  @override
-  bool isStale(api.SlimmApi apiClient) => false;
-
-  @override
-  void dispose() => disposed = true;
-}
-
-/// A [Player] that records its lifecycle and lets a test fire stream events.
-///
-/// Only what the widget and its token reopener touch is real; anything else
-/// throws, so a new dependency on the player fails loudly here.
-class _FakePlayer implements Player {
-  final errors = StreamController<String>.broadcast();
-  final playing = StreamController<bool>.broadcast();
-  final buffering = StreamController<bool>.broadcast();
-  final lifecycle = <String>[];
-  final opened = <Playable>[];
-  final autoplay = <bool>[];
-  bool disposed = false;
-  int pauses = 0;
-
-  @override
-  Future<void> pause() async => pauses += 1;
-
-  @override
-  late final PlayerStream stream = _FakeStream(this);
-
-  @override
-  PlayerState get state => const PlayerState();
-
-  @override
-  Future<void> open(Playable playable, {bool play = true}) async {
-    lifecycle.add('open');
-    opened.add(playable);
-    autoplay.add(play);
-  }
-
-  @override
-  Future<void> dispose({bool synchronized = true}) async {
-    disposed = true;
-    await errors.close();
-    await playing.close();
-    await buffering.close();
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
-/// Stands in for the render context a headless test cannot create.
-class _FakeVideoController implements VideoController {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
-class _FakeStream implements PlayerStream {
-  _FakeStream(this._player);
-
-  final _FakePlayer _player;
-
-  @override
-  Stream<String> get error => _player.errors.stream;
-
-  @override
-  Stream<bool> get playing => _player.playing.stream;
-
-  @override
-  Stream<bool> get buffering => _player.buffering.stream;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
+import 'attachment_video_fakes.dart';
 
 Future<void> _pumpFaked(
   WidgetTester tester,
-  _ScriptedSource source,
-  _FakePlayer player,
+  ScriptedSource source,
+  FakePlayer player,
 ) {
   return tester.pumpWidget(
     ProviderScope(
@@ -145,7 +37,7 @@ Future<void> _pumpFaked(
         attachmentPlayerProvider.overrideWithValue(() => player),
         attachmentVideoControllerProvider.overrideWithValue((_) {
           player.lifecycle.add('controller');
-          return _FakeVideoController();
+          return FakeVideoController();
         }),
         attachmentVideoSurfaceProvider.overrideWithValue(
           (player, controller, onToggleFullscreen, onSave, saving) =>
@@ -154,13 +46,15 @@ Future<void> _pumpFaked(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(body: AttachmentVideoPlayer(attachment: _video)),
+        home: const Scaffold(
+          body: AttachmentVideoPlayer(attachment: videoAttachment),
+        ),
       ),
     ),
   );
 }
 
-Future<void> _pumpPlayer(WidgetTester tester, _ScriptedSource source) {
+Future<void> _pumpPlayer(WidgetTester tester, ScriptedSource source) {
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -171,7 +65,9 @@ Future<void> _pumpPlayer(WidgetTester tester, _ScriptedSource source) {
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(body: AttachmentVideoPlayer(attachment: _video)),
+        home: const Scaffold(
+          body: AttachmentVideoPlayer(attachment: videoAttachment),
+        ),
       ),
     ),
   );
@@ -183,12 +79,15 @@ void main() {
   testWidgets(
     'a failed load offers Retry, and retrying opens the source again',
     (tester) async {
-      final source = _ScriptedSource([Exception('boom')]);
+      final source = ScriptedSource([Exception('boom')]);
       await _pumpPlayer(tester, source);
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('Could not load ${_video.filename}.'), findsOneWidget);
+      expect(
+        find.text('Could not load ${videoAttachment.filename}.'),
+        findsOneWidget,
+      );
       final retry = find.text('Retry');
       expect(retry, findsOneWidget);
 
@@ -200,7 +99,7 @@ void main() {
   );
 
   testWidgets('disposing the player disposes its source', (tester) async {
-    final source = _ScriptedSource([Exception('boom')]);
+    final source = ScriptedSource([Exception('boom')]);
     await _pumpPlayer(tester, source);
     await tester.pump();
     expect(source.disposed, isFalse);
@@ -220,7 +119,9 @@ void main() {
         overrides: [apiProvider.overrideWithValue(signedOut)],
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(body: AttachmentVideoPlayer(attachment: _video)),
+          home: const Scaffold(
+            body: AttachmentVideoPlayer(attachment: videoAttachment),
+          ),
         ),
       ),
     );
@@ -239,7 +140,7 @@ void main() {
 
     expect(
       find.text(
-        'Could not load ${_video.filename}: you are signed out. '
+        'Could not load ${videoAttachment.filename}: you are signed out. '
         'Sign in and try again.',
       ),
       findsOneWidget,
@@ -253,8 +154,8 @@ void main() {
     testWidgets('a loaded source is opened on the player, paused', (
       tester,
     ) async {
-      final player = _FakePlayer();
-      await _pumpFaked(tester, _ScriptedSource([media]), player);
+      final player = FakePlayer();
+      await _pumpFaked(tester, ScriptedSource([media]), player);
       await tester.pump();
       await tester.pump();
 
@@ -267,8 +168,8 @@ void main() {
     testWidgets('the render context exists before the file opens', (
       tester,
     ) async {
-      final player = _FakePlayer();
-      await _pumpFaked(tester, _ScriptedSource([media]), player);
+      final player = FakePlayer();
+      await _pumpFaked(tester, ScriptedSource([media]), player);
       await tester.pump();
       await tester.pump();
 
@@ -276,35 +177,44 @@ void main() {
     });
 
     testWidgets('a failure while playing is shown as an error', (tester) async {
-      final player = _FakePlayer();
-      await _pumpFaked(tester, _ScriptedSource([media]), player);
+      final player = FakePlayer();
+      await _pumpFaked(tester, ScriptedSource([media]), player);
       await tester.pump();
       await tester.pump();
-      expect(find.text('Could not play ${_video.filename}.'), findsNothing);
+      expect(
+        find.text('Could not play ${videoAttachment.filename}.'),
+        findsNothing,
+      );
 
       player.errors.add('decode failed');
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('Could not play ${_video.filename}.'), findsOneWidget);
+      expect(
+        find.text('Could not play ${videoAttachment.filename}.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a failed load does not open the player', (tester) async {
-      final player = _FakePlayer();
-      await _pumpFaked(tester, _ScriptedSource([Exception('boom')]), player);
+      final player = FakePlayer();
+      await _pumpFaked(tester, ScriptedSource([Exception('boom')]), player);
       await tester.pump();
       await tester.pump();
 
       expect(player.opened, isEmpty);
       expect(find.byKey(const Key('ready-surface')), findsNothing);
-      expect(find.text('Could not load ${_video.filename}.'), findsOneWidget);
+      expect(
+        find.text('Could not load ${videoAttachment.filename}.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a retry after a failed load opens the player once it works', (
       tester,
     ) async {
-      final player = _FakePlayer();
-      final source = _ScriptedSource([Exception('boom'), media]);
+      final player = FakePlayer();
+      final source = ScriptedSource([Exception('boom'), media]);
       await _pumpFaked(tester, source, player);
       await tester.pump();
       await tester.pump();
@@ -315,15 +225,18 @@ void main() {
 
       expect(source.opens, 2);
       expect(player.opened.single, media);
-      expect(find.text('Could not load ${_video.filename}.'), findsNothing);
+      expect(
+        find.text('Could not load ${videoAttachment.filename}.'),
+        findsNothing,
+      );
       expect(find.byKey(const Key('ready-surface')), findsOneWidget);
     });
 
     testWidgets('a row outside the viewport opens nothing until scrolled in', (
       tester,
     ) async {
-      final player = _FakePlayer();
-      final source = _ScriptedSource([media]);
+      final player = FakePlayer();
+      final source = ScriptedSource([media]);
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(
@@ -335,7 +248,7 @@ void main() {
             attachmentVideoSourceProvider.overrideWithValue(() => source),
             attachmentPlayerProvider.overrideWithValue(() => player),
             attachmentVideoControllerProvider.overrideWithValue(
-              (_) => _FakeVideoController(),
+              (_) => FakeVideoController(),
             ),
             attachmentVideoSurfaceProvider.overrideWithValue(
               (player, controller, onToggleFullscreen, onSave, saving) =>
@@ -350,7 +263,7 @@ void main() {
                 scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
                 children: const [
                   SizedBox(height: 1500),
-                  AttachmentVideoPlayer(attachment: _video),
+                  AttachmentVideoPlayer(attachment: videoAttachment),
                 ],
               ),
             ),
@@ -378,8 +291,8 @@ void main() {
         () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
       );
       binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      final player = _FakePlayer();
-      final source = _ScriptedSource([media]);
+      final player = FakePlayer();
+      final source = ScriptedSource([media]);
       await _pumpFaked(tester, source, player);
       await tester.pump();
       await tester.pump();
@@ -398,8 +311,8 @@ void main() {
     });
 
     testWidgets('disposing disposes the player and the source', (tester) async {
-      final player = _FakePlayer();
-      final source = _ScriptedSource([media]);
+      final player = FakePlayer();
+      final source = ScriptedSource([media]);
       await _pumpFaked(tester, source, player);
       await tester.pump();
       await tester.pump();

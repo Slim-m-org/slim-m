@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/settled_double_writes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/settings/screens/personal_settings_screen.dart';
@@ -147,6 +148,7 @@ void main() {
     // geometry for a coordinate that lands on 30.
     tester.widget<AppSlider>(slider).onChanged!(30);
     await tester.pumpAndSettle();
+    await tester.pump(kSettledWriteDelay);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.activity_sensitivity'), 30.0);

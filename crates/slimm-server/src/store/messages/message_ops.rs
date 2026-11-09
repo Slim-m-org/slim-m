@@ -16,7 +16,9 @@
 //! no seq, which is why [`super::super::Store::edit_message`] answers three ways
 //! rather than two.
 
-use sqlx::{Sqlite, Transaction};
+use std::collections::HashMap;
+
+use sqlx::{QueryBuilder, Row, Sqlite, Transaction};
 
 use super::super::Store;
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -225,5 +227,32 @@ impl Store {
         )
         .fetch_one(&self.pool)
         .await?)
+    }
+
+    /// [`Self::earliest_message_op_seq`] for many channels in one read; a channel with no ops is absent.
+    pub async fn earliest_message_op_seqs(
+        &self,
+        channel_ids: &[ChannelId],
+    ) -> anyhow::Result<HashMap<ChannelId, i64>> {
+        let mut floors = HashMap::new();
+        for chunk in channel_ids.chunks(super::super::MAX_IDS_PER_QUERY) {
+            // A MIN seek per channel, since a GROUP BY would walk every op row; built because ids vary in length.
+            let mut builder = QueryBuilder::new(
+                "SELECT c.id AS channel_id, \
+                        (SELECT MIN(o.seq) FROM message_ops o WHERE o.channel_id = c.id) AS floor \
+                 FROM channels c WHERE c.id IN (",
+            );
+            let mut separated = builder.separated(", ");
+            for id in chunk {
+                separated.push_bind(*id);
+            }
+            builder.push(")");
+            for row in builder.build().fetch_all(&self.pool).await? {
+                if let Some(floor) = row.try_get::<Option<i64>, _>("floor")? {
+                    floors.insert(row.try_get("channel_id")?, floor);
+                }
+            }
+        }
+        Ok(floors)
     }
 }

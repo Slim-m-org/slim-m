@@ -16,7 +16,7 @@ import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
-import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../../../providers/server_info.dart';
 import '../providers/member_actions.dart';
 
 const _inviteLifetime = Duration(hours: 24);
@@ -54,7 +54,11 @@ bool watchCanInviteFriend(WidgetRef ref) {
   if (ref.watch(myPermissionsProvider).hasPermission(Perm.createInvite)) {
     return true;
   }
-  return ref.watch(serverInfoProvider).valueOrNull?.membersCanInvite ?? false;
+  return ref.watch(
+    serverInfoProvider.select(
+      (info) => info.valueOrNull?.membersCanInvite ?? false,
+    ),
+  );
 }
 
 /// True from the press until the link is shared or the failure sheet opens, so

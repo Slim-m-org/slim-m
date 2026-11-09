@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
+import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
 
 /// The blocked ids, and whether they have been read back from the server yet.
@@ -45,7 +46,8 @@ class BlocksState {
   /// the settings pane says plainly that the list could not be read.
   final bool settled;
 
-  /// Why the last fetch or change failed, for the one surface that lists them.
+  /// The last fetch failure as a sentence to show, for the one surface that
+  /// lists them.
   final String? error;
 
   /// Whether [userId] is blocked. Null (an anonymized author) never is.
@@ -120,15 +122,14 @@ class BlocksController extends StateNotifier<BlocksState> {
       }
       state = BlocksState(ids: ids, settled: true);
     } catch (error, stack) {
-      api.reportFailure(
+      final sentence = reportFailureSentence(
         api.LogTag.ui,
-        'refresh the blocked users list',
+        'load the block list',
         error,
         stack,
       );
       if (!mounted || generation != _generation) return;
-      final message = error is api.ApiException ? error.message : '$error';
-      state = BlocksState(ids: state.ids, settled: true, error: message);
+      state = BlocksState(ids: state.ids, settled: true, error: sentence);
     }
   }
 
@@ -143,15 +144,12 @@ class BlocksController extends StateNotifier<BlocksState> {
   Future<void> unblock(String userId) => _change(userId, blocked: false);
 
   Future<void> _change(String userId, {required bool blocked}) async {
-    final before = state.ids;
-    final after = {...before};
-    if (blocked) {
-      after.add(userId);
-    } else {
-      after.remove(userId);
-    }
+    final wasBlocked = state.ids.contains(userId);
     _edits[userId] = blocked;
-    state = BlocksState(ids: after, settled: state.settled);
+    state = BlocksState(
+      ids: _withBlocked(state.ids, userId, blocked),
+      settled: state.settled,
+    );
     final client = _ref.read(apiProvider);
     try {
       if (blocked) {
@@ -159,16 +157,21 @@ class BlocksController extends StateNotifier<BlocksState> {
       } else {
         await client.unblockUser(userId);
       }
-    } on api.ApiException {
-      _edits.remove(userId);
-      if (mounted) state = BlocksState(ids: before, settled: state.settled);
-      rethrow;
     } catch (_) {
       // Not only ApiException: an unreverted change asserts a block never taken.
       _edits.remove(userId);
-      if (mounted) state = BlocksState(ids: before, settled: state.settled);
+      if (mounted && state.ids.contains(userId) == blocked) {
+        state = BlocksState(
+          ids: _withBlocked(state.ids, userId, wasBlocked),
+          settled: state.settled,
+        );
+      }
       rethrow;
     }
+  }
+
+  Set<String> _withBlocked(Set<String> ids, String userId, bool blocked) {
+    return blocked ? {...ids, userId} : ({...ids}..remove(userId));
   }
 
   @override

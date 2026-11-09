@@ -11,6 +11,10 @@ final _base = Uri.parse('https://slim.test');
 
 /// A server that, like prod, drops every older access token on a rotation.
 class _RotatingServer {
+  _RotatingServer({this.slowPath = '/channels'});
+
+  /// The path whose first call answers late, after the other call's rotation has landed.
+  final String slowPath;
   int rotation = 1;
   int refreshes = 0;
   int slowCalls = 0;
@@ -33,8 +37,7 @@ class _RotatingServer {
       );
     }
     final sent = request.headers['authorization']?.substring('Bearer '.length);
-    // The first call answers late, after the other call's rotation has landed.
-    if (slowCalls++ == 0) {
+    if (request.url.path == slowPath && slowCalls++ == 0) {
       await Future<void>.delayed(const Duration(milliseconds: 80));
     }
     if (sent != liveAccess) {
@@ -44,12 +47,7 @@ class _RotatingServer {
   }
 }
 
-void main() {
-  test(
-      'a 401 that lands after another call already rotated replays with the '
-      'new token instead of rotating again and voiding it', () async {
-    final server = _RotatingServer();
-    final api = SlimmApi(
+SlimmApi _staleApi(_RotatingServer server) => SlimmApi(
       baseUrl: _base,
       session: SessionStore(
         tokens: const TokenPair(
@@ -62,8 +60,42 @@ void main() {
       httpClient: MockClient(server.handle),
     );
 
+void main() {
+  test(
+      'a 401 that lands after another call already rotated replays with the '
+      'new token instead of rotating again and voiding it', () async {
+    final server = _RotatingServer();
+    final api = _staleApi(server);
+
     await Future.wait([api.listChannels(), api.listChannels()]);
 
     expect(server.refreshes, 1);
   });
+
+  // Each byte route had its own copy of the rotate-on-401 rule, and only send() compared tokens.
+  final lateRoutes = <String, Future<Object?> Function(SlimmApi)>{
+    'fetchBytes': (api) => api.fetchAttachment('a'),
+    'openDownload': (api) async {
+      final download = await api.openAttachmentDownload('a');
+      await download.body.drain<void>();
+      return download;
+    },
+    'sendStreamed': (api) => api.sendStreamed(
+          'POST',
+          '/attachments',
+          open: () => Stream.value([1, 2, 3]),
+          length: 3,
+        ),
+  };
+  for (final MapEntry(:key, :value) in lateRoutes.entries) {
+    test('$key replays a late 401 without rotating a second time', () async {
+      final path = key == 'sendStreamed' ? '/attachments' : '/attachments/a';
+      final server = _RotatingServer(slowPath: path);
+      final api = _staleApi(server);
+
+      await Future.wait([value(api), api.listChannels()]);
+
+      expect(server.refreshes, 1);
+    });
+  }
 }

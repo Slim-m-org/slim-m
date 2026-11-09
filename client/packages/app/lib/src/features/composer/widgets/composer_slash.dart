@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../../../api_failure.dart';
+import '../../../ids.dart';
 import '../../modules/providers/app_launch.dart';
 import '../../../providers/providers.dart';
 import '../providers/slash_command.dart';
@@ -38,6 +39,7 @@ Future<void> sendSlashCommand({
   required void Function(String message) fail,
   String? replyToId,
 }) async {
+  final sent = controller.text;
   try {
     final result = await api.runModuleCommand(
       moduleId: command.moduleId,
@@ -49,7 +51,7 @@ Future<void> sendSlashCommand({
     );
     if (!isMounted()) return;
     if (result.ok) {
-      controller.clear();
+      _clearSent(controller, sent);
       if (result.messageId != null) onPosted();
     } else {
       fail(result.error ?? 'The command did not run.');
@@ -58,6 +60,21 @@ Future<void> sendSlashCommand({
     reportFailure(LogTag.ui, 'send the slash command', e, stack);
     fail(describeApiFailure('run /${command.name}', e));
   }
+}
+
+/// Clears [sent] from the field once its command finished, keeping what was typed meanwhile.
+void _clearSent(TextEditingController controller, String sent) {
+  final text = controller.text;
+  if (!text.startsWith(sent)) return;
+  final typed = text.substring(sent.length);
+  if (typed.isEmpty) {
+    controller.clear();
+    return;
+  }
+  controller.value = TextEditingValue(
+    text: typed,
+    selection: TextSelection.collapsed(offset: typed.length),
+  );
 }
 
 /// Runs whatever command the composed text names, answering whether it took
@@ -72,6 +89,7 @@ Future<void> sendSlashCommand({
 /// here instead, before either path can run.
 Future<bool> runComposedCommand({
   required WidgetRef ref,
+  required RetryId launchId,
   required String channelId,
   required TextEditingController controller,
   required List<App> apps,
@@ -102,13 +120,20 @@ Future<bool> runComposedCommand({
   }
   clearError();
   if (app != null) {
+    final sent = controller.text;
     final launched = await launchApp(
       ref: ref,
+      id: launchId.forRequest((
+        channelId: channelId,
+        moduleId: app.moduleId,
+        command: app.command,
+      )),
       channelId: channelId,
       app: app,
       onError: fail,
     );
-    if (launched && isMounted()) controller.clear();
+    if (launched) launchId.settle();
+    if (launched && isMounted()) _clearSent(controller, sent);
     return true;
   }
   await sendSlashCommand(

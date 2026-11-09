@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Message-row actions shared by any screen that renders a message: reaction
 /// and poll-vote toggles apply an optimistic local update before the real
-/// request, reverting on failure where a clean revert exists; edit and
-/// delete let the request fail up to the caller, which has a user-visible
-/// error to show. The `can*` gates decide what a caller may even offer,
+/// request, reverting on failure; edit and delete let the request fail up to
+/// the caller, which has a user-visible error to show. The `can*` gates decide what a caller may even offer,
 /// mirroring the server's own author-or-permission checks.
 ///
 /// A send (and its retry) is the third shape: it applies its optimistic row
@@ -20,6 +19,7 @@ import 'package:slimm_data/data.dart';
 import '../../../api_failure.dart';
 import '../../../permissions.dart';
 import 'message_extras.dart';
+import 'poll_vote_failure.dart';
 import 'message_search.dart' show ProviderReader;
 import '../../../providers/providers.dart';
 import '../../channels/providers/slow_mode_controller.dart';
@@ -64,37 +64,84 @@ bool hasReacted(WidgetRef ref, String messageId, String emoji) => ref
 /// refreshed tally, so the voter's own [api.Poll.votedOption] would
 /// otherwise never update on their own screen.
 ///
-/// A failed request is swallowed rather than reverted. There is no clean revert
-/// for a vote the way there is for a reaction, since the previous choice is
-/// already folded into the locally merged tally, so this leans on the next
-/// `poll.voted` broadcast or re-fetch to correct the screen.
-Future<void> castVote(WidgetRef ref, String messageId, int option) async {
-  ref.read(messageExtrasProvider.notifier).applyLocalVote(messageId, option);
+/// A refusal takes the vote back off the screen and is left in
+/// [pollVoteFailureProvider], where the poll shows it with a way to retry.
+Future<void> castVote(WidgetRef ref, String messageId, int option) =>
+    _vote(ref, messageId, PollBallot(option: option), 'cast your vote');
+
+/// Casts (or replaces) a ranked ballot, best first, the same way as [castVote].
+Future<void> castRanking(WidgetRef ref, String messageId, List<int> ranking) =>
+    _vote(ref, messageId, PollBallot(ranking: ranking), 'cast your ranking');
+
+Future<void> _vote(
+  WidgetRef ref,
+  String messageId,
+  PollBallot ballot,
+  String whatFailed,
+) async {
+  final inFlight = ref.read(pollVotesInFlightProvider);
+  // A second vote would snapshot the first one's optimistic poll as its way back, so the newest waits its turn.
+  if (inFlight.containsKey(messageId)) {
+    inFlight[messageId] = (ballot: ballot, whatFailed: whatFailed);
+    return;
+  }
+  final send = _VoteSender(
+    extras: ref.read(messageExtrasProvider.notifier),
+    failures: ref.read(pollVoteFailureProvider(messageId).notifier),
+    client: ref.read(apiProvider),
+    messageId: messageId,
+  );
+  QueuedPollBallot? next = (ballot: ballot, whatFailed: whatFailed);
   try {
-    await ref.read(apiProvider).votePoll(messageId: messageId, option: option);
-  } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'cast a poll vote', error, stack);
-    // Best-effort: the next tally corrects this, and a vote has no clean revert.
+    while (next != null) {
+      inFlight[messageId] = null;
+      await send(next);
+      next = inFlight[messageId];
+    }
+  } finally {
+    inFlight.remove(messageId);
   }
 }
 
-/// Casts (or replaces) a ranked ballot, best first, the same best-effort way
-/// as [castVote].
-Future<void> castRanking(
-  WidgetRef ref,
-  String messageId,
-  List<int> ranking,
-) async {
-  ref
-      .read(messageExtrasProvider.notifier)
-      .applyLocalVote(messageId, ranking.first, ranking: ranking);
-  try {
-    await ref
-        .read(apiProvider)
-        .votePoll(messageId: messageId, ranking: ranking);
-  } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'cast a ranked poll vote', error, stack);
-    // Best-effort, like castVote.
+class _VoteSender {
+  _VoteSender({
+    required this.extras,
+    required this.failures,
+    required this.client,
+    required this.messageId,
+  });
+
+  final MessageExtrasController extras;
+  final StateController<PollVoteFailure?> failures;
+  final api.SlimmApi client;
+  final String messageId;
+
+  Future<void> call(QueuedPollBallot vote) async {
+    final ballot = vote.ballot;
+    final ranking = ballot.ranking;
+    final before = extras.extrasFor(messageId).poll;
+    failures.state = null;
+    extras.applyLocalVote(
+      messageId,
+      ranking?.first ?? ballot.option!,
+      ranking: ranking,
+    );
+    final applied = extras.extrasFor(messageId).poll;
+    try {
+      await client.votePoll(
+        messageId: messageId,
+        option: ballot.option,
+        ranking: ranking,
+      );
+    } on api.ApiException catch (error, stack) {
+      if (before != null && applied != null) {
+        extras.revertLocalVote(messageId, before: before, applied: applied);
+      }
+      failures.state = PollVoteFailure(
+        reportFailureSentence(api.LogTag.ui, vote.whatFailed, error, stack),
+        ballot,
+      );
+    }
   }
 }
 

@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
-use slimm_server::store::Store;
+use slimm_server::store::{MAX_EDIT_REVISIONS, Store};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -235,4 +235,75 @@ async fn history_for_a_message_in_another_channel_is_not_found() {
     // Real message id, real channel the caller can view, but not its channel.
     let response = history(&app, &channel_b, message, &token).await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn history_keeps_the_original_and_the_newest_edits_past_the_cap() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-edit-history-cap").await;
+    let (channel, token) = open_channel(&store).await;
+    let app = app(store.clone());
+
+    let sent = send(&app, &channel, &token, "edit 0").await;
+    let message = sent["id"].as_str().unwrap().to_owned();
+    let id = slimm_server::ids::MessageId(message.parse().unwrap());
+    let author = store.message(id).await.unwrap().unwrap().author_id.unwrap();
+    let edits = MAX_EDIT_REVISIONS + 20;
+    for n in 1..=edits {
+        store
+            .edit_message(id, &format!("edit {n}"), author)
+            .await
+            .unwrap();
+    }
+
+    let stored: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM message_edits WHERE message_id = ?")
+        .bind(id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        stored, MAX_EDIT_REVISIONS,
+        "the table is trimmed as edits arrive"
+    );
+
+    let versions = json_body(history(&app, &channel, &message, &token).await).await;
+    let versions = versions.as_array().unwrap();
+    assert_eq!(versions.len() as i64, MAX_EDIT_REVISIONS + 1);
+    assert_eq!(versions[0]["content"], "edit 0", "the original survives");
+    assert_eq!(
+        versions[1]["content"],
+        format!("edit {}", edits - MAX_EDIT_REVISIONS + 1)
+    );
+    assert_eq!(versions.last().unwrap()["content"], format!("edit {edits}"));
+}
+
+#[tokio::test]
+async fn an_untrimmed_backlog_is_read_bounded_too() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-edit-history-backlog").await;
+    let (channel, token) = open_channel(&store).await;
+    let app = app(store.clone());
+
+    let sent = send(&app, &channel, &token, "now").await;
+    let message = sent["id"].as_str().unwrap().to_owned();
+    let id = slimm_server::ids::MessageId(message.parse().unwrap());
+    let backlog = MAX_EDIT_REVISIONS * 3;
+    for n in 0..backlog {
+        sqlx::query(
+            "INSERT INTO message_edits (message_id, content, replaced_at) VALUES (?, ?, ?)",
+        )
+        .bind(id)
+        .bind(format!("old {n}"))
+        .bind(n)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+
+    let versions = store.message_edit_history(id).await.unwrap().unwrap();
+    assert_eq!(versions.len() as i64, MAX_EDIT_REVISIONS + 1);
+    assert_eq!(versions[0].content, "old 0");
+    assert_eq!(
+        versions[1].content,
+        format!("old {}", backlog - MAX_EDIT_REVISIONS + 1)
+    );
+    assert_eq!(versions.last().unwrap().content, "now");
 }

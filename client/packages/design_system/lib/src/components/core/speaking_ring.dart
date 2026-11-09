@@ -93,23 +93,28 @@ class _AppSpeakingRingState extends State<AppSpeakingRing>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          AnimatedBuilder(
-            animation: _pulse,
-            // A foreground overlay, not a border, so a pulse moves no layout.
-            builder: (context, child) => Container(
-              foregroundDecoration: BoxDecoration(
-                shape: widget.round ? BoxShape.circle : BoxShape.rectangle,
-                borderRadius:
-                    widget.round ? null : BorderRadius.circular(widget.radius),
-                border: Border.all(
-                  color: widget.color.withValues(
-                      alpha: _pulseFloor + _pulse.value * (1 - _pulseFloor)),
-                  width: _ringWidth,
+          // Its own layer, or each frame of the pulse repaints everything around the ring.
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _pulse,
+              // A foreground overlay, not a border, so a pulse moves no layout.
+              builder: (context, child) => Container(
+                foregroundDecoration: BoxDecoration(
+                  shape: widget.round ? BoxShape.circle : BoxShape.rectangle,
+                  borderRadius: widget.round
+                      ? null
+                      : BorderRadius.circular(widget.radius),
+                  border: Border.all(
+                    color: widget.color.withValues(
+                      alpha: _pulseFloor + _pulse.value * (1 - _pulseFloor),
+                    ),
+                    width: _ringWidth,
+                  ),
                 ),
+                child: child,
               ),
-              child: child,
+              child: widget.child,
             ),
-            child: widget.child,
           ),
           if (reduced)
             Positioned(

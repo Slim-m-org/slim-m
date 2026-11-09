@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/lounge_tracks.dart';
+import 'package:slimm_app/src/features/voice/providers/settled_double_writes.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/hold_music_badge.dart';
@@ -139,7 +140,26 @@ void main() {
     },
   );
 
-  testWidgets('it sits above the dock when the row has no room', (
+  // Owner, 2026-11-07: never stacked above the dock, always on its row.
+  testWidgets('short of room it drops its timeline and stays on the dock row', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      player: _Player(),
+      width: 1000,
+      dockWidth: 600,
+      dockHeight: 64,
+    );
+    await tester.pump();
+    final badge = tester.getRect(find.bySubtype<HoldMusicBadge>());
+    expect(badge.center.dy, closeTo(800 - 12 - 32, 1));
+    expect(badge.right, lessThan((1000 - 600) / 2));
+    expect(find.bySemanticsLabel('Play music'), findsOneWidget);
+    expect(find.bySubtype<AppSlider>(), findsNothing);
+  });
+
+  testWidgets('with no room even for the compact pill it steps aside', (
     tester,
   ) async {
     await _pump(
@@ -149,8 +169,8 @@ void main() {
       dockWidth: 800,
       dockHeight: 64,
     );
-    final badge = tester.getRect(find.byType(HoldMusicBadge));
-    expect(badge.bottom, closeTo(800 - 88, 1));
+    await tester.pump();
+    expect(find.bySemanticsLabel('Play music'), findsNothing);
   });
 
   testWidgets('a compact window keeps the dock entries instead', (
@@ -250,6 +270,7 @@ void main() {
         .read(voiceSettingsControllerProvider)
         .holdMusicVolume;
     expect(volume, greaterThan(0.2));
+    await tester.pump(kSettledWriteDelay);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.hold_music_volume'), volume);
   });

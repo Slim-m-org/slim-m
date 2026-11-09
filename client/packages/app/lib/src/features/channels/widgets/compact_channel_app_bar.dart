@@ -101,11 +101,11 @@ class CompactChannelAppBar extends ConsumerWidget
             ? () => showGroupDmMembersSheet(context, channelId)
             : null,
       ),
-      // A voice channel has neither a message to find nor a message to pin,
-      // so those two would be controls that cannot do anything.
+      // A voice channel's messages live in its chat, so these show once that is open; threads never.
       actions: [
-        if (!isVoice) ChannelSearchAction(channelId: channelId),
-        if (!isVoice) _PinsAction(channelId: channelId),
+        if (!isVoice || voiceChatOpen)
+          ChannelSearchAction(channelId: channelId),
+        if (!isVoice || voiceChatOpen) _PinsAction(channelId: channelId),
         if (!isVoice) _ThreadsAction(channelId: channelId),
         DmCallButton(channelId: channelId),
         CanvasOpenButton(channelId: channelId, isVoice: isVoice, isDm: isDm),

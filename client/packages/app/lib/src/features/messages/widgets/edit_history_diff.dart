@@ -127,6 +127,9 @@ DiffBlock _wholeBlock(MessageBlock block, DiffKind kind) => switch (block) {
 
 final RegExp _tokenPattern = RegExp(r'\s+|\S+');
 
+/// Past this many word-diff table cells the middle is shown as one removal and one addition, which bounds the memory and the UI-thread time a rewritten message can cost.
+const int _maxWordTableCells = 250000;
+
 /// Suffix-indexed longest-common-subsequence lengths: `dp[i][j]` is the LCS of
 /// `a[i..]` and `b[j..]`.
 List<List<int>> _lcsTable<T>(List<T> a, List<T> b, bool Function(T, T) same) {
@@ -188,6 +191,15 @@ List<DiffSpan> diffWords(String oldText, String newText) {
 void _diffMiddle(List<DiffSpan> spans, List<String> a, List<String> b) {
   final n = a.length;
   final m = b.length;
+  if ((n + 1) * (m + 1) > _maxWordTableCells) {
+    for (final word in a) {
+      _push(spans, word, DiffKind.removed);
+    }
+    for (final word in b) {
+      _push(spans, word, DiffKind.added);
+    }
+    return;
+  }
   final dp = _lcsTable(a, b, (x, y) => x == y);
   var i = 0;
   var j = 0;

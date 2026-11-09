@@ -836,6 +836,16 @@ amd64 only because nothing consumes an arm64 image from this path: the owner's l
 Moving `latest` here is continuous deployment in the plain sense of the term: Watchtower on the live instance polls that tag, so a server merge reaches production within one build with nobody deploying it by hand, and a bad merge reaches it exactly as fast.
 That is the trade the owner asked for explicitly, not a gap: fast iteration on the one host that matters to him, at the cost of no gate between a merge and production.
 
+What it does not trade away is the direction `latest` moves.
+Re-running an older run's failed `server-image` job rebuilds that run's own commit, and without a check it pushed `main` and `latest` back onto it.
+A database that had already applied a later migration then refused to start the older server, the same incident `release-latest-allowed.sh` guards on the release path.
+So the job asks `scripts/main-latest-allowed.sh` first: it reads the commit `latest` holds from the `sha-<commit>` tag on that version in GHCR, compares it with this commit through the compare API (the build checkout is shallow), and tags `main` and `latest` only when this commit is not behind it.
+A refused commit still gets its `sha-<commit>` tag, with a `::warning::` saying why.
+It deliberately does not require this commit to be the tip of `main`: a docs-only merge after a server merge triggers no `main-builds` run, and would otherwise strand the server build that is still running.
+If GHCR or the compare API cannot be read it lets the move through, since a refused move is a server change nobody deploys (the failure in the concurrency section) and the stale re-run it exists for would also need the API down.
+A run on any ref other than `main`, which `workflow_dispatch` allows, fails the job before it builds, because the image it would push is tagged `latest`.
+`scripts/lib/test_main_latest_allowed.py` drives the script against a fake `gh` and pins the workflow wiring.
+
 ### Fedora, COPR, and the two problems a snapshot build has that a release does not
 
 `packaging/rpm/slim-m-client.spec`'s `Source0` points at a GitHub *release* asset (`.../releases/download/client-v%{version}/slim-m-client-%{version}-linux-amd64.tar.gz`), and the release path's `copr` job fetches it with `spectool -g -R` because COPR's mock buildroot has no network and needs the tarball inside the SRPM before it submits.

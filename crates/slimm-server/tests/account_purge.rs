@@ -70,6 +70,7 @@ async fn deleting_an_account_takes_its_poll_votes() {
                 close_at: None,
                 ranked: false,
             },
+            None,
         )
         .await
         .unwrap();

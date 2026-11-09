@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'ui_snapshot_fixture_thread_parent.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import 'ui_snapshot_dock.dart' show dockFixtureBody;
 
@@ -238,8 +239,10 @@ const fixtureAnalyticsEnabled = {
 /// than re-deriving the whole switch.
 Future<http.Response> fixtureResponse(http.Request request) async {
   final path = request.url.path;
-  // 404 like a real server: the catch-all `[]` renders as a blank disc.
-  if (path.endsWith('/avatar')) return http.Response('', 404);
+  // 404 with the error body a real server sends; the catch-all `[]` renders as a blank disc.
+  if (path.endsWith('/avatar')) {
+    return jsonHttpResponse({'error': 'user has no avatar'}, 404);
+  }
 
   final Object body = switch (path) {
     _ when dockFixtureBody(path) != null => dockFixtureBody(path)!,

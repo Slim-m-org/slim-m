@@ -16,9 +16,10 @@ import 'message_store_drafts.dart' as drafts_impl;
 import 'message_store_pending_attachments.dart' as pending_impl;
 import 'message_store_retention.dart' as retention_impl;
 import 'message_store_rows.dart' as rows_impl;
-import 'message_store_cursors.dart' show ReadMarker;
+import 'message_store_cursors.dart' show CursorAdvance, ReadMarker;
 
 export 'message_store_authorship.dart';
+export 'message_store_cursors.dart' show CursorAdvance;
 export 'message_store_inbox.dart';
 export 'message_store_recovery.dart'
     show failInterruptedSends, interruptedSendReason;
@@ -152,9 +153,12 @@ class MessageStore {
   /// showing a channel's messages should use to find its own name and read
   /// marker, including a thread's, which [watchChannels] deliberately
   /// excludes.
+  ///
+  /// Drift re-selects on any write to `channels`, other channels' included,
+  /// and rows compare by value, so an unchanged row is dropped here.
   Stream<Channel?> watchChannelRow(String channelId) {
     final query = db.select(db.channels)..where((c) => c.id.equals(channelId));
-    return query.watchSingleOrNull();
+    return query.watchSingleOrNull().distinct();
   }
 
   /// [watchChannelRow]'s own snapshot: a thread included, unlike
@@ -260,7 +264,13 @@ class MessageStore {
   /// Idempotent and order-safe: re-applying the same message changes nothing,
   /// and an older version of a message can never overwrite a newer one. This is
   /// the single place those two rules live.
-  Future<void> applyMessage(api.Message message) async {
+  ///
+  /// The sync cursor moves as [advance] says; by default only when the message
+  /// follows it directly, so a REST answer cannot skip a gap catch-up still owes.
+  Future<void> applyMessage(
+    api.Message message, {
+    CursorAdvance advance = CursorAdvance.whenContiguous,
+  }) async {
     await db.transaction(() async {
       final existing = await (db.select(db.messages)
             ..where((m) => m.id.equals(message.id)))
@@ -276,7 +286,7 @@ class MessageStore {
           .into(db.messages)
           .insertOnConflictUpdate(rows_impl.rowFor(message));
 
-      await advanceCursor(message.channelId, message.seq);
+      await advanceCursor(message.channelId, [message.seq], advance);
       if (message.mentionsMe) {
         await advanceMentionCursor(message.channelId, message.seq);
       }
@@ -286,9 +296,12 @@ class MessageStore {
   /// Applies a batch, for catch-up and scroll-back, in one transaction and with
   /// far fewer round trips than a call to [applyMessage] per message. The body
   /// lives in `message_store_batch.dart`; the same idempotency and ordering
-  /// rules [applyMessage] enforces are applied there.
-  Future<void> applyMessages(Iterable<api.Message> messages) =>
-      batch_impl.applyMessagesBatched(this, messages);
+  /// rules [applyMessage] enforces are applied there, [advance] included.
+  Future<void> applyMessages(
+    Iterable<api.Message> messages, {
+    CursorAdvance advance = CursorAdvance.whenContiguous,
+  }) =>
+      batch_impl.applyMessagesBatched(this, messages, advance);
 
   /// Drops a channel's cached messages and rewinds its cursor. Used when the
   /// server answers catch-up with `reset`, meaning the gap was too large to
@@ -473,10 +486,13 @@ class MessageStore {
   Future<Set<String>> reachableMessageIds(Iterable<String> channelIds) =>
       retention_impl.reachableMessageIds(this, channelIds);
 
-  /// Moves a channel's cursor forward. Never backwards: the cursor is the
-  /// high-water mark of what has been applied.
-  Future<void> advanceCursor(String channelId, int seq) =>
-      cursors_impl.advanceCursorHelper(this, channelId, seq);
+  /// Moves a channel's cursor forward to the newest of [seqs], as [advance] allows.
+  Future<void> advanceCursor(
+    String channelId,
+    Iterable<int> seqs,
+    CursorAdvance advance,
+  ) =>
+      cursors_impl.advanceCursorHelper(this, channelId, seqs, advance);
 
   /// [advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
   /// message whose `mentionsMe` is true.

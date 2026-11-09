@@ -5,7 +5,8 @@
 /// Drawn only on a wide window while you are the only one in the call
 /// (desktop-vs-mobile.md rules 1 and 2: width decides, and the style pick is
 /// a dropdown for a control that stays on screen). A compact window keeps the
-/// dock button and the mic-menu rows.
+/// dock button and the mic-menu rows, and so does a pane with no room for the
+/// badge, which says so through [holdMusicBadgeAsideProvider].
 library;
 
 import 'package:flutter/material.dart';
@@ -23,8 +24,9 @@ import '../../../providers/dock_reservation.dart';
 
 const _musicVolumeLabel = 'Music volume';
 
-/// Pins the badge to the bottom-left of a call surface, [bottom] above its edge so it clears the dock.
-/// Sits in the dock's own row when the window leaves room beside it, else above the dock.
+/// Pins the badge to the bottom-left of a call surface, in the dock's own row;
+/// short of room it drops its timeline rather than stacking above the dock, and
+/// short of room for even that it hands the music to the dock.
 class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
   const HoldMusicBadgeOverlay({
     super.key,
@@ -53,13 +55,42 @@ class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
 
 class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
   final _badgeKey = GlobalKey();
-  double? _badgeWidth;
+  late final StateController<bool> _aside = ref.read(
+    holdMusicBadgeAsideProvider.notifier,
+  );
+  double? _fullWidth;
+  bool _compact = false;
+  bool _wantAside = false;
+  bool _publishQueued = false;
 
+  // The full pill's width is only measurable while it is full; a compact one keeps the last.
   void _measure() {
     final width = _badgeKey.currentContext?.size?.width;
-    if (mounted && width != null && width != _badgeWidth) {
-      setState(() => _badgeWidth = width);
+    if (!mounted || width == null || _compact || width == _fullWidth) return;
+    setState(() => _fullWidth = width);
+  }
+
+  /// Written after the frame, since the dock that reads it is built in this one.
+  void _publishAside(bool aside) {
+    _wantAside = aside;
+    if (_publishQueued || _aside.state == aside) return;
+    _publishQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _publishQueued = false;
+      if (mounted) _aside.state = _wantAside;
+    });
+  }
+
+  /// Deferred to a microtask, as Riverpod refuses a write made while the tree is torn down.
+  @override
+  void dispose() {
+    if (_wantAside) {
+      final aside = _aside;
+      Future.microtask(() {
+        if (aside.mounted) aside.state = false;
+      });
     }
+    super.dispose();
   }
 
   @override
@@ -68,7 +99,10 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
         ref.watch(holdMusicAvailableProvider) &&
         ref.watch(callAloneProvider) &&
         holdMusicBadgeFits(context);
-    if (!shown) return const SizedBox.shrink();
+    if (!shown) {
+      _publishAside(false);
+      return const SizedBox.shrink();
+    }
     final sharedDockWidth = ref.watch(bottomDockWidthProvider);
     final double dockWidth = widget.dockWidth ?? sharedDockWidth;
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
@@ -76,24 +110,29 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final dockHeight = widget.dockHeight;
-        final badgeWidth = _badgeWidth;
-        final room = (constraints.maxWidth - dockWidth) / 2;
-        final beside =
-            dockHeight != null &&
-            dockHeight > 0 &&
-            dockWidth > 0 &&
-            badgeWidth != null &&
-            room >= badgeWidth + AppSpacing.s12 * 2;
+        final room =
+            (constraints.maxWidth - dockWidth) / 2 - AppSpacing.s12 * 2;
+        final full = _fullWidth;
+        _compact = full != null && room < full;
+        final aside = _compact && room < holdMusicCompactWidth;
+        _publishAside(aside);
+        // Always the dock's row, never stacked above it; too narrow even for the compact pill, the dock carries the music instead.
+        if (aside) return const SizedBox.shrink();
+        // A folded dock leaves only its handle, shorter than the pill: sit on the edge rather than squeeze into it.
+        final inRow = dockHeight != null && dockHeight >= _pillHeight;
         return Align(
           alignment: Alignment.bottomLeft,
           child: Padding(
             padding: EdgeInsets.only(
               left: AppSpacing.s12,
-              bottom: beside ? widget.dockMargin : widget.fallbackBottom,
+              bottom: inRow ? widget.dockMargin : widget.fallbackBottom,
             ),
             child: KeyedSubtree(
               key: _badgeKey,
-              child: HoldMusicBadge(pillSlot: beside ? dockHeight : null),
+              child: HoldMusicBadge(
+                pillSlot: inRow ? dockHeight : null,
+                compact: _compact,
+              ),
             ),
           ),
         );
@@ -102,11 +141,21 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
   }
 }
 
+/// The pill's own height: a small control plus its vertical padding and border.
+const double _pillHeight = AppSizes.controlSm + 2 * AppSpacing.s4 + 2;
+
+/// The pill without its timeline: style, play and volume.
+const double holdMusicCompactWidth =
+    3 * AppSizes.controlSm + 2 * AppSpacing.s4 + 2 * AppSpacing.s8 + 2;
+
 class HoldMusicBadge extends ConsumerStatefulWidget {
-  const HoldMusicBadge({super.key, this.pillSlot});
+  const HoldMusicBadge({super.key, this.pillSlot, this.compact = false});
 
   /// Height the pill is centred in, so the volume panel unfolds upward from a row it shares.
   final double? pillSlot;
+
+  /// Leaves out the timeline, for a dock row without room for it.
+  final bool compact;
 
   @override
   ConsumerState<HoldMusicBadge> createState() => _HoldMusicBadgeState();
@@ -188,8 +237,10 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
       children: [
         _styleButton(settings.holdMusicTrack),
         const SizedBox(width: AppSpacing.s4),
-        _Timeline(player: player, on: on),
-        const SizedBox(width: AppSpacing.s4),
+        if (!widget.compact) ...[
+          _Timeline(player: player, on: on),
+          const SizedBox(width: AppSpacing.s4),
+        ],
         AppIconButton(
           icon: on ? AppIcons.pause : AppIcons.play,
           semanticLabel: on ? 'Pause music' : 'Play music',

@@ -15,6 +15,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../audio/lounge_tracks.dart';
 
 import '../../../providers/providers.dart';
+import 'settled_double_writes.dart';
 import 'shortcut_overrides.dart' show kDefaultPushToTalkKey;
 import 'voice_controller.dart';
 import 'speaker_route_provider.dart';
@@ -30,6 +31,17 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   }
 
   final Ref _ref;
+  final SettledDoubleWrites _sliderWrites = SettledDoubleWrites();
+
+  @override
+  void dispose() {
+    _sliderWrites.flush();
+    super.dispose();
+  }
+
+  Future<void> _saveSettled(String key, double value) async {
+    _sliderWrites.save(await _ref.read(preferencesProvider.future), key, value);
+  }
 
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
@@ -151,8 +163,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   Future<void> setHoldMusicVolume(double volume) async {
     final clamped = volume.clamp(0.0, 1.0);
     state = state.copyWith(holdMusicVolume: clamped);
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setDouble(VoiceSettingKeys.holdMusicVolume, clamped);
+    await _saveSettled(VoiceSettingKeys.holdMusicVolume, clamped);
   }
 
   Future<void> setScreenShareResolution(ScreenShareResolution r) =>
@@ -336,24 +347,22 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   Future<void> setVoiceActivitySensitivity(double value) async {
     final clamped = value.clamp(0.0, 100.0);
     state = state.copyWith(voiceActivitySensitivity: clamped);
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setDouble(VoiceSettingKeys.sensitivity, clamped);
     _ref
         .read(voiceControllerProvider.notifier)
         .input
         .setVoiceActivitySensitivity(clamped);
+    await _saveSettled(VoiceSettingKeys.sensitivity, clamped);
   }
 
   /// Persists the gate threshold and applies it live.
   Future<void> setInputThreshold(double db) async {
     final clamped = db.clamp(kInputFloorDb, 0.0);
     state = state.copyWith(inputThresholdDb: clamped);
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setDouble(VoiceSettingKeys.inputThreshold, clamped);
     _ref
         .read(voiceControllerProvider.notifier)
         .input
         .setInputThreshold(clamped);
+    await _saveSettled(VoiceSettingKeys.inputThreshold, clamped);
   }
 
   /// Turning it off keeps wherever the threshold had got to as the manual one.

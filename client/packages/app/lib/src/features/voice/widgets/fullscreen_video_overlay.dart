@@ -166,7 +166,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
 
   @override
   Widget build(BuildContext context) {
-    final participants = ref.watch(voiceParticipantsProvider);
+    final participants = ref.watch(voiceSilentRosterProvider);
     final controller = ref.read(voiceControllerProvider.notifier);
     final live = _stillLive(participants);
     // Scheduled: a build method must not itself change the navigator stack.
@@ -258,7 +258,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
             ? _zoom.handleKey(event)
             : KeyEventResult.ignored,
         child: Theme(
-          data: buildTheme(Brightness.dark, AppTokens.dark),
+          data: forcedDarkTheme,
           child: Material(
             type: MaterialType.transparency,
             child: ColoredBox(color: Colors.black, child: stage),

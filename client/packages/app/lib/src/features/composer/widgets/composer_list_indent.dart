@@ -11,7 +11,10 @@ import 'package:flutter/material.dart';
 
 import '../../messages/widgets/message_markdown_blocks.dart' show kMaxListDepth;
 
-final RegExp _listLine = RegExp(r'^( {0,5})(?:([-*])|(\d+)\.)([ \t]+)(.*)$');
+/// Nine digits at most, as CommonMark has it: a longer run is an id or a timestamp, and would overflow the parsed number.
+final RegExp _listLine = RegExp(
+  r'^( {0,5})(?:([-*])|(\d{1,9})\.)([ \t]+)(.*)$',
+);
 
 /// One line parsed as a list item.
 class ListLine {

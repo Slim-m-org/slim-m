@@ -379,7 +379,7 @@ class VoiceSession
     final generation = ++_generation;
     await _teardown();
     if (generation != _generation) return;
-    _participants = const [];
+    _setRoster(const []);
     _audio.deafened = false;
     _audio.muted.clear();
     _audio.screenMuted.clear();
@@ -389,9 +389,6 @@ class VoiceSession
     // Whatever a canvas last asked for was about the call that just ended.
     _videoCuller.setInterest(null);
     _videoCuller.setBlocked(const {});
-    if (!_participantsController.isClosed) {
-      _participantsController.add(_participants);
-    }
     _setState(VoiceSessionState.idle);
   }
 

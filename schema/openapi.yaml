@@ -3316,7 +3316,9 @@ paths:
         and publishes nothing. Refused if the role carries a permission the
         caller does not themselves hold, since granting a role is granting
         whatever it carries. A bot is a role holder like any other, ADMINISTRATOR
-        included; see docs/decisions/0028-bot-accounts.md.
+        included; see docs/decisions/0028-bot-accounts.md. A member that does
+        not exist or was deleted is a 404, and a webhook, which holds no roles,
+        is a 400.
       responses:
         "204":
           description: The role is assigned.
@@ -4129,7 +4131,9 @@ paths:
         current content. Gated on VIEW_CHANNEL, the same as reading the
         message; a message that does not exist, is not in this channel, or is
         deleted answers 404. A never-edited message returns a single element,
-        its original content.
+        its original content. A message edited more than 50 times keeps its
+        original and its newest 49 replaced versions, so the list holds at most
+        51 versions including the current one.
       responses:
         "200":
           description: The message's versions, oldest first.
@@ -5099,7 +5103,9 @@ paths:
         creation; a poll needs between 2 and 4 of them. `close_at`, if given,
         is a unix-millisecond deadline after which the server refuses votes;
         it must be in the future and at most 31 days out, or the poll is
-        refused with 400.
+        refused with 400. A fresh poll inside the channel's slow-mode window
+        is refused with 429, as `sendMessage` is; a retry of a stored `id` is
+        not.
       requestBody:
         required: true
         content:
@@ -5137,7 +5143,9 @@ paths:
         gated on the same VIEW_CHANNEL plus SEND_MESSAGES permissions, evaluated
         in this channel. The caller must also currently be able to reach the
         named app (installed, enabled, and holding its declared permission),
-        the same three checks `listApps` filters on. The message carries only
+        the same three checks `listApps` filters on. A fresh launch inside the
+        channel's slow-mode window is refused with 429, as `sendMessage` is;
+        a retry of a stored `id` is not. The message carries only
         which module and command to launch; the surface's live, shared state is
         the module's own output, run and seen by everyone through the shared
         code-run route at block 0, exactly like a fenced code block. slim has no
@@ -8939,7 +8947,7 @@ paths:
         an id is 1 to 64 characters of letters, digits and `-_.`, unique within
         its surface. `icon` is one of `play`, `pause`, `stop`, `skip_next`,
         `skip_previous`, `volume`, `volume_off`, `repeat`, `shuffle`, `list`,
-        `settings`, and only a call control takes one. `permission` is one
+        `settings`, `captions`, and only a call control takes one. `permission` is one
         `Permissions` bit the member must hold in the channel. A call control
         may offer 2 to 8 `options`, each an id and label held to the same
         rules and unique within the control; the member picks one, and the
@@ -11276,6 +11284,11 @@ paths:
       responses:
         "101":
           description: Switching protocols.
+        "429":
+          description: >
+            This address has presented too many bad tickets, or has too many
+            sockets still waiting to send their hello. A plain-text body and no
+            `Retry-After`: wait before opening another socket.
         "503":
           description: The connection ceiling was reached.
 
@@ -11932,7 +11945,15 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     Unavailable:
-      description: The server shed the request under load; retry shortly.
+      description: >
+        The server shed the request under load; retry shortly. Any route can
+        answer this when the server is at its in-flight request ceiling.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying. Sent when the shed was for lack of an in-flight request slot.
+          schema:
+            type: integer
+            minimum: 1
       content:
         application/json:
           schema:
@@ -11984,7 +12005,8 @@ components:
           format: int64
           description: >
             How many seconds remain before the request would succeed. Present
-            on a slow-mode 429 from `sendMessage` and on every rate-limiter
+            on a slow-mode 429 from `sendMessage`, `sendPollMessage` and
+            `launchAppMessage` and on every rate-limiter
             429 (both also echoed as a `Retry-After` header); absent
             everywhere else, including the 429 of a two-factor lockout and of
             the private-message budget.
@@ -15829,7 +15851,9 @@ components:
           type: string
           maxLength: 4000
           description: >-
-            Honoured. The same 4000-character ceiling `SendMessageRequest.content`
+            Honoured. May be left out when at least one embed shows something,
+            as Sonarr and Radarr send; a post with neither is a 400. The same
+            4000-character ceiling `SendMessageRequest.content`
             carries, comfortably above Discord's own 2000, so no compatible
             caller can overflow it. `@name` mentions inside it resolve
             exactly as they do for a person; `@everyone`, `@here`, and role
@@ -20441,7 +20465,8 @@ components:
       type: object
       required: [type]
       description: >
-        A Space-wide display setting changed. Carries no fields; a receiving
+        A Space setting that `/version` shows changed: the name, description
+        or icon, or a Space-wide display switch. Carries no fields; a receiving
         client re-reads `/version`, which every member can read.
       properties:
         type:

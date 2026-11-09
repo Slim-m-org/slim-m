@@ -20,6 +20,8 @@ mixin VoiceSessionInputGate {
   NoiseFloorEstimator? _autoThreshold;
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
+  final _localLevels = StreamController<double>.broadcast();
+  double _lastLocalLevel = 0;
 
   void _diag(String line, {LogLevel level});
   void _refreshParticipants();
@@ -47,6 +49,7 @@ mixin VoiceSessionInputGate {
 
   Future<void> _disposeCapture() async {
     await _captureReadings?.cancel();
+    await _localLevels.close();
   }
 
   /// What the next [MicPort.setEnabled] opens with. [reopen] makes LiveKit
@@ -56,6 +59,17 @@ mixin VoiceSessionInputGate {
 
   /// Your microphone's level and voice state, while in a call.
   Stream<InputGateReading> get inputGateReadings => _gate.readings;
+
+  /// Your microphone's level as the SFU last reported it, for hosts with no input gate.
+  /// Kept off the roster because a level change there rebuilds the whole call.
+  Stream<double> get localAudioLevels => _localLevels.stream;
+
+  void _reportLocalLevel(List<VoiceParticipant> roster) {
+    final level = roster.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0;
+    if (level == _lastLocalLevel) return;
+    _lastLocalLevel = level;
+    if (!_localLevels.isClosed) _localLevels.add(level);
+  }
 
   /// [enabled] false keeps metering and detecting voice; it only stops
   /// silencing the quiet frames.
