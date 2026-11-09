@@ -317,13 +317,17 @@ impl Store {
             .last_used_at
             .is_none_or(|at| now - at > LAST_USED_WRITE_AFTER_MS)
         {
-            sqlx::query!(
+            // Cosmetic, so a writer holding the lock past the busy timeout must not fail the request.
+            if let Err(error) = sqlx::query!(
                 "UPDATE bot_tokens SET last_used_at = ? WHERE token_hash = ?",
                 now,
                 hash
             )
             .execute(&self.pool)
-            .await?;
+            .await
+            {
+                tracing::warn!(%error, "could not stamp a bot token's last use");
+            }
         }
 
         Ok(Some(SessionContext {
