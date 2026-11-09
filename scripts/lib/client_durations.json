@@ -673,7 +673,6 @@
 "test/features/emoji/emoji_picker_grid_concurrency_test.dart": 1.4,
 "test/features/emoji/emoji_picker_keyboard_test.dart": 1.3,
 "test/features/emoji/emoji_picker_test.dart": 2.4,
-"test/features/emoji/emoji_section_scroll_offset_test.dart": 0.4,
 "test/features/emoji/message_text_emoji_test.dart": 0.9,
 "test/features/emoji/picker_emoji_fixture_test.dart": 0.6,
 "test/features/emoji/picker_sections_test.dart": 0.4,

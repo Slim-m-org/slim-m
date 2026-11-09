@@ -65,9 +65,15 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   List<PickerEmoji> _visible = const [];
   List<EmojiSection> _sections = const [];
 
+  /// What [_visible] and [_sections] were last derived from, so a hover or a
+  /// press, which only repaints, does not rebuild them.
+  String? _derivedQuery;
+  List<String>? _derivedRecent;
+  List<CustomEmoji>? _derivedCustom;
+
   /// Whichever tile the pointer sits over right now, by token rather than
-  /// by identity - a rebuild recomputes fresh [PickerEmoji] instances, so
-  /// comparing objects would drop a hover the moment anything else changed.
+  /// by identity - a new recent or custom list derives fresh [PickerEmoji]
+  /// instances, so comparing objects would drop a hover the moment one landed.
   String? _hoverToken;
   String? _pressToken;
 
@@ -165,19 +171,39 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   }
 
   void _jumpTo(EmojiCategory category, List<EmojiSection> sections) {
-    final offset = emojiSectionScrollOffset(
-      category: category,
+    final navigation = EmojiSectionNavigation(
       sections: sections,
       crossAxisExtent: _gridCrossAxisExtent,
     );
     setState(() => _jumpedTo = category);
     unawaited(
       _scrollController.animateTo(
-        offset,
+        navigation.sectionTop(category),
         duration: AppMotion.base,
         curve: AppMotion.entrance,
       ),
     );
+  }
+
+  void _derive(List<String> recent, List<CustomEmoji> custom) {
+    if (_query == _derivedQuery &&
+        identical(recent, _derivedRecent) &&
+        identical(custom, _derivedCustom)) {
+      return;
+    }
+    _derivedQuery = _query;
+    _derivedRecent = recent;
+    _derivedCustom = custom;
+    _sections = pickerSections(recent: recent, custom: custom);
+    _visible = _query.trim().isNotEmpty
+        ? pickerResults(
+            query: _query,
+            // Ignored while searching; pickerResults only consults it otherwise.
+            category: EmojiCategory.smileysEmotion,
+            recent: recent,
+            custom: custom,
+          )
+        : [for (final section in _sections) ...section.emoji];
   }
 
   /// What a screen reader should hear once the view settles: a search's own
@@ -214,18 +240,9 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
     final custom =
         ref.watch(customEmojiProvider).valueOrNull ?? const <CustomEmoji>[];
     final searching = _query.trim().isNotEmpty;
-    final sections = pickerSections(recent: recent, custom: custom);
-    final results = searching
-        ? pickerResults(
-            query: _query,
-            // Ignored while searching; pickerResults only consults it otherwise.
-            category: EmojiCategory.smileysEmotion,
-            recent: recent,
-            custom: custom,
-          )
-        : [for (final section in sections) ...section.emoji];
-    _visible = results;
-    _sections = sections;
+    _derive(recent, custom);
+    final sections = _sections;
+    final results = _visible;
     if (_highlighted >= results.length) {
       _highlighted = results.isEmpty ? 0 : results.length - 1;
     }
