@@ -130,6 +130,36 @@ class CheckReleaseTagLagTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
 
+    def _commit_server_manifest_with_root_first(self, root, server, at_epoch):
+        name = ".release-please-manifest.server.json"
+        (self.repo / name).write_text(
+            json.dumps({".": root, "crates/slimm-server": server}))
+        self._git("add", name)
+        stamp = {"GIT_AUTHOR_DATE": f"@{at_epoch} +0000",
+                 "GIT_COMMITTER_DATE": f"@{at_epoch} +0000"}
+        subprocess.run(
+            ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "bump"],
+            cwd=self.repo, check=True, capture_output=True, text=True,
+            env={**_env(), **stamp})
+
+    def test_the_server_tag_follows_its_own_key_not_the_first_entry(self):
+        """A manifest that lists the root package first must not make the
+        server check read the schema's version."""
+        self._commit_server_manifest_with_root_first("0.50.0", "0.76.0", 1000)
+        self._tag("schema-v0.50.0")
+        self._tag("server-v0.50.0")
+        result = self._run(now_epoch=1000 + 901, grace_seconds=900)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("server-v0.76.0 was never cut", result.stdout + result.stderr)
+
+    def test_a_server_tag_for_its_own_key_passes_whatever_the_order(self):
+        self._commit_server_manifest_with_root_first("0.50.0", "0.76.0", 1000)
+        self._tag("schema-v0.50.0")
+        self._tag("server-v0.76.0")
+        result = self._run(now_epoch=1000 + 901, grace_seconds=900)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 def _env():
     return dict(os.environ)
 
