@@ -44,6 +44,13 @@ class ComposerAttachmentActions {
     required void Function(String) onCommandError,
   }) {
     final context = this.context();
+    final hadKeyboard = focus.hasFocus;
+    // Else the closing sheet hands focus back to the field, which undoes Photo library swapping the keyboard for the strip.
+    focus.unfocus();
+    VoidCallback keepKeyboard(VoidCallback action) => () {
+      if (hadKeyboard && isMounted()) focus.requestFocus();
+      action();
+    };
     unawaited(
       showComposerActionsSheet(
         context,
@@ -51,23 +58,28 @@ class ComposerAttachmentActions {
           context,
           ref,
           channelId,
-          fallback: () =>
-              unawaited(pickAttachment(AttachmentSource.photoLibrary)),
+          fallback: keepKeyboard(
+            () => unawaited(pickAttachment(AttachmentSource.photoLibrary)),
+          ),
         ),
-        onBrowseFiles: () =>
-            unawaited(pickAttachment(AttachmentSource.fileBrowser)),
+        onBrowseFiles: keepKeyboard(
+          () => unawaited(pickAttachment(AttachmentSource.fileBrowser)),
+        ),
         canPasteImage: composerClipboardPasteAvailable(
           platform: Theme.of(context).platform,
         ),
-        onPasteImage: () =>
-            unawaited(pasteClipboardImage(stageAttachment, setError)),
-        onPoll: () => showPollComposerSheet(context, channelId),
-        onCode: onInsertCode,
+        onPasteImage: keepKeyboard(
+          () => unawaited(pasteClipboardImage(stageAttachment, setError)),
+        ),
+        onPoll: keepKeyboard(() => showPollComposerSheet(context, channelId)),
+        onCode: keepKeyboard(onInsertCode),
         // Only when there is something to launch; an empty menu entry would dead-end.
         onApps: apps.isEmpty
             ? null
-            : () => launchApps(channelId, onCommandError),
-      ),
+            : keepKeyboard(() => launchApps(channelId, onCommandError)),
+      ).then((picked) {
+        if (!picked && hadKeyboard && isMounted()) focus.requestFocus();
+      }),
     );
   }
 
