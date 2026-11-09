@@ -206,6 +206,11 @@ The three `SC2015` sites it did find (`[[ -n "$PID" ]] && kill "$PID" || true` i
 `scripts/lib/test_*.py` covers the harness's scenario logic (the read-state and sync assertions, the settings assertions) against stubs, with no server and no browser.
 `e2e.yml` runs the same discovery, but only on push to main and on path-matching PRs, and only as an advisory check; this is the unconditional `pull_request` gate on it, so a regression in the harness itself fails a PR rather than a nightly run nobody is watching.
 
+Three optional dependencies decide whether some of those tests run at all: `numpy` (the canvas alignment detector), `websockets` (the load-test listener pool) and `rpmdev-vercmp` (the only proof that the Python port of rpm's version compare behind the COPR snapshot Release equals real rpm).
+A test that needs one skips when it is missing, which is right on a laptop and invisible on a runner.
+The `hygiene` job installs the first two as pinned wheels and `scripts/check-rpm-ordering.sh` runs the COPR tests in the `fedora:44` image the COPR jobs use, because `rpmdev-vercmp` is not packaged for Ubuntu.
+Both name what they provide in `SLIMM_REQUIRE_TEST_DEPS`, and `test_required_test_dependencies_are_present.py` fails when a named dependency is absent, so a dropped install step turns red instead of skipping.
+
 ### iOS purpose strings
 
 App Store review rejects a binary whose linked SDKs reference a sensitive API without a purpose string, and it does it asynchronously.
