@@ -57,7 +57,7 @@ Future<void> showResetCodeSheet(
           e,
           stack,
         );
-        return reauthFailure(e);
+        return reauthFailure(e, 'issue a password reset code');
       }
     },
   );

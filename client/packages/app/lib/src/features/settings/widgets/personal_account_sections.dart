@@ -284,7 +284,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
           e is api.ForbiddenException ||
           e is api.BadRequestException ||
           e is api.RateLimitedException;
-      if (refused) return reauthFailure(e);
+      if (refused) return reauthFailure(e, 'delete the account');
       if (mounted) setState(() => _deleteError = e.message);
       return null;
     }

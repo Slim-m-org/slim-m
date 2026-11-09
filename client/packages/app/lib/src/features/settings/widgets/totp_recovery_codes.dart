@@ -6,10 +6,10 @@
 /// The server keeps only their hashes, so there is nothing to re-read, and a
 /// person who closes this without keeping them has to reissue.
 ///
-/// The "Done" button is deliberately the only way out and is not disabled: a
+/// The "Done" button is the way out the view offers and is not disabled: a
 /// dialog somebody cannot dismiss is worse than one they dismiss too early, and
-/// reissuing is always available. What the copy does instead is say plainly what
-/// closing costs.
+/// reissuing is always available. A barrier tap or back gesture closes the
+/// sheet around it too, so what the copy does is say plainly what closing costs.
 library;
 
 import 'package:flutter/material.dart';
