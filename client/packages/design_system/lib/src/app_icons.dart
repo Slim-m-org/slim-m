@@ -467,6 +467,7 @@ abstract final class AppIcons {
   static const IconData callRepeat = LucideIcons.repeat300;
   static const IconData callShuffle = LucideIcons.shuffle300;
   static const IconData callList = LucideIcons.listMusic300;
+  static const IconData callCaptions = LucideIcons.captions300;
 
   /// Leads every row a bot adds to a menu, so none can borrow a built-in's glyph.
   static const IconData botAction = LucideIcons.bot300;

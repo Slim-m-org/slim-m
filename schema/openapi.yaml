@@ -8939,7 +8939,7 @@ paths:
         an id is 1 to 64 characters of letters, digits and `-_.`, unique within
         its surface. `icon` is one of `play`, `pause`, `stop`, `skip_next`,
         `skip_previous`, `volume`, `volume_off`, `repeat`, `shuffle`, `list`,
-        `settings`, and only a call control takes one. `permission` is one
+        `settings`, `captions`, and only a call control takes one. `permission` is one
         `Permissions` bit the member must hold in the channel. A call control
         may offer 2 to 8 `options`, each an id and label held to the same
         rules and unique within the control; the member picks one, and the

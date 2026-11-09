@@ -18,7 +18,7 @@ pub const MAX_CONTROL_OPTIONS: usize = 8;
 
 /// Glyphs a call control may name. The client draws them from its own icon
 /// set, so a bot chooses a picture but never supplies one.
-pub const CALL_ICONS: [&str; 11] = [
+pub const CALL_ICONS: [&str; 12] = [
     "play",
     "pause",
     "stop",
@@ -30,6 +30,7 @@ pub const CALL_ICONS: [&str; 11] = [
     "shuffle",
     "list",
     "settings",
+    "captions",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -282,6 +283,16 @@ mod tests {
         assert!(validate(controls(vec![with_icon.clone()]), hidden).is_ok());
         with_icon.icon = Some("skull".into());
         assert!(validate(controls(vec![with_icon]), hidden).is_err());
+    }
+
+    #[test]
+    fn every_listed_icon_is_accepted_by_a_call_control() {
+        for icon in CALL_ICONS {
+            let mut control = entry("a", "Glyph");
+            control.icon = Some(icon.into());
+            assert!(validate(controls(vec![control]), hidden).is_ok(), "{icon}");
+        }
+        assert!(CALL_ICONS.contains(&"captions"));
     }
 
     #[test]

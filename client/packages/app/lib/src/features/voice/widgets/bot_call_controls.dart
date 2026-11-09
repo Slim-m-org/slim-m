@@ -19,6 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/providers/bot_ui_uses.dart';
+import '../../modules/widgets/module_slot_icons.dart';
 import '../providers/voice_controller.dart';
 import 'call_dock_button.dart';
 import '../../../widgets/context_menu_region.dart';
@@ -74,20 +75,7 @@ const double _compactNameMaxWidth = 88;
 /// Widest the strip grows, so a wide window keeps it a control and not a bar.
 const double _maxWidth = 480;
 
-IconData _iconFor(String? name) => switch (name) {
-  'play' => AppIcons.play,
-  'pause' => AppIcons.pause,
-  'stop' => AppIcons.callStop,
-  'skip_next' => AppIcons.callSkipNext,
-  'skip_previous' => AppIcons.callSkipPrevious,
-  'volume' => AppIcons.speaker,
-  'volume_off' => AppIcons.speakerOff,
-  'repeat' => AppIcons.callRepeat,
-  'shuffle' => AppIcons.callShuffle,
-  'list' => AppIcons.callList,
-  'settings' => AppIcons.settings,
-  _ => AppIcons.callControl,
-};
+IconData _iconFor(String? name) => moduleSlotIcon(name) ?? AppIcons.callControl;
 
 class BotCallControls extends ConsumerWidget {
   const BotCallControls({
