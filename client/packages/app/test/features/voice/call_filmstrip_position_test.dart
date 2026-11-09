@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_filmstrip.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
@@ -12,37 +13,39 @@ import 'package:slimm_rtc/rtc.dart';
 
 const _stripKey = ValueKey('strip');
 
-Widget _app({required bool lounge, String channelId = 'c1'}) => MaterialApp(
-  theme: buildTheme(Brightness.light, AppTokens.light),
-  home: Scaffold(
-    body: lounge
-        ? SizedBox(
-            width: 600,
-            height: 128,
-            child: CallFilmstrip(
-              key: _stripKey,
-              channelId: channelId,
-              leading: const [],
-              leadingItemWidth: 199,
-              participants: [
-                for (var i = 0; i < 12; i++)
-                  VoiceParticipant(
-                    identity: 'p$i',
-                    name: 'p$i',
-                    isSpeaking: false,
-                    isMuted: false,
-                    isLocal: false,
-                    isScreenSharing: false,
-                  ),
-              ],
-              tileBuilder: (context, p) => SizedBox(
-                key: ValueKey('tile-${p.identity}'),
-                width: kCallTileMinWidth,
-                height: 90,
+Widget _app({required bool lounge, String channelId = 'c1'}) => ProviderScope(
+  child: MaterialApp(
+    theme: buildTheme(Brightness.light, AppTokens.light),
+    home: Scaffold(
+      body: lounge
+          ? SizedBox(
+              width: 600,
+              height: 128,
+              child: CallFilmstrip(
+                key: _stripKey,
+                channelId: channelId,
+                leading: const [],
+                leadingItemWidth: 199,
+                participants: [
+                  for (var i = 0; i < 12; i++)
+                    VoiceParticipant(
+                      identity: 'p$i',
+                      name: 'p$i',
+                      isSpeaking: false,
+                      isMuted: false,
+                      isLocal: false,
+                      isScreenSharing: false,
+                    ),
+                ],
+                tileBuilder: (context, p) => SizedBox(
+                  key: ValueKey('tile-${p.identity}'),
+                  width: kCallTileMinWidth,
+                  height: 90,
+                ),
               ),
-            ),
-          )
-        : const SizedBox(key: ValueKey('canvas')),
+            )
+          : const SizedBox(key: ValueKey('canvas')),
+    ),
   ),
 );
 

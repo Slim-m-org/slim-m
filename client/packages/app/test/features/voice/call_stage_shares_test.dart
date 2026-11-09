@@ -129,6 +129,45 @@ void main() {
     await _leave(call);
   });
 
+  testWidgets('a speaking flip rebuilds only the talker\'s tile', (
+    tester,
+  ) async {
+    VoiceParticipant who(String id, {bool speaking = false}) =>
+        VoiceParticipant(
+          identity: id,
+          name: id,
+          isLocal: id == 'me',
+          isSpeaking: speaking,
+          isMuted: false,
+          isScreenSharing: id == 'a',
+        );
+    final call = await _connected(tester, [
+      who('a'),
+      who('b'),
+      who('me'),
+    ], const Size(1600, 900));
+    final rebuilt = <String, int>{};
+    debugOnRebuildDirtyWidget = (element, _) {
+      final name = element.widget.runtimeType.toString();
+      rebuilt[name] = (rebuilt[name] ?? 0) + 1;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    for (var i = 0; i < 6; i++) {
+      call.session.emitParticipants([
+        who('a'),
+        who('b', speaking: i.isEven),
+        who('me'),
+      ]);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    debugOnRebuildDirtyWidget = null;
+    // Each flip once rebuilt the whole stage, share and header included (about 220 widgets).
+    expect(rebuilt['ScreenShareStage'], isNull);
+    expect(rebuilt['CallStageLayout'], isNull);
+    expect(rebuilt['CallParticipantTile'] ?? 0, lessThanOrEqualTo(6));
+    await _leave(call);
+  });
+
   testWidgets('your own share fills the stage like a remote one', (
     tester,
   ) async {

@@ -32,6 +32,11 @@ bool g_class_registered = false;
 std::vector<Shape> g_shapes;
 Panel g_panel;
 int g_monitor = 0;
+// One premultiplied surface for the window's life: a fresh full-monitor bitmap and copy per frame stalled the first marks.
+HDC g_surface_dc = nullptr;
+HBITMAP g_surface = nullptr;
+HGDIOBJ g_surface_previous = nullptr;
+void* g_surface_bits = nullptr;
 
 bool BuildSupportsExclude() {
   using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
@@ -138,15 +143,53 @@ void DrawNote(Gdiplus::Graphics& g, const Shape& s, double w, double h) {
   g.DrawString(s.text.c_str(), -1, &font, at, nullptr, &ink);
 }
 
-// Renders the shapes into a premultiplied bitmap and hands it to the layered window.
+void ReleaseSurface() {
+  if (g_surface_dc != nullptr) {
+    SelectObject(g_surface_dc, g_surface_previous);
+    DeleteDC(g_surface_dc);
+  }
+  if (g_surface != nullptr) DeleteObject(g_surface);
+  g_surface_dc = nullptr;
+  g_surface = nullptr;
+  g_surface_previous = nullptr;
+  g_surface_bits = nullptr;
+}
+
+bool EnsureSurface() {
+  if (g_surface != nullptr) return true;
+  BITMAPINFO info = {};
+  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  info.bmiHeader.biWidth = g_width;
+  info.bmiHeader.biHeight = -g_height;
+  info.bmiHeader.biPlanes = 1;
+  info.bmiHeader.biBitCount = 32;
+  info.bmiHeader.biCompression = BI_RGB;
+  HDC screen = GetDC(nullptr);
+  g_surface = CreateDIBSection(screen, &info, DIB_RGB_COLORS, &g_surface_bits,
+                               nullptr, 0);
+  if (g_surface != nullptr) g_surface_dc = CreateCompatibleDC(screen);
+  ReleaseDC(nullptr, screen);
+  if (g_surface == nullptr || g_surface_dc == nullptr) {
+    ReleaseSurface();
+    return false;
+  }
+  g_surface_previous = SelectObject(g_surface_dc, g_surface);
+  return true;
+}
+
+// Renders the shapes straight into the window's surface and hands it to the layered window.
 void Present() {
   if (g_window == nullptr || g_width <= 0 || g_height <= 0) return;
-  Gdiplus::Bitmap bitmap(g_width, g_height, PixelFormat32bppPARGB);
+  if (!EnsureSurface()) return;
   {
+    Gdiplus::Bitmap bitmap(g_width, g_height, g_width * 4, PixelFormat32bppPARGB,
+                           static_cast<BYTE*>(g_surface_bits));
     Gdiplus::Graphics g(&bitmap);
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     g.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+    g.SetCompositingMode(Gdiplus::CompositingModeSourceCopy);
     g.Clear(Gdiplus::Color(0, 0, 0, 0));
+    g.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
     for (const Shape& s : g_shapes) {
       switch (s.kind) {
         case Shape::Kind::kStroke: DrawStroke(g, s, g_width, g_height); break;
@@ -159,21 +202,13 @@ void Present() {
       DrawPanel(g, g_panel, g_width, g_height, scale > 0 ? scale : 1.0);
     }
   }
-  HBITMAP hbitmap = nullptr;
-  if (bitmap.GetHBITMAP(Gdiplus::Color(0, 0, 0, 0), &hbitmap) != Gdiplus::Ok) {
-    return;
-  }
+  GdiFlush();
   HDC screen = GetDC(nullptr);
-  HDC memory = CreateCompatibleDC(screen);
-  HGDIOBJ previous = SelectObject(memory, hbitmap);
   POINT origin = {0, 0};
   SIZE size = {g_width, g_height};
   BLENDFUNCTION blend = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
-  UpdateLayeredWindow(g_window, screen, nullptr, &size, memory, &origin, 0,
-                      &blend, ULW_ALPHA);
-  SelectObject(memory, previous);
-  DeleteDC(memory);
-  DeleteObject(hbitmap);
+  UpdateLayeredWindow(g_window, screen, nullptr, &size, g_surface_dc, &origin,
+                      0, &blend, ULW_ALPHA);
   ReleaseDC(nullptr, screen);
 }
 
@@ -292,6 +327,7 @@ void Hide() {
     g_window = nullptr;
     DestroyWindow(window);
   }
+  ReleaseSurface();
 }
 
 }  // namespace slimm_overlay

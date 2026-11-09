@@ -105,7 +105,8 @@ class CallStageLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final voice = ref.watch(voiceFlagsProvider);
-    final participants = ref.watch(voiceParticipantsProvider);
+    // The roster without speaking flags: a talker flipping must not rebuild the stage, only their tile's ring.
+    final participants = ref.watch(voiceSilentRosterProvider);
     final watch = ref.watch(shareWatchProvider);
     final watching = ref.read(shareWatchProvider.notifier);
     final shares = activeShares(
@@ -419,7 +420,11 @@ Widget participantTile(
   final showsCamera = participant.isCameraOn;
   return Consumer(
     builder: (_, ref, _) => CallParticipantTile(
-      participant: participant,
+      participant: participant.copyWith(
+        isSpeaking: ref.watch(
+          participantSpeakingProvider(participant.identity),
+        ),
+      ),
       width: width,
       poorConnection: ref.watch(
         poorConnectionsProvider.select((s) => s.contains(participant.identity)),
