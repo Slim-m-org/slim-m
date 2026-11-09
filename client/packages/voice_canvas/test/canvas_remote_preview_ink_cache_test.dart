@@ -3,6 +3,7 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -133,5 +134,44 @@ void main() {
 
     expect(document.isHeldLive('s3'), isFalse);
     expect(document.isHeldLive('s4'), isFalse);
+  });
+
+  testWidgets('a held object leaves no copy behind in the texture', (
+    tester,
+  ) async {
+    painter.devicePixelRatio = 1;
+    await tester.runAsync(() async {
+      Future<Uint8List> frame(StrokePainter from) async {
+        final recorder = ui.PictureRecorder();
+        from.paint(Canvas(recorder), _size);
+        final image = await recorder.endRecording().toImage(1000, 1000);
+        final bytes = (await image.toByteData())!.buffer.asUint8List();
+        image.dispose();
+        return bytes;
+      }
+
+      await frame(painter);
+      await frame(painter);
+      for (var ms = 0; ms <= 400; ms += 100) {
+        previews.apply('s3', _at(200.0 + ms), now: _ms(ms));
+        previews.tick(_ms(ms + 50));
+        await frame(painter);
+      }
+      final cached = await frame(painter);
+      expect(painter.debugHasInkTexture, isTrue);
+
+      final reference = StrokePainter(document: document, ink: ink)
+        ..devicePixelRatio = 1;
+      final live = await frame(reference);
+      reference.dispose();
+
+      var worst = 0;
+      for (var i = 0; i < cached.length; i++) {
+        worst = worst > (cached[i] - live[i]).abs()
+            ? worst
+            : (cached[i] - live[i]).abs();
+      }
+      expect(worst, lessThan(24), reason: 'a ghost at the old place differs');
+    });
   });
 }
