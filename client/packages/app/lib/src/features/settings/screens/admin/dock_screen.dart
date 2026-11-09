@@ -19,10 +19,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
-import '../../../modules/providers/app_launch.dart';
-import '../../../modules/providers/code_block_runner.dart';
-import '../../../../providers/providers.dart';
-import '../../../composer/providers/slash_command.dart';
 import '../../../../routing/routes.dart';
 import '../../../voice/widgets/ring_flush.dart';
 import '../../../../widgets/run_guarded.dart';
@@ -31,11 +27,11 @@ import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'dock_file_install.dart';
-import 'dock_install_consent.dart';
 import 'dock_manage_sources.dart';
 import 'dock_module_row.dart';
 import 'dock_pane_header.dart';
 import 'dock_sources_section.dart';
+import 'dock_update_all.dart';
 
 class DockScreen extends StatelessWidget {
   const DockScreen({super.key});
@@ -48,12 +44,6 @@ class DockScreen extends StatelessWidget {
     child: DockPane(),
   );
 }
-
-/// An installed module that has an update, and the community source to install
-/// it from (null for the official one).
-typedef _Outdated = ({api.DockIndexEntry entry, String? source});
-
-enum _UpdateOutcome { updated, needsReview, needsApproval, failed }
 
 /// The module list itself, embeddable as a Space settings pane as well as
 /// routed.
@@ -74,6 +64,9 @@ class _DockPaneState extends ConsumerState<DockPane>
   /// True while [_updateAll] is working through the outdated modules, so the
   /// button cannot be pressed twice and says what it is doing.
   bool _updatingAll = false;
+
+  /// How the last Update all went, until the next one starts.
+  DockUpdateReport? _updateReport;
 
   @override
   void dispose() {
@@ -99,7 +92,7 @@ class _DockPaneState extends ConsumerState<DockPane>
   /// Community sources count the same way their rows' badges do: a module is
   /// outdated in a source only if it was installed from that very source, and
   /// it is updated from there.
-  static List<_Outdated> _outdated(DockCatalog catalog) => [
+  static List<DockOutdated> _outdated(DockCatalog catalog) => [
     for (final entry in catalog.entries)
       if (_isBehind(catalog, entry, null)) (entry: entry, source: null),
     for (final section in catalog.sections)
@@ -121,84 +114,28 @@ class _DockPaneState extends ConsumerState<DockPane>
         installed.version != entry.version;
   }
 
-  /// Updates every outdated module, one at a time, and reports what did not
-  /// take rather than stopping at the first failure.
+  /// Walks the outdated modules, asking about the ones that want new access,
+  /// and keeps going past a skip or a failure so one module cannot stop the rest.
   ///
-  /// Sequential on purpose: each install is a write against one space, and a
-  /// partial result is much easier to explain ("two of five updated") than a
-  /// burst that raced. Nothing navigates afterwards - an update already knows
-  /// who may use the module, which is why the per-module screen only sends a
-  /// *first* install to the access screen.
-  ///
-  /// A new build drops the approval to post messages (`message.post`), since
-  /// what was approved was the old build, so the modules that lost it are
-  /// named: decision 0023 says the Dock tells you on the update screen.
-  Future<void> _updateAll(List<_Outdated> outdated) async {
+  /// A module that failed is named with its reason in the error box, and one
+  /// the admin skipped is only mentioned under the bar: a skip is a choice.
+  Future<void> _updateAll(List<DockOutdated> outdated) async {
     clearActionError();
-    setState(() => _updatingAll = true);
-    final outcomes = <_UpdateOutcome, List<String>>{};
-    for (final (:entry, :source) in outdated) {
-      final outcome = await _updateOne(entry, source);
-      outcomes.putIfAbsent(outcome, () => []).add(entry.name);
-    }
-    if (!mounted) return;
-    setState(() => _updatingAll = false);
-    // The same set a per-module install invalidates: a version can declare different extension points.
-    ref.invalidate(dockCatalogProvider);
-    ref.invalidate(modulePermissionsProvider);
-    ref.invalidate(codeBlockRunnerProvider);
-    ref.invalidate(slashCommandProvider);
-    ref.invalidate(appLaunchProvider);
-    _reportUpdateAll(outdated.length, outcomes);
-  }
-
-  Future<_UpdateOutcome> _updateOne(
-    api.DockIndexEntry entry,
-    String? source,
-  ) async {
-    final current = ref
-        .read(dockCatalogProvider)
-        .valueOrNull
-        ?.installedFor(entry.id);
-    final before = current?.approvedHostCapabilities;
-    try {
-      final manifest = await ref.read(dockManifestFor(entry.id, source).future);
-      if (newConsentCapabilities(manifest, current).isNotEmpty) {
-        return _UpdateOutcome.needsReview;
-      }
-      final updated = await ref
-          .read(apiProvider)
-          .installDockModule(
-            moduleId: entry.id,
-            version: entry.version,
-            source: source,
-          );
-      final lostAccess = (before ?? const <String>[]).any(
-        (c) => !updated.approvedHostCapabilities.contains(c),
-      );
-      return lostAccess ? _UpdateOutcome.needsApproval : _UpdateOutcome.updated;
-    } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'update a module', error, stack);
-      return _UpdateOutcome.failed;
-    }
-  }
-
-  void _reportUpdateAll(int total, Map<_UpdateOutcome, List<String>> outcomes) {
-    final failed = outcomes[_UpdateOutcome.failed] ?? const [];
-    final needReview = outcomes[_UpdateOutcome.needsReview] ?? const [];
-    final needApproval = outcomes[_UpdateOutcome.needsApproval] ?? const [];
-    if (failed.isEmpty && needApproval.isEmpty && needReview.isEmpty) return;
-    final updated = total - failed.length - needReview.length;
-    setActionError(
-      [
-        'Updated $updated of $total.',
-        if (failed.isNotEmpty) 'Could not update ${failed.join(', ')}.',
-        if (needReview.isNotEmpty)
-          '${needReview.join(', ')} asks for new access. Open it to review.',
-        if (needApproval.isNotEmpty)
-          '${needApproval.join(', ')} needs its access approved again.',
-      ].join(' '),
+    setState(() {
+      _updatingAll = true;
+      _updateReport = null;
+    });
+    final report = await updateAllDockModules(
+      context: context,
+      ref: ref,
+      outdated: outdated,
     );
+    if (report == null || !mounted) return;
+    setState(() {
+      _updatingAll = false;
+      _updateReport = report;
+    });
+    if (report.failures.isNotEmpty) setActionError(report.failures.join(' '));
   }
 
   DockListFilter _filterFor(DockCatalog catalog) =>
@@ -241,6 +178,7 @@ class _DockPaneState extends ConsumerState<DockPane>
               _UpdateAllBar(
                 count: outdated.length,
                 busy: _updatingAll,
+                summary: _updateReport?.summary(outdated),
                 onUpdateAll: () => unawaited(_updateAll(outdated)),
               ),
             RingFlush(
@@ -380,11 +318,15 @@ class _UpdateAllBar extends StatelessWidget {
   const _UpdateAllBar({
     required this.count,
     required this.busy,
+    required this.summary,
     required this.onUpdateAll,
   });
 
   final int count;
   final bool busy;
+
+  /// What the last press left undone, when it left anything.
+  final String? summary;
   final VoidCallback onUpdateAll;
 
   @override
@@ -395,6 +337,7 @@ class _UpdateAllBar extends StatelessWidget {
         SettingsDetailRow(
           icon: AppIcons.dock,
           title: '$subject an update',
+          detail: summary,
           trailing: AppButton(
             label: busy ? 'Updating...' : 'Update all',
             variant: AppButtonVariant.primary,

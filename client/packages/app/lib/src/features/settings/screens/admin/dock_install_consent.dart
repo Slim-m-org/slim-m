@@ -154,6 +154,18 @@ List<String> dockScheduleChanges(
 bool dockSameHosts(List<String> a, List<String> b) =>
     a.length == b.length && a.toSet().containsAll(b);
 
+/// Whether the private-network yes [installed] holds still stands for [manifest].
+bool dockLocalNetworkCarries(
+  api.DockManifest manifest,
+  api.InstalledDockModule? installed,
+  Set<String> approved,
+) =>
+    (manifest.network?.local ?? false) &&
+    approved.contains(api.kNetFetchCapability) &&
+    installed != null &&
+    installed.localNetworkApproved &&
+    dockSameHosts(installed.networkHosts, manifest.network!.hosts);
+
 /// Whether pressing Install should stop at the consent step first.
 bool dockNeedsConsent({
   required List<String> newCapabilities,
@@ -201,7 +213,10 @@ class DockVerifiedBadge extends StatelessWidget {
   }
 }
 
-/// Resolves true once the admin agrees, false when they back out.
+/// Resolves true once the admin agrees, false when they back out or close it.
+///
+/// [reapprove] words an update that only takes back access the module held,
+/// and [confirmLabel] and [cancelLabel] rename the two buttons.
 Future<bool> showDockInstallConsent(
   BuildContext context, {
   required api.DockManifest manifest,
@@ -209,7 +224,10 @@ Future<bool> showDockInstallConsent(
   required bool verified,
   required bool isUpdate,
   bool localNetwork = false,
+  bool reapprove = false,
   List<String> changes = const [],
+  String? confirmLabel,
+  String? cancelLabel,
 }) async {
   final agreed = await showAppSheet<bool>(
     context,
@@ -220,7 +238,10 @@ Future<bool> showDockInstallConsent(
       verified: verified,
       isUpdate: isUpdate,
       localNetwork: localNetwork,
+      reapprove: reapprove,
       changes: changes,
+      confirmLabel: confirmLabel,
+      cancelLabel: cancelLabel,
     ),
   );
   return agreed ?? false;
@@ -233,7 +254,10 @@ class _ConsentSheet extends StatefulWidget {
     required this.verified,
     required this.isUpdate,
     required this.localNetwork,
+    required this.reapprove,
     required this.changes,
+    required this.confirmLabel,
+    required this.cancelLabel,
   });
 
   final api.DockManifest manifest;
@@ -241,6 +265,9 @@ class _ConsentSheet extends StatefulWidget {
   /// What an update changed about the module's reach or timer.
   final List<String> changes;
   final bool localNetwork;
+  final bool reapprove;
+  final String? confirmLabel;
+  final String? cancelLabel;
   final List<String> capabilities;
   final bool verified;
   final bool isUpdate;
@@ -282,7 +309,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             children: [
               Expanded(
                 child: AppButton(
-                  label: 'Cancel',
+                  label: widget.cancelLabel ?? 'Cancel',
                   variant: AppButtonVariant.ghost,
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
@@ -290,7 +317,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
               const SizedBox(width: AppSpacing.s8),
               Expanded(
                 child: AppButton(
-                  label: verb,
+                  label: widget.confirmLabel ?? verb,
                   variant: AppButtonVariant.primary,
                   disabled: _needsTick && !_understood,
                   onPressed: () => Navigator.of(context).pop(true),
@@ -317,12 +344,11 @@ class _ConsentSheetState extends State<_ConsentSheet> {
       _standing(tokens),
       const SizedBox(height: AppSpacing.s12),
       if (widget.capabilities.isNotEmpty) ...[
-        Text(
-          widget.isUpdate
-              ? 'This version asks for new access. It can:'
-              : 'This module can:',
-          style: AppText.body.copyWith(color: tokens.textPrimary),
-        ),
+        Text(switch ((widget.isUpdate, widget.reapprove)) {
+          (true, true) => 'This version needs approval again. It can:',
+          (true, false) => 'This version asks for new access. It can:',
+          _ => 'This module can:',
+        }, style: AppText.body.copyWith(color: tokens.textPrimary)),
         const SizedBox(height: AppSpacing.s8),
         for (final change in widget.changes)
           _CapabilityLine(text: change, verified: false),

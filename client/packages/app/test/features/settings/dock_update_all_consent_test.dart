@@ -7,236 +7,309 @@
 /// the walk now opens it for each module that needs it.
 library;
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/testing.dart';
 
-import '../../dock_manifest_fixture.dart';
+import '../../support/dock_update_world.dart';
 
-const _tokens = api.TokenPair(
-  userId: 'admin',
-  accessToken: 'access',
-  refreshToken: 'refresh',
-  accessExpiresAt: 0,
-);
-
-const _sizes = {'390x844': Size(390, 844), '1280x800': Size(1280, 800)};
-
-class _Mod {
-  const _Mod(
-    this.id, {
-    this.community = false,
-    this.asks = const [],
-    this.approvedBefore = const [],
-    this.newBuild = false,
-    this.refuse = false,
-  });
-
-  final String id;
-
-  /// Listed by the community source, so unreviewed.
-  final bool community;
-
-  /// What the offered manifest declares.
-  final List<String> asks;
-
-  /// What this space approved on the installed build, which also declared it.
-  final List<String> approvedBefore;
-
-  /// The offered manifest ships different code than the installed one.
-  final bool newBuild;
-
-  /// The install call answers 409.
-  final bool refuse;
-
-  String get name => 'Mod $id';
+/// Taps outside the sheet or dialog, where the barrier is on both layouts.
+Future<void> _tapBarrier(WidgetTester tester) async {
+  await tester.tapAt(const Offset(8, 8));
+  await settleDock(tester);
 }
 
-final _sha = List.filled(64, 'a').join();
-final _oldSha = List.filled(64, 'b').join();
+const _tick = 'I understand what this module can do';
+const _approve = 'Approve and update';
 
-http.Response _json(Object body, [int status = 200]) => http.Response(
-  jsonEncode(body),
-  status,
-  headers: {'content-type': 'application/json'},
-);
+/// The UPDATE badge on each module row still behind.
+Finder get _updateChips => find.text('UPDATE');
 
-class _World {
-  _World(this.mods) {
-    for (final m in mods) {
-      installed[m.id] = {
-        'id': m.id,
-        'name': m.name,
-        'version': '1.0.0',
-        'artifact_sha256': m.newBuild ? _oldSha : _sha,
-        'approved_capabilities': m.approvedBefore,
-        'approved_host_capabilities': m.approvedBefore,
-        'extension_points': <Map<String, dynamic>>[],
-        'enabled': true,
-        'installed_at': 1000,
-        if (m.community) 'source_repo': 'someone/mods',
-      };
-    }
+void _eachSize(
+  String name,
+  Future<void> Function(WidgetTester tester, Size size) body,
+) {
+  for (final MapEntry(key: label, value: size) in dockUpdateSizes.entries) {
+    testWidgets('$name ($label)', (tester) => body(tester, size));
   }
-
-  final List<_Mod> mods;
-  final installed = <String, Map<String, dynamic>>{};
-  final bodies = <Map<String, dynamic>>[];
-
-  List<String> get installs => [for (final b in bodies) b['id'] as String];
-
-  Map<String, dynamic> _entry(_Mod m) => {
-    'id': m.id,
-    'name': m.name,
-    'version': '2.0.0',
-    'summary': 'does something',
-  };
-
-  Map<String, dynamic> _install(_Mod m, Map<String, dynamic> body) {
-    final approved =
-        (body['approved_host_capabilities'] as List<dynamic>?)
-            ?.cast<String>() ??
-        [
-          for (final c in m.approvedBefore)
-            if (m.asks.contains(c) && !(m.newBuild && c == 'message.post')) c,
-        ];
-    return installed[m.id] = {
-      ...installed[m.id]!,
-      'version': body['version'],
-      'artifact_sha256': _sha,
-      'approved_capabilities': m.asks,
-      'approved_host_capabilities': approved,
-    };
-  }
-
-  Future<http.Response> handle(http.Request request) async {
-    final path = request.url.path;
-    final source = request.url.queryParameters['source'];
-    if (path == '/space/dock/sources') {
-      return _json([
-        {'id': 'official', 'repo': 'slim-m/modules', 'official': true},
-        {'id': 'comm', 'repo': 'someone/mods', 'official': false},
-      ]);
-    }
-    if (path == '/space/dock/modules') {
-      return _json([
-        for (final m in mods)
-          if (m.community == (source == 'comm')) _entry(m),
-      ]);
-    }
-    if (path == '/space/dock/installed')
-      return _json(installed.values.toList());
-    final id = RegExp(
-      r'^/space/dock/modules/([^/]+)',
-    ).firstMatch(path)?.group(1);
-    final mod = mods.where((m) => m.id == id).firstOrNull;
-    if (mod == null) {
-      throw StateError('unexpected request: ${request.method} ${request.url}');
-    }
-    if (request.method == 'GET') {
-      return _json(
-        dockManifestJson(
-          mod.id,
-          '2.0.0',
-          capabilities: mod.asks,
-          reviewDigest: 'digest-${mod.id}',
-          extras: {'name': mod.name},
-        ),
-      );
-    }
-    final body = jsonDecode(request.body) as Map<String, dynamic>;
-    if (mod.refuse) {
-      return _json({
-        'error': {'code': 'conflict', 'message': 'moved on'},
-      }, 409);
-    }
-    bodies.add({...body, 'id': mod.id});
-    return _json(_install(mod, body));
-  }
-}
-
-Future<void> _open(WidgetTester tester, _World world, Size size) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
-  final container = ProviderContainer(
-    overrides: [
-      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final built = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(world.handle),
-        );
-        ref.onDispose(built.close);
-        return built;
-      }),
-    ],
-  );
-  addTearDown(container.dispose);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp.router(
-        theme: buildTheme(Brightness.dark, AppTokens.dark),
-        routerConfig: GoRouter(
-          initialLocation: Routes.adminDock,
-          routes: [
-            GoRoute(
-              path: Routes.adminDock,
-              builder: (context, state) => const DockScreen(),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-  await _settle(tester);
-}
-
-Future<void> _settle(WidgetTester tester) async {
-  for (var i = 0; i < 6; i++) {
-    await tester.pump(const Duration(milliseconds: 400));
-  }
-}
-
-Future<void> _tap(WidgetTester tester, String label) async {
-  await tester.tap(find.text(label));
-  await _settle(tester);
 }
 
 void main() {
-  for (final MapEntry(key: label, value: size) in _sizes.entries) {
-    testWidgets('update all asks about new access instead of failing '
-        '($label)', (tester) async {
-      final world = _World([
-        const _Mod('a'),
-        const _Mod('b', asks: ['kv.store']),
+  _eachSize('update all asks about new access instead of failing', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a'),
+      const DockUpdateMod('b', asks: ['kv.store']),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+
+    await tapDock(tester, 'Update all');
+
+    expect(find.text('Update Mod b?'), findsOneWidget);
+    expect(
+      find.text('Can keep its own private data on your server.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Open it to review'), findsNothing);
+    expect(find.text('Dismiss'), findsNothing);
+    expect(world.installs, ['a']);
+  });
+
+  _eachSize(
+    'the module that needed nothing has landed while the prompt is open',
+    (tester, size) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod('a'),
+        const DockUpdateMod('b', asks: ['kv.store']),
       ]);
-      await _open(tester, world, size);
+      await openDockUpdateWorld(tester, world, size);
+      expect(_updateChips, findsNWidgets(2));
 
-      await _tap(tester, 'Update all');
+      await tapDock(tester, 'Update all');
 
-      expect(find.text('Update Mod b?'), findsOneWidget);
-      expect(
-        find.text('Can keep its own private data on your server.'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Open it to review'), findsNothing);
-      expect(find.text('Dismiss'), findsNothing);
-      expect(world.installs, ['a']);
-    });
-  }
+      expect(_updateChips, findsOneWidget, reason: 'a is current, b waits');
+      expect(find.text('Updating...'), findsOneWidget);
+    },
+  );
+
+  _eachSize('approving installs the module with the access it was shown', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a'),
+      const DockUpdateMod('b', asks: ['kv.store']),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+
+    await tapDock(tester, _approve);
+
+    expect(world.installs, ['a', 'b']);
+    expect(world.bodies.last['approved_host_capabilities'], ['kv.store']);
+    expect(world.bodies.last['reviewed_digest'], 'digest-b');
+    expect(_updateChips, findsNothing);
+    expect(find.text('Update all'), findsNothing);
+    expect(find.text('Dismiss'), findsNothing);
+  });
+
+  _eachSize('skipping keeps the update and goes on to the next module', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', asks: ['kv.store']),
+      const DockUpdateMod('b'),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+
+    await tapDock(tester, 'Skip');
+
+    expect(world.installs, ['b'], reason: 'b still goes through after a skip');
+    expect(_updateChips, findsOneWidget);
+    expect(find.text('Updated 1 of 2. Skipped Mod a.'), findsOneWidget);
+    expect(
+      find.text('Dismiss'),
+      findsNothing,
+      reason: 'a skip is not an error',
+    );
+    expect(find.text('Update all'), findsOneWidget);
+  });
+
+  _eachSize('closing the prompt counts as a skip for that module only', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', asks: ['kv.store']),
+      const DockUpdateMod('b'),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+    expect(find.text('Update Mod a?'), findsOneWidget);
+
+    await _tapBarrier(tester);
+
+    expect(find.text('Update Mod a?'), findsNothing);
+    expect(world.installs, ['b']);
+    expect(find.text('Updated 1 of 2. Skipped Mod a.'), findsOneWidget);
+    expect(find.text('Dismiss'), findsNothing);
+  });
+
+  _eachSize('every module asking is asked in order', (tester, size) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', asks: ['kv.store']),
+      const DockUpdateMod('b', asks: ['log.read']),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+    expect(find.text('Update Mod a?'), findsOneWidget);
+
+    await tapDock(tester, _approve);
+    expect(find.text('Update Mod b?'), findsOneWidget);
+    await tapDock(tester, _approve);
+
+    expect(world.installs, ['a', 'b']);
+    expect(_updateChips, findsNothing);
+  });
+
+  _eachSize('a verified module is a lighter list with no tick', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', asks: ['kv.store']),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+
+    expect(find.text(_tick), findsNothing);
+    expect(
+      find.text('Not verified. slim-m has not reviewed this module.'),
+      findsNothing,
+    );
+    final approve = tester.widget<AppButton>(
+      find.widgetWithText(AppButton, _approve),
+    );
+    expect(approve.disabled, isFalse);
+  });
+
+  _eachSize('an unreviewed module needs the tick before it can be approved', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', community: true, asks: ['kv.store']),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+    expect(
+      find.text('Not verified. slim-m has not reviewed this module.'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<AppButton>(find.widgetWithText(AppButton, _approve))
+          .disabled,
+      isTrue,
+    );
+
+    await tapDock(tester, _tick);
+    await tapDock(tester, _approve);
+
+    expect(world.installs, ['a']);
+    expect(world.bodies.single['approved_host_capabilities'], ['kv.store']);
+  });
+
+  _eachSize('access taken back by a new build is asked again, not reported', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod(
+        'a',
+        asks: ['message.post'],
+        approvedBefore: ['message.post'],
+        newBuild: true,
+      ),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+
+    await tapDock(tester, 'Update all');
+
+    expect(find.text('Update Mod a?'), findsOneWidget);
+    expect(
+      find.text('This version needs approval again. It can:'),
+      findsOneWidget,
+    );
+    expect(world.installs, isEmpty, reason: 'nothing is taken back unasked');
+
+    await tapDock(tester, _approve);
+
+    expect(world.bodies.single['approved_host_capabilities'], ['message.post']);
+    expect(_updateChips, findsNothing);
+    expect(find.text('Dismiss'), findsNothing);
+  });
+
+  _eachSize('skipping a re-approval leaves the module on its old build', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod(
+        'a',
+        asks: ['message.post'],
+        approvedBefore: ['message.post'],
+        newBuild: true,
+      ),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+
+    await tapDock(tester, 'Skip');
+
+    expect(world.installs, isEmpty);
+    expect(_updateChips, findsOneWidget);
+  });
+
+  _eachSize('access that is kept carries over without a prompt', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod(
+        'a',
+        asks: ['kv.store'],
+        approvedBefore: ['kv.store'],
+      ),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+
+    await tapDock(tester, 'Update all');
+
+    expect(find.text('Update Mod a?'), findsNothing);
+    expect(world.installs, ['a']);
+    expect(
+      world.bodies.single.containsKey('approved_host_capabilities'),
+      isFalse,
+      reason: 'the server carries what was approved; a list would replace it',
+    );
+  });
+
+  _eachSize('a failed install is an inline error with the reason', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', refuse: true),
+      const DockUpdateMod('b'),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+
+    await tapDock(tester, 'Update all');
+
+    expect(world.installs, ['b']);
+    expect(find.text('Could not update Mod a. Moved on.'), findsOneWidget);
+    expect(find.text('Dismiss'), findsOneWidget);
+    expect(find.text('Updated 1 of 2.'), findsOneWidget);
+  });
+
+  _eachSize('a failure after an approval is still an inline error', (
+    tester,
+    size,
+  ) async {
+    final world = DockUpdateWorld([
+      const DockUpdateMod('a', asks: ['kv.store'], refuse: true),
+    ]);
+    await openDockUpdateWorld(tester, world, size);
+    await tapDock(tester, 'Update all');
+
+    await tapDock(tester, _approve);
+
+    expect(find.text('Could not update Mod a. Moved on.'), findsOneWidget);
+    expect(_updateChips, findsOneWidget);
+  });
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Update all counts what the rows' badges count, community sources included,
-/// installs each module from its own source, and names a module that lost the
-/// approval to post messages (a new build drops it).
+/// installs each module from its own source, and asks again for an approval the
+/// server took back that the client could not foresee.
 ///
 /// Drives the real client bindings through `SlimmApi` with a `MockClient`, the
 /// shape `dock_screen_test.dart` established.
@@ -63,6 +63,7 @@ _world({
   List<Map<String, dynamic>> officialRegistry = const [],
   required List<Map<String, dynamic>> installed,
   bool installKeepsPostMessages = false,
+  List<String> declares = const [],
 }) {
   final installs = <String>[];
   final bodies = <Map<String, dynamic>>[];
@@ -81,7 +82,9 @@ _world({
     if (path == '/space/dock/installed') return _json(installed);
     if (RegExp(r'^/space/dock/modules/([^/]+)$').firstMatch(path)
         case final manifest?) {
-      return _json(dockManifestJson(manifest.group(1)!, '9.9.9'));
+      return _json(
+        dockManifestJson(manifest.group(1)!, '9.9.9', capabilities: declares),
+      );
     }
     final match = RegExp(
       r'^/space/dock/modules/([^/]+)/install$',
@@ -92,7 +95,10 @@ _world({
       final version = jsonDecode(request.body)['version'] as String;
       return _json({
         ..._installed(match.group(1)!, version),
-        if (installKeepsPostMessages)
+        if (jsonDecode(request.body)['approved_host_capabilities']
+            case final List<dynamic> asked)
+          'approved_host_capabilities': asked
+        else if (installKeepsPostMessages)
           'approved_host_capabilities': ['message.post'],
       });
     }
@@ -141,6 +147,12 @@ Future<ProviderContainer> _open(WidgetTester tester, MockClient client) async {
   return container;
 }
 
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 6; i++) {
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+}
+
 void main() {
   testWidgets('a community module with an update badge is in Update all', (
     tester,
@@ -166,28 +178,35 @@ void main() {
     expect(world.installs, ['c source=comm']);
   });
 
-  testWidgets(
-    'update all says when a module lost the approval to post messages',
-    (tester) async {
-      final world = _world(
-        communityRegistry: [],
-        officialRegistry: [_entry('a', '2.0.0')],
-        installed: [
-          {
-            ..._installed('a', '1.0.0'),
-            'approved_host_capabilities': ['message.post'],
-          },
-        ],
-      );
-      await _open(tester, world.client);
-      await tester.tap(find.text('Update all'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Updated 1 of 1. a needs its access approved again.'),
-        findsOneWidget,
-      );
-    },
-  );
+  testWidgets('update all asks again for an approval the server took back', (
+    tester,
+  ) async {
+    final world = _world(
+      communityRegistry: [],
+      officialRegistry: [_entry('a', '2.0.0')],
+      installed: [
+        {
+          ..._installed('a', '1.0.0'),
+          'approved_capabilities': ['message.post'],
+          'approved_host_capabilities': ['message.post'],
+        },
+      ],
+      declares: ['message.post'],
+    );
+    await _open(tester, world.client);
+    await tester.tap(find.text('Update all'));
+    await _settle(tester);
+
+    expect(find.text('Update a?'), findsOneWidget);
+    expect(find.textContaining('needs approval again'), findsOneWidget);
+    expect(find.textContaining('Updated 1 of 1'), findsNothing);
+
+    await tester.tap(find.text('Approve and update'));
+    await _settle(tester);
+
+    expect(world.installs, ['a source=null', 'a source=null']);
+    expect(world.bodies.last['approved_host_capabilities'], ['message.post']);
+  });
 
   testWidgets('an approval that is kept is not reported', (tester) async {
     final world = _world(
@@ -196,10 +215,12 @@ void main() {
       installed: [
         {
           ..._installed('a', '1.0.0'),
+          'approved_capabilities': ['message.post'],
           'approved_host_capabilities': ['message.post'],
         },
       ],
       installKeepsPostMessages: true,
+      declares: ['message.post'],
     );
     await _open(tester, world.client);
     await tester.tap(find.text('Update all'));

@@ -675,8 +675,8 @@ client/packages/app/test/features/settings/dock_screen_test.dart 8 10
 client/packages/app/test/features/settings/dock_search_test.dart 5 6
 client/packages/app/test/features/settings/dock_settings_card_test.dart 11 10
 client/packages/app/test/features/settings/dock_sources_test.dart 6 7
-client/packages/app/test/features/settings/dock_update_all_sources_test.dart 0 5
-client/packages/app/test/features/settings/dock_update_all_test.dart 0 4
+client/packages/app/test/features/settings/dock_update_all_sources_test.dart 0 4
+client/packages/app/test/features/settings/dock_update_all_test.dart 0 3
 client/packages/app/test/features/settings/dock_what_it_adds_test.dart 1 0
 client/packages/app/test/features/settings/emoji_add_dialog_test.dart 5 11
 client/packages/app/test/features/settings/emoji_add_harness.dart 0 2
