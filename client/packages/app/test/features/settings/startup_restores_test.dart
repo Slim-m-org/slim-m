@@ -12,8 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' show AppLog;
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'package:slimm_app/src/desktop/providers/desktop_splash_preference.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/startup_restores.dart';
 
@@ -50,6 +52,13 @@ Future<ProviderContainer> _readable(Map<String, Object> values) async {
   );
   return _wired(container);
 }
+
+/// The names of the restores [_recorded] saw fail, e.g. `voice processing`.
+Set<String> _failedRestores(ProviderContainer container) => {
+  for (final message in _recorded(container))
+    if (RegExp(r'saved (.+) setting').firstMatch(message) case final m?)
+      m.group(1)!,
+};
 
 List<String> _recorded(ProviderContainer container) => [
   for (final event in container.read(debugLogProvider))
@@ -118,6 +127,42 @@ void main() {
       await restoreStartupPreferences(container);
 
       expect(container.read(themeControllerProvider), AppThemeChoice.dark);
+      expect(_recorded(container), isEmpty);
+    });
+  });
+
+  group('resyncVoiceDevicePreferences', () {
+    test('re-reads every device-wide voice setting startup does', () async {
+      final startup = _unreadable();
+      await restoreStartupPreferences(startup);
+      final startupVoice = _failedRestores(
+        startup,
+      ).difference({for (final name in restorablePreferences.keys) name});
+
+      final switched = _unreadable();
+      await resyncVoiceDevicePreferences(switched);
+
+      expect(
+        _failedRestores(switched),
+        startupVoice.difference({'participant volumes', 'hidden cameras'}),
+      );
+      expect(_failedRestores(switched), hasLength(11));
+    });
+
+    test('leaves a live call alone', () async {
+      final container = _unreadable();
+      final inCall = ProviderContainer(
+        parent: container,
+        overrides: [
+          voiceFlagsProvider.overrideWithValue(
+            const VoiceFlags(state: VoiceSessionState.connected),
+          ),
+        ],
+      );
+      addTearDown(inCall.dispose);
+
+      await resyncVoiceDevicePreferences(inCall);
+
       expect(_recorded(container), isEmpty);
     });
   });
