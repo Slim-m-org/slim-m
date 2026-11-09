@@ -108,6 +108,9 @@ What the owner does in GitHub (the repository does not change settings itself):
 3. Open a throwaway PR, wait for `hygiene`, press "Merge when ready", and watch the queue entry run `hygiene` (and `client-ci` and `server-ci` if it touched their paths) on the `gh-readonly-queue/main/...` branch.
 4. If a path-gated PR sits at "Expected" forever, remove the ruleset's required check and tell whoever is changing CI; that is the failure the rule above is about.
 5. Release PRs go through the queue like any other PR; confirm the next one merges.
+6. The perf baseline is the one workflow push to `main`, and the ruleset refuses it.
+   `scripts/commit-perf-baseline.sh` then opens a pull request from `perf-baseline-<version>` instead, using `RELEASE_PLEASE_TOKEN` so its checks run.
+   Auto-merge is off for the repository, so expect to merge that pull request yourself after the next server release.
 
 ## 6. Landing a stack of pull requests
 
