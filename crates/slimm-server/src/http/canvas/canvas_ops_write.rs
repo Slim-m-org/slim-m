@@ -65,6 +65,12 @@ pub(in crate::http) struct SubmitOpParams {
     author_id: Option<String>,
 }
 
+impl SubmitOpParams {
+    fn has_geometry(&self) -> bool {
+        self.x.is_some() || self.y.is_some() || self.w.is_some() || self.h.is_some()
+    }
+}
+
 #[derive(Serialize)]
 pub(in crate::http) struct CanvasOpResultDto {
     op: CanvasOpResultOpDto,
@@ -305,7 +311,7 @@ fn parse_reorder(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     if params.target_op.is_some() {
         return Err(ApiError::BadRequest("target_op is not valid for reorder"));
     }
-    if params.x.is_some() || params.y.is_some() || params.w.is_some() || params.h.is_some() {
+    if params.has_geometry() {
         return Err(ApiError::BadRequest(
             "x, y, w and h are not valid for reorder",
         ));
@@ -328,7 +334,7 @@ fn parse_edit(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
         || params.before_seq.is_some()
         || params.target_op.is_some()
         || params.z_index.is_some()
-        || params.x.is_some()
+        || params.has_geometry()
     {
         return Err(ApiError::BadRequest("edit takes only object_id and props"));
     }

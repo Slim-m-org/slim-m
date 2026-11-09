@@ -192,3 +192,23 @@ async fn a_locked_note_refuses_an_edit_even_from_its_author() {
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(props_of(&pool, &object).await["text"], "pinned");
 }
+
+/// The wire contract says an edit carries only `object_id` and `props`; each
+/// geometry field is refused rather than silently ignored.
+#[tokio::test]
+async fn an_edit_carrying_any_geometry_field_is_refused() {
+    let (store, _guard) = new_store().await;
+    register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store.clone());
+    let (bob, _) = member(&store, "bob").await;
+    let (_, placed) = post_object(&app, channel, &bob, note(&id(), "first")).await;
+    let object = placed["id"].as_str().unwrap().to_owned();
+
+    for field in ["x", "y", "w", "h"] {
+        let mut op = edit_op(&id(), &object, json!({ "text": "second" }));
+        op[field] = json!(10.0);
+        let (status, body) = submit_op(&app, channel, &bob, op).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{field}: {body}");
+    }
+}
