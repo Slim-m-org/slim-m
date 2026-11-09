@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use crate::components::ComponentRow;
-use crate::hub::event_util::Reactors;
+use crate::hub::event_util::{ReactionMoved, Reactors};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{
     AppSurface, AttachmentSummary, CallRecord, CodeRunSummary, Embed, ForwardSummary, Message, Poll,
@@ -147,6 +147,10 @@ pub enum MessageEvent {
         channel_id: ChannelId,
         message_id: MessageId,
         reactors: Arc<Reactors>,
+        /// Who moved and which way, for the module event; `None` when the
+        /// request changed nothing. Carried rather than diffed from `reactors`,
+        /// which cannot say who moved on a message nobody has seen before.
+        moved: Option<Arc<ReactionMoved>>,
     },
     /// A fenced code block was run and its shared output changed. Carries the
     /// whole current result (the [`MessageEvent::ThreadUpdated`] shape), overwriting

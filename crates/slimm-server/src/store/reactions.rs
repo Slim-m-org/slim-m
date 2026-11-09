@@ -62,14 +62,14 @@ impl From<sqlx::Error> for ReactError {
 }
 
 impl Store {
-    /// Adds a reaction. Idempotent: reacting again with the same emoji leaves
-    /// exactly one row and is not an error.
+    /// Adds a reaction, and says whether it was new. Idempotent: reacting again
+    /// with the same emoji leaves exactly one row and is not an error.
     pub async fn add_reaction(
         &self,
         message_id: MessageId,
         user_id: UserId,
         emoji: &str,
-    ) -> Result<(), ReactError> {
+    ) -> Result<bool, ReactError> {
         if emoji.is_empty() || emoji.len() > MAX_EMOJI_BYTES {
             return Err(ReactError::InvalidEmoji);
         }
@@ -114,7 +114,7 @@ impl Store {
             }
         }
 
-        sqlx::query!(
+        let inserted = sqlx::query!(
             "INSERT OR IGNORE INTO reactions (message_id, user_id, emoji, created_at)
              VALUES (?, ?, ?, ?)",
             message_id,
@@ -123,29 +123,32 @@ impl Store {
             now
         )
         .execute(&mut *tx)
-        .await?;
+        .await?
+        .rows_affected();
 
         tx.commit().await?;
-        Ok(())
+        Ok(inserted > 0)
     }
 
-    /// Removes a reaction. Removing one that was never there is not an error:
-    /// the caller's intent is "this emoji of mine is gone", and it is.
+    /// Removes a reaction, and says whether there was one to remove. Removing
+    /// one that was never there is not an error: the caller's intent is "this
+    /// emoji of mine is gone", and it is.
     pub async fn remove_reaction(
         &self,
         message_id: MessageId,
         user_id: UserId,
         emoji: &str,
-    ) -> anyhow::Result<()> {
-        sqlx::query!(
+    ) -> anyhow::Result<bool> {
+        let removed = sqlx::query!(
             "DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?",
             message_id,
             user_id,
             emoji
         )
         .execute(&self.pool)
-        .await?;
-        Ok(())
+        .await?
+        .rows_affected();
+        Ok(removed > 0)
     }
 
     /// Summaries for one message, ordered by first use so the row does not

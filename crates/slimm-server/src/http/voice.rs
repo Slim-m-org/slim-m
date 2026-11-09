@@ -22,6 +22,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::Visibility;
 use crate::ratelimit::Class;
+use crate::store::{Channel, DM_CHANNEL_KIND};
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
 pub(super) mod voice_call_audio;
@@ -77,6 +78,19 @@ impl From<RoomToken> for TokenResponse {
     }
 }
 
+/// The channel itself, refused unless it can host a call: a voice channel, or a direct message
+/// (whose permissions already limit it to its parties). A text channel or thread has no room.
+async fn callable_channel(state: &AppState, channel_id: ChannelId) -> Result<Channel, ApiError> {
+    state
+        .store
+        .channel(channel_id)
+        .await?
+        .filter(|c| {
+            c.parent_message_id.is_none() && matches!(c.kind.as_str(), "voice" | DM_CHANNEL_KIND)
+        })
+        .ok_or(ApiError::BadRequest("that channel has no voice room"))
+}
+
 /// Mints a short-lived join token for this channel's voice room.
 ///
 /// `CONNECT` is the gate. `SPEAK` and `USE_CANVAS` are not checked here as
@@ -110,9 +124,8 @@ async fn token(
         return Err(ApiError::Forbidden);
     }
 
-    if let Some(channel) = state.store.channel(channel_id).await? {
-        self::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
-    }
+    let channel = callable_channel(&state, channel_id).await?;
+    self::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
     super::module_hooks::check_permission(
         &state,
         ctx.user_id,
@@ -167,6 +180,7 @@ async fn heartbeat(
     if !permissions.contains(needed) {
         return Err(ApiError::Forbidden);
     }
+    callable_channel(&state, channel_id).await?;
 
     // Only a first join answers; see this function's own doc for both halves of why.
     let answered = if state.voice.has_heartbeat(ctx.user_id, channel_id) {
@@ -353,6 +367,7 @@ async fn set_deafened(
     if !permissions.contains(needed) {
         return Err(ApiError::Forbidden);
     }
+    callable_channel(&state, channel_id).await?;
 
     match state
         .voice

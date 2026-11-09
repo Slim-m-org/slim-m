@@ -401,21 +401,21 @@ pub async fn run(c: &mut Contract) {
     c.bare(
         "mintVoiceToken",
         "POST",
-        &format!("/channels/{channel}/voice/token"),
+        &format!("/channels/{}/voice/token", call_audio_channel.id),
         root,
     )
     .await;
     c.bare(
         "sendVoiceHeartbeat",
         "POST",
-        &format!("/channels/{channel}/voice/heartbeat"),
+        &format!("/channels/{}/voice/heartbeat", call_audio_channel.id),
         root,
     )
     .await;
     c.bare(
         "forgetVoiceHeartbeat",
         "DELETE",
-        &format!("/channels/{channel}/voice/heartbeat"),
+        &format!("/channels/{}/voice/heartbeat", call_audio_channel.id),
         root,
     )
     .await;

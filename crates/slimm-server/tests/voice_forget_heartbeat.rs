@@ -49,7 +49,7 @@ async fn forgetting_a_recorded_heartbeat_drops_it() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let voice = enabled_voice();
     let (user_id, token) = member(&store, "alice").await;
     let app = app(store.clone(), voice.clone());
@@ -79,7 +79,7 @@ async fn forgetting_a_recorded_heartbeat_drops_it() {
 #[tokio::test]
 async fn forgetting_a_heartbeat_never_recorded_is_a_harmless_no_op() {
     let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let (_, token) = member(&store, "alice").await;
     let app = app(store.clone(), enabled_voice());
 
@@ -97,7 +97,7 @@ async fn forgetting_a_heartbeat_never_recorded_is_a_harmless_no_op() {
 #[tokio::test]
 async fn forgetting_a_heartbeat_requires_authentication() {
     let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store, enabled_voice());
 
     let response = app
@@ -122,7 +122,7 @@ async fn forgetting_a_heartbeat_needs_no_permission_at_all() {
         .create_role("everyone", Permissions::NONE, true)
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let (_, token) = member(&store, "alice").await;
     let app = app(store.clone(), enabled_voice());
 
@@ -143,7 +143,7 @@ async fn forgetting_a_heartbeat_needs_no_permission_at_all() {
 #[tokio::test]
 async fn forgetting_a_heartbeat_on_a_text_only_deployment_still_succeeds() {
     let (store, _guard) = support::new_store("slimm-voice-forget-heartbeat-test").await;
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let (_, token) = member(&store, "alice").await;
     let app = app(store.clone(), VoiceService::disabled());
 

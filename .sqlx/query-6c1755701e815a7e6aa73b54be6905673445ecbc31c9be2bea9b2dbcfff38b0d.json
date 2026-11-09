@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channels SET deleted_at = ?\n             WHERE id = ? AND deleted_at IS NULL AND kind != 'dm'\n               AND (parent_message_id IS NOT NULL\n                    OR room_owner_id IS NOT NULL OR room_lobby_id IS NOT NULL\n                    OR (SELECT COUNT(*) FROM channels\n                        WHERE deleted_at IS NULL AND kind != 'dm'\n                          AND parent_message_id IS NULL\n                          AND room_owner_id IS NULL AND room_lobby_id IS NULL) > 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "6c1755701e815a7e6aa73b54be6905673445ecbc31c9be2bea9b2dbcfff38b0d"
+}

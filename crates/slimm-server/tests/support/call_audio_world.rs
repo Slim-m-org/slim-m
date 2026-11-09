@@ -67,8 +67,14 @@ impl Rig {
     }
 
     pub async fn start_with(name: &str, how_many: usize, max_sessions: u32, armed: bool) -> Self {
-        let voice = VoiceService::for_test("wss://livekit.example.com", API_KEY, API_SECRET);
+        let voice = VoiceService::for_test("http://127.0.0.1:1", API_KEY, API_SECRET);
         Self::start_on(name, how_many, (max_sessions, armed), voice).await
+    }
+
+    /// A deployment whose LiveKit room service answers at `sfu_url`.
+    pub async fn start_with_sfu(name: &str, how_many: usize, sfu_url: &str) -> Self {
+        let voice = VoiceService::for_test(sfu_url, API_KEY, API_SECRET);
+        Self::start_on(name, how_many, (2, true), voice).await
     }
 
     /// A deployment whose LiveKit cannot mint the listener's token.

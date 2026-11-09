@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: ChannelId\",\n                  category_id AS \"category_id: ChannelCategoryId\",\n                  position AS \"position!: i64\"\n           FROM channels\n           WHERE deleted_at IS NULL AND kind != 'dm' AND parent_message_id IS NULL",
+  "query": "SELECT id AS \"id!: ChannelId\",\n                  category_id AS \"category_id: ChannelCategoryId\",\n                  position AS \"position!: i64\"\n           FROM channels\n           WHERE deleted_at IS NULL AND kind != 'dm' AND parent_message_id IS NULL\n             AND room_owner_id IS NULL AND room_lobby_id IS NULL",
   "describe": {
     "columns": [
       {
@@ -28,5 +28,5 @@
       false
     ]
   },
-  "hash": "ede35af3929393f3b5ae962a11c0652fe36300efafc6ca35ff5e924de139dd5e"
+  "hash": "d0b8e447545f3a25b954948e37aa7c8cc2d3ad0371eb659561ab6dee43d1655d"
 }

@@ -2,17 +2,11 @@
 //! Turning a hub event into the module events it stands for, and minting
 //! their ids; an id is minted once per delivered event.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::Mutex;
-
 use super::wire::{EventData, PollOptionCount};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::presence::Visibility;
 use crate::store::Store;
-
-/// Messages whose last reactors are remembered, to tell who reacted or took it back.
-const TALLY_MEMORY: usize = 2048;
 
 /// Which module event a hub event is, and the channel it happened in.
 pub(super) struct Kind {
@@ -66,58 +60,7 @@ pub(super) struct Built {
     pub(super) data: EventData,
 }
 
-/// One reactor's move on one emoji, with the emoji's count afterwards.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct ReactionMove {
-    emoji: String,
-    user: UserId,
-    added: bool,
-    count: i64,
-}
-
-type Reactors = HashMap<String, HashSet<UserId>>;
-
-/// Each message's last seen reactors, so a changed tally yields only who moved.
-#[derive(Default)]
-pub(super) struct ReactionTally(Mutex<HashMap<MessageId, Reactors>>);
-
-impl ReactionTally {
-    /// Every reactor who appeared or vanished since the last tally, with the emoji's new count.
-    fn changes(&self, message: MessageId, now: Reactors) -> Vec<ReactionMove> {
-        let mut seen = self
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if seen.len() >= TALLY_MEMORY {
-            seen.clear();
-        }
-        let before = seen.insert(message, now.clone()).unwrap_or_default();
-        let empty = HashSet::new();
-        let mut moves = Vec::new();
-        for emoji in now.keys().chain(before.keys()).collect::<HashSet<_>>() {
-            let after = now.get(emoji).unwrap_or(&empty);
-            let prior = before.get(emoji).unwrap_or(&empty);
-            let count = i64::try_from(after.len()).unwrap_or(i64::MAX);
-            let moved = after.difference(prior).map(|user| (user, true));
-            let gone = prior.difference(after).map(|user| (user, false));
-            moves.extend(moved.chain(gone).map(|(user, added)| ReactionMove {
-                emoji: emoji.clone(),
-                user: *user,
-                added,
-                count,
-            }));
-        }
-        moves.sort();
-        moves
-    }
-}
-
-pub(super) async fn build(
-    store: &Store,
-    event: &Event,
-    tally: &ReactionTally,
-    now_ms: i64,
-) -> anyhow::Result<Vec<Built>> {
+pub(super) async fn build(store: &Store, event: &Event, now_ms: i64) -> anyhow::Result<Vec<Built>> {
     Ok(match event {
         Event::Message(MessageEvent::Created { message, .. }) => {
             let is_bot = match message.author_id {
@@ -157,30 +100,30 @@ pub(super) async fn build(
             channel_id,
             message_id,
             reactors,
-        }) => {
-            let now = reactors
-                .iter()
-                .map(|(emoji, who)| (emoji.clone(), who.iter().map(|(id, _)| *id).collect()))
-                .collect();
-            tally
-                .changes(*message_id, now)
-                .into_iter()
-                .map(|m| Built {
-                    id: format!("reaction:{message_id}:{}:{now_ms}:{}", m.emoji, m.user),
+            moved,
+        }) => moved
+            .iter()
+            .map(|m| {
+                let count = reactors
+                    .iter()
+                    .find(|(emoji, _)| *emoji == m.emoji)
+                    .map_or(0, |(_, who)| who.len());
+                Built {
+                    id: format!("reaction:{message_id}:{}:{now_ms}:{}", m.emoji, m.user_id),
                     created: None,
                     at_ms: now_ms,
-                    actor: Some(m.user),
+                    actor: Some(m.user_id),
                     data: EventData::ReactionChanged {
                         message_id: message_id.to_string(),
                         channel_id: channel_id.to_string(),
-                        emoji: m.emoji,
-                        count: m.count,
-                        user_id: m.user.to_string(),
+                        emoji: m.emoji.clone(),
+                        count: i64::try_from(count).unwrap_or(i64::MAX),
+                        user_id: m.user_id.to_string(),
                         added: m.added,
                     },
-                })
-                .collect()
-        }
+                }
+            })
+            .collect(),
         Event::Message(MessageEvent::Edited {
             message, op_seq, ..
         }) => {
@@ -335,43 +278,5 @@ fn member(prefix: &str, user: UserId, now_ms: i64) -> Built {
         data: EventData::Member {
             user_id: user.to_string(),
         },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn who(pairs: &[(&str, &[UserId])]) -> Reactors {
-        pairs
-            .iter()
-            .map(|(e, users)| ((*e).to_owned(), users.iter().copied().collect()))
-            .collect()
-    }
-
-    fn mv(emoji: &str, user: UserId, added: bool, count: i64) -> ReactionMove {
-        ReactionMove {
-            emoji: emoji.to_owned(),
-            user,
-            added,
-            count,
-        }
-    }
-
-    #[test]
-    fn a_tally_names_who_reacted_or_took_it_back_with_the_new_count() {
-        let tally = ReactionTally::default();
-        let message = MessageId::generate();
-        let (ann, bob) = (UserId::generate(), UserId::generate());
-        let first = tally.changes(message, who(&[("a", &[ann])]));
-        assert_eq!(first, vec![mv("a", ann, true, 1)]);
-        let second = tally.changes(message, who(&[("a", &[ann]), ("b", &[bob])]));
-        assert_eq!(second, vec![mv("b", bob, true, 1)]);
-        let third = tally.changes(message, who(&[("a", &[ann, bob]), ("b", &[bob])]));
-        assert_eq!(third, vec![mv("a", bob, true, 2)]);
-        let fourth = tally.changes(message, who(&[("a", &[ann]), ("b", &[bob])]));
-        assert_eq!(fourth, vec![mv("a", bob, false, 1)]);
-        let fifth = tally.changes(message, who(&[("b", &[bob])]));
-        assert_eq!(fifth, vec![mv("a", ann, false, 0)]);
     }
 }

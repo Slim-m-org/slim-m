@@ -63,6 +63,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: channel,
             message_id: message,
             reactors: Default::default(),
+            moved: None,
         }),
         Event::Message(MessageEvent::CodeRunChanged {
             channel_id: channel,

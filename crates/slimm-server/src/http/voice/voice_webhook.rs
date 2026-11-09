@@ -52,6 +52,7 @@ async fn receive(
 
     track_session(&state, &event).await;
     let room_finished = room_finished_channel(&event);
+    reconcile_roster(&state, &event).await;
     let presence = apply(&state, event);
     track_call_audio(&state, room_finished, presence).await;
     StatusCode::NO_CONTENT
@@ -96,6 +97,21 @@ async fn track_session(state: &AppState, event: &WebhookEvent) {
     };
     if let Err(err) = outcome {
         tracing::warn!(%err, "could not update a voice session");
+    }
+}
+
+/// Reads the SFU's members into the live state before the first participant event for a channel
+/// after a restart is applied, so that event sees everyone already on the call.
+async fn reconcile_roster(state: &AppState, event: &WebhookEvent) {
+    if event.participant.is_none() || event.event == "room_finished" {
+        return;
+    }
+    if let Some(channel_id) = event
+        .room
+        .as_ref()
+        .and_then(|room| voice::channel_for_room(&room.name))
+    {
+        state.voice.reconcile_live_state(channel_id).await;
     }
 }
 
