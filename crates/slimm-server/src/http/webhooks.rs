@@ -38,7 +38,7 @@ use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::embeds;
 use super::error::ApiError;
-use super::extract::{Json, Query, enforce};
+use super::extract::{Json, Query, RateLimited, WEBHOOK};
 use super::messages::{parse_uuid, validate_content};
 use super::module_hooks::{Draft, HookPoint, intercept};
 use super::post_commit::after_commit;
@@ -114,27 +114,27 @@ const USERNAME_MAX_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 ///
 /// Rate limiting is two independent charges against [`Class::Webhook`],
 /// charged in the order `docs/decisions/0030-incoming-webhooks.md` requires.
-/// The first is `enforce(..., None, ...)`, address-keyed exactly the way any
-/// unauthenticated route's charge already is, and charged before the token
-/// lookup so an unknown-token flood costs a map probe rather than a database
+/// The first is the `RateLimited` extractor, address-keyed exactly the way any
+/// unauthenticated route's charge already is. It runs before the body is read,
+/// so a request that trickles its body in still pays, and before the token
+/// lookup, so an unknown-token flood costs a map probe rather than a database
 /// query. The second, only once the credential resolves, keys on the
 /// webhook's own principal id instead - never the caller's address, for the
 /// same reason 0028 keys a bot's budget on its account rather than wherever
-/// it happens to be calling from - which `enforce`'s own signature has no
-/// shape for, so it is charged directly against the limiter.
+/// it happens to be calling from - which the extractor has no shape for, so it
+/// is charged directly against the limiter.
 ///
 /// A malformed id is a 400. Every other failure past the rate limit - an
 /// unknown id, a wrong token, or a revoked one - answers with the same 404, so
 /// this route is never an existence oracle for which webhook ids are live.
 async fn deliver(
+    _limited: RateLimited<WEBHOOK>,
     State(state): State<AppState>,
     parts: Parts,
     Path((webhook_id, token)): Path<(String, String)>,
     Query(params): Query<DeliverParams>,
     Json(body): Json<DeliverRequest>,
 ) -> Result<Response, ApiError> {
-    enforce(&state, &parts, None, Class::Webhook)?;
-
     let webhook_id = WebhookId(parse_uuid(&webhook_id)?);
     let Some(context) = state.store.authenticate_webhook(webhook_id, &token).await? else {
         return Err(ApiError::NotFound("no such webhook"));

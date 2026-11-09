@@ -162,6 +162,9 @@ pub(crate) fn enforce_weighted(
 
 /// An unauthenticated request that has passed the rate limit for its class.
 /// Used by the password and refresh endpoints, which are reachable by anyone.
+///
+/// Listed before a body extractor it charges before the body is read, so a request that trickles
+/// its body in still pays for the in-flight slot it holds.
 pub(crate) struct RateLimited<const C: u8>;
 
 /// Class codes for [`RateLimited`] and [`AuthedLimited`], since const generics
@@ -197,6 +200,12 @@ pub(crate) const DIAGNOSTIC_PING: u8 = 13;
 /// The connection test's speed transfers; see [`Class::DiagnosticTransfer`].
 pub(crate) const DIAGNOSTIC_TRANSFER: u8 = 14;
 
+/// Delivering an incoming webhook, charged before its body is read; see [`Class::Webhook`].
+pub(crate) const WEBHOOK: u8 = 15;
+
+/// Receiving a LiveKit webhook, charged before its body is read; see [`Class::LiveKitWebhook`].
+pub(crate) const LIVEKIT_WEBHOOK: u8 = 16;
+
 /// Panics on an unknown code rather than falling back.
 ///
 /// It used to end `_ => Class::Refresh`, which meant a new code compiled clean
@@ -221,6 +230,8 @@ fn class_of(code: u8) -> Class {
         AUTHED_READ => Class::AuthedRead,
         DIAGNOSTIC_PING => Class::DiagnosticPing,
         DIAGNOSTIC_TRANSFER => Class::DiagnosticTransfer,
+        WEBHOOK => Class::Webhook,
+        LIVEKIT_WEBHOOK => Class::LiveKitWebhook,
         other => unreachable!("no rate-limit class for code {other}"),
     }
 }
@@ -396,6 +407,8 @@ mod tests {
             (AUTHED_READ, Class::AuthedRead),
             (super::DIAGNOSTIC_PING, Class::DiagnosticPing),
             (super::DIAGNOSTIC_TRANSFER, Class::DiagnosticTransfer),
+            (super::WEBHOOK, Class::Webhook),
+            (super::LIVEKIT_WEBHOOK, Class::LiveKitWebhook),
         ];
         let mut seen = std::collections::HashSet::new();
         for (code, class) in pairs {
