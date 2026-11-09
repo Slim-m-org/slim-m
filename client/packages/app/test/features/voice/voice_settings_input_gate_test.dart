@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/settled_double_writes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
@@ -72,6 +73,7 @@ void main() {
     final session = await _pump(tester);
     tester.widget<InputLevelMeter>(_meter()).onChanged!(-35);
     await tester.pumpAndSettle();
+    await tester.pump(kSettledWriteDelay);
 
     expect(tester.widget<InputLevelMeter>(_meter()).thresholdDb, -35);
     final prefs = await SharedPreferences.getInstance();
@@ -199,6 +201,7 @@ void main() {
     );
     tester.widget<SettingsToggleRow>(toggle).onChanged!(false);
     await tester.pumpAndSettle();
+    await tester.pump(kSettledWriteDelay);
 
     expect(tester.widget<InputLevelMeter>(_meter()).thresholdDb.round(), -44);
     expect(tester.widget<InputLevelMeter>(_meter()).onChanged, isNotNull);
