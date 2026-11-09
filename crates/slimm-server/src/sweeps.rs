@@ -207,8 +207,8 @@ pub(crate) fn spawn_canvas_op_sweep(store: store::Store) {
 
 /// How often the message retention window is applied. Long, the same
 /// reasoning [`TOKEN_SWEEP_INTERVAL`] gives: a day-granularity setting has
-/// no reason to be checked more often than this, and a deployment with the
-/// window off pays only the one cheap config read every tick.
+/// no reason to be checked more often than this, and a tick with nothing to
+/// prune costs a config read and a few index probes, never a walk of the messages.
 const MESSAGE_RETENTION_SWEEP_INTERVAL: std::time::Duration =
     std::time::Duration::from_secs(6 * 60 * 60);
 

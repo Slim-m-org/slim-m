@@ -44,6 +44,7 @@ pub(super) mod message_retention;
 pub(super) mod message_search;
 pub(super) mod messages_bulk;
 pub(super) mod messages_bulk_window;
+mod retention_candidates;
 
 /// The outcome of a send, which is idempotent and so may be a retry.
 #[derive(Debug, Clone)]
