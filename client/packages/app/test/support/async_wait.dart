@@ -49,3 +49,12 @@ Future<void> waitUntil(
     fail('$reason (waited ${timeout.inMilliseconds}ms)');
   }
 }
+
+/// Pumps [frames] short frames, which is what lets work chained on microtasks
+/// finish - a mocked reply, a gate a test just completed - without a settle
+/// that waits out animations.
+Future<void> pumpFrames(WidgetTester tester, {int frames = 10}) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}

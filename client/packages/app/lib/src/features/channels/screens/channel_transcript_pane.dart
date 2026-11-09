@@ -112,12 +112,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
   void _cancelEdit(WidgetRef ref) =>
       ref.read(editingMessageIdProvider(channelId).notifier).state = null;
 
-  void _submitEdit(
-    BuildContext context,
-    WidgetRef ref,
-    Message message,
-    String content,
-  ) => unawaited(submitMessageEdit(ref, context, message, content));
+  void _submitEdit(BuildContext context, Message message, String content) =>
+      unawaited(submitMessageEdit(context, message, content));
 
   void _onEditFailed(WidgetRef ref, Message message) {
     composer.text = message.content;
@@ -291,7 +287,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           onRank: (m, ranking) =>
                               unawaited(castRanking(ref, m.id, ranking)),
                           onSubmitEdit: (m, content) =>
-                              _submitEdit(context, ref, m, content),
+                              _submitEdit(context, m, content),
                           onCancelEdit: () => _cancelEdit(ref),
                           onJumpToReply: (replyToId) => jumpToMessage(
                             GoRouter.of(context),

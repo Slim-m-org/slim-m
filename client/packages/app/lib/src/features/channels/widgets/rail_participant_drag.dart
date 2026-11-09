@@ -32,20 +32,22 @@ class ParticipantDragData {
 final railMoveFailureProvider = StateProvider<String?>((ref) => null);
 
 /// Moves [data]'s person to [toChannelId], recording a refusal for the rail.
+///
+/// Takes a container because the rail row can unmount before the server answers.
 Future<void> moveByDrag(
-  WidgetRef ref,
+  ProviderContainer container,
   ParticipantDragData data,
   String toChannelId,
 ) async {
-  ref.read(railMoveFailureProvider.notifier).state = null;
+  container.read(railMoveFailureProvider.notifier).state = null;
   final failure = await runGuarded(
     whatFailed: 'move ${data.name}',
-    action: () => ref
+    action: () => container
         .read(voiceActionsProvider)
         .moveVoiceParticipant(data.fromChannelId, data.userId, toChannelId),
   );
   if (failure != null) {
-    ref.read(railMoveFailureProvider.notifier).state = failure;
+    container.read(railMoveFailureProvider.notifier).state = failure;
   }
 }
 
@@ -112,7 +114,7 @@ class _RailParticipantDraggableState
 }
 
 /// Accepts a dragged participant onto a voice channel row.
-class RailMoveDropTarget extends ConsumerWidget {
+class RailMoveDropTarget extends StatelessWidget {
   const RailMoveDropTarget({
     super.key,
     required this.channelId,
@@ -123,11 +125,17 @@ class RailMoveDropTarget extends ConsumerWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return DragTarget<ParticipantDragData>(
       onWillAcceptWithDetails: (d) => d.data.fromChannelId != channelId,
-      onAcceptWithDetails: (d) => unawaited(moveByDrag(ref, d.data, channelId)),
+      onAcceptWithDetails: (d) => unawaited(
+        moveByDrag(
+          ProviderScope.containerOf(context, listen: false),
+          d.data,
+          channelId,
+        ),
+      ),
       builder: (context, candidates, _) => DecoratedBox(
         position: DecorationPosition.foreground,
         decoration: BoxDecoration(
