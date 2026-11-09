@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Command-line paths stay inside the directories a tool may touch."""
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -38,6 +39,32 @@ class ConfinedTest(unittest.TestCase):
         os.symlink("/etc", link)
         with self.assertRaises(SystemExit):
             safe_paths.confined(os.path.join(link, "passwd"), self.base)
+
+
+class CommandLineTest(unittest.TestCase):
+    def run_cli(self, *args):
+        return subprocess.run(
+            [sys.executable, "-I", str(Path(safe_paths.__file__)), *args],
+            capture_output=True, text=True)
+
+    def test_a_confined_path_is_printed_resolved(self):
+        with tempfile.TemporaryDirectory() as base:
+            inside = os.path.join(base, "run", "..", "run")
+            got = self.run_cli("confined", inside, base)
+            self.assertEqual(got.returncode, 0, got.stderr)
+            self.assertEqual(got.stdout, os.path.realpath(os.path.join(base, "run")) + "\n")
+
+    def test_a_path_outside_every_base_exits_nonzero_with_the_reason(self):
+        with tempfile.TemporaryDirectory() as base:
+            got = self.run_cli("confined", "/etc", base)
+        self.assertNotEqual(got.returncode, 0)
+        self.assertIn("must be inside", got.stderr)
+        self.assertEqual(got.stdout, "")
+
+    def test_a_malformed_call_prints_usage(self):
+        got = self.run_cli("confined", "/only/a/path")
+        self.assertNotEqual(got.returncode, 0)
+        self.assertIn("usage:", got.stderr)
 
 
 if __name__ == "__main__":
