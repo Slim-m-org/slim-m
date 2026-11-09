@@ -79,8 +79,11 @@ Future<List<api.UserProfile>> _pagedMembers(
   return members;
 }
 
-/// Seeds live presence for the member list the pane is actually showing. A
-/// trigger, not a data source in its own right: `AppMemberPane` watches this
+/// Seeds live presence for the members the pane is actually showing that this
+/// connection has not asked about yet, so a roster rebuilt for one new member
+/// costs one lookup rather than a lookup per member.
+///
+/// A trigger, not a data source in its own right: `AppMemberPane` watches this
 /// purely to start it, and reads the actual statuses back from
 /// [presenceControllerProvider]. `autoDispose`, and depending on the (also
 /// `autoDispose`) roster, keeps this from outliving the pane, unlike
@@ -100,7 +103,7 @@ final presenceSeedProvider = FutureProvider.autoDispose.family<void, String?>((
       : await ref.watch(channelMembersProvider(channelId).future);
   await ref
       .read(presenceControllerProvider.notifier)
-      .refresh(members.map((m) => m.id));
+      .seed(members.map((m) => m.id));
 });
 
 /// Refetches the roster when an event says one of its rows is now wrong:
@@ -179,20 +182,34 @@ class MemberProfileOverridesController
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
 
+  /// The newest lookup started per user, so a slower, older answer cannot
+  /// overwrite a newer one.
+  final Map<String, int> _lookups = {};
+
   /// Applies a profile the caller already knows is current - the response of
   /// its own successful `PATCH /me` - without waiting on that same edit's
   /// [api.ProfileChanged] echo to round-trip back down this connection.
   void applyKnown(api.UserProfile profile) {
+    _lookups[profile.id] = (_lookups[profile.id] ?? 0) + 1;
     state = {...state, profile.id: profile};
+  }
+
+  /// Forgets every override, for a fresh connection that may have missed the
+  /// [api.ProfileChanged] frames behind them. Lookups still in flight are
+  /// dropped too: they were asked before the connection that replaced them.
+  void clear() {
+    _lookups.clear();
+    state = const {};
   }
 
   /// [api.ProfileChanged] carries only an id (see its own doc comment), so
   /// this is what "re-ask" means in practice: fetch that one profile and
   /// merge it in, rather than a refetch of the whole roster.
   Future<void> _refetch(String userId) async {
+    final lookup = _lookups[userId] = (_lookups[userId] ?? 0) + 1;
     try {
       final profile = await _ref.read(apiProvider).getUser(userId);
-      if (!mounted) return;
+      if (!mounted || _lookups[userId] != lookup) return;
       state = {...state, userId: profile};
     } on api.ApiException catch (error, stack) {
       api.reportFailure(

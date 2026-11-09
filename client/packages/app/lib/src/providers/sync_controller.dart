@@ -304,6 +304,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       _reconnector.connected();
       state = SyncStatus.live;
       refreshAccountNotificationState(_ref, reconnect: _wasLive);
+      if (_wasLive) refreshRosterAfterReconnect(_ref);
       _wasLive = true;
       _ref.read(hasFailedSinceLiveProvider.notifier).state = false;
       _ref.read(syncFailureProvider.notifier).state = null;

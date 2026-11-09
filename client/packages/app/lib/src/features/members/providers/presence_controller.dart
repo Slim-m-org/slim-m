@@ -45,6 +45,10 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   int _eventClock = 0;
   final Map<String, int> _liveEventAt = {};
 
+  /// Members whose presence this connection has already asked for: live events
+  /// keep them current, so a roster that merely rebuilt need not ask again.
+  final Set<String> _seeded = {};
+
   /// Forgets every cached status, for a session ending.
   ///
   /// This provider is deliberately app-lifetime rather than `autoDispose`, so
@@ -56,8 +60,17 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   /// `SyncController`; this one had neither.
   void clear() {
     _liveEventAt.clear();
+    _seeded.clear();
     if (mounted) state = const {};
   }
+
+  /// Forgets which members were asked for, for a fresh connection that may have
+  /// missed their presence events while it was down.
+  void forgetSeeded() => _seeded.clear();
+
+  /// [refresh] for whichever of [userIds] this connection has not asked about.
+  Future<void> seed(Iterable<String> userIds) =>
+      refresh(userIds.where((id) => !_seeded.contains(id)));
 
   /// Batch-fetches presence for [userIds] and merges it into what is already
   /// known, a request per [_presenceBatchLimit] ids because the server refuses
@@ -79,6 +92,7 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
     try {
       final all = await _ref.read(apiProvider).listPresence(ids);
       if (!mounted) return;
+      _seeded.addAll(ids);
       // A live event newer than the request is fresher than its snapshot.
       final statuses = all
           .where((status) => (_liveEventAt[status.userId] ?? 0) <= askedAt)
