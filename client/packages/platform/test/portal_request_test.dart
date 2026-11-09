@@ -26,10 +26,10 @@ void main() {
     final answered = await awaitPortalResponse(
       responses: responses.stream,
       call: () async =>
-          responses.add(_response(0, {'autostart': DBusBoolean(true)})),
+          responses.add(_response(0, {'autostart': const DBusBoolean(true)})),
     );
     expect(answered.code, 0);
-    expect(answered.results['autostart'], DBusBoolean(true));
+    expect(answered.results['autostart'], const DBusBoolean(true));
     expect(responses.hasListener, isFalse);
   });
 

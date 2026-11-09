@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/src/autostart.dart';
 import 'package:slimm_platform/src/autostart_io.dart';
 import 'package:slimm_platform/src/autostart_target.dart';
-import 'package:slimm_platform/src/portal_request.dart';
 
 void main() {
   group('XDG autostart', () {
