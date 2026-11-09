@@ -13738,7 +13738,8 @@ components:
           type: string
           description: >
             A digest of the artifact, capabilities, hosts, schedules,
-            permission keys and limits shown here. Send it back as
+            permission keys, limits, hooks, extension points, settings and
+            slots shown here. Send it back as
             `reviewed_digest` on install so consent is for this manifest.
     ModuleSettingDef:
       type: object
