@@ -511,7 +511,7 @@ The event is only a trigger.
 4. For each member, take their newest session and pay for it in one conditional `update`: set `last_session` to the session id and `add` the XP and the voice time, `where` `user_id` matches and `last_session` is less than the id.
    If `changed` is 0, an earlier run already took it, so skip the member.
    Sessions at or below the `last_session` read in step 3 are left out of the sum.
-5. Write the cursor with `upsert` on `name`, using the id of the last row handled.
+5. Write the cursor with `upsert` on `name`, using the `next` the log returned, never the id of a row.
 
 The conditional `update` is both the claim and the payment, so two overlapping runs, a lost cursor write or a repeated event cannot pay one session twice, and a crash cannot take the claim without the payment.
 The cursor is moved last and only for rows that were handled, so a failed run reads the same rows again.
