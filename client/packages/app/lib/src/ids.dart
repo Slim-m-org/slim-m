@@ -75,3 +75,30 @@ String uuidV7At(int now, Random random) {
 
 /// The same generator for a favorite, idempotent by id like a message send.
 String newFavoriteId() => _uuidV7();
+
+/// One id per distinct request: the same while the request is unchanged, so a
+/// retry after a lost reply replays on the server, and fresh once any part of
+/// it changes, because a replay returns the first result whatever the new body
+/// says.
+class RetryId {
+  RetryId(this._mint);
+
+  final String Function() _mint;
+  Object? _key;
+  String? _id;
+
+  /// [key] stands for the request's content and must compare by value, so a
+  /// record or a string, never a list.
+  String forRequest(Object key) {
+    final id = _id;
+    if (id != null && _key == key) return id;
+    _key = key;
+    return _id = _mint();
+  }
+
+  /// Forgets the id once the request succeeded, so repeating it is a new one.
+  void settle() {
+    _key = null;
+    _id = null;
+  }
+}

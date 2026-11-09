@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../ids.dart';
 import '../../members/providers/bot_commands.dart';
 import '../providers/composer_attachment_drop.dart';
 import '../../modules/providers/app_launch.dart';
@@ -152,6 +153,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   /// True while a command awaits its result, so a second send cannot rerun it.
   bool _commandRunning = false;
+  final _launchId = RetryId(newMessageId);
 
   /// A staged file is sendable on its own: a photo needs no caption, and the
   /// server accepts an empty body precisely when attachments ride along.
@@ -348,6 +350,7 @@ class _ComposerState extends ConsumerState<Composer> {
     try {
       handled = await runComposedCommand(
         ref: ref,
+        launchId: _launchId,
         channelId: widget.channelId,
         controller: widget.controller,
         apps: _apps,

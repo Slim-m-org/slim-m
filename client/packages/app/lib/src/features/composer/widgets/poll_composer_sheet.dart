@@ -67,6 +67,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
   final _question = TextEditingController();
   final _options = List.generate(_minOptions, (_) => TextEditingController());
 
+  final _pollId = RetryId(newMessageId);
   bool _submitting = false;
   String? _error;
   _PollLength _length = _PollLength.never;
@@ -129,14 +130,21 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
       _submitting = true;
       _error = null;
     });
+    final question = _question.text.trim();
+    final options = _filledOptions;
     try {
       final sent = await ref
           .read(composerActionsProvider)
           .sendPollMessage(
             channelId: widget.channelId,
-            id: newMessageId(),
-            question: _question.text.trim(),
-            options: _filledOptions,
+            id: _pollId.forRequest((
+              question: question,
+              options: options.join('\u0000'),
+              length: _length,
+              ranked: _ranked,
+            )),
+            question: question,
+            options: options,
             closeAt: _length.closeAt(clock.now()),
             ranked: _ranked,
           );

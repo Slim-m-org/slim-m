@@ -12,7 +12,7 @@ client/packages/app/test/canvas_call_dock_width_sweep_test.dart 4 2
 client/packages/app/test/canvas_clear_sheet_sort_test.dart 0 1
 client/packages/app/test/canvas_compact_dock_width_sweep_test.dart 1 2
 client/packages/app/test/canvas_docked_thread_escape_test.dart 0 2
-client/packages/app/test/canvas_image_paste_test.dart 0 3
+client/packages/app/test/canvas_image_paste_test.dart 0 7
 client/packages/app/test/canvas_menu_dismiss_click_test.dart 0 4
 client/packages/app/test/canvas_note_sheet_focus_test.dart 3 2
 client/packages/app/test/canvas_pane_activity_summary_test.dart 0 2
@@ -47,9 +47,9 @@ client/packages/app/test/canvas_safe_area_shell_test.dart 7 0
 client/packages/app/test/canvas_self_presence_menu_test.dart 6 3
 client/packages/app/test/canvas_tap_dot_test.dart 0 10
 client/packages/app/test/canvas_tool_shortcuts_test.dart 0 4
-client/packages/app/test/canvas_tools_row_accessibility_test.dart 0 2
+client/packages/app/test/canvas_tools_row_accessibility_test.dart 1 4
 client/packages/app/test/canvas_tools_row_self_bubble_test.dart 0 3
-client/packages/app/test/canvas_tools_row_test.dart 4 17
+client/packages/app/test/canvas_tools_row_test.dart 4 19
 client/packages/app/test/canvas_zoom_indicator_focus_test.dart 3 0
 client/packages/app/test/canvas_zoom_indicator_test.dart 2 0
 client/packages/app/test/channel_history_harness.dart 2 0
@@ -132,7 +132,7 @@ client/packages/app/test/features/canvas/canvas_board_containment_pane_test.dart
 client/packages/app/test/features/canvas/canvas_board_focus_ring_test.dart 6 0
 client/packages/app/test/features/canvas/canvas_board_keys_test.dart 4 10
 client/packages/app/test/features/canvas/canvas_board_pane_test.dart 2 2
-client/packages/app/test/features/canvas/canvas_call_failure_test.dart 2 1
+client/packages/app/test/features/canvas/canvas_call_failure_test.dart 3 1
 client/packages/app/test/features/canvas/canvas_call_participants_test.dart 0 7
 client/packages/app/test/features/canvas/canvas_clear_fence_test.dart 0 3
 client/packages/app/test/features/canvas/canvas_clear_sheet_long_list_test.dart 1 0
@@ -163,7 +163,7 @@ client/packages/app/test/features/canvas/canvas_note_field_test.dart 7 3
 client/packages/app/test/features/canvas/canvas_note_sheet_test.dart 9 2
 client/packages/app/test/features/canvas/canvas_note_typing_keys_test.dart 7 3
 client/packages/app/test/features/canvas/canvas_object_context_menu_long_press_test.dart 0 3
-client/packages/app/test/features/canvas/canvas_object_context_menu_test.dart 0 21
+client/packages/app/test/features/canvas/canvas_object_context_menu_test.dart 0 23
 client/packages/app/test/features/canvas/canvas_object_lock_menu_test.dart 0 5
 client/packages/app/test/features/canvas/canvas_overflow_menu_bounds_test.dart 1 1
 client/packages/app/test/features/canvas/canvas_overflow_menu_test.dart 1 1
@@ -172,7 +172,7 @@ client/packages/app/test/features/canvas/canvas_pane_body_error_gates_drawing_te
 client/packages/app/test/features/canvas/canvas_pane_escape_menu_test.dart 0 3
 client/packages/app/test/features/canvas/canvas_pane_fullscreen_remount_test.dart 3 3
 client/packages/app/test/features/canvas/canvas_pane_harness.dart 2 0
-client/packages/app/test/features/canvas/canvas_pane_test.dart 3 7
+client/packages/app/test/features/canvas/canvas_pane_test.dart 6 7
 client/packages/app/test/features/canvas/canvas_paste_chord_web_test.dart 0 1
 client/packages/app/test/features/canvas/canvas_pen_button_sample_test.dart 1 0
 client/packages/app/test/features/canvas/canvas_pen_shape_reopen_test.dart 0 3
@@ -191,7 +191,7 @@ client/packages/app/test/features/canvas/canvas_presence_tile_participant_menu_t
 client/packages/app/test/features/canvas/canvas_presence_tile_reveal_test.dart 4 0
 client/packages/app/test/features/canvas/canvas_presence_tile_wheel_test.dart 1 0
 client/packages/app/test/features/canvas/canvas_presence_video_churn_test.dart 1 0
-client/packages/app/test/features/canvas/canvas_scoped_clear_and_participants_test.dart 4 11
+client/packages/app/test/features/canvas/canvas_scoped_clear_and_participants_test.dart 4 14
 client/packages/app/test/features/canvas/canvas_scoped_clear_version_test.dart 0 4
 client/packages/app/test/features/canvas/canvas_screen_share_badge_test.dart 5 0
 client/packages/app/test/features/canvas/canvas_selection_semantics_test.dart 3 0
@@ -199,7 +199,7 @@ client/packages/app/test/features/canvas/canvas_short_window_test.dart 6 0
 client/packages/app/test/features/canvas/canvas_text_pane_test.dart 10 22
 client/packages/app/test/features/canvas/canvas_tool_options_clearance_test.dart 3 1
 client/packages/app/test/features/canvas/canvas_tool_options_test.dart 12 16
-client/packages/app/test/features/canvas/canvas_tool_wheel_test.dart 3 15
+client/packages/app/test/features/canvas/canvas_tool_wheel_test.dart 3 16
 client/packages/app/test/features/canvas/canvas_tools_row_hidden_tiles_test.dart 0 2
 client/packages/app/test/features/canvas/canvas_tools_row_shape_kind_test.dart 2 2
 client/packages/app/test/features/canvas/canvas_tools_row_touch_reach_test.dart 2 7
@@ -211,7 +211,7 @@ client/packages/app/test/features/channels/call_screen_phone_chat_test.dart 12 5
 client/packages/app/test/features/channels/category_add_channel_test.dart 0 1
 client/packages/app/test/features/channels/category_context_menu_test.dart 2 4
 client/packages/app/test/features/channels/category_header_menu_test.dart 1 4
-client/packages/app/test/features/channels/channel_default_notification_test.dart 0 8
+client/packages/app/test/features/channels/channel_default_notification_test.dart 0 10
 client/packages/app/test/features/channels/channel_header_test.dart 2 13
 client/packages/app/test/features/channels/channel_history_rate_limit_test.dart 2 0
 client/packages/app/test/features/channels/channel_management_test.dart 1 3
@@ -244,9 +244,9 @@ client/packages/app/test/features/channels/channel_rail_touch_reorder_test.dart 
 client/packages/app/test/features/channels/channel_rail_unread_override_test.dart 2 6
 client/packages/app/test/features/channels/channel_rail_voice_named_rows_test.dart 2 0
 client/packages/app/test/features/channels/channel_rail_voice_roster_test.dart 5 0
-client/packages/app/test/features/channels/channel_row_context_menu_test.dart 0 22
+client/packages/app/test/features/channels/channel_row_context_menu_test.dart 0 23
 client/packages/app/test/features/channels/channel_screen_attachment_send_test.dart 1 0
-client/packages/app/test/features/channels/channel_screen_dm_permission_menu_test.dart 1 1
+client/packages/app/test/features/channels/channel_screen_dm_permission_menu_test.dart 1 2
 client/packages/app/test/features/channels/channel_screen_read_marker_scroll_test.dart 1 0
 client/packages/app/test/features/channels/channel_screen_send_failure_reason_test.dart 1 0
 client/packages/app/test/features/channels/channel_search_jump_test.dart 1 0
@@ -278,7 +278,7 @@ client/packages/app/test/features/channels/deleted_channel_redirect_test.dart 1 
 client/packages/app/test/features/channels/dm_row_activity_burst_test.dart 0 1
 client/packages/app/test/features/channels/dm_row_avatar_test.dart 2 0
 client/packages/app/test/features/channels/dm_row_call_indicator_test.dart 2 2
-client/packages/app/test/features/channels/dm_row_context_menu_test.dart 1 11
+client/packages/app/test/features/channels/dm_row_context_menu_test.dart 1 12
 client/packages/app/test/features/channels/dm_row_presence_test.dart 2 0
 client/packages/app/test/features/channels/drawer_edge_drag_test.dart 11 8
 client/packages/app/test/features/channels/emoji_wiring_test.dart 8 0
@@ -293,7 +293,7 @@ client/packages/app/test/features/channels/jump_to_latest_threshold_test.dart 1 
 client/packages/app/test/features/channels/manage_category_failure_test.dart 2 3
 client/packages/app/test/features/channels/manage_category_sheet_test.dart 3 5
 client/packages/app/test/features/channels/mark_read_menus_test.dart 1 6
-client/packages/app/test/features/channels/notifications_submenu_test.dart 0 6
+client/packages/app/test/features/channels/notifications_submenu_test.dart 1 6
 client/packages/app/test/features/channels/personal_space_menu_test.dart 0 11
 client/packages/app/test/features/channels/private_voice_row_test.dart 5 0
 client/packages/app/test/features/channels/rail_drag_handle_focus_test.dart 1 2
@@ -407,7 +407,7 @@ client/packages/app/test/features/members/edit_display_name_sheet_test.dart 10 3
 client/packages/app/test/features/members/home_shell_dm_member_pane_test.dart 3 0
 client/packages/app/test/features/members/home_shell_medium_members_test.dart 3 1
 client/packages/app/test/features/members/invite_friend_test.dart 0 8
-client/packages/app/test/features/members/invite_landing_section_test.dart 9 11
+client/packages/app/test/features/members/invite_landing_section_test.dart 10 11
 client/packages/app/test/features/members/member_card_banner_test.dart 1 0
 client/packages/app/test/features/members/member_card_message_test.dart 0 1
 client/packages/app/test/features/members/member_handle_line_test.dart 1 0
@@ -422,7 +422,8 @@ client/packages/app/test/features/members/member_pane_row_rebuild_test.dart 0 7
 client/packages/app/test/features/members/member_pane_selection_test.dart 1 15
 client/packages/app/test/features/members/member_pane_short_window_test.dart 8 2
 client/packages/app/test/features/members/member_pane_test.dart 0 13
-client/packages/app/test/features/members/member_profile_cards_test.dart 3 0
+client/packages/app/test/features/members/member_picker_search_test.dart 3 4
+client/packages/app/test/features/members/member_profile_cards_test.dart 3 3
 client/packages/app/test/features/members/member_profile_channel_permissions_test.dart 0 2
 client/packages/app/test/features/members/member_profile_dismiss_test.dart 1 4
 client/packages/app/test/features/members/member_profile_eject_test.dart 1 15
@@ -436,7 +437,7 @@ client/packages/app/test/features/members/member_rename_sheet_test.dart 5 6
 client/packages/app/test/features/members/member_roster_paging_test.dart 0 1
 client/packages/app/test/features/members/member_row_context_menu_test.dart 0 2
 client/packages/app/test/features/members/member_row_long_role_test.dart 2 0
-client/packages/app/test/features/members/member_row_module_badges_test.dart 4 0
+client/packages/app/test/features/members/member_row_module_badges_test.dart 5 0
 client/packages/app/test/features/members/member_row_section_badge_test.dart 3 0
 client/packages/app/test/features/members/member_selection_bar_test.dart 2 20
 client/packages/app/test/features/members/member_voice_chip_test.dart 13 4
@@ -462,7 +463,7 @@ client/packages/app/test/features/members/role_color_test.dart 0 2
 client/packages/app/test/features/members/role_members_actions_test.dart 3 5
 client/packages/app/test/features/members/role_members_tab_test.dart 2 9
 client/packages/app/test/features/members/roles_config_harness.dart 0 1
-client/packages/app/test/features/members/space_name_field_test.dart 6 3
+client/packages/app/test/features/members/space_name_field_test.dart 7 3
 client/packages/app/test/features/members/status_editor_sheet_test.dart 2 7
 client/packages/app/test/features/members/timeout_chips_width_test.dart 0 1
 client/packages/app/test/features/members/totp_admin_test.dart 3 6
@@ -487,7 +488,7 @@ client/packages/app/test/features/messages/channel_history_test.dart 12 0
 client/packages/app/test/features/messages/code_block_hidden_characters_test.dart 1 1
 client/packages/app/test/features/messages/command_palette_search_test.dart 0 5
 client/packages/app/test/features/messages/composer_focus_on_reply_edit_test.dart 4 0
-client/packages/app/test/features/messages/context_menu_reachability_test.dart 0 19
+client/packages/app/test/features/messages/context_menu_reachability_test.dart 0 20
 client/packages/app/test/features/messages/continuation_marker_test.dart 9 3
 client/packages/app/test/features/messages/delete_message_confirm_copy_test.dart 0 1
 client/packages/app/test/features/messages/delete_selected_after_unmount_test.dart 0 1
@@ -518,7 +519,7 @@ client/packages/app/test/features/messages/message_code_block_runner_test.dart 3
 client/packages/app/test/features/messages/message_context_menu_forward_test.dart 1 3
 client/packages/app/test/features/messages/message_context_menu_layout_test.dart 8 6
 client/packages/app/test/features/messages/message_context_menu_position_test.dart 7 4
-client/packages/app/test/features/messages/message_context_menu_quick_test.dart 14 6
+client/packages/app/test/features/messages/message_context_menu_quick_test.dart 16 11
 client/packages/app/test/features/messages/message_context_menu_scroll_test.dart 4 3
 client/packages/app/test/features/messages/message_context_menu_test.dart 16 15
 client/packages/app/test/features/messages/message_copy_link_test.dart 3 6
@@ -554,7 +555,7 @@ client/packages/app/test/features/messages/message_row_time_format_test.dart 4 3
 client/packages/app/test/features/messages/message_select_test.dart 15 16
 client/packages/app/test/features/messages/message_selectable_test.dart 2 11
 client/packages/app/test/features/messages/message_selection_bar_test.dart 0 10
-client/packages/app/test/features/messages/message_selection_entry_permission_test.dart 2 4
+client/packages/app/test/features/messages/message_selection_entry_permission_test.dart 2 5
 client/packages/app/test/features/messages/message_text_test.dart 8 0
 client/packages/app/test/features/messages/message_time_tooltip_test.dart 7 1
 client/packages/app/test/features/messages/message_toolbar_anchor_hover_test.dart 0 3
@@ -627,13 +628,13 @@ client/packages/app/test/features/palette/command_palette_test.dart 2 13
 client/packages/app/test/features/settings/accessibility_preference_wiring_test.dart 2 1
 client/packages/app/test/features/settings/account_deletion_proof_test.dart 4 5
 client/packages/app/test/features/settings/account_recovery_pane_test.dart 0 5
-client/packages/app/test/features/settings/admin_unmounted_writes_test.dart 2 5
+client/packages/app/test/features/settings/admin_unmounted_writes_test.dart 2 8
 client/packages/app/test/features/settings/analytics_screen_load_failure_test.dart 7 5
 client/packages/app/test/features/settings/analytics_screen_test.dart 13 17
 client/packages/app/test/features/settings/app_info_section_test.dart 4 5
 client/packages/app/test/features/settings/app_lock_section_test.dart 2 2
 client/packages/app/test/features/settings/appearance_media_options_test.dart 2 7
-client/packages/app/test/features/settings/appearance_new_preferences_test.dart 0 3
+client/packages/app/test/features/settings/appearance_new_preferences_test.dart 4 6
 client/packages/app/test/features/settings/attachment_limit_section_test.dart 2 11
 client/packages/app/test/features/settings/audit_log_pane_test.dart 2 2
 client/packages/app/test/features/settings/avatar_settings_section_picker_test.dart 1 6
@@ -649,7 +650,7 @@ client/packages/app/test/features/settings/channel_permissions_grid_phone_test.d
 client/packages/app/test/features/settings/channel_permissions_grid_rework_test.dart 4 8
 client/packages/app/test/features/settings/channel_permissions_grid_saving_test.dart 0 3
 client/packages/app/test/features/settings/channel_permissions_grid_test.dart 0 12
-client/packages/app/test/features/settings/channel_permissions_layout_and_members_test.dart 1 7
+client/packages/app/test/features/settings/channel_permissions_layout_and_members_test.dart 1 8
 client/packages/app/test/features/settings/connection_test_row_test.dart 2 0
 client/packages/app/test/features/settings/connections_section_test.dart 5 7
 client/packages/app/test/features/settings/danger_button_inset_test.dart 1 1
@@ -663,15 +664,15 @@ client/packages/app/test/features/settings/devices_stale_test.dart 0 3
 client/packages/app/test/features/settings/display_density_test.dart 8 7
 client/packages/app/test/features/settings/dock_back_stack_test.dart 0 4
 client/packages/app/test/features/settings/dock_command_panel_group_test.dart 5 5
-client/packages/app/test/features/settings/dock_host_access_test.dart 2 6
+client/packages/app/test/features/settings/dock_host_access_test.dart 3 7
 client/packages/app/test/features/settings/dock_install_consent_test.dart 2 17
-client/packages/app/test/features/settings/dock_module_access_changes_test.dart 1 5
+client/packages/app/test/features/settings/dock_module_access_changes_test.dart 2 5
 client/packages/app/test/features/settings/dock_module_lifecycle_test.dart 3 9
-client/packages/app/test/features/settings/dock_module_powers_test.dart 0 9
+client/packages/app/test/features/settings/dock_module_powers_test.dart 0 11
 client/packages/app/test/features/settings/dock_module_update_test.dart 0 7
 client/packages/app/test/features/settings/dock_module_ux_test.dart 2 2
-client/packages/app/test/features/settings/dock_role_access_test.dart 1 6
-client/packages/app/test/features/settings/dock_screen_test.dart 8 10
+client/packages/app/test/features/settings/dock_role_access_test.dart 2 6
+client/packages/app/test/features/settings/dock_screen_test.dart 8 11
 client/packages/app/test/features/settings/dock_search_test.dart 5 6
 client/packages/app/test/features/settings/dock_settings_card_test.dart 11 10
 client/packages/app/test/features/settings/dock_sources_test.dart 6 7
@@ -697,9 +698,9 @@ client/packages/app/test/features/settings/module_settings_form_test.dart 5 3
 client/packages/app/test/features/settings/notification_preference_row_test.dart 3 11
 client/packages/app/test/features/settings/notification_schedule_allow_lists_test.dart 4 9
 client/packages/app/test/features/settings/notification_schedule_section_test.dart 3 15
-client/packages/app/test/features/settings/notifications_section_desktop_text_test.dart 1 3
+client/packages/app/test/features/settings/notifications_section_desktop_text_test.dart 2 4
 client/packages/app/test/features/settings/notifications_section_push_content_toggle_test.dart 0 7
-client/packages/app/test/features/settings/notifications_section_sound_toggle_test.dart 1 8
+client/packages/app/test/features/settings/notifications_section_sound_toggle_test.dart 3 10
 client/packages/app/test/features/settings/optimistic_setting_refetch_error_test.dart 0 6
 client/packages/app/test/features/settings/performance_canvas_cap_test.dart 0 9
 client/packages/app/test/features/settings/performance_link_previews_test.dart 0 3
@@ -753,7 +754,7 @@ client/packages/app/test/features/settings/space_operations_options_test.dart 2 
 client/packages/app/test/features/settings/space_settings_section_test.dart 8 5
 client/packages/app/test/features/settings/start_on_login_row_test.dart 3 3
 client/packages/app/test/features/settings/storage_screen_test.dart 1 3
-client/packages/app/test/features/settings/theme_preference_test.dart 1 3
+client/packages/app/test/features/settings/theme_preference_test.dart 1 5
 client/packages/app/test/features/settings/totp_code_sheet_focus_test.dart 2 3
 client/packages/app/test/features/settings/totp_policy_off_test.dart 0 1
 client/packages/app/test/features/settings/totp_section_test.dart 9 12
@@ -785,7 +786,7 @@ client/packages/app/test/features/voice/call_tiles_keyboard_test.dart 2 3
 client/packages/app/test/features/voice/canvas_call_dock_layout_test.dart 5 0
 client/packages/app/test/features/voice/canvas_empty_hint_test.dart 1 3
 client/packages/app/test/features/voice/canvas_pane_call_dock_test.dart 4 0
-client/packages/app/test/features/voice/channel_row_menu_voice_open_test.dart 0 2
+client/packages/app/test/features/voice/channel_row_menu_voice_open_test.dart 0 3
 client/packages/app/test/features/voice/compact_voice_chat_back_test.dart 0 10
 client/packages/app/test/features/voice/deafened_indicator_test.dart 1 0
 client/packages/app/test/features/voice/dm_pane_closed_hangup_toast_test.dart 1 3
@@ -796,7 +797,7 @@ client/packages/app/test/features/voice/fullscreen_video_chrome_test.dart 2 4
 client/packages/app/test/features/voice/fullscreen_video_landscape_test.dart 5 9
 client/packages/app/test/features/voice/global_hotkeys_test.dart 1 6
 client/packages/app/test/features/voice/hide_camera_test.dart 1 5
-client/packages/app/test/features/voice/hold_music_badge_test.dart 6 4
+client/packages/app/test/features/voice/hold_music_badge_test.dart 7 4
 client/packages/app/test/features/voice/home_shell_call_bar_keyboard_test.dart 3 0
 client/packages/app/test/features/voice/home_shell_call_shortcuts_test.dart 1 2
 client/packages/app/test/features/voice/home_shell_voice_strip_test.dart 1 0
@@ -828,9 +829,9 @@ client/packages/app/test/features/voice/screen_share_stage_geometry_test.dart 7 
 client/packages/app/test/features/voice/share_tile_context_menu_test.dart 3 2
 client/packages/app/test/features/voice/source_picker_sheets_test.dart 4 6
 client/packages/app/test/features/voice/stream_quality_row_test.dart 1 0
-client/packages/app/test/features/voice/stream_volume_test.dart 6 2
+client/packages/app/test/features/voice/stream_volume_test.dart 8 2
 client/packages/app/test/features/voice/video_playback_controls_test.dart 2 0
-client/packages/app/test/features/voice/video_quality_settings_test.dart 1 5
+client/packages/app/test/features/voice/video_quality_settings_test.dart 2 5
 client/packages/app/test/features/voice/video_state_cards_test.dart 2 0
 client/packages/app/test/features/voice/voice_auto_join_test.dart 3 5
 client/packages/app/test/features/voice/voice_call_controls_change_source_test.dart 2 13
@@ -885,7 +886,7 @@ client/packages/app/test/gates/whats_new_gate_test.dart 4 5
 client/packages/app/test/home_shell_canvas_end_drawer_test.dart 2 0
 client/packages/app/test/home_shell_canvas_test.dart 16 3
 client/packages/app/test/push/notification_tap_router_test.dart 0 2
-client/packages/app/test/push/notifications_options_test.dart 0 2
+client/packages/app/test/push/notifications_options_test.dart 0 4
 client/packages/app/test/settings_rendered_rows.dart 4 0
 client/packages/app/test/shared/analytics_bar_chart_axis_test.dart 1 0
 client/packages/app/test/shared/animated_menu_portal_test.dart 1 5
@@ -928,7 +929,7 @@ client/packages/app/test/snapshots/ui_snapshot_composer_code_test.dart 0 4
 client/packages/app/test/snapshots/ui_snapshot_density_rows_test.dart 0 1
 client/packages/app/test/snapshots/ui_snapshot_density_test.dart 0 1
 client/packages/app/test/snapshots/ui_snapshot_dock_music_test.dart 0 1
-client/packages/app/test/snapshots/ui_snapshot_dock_settings_test.dart 1 0
+client/packages/app/test/snapshots/ui_snapshot_dock_settings_test.dart 1 1
 client/packages/app/test/snapshots/ui_snapshot_failed_row_test.dart 0 1
 client/packages/app/test/snapshots/ui_snapshot_group_dm_test.dart 2 0
 client/packages/app/test/snapshots/ui_snapshot_hold_music_test.dart 0 1
