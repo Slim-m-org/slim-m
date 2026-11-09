@@ -56,4 +56,26 @@ void main() {
   test('a different author always starts a new block', () {
     expect(isGrouped(_at(0, author: 'grace'), _at(0)), isFalse);
   });
+
+  test('a reply starts its own block, even seconds after the same author', () {
+    final reply = Message(
+      id: 'reply',
+      channelId: 'c1',
+      authorId: 'ada',
+      authorDisplayName: 'ada',
+      seq: 2,
+      content: 'to the one above',
+      createdAt: const Duration(seconds: 5).inMilliseconds,
+      replyToId: _at(0).id,
+      pending: false,
+      failed: false,
+    );
+    expect(
+      isGrouped(reply, _at(0)),
+      isFalse,
+      reason:
+          'a reply carries its own context line, which needs its own avatar '
+          'for the connector to join',
+    );
+  });
 }
