@@ -46,9 +46,9 @@ impl Store {
     /// reactions, read state, role memberships, member channel overwrites, reset
     /// codes, attachment uploader records) is purged; content left in shared
     /// scopes (messages, canvas) is kept but its authorship is cleared; and the
-    /// user row is tombstoned and anonymized so the username frees up and login
-    /// is impossible. Returns the sessions that were revoked so the caller can
-    /// close their live sockets.
+    /// user row is tombstoned and anonymized (name and profile fields cleared)
+    /// so the username frees up and login is impossible. Returns the sessions
+    /// that were revoked so the caller can close their live sockets.
     ///
     /// Concurrency: the first statement is a write, so the transaction takes the
     /// write lock immediately (no stale-snapshot race) and a login racing this
@@ -116,7 +116,7 @@ impl Store {
             return Err(DeleteAccountError::UserNotFound);
         }
 
-        // Deleting devices cascades these.
+        // Already-revoked sessions are returned too: a quiet revoke leaves its socket open.
         let revoked: Vec<SessionId> = sqlx::query!(
             r#"UPDATE sessions SET revoked_at = ? WHERE user_id = ?
                RETURNING id AS "id!: SessionId""#,
@@ -324,7 +324,10 @@ impl Store {
         sqlx::query!(
             "UPDATE users
              SET deleted_at = ?, is_anonymized = 1, password_hash = NULL,
-                 username = ?, display_name = 'Deleted User'
+                 username = ?, display_name = 'Deleted User',
+                 status_text = NULL, pronouns = NULL, about = NULL,
+                 profile_color = NULL, profile_color_rgb = NULL,
+                 avatar_updated_at = NULL, banner_updated_at = NULL
              WHERE id = ?",
             now,
             tombstone,
