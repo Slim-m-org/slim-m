@@ -114,6 +114,14 @@ class OffenderCeilingTest(unittest.TestCase):
             "a commented-out call is not a subscription",
         )
 
+    def test_a_call_named_inside_a_string_does_not_count(self):
+        source = "final hint = 'avoid MediaQuery.of(context)';\nMediaQuery.of(context);\n"
+        self.assertEqual(self.mod.offenders_in({"a.dart": source}, {}), ["a.dart:2"])
+
+    def test_a_call_inside_a_string_interpolation_still_counts(self):
+        source = "final w = '${MediaQuery.of(context).size.width}';\n"
+        self.assertEqual(self.mod.offenders_in({"a.dart": source}, {}), ["a.dart:1"])
+
     def test_maybe_of_is_reported_like_of(self):
         source = "final w = MediaQuery.maybeOf(context)?.size.width;\n"
         self.assertEqual(
