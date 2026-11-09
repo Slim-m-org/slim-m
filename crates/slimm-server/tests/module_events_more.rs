@@ -8,8 +8,9 @@ use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
 use slimm_server::http::spawn_module_events;
-use slimm_server::hub::{Event, MessageEvent};
+use slimm_server::hub::{Event, MessageEvent, ReactionMoved};
 use slimm_server::ids::{ChannelId, MessageId, RoleId, UserId};
+use slimm_server::permissions::Permissions;
 use slimm_server::presence::Visibility;
 use slimm_server::store::Runoff;
 use tower::ServiceExt;
@@ -73,7 +74,11 @@ async fn count_of(w: &World, kind: &str) -> usize {
     all.iter().filter(|e| e["event"] == kind).count()
 }
 
-fn reacted(channel: ChannelId, message: MessageId, who: &[(&str, &[UserId])]) -> Event {
+fn reacted(
+    (channel, message): (ChannelId, MessageId),
+    who: &[(&str, &[UserId])],
+    moved: (UserId, bool),
+) -> Event {
     let reactors = who
         .iter()
         .map(|(emoji, users)| {
@@ -87,6 +92,11 @@ fn reacted(channel: ChannelId, message: MessageId, who: &[(&str, &[UserId])]) ->
         channel_id: channel,
         message_id: message,
         reactors: Arc::new(reactors),
+        moved: Some(Arc::new(ReactionMoved {
+            emoji: "a".to_owned(),
+            user_id: moved.0,
+            added: moved.1,
+        })),
     })
 }
 
@@ -245,13 +255,12 @@ async fn a_reaction_names_who_moved_and_a_blocked_reactor_is_not_heard() {
     let bob = w.store.create_user("bob", "Bob").await.unwrap().id;
     w.store.block_user(bot, bob).await.unwrap();
 
+    let at = (general.id, message);
+    w.hub.publish(reacted(at, &[("a", &[ann])], (ann, true)));
     w.hub
-        .publish(reacted(general.id, message, &[("a", &[ann])]));
-    w.hub
-        .publish(reacted(general.id, message, &[("a", &[ann, bob])]));
-    w.hub
-        .publish(reacted(general.id, message, &[("a", &[ann])]));
-    w.hub.publish(reacted(general.id, message, &[]));
+        .publish(reacted(at, &[("a", &[ann, bob])], (bob, true)));
+    w.hub.publish(reacted(at, &[("a", &[ann])], (bob, false)));
+    w.hub.publish(reacted(at, &[("a", &[bob])], (ann, false)));
 
     let seen = recorded_of(&w, "reaction.changed", 2).await;
     settle().await;
@@ -272,7 +281,94 @@ async fn a_reaction_names_who_moved_and_a_blocked_reactor_is_not_heard() {
         .collect();
     assert_eq!(
         moves,
-        vec![(ann.to_string(), true, 1), (ann.to_string(), false, 0)]
+        vec![(ann.to_string(), true, 1), (ann.to_string(), false, 1)]
     );
     assert_eq!(seen[0]["data"]["emoji"], json!("a"));
+}
+
+const THUMBS_UP: &str = "\u{1F44D}";
+const THUMBS_UP_PATH: &str = "%F0%9F%91%8D";
+
+/// A message in `#general` that three other members reacted to before the consumer ever saw it.
+async fn message_with_prior_reactors(w: &World) -> (MessageId, String) {
+    let general = w.store.create_channel("general", "text").await.unwrap();
+    let allow = Permissions::ADD_REACTIONS;
+    w.store
+        .set_role_overwrite(general.id, w.everyone, allow, Permissions::NONE)
+        .await
+        .unwrap();
+    let message = MessageId::generate();
+    let uri = format!("/channels/{}/messages", general.id);
+    send(
+        w,
+        "POST",
+        &uri,
+        json!({"id": message.to_string(), "content": "old"}),
+    )
+    .await;
+    for name in ["ann", "bob", "cat"] {
+        let user = w.store.create_user(name, name).await.unwrap().id;
+        w.store
+            .add_reaction(message, user, THUMBS_UP)
+            .await
+            .unwrap();
+    }
+    (
+        message,
+        format!("/messages/{message}/reactions/{THUMBS_UP_PATH}"),
+    )
+}
+
+#[tokio::test]
+async fn the_first_reaction_on_an_old_message_reports_only_who_moved() {
+    let w = world("slimm-modevents-cold-add").await;
+    let _consumer = spawn_module_events(w.state.clone());
+    listener(&w).await;
+    let (_message, react) = message_with_prior_reactors(&w).await;
+
+    send(&w, "PUT", &react, json!(null)).await;
+
+    let seen = recorded_of(&w, "reaction.changed", 1).await;
+    settle().await;
+    assert_eq!(count_of(&w, "reaction.changed").await, 1);
+    assert_eq!(seen[0]["data"]["user_id"], json!(w.user.id.to_string()));
+    assert_eq!(seen[0]["data"]["added"], json!(true));
+    assert_eq!(seen[0]["data"]["count"], json!(4));
+}
+
+#[tokio::test]
+async fn taking_back_a_reaction_on_an_old_message_reports_the_removal() {
+    let w = world("slimm-modevents-cold-remove").await;
+    let _consumer = spawn_module_events(w.state.clone());
+    listener(&w).await;
+    let (message, react) = message_with_prior_reactors(&w).await;
+    w.store
+        .add_reaction(message, w.user.id, THUMBS_UP)
+        .await
+        .unwrap();
+
+    send(&w, "DELETE", &react, json!(null)).await;
+
+    let seen = recorded_of(&w, "reaction.changed", 1).await;
+    settle().await;
+    assert_eq!(count_of(&w, "reaction.changed").await, 1);
+    assert_eq!(seen[0]["data"]["user_id"], json!(w.user.id.to_string()));
+    assert_eq!(seen[0]["data"]["added"], json!(false));
+    assert_eq!(seen[0]["data"]["count"], json!(3));
+}
+
+#[tokio::test]
+async fn repeating_a_reaction_or_removing_one_that_is_not_there_reports_nothing() {
+    let w = world("slimm-modevents-noop").await;
+    let _consumer = spawn_module_events(w.state.clone());
+    listener(&w).await;
+    let (_message, react) = message_with_prior_reactors(&w).await;
+
+    send(&w, "DELETE", &react, json!(null)).await;
+    send(&w, "PUT", &react, json!(null)).await;
+    send(&w, "PUT", &react, json!(null)).await;
+
+    recorded_of(&w, "reaction.changed", 1).await;
+    settle().await;
+    assert_eq!(count_of(&w, "reaction.changed").await, 1);
 }

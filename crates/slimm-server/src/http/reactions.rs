@@ -24,7 +24,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
 use super::viewable_message::viewable_message;
-use crate::hub::{Event, MessageEvent};
+use crate::hub::{Event, MessageEvent, ReactionMoved};
 use crate::ids::MessageId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -79,12 +79,12 @@ async fn add(
         return Err(ApiError::BadRequest("that is not a usable emoji"));
     }
 
-    match state
+    let added = match state
         .store
         .add_reaction(message_id, ctx.user_id, &emoji)
         .await
     {
-        Ok(()) => {}
+        Ok(added) => added,
         Err(ReactError::UnknownMessage) => return Err(ApiError::NotFound("no such message")),
         Err(ReactError::InvalidEmoji) => {
             return Err(ApiError::BadRequest("that is not a usable emoji"));
@@ -95,9 +95,14 @@ async fn add(
             ));
         }
         Err(ReactError::Internal(e)) => return Err(e.into()),
-    }
+    };
 
-    publish(&state, channel_id, message_id).await?;
+    let moved = added.then(|| ReactionMoved {
+        emoji,
+        user_id: ctx.user_id,
+        added: true,
+    });
+    publish(&state, (channel_id, message_id), moved).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -111,11 +116,16 @@ async fn remove(
     let message_id = MessageId(parse_uuid(&message_id)?);
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
 
-    state
+    let removed = state
         .store
         .remove_reaction(message_id, ctx.user_id, &emoji)
         .await?;
-    publish(&state, channel_id, message_id).await?;
+    let moved = removed.then(|| ReactionMoved {
+        emoji,
+        user_id: ctx.user_id,
+        added: false,
+    });
+    publish(&state, (channel_id, message_id), moved).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -136,8 +146,8 @@ async fn remove(
 /// connection is never told what another user reacted with beyond the count.
 async fn publish(
     state: &AppState,
-    channel_id: crate::ids::ChannelId,
-    message_id: MessageId,
+    (channel_id, message_id): (crate::ids::ChannelId, MessageId),
+    moved: Option<ReactionMoved>,
 ) -> Result<(), ApiError> {
     let reactors = state.store.reaction_reactors(message_id).await?;
     state
@@ -146,6 +156,7 @@ async fn publish(
             channel_id,
             message_id,
             reactors: Arc::new(reactors),
+            moved: moved.map(Arc::new),
         }));
     Ok(())
 }

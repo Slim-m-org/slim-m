@@ -50,6 +50,7 @@ mod moderation_seq;
 mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
+pub use event_util::ReactionMoved;
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
@@ -515,6 +516,7 @@ mod epoch_tests {
             channel_id: ChannelId::generate(),
             message_id: crate::ids::MessageId::generate(),
             reactors: Arc::new(vec![("+1".to_owned(), vec![(UserId::generate(), 1)])]),
+            moved: None,
         }));
         let reactors = |event| match event {
             Event::Message(MessageEvent::ReactionsChanged { reactors, .. }) => reactors,
