@@ -58,24 +58,27 @@ class _PaletteMessageTextState extends State<PaletteMessageText> {
     _disposeRecognizers();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final style = AppText.ui.copyWith(color: tokens.textPrimary);
-    return Text.rich(
-      TextSpan(
-        style: style,
-        children: paletteHighlightInline(
-          inlineTextSpans(
-            paletteSnippet(widget.text, widget.terms),
-            customEmoji: widget.customEmoji,
-            ambientStyle: style,
-            linkColor: tokens.accent,
-            recognizers: _recognizers,
-            knownUsernames: widget.knownUsernames,
-            knownRoleNames: widget.knownRoleNames,
+    // A result row is one tap target, so a channel chip or link inside it must not take the tap.
+    return AbsorbPointer(
+      child: Text.rich(
+        TextSpan(
+          style: style,
+          children: paletteHighlightInline(
+            inlineTextSpans(
+              paletteSnippet(widget.text, widget.terms),
+              customEmoji: widget.customEmoji,
+              ambientStyle: style,
+              linkColor: tokens.accent,
+              recognizers: _recognizers,
+              knownUsernames: widget.knownUsernames,
+              knownRoleNames: widget.knownRoleNames,
+            ),
+            widget.terms,
           ),
-          widget.terms,
         ),
+        maxLines: widget.maxLines,
+        overflow: TextOverflow.ellipsis,
       ),
-      maxLines: widget.maxLines,
-      overflow: TextOverflow.ellipsis,
     );
   }
 }

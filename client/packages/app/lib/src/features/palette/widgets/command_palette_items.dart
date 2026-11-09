@@ -256,6 +256,7 @@ PaletteResultItem messageResultItem(
 String paletteChannelLabel(Channel? channel) => switch (channel) {
   null => 'a channel',
   Channel(kind: dmChannelKind) => 'a direct message',
+  Channel(:final name) when name.isEmpty => 'a thread',
   Channel(:final name) => '#$name',
 };
 
