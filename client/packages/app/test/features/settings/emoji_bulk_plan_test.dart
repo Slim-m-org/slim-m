@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_bulk_plan.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_name.dart';
 
 import 'emoji_add_harness.dart' show buildEmojiZip;
 
@@ -81,6 +82,30 @@ void main() {
 
     expect(plan.uploads, isEmpty);
     expect(plan.skipped.single.reason, contains(':party_parrot:'));
+  });
+
+  test('a name that sanitizes to nothing is still planned, to be renamed', () {
+    final plan = planEmojiZip([_file('!!!.png')]);
+
+    expect(plan.skipped, isEmpty);
+    expect(plan.uploads.single.fileName, '!!!.png');
+    expect(plan.uploads.single.name, isEmpty);
+  });
+
+  test('a name past the limit is planned whole, for the review to flag', () {
+    final stem = 'x' * (maxEmojiNameLength + 8);
+    final plan = planEmojiZip([_file('$stem.png')]);
+
+    expect(plan.skipped, isEmpty);
+    expect(plan.uploads.single.name, stem);
+  });
+
+  test('two files with one stem are both planned, never silently dropped', () {
+    final plan = planEmojiZip([_file('Smile.png'), _file('smile.gif')]);
+
+    expect(plan.skipped, isEmpty);
+    expect(plan.uploads.map((u) => u.fileName), ['Smile.png', 'smile.gif']);
+    expect(plan.uploads.map((u) => u.name), ['smile', 'smile']);
   });
 
   test('a file over the 1 MB server limit is refused up front', () {
