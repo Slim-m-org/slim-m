@@ -27,6 +27,7 @@ extension SlimmApiSpace on SlimmApi {
       :description,
       :strongNoiseSuppression,
       :membersCanInvite,
+      :hideBotsInMemberList,
       :moduleMemberBadges,
       :moduleProfileSections,
       :welcomeEnabled,
@@ -40,6 +41,7 @@ extension SlimmApiSpace on SlimmApi {
           description != null ||
           strongNoiseSuppression != null ||
           membersCanInvite != null ||
+          hideBotsInMemberList != null ||
           moduleMemberBadges != null ||
           moduleProfileSections != null ||
           welcomeEnabled != null ||
@@ -58,6 +60,8 @@ extension SlimmApiSpace on SlimmApi {
         if (strongNoiseSuppression != null)
           'strong_noise_suppression': strongNoiseSuppression,
         if (membersCanInvite != null) 'members_can_invite': membersCanInvite,
+        if (hideBotsInMemberList != null)
+          'hide_bots_in_member_list': hideBotsInMemberList,
         if (moduleMemberBadges != null)
           'module_member_badges': moduleMemberBadges,
         if (moduleProfileSections != null)

@@ -68,6 +68,7 @@ class AppMemberPane extends ConsumerWidget {
     ref.watch(presenceSeedProvider(channelId));
     // Purely a side-effect subscription: a join, a timeout or a moderation event makes a row on screen wrong.
     ref.watch(memberModerationWatcherProvider);
+    final hideBots = ref.watch(hideBotsInMemberListProvider);
     final mine = ref.watch(myPermissionsProvider);
     final canTimeOut = mine.hasPermission(Perm.kickMembers);
     final canRemove = mine.hasPermission(Perm.banMembers);
@@ -92,7 +93,10 @@ class AppMemberPane extends ConsumerWidget {
       child: Column(
         children: [
           _Header(
-            count: membersAsync.valueOrNull?.length,
+            count: switch (membersAsync.valueOrNull) {
+              final roster? => listedMemberCount(roster, hideBots: hideBots),
+              null => null,
+            },
             onInvite:
                 watchCanInviteFriend(ref) && !ref.watch(inviteInFlightProvider)
                 ? () => inviteAFriend(context)
@@ -192,7 +196,7 @@ class _RosterList extends ConsumerWidget {
   }
 }
 
-/// The pane's own title bar, counting the whole roster.
+/// The pane's own title bar, counting the whole roster, bots only while the list shows them.
 ///
 /// Never the filtered count: this pane is where somebody checks how big the
 /// Space is, and a search box quietly changing that number would answer a

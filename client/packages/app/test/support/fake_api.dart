@@ -3,9 +3,13 @@
 /// helper that mounts a widget under a container with those overrides.
 library;
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -18,6 +22,18 @@ Override mockApiOverride(MockClientHandler handler) =>
       ref.onDispose(api.close);
       return api;
     });
+
+/// Wraps [handler] so `/space/settings` reads as an invite-only Space and every other path goes to [handler].
+MockClientHandler withSpaceSettings(
+  FutureOr<http.Response> Function(http.Request) handler,
+) =>
+    (request) async => request.url.path == '/space/settings'
+    ? http.Response(
+        jsonEncode({'join_policy': 'invite'}),
+        200,
+        headers: const {'content-type': 'application/json'},
+      )
+    : handler(request);
 
 /// Overrides [apiProvider] with an api served by the fake [server].
 Override fakeServerOverride(FakeSlimmServer server) =>
