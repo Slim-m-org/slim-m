@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Credential and display-name validation shared with bot provisioning, `/me` and password reset.
 
+use crate::hidden_chars::is_variation_selector;
 use crate::http::error::ApiError;
 
 /// `everyone` and `here` are reserved, case-insensitively, so `@everyone` and
@@ -57,7 +58,10 @@ pub(crate) fn validate_label(value: &str, message: &'static str) -> Result<(), A
     if !(1..=crate::limits::MAX_NAME_CHARS).contains(&len) {
         return Err(ApiError::BadRequest(message));
     }
-    if value.trim().is_empty() {
+    if !value
+        .chars()
+        .any(|c| !c.is_whitespace() && !is_variation_selector(c))
+    {
         return Err(ApiError::BadRequest("name must not be blank"));
     }
     if value.chars().any(is_disallowed_label_char) {
