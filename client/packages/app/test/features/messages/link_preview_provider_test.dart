@@ -79,6 +79,23 @@ void main() {
     expect(fetches, 1);
   });
 
+  test('a refetch of the server info that changes nothing does not refetch '
+      'the preview', () async {
+    var fetches = 0;
+    final container = _containerWith(
+      linkPreviewsEnabled: true,
+      onFetch: () => fetches += 1,
+    );
+    container.listen(linkPreviewProvider('https://example.com'), (_, _) {});
+    await container.read(linkPreviewProvider('https://example.com').future);
+
+    container.invalidate(serverInfoProvider);
+    await container.read(serverInfoProvider.future);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fetches, 1);
+  });
+
   test(
     'a deployment that has not enabled link previews makes no request',
     () async {

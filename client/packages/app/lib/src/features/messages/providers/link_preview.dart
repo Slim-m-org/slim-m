@@ -37,9 +37,11 @@ final refreshedStalePreviewsProvider = Provider<Set<String>>((ref) {
 final linkPreviewProvider = FutureProvider.autoDispose
     .family<LinkPreview?, String>((ref, url) async {
       _recentPreviews.hold(ref, url);
-      final enabled =
-          ref.watch(serverInfoProvider).valueOrNull?.linkPreviewsEnabled ??
-          false;
+      final enabled = ref.watch(
+        serverInfoProvider.select(
+          (info) => info.valueOrNull?.linkPreviewsEnabled ?? false,
+        ),
+      );
       if (!enabled) return null;
       var disposed = false;
       ref.onDispose(() => disposed = true);

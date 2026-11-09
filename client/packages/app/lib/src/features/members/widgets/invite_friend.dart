@@ -54,7 +54,11 @@ bool watchCanInviteFriend(WidgetRef ref) {
   if (ref.watch(myPermissionsProvider).hasPermission(Perm.createInvite)) {
     return true;
   }
-  return ref.watch(serverInfoProvider).valueOrNull?.membersCanInvite ?? false;
+  return ref.watch(
+    serverInfoProvider.select(
+      (info) => info.valueOrNull?.membersCanInvite ?? false,
+    ),
+  );
 }
 
 /// True from the press until the link is shared or the failure sheet opens, so

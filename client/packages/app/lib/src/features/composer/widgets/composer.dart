@@ -397,8 +397,11 @@ class _ComposerState extends ConsumerState<Composer> {
         gifSearch: _gifSearchEnabled,
       ),
     );
-    _gifSearchEnabled =
-        ref.watch(serverInfoProvider).valueOrNull?.gifSearchEnabled ?? false;
+    _gifSearchEnabled = ref.watch(
+      serverInfoProvider.select(
+        (info) => info.valueOrNull?.gifSearchEnabled ?? false,
+      ),
+    );
     _slowModeRemaining = ref.watch(
       slowModeRemainingSecondsProvider(widget.channelId),
     );
