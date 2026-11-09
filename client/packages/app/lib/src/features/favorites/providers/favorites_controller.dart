@@ -43,20 +43,26 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
     _putFirst(added);
   }
 
+  /// A list that never loaded is fetched again rather than replaced by the one
+  /// favorite just added, which would hide every other.
   void _putFirst(api.Favorite added) {
-    final rest = (state.valueOrNull ?? const <api.Favorite>[]).where(
-      (f) => f.id != added.id,
-    );
-    state = AsyncData([added, ...rest]);
+    final current = state.valueOrNull;
+    if (current == null) {
+      ref.invalidateSelf();
+      return;
+    }
+    state = AsyncData([added, ...current.where((f) => f.id != added.id)]);
   }
 
+  /// A failure puts back only this entry, so a change made meanwhile stays.
   Future<void> remove(String id) async {
-    final before = state.valueOrNull ?? const <api.Favorite>[];
-    state = AsyncData(before.where((f) => f.id != id).toList());
+    final current = state.valueOrNull ?? const <api.Favorite>[];
+    final index = current.indexWhere((f) => f.id == id);
+    if (index >= 0) state = AsyncData([...current]..removeAt(index));
     try {
       await ref.read(apiProvider).removeFavorite(id);
     } catch (_) {
-      state = AsyncData(before);
+      if (index >= 0) _putBack(current[index], index);
       rethrow;
     }
   }
@@ -65,6 +71,7 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
   Future<void> move(int from, int to) async {
     final before = state.valueOrNull ?? const <api.Favorite>[];
     if (from == to || from < 0 || from >= before.length) return;
+    final moved = before[from];
     final next = [...before];
     next.insert(to.clamp(0, next.length - 1), next.removeAt(from));
     state = AsyncData(next);
@@ -73,8 +80,20 @@ class FavoritesController extends AsyncNotifier<List<api.Favorite>> {
         for (final f in next) f.id,
       ]);
     } catch (_) {
-      state = AsyncData(before);
+      // One removed in the meantime stays gone.
+      if (_ids().contains(moved.id)) _putBack(moved, from);
       rethrow;
     }
+  }
+
+  Set<String> _ids() => {
+    for (final f in state.valueOrNull ?? const <api.Favorite>[]) f.id,
+  };
+
+  /// Places [favorite] at [index], taking it from wherever it sits now.
+  void _putBack(api.Favorite favorite, int index) {
+    final current = state.valueOrNull ?? const <api.Favorite>[];
+    final rest = current.where((f) => f.id != favorite.id).toList();
+    state = AsyncData(rest..insert(index.clamp(0, rest.length), favorite));
   }
 }
