@@ -32,11 +32,13 @@ import '../providers/module_actions.dart';
 /// Launches [app] into [channelId]: posts the message, then applies it to the
 /// local store and extras cache exactly as sending a poll does, so the surface
 /// appears at once without waiting for the echo. [onError] receives a
-/// human-readable message on an API failure; nothing is posted then. Returns
+/// human-readable message on an API failure; nothing is posted then. [id] is
+/// the caller's, kept across a retry of the same launch. Returns
 /// whether the launch succeeded, so a caller that typed the launch (the `/name`
 /// alias) can keep the text to retry on failure and clear it only on success.
 Future<bool> launchApp({
   required WidgetRef ref,
+  required String id,
   required String channelId,
   required api.App app,
   void Function(String message)? onError,
@@ -46,7 +48,7 @@ Future<bool> launchApp({
         .read(moduleActionsProvider)
         .launchAppMessage(
           channelId: channelId,
-          id: newMessageId(),
+          id: id,
           moduleId: app.moduleId,
           command: app.command,
         );
@@ -190,6 +192,7 @@ Widget _appRows(
             unawaited(
               launchApp(
                 ref: ref,
+                id: newMessageId(),
                 channelId: channelId,
                 app: app,
                 onError: onError,
