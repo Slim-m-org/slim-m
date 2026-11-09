@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/live_events.dart';
+import 'poll_local_vote.dart';
 
 /// One message's reactions, attachments, poll, and thread reply summary,
 /// however much of each is known so far.
@@ -442,36 +443,30 @@ class MessageExtrasController
   /// Records the caller's own vote immediately, ahead of the `poll.voted`
   /// broadcast: that event never reports back who cast a vote, only the
   /// refreshed tally, so [Poll.votedOption] (per-viewer, never broadcast)
-  /// would otherwise never update on the voter's own screen at all. A
-  /// [ranking] counts as a vote for its first choice; the runoff itself
-  /// waits for the broadcast.
+  /// would otherwise never update on the voter's own screen at all.
   void applyLocalVote(String messageId, int option, {List<int>? ranking}) {
     final poll = extrasFor(messageId).poll;
     if (poll == null) return;
-    final previous = poll.votedOption;
-    if (previous == option && ranking == null) return;
-    int moved(api.PollOption o) =>
-        (o.position == option ? 1 : 0) - (o.position == previous ? 1 : 0);
-    final options = [
-      for (final o in poll.options)
-        api.PollOption(
-          position: o.position,
-          label: o.label,
-          votes: (o.votes + moved(o)).clamp(0, 1 << 31),
-        ),
-    ];
-    _set(
+    final next = pollAfterLocalVote(poll, option, ranking: ranking);
+    if (next != null) _setPoll(messageId, next);
+  }
+
+  /// Takes back a vote the server refused; see [pollAfterRevertedVote].
+  void revertLocalVote(
+    String messageId, {
+    required api.Poll before,
+    required api.Poll applied,
+  }) {
+    final poll = extrasFor(messageId).poll;
+    if (poll == null) return;
+    _setPoll(
       messageId,
-      extrasFor(messageId).copyWith(
-        poll: poll.copyWith(
-          options: options,
-          totalVotes: options.fold<int>(0, (sum, o) => sum + o.votes),
-          votedOption: option,
-          votedRanking: ranking,
-        ),
-      ),
+      pollAfterRevertedVote(before: before, applied: applied, current: poll),
     );
   }
+
+  void _setPoll(String messageId, api.Poll poll) =>
+      _set(messageId, extrasFor(messageId).copyWith(poll: poll));
 
   void _set(String id, MessageExtras extras) {
     state = {...state, id: extras};

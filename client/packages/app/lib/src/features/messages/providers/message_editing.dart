@@ -19,3 +19,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final editingMessageIdProvider = StateProvider.autoDispose
     .family<String?, String>((ref, channelId) => null);
+
+/// An inline edit's request: out while [saving], and why it was refused if it was.
+typedef MessageEditProgress = ({bool saving, String? failure});
+
+const MessageEditProgress messageEditIdle = (saving: false, failure: null);
+
+/// Keyed by message, so the field that is open shows its own request and nothing else's.
+final messageEditProgressProvider = StateProvider.autoDispose
+    .family<MessageEditProgress, String>((ref, messageId) => messageEditIdle);

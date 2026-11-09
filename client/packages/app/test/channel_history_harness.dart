@@ -151,7 +151,9 @@ class HistoryHarness {
 /// filtered from view. [syncStatus] is what [SyncController] reports once
 /// `start` runs, since nothing else in this harness can move it off `offline`.
 /// [storeFactory] swaps in a [MessageStore] subclass, for a test that needs
-/// the store itself to misbehave rather than the network.
+/// the store itself to misbehave rather than the network. [answerFirst] gets
+/// each request before the built-in routes and answers the ones it returns a
+/// response for.
 Future<HistoryHarness> mountChannel(
   WidgetTester tester, {
   required List<int> serverSeqs,
@@ -168,6 +170,7 @@ Future<HistoryHarness> mountChannel(
   int olderPageRateLimits = 0,
   int? rateLimitRetryAfter,
   List<Override> overrides = const [],
+  Future<http.Response?> Function(http.Request request)? answerFirst,
 }) async {
   tester.view.physicalSize = const Size(500, 800);
   tester.view.devicePixelRatio = 1;
@@ -202,6 +205,7 @@ Future<HistoryHarness> mountChannel(
     authorFor: authorFor ?? (_) => messageAuthorId,
     blockedUserIds: blockedUserIds,
     searchHits: searchHits,
+    answerFirst: answerFirst,
   );
   final container = ProviderContainer(
     overrides: [
@@ -272,6 +276,7 @@ class _FakeServer {
     required this.authorFor,
     required this.blockedUserIds,
     required this.searchHits,
+    required this.answerFirst,
   });
 
   final List<int> serverSeqs;
@@ -284,9 +289,12 @@ class _FakeServer {
   final String Function(int seq) authorFor;
   final List<String> blockedUserIds;
   final List<Map<String, dynamic>> searchHits;
+  final Future<http.Response?> Function(http.Request request)? answerFirst;
   int _rateLimited = 0;
 
   Future<http.Response> answer(http.Request request) async {
+    final custom = await answerFirst?.call(request);
+    if (custom != null) return custom;
     final path = request.url.path;
     if (request.method == 'GET' && path.startsWith('/users')) {
       userRequests.add(request.url);

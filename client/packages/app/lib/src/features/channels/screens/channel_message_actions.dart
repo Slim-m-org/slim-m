@@ -25,6 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../message_link.dart';
 import '../../messages/providers/message_actions.dart';
+import '../../messages/providers/message_editing.dart';
 import '../../messages/providers/message_selection.dart';
 import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
@@ -56,19 +57,30 @@ Future<void> _reporting(
   if (failure != null && context.mounted) showAppSnackbar(context, failure);
 }
 
-/// Saves an inline edit. Unchanged text is not a request.
+/// Saves an inline edit and closes it once it lands. Unchanged text is not a
+/// request. A refusal leaves the field open with its text and says why under it.
 Future<void> submitMessageEdit(
   WidgetRef ref,
   BuildContext context,
   Message message,
   String content,
 ) async {
-  if (content == message.content) return;
-  await _reporting(
-    context,
-    'save the edit',
-    () => editMessageAction(ref, message, content),
-  );
+  final container = ProviderScope.containerOf(context, listen: false);
+  final progress = messageEditProgressProvider(message.id);
+  if (container.read(progress).saving) return;
+  if (content != message.content) {
+    container.read(progress.notifier).state = (saving: true, failure: null);
+    final failure = await runGuarded(
+      whatFailed: 'save the edit',
+      action: () => editMessageAction(ref, message, content),
+    );
+    container.read(progress.notifier).state = (saving: false, failure: failure);
+    if (failure != null) return;
+  }
+  final editing = editingMessageIdProvider(message.channelId);
+  if (container.read(editing) == message.id) {
+    container.read(editing.notifier).state = null;
+  }
 }
 
 /// Asks first, because a delete removes the message for everyone.

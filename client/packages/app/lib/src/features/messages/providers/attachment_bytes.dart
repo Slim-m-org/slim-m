@@ -51,25 +51,26 @@ Duration _waitBefore(Object error, Duration backoff) {
   return asked > _longestRateLimitWait ? _longestRateLimitWait : asked;
 }
 
-/// Fetches with [attachmentRetryDelaysProvider]'s waits between attempts on a
-/// transient failure; [isDisposed] stops the waiting once nobody is watching.
-Future<Uint8List> fetchAttachmentRetrying(
+/// Runs [fetch] with [attachmentRetryDelaysProvider]'s waits between attempts
+/// on a transient failure; [isDisposed] stops the waiting once nobody is
+/// watching, and [onGiveUp] runs before the last failure is rethrown.
+Future<T> fetchRetrying<T>(
   Ref ref,
-  Future<FetchedBytes> Function() fetch, {
+  Future<T> Function() fetch, {
   required bool Function() isDisposed,
-  required void Function() onGiveUp,
+  void Function()? onGiveUp,
 }) async {
   final delays = ref.read(attachmentRetryDelaysProvider);
   for (var attempt = 0; ; attempt++) {
     try {
-      return (await fetch()).bytes;
+      return await fetch();
     } catch (error) {
       final retry =
           attempt < delays.length &&
           isTransientAttachmentFailure(error) &&
           !isDisposed();
       if (!retry) {
-        onGiveUp();
+        onGiveUp?.call();
         rethrow;
       }
       await Future<void>.delayed(_waitBefore(error, delays[attempt]));
@@ -77,6 +78,19 @@ Future<Uint8List> fetchAttachmentRetrying(
     }
   }
 }
+
+/// [fetchRetrying] for a request whose answer is raw bytes.
+Future<Uint8List> fetchAttachmentRetrying(
+  Ref ref,
+  Future<FetchedBytes> Function() fetch, {
+  required bool Function() isDisposed,
+  required void Function() onGiveUp,
+}) async => (await fetchRetrying(
+  ref,
+  fetch,
+  isDisposed: isDisposed,
+  onGiveUp: onGiveUp,
+)).bytes;
 
 final attachmentBytesProvider = FutureProvider.autoDispose
     .family<Uint8List, String>((ref, attachmentId) async {

@@ -72,8 +72,8 @@ class MessageRow extends ConsumerWidget {
   final Message message;
 
   /// True for a continuation of the same author's previous message inside
-  /// the density's grouping window: drops the avatar and header, and shows
-  /// the time in the gutter instead.
+  /// the grouping window: drops the avatar and header, and shows the time in
+  /// the gutter instead.
   final bool grouped;
 
   final bool showNewDivider;
