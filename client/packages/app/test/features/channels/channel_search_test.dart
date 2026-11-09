@@ -95,7 +95,7 @@ void main() {
           mockApiOverride((request) async => http.Response('[]', 200)),
         ],
         child: _harness(
-          ChannelSearchResults(
+          const ChannelSearchResults(
             results: [
               api.Message(
                 id: 'm1',
@@ -108,7 +108,7 @@ void main() {
                 editedAt: null,
               ),
             ],
-            knownUsernames: const {},
+            knownUsernames: {},
             loading: true,
             failed: false,
             forbidden: false,
