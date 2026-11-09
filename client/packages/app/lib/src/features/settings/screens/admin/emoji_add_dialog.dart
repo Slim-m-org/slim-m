@@ -3,7 +3,9 @@
 /// images and zips, stage them in one list of names, and import in one action.
 ///
 /// Planning is `planEmojiPicks`, so a loose image and an image inside a zip
-/// take the same name from the same file stem. Several images upload in
+/// take the same suggested name from the same file stem, and every one of them
+/// is staged: a name that is taken or unusable is fixed on its row, never a
+/// reason to drop the file. Several images upload in
 /// chunks through `POST /emoji/bulk` ([chunkPlannedEmojiUploads]), because the
 /// single upload charges the rate limit per call and a 200-image pack burned
 /// the whole budget after ten. A chunk lands whole or refuses whole, so a
@@ -34,40 +36,17 @@ import 'emoji_bulk_plan.dart';
 import 'emoji_intake.dart';
 import 'emoji_name.dart';
 
-/// Opens the add page with [initial] already staged, as a drop on the pane does.
+/// Opens the add dialog with [initial] already staged, as a drop on the pane does.
 ///
-/// A page rather than a sheet: staging, name review and the import summary are
-/// three steps of one task, which outgrow a modal.
+/// Desktop-vs-mobile rule 4, a short task with a submit: a centred dialog on a
+/// desktop and a bottom sheet on a phone, over the pane it was opened from.
 Future<void> showEmojiAddDialog(
   BuildContext context, {
   List<EmojiPick> initial = const [],
-}) => Navigator.of(context).push<void>(
-  MaterialPageRoute(
-    builder: (_) => Scaffold(
-      appBar: AppBar(
-        title: const Text(ActionLabels.createEmoji),
-        leading: IconButton(
-          icon: const Icon(AppIcons.back),
-          tooltip: 'Back to Emoji',
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: AppContentColumn(
-          maxWidth: 560,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              top: AppSpacing.s16,
-              bottom: MediaQuery.paddingOf(context).bottom,
-            ),
-            child: EmojiAddDialog(initial: initial),
-          ),
-        ),
-      ),
-    ),
-  ),
+}) => showAppSheet<void>(
+  context,
+  semanticLabel: ActionLabels.createEmoji,
+  builder: (_) => EmojiAddDialog(initial: initial),
 );
 
 class EmojiAddDialog extends ConsumerStatefulWidget {
@@ -160,10 +139,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
       _ingest(await readDroppedEmoji(files));
 
   void _ingest(List<EmojiPick> picks) {
-    final plan = planEmojiPicks(
-      picks,
-      existingNames: {..._existing, for (final i in _items) i.normalized},
-    );
+    final plan = planEmojiPicks(picks);
     if (plan.uploads.isEmpty && plan.skipped.isEmpty) {
       _refuse('No images found.');
       return;
@@ -298,7 +274,8 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     ref.watch(customEmojiProvider);
     final problems = reviewProblems(_items, _existing);
-    final blocked = problems.any((p) => p != null);
+    final unfixed = problems.where((p) => p != null).length;
+    final blocked = unfixed > 0;
     final finished =
         !_running &&
         (_succeeded.isNotEmpty || _failed.isNotEmpty || _skipped.isNotEmpty);
@@ -324,11 +301,18 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: AppSpacing.s12,
             children: [
-              Text(
-                dropZoneSupported()
+              AppSheetHeader(
+                ActionLabels.createEmoji,
+                caption: dropZoneSupported()
                     ? 'Drop, paste or choose images or a zip, then check the names.'
                     : 'Paste or choose images or a zip, then check the names.',
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
+                padding: EdgeInsets.zero,
+                trailing: AppIconButton(
+                  icon: AppIcons.dismiss,
+                  semanticLabel: 'Close',
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
               ),
               Wrap(
                 spacing: AppSpacing.s8,
@@ -392,9 +376,16 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
                   failed: _failed,
                   skipped: _skipped,
                 ),
+              if (blocked && !_running)
+                Text(
+                  unfixed == 1
+                      ? '1 name needs fixing.'
+                      : '$unfixed names need fixing.',
+                  style: AppText.caption.copyWith(color: tokens.dangerText),
+                ),
               if (_items.isNotEmpty)
                 AppButton(
-                  label: 'Import ${_items.length} emoji',
+                  label: 'Create ${_items.length} emoji',
                   icon: AppIcons.smile,
                   variant: AppButtonVariant.primary,
                   full: true,

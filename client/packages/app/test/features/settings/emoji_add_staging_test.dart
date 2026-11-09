@@ -53,7 +53,7 @@ void main() {
       find.byKey(const ValueKey('emoji-name-Party Parrot.png')),
     );
     expect(field.controller!.text, 'party_parrot');
-    expect(find.text('Import 1 emoji'), findsOneWidget);
+    expect(find.text('Create 1 emoji'), findsOneWidget);
   });
 
   testWidgets('a duplicate or invalid name shows inline and blocks import', (
@@ -70,7 +70,7 @@ void main() {
     await _settle(tester);
     expect(find.text('Another image has this name.'), findsOneWidget);
 
-    await tester.tap(find.text('Import 2 emoji'));
+    await tester.tap(find.text('Create 2 emoji'));
     await _settle(tester);
     expect(h.bulks, isEmpty);
     expect(h.singles, isEmpty);
@@ -91,7 +91,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('emoji-remove-bb.png')));
     await _settle(tester);
-    await tester.tap(find.text('Import 2 emoji'));
+    await tester.tap(find.text('Create 2 emoji'));
     await _settle(tester);
 
     expect(h.bulks, hasLength(1));
@@ -119,7 +119,7 @@ void main() {
       find.byKey(const ValueKey('emoji-name-pasted-1.png')),
       findsOneWidget,
     );
-    expect(find.text('Import 1 emoji'), findsOneWidget);
+    expect(find.text('Create 1 emoji'), findsOneWidget);
   });
 
   for (final size in const [Size(1280, 800), Size(390, 844)]) {
@@ -136,14 +136,14 @@ void main() {
       expect(_typed(tester, 'huh.gif'), 'huh');
       expect(find.text('Already taken.'), findsOneWidget);
       expect(find.textContaining('is already used'), findsNothing);
-      expect(_importDisabled(tester, 'Import 1 emoji'), isTrue);
+      expect(_importDisabled(tester, 'Create 1 emoji'), isTrue);
 
       await tester.enterText(_field('huh.gif'), 'huh_2');
       await _settle(tester);
       expect(find.text('Already taken.'), findsNothing);
-      expect(_importDisabled(tester, 'Import 1 emoji'), isFalse);
+      expect(_importDisabled(tester, 'Create 1 emoji'), isFalse);
 
-      await tester.tap(find.text('Import 1 emoji'));
+      await tester.tap(find.text('Create 1 emoji'));
       await _settle(tester);
       expect(h.singles.single.url.queryParameters['name'], 'huh_2');
       expect(tester.takeException(), isNull);
@@ -155,19 +155,19 @@ void main() {
       await h.pump(
         tester,
         size: size,
-        initial: [emojiPick('Smile.png'), emojiPick('smile.gif')],
+        initial: [emojiPick('Zorg.png'), emojiPick('zorg.gif')],
       );
       await _settle(tester);
 
-      expect(_typed(tester, 'Smile.png'), 'smile');
-      expect(_typed(tester, 'smile.gif'), 'smile');
+      expect(_typed(tester, 'Zorg.png'), 'zorg');
+      expect(_typed(tester, 'zorg.gif'), 'zorg');
       expect(find.text('Another image has this name.'), findsOneWidget);
       expect(find.textContaining('is already used'), findsNothing);
 
-      await tester.enterText(_field('smile.gif'), 'smile_2');
+      await tester.enterText(_field('zorg.gif'), 'zorg_2');
       await _settle(tester);
       expect(find.text('Another image has this name.'), findsNothing);
-      expect(_importDisabled(tester, 'Import 2 emoji'), isFalse);
+      expect(_importDisabled(tester, 'Create 2 emoji'), isFalse);
     });
 
     testWidgets('a name taken by a zip entry stages it too at $at', (
@@ -179,7 +179,7 @@ void main() {
           fileName: 'pack.zip',
           bytes: buildEmojiZip({
             'huh.png': emojiTestPng,
-            'ok.png': emojiTestPng,
+            'zorg.png': emojiTestPng,
           }),
         ),
       ];
@@ -187,7 +187,7 @@ void main() {
       await h.choose(tester);
 
       expect(_field('huh.png'), findsOneWidget);
-      expect(_field('ok.png'), findsOneWidget);
+      expect(_field('zorg.png'), findsOneWidget);
       expect(find.text('Already taken.'), findsOneWidget);
     });
 
@@ -199,14 +199,14 @@ void main() {
         size: size,
         initial: [
           emojiPick('!!!.png'),
-          emojiPick('ok.png'),
+          emojiPick('zorg.png'),
           emojiPick('huh.png'),
         ],
       );
       await _settle(tester);
 
-      expect(find.text('Import 3 emoji'), findsOneWidget);
-      expect(_importDisabled(tester, 'Import 3 emoji'), isTrue);
+      expect(find.text('Create 3 emoji'), findsOneWidget);
+      expect(_importDisabled(tester, 'Create 3 emoji'), isTrue);
       expect(_typed(tester, '!!!.png'), isEmpty);
       expect(
         find.text('Use letters, numbers and underscores.'),
@@ -218,11 +218,11 @@ void main() {
       await _settle(tester);
       await tester.enterText(_field('huh.png'), 'huh_2');
       await _settle(tester);
-      expect(_importDisabled(tester, 'Import 2 emoji'), isFalse);
+      expect(_importDisabled(tester, 'Create 2 emoji'), isFalse);
 
-      await tester.tap(find.text('Import 2 emoji'));
+      await tester.tap(find.text('Create 2 emoji'));
       await _settle(tester);
-      expect(bulkNames(h.bulks.single), ['ok', 'huh_2']);
+      expect(bulkNames(h.bulks.single), ['zorg', 'huh_2']);
     });
 
     testWidgets('a name past the limit says too long, not invalid at $at', (
@@ -240,7 +240,7 @@ void main() {
       await tester.enterText(_field('$longName.gif'), 'party_parrot');
       await _settle(tester);
       expect(find.text('Too long, 32 characters at most.'), findsNothing);
-      expect(_importDisabled(tester, 'Import 1 emoji'), isFalse);
+      expect(_importDisabled(tester, 'Create 1 emoji'), isFalse);
       expect(tester.takeException(), isNull);
     });
   }

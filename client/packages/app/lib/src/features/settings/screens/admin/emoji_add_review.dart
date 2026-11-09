@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The review step of adding emoji: every planned image beside an editable
 /// name, with whatever would stop it uploading said on its own row.
+///
+/// The server's rules for a name are the source of truth: `normalize_name` and
+/// `emoji::builtin` in `crates/slimm-server/src/emoji.rs`, plus the one-name-
+/// per-Space rule its 409 enforces. [reviewProblems] mirrors them so none of
+/// those refusals waits for an upload.
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_api/api.dart' show InputLimits;
 
 import '../../../../widgets/image_decode.dart';
 import '../../../emoji/widgets/standard_emoji.dart';
@@ -35,7 +39,7 @@ class EmojiReviewItem {
 }
 
 /// What is wrong with each item's name, null where it is fine. The first of
-/// two items sharing a name keeps it, as a zip with a repeated stem always has.
+/// two items sharing a name keeps it.
 List<String?> reviewProblems(
   List<EmojiReviewItem> items,
   Set<String> existingNames,
@@ -43,17 +47,19 @@ List<String?> reviewProblems(
   final seen = <String>{};
   return [
     for (final item in items)
-      () {
-        final name = item.normalized;
-        if (!isUsableEmojiName(name)) {
-          return 'Letters, numbers and underscores, $maxEmojiNameLength at most.';
-        }
-        if (existingNames.contains(name)) return 'Already taken.';
-        if (isStandardEmojiName(name)) return 'That is a standard emoji.';
-        if (!seen.add(name)) return 'Another image has this name.';
-        return null;
-      }(),
+      _problemWith(item.normalized, existingNames, seen),
   ];
+}
+
+String? _problemWith(String name, Set<String> existing, Set<String> seen) {
+  if (name.isEmpty) return 'Use letters, numbers and underscores.';
+  if (name.length > maxEmojiNameLength) {
+    return 'Too long, $maxEmojiNameLength characters at most.';
+  }
+  if (existing.contains(name)) return 'Already taken.';
+  if (isStandardEmojiName(name)) return 'That is a standard emoji.';
+  if (!seen.add(name)) return 'Another image has this name.';
+  return null;
 }
 
 class EmojiReviewList extends StatelessWidget {
@@ -110,51 +116,47 @@ class _ReviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.s12,
         children: [
-          Row(
-            children: [
-              _Thumb(bytes: item.upload.bytes),
-              const SizedBox(width: AppSpacing.s12),
-              Expanded(
-                child: AppInput(
-                  key: ValueKey('emoji-name-${item.upload.fileName}'),
-                  maxLength: InputLimits.emojiName,
-                  controller: item.name,
-                  enabled: enabled,
-                  mono: true,
-                  semanticLabel: 'Name for ${item.upload.fileName}',
-                  onChanged: (_) => onChanged(),
-                ),
-              ),
-              AppIconButton(
-                key: ValueKey('emoji-remove-${item.upload.fileName}'),
-                icon: AppIcons.dismiss,
-                semanticLabel: 'Remove ${item.upload.fileName}',
-                onPressed: enabled ? onRemove : null,
-              ),
-            ],
-          ),
-          if (problem != null)
-            Padding(
-              padding: const EdgeInsets.only(
-                top: AppSpacing.s4,
-                left: AppSizes.icon24 + AppSpacing.s12,
-              ),
-              child: Text(
-                problem!,
-                style: AppText.caption.copyWith(color: tokens.dangerText),
-              ),
+          _besideTheField(_Thumb(bytes: item.upload.bytes)),
+          Expanded(
+            child: AppInput(
+              key: ValueKey('emoji-name-${item.upload.fileName}'),
+              controller: item.name,
+              enabled: enabled,
+              mono: true,
+              placeholder: 'Emoji name',
+              errorText: problem,
+              semanticLabel: 'Name for ${item.upload.fileName}',
+              onChanged: (_) => onChanged(),
             ),
+          ),
+          _besideTheField(
+            AppIconButton(
+              key: ValueKey('emoji-remove-${item.upload.fileName}'),
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Remove ${item.upload.fileName}',
+              onPressed: enabled ? onRemove : null,
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
+/// Centres [child] on the field's own box, so a problem line under it does not drag the neighbours down.
+Widget _besideTheField(Widget child) => SizedBox(
+  height: _fieldBoxHeight,
+  child: Center(child: child),
+);
+
+/// The field's height plus the focus ring it reserves around itself.
+const double _fieldBoxHeight = AppSizes.controlLg + AppSpacing.s4;
 
 class _Thumb extends StatelessWidget {
   const _Thumb({required this.bytes});
@@ -164,7 +166,7 @@ class _Thumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    const size = AppSizes.icon24;
+    const size = AppSizes.icon32;
     return Container(
       width: size,
       height: size,

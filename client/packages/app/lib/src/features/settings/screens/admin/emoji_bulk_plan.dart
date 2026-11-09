@@ -2,12 +2,11 @@
 /// Turning a picked zip's decoded entries into the emoji uploads they plan,
 /// before any network request happens.
 ///
-/// Split from the widget that drives it (`emoji_bulk_upload_card.dart`) so
-/// the derivation is checkable on its own: directories and non-images
-/// skipped, a name taken from the file's stem and sanitized through the same
-/// [normalizeEmojiName]/[isUsableEmojiName] rules typing one by one already
-/// goes through, and a collision refused rather than silently overwriting an
-/// earlier entry in the same zip.
+/// Split from the widget that drives it (`emoji_add_dialog.dart`) so the
+/// derivation is checkable on its own: directories and non-images skipped,
+/// and a suggested name taken from the file's stem and sanitized through
+/// [normalizeEmojiName]. Whether that name is usable or already taken is the
+/// review step's call, so a file is never dropped for its name.
 library;
 
 import 'package:archive/archive.dart';
@@ -132,7 +131,10 @@ class PlannedEmojiUpload {
   /// failure the server later reports against it.
   final String fileName;
 
-  /// The sanitized name the upload will ask the server for.
+  /// The file's stem, sanitized: the name the review starts from.
+  ///
+  /// May be empty or past [maxEmojiNameLength], which the review flags for the
+  /// admin to fix rather than the plan refusing the file.
   final String name;
   final List<int> bytes;
 }
@@ -205,35 +207,27 @@ List<List<PlannedEmojiUpload>> chunkPlannedEmojiUploads(
 
 /// Turns decoded zip [entries] into what will be uploaded and what is
 /// already refused, without making any request.
-///
-/// [existingNames] seeds the collision check with names the deployment
-/// already holds - already-normalised, the same shape [PlannedEmojiUpload.name]
-/// is in - so a zip that repeats an existing emoji's name is reported once
-/// here rather than failing with a 409 partway through the sequential
-/// upload.
-EmojiZipPlan planEmojiZip(
-  List<ZipEntryData> entries, {
-  Set<String> existingNames = const {},
-}) {
+EmojiZipPlan planEmojiZip(List<ZipEntryData> entries) {
   final uploads = <PlannedEmojiUpload>[];
   final skipped = <SkippedZipEntry>[];
-  final usedNames = {...existingNames};
 
   for (final entry in entries) {
     final fileName = _candidateFileName(entry);
     if (fileName == null) continue;
 
-    final name = normalizeEmojiName(_stem(fileName));
-    var reason = _rejection(entry, fileName, name, uploads.length, usedNames);
+    var reason = _rejection(entry, fileName, uploads.length);
     final read = reason == null ? _readBytes(entry) : null;
     reason ??= read?.reason;
     if (reason != null) {
       skipped.add(SkippedZipEntry(fileName: fileName, reason: reason));
       continue;
     }
-    usedNames.add(name);
     uploads.add(
-      PlannedEmojiUpload(fileName: fileName, name: name, bytes: read!.bytes!),
+      PlannedEmojiUpload(
+        fileName: fileName,
+        name: normalizeEmojiName(_stem(fileName)),
+        bytes: read!.bytes!,
+      ),
     );
   }
   return EmojiZipPlan(uploads: uploads, skipped: skipped);
@@ -248,13 +242,7 @@ String? _candidateFileName(ZipEntryData entry) {
 }
 
 /// Why the entry cannot become an upload before it is inflated, or null.
-String? _rejection(
-  ZipEntryData entry,
-  String fileName,
-  String name,
-  int plannedCount,
-  Set<String> usedNames,
-) {
+String? _rejection(ZipEntryData entry, String fileName, int plannedCount) {
   if (!acceptedEmojiExtensions.contains(_extension(fileName))) {
     return 'not a PNG, JPEG, GIF or WEBP image';
   }
@@ -263,10 +251,6 @@ String? _rejection(
   }
   final sizeReason = _sizeRefusal(entry.size);
   if (sizeReason != null) return sizeReason;
-  if (!isUsableEmojiName(name)) return 'no usable name after sanitizing';
-  if (usedNames.contains(name)) {
-    return '${emojiShortcode(name)} is already used';
-  }
   return null;
 }
 

@@ -53,37 +53,6 @@ void main() {
     },
   );
 
-  test('a name that sanitizes to nothing is skipped with a reason', () {
-    final plan = planEmojiZip([_file('!!!.png')]);
-
-    expect(plan.uploads, isEmpty);
-    expect(plan.skipped, hasLength(1));
-    expect(plan.skipped.single.fileName, '!!!.png');
-    expect(plan.skipped.single.reason, contains('no usable name'));
-  });
-
-  test('two files that sanitize to the same name: the first wins, the '
-      'second is reported as a collision', () {
-    final plan = planEmojiZip([_file('Smile.png'), _file('smile.gif')]);
-
-    expect(plan.uploads, hasLength(1));
-    expect(plan.uploads.single.fileName, 'Smile.png');
-    expect(plan.skipped, hasLength(1));
-    expect(plan.skipped.single.fileName, 'smile.gif');
-    expect(plan.skipped.single.reason, contains(':smile:'));
-  });
-
-  test('a name already used by an existing emoji is refused before any '
-      'request, not left to a 409 partway through the batch', () {
-    final plan = planEmojiZip(
-      [_file('party_parrot.png')],
-      existingNames: {'party_parrot'},
-    );
-
-    expect(plan.uploads, isEmpty);
-    expect(plan.skipped.single.reason, contains(':party_parrot:'));
-  });
-
   test('a name that sanitizes to nothing is still planned, to be renamed', () {
     final plan = planEmojiZip([_file('!!!.png')]);
 
