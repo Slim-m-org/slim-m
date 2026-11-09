@@ -98,11 +98,15 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
     });
   }
 
-  double get _gridCrossAxisExtent =>
-      widget.width -
-      EmojiCategoryRail.width -
-      AppSpacing.s4 -
-      2 * EmojiSectionedGrid.gridInset;
+  /// The grid's laid-out cross-axis extent, since the card around the picker
+  /// pads it below [ComposerEmojiPicker.width].
+  double? _gridExtent;
+
+  EmojiSectionNavigation? _navigation(List<EmojiSection> sections) {
+    final extent = _gridExtent;
+    if (extent == null) return null;
+    return EmojiSectionNavigation(sections: sections, crossAxisExtent: extent);
+  }
 
   /// One cell left (-1) or right (+1), stopping at either end.
   void _moveCell(int delta) {
@@ -114,26 +118,21 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   /// flat grid by its own column count.
   void _moveRow(int rows) {
     if (_visible.isEmpty) return;
-    final searching = _query.trim().isNotEmpty;
-    _highlight(
-      searching
-          ? _searchGrid.step(_highlighted, _visible.length, rows)
-          : EmojiSectionNavigation(
-              sections: _sections,
-              crossAxisExtent: _gridCrossAxisExtent,
-            ).stepRow(_highlighted, rows),
-    );
+    if (_query.trim().isNotEmpty) {
+      _highlight(_searchGrid.step(_highlighted, _visible.length, rows));
+      return;
+    }
+    final navigation = _navigation(_sections);
+    if (navigation != null) _highlight(navigation.stepRow(_highlighted, rows));
   }
 
   void _highlight(int index) {
     if (_query.trim().isEmpty && _scrollController.hasClients) {
       final position = _scrollController.position;
-      _scrollController.jumpTo(
-        EmojiSectionNavigation(
-          sections: _sections,
-          crossAxisExtent: _gridCrossAxisExtent,
-        ).reveal(index, position.pixels, position.viewportDimension),
-      );
+      final offset = _navigation(
+        _sections,
+      )?.reveal(index, position.pixels, position.viewportDimension);
+      if (offset != null) _scrollController.jumpTo(offset);
     }
     setState(() => _highlighted = index);
   }
@@ -171,10 +170,8 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   }
 
   void _jumpTo(EmojiCategory category, List<EmojiSection> sections) {
-    final navigation = EmojiSectionNavigation(
-      sections: sections,
-      crossAxisExtent: _gridCrossAxisExtent,
-    );
+    final navigation = _navigation(sections);
+    if (navigation == null) return;
     setState(() => _jumpedTo = category);
     unawaited(
       _scrollController.animateTo(
@@ -293,13 +290,20 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
                       ),
                       const SizedBox(width: AppSpacing.s4),
                       Expanded(
-                        child: EmojiSectionedGrid(
-                          controller: _scrollController,
-                          sections: sections,
-                          highlighted: _highlighted,
-                          onTap: _pick,
-                          onHoverChange: _setHover,
-                          onPressChange: _setPress,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            _gridExtent =
+                                constraints.maxWidth -
+                                2 * EmojiSectionedGrid.gridInset;
+                            return EmojiSectionedGrid(
+                              controller: _scrollController,
+                              sections: sections,
+                              highlighted: _highlighted,
+                              onTap: _pick,
+                              onHoverChange: _setHover,
+                              onPressChange: _setPress,
+                            );
+                          },
                         ),
                       ),
                     ],
