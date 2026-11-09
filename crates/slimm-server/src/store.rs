@@ -85,7 +85,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
-pub use read_state::UNREAD_COUNT_CAP;
+pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
 mod recovery;
 mod refresh_rotation;
 mod removals;
@@ -317,6 +317,7 @@ pub struct Store {
     modules_dir: Option<Arc<std::path::PathBuf>>,
     /// Bumped by every change to what modules are installed or hooked; see [`Store::module_epoch`].
     module_epoch: Arc<std::sync::atomic::AtomicU64>,
+    derived_keys: Arc<deployment_identity::DerivedKeys>,
 }
 
 impl Store {
@@ -328,6 +329,7 @@ impl Store {
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
             modules_dir: None,
             module_epoch: Arc::default(),
+            derived_keys: Arc::default(),
         }
     }
 

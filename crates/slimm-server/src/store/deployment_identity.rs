@@ -6,7 +6,16 @@
 /// a migration.
 pub const MAX_SPACE_NAME_CHARS: usize = crate::limits::MAX_NAME_CHARS;
 
+use tokio::sync::OnceCell;
+
 use super::Store;
+
+/// Keys derived from the identity secret, read once: the secret never changes after first boot.
+#[derive(Default)]
+pub(in crate::store) struct DerivedKeys {
+    module_caller: OnceCell<[u8; 32]>,
+    link_preview_image: OnceCell<[u8; 32]>,
+}
 
 impl Store {
     /// The server's long-lived identity keypair, generating and persisting
@@ -19,13 +28,25 @@ impl Store {
     /// The secret a module's caller id is keyed with, so the id cannot be
     /// recomputed from a module id and a user id, both of which are public.
     pub async fn module_caller_key(&self) -> anyhow::Result<[u8; 32]> {
-        crate::identity::derived_key(&self.pool, b"slim-module-caller-key-v2").await
+        self.derived_keys
+            .module_caller
+            .get_or_try_init(|| {
+                crate::identity::derived_key(&self.pool, b"slim-module-caller-key-v2")
+            })
+            .await
+            .copied()
     }
 
     /// The secret link preview image tokens are signed with, so a token still
     /// redeems after a restart; see `http::link_preview::image_token`.
     pub async fn link_preview_image_key(&self) -> anyhow::Result<[u8; 32]> {
-        crate::identity::derived_key(&self.pool, b"slim-link-preview-image-v1").await
+        self.derived_keys
+            .link_preview_image
+            .get_or_try_init(|| {
+                crate::identity::derived_key(&self.pool, b"slim-link-preview-image-v1")
+            })
+            .await
+            .copied()
     }
 
     /// This deployment's display name, shown to a prospective joiner (invite

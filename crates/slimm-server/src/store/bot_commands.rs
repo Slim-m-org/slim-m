@@ -2,7 +2,7 @@
 //! A bot's own registered prefix and command palette. See
 //! docs/decisions/0031-bot-command-registration.md.
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::hidden_chars::is_hidden_char;
 use crate::ids::{ChannelId, UserId};
@@ -244,6 +244,24 @@ impl Store {
         }))
     }
 
+    /// Which of `bots` hold VIEW_CHANNEL in `channel_id`, in one batched read.
+    pub(super) async fn bots_viewing(
+        &self,
+        channel_id: ChannelId,
+        bots: impl IntoIterator<Item = UserId>,
+    ) -> anyhow::Result<HashSet<UserId>> {
+        let distinct: Vec<UserId> = bots
+            .into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        Ok(self
+            .viewers_among(channel_id, &distinct)
+            .await?
+            .into_iter()
+            .collect())
+    }
+
     /// The composer's discovery list: every command a caller may currently
     /// be offered in `channel_id`. See decision 0031 for the visibility and
     /// permission rules this applies.
@@ -267,8 +285,10 @@ impl Store {
         .await?;
 
         // Registration refuses a clash now; this keeps rows registered before that from listing twice.
-        let mut answered = std::collections::HashSet::new();
-        let mut can_view: HashMap<UserId, bool> = HashMap::new();
+        let mut answered = HashSet::new();
+        let viewers = self
+            .bots_viewing(channel_id, rows.iter().map(|row| row.bot_user_id))
+            .await?;
         let mut visible = Vec::new();
         for row in rows {
             if let Some(bit) = row.permission
@@ -276,18 +296,9 @@ impl Store {
             {
                 continue;
             }
-            let allowed = match can_view.get(&row.bot_user_id) {
-                Some(allowed) => *allowed,
-                None => {
-                    let allowed = self
-                        .permissions_in_channel(row.bot_user_id, channel_id)
-                        .await?
-                        .contains(Permissions::VIEW_CHANNEL);
-                    can_view.insert(row.bot_user_id, allowed);
-                    allowed
-                }
-            };
-            if !allowed || !answered.insert((row.prefix.clone(), row.name.to_lowercase())) {
+            if !viewers.contains(&row.bot_user_id)
+                || !answered.insert((row.prefix.clone(), row.name.to_lowercase()))
+            {
                 continue;
             }
             visible.push(VisibleBotCommand {

@@ -6,6 +6,7 @@
 //! ever enumerated the channels it created.
 
 use super::Store;
+use super::threads::REPLY_STATS_SQL;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 impl Store {
@@ -70,22 +71,20 @@ impl Store {
         channel_id: ChannelId,
         viewer: UserId,
     ) -> anyhow::Result<Vec<ThreadListItem>> {
-        let mut builder = sqlx::QueryBuilder::new(
+        let mut builder = sqlx::QueryBuilder::new(format!(
             "SELECT c.id AS thread_channel_id, c.created_at AS created_at, \
              pm.id AS parent_message_id, pm.content AS parent_content, \
              pm.author_id AS parent_author_id, u.display_name AS parent_author_display_name, \
-             COUNT(m.id) AS reply_count, MAX(m.created_at) AS last_reply_at \
+             {REPLY_STATS_SQL} \
              FROM channels c \
              JOIN messages pm ON pm.id = c.parent_message_id \
              LEFT JOIN users u ON u.id = pm.author_id AND u.deleted_at IS NULL \
-             LEFT JOIN messages m ON m.channel_id = c.id AND m.deleted_at IS NULL \
-             WHERE pm.channel_id = ",
-        );
+             WHERE pm.channel_id = "
+        ));
         builder.push_bind(channel_id);
         builder.push(
             " AND pm.deleted_at IS NULL AND c.deleted_at IS NULL \
-              GROUP BY c.id \
-              ORDER BY COALESCE(MAX(m.created_at), c.created_at) DESC",
+              ORDER BY COALESCE(last_reply_at, c.created_at) DESC",
         );
         let rows = builder.build().fetch_all(&self.pool).await?;
 

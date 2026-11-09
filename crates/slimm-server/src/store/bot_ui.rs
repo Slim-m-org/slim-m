@@ -109,7 +109,11 @@ impl Store {
         .fetch_all(&self.pool)
         .await?;
         let mut out: Vec<VisibleBotUi> = Vec::new();
-        let mut can_view: std::collections::HashMap<UserId, bool> = Default::default();
+        let mut bot_ids = Vec::with_capacity(rows.len());
+        for row in &rows {
+            bot_ids.push(row.try_get::<UserId, _>("bot_id")?);
+        }
+        let viewers = self.bots_viewing(channel_id, bot_ids).await?;
         for row in rows {
             let bot_id: UserId = row.try_get("bot_id")?;
             let entry = entry_of(&row)?;
@@ -118,18 +122,7 @@ impl Store {
             {
                 continue;
             }
-            let allowed = match can_view.get(&bot_id) {
-                Some(allowed) => *allowed,
-                None => {
-                    let allowed = self
-                        .permissions_in_channel(bot_id, channel_id)
-                        .await?
-                        .contains(Permissions::VIEW_CHANNEL);
-                    can_view.insert(bot_id, allowed);
-                    allowed
-                }
-            };
-            if !allowed {
+            if !viewers.contains(&bot_id) {
                 continue;
             }
             if out.last().is_none_or(|last| last.bot_user_id != bot_id) {
