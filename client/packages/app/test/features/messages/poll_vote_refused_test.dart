@@ -3,6 +3,7 @@
 /// a way to send the same ballot again.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ import 'package:slimm_app/src/features/messages/providers/message_actions.dart';
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart';
 import 'package:slimm_app/src/features/messages/providers/poll_local_vote.dart';
 import 'package:slimm_app/src/features/messages/providers/poll_vote_failure.dart';
+import 'package:slimm_app/src/features/composer/widgets/poll_view.dart';
+import 'package:slimm_app/src/features/messages/widgets/poll_vote_failure_line.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -72,9 +75,18 @@ class _Votes {
   int status;
   final List<http.Request> puts = [];
 
+  /// When set, a request waits in [waiting] until the test answers it.
+  bool hold = false;
+  final List<Completer<void>> waiting = [];
+
   Future<http.Response> handle(http.Request request) async {
     if (request.method != 'PUT') return http.Response('', 404);
     puts.add(request);
+    if (hold) {
+      final gate = Completer<void>();
+      waiting.add(gate);
+      await gate.future;
+    }
     if (status == 204) return http.Response('', 204);
     return http.Response(
       jsonEncode({'error': 'poll is closed'}),
@@ -121,6 +133,25 @@ Future<(ProviderContainer, WidgetRef)> _mount(
   );
   return (container, probe);
 }
+
+Widget _pollRow(api.Poll poll) => MessageRow(
+  message: message(),
+  grouped: false,
+  showNewDivider: false,
+  knownUsernames: const {},
+  actions: noActions,
+  editing: false,
+  callbacks: MessageRowCallbacks(
+    onRetry: () {},
+    onDiscard: () {},
+    onPickReaction: (_) {},
+    onReactionTap: (_) {},
+    onVote: (_) {},
+    onSubmitEdit: (_) {},
+    onCancelEdit: () {},
+  ),
+  extras: MessageExtras(poll: poll),
+);
 
 void main() {
   testWidgets('a refused vote comes back off the tally and is reported', (
@@ -207,24 +238,7 @@ void main() {
       tester,
       votes,
       poll: poll,
-      child: (ref) => MessageRow(
-        message: message(),
-        grouped: false,
-        showNewDivider: false,
-        knownUsernames: const {},
-        actions: noActions,
-        editing: false,
-        callbacks: MessageRowCallbacks(
-          onRetry: () {},
-          onDiscard: () {},
-          onPickReaction: (_) {},
-          onReactionTap: (_) {},
-          onVote: (_) {},
-          onSubmitEdit: (_) {},
-          onCancelEdit: () {},
-        ),
-        extras: MessageExtras(poll: poll),
-      ),
+      child: (ref) => _pollRow(poll),
     );
     container
         .read(pollVoteFailureProvider('m1').notifier)
@@ -245,6 +259,60 @@ void main() {
     expect(jsonDecode(votes.puts.single.body), {'option': 1});
     expect(container.read(pollVoteFailureProvider('m1')), isNull);
     expect(find.textContaining('Could not cast your vote'), findsNothing);
+  });
+
+  testWidgets('a second tap waits for the first vote, so two refusals leave '
+      'the poll as it was', (tester) async {
+    final votes = _Votes(403)..hold = true;
+    final (container, ref) = await _mount(tester, votes, poll: _poll());
+    final extras = container.read(messageExtrasProvider.notifier);
+
+    await tester.runAsync(() async {
+      final first = castVote(ref, 'm1', 0);
+      final second = castVote(ref, 'm1', 1);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      for (final gate in votes.waiting) {
+        gate.complete();
+      }
+      await Future.wait([first, second]);
+    });
+
+    final poll = extras.extrasFor('m1').poll!;
+    expect(votes.puts, hasLength(1));
+    expect(poll.votedOption, isNull);
+    expect([for (final o in poll.options) o.votes], [2, 1]);
+    expect(container.read(pollVoteFailureProvider('m1'))!.ballot.option, 0);
+
+    votes.hold = false;
+    await tester.runAsync(() => castVote(ref, 'm1', 1));
+    expect(votes.puts, hasLength(2));
+  });
+
+  testWidgets('the refusal line is no wider than the poll card above it', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(1200, 800)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final poll = _poll();
+    final (container, _) = await _mount(
+      tester,
+      _Votes(204),
+      poll: poll,
+      child: (ref) => _pollRow(poll),
+    );
+    container
+        .read(pollVoteFailureProvider('m1').notifier)
+        .state = const PollVoteFailure(
+      'Could not cast your vote: too many requests just now.',
+      PollBallot(option: 1),
+    );
+    await tester.pump();
+
+    final card = tester.getSize(find.bySubtype<PollView>());
+    final line = tester.getSize(find.bySubtype<PollVoteFailureLine>());
+    expect(line.width, card.width);
   });
 
   test('a broadcast tally that arrived meanwhile is not rolled back', () {

@@ -8,11 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../composer/widgets/poll_view.dart' show pollCardMaxWidth;
 import '../providers/message_actions.dart';
 import '../providers/poll_vote_failure.dart';
-
-/// Stays a readable line under the poll, not a full-width banner.
-const double _maxWidth = 480;
 
 class PollVoteFailureLine extends ConsumerWidget {
   const PollVoteFailureLine({super.key, required this.messageId});
@@ -28,7 +26,7 @@ class PollVoteFailureLine extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s8),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _maxWidth),
+        constraints: const BoxConstraints(maxWidth: pollCardMaxWidth),
         child: AppErrorState(
           message: failure.message,
           onRetry: () => unawaited(switch (ballot.ranking) {

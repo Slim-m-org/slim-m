@@ -24,3 +24,6 @@ class PollVoteFailure {
 final pollVoteFailureProvider = StateProvider.family<PollVoteFailure?, String>(
   (ref, messageId) => null,
 );
+
+/// The messages with a vote still out, so a second tap waits for the first answer.
+final pollVotesInFlightProvider = Provider<Set<String>>((ref) => <String>{});

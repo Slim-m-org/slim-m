@@ -79,6 +79,9 @@ Future<void> _vote(
   PollBallot ballot,
   String whatFailed,
 ) async {
+  final inFlight = ref.read(pollVotesInFlightProvider);
+  // A second vote would snapshot the first one's optimistic poll as its way back.
+  if (inFlight.contains(messageId)) return;
   final extras = ref.read(messageExtrasProvider.notifier);
   final failures = ref.read(pollVoteFailureProvider(messageId).notifier);
   final client = ref.read(apiProvider);
@@ -91,6 +94,7 @@ Future<void> _vote(
     ranking: ranking,
   );
   final applied = extras.extrasFor(messageId).poll;
+  inFlight.add(messageId);
   try {
     await client.votePoll(
       messageId: messageId,
@@ -105,6 +109,8 @@ Future<void> _vote(
       reportFailureSentence(api.LogTag.ui, whatFailed, error, stack),
       ballot,
     );
+  } finally {
+    inFlight.remove(messageId);
   }
 }
 
