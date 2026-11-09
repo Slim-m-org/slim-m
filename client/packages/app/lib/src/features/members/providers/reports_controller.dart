@@ -16,9 +16,13 @@
 /// restricted first window read as an empty queue.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../api_failure.dart';
+import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 
 /// How many reports to ask for at a time. Under the server's own 200 ceiling,
@@ -36,8 +40,9 @@ class ReportsState {
   final List<api.Report> reports;
   final bool loading;
 
-  /// The last failure, kept beside [reports] rather than instead of them: a
-  /// failed "load more" must not throw away the pages already on screen.
+  /// The last failure as a sentence to show, kept beside [reports] rather than
+  /// instead of them: a failed "load more" must not throw away the pages
+  /// already on screen.
   final String? error;
 
   /// Whether the last page came back full, which is the only thing that says
@@ -48,24 +53,39 @@ class ReportsState {
 
 class ReportsController extends StateNotifier<ReportsState> {
   ReportsController(this._ref) : super(const ReportsState()) {
-    refresh();
+    _sub = _ref.read(liveEventsProvider).listen((event) {
+      if (event is api.ReportsChanged) unawaited(refresh());
+    });
+    unawaited(refresh());
   }
 
   final Ref _ref;
+  late final StreamSubscription<api.ServerEvent> _sub;
 
   /// Bumped by every call that starts a load, so a response that arrives after
   /// a newer one was started is dropped instead of overwriting it.
   int _generation = 0;
 
-  /// Starts the queue again from the top.
+  /// Whether the last failure was the first page, which a retry of "load more"
+  /// would skip over by asking after the pages already held.
+  bool _topFailed = false;
+
+  /// Starts the queue again from the top, keeping what is on screen until the
+  /// first page lands.
   Future<void> refresh() async {
-    state = const ReportsState();
+    state = ReportsState(
+      reports: state.reports,
+      loading: true,
+      more: state.more,
+    );
     await _load(after: null, onto: const []);
   }
 
   /// Asks for the page after the last report already held.
   Future<void> loadMore() async {
-    if (state.loading || !state.more || state.reports.isEmpty) return;
+    if (state.loading) return;
+    if (_topFailed) return refresh();
+    if (!state.more || state.reports.isEmpty) return;
     state = ReportsState(reports: state.reports, loading: true, more: true);
     final last = state.reports.last;
     await _load(after: last, onto: state.reports);
@@ -77,6 +97,7 @@ class ReportsController extends StateNotifier<ReportsState> {
   }) async {
     final generation = ++_generation;
     final more = state.more;
+    final held = state.reports;
     try {
       final page = await _ref
           .read(apiProvider)
@@ -86,21 +107,34 @@ class ReportsController extends StateNotifier<ReportsState> {
             limit: reportsPageSize,
           );
       if (!mounted || generation != _generation) return;
+      _topFailed = false;
       state = ReportsState(
         reports: [...onto, ...page],
         loading: false,
         more: page.length >= reportsPageSize,
       );
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'load more reports', e, stack);
+    } on Object catch (e, stack) {
+      final sentence = reportFailureSentence(
+        api.LogTag.ui,
+        after == null ? 'load the reports' : 'load more reports',
+        e,
+        stack,
+      );
       if (!mounted || generation != _generation) return;
+      _topFailed = after == null;
       state = ReportsState(
-        reports: onto,
+        reports: after == null ? held : onto,
         loading: false,
-        error: e.message,
+        error: sentence,
         more: more,
       );
     }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_sub.cancel());
+    super.dispose();
   }
 }
 

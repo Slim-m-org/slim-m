@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 
@@ -34,8 +35,9 @@ class ModerationHistoryState {
   final List<api.ModerationHistoryItem> items;
   final bool loading;
 
-  /// The last failure, kept beside [items] rather than instead of them: a
-  /// failed "load more" must not throw away the pages already on screen.
+  /// The last failure as a sentence to show, kept beside [items] rather than
+  /// instead of them: a failed "load more" must not throw away the pages
+  /// already on screen.
   final String? error;
 
   /// Whether the last page came back full, which is the only thing that says
@@ -106,9 +108,9 @@ class ModerationHistoryController
         more: page.length >= moderationHistoryPageSize,
       );
     } on Object catch (e, stack) {
-      api.reportFailure(
+      final sentence = reportFailureSentence(
         api.LogTag.ui,
-        'load more moderation history',
+        after == null ? 'load the moderation history' : 'load more history',
         e,
         stack,
       );
@@ -116,7 +118,7 @@ class ModerationHistoryController
       state = ModerationHistoryState(
         items: after == null ? held : onto,
         loading: false,
-        error: e is api.ApiException ? e.message : 'Could not read the feed.',
+        error: sentence,
         more: more,
       );
     }

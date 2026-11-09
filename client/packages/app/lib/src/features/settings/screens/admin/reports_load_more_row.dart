@@ -4,8 +4,9 @@
 /// (`reports_screen.dart`, `report_history_pane.dart`), which page the same
 /// way. Split into its own file so neither imports the other just for this.
 ///
-/// Carries the failure of the last attempt too, inline and next to its retry,
-/// rather than letting it replace the pages already on screen.
+/// Carries the failure of the last attempt too, as the sentence its controller
+/// wrote, inline and next to its retry, rather than letting it replace the pages
+/// already on screen.
 library;
 
 import 'dart:async';
@@ -18,16 +19,11 @@ class ReportsLoadMoreRow extends StatelessWidget {
     super.key,
     required this.loading,
     required this.error,
-    required this.failureMessage,
     required this.onTap,
   });
 
   final bool loading;
   final String? error;
-
-  /// What to say above the failure's own detail - "Could not load more
-  /// reports.", "Could not load more history."
-  final String failureMessage;
   final Future<void> Function() onTap;
 
   @override
@@ -41,11 +37,7 @@ class ReportsLoadMoreRow extends StatelessWidget {
       );
     }
     if (error case final message?) {
-      return AppErrorState(
-        message: failureMessage,
-        detail: message,
-        onRetry: () => unawaited(onTap()),
-      );
+      return AppErrorState(message: message, onRetry: () => unawaited(onTap()));
     }
     return Center(
       child: Padding(

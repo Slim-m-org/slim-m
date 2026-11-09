@@ -77,7 +77,6 @@ class ReportHistoryPane extends ConsumerWidget {
             ReportsLoadMoreRow(
               loading: history.loading,
               error: history.error,
-              failureMessage: 'Could not load more history.',
               onTap: controller.loadMore,
             ),
         ],

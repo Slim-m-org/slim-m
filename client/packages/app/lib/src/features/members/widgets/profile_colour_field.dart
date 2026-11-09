@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/color_swatch_row.dart';
 import 'profile_colour.dart';
@@ -65,8 +66,13 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
       await save();
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save the profile colour', e, stack);
-      if (mounted) setState(() => _error = 'Not saved: ${e.message}');
+      final sentence = reportFailureSentence(
+        api.LogTag.ui,
+        'save the profile colour',
+        e,
+        stack,
+      );
+      if (mounted) setState(() => _error = sentence);
     }
   }
 

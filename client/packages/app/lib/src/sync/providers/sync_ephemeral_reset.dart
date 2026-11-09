@@ -4,6 +4,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/members/providers/member_presence.dart';
+import '../../features/members/providers/presence_controller.dart';
 import '../../features/members/providers/user_profiles.dart';
 import '../../features/messages/providers/ephemeral_messages.dart';
 import '../../features/messages/providers/typing_controller.dart';
@@ -24,4 +26,17 @@ void resetEphemeralSessionState(Ref ref) {
   ref.invalidate(watchRoomProvider);
   // Listens for private answers from here on; created lazily it would miss the first one.
   ref.read(ephemeralMessagesProvider);
+}
+
+/// Re-asks for the roster a dropped socket may have left stale, once it is
+/// live again: a profile edit or presence change made meanwhile is not replayed.
+void refreshRosterAfterReconnect(Ref ref) {
+  if (ref.exists(memberProfileOverridesProvider)) {
+    ref.read(memberProfileOverridesProvider.notifier).clear();
+  }
+  ref.invalidate(membersProvider);
+  ref.invalidate(channelMembersProvider);
+  if (ref.exists(presenceControllerProvider)) {
+    ref.read(presenceControllerProvider.notifier).forgetSeeded();
+  }
 }

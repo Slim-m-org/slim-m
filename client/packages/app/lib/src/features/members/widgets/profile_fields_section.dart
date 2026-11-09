@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../api_failure.dart';
 import '../providers/profile_draft.dart';
 import '../../../providers/providers.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -85,8 +86,13 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       _savedPronouns = text;
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save the pronouns', e, stack);
-      if (mounted) setState(() => _pronounsError = 'Not saved: ${e.message}');
+      final sentence = reportFailureSentence(
+        api.LogTag.ui,
+        'save the pronouns',
+        e,
+        stack,
+      );
+      if (mounted) setState(() => _pronounsError = sentence);
     }
   }
 
@@ -98,8 +104,13 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       _savedAbout = text;
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save the about text', e, stack);
-      if (mounted) setState(() => _aboutError = 'Not saved: ${e.message}');
+      final sentence = reportFailureSentence(
+        api.LogTag.ui,
+        'save the about text',
+        e,
+        stack,
+      );
+      if (mounted) setState(() => _aboutError = sentence);
     }
   }
 

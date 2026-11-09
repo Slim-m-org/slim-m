@@ -136,7 +136,10 @@ void main() {
     final h = await _pump(tester);
     h.refuse = true;
     await _saveHex(tester, '#3366CC');
-    expect(find.textContaining('colour refused'), findsOneWidget);
+    expect(
+      find.text('Could not save the profile colour. Colour refused.'),
+      findsOneWidget,
+    );
     expect(find.byType(SnackBar), findsNothing);
   });
 

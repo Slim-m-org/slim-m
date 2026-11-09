@@ -12,6 +12,7 @@ import 'package:slimm_api/api.dart';
 import '../../../providers/cache_for.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
+import 'profile_media_fetch.dart';
 
 typedef BannerKey = ({String userId, int updatedAt});
 
@@ -28,12 +29,14 @@ final bannerBytesProvider = FutureProvider.autoDispose
       );
       final cached = await cache.read(diskKey);
       if (cached != null) return cached;
-      try {
-        final fetched = await ref.watch(apiProvider).fetchBanner(key.userId);
-        unawaited(cache.write(diskKey, fetched.bytes));
-        return fetched.bytes;
-      } on NotFoundException catch (error, stack) {
-        AppLog.swallowed(LogTag.media, 'This user has no banner', error, stack);
-        return null;
-      }
+      final api = ref.watch(apiProvider);
+      final bytes = await fetchProfileMedia(
+        ref,
+        () => api.fetchBanner(key.userId),
+        cache: _recent,
+        key: key,
+        noneMessage: 'This user has no banner',
+      );
+      if (bytes != null) unawaited(cache.write(diskKey, bytes));
+      return bytes;
     });

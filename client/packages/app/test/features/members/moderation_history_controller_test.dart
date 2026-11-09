@@ -187,7 +187,10 @@ void main() {
 
     final state = container.read(moderationHistoryControllerProvider);
     expect(state.items, isEmpty);
-    expect(state.error, 'you may not moderate here');
+    expect(
+      state.error,
+      'Could not load the moderation history: you are not allowed to do that.',
+    );
     expect(state.loading, isFalse);
     expect(state.more, isFalse);
   });
@@ -217,7 +220,11 @@ void main() {
 
     final state = container.read(moderationHistoryControllerProvider);
     expect(state.items, hasLength(moderationHistoryPageSize));
-    expect(state.error, 'the feed is on fire');
+    expect(
+      state.error,
+      'Could not load more history.',
+      reason: 'a 500 never puts the server\'s own text in front of the user',
+    );
     expect(state.more, isTrue);
   });
 
