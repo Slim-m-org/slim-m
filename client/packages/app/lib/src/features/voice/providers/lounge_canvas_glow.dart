@@ -22,6 +22,12 @@ const loungeGlowSize = Size(480, 270);
 /// The blurred shared area for [channelId], read each time a call view opens; null when it is empty or cannot be read.
 final loungeCanvasGlowProvider = FutureProvider.autoDispose
     .family<ui.Image?, String>((ref, channelId) async {
+      ui.Image? painted;
+      var disposed = false;
+      ref.onDispose(() {
+        disposed = true;
+        painted?.dispose();
+      });
       final client = ref.read(apiProvider);
       final api.CanvasViewport page;
       try {
@@ -46,7 +52,12 @@ final loungeCanvasGlowProvider = FutureProvider.autoDispose
           if (input != null) document.applyPlaced(input, overwrite: true);
         }
         if (document.objectCount.value == 0) return null;
-        return await paintLoungeGlow(document);
+        final image = await paintLoungeGlow(document);
+        if (disposed) {
+          image.dispose();
+          return null;
+        }
+        return painted = image;
       } finally {
         document.dispose();
       }

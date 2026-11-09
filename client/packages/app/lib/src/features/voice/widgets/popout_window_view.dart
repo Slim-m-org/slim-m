@@ -57,41 +57,39 @@ class PopOutWindowView extends ConsumerWidget {
     };
 
     // The window root has no Navigator above it, and tooltips need an Overlay.
-    return Overlay(
-      initialEntries: [
-        OverlayEntry(
-          builder: (context) => Material(
-            key: popOutWindowKey,
-            color: Colors.black,
-            child: StreamControlsReveal(
-              builder: (context, shown, hold) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  view,
-                  if (frame != null) _DragSurface(frame: frame!),
-                  if (frame != null)
-                    _TopBar(label: label, frame: frame!, shown: shown),
-                  _Controls(
-                    shown: shown,
-                    micOn: micOn,
-                    onMute: controller.toggleMicrophone,
-                    onLeave: controller.leave,
-                    volume: hasSound
-                        ? StreamVolumePill(
-                            identity: feed.identity,
-                            controller: controller,
-                            onHold: hold,
-                          )
-                        : null,
-                  ),
-                  if (frame != null)
-                    ResizeHandles(onStart: frame!.onResizeStart),
-                ],
-              ),
+    return Overlay.wrap(
+      child: KeyedSubtree(
+        key: ValueKey((feed.kind, feed.identity)),
+        child: Material(
+          key: popOutWindowKey,
+          color: Colors.black,
+          child: StreamControlsReveal(
+            builder: (context, shown, hold) => Stack(
+              fit: StackFit.expand,
+              children: [
+                view,
+                if (frame != null) _DragSurface(frame: frame!),
+                if (frame != null)
+                  _TopBar(label: label, frame: frame!, shown: shown),
+                _Controls(
+                  shown: shown,
+                  micOn: micOn,
+                  onMute: controller.toggleMicrophone,
+                  onLeave: controller.leave,
+                  volume: hasSound
+                      ? StreamVolumePill(
+                          identity: feed.identity,
+                          controller: controller,
+                          onHold: hold,
+                        )
+                      : null,
+                ),
+                if (frame != null) ResizeHandles(onStart: frame!.onResizeStart),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

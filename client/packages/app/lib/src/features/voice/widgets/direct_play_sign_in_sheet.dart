@@ -36,9 +36,17 @@ class _SignIn extends StatefulWidget {
   State<_SignIn> createState() => _SignInState();
 }
 
+/// The part of [baseUrl] that decides who receives the password.
+String _hostOf(String baseUrl) {
+  final uri = Uri.tryParse(baseUrl);
+  if (uri == null || uri.host.isEmpty) return baseUrl;
+  return uri.hasPort ? '${uri.host}:${uri.port}' : uri.host;
+}
+
 class _SignInState extends State<_SignIn> {
   final _name = TextEditingController();
   final _password = TextEditingController();
+  late final String? _baseUrl = widget.controller.signInBaseUrl;
   bool _busy = false;
   String? _error;
 
@@ -51,6 +59,10 @@ class _SignInState extends State<_SignIn> {
 
   Future<void> _submit() async {
     if (_busy || _name.text.trim().isEmpty || _password.text.isEmpty) return;
+    if (widget.controller.signInBaseUrl != _baseUrl) {
+      setState(() => _error = 'The server changed. Close this and try again.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -68,6 +80,20 @@ class _SignInState extends State<_SignIn> {
       _password.clear();
     });
   }
+
+  List<Widget> _server(AppTokens tokens, String baseUrl) => [
+    Text(
+      'Signing in to ${_hostOf(baseUrl)}',
+      style: AppText.caption.copyWith(
+        color: tokens.textPrimary,
+        fontWeight: AppWeights.semi,
+      ),
+    ),
+    if (baseUrl.toLowerCase().startsWith('http://'))
+      const AppCallout(
+        child: Text('This address is not encrypted. Check it is yours.'),
+      ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +122,7 @@ class _SignInState extends State<_SignIn> {
               'Use your own Jellyfin account. The password is not kept.',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
+            if (_baseUrl case final baseUrl?) ..._server(tokens, baseUrl),
             AppInput(
               controller: _name,
               placeholder: 'Jellyfin name',

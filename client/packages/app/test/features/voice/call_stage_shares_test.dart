@@ -3,6 +3,7 @@
 /// focusing one share, and stopping then resuming watching.
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,6 +87,8 @@ Future<void> _leave(_Call call) =>
     call.harness.container.read(voiceControllerProvider.notifier).leave();
 
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
+
+Key _stage(String id) => ValueKey('share-stage-$id');
 
 void main() {
   test('the grid picks the columns that give each share the most room', () {
@@ -266,6 +269,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
     expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
+    await _leave(call);
+  });
+
+  testWidgets('refocusing starts the next share at fit', (tester) async {
+    final call = await _connected(tester, [_p('a'), _p('b')], _wide);
+    await rightClickMenu(tester, find.byKey(_stage('a')));
+    await tester.tap(find.text("Focus a's screen"));
+    await tester.pump(const Duration(milliseconds: 600));
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(
+      pointer.hover(tester.getCenter(find.byKey(_stage('a')))),
+    );
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
+    await tester.pump();
+    expect(find.byKey(const Key('share-zoom-level')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('share-thumb-b')));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
+    expect(find.byKey(const Key('share-zoom-level')), findsNothing);
     await _leave(call);
   });
 

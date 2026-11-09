@@ -138,7 +138,7 @@ class _TimelineBuilder {
     joinedAt[user] = at;
     // Everyone who joined in the call's first minute started it together.
     if (at - call.startedAt <= 60000) {
-      starters.add(user);
+      if (!starters.contains(user)) starters.add(user);
       return;
     }
     moments.add(
