@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE users\n             SET deleted_at = ?, is_anonymized = 1, password_hash = NULL,\n                 username = ?, display_name = 'Deleted User',\n                 status_text = NULL, pronouns = NULL, about = NULL,\n                 profile_color = NULL, profile_color_rgb = NULL,\n                 avatar_updated_at = NULL, banner_updated_at = NULL\n             WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "527c69a34ed7a1c4d40f6e21bbccb54441c9ba62ecb557af0e6fdc26c92775d7"
+}
