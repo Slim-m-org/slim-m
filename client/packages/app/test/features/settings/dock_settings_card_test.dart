@@ -124,6 +124,7 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(find.byType(AppErrorState), findsOneWidget);
+    expect(find.text('Could not load the settings.'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
@@ -144,6 +145,7 @@ void main() {
     await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(find.byType(AppErrorState), findsOneWidget);
+    expect(find.text('Could not save the settings.'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
     expect(tester.widget<EditableText>(_name()).controller.text, 'Bob');
     expect(find.text('Save changes'), findsOneWidget);
