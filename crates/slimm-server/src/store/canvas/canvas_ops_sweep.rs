@@ -57,9 +57,11 @@ use crate::ids::ChannelId;
 /// `canvas_audit_log`'s own retention, which this sweep never touches.
 pub const CANVAS_OP_RETENTION_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 
-/// Bounds how long one pass can hold the write lock, the same reasoning
+/// Bounds how long one batch can hold the write lock, the same reasoning
 /// `ORPHAN_SWEEP_BATCH` documents for the attachment sweep.
 const CANVAS_OP_SWEEP_BATCH: i64 = 500;
+/// How many batches one tick may run, each in its own transaction so writers get the lock between them.
+const CANVAS_OP_BATCHES_PER_TICK: usize = 50;
 
 /// How many rows one sweep pass reclaimed, by kind.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -103,9 +105,30 @@ pub(super) async fn raise_swept_watermark(
 
 impl Store {
     /// Deletes canvas ops old enough, and no longer needed to undo anything,
-    /// across every channel. See the module doc for the retention rule.
+    /// across every channel, a batch at a time until one no longer fills its
+    /// limit or [`CANVAS_OP_BATCHES_PER_TICK`] is reached. See the module doc
+    /// for the retention rule.
     pub async fn sweep_canvas_ops(&self) -> anyhow::Result<SweptCanvasOps> {
         let cutoff = now_ms() - CANVAS_OP_RETENTION_MS;
+        let mut swept = SweptCanvasOps::default();
+        for _ in 0..CANVAS_OP_BATCHES_PER_TICK {
+            let batch = self.sweep_canvas_op_batch(cutoff).await?;
+            let capped = [batch.restores, batch.removes, batch.clears]
+                .iter()
+                .any(|&n| n >= CANVAS_OP_SWEEP_BATCH as u64);
+            swept.restores += batch.restores;
+            swept.removes += batch.removes;
+            swept.clears += batch.clears;
+            if !capped {
+                break;
+            }
+        }
+        swept.purged = self.purge_erased_canvas_objects().await?;
+        Ok(swept)
+    }
+
+    /// One transaction of at most [`CANVAS_OP_SWEEP_BATCH`] rows per kind.
+    async fn sweep_canvas_op_batch(&self, cutoff: i64) -> anyhow::Result<SweptCanvasOps> {
         let mut tx = self.begin_write().await?;
 
         // Pass 1: restores, gated on age alone, unless a clear separates them from their remove.
@@ -188,12 +211,11 @@ impl Store {
         raise_swept_watermark(&mut tx, &swept).await?;
         tx.commit().await?;
 
-        let purged = self.purge_erased_canvas_objects().await?;
         Ok(SweptCanvasOps {
             restores: restores.len() as u64,
             removes: removes.len() as u64,
             clears: clears.len() as u64,
-            purged,
+            purged: 0,
         })
     }
 }
