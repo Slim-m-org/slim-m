@@ -40,6 +40,12 @@ const double kSheetMaxWidth = 460;
 /// instead, once, and content never pads its own top edge.
 const double kSheetDialogTopInset = AppSpacing.s16;
 
+/// The room a phone sheet's drag handle takes at the top edge.
+///
+/// A sheet shown with `handleOverContent` reserves none, so content that is
+/// not a picture running to the edge clears this itself.
+const double kSheetHandleExtent = AppSpacing.s12;
+
 /// Shows [builder] as a bottom sheet on a phone and a dialog on a desktop.
 ///
 /// [maxWidth] widens the dialog for content that genuinely needs it, a grid of
@@ -63,6 +69,12 @@ const double kSheetDialogTopInset = AppSpacing.s16;
 /// and bottom only, never the keyboard inset. The dialog branch needs neither:
 /// a desktop window has no keyboard to cover it.
 ///
+/// A phone sheet clips its content to its rounded top corners, so a picture
+/// that runs to the edge follows the curve instead of poking past it.
+/// [handleOverContent] is for content that starts with such a picture (a
+/// profile banner): the handle is drawn over it, on a pill of the sheet's own
+/// colour so it reads on any picture, instead of in a strip of its own above.
+///
 /// The dialog branch wraps the content in `Semantics(container: true,
 /// explicitChildNodes: true)`, as `AlertDialog` wraps its own. A dialog route
 /// names itself from every descendant that forms no semantics node of its
@@ -78,6 +90,7 @@ Future<T?> showAppSheet<T>(
   double maxWidth = kSheetMaxWidth,
   bool scrolls = false,
   bool bare = false,
+  bool handleOverContent = false,
   String? semanticLabel,
 }) {
   // Focus moves into the sheet, so keys stop reaching the page behind it; the label names it for a screen reader.
@@ -103,23 +116,37 @@ Future<T?> showAppSheet<T>(
       isScrollControlled: true,
       // Material's handle reserves a 48dp box above every sheet; this one is a slim bar.
       showDragHandle: false,
+      // Material clips nothing by default, so full-width content ignores the rounded top corners.
+      clipBehavior: Clip.antiAlias,
       sheetAnimationStyle: animation,
-      builder: (context) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _SheetHandle(),
-            Flexible(
-              child: _KeyboardInset(
-                scrolls: scrolls,
-                child: content(context),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (context) {
+        final body = _KeyboardInset(scrolls: scrolls, child: content(context));
+        return SafeArea(
+          top: false,
+          child: handleOverContent
+              ? Stack(
+                  children: [
+                    // Full width, as the Column's stretch gives the content.
+                    SizedBox(width: double.infinity, child: body),
+                    // Shrunk to the handle, so it neither stretches the Stack to the window nor blocks taps beside it.
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        heightFactor: 1,
+                        child: _SheetHandle(overContent: true),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [const _SheetHandle(), Flexible(child: body)],
+                ),
+        );
+      },
     );
   }
   return showInWindowDialog<T>(
@@ -139,11 +166,22 @@ Future<T?> showAppSheet<T>(
 /// drags to dismiss; tapping the handle closes it too, which is what a screen
 /// reader is offered.
 class _SheetHandle extends StatelessWidget {
-  const _SheetHandle();
+  const _SheetHandle({this.overContent = false});
+
+  /// Sits on a picture rather than in a strip of its own, so it carries its own backing.
+  final bool overContent;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final bar = Container(
+      width: 32,
+      height: 4,
+      decoration: BoxDecoration(
+        color: tokens.borderStrong,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
     return Semantics(
       button: true,
       label: MaterialLocalizations.of(context).modalBarrierDismissLabel,
@@ -151,20 +189,33 @@ class _SheetHandle extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => Navigator.of(context).maybePop(),
-        child: Padding(
-          // No gap below: the first row (a title or the quick reactions) brings its own.
-          padding: const EdgeInsets.only(top: AppSpacing.s8),
-          child: Center(
-            child: Container(
-              width: 32,
-              height: 4,
-              decoration: BoxDecoration(
-                color: tokens.borderStrong,
-                borderRadius: BorderRadius.circular(2),
+        child: overContent
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s16,
+                  AppSpacing.s4,
+                  AppSpacing.s16,
+                  AppSpacing.s8,
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceRaised.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(AppRadii.full),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s8,
+                      vertical: AppSpacing.s4,
+                    ),
+                    child: bar,
+                  ),
+                ),
+              )
+            : Padding(
+                // No gap below: the first row (a title or the quick reactions) brings its own.
+                padding: const EdgeInsets.only(top: AppSpacing.s8),
+                child: Center(child: bar),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }

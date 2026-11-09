@@ -239,8 +239,15 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
 
     final content = _moderating
         ? Padding(
-            padding: const EdgeInsets.all(_moderateInset),
+            padding: EdgeInsets.fromLTRB(
+              _moderateInset,
+              // The sheet's handle floats over the profile's banner; Moderate has none to sit on.
+              _moderateInset + (widget.compact ? kSheetHandleExtent : 0),
+              _moderateInset,
+              _moderateInset,
+            ),
             child: MemberModerateView(
+              key: const Key('member-moderate-view'),
               profile: profile,
               host: host,
               canManageRoles: canManageRoles,
