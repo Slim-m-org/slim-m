@@ -215,15 +215,9 @@ List<PaletteResultItem> buildMessageItems(
   Map<String, Channel> channelsById = const {},
 }) => [
   for (final message in messages)
-    PaletteResultItem(
-      label: message.content.isEmpty
-          ? (matchedAttachmentName(message) ?? '')
-          : message.content,
-      kind: PaletteKind.message,
-      message: message,
-      messageChannelLabel: _messageChannelLabel(
-        channelsById[message.channelId],
-      ),
+    messageResultItem(
+      message,
+      channelLabel: paletteChannelLabel(channelsById[message.channelId]),
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),
         ref.read,
@@ -234,7 +228,32 @@ List<PaletteResultItem> buildMessageItems(
     ),
 ];
 
-String _messageChannelLabel(Channel? channel) => switch (channel) {
+/// One message hit as a palette row: its text, or the file's name when only
+/// the file matched, and where it was said. A caller that has resolved
+/// [authorName] gets a screen-reader label that says who wrote it.
+PaletteResultItem messageResultItem(
+  api.Message message, {
+  required String channelLabel,
+  String? authorName,
+  required Future<void> Function(BuildContext context, WidgetRef ref) onSelect,
+}) {
+  final label = message.content.isEmpty
+      ? (matchedAttachmentName(message) ?? '')
+      : message.content;
+  return PaletteResultItem(
+    label: label,
+    semanticLabel: authorName == null
+        ? null
+        : 'Message from $authorName: $label',
+    kind: PaletteKind.message,
+    message: message,
+    messageChannelLabel: channelLabel,
+    onSelect: onSelect,
+  );
+}
+
+/// How a message hit names the conversation it was said in.
+String paletteChannelLabel(Channel? channel) => switch (channel) {
   null => 'a channel',
   Channel(kind: dmChannelKind) => 'a direct message',
   Channel(:final name) => '#$name',

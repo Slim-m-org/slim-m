@@ -128,3 +128,18 @@ Widget paletteHighlighted(
   maxLines: maxLines,
   overflow: TextOverflow.ellipsis,
 );
+
+/// [text] as a snippet with every word of [query] in bold, for a full-text hit.
+Widget paletteHighlightedWords(
+  String text,
+  String query,
+  TextStyle style, {
+  int maxLines = 1,
+}) => Text.rich(
+  TextSpan(
+    children: paletteHighlightWordSpans(paletteSnippet(text, query), query),
+  ),
+  style: style,
+  maxLines: maxLines,
+  overflow: TextOverflow.ellipsis,
+);

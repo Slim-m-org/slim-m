@@ -164,6 +164,15 @@ class ChannelTranscriptPane extends ConsumerWidget {
         ref.read(messageJumpProvider.notifier).cancelFor(channelId);
       }
     });
+    // A refusal belongs to the search it came from, so a reopened one starts clean.
+    ref.listen(channelSearchProvider(channelId).select((s) => s.open), (
+      _,
+      open,
+    ) {
+      if (!open) {
+        ref.read(messageJumpProvider.notifier).clearNoticeFor(channelId);
+      }
+    });
   }
 
   Widget? _jumpBanner(WidgetRef ref, JumpNotice? notice) {
@@ -229,30 +238,14 @@ class ChannelTranscriptPane extends ConsumerWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusScope.of(context).unfocus(),
-          child: searchShowing
-              ? ChannelSearchResults(
-                  results: search.results,
-                  knownUsernames: knownUsernames,
-                  knownRoleNames: knownRoleNames,
-                  customEmoji: customEmoji,
-                  loading: search.loading,
-                  failed: search.failed,
-                  forbidden: search.forbidden,
-                  onRetry: () => ref
-                      .read(channelSearchProvider(channelId).notifier)
-                      .run(search.query!),
-                  onSelect: (m) => _openHit(context, ref, m),
-                  seeking: jumpSeeking,
-                  banner: _jumpBanner(ref, jumpNotice),
-                  compact: searchPage,
-                  query: search.query,
-                  scope: channelSearchScope(
-                    name: hashChannelName,
-                    isVoice: isVoice,
-                    isThread: isThread,
-                  ),
-                )
-              : Stack(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Kept mounted under the results, so closing the search returns the reader to where they were.
+              Visibility(
+                visible: !searchShowing,
+                maintainState: true,
+                child: Stack(
                   children: [
                     StreamBuilder<List<Message>>(
                       stream: streams.transcript(
@@ -279,8 +272,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           lastReadSeq: lastReadSeq,
                           manuallyUnread: manuallyUnread,
                         );
-                        // Gated on the viewport: scrolled into history, this rebuild is a message arriving somewhere unread.
-                        if (scrollTracker.atLatest) {
+                        // Gated on the viewport and on the search being closed: scrolled into history, this rebuild is a message arriving somewhere unread.
+                        if (scrollTracker.atLatest && !searchShowing) {
                           onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
                         }
                         return MessageTranscript(
@@ -399,6 +392,32 @@ class ChannelTranscriptPane extends ConsumerWidget {
                     ),
                   ],
                 ),
+              ),
+              if (searchShowing)
+                ChannelSearchResults(
+                  results: search.results,
+                  knownUsernames: knownUsernames,
+                  knownRoleNames: knownRoleNames,
+                  customEmoji: customEmoji,
+                  loading: search.loading,
+                  failed: search.failed,
+                  forbidden: search.forbidden,
+                  onRetry: () => ref
+                      .read(channelSearchProvider(channelId).notifier)
+                      .run(search.query!),
+                  onSelect: (m) => _openHit(context, ref, m),
+                  seeking: jumpSeeking,
+                  banner: _jumpBanner(ref, jumpNotice),
+                  compact: searchPage,
+                  query: search.query,
+                  scope: channelSearchScope(
+                    name: hashChannelName,
+                    isVoice: isVoice,
+                    isThread: isThread,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

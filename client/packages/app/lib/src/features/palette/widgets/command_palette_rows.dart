@@ -8,11 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import '../../messages/providers/message_search.dart'
     show matchedAttachmentName;
+import '../../messages/providers/message_search_query.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/widgets/channel_kind_icon.dart';
 import 'command_palette_items.dart';
 import 'palette_highlight.dart';
+import 'palette_message_text.dart';
 import 'palette_person_body.dart';
 import '../../messages/widgets/message_row_identity.dart' show formatMessageDay;
 
@@ -166,6 +168,9 @@ class PaletteResultRow extends StatelessWidget {
     required this.highlighted,
     required this.touch,
     required this.onTap,
+    this.knownUsernames = const {},
+    this.knownRoleNames = const {},
+    this.customEmoji = const {},
   });
 
   final PaletteResultItem item;
@@ -173,6 +178,12 @@ class PaletteResultRow extends StatelessWidget {
   final bool highlighted;
   final bool touch;
   final VoidCallback onTap;
+
+  /// See `MessageBody`: what a message hit's mentions and emoji resolve
+  /// against. Left empty, they read as the plain text that was typed.
+  final Set<String> knownUsernames;
+  final Set<String> knownRoleNames;
+  final Map<String, String> customEmoji;
 
   @override
   Widget build(BuildContext context) {
@@ -247,6 +258,10 @@ class PaletteResultRow extends StatelessWidget {
 
   Widget _message(AppTokens tokens) {
     final message = item.message!;
+    final terms = parseSearchQuery(query).text;
+    final style = AppText.ui.copyWith(color: tokens.textPrimary);
+    // A phone row has two lines to show the match on, as wide as a desktop row has one.
+    final lines = touch ? 2 : 1;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: AppSpacing.s12,
@@ -263,11 +278,22 @@ class PaletteResultRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              paletteHighlighted(
-                item.label,
-                query,
-                AppText.ui.copyWith(color: tokens.textPrimary),
-              ),
+              // A file's name is not markdown, so a hit found only in a file marks it as plain text.
+              message.content.isEmpty
+                  ? paletteHighlightedWords(
+                      item.label,
+                      terms,
+                      style,
+                      maxLines: lines,
+                    )
+                  : PaletteMessageText(
+                      text: item.label,
+                      terms: terms,
+                      maxLines: lines,
+                      knownUsernames: knownUsernames,
+                      knownRoleNames: knownRoleNames,
+                      customEmoji: customEmoji,
+                    ),
               PaletteMessageMeta(
                 message: message,
                 channelLabel: item.messageChannelLabel ?? 'a channel',

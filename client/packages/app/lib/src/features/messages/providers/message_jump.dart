@@ -160,6 +160,14 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     if (shown == token) state = const MessageJumpIdle();
   }
 
+  /// Drops a refusal [channelId] was showing, for a surface that closed without
+  /// the person acting on it. A jump still seeking or arrived is left alone.
+  void clearNoticeFor(String channelId) {
+    if (jumpNoticeFor(state, channelId) != null) {
+      state = const MessageJumpIdle();
+    }
+  }
+
   /// Drops a jump still in flight or still waiting to be consumed for
   /// [channelId], called when the channel screen showing it is about to stop
   /// being that channel's - otherwise a jump neither finished nor consumed

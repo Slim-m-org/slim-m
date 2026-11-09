@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/members/providers/presence_view.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_kind_icon.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_compact.dart';
 import 'package:slimm_app/src/features/palette/widgets/command_palette_rows.dart';
+import 'package:slimm_app/src/features/palette/widgets/palette_message_text.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -82,6 +83,17 @@ Future<void> _open(
     await tester.pumpAndSettle();
   }
 }
+
+Map<String, dynamic> _hit(String content) => {
+  'id': 'm1',
+  'channel_id': 'ch1',
+  'author_id': 'other',
+  'author_display_name': 'Ren',
+  'seq': 1,
+  'content': content,
+  'created_at': DateTime.now().millisecondsSinceEpoch,
+  'edited_at': null,
+};
 
 ({ProviderContainer container, SlimmDatabase db}) _setup({
   List<Map<String, dynamic>> hits = const [],
@@ -217,6 +229,33 @@ void main() {
     expect(inPalette(' in #automod-log · Today'), findsOneWidget);
 
     await teardown(tester, setup.container, setup.db);
+  });
+
+  testWidgets('a message hit marks every word typed, not only the phrase', (
+    tester,
+  ) async {
+    final setup = _setup(hits: [_hit('weird gap log from mod bot')]);
+    await _open(tester, setup, type: 'weird mod');
+
+    expect(_boldRun('weird'), findsOneWidget);
+    expect(_boldRun('mod'), findsWidgets);
+
+    await teardown(tester, setup.container, setup.db);
+  });
+
+  testWidgets('a message hit has one line on desktop and two on a phone', (
+    tester,
+  ) async {
+    final text = find.byWidgetPredicate((w) => w is PaletteMessageText);
+    final desktop = _setup(hits: [_hit('weird gap log from mod bot')]);
+    await _open(tester, desktop, type: 'mod');
+    expect(tester.widget<PaletteMessageText>(text).maxLines, 1);
+    await teardown(tester, desktop.container, desktop.db);
+
+    final phone = _setup(hits: [_hit('weird gap log from mod bot')]);
+    await _open(tester, phone, size: const Size(390, 844), type: 'mod');
+    expect(tester.widget<PaletteMessageText>(text).maxLines, 2);
+    await teardown(tester, phone.container, phone.db);
   });
 
   testWidgets('the open channel says "You\'re here" with an accent bar', (

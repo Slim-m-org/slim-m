@@ -138,7 +138,7 @@ void main() {
 
     await _type(tester, 'findable');
 
-    expect(find.text('Today'), findsWidgets);
+    expect(find.textContaining('Today'), findsWidgets);
     expect(find.text('a very findable message'), findsOneWidget);
     expect(_highlighted(tester), contains('findable'));
     await _unmount(tester);
@@ -152,7 +152,8 @@ void main() {
 
     await _type(tester, 'win');
 
-    expect(find.text('Found in $_fileName'), findsOneWidget);
+    expect(find.text(_fileName), findsOneWidget);
+    expect(find.textContaining('\u00B7 in $_fileName'), findsOneWidget);
     expect(_highlighted(tester), contains('Win'));
     await _unmount(tester);
   });

@@ -48,6 +48,9 @@ Map<String, dynamic> _fileHit(int seq, {String channelId = 'c1'}) => {
 };
 
 final _searchBar = find.byWidgetPredicate((w) => w is CompactChannelSearchBar);
+
+/// The hit row, whose text is the file's name since only the file matched.
+final _hit = find.text(_fileName);
 final _flash = find.byWidgetPredicate((w) => w is MessageJumpHighlight);
 final _snackBar = find.byWidgetPredicate((w) => w is SnackBar);
 
@@ -99,8 +102,8 @@ Future<void> _unmount(WidgetTester tester) async {
 }
 
 Future<void> _tapHit(WidgetTester tester) async {
-  expect(find.text('Found in $_fileName'), findsOneWidget);
-  await tester.tap(find.text('Found in $_fileName'));
+  expect(_hit, findsOneWidget);
+  await tester.tap(_hit);
   await tester.pump();
 }
 
@@ -217,7 +220,7 @@ void main() {
 
     expect(find.textContaining('Could not find that message'), findsOneWidget);
     expect(_searchBar, findsOneWidget, reason: 'the hits stay for another try');
-    expect(find.text('Found in $_fileName'), findsOneWidget);
+    expect(_hit, findsOneWidget);
     expect(_snackBar, findsNothing);
 
     await _unmount(tester);
@@ -313,7 +316,7 @@ void main() {
     expect(find.text('Finding that message'), findsNothing);
     expect(_flash, findsNothing);
     expect(harness.container.read(channelSearchProvider('c1')).open, isTrue);
-    expect(find.text('Found in $_fileName'), findsOneWidget);
+    expect(_hit, findsOneWidget);
 
     await _unmount(tester);
   });

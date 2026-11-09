@@ -124,7 +124,8 @@ class ChannelSearchResults extends ConsumerWidget {
   /// open with an empty field leaves this unset.
   final String? query;
 
-  /// What is being searched, such as "#general", for the compact header.
+  /// What is being searched, such as "#general", for the compact header; an
+  /// `in:` operator in [query] names another channel in its place.
   final String scope;
 
   @override
@@ -143,7 +144,9 @@ class ChannelSearchResults extends ConsumerWidget {
         if (compact)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-            child: PaletteSectionHeader(label: 'Messages in $scope'),
+            child: PaletteSectionHeader(
+              label: 'Messages in ${searchedScope(scope, query)}',
+            ),
           ),
         // Revealed rather than inserted, so a hit that is found at once never flashes the line.
         AppRevealBand(

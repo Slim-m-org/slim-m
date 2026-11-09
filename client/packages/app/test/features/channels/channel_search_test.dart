@@ -245,9 +245,7 @@ void main() {
 
     expect(find.text('No matches.'), findsOneWidget);
   });
-}
 
-void _noop() {
   testWidgets('a hit being found shows a line for it and announces it', (
     tester,
   ) async {
@@ -301,5 +299,7 @@ void _noop() {
     );
   });
 }
+
+void _noop() {}
 
 void _noopMessage(api.Message _) {}
