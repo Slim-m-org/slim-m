@@ -261,8 +261,8 @@ void main() {
     expect(find.textContaining('Could not cast your vote'), findsNothing);
   });
 
-  testWidgets('a second tap waits for the first vote, so two refusals leave '
-      'the poll as it was', (tester) async {
+  testWidgets('a second tap waits for the first answer and then goes out, so '
+      'two refusals leave the poll as it was', (tester) async {
     final votes = _Votes(403)..hold = true;
     final (container, ref) = await _mount(tester, votes, poll: _poll());
     final extras = container.read(messageExtrasProvider.notifier);
@@ -271,21 +271,49 @@ void main() {
       final first = castVote(ref, 'm1', 0);
       final second = castVote(ref, 'm1', 1);
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      for (final gate in votes.waiting) {
-        gate.complete();
-      }
-      await Future.wait([first, second]);
+      expect(votes.puts, hasLength(1));
+      votes.waiting.removeAt(0).complete();
+      await second;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(votes.puts, hasLength(2));
+      expect(jsonDecode(votes.puts.last.body), containsPair('option', 1));
+      votes.waiting.removeAt(0).complete();
+      await first;
     });
 
     final poll = extras.extrasFor('m1').poll!;
-    expect(votes.puts, hasLength(1));
     expect(poll.votedOption, isNull);
     expect([for (final o in poll.options) o.votes], [2, 1]);
-    expect(container.read(pollVoteFailureProvider('m1'))!.ballot.option, 0);
+    expect(container.read(pollVoteFailureProvider('m1'))!.ballot.option, 1);
+    expect(container.read(pollVotesInFlightProvider), isEmpty);
+  });
 
-    votes.hold = false;
-    await tester.runAsync(() => castVote(ref, 'm1', 1));
+  testWidgets('a ranking submitted while the first is out is sent after it, '
+      'not dropped', (tester) async {
+    final votes = _Votes(204)..hold = true;
+    final (container, ref) = await _mount(
+      tester,
+      votes,
+      poll: _poll(votes: const [0, 0, 0], ranked: true),
+    );
+
+    await tester.runAsync(() async {
+      final first = castRanking(ref, 'm1', [0, 1]);
+      await castRanking(ref, 'm1', [2, 0]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      votes.waiting.removeAt(0).complete();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      votes.waiting.removeAt(0).complete();
+      await first;
+    });
+
     expect(votes.puts, hasLength(2));
+    expect(jsonDecode(votes.puts.last.body), containsPair('ranking', [2, 0]));
+    final poll = container
+        .read(messageExtrasProvider.notifier)
+        .extrasFor('m1')
+        .poll!;
+    expect(poll.votedRanking, [2, 0]);
   });
 
   testWidgets('the refusal line is no wider than the poll card above it', (

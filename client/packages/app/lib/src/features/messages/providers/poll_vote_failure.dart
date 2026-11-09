@@ -25,5 +25,11 @@ final pollVoteFailureProvider = StateProvider.family<PollVoteFailure?, String>(
   (ref, messageId) => null,
 );
 
-/// The messages with a vote still out, so a second tap waits for the first answer.
-final pollVotesInFlightProvider = Provider<Set<String>>((ref) => <String>{});
+/// A ballot tapped while an earlier one on the same poll was still out.
+typedef QueuedPollBallot = ({PollBallot ballot, String whatFailed});
+
+/// The messages with a vote still out, each with the newest ballot tapped
+/// meanwhile, which goes out once the first answer is in.
+final pollVotesInFlightProvider = Provider<Map<String, QueuedPollBallot?>>(
+  (ref) => <String, QueuedPollBallot?>{},
+);

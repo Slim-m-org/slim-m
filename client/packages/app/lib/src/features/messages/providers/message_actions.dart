@@ -80,37 +80,68 @@ Future<void> _vote(
   String whatFailed,
 ) async {
   final inFlight = ref.read(pollVotesInFlightProvider);
-  // A second vote would snapshot the first one's optimistic poll as its way back.
-  if (inFlight.contains(messageId)) return;
-  final extras = ref.read(messageExtrasProvider.notifier);
-  final failures = ref.read(pollVoteFailureProvider(messageId).notifier);
-  final client = ref.read(apiProvider);
-  final ranking = ballot.ranking;
-  final before = extras.extrasFor(messageId).poll;
-  failures.state = null;
-  extras.applyLocalVote(
-    messageId,
-    ranking?.first ?? ballot.option!,
-    ranking: ranking,
+  // A second vote would snapshot the first one's optimistic poll as its way back, so the newest waits its turn.
+  if (inFlight.containsKey(messageId)) {
+    inFlight[messageId] = (ballot: ballot, whatFailed: whatFailed);
+    return;
+  }
+  final send = _VoteSender(
+    extras: ref.read(messageExtrasProvider.notifier),
+    failures: ref.read(pollVoteFailureProvider(messageId).notifier),
+    client: ref.read(apiProvider),
+    messageId: messageId,
   );
-  final applied = extras.extrasFor(messageId).poll;
-  inFlight.add(messageId);
+  QueuedPollBallot? next = (ballot: ballot, whatFailed: whatFailed);
   try {
-    await client.votePoll(
-      messageId: messageId,
-      option: ballot.option,
-      ranking: ranking,
-    );
-  } on api.ApiException catch (error, stack) {
-    if (before != null && applied != null) {
-      extras.revertLocalVote(messageId, before: before, applied: applied);
+    while (next != null) {
+      inFlight[messageId] = null;
+      await send(next);
+      next = inFlight[messageId];
     }
-    failures.state = PollVoteFailure(
-      reportFailureSentence(api.LogTag.ui, whatFailed, error, stack),
-      ballot,
-    );
   } finally {
     inFlight.remove(messageId);
+  }
+}
+
+class _VoteSender {
+  _VoteSender({
+    required this.extras,
+    required this.failures,
+    required this.client,
+    required this.messageId,
+  });
+
+  final MessageExtrasController extras;
+  final StateController<PollVoteFailure?> failures;
+  final api.SlimmApi client;
+  final String messageId;
+
+  Future<void> call(QueuedPollBallot vote) async {
+    final ballot = vote.ballot;
+    final ranking = ballot.ranking;
+    final before = extras.extrasFor(messageId).poll;
+    failures.state = null;
+    extras.applyLocalVote(
+      messageId,
+      ranking?.first ?? ballot.option!,
+      ranking: ranking,
+    );
+    final applied = extras.extrasFor(messageId).poll;
+    try {
+      await client.votePoll(
+        messageId: messageId,
+        option: ballot.option,
+        ranking: ranking,
+      );
+    } on api.ApiException catch (error, stack) {
+      if (before != null && applied != null) {
+        extras.revertLocalVote(messageId, before: before, applied: applied);
+      }
+      failures.state = PollVoteFailure(
+        reportFailureSentence(api.LogTag.ui, vote.whatFailed, error, stack),
+        ballot,
+      );
+    }
   }
 }
 
