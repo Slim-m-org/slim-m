@@ -11284,6 +11284,11 @@ paths:
       responses:
         "101":
           description: Switching protocols.
+        "429":
+          description: >
+            This address has presented too many bad tickets, or has too many
+            sockets still waiting to send their hello. A plain-text body and no
+            `Retry-After`: wait before opening another socket.
         "503":
           description: The connection ceiling was reached.
 
@@ -11940,7 +11945,15 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     Unavailable:
-      description: The server shed the request under load; retry shortly.
+      description: >
+        The server shed the request under load; retry shortly. Any route can
+        answer this when the server is at its in-flight request ceiling.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying. Sent when the shed was for lack of an in-flight request slot.
+          schema:
+            type: integer
+            minimum: 1
       content:
         application/json:
           schema:
