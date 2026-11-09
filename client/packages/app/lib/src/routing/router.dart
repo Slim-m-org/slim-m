@@ -89,9 +89,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: signedOutHome(),
     observers: [
-      OverlayCoverObserver((covering) {
+      OverlayCoverObserver((stack) {
         if (disposed) return;
-        ref.read(overlayCoverProvider.notifier).state = covering;
+        ref.read(overlayCoverProvider.notifier).state = stack;
       }),
     ],
     // Rebuilds the redirect whenever the session changes, which is what makes
