@@ -46,9 +46,12 @@ class _LockedStore extends MessageStore {
   }
 
   @override
-  Future<void> applyMessage(api.Message message) async {
+  Future<void> applyMessage(
+    api.Message message, {
+    CursorAdvance advance = CursorAdvance.whenContiguous,
+  }) async {
     if (failApply-- > 0) throw StateError('database is locked');
-    return super.applyMessage(message);
+    return super.applyMessage(message, advance: advance);
   }
 }
 

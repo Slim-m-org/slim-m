@@ -16,6 +16,7 @@ import 'message_store_rows.dart' as rows_impl;
 Future<void> applyMessagesBatched(
   MessageStore store,
   Iterable<api.Message> messages,
+  CursorAdvance advance,
 ) async {
   final db = store.db;
   final incoming = messages.toList(growable: false);
@@ -36,12 +37,11 @@ Future<void> applyMessagesBatched(
       ]);
     });
 
-    final furthest = furthestSeqByChannel(winners.values);
     final furthestMention = furthestSeqByChannel(
       winners.values.where((m) => m.mentionsMe),
     );
-    for (final entry in furthest.entries) {
-      await store.advanceCursor(entry.key, entry.value);
+    for (final entry in seqsByChannel(winners.values).entries) {
+      await store.advanceCursor(entry.key, entry.value, advance);
     }
     for (final entry in furthestMention.entries) {
       await store.advanceMentionCursor(entry.key, entry.value);
@@ -63,6 +63,14 @@ Map<String, api.Message> batchWinners(
     winners[message.id] = message;
   }
   return winners;
+}
+
+Map<String, List<int>> seqsByChannel(Iterable<api.Message> messages) {
+  final seqs = <String, List<int>>{};
+  for (final message in messages) {
+    (seqs[message.channelId] ??= []).add(message.seq);
+  }
+  return seqs;
 }
 
 Map<String, int> furthestSeqByChannel(Iterable<api.Message> messages) {
