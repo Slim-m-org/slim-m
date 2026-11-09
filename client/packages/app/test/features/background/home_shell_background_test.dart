@@ -43,6 +43,8 @@ Future<({ProviderContainer container, SlimmDatabase db})> _shell(
     await store.write(
       File('test/fixtures/background_forest.png').readAsBytesSync(),
     );
+    // Held as the mounted shell holds it, so the decoded picture is still there when it mounts.
+    s.container.listen(backgroundPictureProvider, (_, _) {});
     await s.container.read(backgroundPictureProvider.future);
   });
   await pumpAtWidth(tester, s.container, width, location: '/channels/c2');
