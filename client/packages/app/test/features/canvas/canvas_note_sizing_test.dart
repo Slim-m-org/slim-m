@@ -8,6 +8,7 @@
 /// LiveKit's own unexported `BroadcastManager`.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_note_sheet.dart'
@@ -121,4 +122,25 @@ void main() {
       }
     },
   );
+
+  test('every painter a widening pass lays out is disposed', () {
+    final live = <Object>{};
+    void track(ObjectEvent event) {
+      if (event is ObjectCreated && event.className == 'TextPainter') {
+        live.add(event.object);
+      }
+      if (event is ObjectDisposed) live.remove(event.object);
+    }
+
+    FlutterMemoryAllocations.instance.addListener(track);
+    addTearDown(() => FlutterMemoryAllocations.instance.removeListener(track));
+
+    noteBoxFor(List.filled(700, 'word').join(' '), fit: const Size(1920, 1080));
+
+    expect(
+      live,
+      isEmpty,
+      reason: 'an undisposed painter holds a native paragraph',
+    );
+  });
 }
