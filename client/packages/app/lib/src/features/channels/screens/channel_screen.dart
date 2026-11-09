@@ -302,8 +302,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
 
   /// Both the flag and the query live in [channelSearchProvider] so the
   /// compact layout's app bar, built above this screen, can drive them too.
-  void _search(String query) =>
-      ref.read(channelSearchProvider(widget.channelId).notifier).run(query);
+  void _search(String query) => ref
+      .read(channelSearchProvider(widget.channelId).notifier)
+      .queryChanged(query);
 
   void _toggleSearch() =>
       ref.read(channelSearchProvider(widget.channelId).notifier).toggle();

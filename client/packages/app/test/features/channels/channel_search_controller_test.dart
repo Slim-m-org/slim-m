@@ -9,8 +9,10 @@
 /// for the other half of that guarantee.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -63,6 +65,12 @@ Map<String, dynamic> _hit(String id, String authorId, String content) => {
   'edited_at': null,
 };
 
+/// The provider is autoDispose, so a test that outlives one await must listen.
+ChannelSearchController _held(ProviderContainer container) {
+  container.listen(channelSearchProvider('ch1'), (_, _) {});
+  return container.read(channelSearchProvider('ch1').notifier);
+}
+
 void main() {
   test('a blocked author is absent from channel search results', () async {
     final container = _harness(
@@ -98,5 +106,147 @@ void main() {
     expect(state.failed, isTrue);
     expect(state.forbidden, isTrue);
     expect(state.results, isNull);
+  });
+
+  test(
+    'a late reply for an older query does not replace the newer one',
+    () async {
+      final replies = <String, Completer<http.Response>>{};
+      final container = _harness(
+        searchHandler: (request) =>
+            (replies[request.url.queryParameters['q']!] = Completer()).future,
+      );
+      final controller = _held(container);
+
+      final dep = controller.run('dep');
+      await Future<void>.delayed(Duration.zero);
+      final deploy = controller.run('deploy');
+      await Future<void>.delayed(Duration.zero);
+      replies['deploy']!.complete(
+        http.Response(jsonEncode([_hit('m2', 'other', 'deploy done')]), 200),
+      );
+      await deploy;
+      replies['dep']!.complete(
+        http.Response(jsonEncode([_hit('m1', 'other', 'depend on it')]), 200),
+      );
+      await dep;
+
+      final state = container.read(channelSearchProvider('ch1'));
+      expect(state.query, 'deploy');
+      expect(state.results?.map((m) => m.content), ['deploy done']);
+    },
+  );
+
+  test(
+    'a reply that lands after the panel was closed leaves it closed',
+    () async {
+      final reply = Completer<http.Response>();
+      final container = _harness(searchHandler: (request) => reply.future);
+      final controller = _held(container)..toggle();
+
+      final pending = controller.run('late');
+      await Future<void>.delayed(Duration.zero);
+      controller.toggle();
+      reply.complete(
+        http.Response(jsonEncode([_hit('m1', 'other', 'late')]), 200),
+      );
+      await pending;
+
+      final state = container.read(channelSearchProvider('ch1'));
+      expect(state.open, isFalse);
+      expect(state.query, isNull);
+      expect(state.results, isNull);
+    },
+  );
+
+  test('clearing the field drops the reply still in flight', () async {
+    final reply = Completer<http.Response>();
+    final container = _harness(searchHandler: (request) => reply.future);
+    final controller = _held(container)..toggle();
+
+    final pending = controller.run('abc');
+    await Future<void>.delayed(Duration.zero);
+    await controller.run('  ');
+    reply.complete(
+      http.Response(jsonEncode([_hit('m1', 'other', 'abc')]), 200),
+    );
+    await pending;
+
+    final state = container.read(channelSearchProvider('ch1'));
+    expect(state.open, isTrue);
+    expect(state.query, isNull);
+    expect(state.results, isNull);
+  });
+
+  test('the previous hits stay up while a newer query loads', () async {
+    final reply = Completer<http.Response>();
+    var calls = 0;
+    final container = _harness(
+      searchHandler: (request) {
+        if (calls++ == 0) {
+          return Future.value(
+            http.Response(jsonEncode([_hit('m1', 'other', 'first')]), 200),
+          );
+        }
+        return reply.future;
+      },
+    );
+    final controller = _held(container);
+    await controller.run('first');
+
+    final pending = controller.run('second');
+    await Future<void>.delayed(Duration.zero);
+
+    final mid = container.read(channelSearchProvider('ch1'));
+    expect(mid.loading, isTrue);
+    expect(mid.results?.map((m) => m.content), ['first']);
+    reply.complete(http.Response(jsonEncode(<Object>[]), 200));
+    await pending;
+  });
+
+  test('typing sends one request once the field has been still', () {
+    fakeAsync((async) {
+      final queries = <String>[];
+      final container = _harness(
+        searchHandler: (request) async {
+          queries.add(request.url.queryParameters['q']!);
+          return http.Response(jsonEncode(<Object>[]), 200);
+        },
+      );
+      final controller = _held(container);
+
+      for (final typed in ['d', 'de', 'dep', 'depl']) {
+        controller.queryChanged(typed);
+        async.elapse(const Duration(milliseconds: 50));
+      }
+      expect(queries, isEmpty, reason: 'every key restarts the wait');
+
+      async.elapse(channelSearchDebounce);
+      async.flushMicrotasks();
+      expect(queries, ['depl']);
+    });
+  });
+
+  test('closing the panel cancels a search that has not been sent yet', () {
+    fakeAsync((async) {
+      final queries = <String>[];
+      final container = _harness(
+        searchHandler: (request) async {
+          queries.add(request.url.queryParameters['q']!);
+          return http.Response(jsonEncode(<Object>[]), 200);
+        },
+      );
+      final controller = _held(container)
+        ..toggle()
+        ..queryChanged('abc')
+        ..toggle();
+
+      async.elapse(channelSearchDebounce * 2);
+      async.flushMicrotasks();
+
+      expect(queries, isEmpty);
+      expect(container.read(channelSearchProvider('ch1')).open, isFalse);
+      expect(controller.mounted, isTrue);
+    });
   });
 }

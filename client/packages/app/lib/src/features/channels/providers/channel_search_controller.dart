@@ -8,6 +8,8 @@
 /// under another channel's name.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -17,8 +19,9 @@ import '../../messages/providers/message_search.dart';
 /// own `Message`: a search result was not necessarily ever written locally.
 ///
 /// [query] is the last query actually submitted, null once cleared. That is a
-/// different thing from [results] being null, which also happens mid-request
-/// and on a failure, neither of which is "no search running". [failed] is
+/// different thing from [results] being null, which also happens before the
+/// first reply and on a failure, neither of which is "no search running". While
+/// a newer query [loading], [results] still holds the previous query's hits. [failed] is
 /// likewise kept apart from an empty [results], so "the request failed" never
 /// renders identically to "the request came back with nothing".
 class ChannelSearchState {
@@ -43,30 +46,52 @@ class ChannelSearchState {
   final bool forbidden;
 }
 
+/// How long the field must sit still before a query is sent.
+const channelSearchDebounce = Duration(milliseconds: 250);
+
 class ChannelSearchController extends StateNotifier<ChannelSearchState> {
   ChannelSearchController(this._ref, this._channelId)
     : super(const ChannelSearchState());
 
   final Ref _ref;
   final String _channelId;
+  Timer? _debounce;
+
+  /// Bumped by every run, clear and close, so only the newest request may write.
+  int _request = 0;
 
   /// Closing discards the query with it: a reopened field starts empty, so
   /// nothing can show hits for a search the user cannot see the terms of.
   void toggle() {
+    _supersede();
     state = state.open
         ? const ChannelSearchState()
         : const ChannelSearchState(open: true);
   }
 
+  /// What typing in the field calls: waits for a pause, then [run]s.
+  void queryChanged(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(channelSearchDebounce, () => unawaited(run(query)));
+  }
+
+  /// Hits already on screen stay up while a newer query loads, so typing does
+  /// not blink the list into a spinner on every pause.
   Future<void> run(String query) async {
+    final request = _supersede();
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
       state = const ChannelSearchState(open: true);
       return;
     }
-    state = ChannelSearchState(open: true, query: trimmed, loading: true);
+    state = ChannelSearchState(
+      open: true,
+      query: trimmed,
+      results: state.results,
+      loading: true,
+    );
     final result = await searchChannelMessages(_ref.read, _channelId, trimmed);
-    if (!mounted) return;
+    if (!mounted || request != _request) return;
     state = switch (result) {
       MessageSearchHits(:final messages) => ChannelSearchState(
         open: true,
@@ -85,6 +110,18 @@ class ChannelSearchController extends StateNotifier<ChannelSearchState> {
         failed: true,
       ),
     };
+  }
+
+  /// Drops a query still waiting to be sent and the reply to one in flight.
+  int _supersede() {
+    _debounce?.cancel();
+    return ++_request;
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 }
 
