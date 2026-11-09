@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/providers/reports_controller.dart';
 import 'package:slimm_platform/testing.dart';
@@ -55,12 +56,14 @@ http.Response _json(Object body) => http.Response(
 /// [handler], with each request's query recorded into [seen] first.
 ProviderContainer _container(
   List<Map<String, String>> seen,
-  Future<http.Response> Function(http.Request) handler,
-) {
+  Future<http.Response> Function(http.Request) handler, {
+  Stream<ServerEvent>? events,
+}) {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+      liveEventsProvider.overrideWithValue(events ?? const Stream.empty()),
       mockApiOverride((request) async {
         if (request.method == 'GET' && request.url.path == '/reports') {
           seen.add(request.url.queryParameters);
@@ -186,7 +189,10 @@ void main() {
 
     final state = container.read(reportsControllerProvider);
     expect(state.reports, isEmpty);
-    expect(state.error, 'you may not moderate here');
+    expect(
+      state.error,
+      'Could not load the reports: you are not allowed to do that.',
+    );
     expect(state.loading, isFalse);
     expect(
       state.more,
@@ -222,7 +228,11 @@ void main() {
       hasLength(reportsPageSize),
       reason: 'a failed load must not throw away the page already on screen',
     );
-    expect(state.error, 'the queue is on fire');
+    expect(
+      state.error,
+      'Could not load more reports.',
+      reason: 'a 500 never puts the server\'s own text in front of the user',
+    );
     expect(state.loading, isFalse);
     expect(
       state.more,
@@ -275,4 +285,109 @@ void main() {
       expect(seen, hasLength(2));
     },
   );
+
+  test('a reply the client cannot parse ends in the error state, not the '
+      'spinner', () async {
+    final seen = <Map<String, String>>[];
+    final container = _container(
+      seen,
+      (_) async => _json([
+        {'id': 'r0'},
+      ]),
+    );
+    container.listen(reportsControllerProvider, (_, __) {});
+
+    container.read(reportsControllerProvider.notifier);
+    await pumpEventQueue();
+
+    final state = container.read(reportsControllerProvider);
+    expect(state.loading, isFalse, reason: 'the spinner must clear');
+    expect(state.error, 'Could not load the reports.');
+    expect(state.reports, isEmpty);
+  });
+
+  test('an unreachable server reads as a sentence, never the transport '
+      'string', () async {
+    final container = _container(
+      [],
+      (_) async => throw http.ClientException('Connection refused'),
+    );
+    container.listen(reportsControllerProvider, (_, __) {});
+
+    container.read(reportsControllerProvider.notifier);
+    await pumpEventQueue();
+
+    expect(
+      container.read(reportsControllerProvider).error,
+      'Could not load the reports: the server could not be reached. '
+      'Nothing was changed.',
+    );
+  });
+
+  test('a live reports.changed frame refreshes the queue and keeps the '
+      'pages on screen until the first one lands', () async {
+    final events = StreamController<ServerEvent>.broadcast();
+    addTearDown(events.close);
+    final refreshed = Completer<void>();
+    var call = 0;
+    final container = _container([], (_) async {
+      call++;
+      if (call == 2) await refreshed.future;
+      return _json(call == 1 ? _page(1) : _page(2));
+    }, events: events.stream);
+    container.listen(reportsControllerProvider, (_, __) {});
+    container.read(reportsControllerProvider.notifier);
+    await pumpEventQueue();
+    expect(container.read(reportsControllerProvider).reports, hasLength(1));
+
+    events.add(const ReportsChanged());
+    await pumpEventQueue();
+
+    var state = container.read(reportsControllerProvider);
+    expect(state.loading, isTrue);
+    expect(
+      state.reports,
+      hasLength(1),
+      reason: 'the queue stays readable while the refresh is in flight',
+    );
+
+    refreshed.complete();
+    await pumpEventQueue();
+
+    state = container.read(reportsControllerProvider);
+    expect(state.loading, isFalse);
+    expect(state.reports.map((r) => r.id), ['r0', 'r1']);
+    expect(call, 2);
+  });
+
+  test('retrying after a failed refresh starts from the top, not after the '
+      'pages already held', () async {
+    final seen = <Map<String, String>>[];
+    final events = StreamController<ServerEvent>.broadcast();
+    addTearDown(events.close);
+    var call = 0;
+    final container = _container(seen, (_) async {
+      call++;
+      if (call == 2) return http.Response('unavailable', 503);
+      return _json(_page(reportsPageSize));
+    }, events: events.stream);
+    container.listen(reportsControllerProvider, (_, __) {});
+    final controller = container.read(reportsControllerProvider.notifier);
+    await pumpEventQueue();
+
+    events.add(const ReportsChanged());
+    await pumpEventQueue();
+    expect(container.read(reportsControllerProvider).error, isNotNull);
+    expect(
+      container.read(reportsControllerProvider).reports,
+      hasLength(reportsPageSize),
+      reason: 'a failed refresh keeps the stale queue readable',
+    );
+
+    await controller.loadMore();
+    await pumpEventQueue();
+
+    expect(seen.last.containsKey('after_id'), isFalse);
+    expect(container.read(reportsControllerProvider).error, isNull);
+  });
 }

@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
 
 /// Under the server's clamp, and enough that a small space rarely needs two.
@@ -24,7 +25,8 @@ class AdminAuditLogState {
   final List<api.AdminChange> items;
   final bool loading;
 
-  /// Kept beside [items], so a failed "load more" keeps the pages on screen.
+  /// A sentence to show, kept beside [items] so a failed "load more" keeps the
+  /// pages on screen.
   final String? error;
 
   /// Whether the last page came back full, the only sign that more follows.
@@ -70,12 +72,17 @@ class AdminAuditLogController extends StateNotifier<AdminAuditLogState> {
         more: page.length >= adminAuditPageSize,
       );
     } on Object catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'load more audit log entries', e, stack);
+      final sentence = reportFailureSentence(
+        api.LogTag.ui,
+        before == null ? 'load the audit log' : 'load more changes',
+        e,
+        stack,
+      );
       if (!mounted || generation != _generation) return;
       state = AdminAuditLogState(
         items: before == null ? held : onto,
         loading: false,
-        error: e is api.ApiException ? e.message : 'Could not read the log.',
+        error: sentence,
         more: more,
       );
     }

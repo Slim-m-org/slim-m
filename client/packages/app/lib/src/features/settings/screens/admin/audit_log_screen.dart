@@ -71,7 +71,6 @@ class AuditLogPane extends ConsumerWidget {
             ReportsLoadMoreRow(
               loading: log.loading,
               error: log.error,
-              failureMessage: 'Could not load more changes.',
               onTap: controller.loadMore,
             ),
         ],
