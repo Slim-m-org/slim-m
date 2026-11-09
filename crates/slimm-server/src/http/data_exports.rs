@@ -29,6 +29,8 @@ const BODY_LIMIT: usize = 4 * 1024;
 /// Most jobs listed at once, newest first.
 const LIST_LIMIT: i64 = 10;
 const ARCHIVE_TYPE: &str = "application/x-tar";
+/// A request this soon after an audited one for the same archive is that download resuming, not a new one.
+const SAME_DOWNLOAD_WINDOW_MS: i64 = 60 * 60 * 1000;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -160,7 +162,7 @@ async fn show(
     Ok(Json(owned(&state, ctx.user_id, &export_id).await?.into()))
 }
 
-/// Streams a finished archive with range support so a large one can resume; a space archive is re-checked against ADMINISTRATOR at download time and each download is audited.
+/// Streams a finished archive with range support so a large one can resume; a space archive is re-checked against ADMINISTRATOR at download time and each download is audited, whatever its Range.
 async fn download(
     Authed(ctx): Authed,
     parts: Parts,
@@ -187,16 +189,15 @@ async fn download(
             ApiError::NotFound("this export is not available to download")
         })?;
     let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
-    // A resumed download is the same download, so only the first byte is audited.
-    if job.kind == ExportKind::Space && starts_at_zero(range) {
+    if job.kind == ExportKind::Space {
         let detail = serde_json::json!({ "size_bytes": job.size_bytes }).to_string();
         state
             .store
-            .record_admin_change(
+            .record_admin_change_unless_recent(
                 ctx.user_id,
-                "space.export_download",
-                Some(&export_id),
+                ("space.export_download", &job.id.to_string()),
                 &detail,
+                SAME_DOWNLOAD_WINDOW_MS,
             )
             .await?;
     }
@@ -211,13 +212,6 @@ async fn download(
         HeaderValue::from_static("private, no-store"),
     );
     Ok(response)
-}
-
-fn starts_at_zero(range: Option<&str>) -> bool {
-    match range.and_then(|r| r.strip_prefix("bytes=")) {
-        None => true,
-        Some(spec) => spec.starts_with('0') && spec[1..].starts_with('-'),
-    }
 }
 
 /// Deletes an export and its file now. A running one is cancelled by its row going.

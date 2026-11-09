@@ -7,7 +7,7 @@
 
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Config {
     /// TCP port the HTTP and WebSocket surface binds to.
     #[serde(default = "default_port")]
@@ -337,7 +337,7 @@ where
 pub const MIN_LISTENER_SECRET_CHARS: usize = 32;
 
 /// Where the call-audio listener is and how to authenticate to it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ListenerSettings {
     pub url: String,
     pub secret: String,
@@ -435,6 +435,8 @@ impl Config {
         Ok(config)
     }
 }
+
+mod redacted;
 
 #[cfg(test)]
 mod tests;

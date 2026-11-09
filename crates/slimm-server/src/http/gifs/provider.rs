@@ -73,6 +73,7 @@ pub(super) async fn search(
         Provider::Tenor => tenor::search(http, base_url, api_key, query, limit).await,
         Provider::Klipy => klipy::search(http, base_url, api_key, query, limit).await,
     }
+    .map_err(without_url)
 }
 
 /// Like [`search`], but for a deployment's "what's popular right now" screen
@@ -92,4 +93,16 @@ pub(super) async fn trending(
         Provider::Tenor => tenor::trending(http, base_url, api_key, limit).await,
         Provider::Klipy => klipy::trending(http, base_url, api_key, limit).await,
     }
+    .map_err(without_url)
 }
+
+/// A transport error prints the request URL, which carries the API key and the member's search words.
+fn without_url(err: anyhow::Error) -> anyhow::Error {
+    match err.downcast::<reqwest::Error>() {
+        Ok(transport) => transport.without_url().into(),
+        Err(other) => other,
+    }
+}
+
+#[cfg(test)]
+mod tests;

@@ -205,3 +205,44 @@ fn the_listener_dials_the_servers_livekit_unless_told_otherwise() {
         Some("ws://10.0.0.100:7880")
     );
 }
+
+fn config_holding_every_secret() -> Config {
+    Config {
+        data_key: Some("data-key-VALUE".to_owned()),
+        push_relay_key: Some("relay-key-VALUE".to_owned()),
+        livekit_api_key: Some("livekit-key-VALUE".to_owned()),
+        livekit_api_secret: Some("livekit-secret-VALUE".to_owned()),
+        gif_api_key: Some("gif-key-VALUE".to_owned()),
+        listener_secret: Some("listener-secret-VALUE".to_owned()),
+        discord_client_secret: Some("discord-secret-VALUE".to_owned()),
+        ..Config::default()
+    }
+}
+
+#[test]
+fn debug_output_never_carries_a_secret() {
+    let config = config_holding_every_secret();
+    for text in [format!("{config:?}"), format!("{config:#?}")] {
+        assert!(!text.contains("VALUE"), "a secret was printed: {text}");
+        assert!(text.contains("Some([redacted])"), "{text}");
+        assert!(text.contains("attachments_dir"), "{text}");
+    }
+}
+
+#[test]
+fn debug_output_still_shows_an_unset_secret_as_unset() {
+    let text = format!("{:?}", Config::default());
+    assert!(text.contains("data_key: None"), "{text}");
+}
+
+#[test]
+fn listener_settings_debug_hides_the_secret() {
+    let settings = ListenerSettings {
+        url: "wss://listener.example".to_owned(),
+        secret: "listener-secret-VALUE".to_owned(),
+        livekit_url: None,
+    };
+    let text = format!("{settings:?}");
+    assert!(!text.contains("VALUE"), "{text}");
+    assert!(text.contains("wss://listener.example"), "{text}");
+}

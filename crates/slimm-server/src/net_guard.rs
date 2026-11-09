@@ -121,15 +121,20 @@ fn is_blocked_v6(ip: Ipv6Addr) -> bool {
     if (s[0] & 0xfe00) == 0xfc00 {
         return true;
     }
-    // fe80::/10 link-local.
-    if (s[0] & 0xffc0) == 0xfe80 {
+    // fe80::/10 link-local, and the deprecated fec0::/10 site-local.
+    if matches!(s[0] & 0xffc0, 0xfe80 | 0xfec0) {
         return true;
     }
-    // 2001:db8::/32 documentation.
-    if s[0] == 0x2001 && s[1] == 0x0db8 {
+    // 2001:db8::/32 documentation, and 2001::/32 Teredo, which hides an IPv4 client address.
+    if s[0] == 0x2001 && matches!(s[1], 0x0db8 | 0x0000) {
         return true;
     }
-    false
+    // 64:ff9b:1::/48 local-use NAT64, which a network may map onto its own internal space.
+    if s[0] == 0x0064 && s[1] == 0xff9b && s[2] == 0x0001 {
+        return true;
+    }
+    // 100::/64 discard-only.
+    s[0] == 0x0100 && s[1..4].iter().all(|&x| x == 0)
 }
 
 /// A response body ran past its cap or could not be read to the end.
@@ -200,6 +205,35 @@ mod tests {
             "2001:db8::1",
         ] {
             assert!(blocked(ip), "{ip} should be blocked");
+        }
+    }
+
+    #[test]
+    fn blocks_the_v6_ranges_that_hide_or_reach_internal_space() {
+        for ip in [
+            "fec0::1",
+            "feff:ffff::1",
+            "2001::1",
+            "2001:0:4136:e378:8000:63bf:3fff:fdd2",
+            "64:ff9b:1::1",
+            "64:ff9b:1:ffff:ffff:ffff:ffff:ffff",
+            "100::1",
+            "100::ffff:ffff:ffff:ffff",
+        ] {
+            assert!(blocked(ip), "{ip} should be blocked");
+        }
+    }
+
+    #[test]
+    fn leaves_the_neighbours_of_those_v6_ranges_open() {
+        for ip in [
+            "2001:1::1",
+            "2001:4860:4860::8888",
+            "64:ff9b:2::1",
+            "100:0:0:1::1",
+            "fe7f::1",
+        ] {
+            assert!(!blocked(ip), "{ip} should be allowed");
         }
     }
 

@@ -99,9 +99,16 @@ async fn deliver_inner(
         content,
         presence,
         reply_ping,
+        mass_authority,
     } = sent;
     let (recipients, mentioned) = match message_audience(
-        &store, channel_id, author_id, &content, &presence, reply_ping,
+        &store,
+        channel_id,
+        author_id,
+        &content,
+        &presence,
+        reply_ping,
+        mass_authority,
     )
     .await
     {

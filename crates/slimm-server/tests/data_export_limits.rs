@@ -198,6 +198,68 @@ async fn a_resumed_download_is_audited_once() {
     assert_eq!(audit_count(&w, &alice, "space.export_download").await, 1);
 }
 
+/// Fetches a space archive with `first` as the opening request, then resumes it from byte 100.
+async fn audited_after_opening_with(prefix: &str, first: &str) -> usize {
+    let (store, _guard) = support::new_store(prefix).await;
+    let w = world(store.clone());
+    let (alice, _) = account(&store, "alice").await;
+    let job = w.export(&alice, "space").await;
+    let id = job["id"].as_str().unwrap();
+
+    let opened = w.download_range(&alice, id, first).await;
+    let resumed = w.download_range(&alice, id, "bytes=100-").await;
+
+    assert_eq!(opened, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(resumed, StatusCode::PARTIAL_CONTENT);
+    audit_count(&w, &alice, "space.export_download").await
+}
+
+#[tokio::test]
+async fn skipping_the_first_byte_does_not_dodge_the_audit() {
+    assert_eq!(
+        audited_after_opening_with("slimm-export-skip-one", "bytes=1-").await,
+        1
+    );
+}
+
+#[tokio::test]
+async fn a_suffix_range_does_not_dodge_the_audit() {
+    let audited = audited_after_opening_with("slimm-export-suffix", "bytes=-5000000").await;
+    assert_eq!(audited, 1);
+}
+
+#[tokio::test]
+async fn an_unparseable_range_does_not_dodge_the_audit() {
+    let (store, _guard) = support::new_store("slimm-export-junk-range").await;
+    let w = world(store.clone());
+    let (alice, _) = account(&store, "alice").await;
+    let job = w.export(&alice, "space").await;
+    let id = job["id"].as_str().unwrap();
+
+    let status = w.download_range(&alice, id, "bytes=abc-").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(audit_count(&w, &alice, "space.export_download").await, 1);
+}
+
+#[tokio::test]
+async fn a_download_long_after_the_last_one_is_audited_again() {
+    let (store, pool, _guard) = support::new_store_with_pool("slimm-export-redownload").await;
+    let w = world(store.clone());
+    let (alice, _) = account(&store, "alice").await;
+    let job = w.export(&alice, "space").await;
+    let id = job["id"].as_str().unwrap();
+    w.download_range(&alice, id, "bytes=0-99").await;
+    sqlx::query("UPDATE admin_audit_log SET created_at = 1 WHERE action = 'space.export_download'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    w.download_range(&alice, id, "bytes=1-").await;
+
+    assert_eq!(audit_count(&w, &alice, "space.export_download").await, 2);
+}
+
 #[tokio::test]
 async fn an_administrator_demoted_after_starting_cannot_download() {
     let (store, _guard) = support::new_store("slimm-export-demoted").await;
