@@ -25,16 +25,19 @@ final clipboardImageWriterProvider = Provider<ClipboardImageWriter>(
 ///
 /// [loadBytes] is passed on unawaited: a browser only honours a clipboard
 /// write started inside the gesture that asked for it.
+///
+/// What it needs from [ref] is read before the first await: the widget that
+/// asked can be gone by the time a large original has loaded.
 Future<String?> copyImageToClipboard(
   WidgetRef ref,
   api.Attachment image,
   Future<Uint8List> Function() loadBytes,
 ) async {
+  final writer = ref.read(clipboardImageWriterProvider);
+  final toasts = ref.read(toastsProvider.notifier);
   try {
-    await ref.read(clipboardImageWriterProvider).writeImage(loadBytes());
-    ref
-        .read(toastsProvider.notifier)
-        .show('Image copied.', severity: AppToastSeverity.success);
+    await writer.writeImage(loadBytes());
+    toasts.show('Image copied.', severity: AppToastSeverity.success);
     return null;
   } on ClipboardImageWriteException catch (e, stack) {
     api.AppLog.swallowed(
@@ -60,22 +63,24 @@ Future<String?> copyImageToClipboard(
 
 /// Saves [image] to the photo library, a file the reader names, or a browser
 /// download, whichever the platform's [ImageExporter] does.
+///
+/// Reads from [ref] before the first await, for the reason
+/// [copyImageToClipboard] does.
 Future<String?> saveImageToDevice(
   WidgetRef ref,
   api.Attachment image,
   Future<Uint8List> Function() loadBytes,
 ) async {
   final name = image.filename;
+  final exporter = ref.read(imageExporterProvider);
+  final toasts = ref.read(toastsProvider.notifier);
   try {
-    final exporter = ref.read(imageExporterProvider);
     final saved = await exporter.save(await loadBytes(), filename: name);
     if (saved) {
-      ref
-          .read(toastsProvider.notifier)
-          .show(
-            exporter.savesToLibrary ? 'Saved to photos.' : 'Saved.',
-            severity: AppToastSeverity.success,
-          );
+      toasts.show(
+        exporter.savesToLibrary ? 'Saved to photos.' : 'Saved.',
+        severity: AppToastSeverity.success,
+      );
     }
     return null;
   } on api.ApiException catch (e, stack) {
