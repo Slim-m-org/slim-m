@@ -7,7 +7,8 @@
 //!
 //! A handler charges iff its signature takes a `RateLimited<C>`,
 //! `AuthedLimited<C>` or `ManagerLimited<C>` extractor, or its body calls
-//! `enforce(`. That is exactly the convention `http/extract.rs`'s own doc
+//! `enforce(` or answers `TOO_MANY_REQUESTS` itself (`/ws` reads a bucket
+//! with `exhausted` before the upgrade, where no extractor can run). That is exactly the convention `http/extract.rs`'s own doc
 //! comments describe, and the same rule `tests/rate_limit_coverage.rs` already enforces for a
 //! related but distinct invariant (every `Authed`-only handler is a bug); this
 //! gate is about the *documentation* of a charge that already exists, not
@@ -191,12 +192,13 @@ fn resolve_handler(manifest_dir: &Path, route: &RouterRoute) -> Option<(String, 
 
 /// The exact charge rule this gate enforces: a `RateLimited<C>`,
 /// `AuthedLimited<C>` or `ManagerLimited<C>` extractor in the signature, or an
-/// `enforce(` call in the body.
+/// `enforce(` call or a `TOO_MANY_REQUESTS` answer in the body.
 fn charges(handler: &HandlerFn) -> bool {
     handler.signature.contains("RateLimited<")
         || handler.signature.contains("AuthedLimited<")
         || handler.signature.contains("ManagerLimited<")
         || handler.body.contains("enforce(")
+        || handler.body.contains("TOO_MANY_REQUESTS")
 }
 
 /// One resolved router route paired with its charge verdict, built once and
@@ -336,7 +338,7 @@ fn charging_routes_document_429() {
         reverse_findings.is_empty(),
         "\nthese operations document \"429\" but their handler does not charge by this gate's \
          rule (RateLimited<C>/AuthedLimited<C>/ManagerLimited<C> in the signature, or an \
-         enforce( call in the body):\n\n{}\n",
+         enforce( call or a TOO_MANY_REQUESTS answer in the body):\n\n{}\n",
         reverse_findings.join("\n")
     );
 }
@@ -369,6 +371,10 @@ async fn charged_by_enforce_call(
     parts: Parts,
 ) -> Result<(), ApiError> { enforce(&state, &parts, Some(&ctx), Class::Write)?; Ok(()) }
 
+async fn answers_too_many_requests(
+    State(state): State<AppState>,
+) -> Response { StatusCode::TOO_MANY_REQUESTS.into_response() }
+
 /// This handler would call enforce(...) if it charged anything, which it does not.
 async fn charges_nothing(
     Authed(ctx): Authed,
@@ -376,16 +382,13 @@ async fn charges_nothing(
 "#;
     let scrubbed = code_only(sample);
     let fns = functions_in(&scrubbed);
-    assert_eq!(
-        fns.len(),
-        5,
-        "expected all five sample handlers to be found"
-    );
+    assert_eq!(fns.len(), 6, "expected all six sample handlers to be found");
 
     assert!(charges(&fns["charged_by_rate_limited"]));
     assert!(charges(&fns["charged_by_authed_limited"]));
     assert!(charges(&fns["charged_by_manager_limited"]));
     assert!(charges(&fns["charged_by_enforce_call"]));
+    assert!(charges(&fns["answers_too_many_requests"]));
     assert!(
         !charges(&fns["charges_nothing"]),
         "a doc comment naming enforce(...) must not read as a charge"
