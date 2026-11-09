@@ -3,6 +3,7 @@
 /// that field.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -14,8 +15,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/member_invites_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -84,4 +88,71 @@ void main() {
       expect(tester.widget<SettingsToggleRow>(toggle).value, isTrue);
     },
   );
+
+  testWidgets('leaving mid-save still refreshes what the shell shows', (
+    tester,
+  ) async {
+    final saved = Completer<void>();
+    var versionReads = 0;
+    final client = MockClient((request) async {
+      if (request.method == 'PATCH') await saved.future;
+      if (request.url.path == '/version') {
+        versionReads++;
+        return http.Response(
+          jsonEncode({'name': 'slim-m', 'version': '0.10.0', 'protocol': 1}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response(
+        jsonEncode({'join_policy': 'invite', 'members_can_invite': false}),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        apiProvider.overrideWith((ref) {
+          final built = api.SlimmApi(
+            baseUrl: Uri.parse('http://localhost:8080'),
+            session: ref.watch(sessionProvider),
+            httpClient: client,
+          );
+          ref.onDispose(built.close);
+          return built;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(serverInfoProvider, (_, _) {});
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(body: MemberInvitesSection()),
+        ),
+      ),
+    );
+    await pumpFrames(tester);
+
+    final toggle = find.byWidgetPredicate(
+      (w) => w is SettingsToggleRow && w.label == 'Members can invite',
+    );
+    tester.widget<SettingsToggleRow>(toggle).onChanged!(true);
+    await tester.pump();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    saved.complete();
+    await pumpFrames(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(versionReads, 2);
+  });
 }

@@ -113,6 +113,7 @@ Future<Harness> pumpReports(
   SlimmDatabase? db,
   GoRouter? router,
   List<Override> overrides = const [],
+  Future<void> Function(Call call)? beforeReply,
 }) async {
   final calls = <Call>[];
   final container = ProviderContainer(
@@ -124,7 +125,9 @@ Future<Harness> pumpReports(
         storeProvider.overrideWith((ref) async => MessageStore(db)),
       syncControllerProvider.overrideWith((ref) => LiveSyncController(ref)),
       mockApiOverride((request) async {
-        calls.add(Call(request.method, request.url.path));
+        final call = Call(request.method, request.url.path);
+        calls.add(call);
+        await beforeReply?.call(call);
         if (request.method == 'GET' && request.url.path == '/reports') {
           return http.Response(
             '[${reports.join(',')}]',

@@ -39,13 +39,17 @@ class _VoiceLobbyRedirectState extends ConsumerState<VoiceLobbyRedirect>
   }
 
   Future<void> _open() async {
+    if (!mounted) return;
+    final container = ProviderScope.containerOf(context, listen: false);
     String? roomId;
     await guard(
       whatFailed: 'open your room',
       action: () async {
-        final room = await ref.read(apiProvider).openVoiceRoom(widget.lobbyId);
+        final room = await container
+            .read(apiProvider)
+            .openVoiceRoom(widget.lobbyId);
         // Stored before moving, so the room is in the rail before its live event lands.
-        final store = await ref.read(storeProvider.future);
+        final store = await container.read(storeProvider.future);
         await store.upsertChannels([room]);
         roomId = room.id;
       },

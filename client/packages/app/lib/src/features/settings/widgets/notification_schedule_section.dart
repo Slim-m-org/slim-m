@@ -22,12 +22,12 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/device_timezone.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../../../widgets/run_guarded.dart';
+import 'notification_schedule_write.dart';
 import 'settings_info_line.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
-import '../providers/settings_actions.dart';
 
 const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const _dayFullNames = [
@@ -65,37 +65,37 @@ class _NotificationScheduleSectionState
     required TimeOfDay end,
     required api.OffHoursMode mode,
   }) async {
-    final timezone = await ref.read(deviceTimezoneProvider.future);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final timezone = await container.read(deviceTimezoneProvider.future);
     final startMinute = start.hour * 60 + start.minute;
     final endMinute = end.hour * 60 + end.minute;
-    final ok = await guard(
+    await writeNotificationSchedule(
+      container,
+      guard,
       whatFailed: 'update your notification schedule',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .setNotificationSchedule(
-            timezone: timezone,
-            offHoursMode: mode,
-            days: [
-              for (final weekday in weekdays)
-                api.NotificationScheduleDay(
-                  weekday: weekday,
-                  startMinute: startMinute,
-                  endMinute: endMinute,
-                ),
-            ],
-          ),
+      write: (actions) => actions.setNotificationSchedule(
+        timezone: timezone,
+        offHoursMode: mode,
+        days: [
+          for (final weekday in weekdays)
+            api.NotificationScheduleDay(
+              weekday: weekday,
+              startMinute: startMinute,
+              endMinute: endMinute,
+            ),
+        ],
+      ),
     );
-    if (ok) ref.invalidate(notificationScheduleProvider);
   }
 
   Future<void> _toggle(bool enabled, api.NotificationSchedule? current) async {
     if (!enabled) {
-      final ok = await guard(
+      await writeNotificationSchedule(
+        ProviderScope.containerOf(context, listen: false),
+        guard,
         whatFailed: 'turn off your notification schedule',
-        action: () =>
-            ref.read(settingsActionsProvider).clearNotificationSchedule(),
+        write: (actions) => actions.clearNotificationSchedule(),
       );
-      if (ok) ref.invalidate(notificationScheduleProvider);
       return;
     }
     await _save(

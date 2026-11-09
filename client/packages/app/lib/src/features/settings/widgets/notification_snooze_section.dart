@@ -12,8 +12,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/notification_schedule_controller.dart';
 import '../../../widgets/run_guarded.dart';
+import 'notification_schedule_write.dart';
 import 'settings_section_header.dart';
-import '../providers/settings_actions.dart';
 
 class NotificationSnoozeSection extends ConsumerStatefulWidget {
   const NotificationSnoozeSection({super.key});
@@ -35,24 +35,19 @@ class _NotificationSnoozeSectionState
     return _apply(tomorrow.millisecondsSinceEpoch);
   }
 
-  Future<void> _apply(int untilMs) async {
-    final ok = await guard(
-      whatFailed: 'snooze your notifications',
-      action: () => ref
-          .read(settingsActionsProvider)
-          .setNotificationSnooze(untilMs)
-          .then((_) {}),
-    );
-    if (ok) ref.invalidate(notificationScheduleProvider);
-  }
+  Future<void> _apply(int untilMs) => writeNotificationSchedule(
+    ProviderScope.containerOf(context, listen: false),
+    guard,
+    whatFailed: 'snooze your notifications',
+    write: (actions) => actions.setNotificationSnooze(untilMs).then((_) {}),
+  );
 
-  Future<void> _cancel() async {
-    final ok = await guard(
-      whatFailed: 'cancel your snooze',
-      action: () => ref.read(settingsActionsProvider).clearNotificationSnooze(),
-    );
-    if (ok) ref.invalidate(notificationScheduleProvider);
-  }
+  Future<void> _cancel() => writeNotificationSchedule(
+    ProviderScope.containerOf(context, listen: false),
+    guard,
+    whatFailed: 'cancel your snooze',
+    write: (actions) => actions.clearNotificationSnooze(),
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -60,10 +60,11 @@ class _VoiceRoomSettingsSheetState extends ConsumerState<VoiceRoomSettingsSheet>
 
   Future<void> _save({String? name, bool? locked, int? userLimit}) async {
     setState(() => _saving = true);
+    final container = ProviderScope.containerOf(context, listen: false);
     await guard(
       whatFailed: 'change the room',
       action: () async {
-        final updated = await ref
+        final updated = await container
             .read(voiceActionsProvider)
             .updateVoiceRoom(
               channelId: widget.room.id,
@@ -71,7 +72,7 @@ class _VoiceRoomSettingsSheetState extends ConsumerState<VoiceRoomSettingsSheet>
               locked: locked,
               userLimit: userLimit,
             );
-        final store = await ref.read(storeProvider.future);
+        final store = await container.read(storeProvider.future);
         await store.upsertChannels([updated]);
       },
     );

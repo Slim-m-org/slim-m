@@ -28,16 +28,19 @@ class _MemberInvitesSectionState extends ConsumerState<MemberInvitesSection>
     with
         GuardedActionState<MemberInvitesSection>,
         OptimisticSettingState<MemberInvitesSection, bool> {
-  Future<void> _set(bool enabled) async {
-    await saveOptimistic(
+  Future<void> _set(bool enabled) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return saveOptimistic(
       enabled,
       whatFailed: 'change who can invite',
-      action: () => ref
-          .read(apiProvider)
-          .setSpaceSettings(SpaceSettingsUpdate(membersCanInvite: enabled)),
+      action: () async {
+        await container
+            .read(apiProvider)
+            .setSpaceSettings(SpaceSettingsUpdate(membersCanInvite: enabled));
+        container.invalidate(serverInfoProvider);
+      },
       refresh: spaceSettingsProvider,
     );
-    ref.invalidate(serverInfoProvider);
   }
 
   @override

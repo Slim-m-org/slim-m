@@ -7,6 +7,7 @@
 /// fail on every tap.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -15,9 +16,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/settings/providers/notification_preference_controller.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
@@ -106,6 +109,51 @@ void main() {
     expect(requests, contains('PUT /push/preference'));
     expect(stored, 'nothing');
     expect(find.text('Nothing'), findsOneWidget);
+  });
+
+  testWidgets('leaving the pane mid-save still refreshes the stored value', (
+    tester,
+  ) async {
+    var stored = 'everything';
+    var reads = 0;
+    final saved = Completer<void>();
+    final container = _containerWith((request) async {
+      if (request.method == 'PUT' && request.url.path == '/push/preference') {
+        await saved.future;
+        stored =
+            (jsonDecode(request.body) as Map<String, dynamic>)['preference']
+                as String;
+      }
+      if (request.method == 'GET' && request.url.path == '/push/preference') {
+        reads++;
+      }
+      return request.url.path == '/push/preference'
+          ? _json({'preference': stored})
+          : http.Response('', 404);
+    });
+    addTearDown(container.dispose);
+    container.listen(notificationPreferenceProvider, (_, _) {});
+
+    await tester.pumpWidget(_harness(container));
+    await waitUntil(
+      tester,
+      () => container.read(notificationPreferenceProvider).hasValue,
+    );
+    await tester.tap(find.text('All messages'));
+    await pumpFrames(tester, frames: 20);
+    await tester.tap(find.text('Nothing'));
+    await tester.pump();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    saved.complete();
+    await pumpFrames(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(reads, 2);
   });
 
   testWidgets('choosing mentions and direct messages sends that value', (
