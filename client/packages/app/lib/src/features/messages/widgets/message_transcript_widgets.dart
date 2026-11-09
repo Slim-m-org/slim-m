@@ -193,9 +193,9 @@ class HistoryTopAffordance extends StatelessWidget {
   }
 }
 
-/// A one-shot fade-and-rise for a freshly arrived message. Keyed by the newest
-/// id by its caller, so a new arrival remounts and plays while a rebuild with
-/// the same id reuses the running animation rather than cutting it. Reads
+/// A one-shot fade-and-rise for a freshly arrived message. Keyed by its message
+/// id by its caller, so the row keeps its state as later arrivals push it along;
+/// [animateOnMount] is read once, when the row first mounts. Reads
 /// reduce-motion once, on first layout, and lands instantly if set.
 class MessageEntrance extends StatefulWidget {
   const MessageEntrance({

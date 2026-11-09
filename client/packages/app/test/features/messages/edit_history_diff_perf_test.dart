@@ -30,4 +30,25 @@ void main() {
     expect(spans.where((s) => s.kind == DiffKind.added).single.text, 'X');
     expect(spans.where((s) => s.kind == DiffKind.removed).single.text, 'c');
   });
+
+  test('a message rewritten end to end is not diffed through a huge table', () {
+    final oldText = [for (var i = 0; i < 2000; i++) 'a$i'].join(' ');
+    final newText = [for (var i = 0; i < 2000; i++) 'b$i'].join(' ');
+
+    final watch = Stopwatch()..start();
+    final spans = diffWords(oldText, newText);
+    watch.stop();
+
+    expect(watch.elapsedMilliseconds, lessThan(200));
+    expect(spans.map((s) => (s.text, s.kind)).toList(), [
+      (oldText, DiffKind.removed),
+      (newText, DiffKind.added),
+    ]);
+  });
+
+  test('a rewrite small enough to table still pairs the shared words', () {
+    final spans = diffWords('keep this a b c keep', 'keep this x y z keep');
+    expect(spans.map((s) => s.text).join(), contains('keep this '));
+    expect(spans.where((s) => s.kind == DiffKind.equal).last.text, ' keep');
+  });
 }
