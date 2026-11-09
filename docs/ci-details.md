@@ -273,10 +273,13 @@ Prefer `expectSettled`, `waitUntil` (`test/support/async_wait.dart`) and the geo
 `scripts/check-comment-cap.sh` enforces the other half of the same `CLAUDE.md` rule: a plain `//` or `#` comment never exceeds one line.
 It ratchets rather than merely allows: a file may not gain a new run past its listed count, and the pre-existing ones are frozen at the count they were found at in `scripts/comment-cap-allow.txt`, the same shape as the file-size allowlist above.
 Doc comments (`///`, `//!`, `/**`) are exempt everywhere.
-Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks included) and TOML.
+Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks included), TOML, and the native and web sources: Swift, Kotlin, C, C++, Objective-C, TypeScript and JavaScript.
+Generated files (`generated_plugin_registrant.*`, `GeneratedPluginRegistrant.swift`) and the vendored wayland-scanner output are skipped.
 Shell, YAML and TOML only have `#` comments, and a `#` block is also how such a file documents itself, so the leading block at the top of the file is a header and never counts as a run.
 That covers the shebang, the SPDX line, a description and the blank lines between them, up to the first line of real content.
 Any run after that point counts like it does in every other language, and `//` and `/* */` are not read as comments in these file types.
+Python reads `#` comments only too, with no header exemption.
+Every other language has no `#` comments, so a stacked Rust `#[attr]` or a C `#include` is never counted as a run.
 
 ## licenses
 
