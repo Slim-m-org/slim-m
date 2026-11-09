@@ -5,6 +5,8 @@
 /// nested navigator that never learns a root sheet opened.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,6 +65,12 @@ Future<BuildContext> _pump(WidgetTester tester) async {
   return pageContext;
 }
 
+/// A route's entrance is a timed transition, so a plain pump past it, not a settle that would hide a ticker still running.
+Future<void> _settleRoute(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 600));
+}
+
 void main() {
   setUp(() {
     _gated = null;
@@ -115,6 +123,87 @@ void main() {
       await closed;
       await tester.pumpAndSettle();
       expect(_gated, isTrue, reason: 'uncovered: it plays again');
+    });
+
+    testWidgets('an image inside the topmost sheet plays at width $width', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final page = await _pump(tester);
+      bool? inSheet;
+
+      unawaited(
+        showAppSheet<void>(
+          page,
+          builder: (_) => AnimationGate(child: _Probe((v) => inSheet = v)),
+        ),
+      );
+      await _settleRoute(tester);
+
+      expect(inSheet, isTrue, reason: 'nothing is above the sheet it is in');
+      expect(_gated, isFalse, reason: 'the page beneath it is still covered');
+    });
+
+    testWidgets('a sheet under a second sheet pauses until the second closes '
+        'at width $width', (tester) async {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final page = await _pump(tester);
+      bool? first;
+      bool? second;
+
+      unawaited(
+        showAppSheet<void>(
+          page,
+          builder: (_) => AnimationGate(child: _Probe((v) => first = v)),
+        ),
+      );
+      await _settleRoute(tester);
+      expect(first, isTrue);
+
+      unawaited(
+        showAppSheet<void>(
+          page,
+          builder: (_) => AnimationGate(child: _Probe((v) => second = v)),
+        ),
+      );
+      await _settleRoute(tester);
+      expect(second, isTrue, reason: 'the second sheet is the topmost');
+      expect(first, isFalse, reason: 'the first sheet is now covered');
+
+      Navigator.of(page, rootNavigator: true).pop();
+      await _settleRoute(tester);
+      expect(first, isTrue, reason: 'uncovered again: it plays');
+    });
+
+    testWidgets('a page stays paused beneath an opaque route and a sheet, and '
+        'plays once both are gone at width $width', (tester) async {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final page = await _pump(tester);
+      final root = Navigator.of(page, rootNavigator: true);
+
+      unawaited(
+        root.push(
+          MaterialPageRoute<void>(builder: (_) => const Text('full screen')),
+        ),
+      );
+      await _settleRoute(tester);
+      unawaited(
+        showAppSheet<void>(page, builder: (_) => const Text('sheet on top')),
+      );
+      await _settleRoute(tester);
+      root.pop();
+      await _settleRoute(tester);
+      expect(_gated, isFalse, reason: 'the full screen route still covers it');
+
+      root.pop();
+      await _settleRoute(tester);
+      expect(_gated, isTrue, reason: 'nothing covers it any more');
     });
   }
 }
