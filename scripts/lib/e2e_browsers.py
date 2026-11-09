@@ -12,6 +12,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -20,8 +21,9 @@ import e2e_api
 from e2e_api import Api
 from e2e_client import Client
 
-# Offsets from E2E_CDP_BASE (9800); 1 and 2 are alice and bob, which e2e.sh owns and pkills by port.
+# Offsets from E2E_CDP_BASE (9800) for the browsers a scenario starts for itself; alice and bob are 1 and 2.
 EXTRA_OFFSETS = {"carol": 11, "noisy": 13, "raw": 14, "vqa": 15, "vqb": 16, "tabs": 17}
+MAIN_OFFSETS = (1, 2)
 
 
 # A readiness probe is retried, so one that hangs must give up quickly to be retried.
@@ -35,6 +37,66 @@ def cdp_base():
 
 def extra_port(name):
     return cdp_base() + EXTRA_OFFSETS[name]
+
+
+def debug_ports(base):
+    """Every remote-debugging port a run at [base] can leave a Chrome on."""
+    return [base + offset for offset in (*MAIN_OFFSETS, *EXTRA_OFFSETS.values())]
+
+
+def _argv(pid):
+    with open(f"/proc/{pid}/cmdline", "rb") as fh:
+        return fh.read().split(b"\0")
+
+
+def stale_pids(base):
+    """Processes still holding one of this run's debugging ports, matched on the exact flag."""
+    flags = {f"--remote-debugging-port={port}".encode() for port in debug_ports(base)}
+    found = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit() or int(entry) == os.getpid():
+            continue
+        try:
+            if flags.intersection(_argv(entry)):
+                found.append(int(entry))
+        except OSError:
+            continue
+    return found
+
+
+def stop_stale_browsers(base, grace=10):
+    """Stops the Chromes a run that kept its stack left on this run's ports; returns their pids.
+
+    A new Chrome cannot bind a port the old one holds, yet the readiness probe
+    would still answer, so the run would drive a browser whose profile was just deleted.
+    """
+    found = stale_pids(base)
+    waiting = found
+    for sig, wait in ((signal.SIGTERM, grace), (signal.SIGKILL, 5)):
+        waiting = [pid for pid in waiting if _signal(pid, sig)]
+        deadline = time.time() + wait
+        while waiting and time.time() < deadline:
+            time.sleep(0.2)
+            waiting = [pid for pid in waiting if _alive(pid)]
+    return found
+
+
+def _alive(pid):
+    """Whether [pid] still runs; a zombie waiting to be reaped has already stopped."""
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as fh:
+            return fh.read().rsplit(b")", 1)[1].split()[0] != b"Z"
+    except OSError:
+        return False
+
+
+def _signal(pid, sig):
+    """Whether [pid] was signalled; a process that is gone or not ours is not waited for."""
+    try:
+        os.kill(pid, sig)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
 
 
 def _chrome():
@@ -156,3 +218,16 @@ def dismiss_welcome(client, timeout=20):
                 return
         time.sleep(0.25)
     client.shot("welcome-stuck")
+
+
+def main(argv):
+    if argv[1:] != ["stop-stale"]:
+        raise SystemExit(f"usage: {argv[0]} stop-stale")
+    stopped = stop_stale_browsers(cdp_base())
+    if stopped:
+        ports = debug_ports(cdp_base())
+        print(f"stopped {len(stopped)} browser(s) left on ports {min(ports)}..{max(ports)}")
+
+
+if __name__ == "__main__":
+    main(sys.argv)
