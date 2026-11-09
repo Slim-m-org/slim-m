@@ -124,7 +124,7 @@ class _NotificationScheduleAllowedChannelsState
 
   Future<void> _add() async {
     final store = await ref.read(storeProvider.future);
-    final channels = await store.watchChannels().first;
+    final channels = await store.allChannels();
     if (!mounted) return;
     final picked = await showAppSheet<Channel>(
       context,

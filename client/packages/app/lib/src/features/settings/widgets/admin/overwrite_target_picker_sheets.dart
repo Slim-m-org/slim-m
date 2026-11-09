@@ -2,7 +2,7 @@
 /// [ChannelPickerSheet] for `channel_permissions_screen.dart`'s channel choice.
 ///
 /// It takes an already-resolved list: its caller awaits a one-shot
-/// `store.watchChannels().first` rather than a live provider.
+/// `store.allChannels()` rather than a live provider.
 library;
 
 import 'package:flutter/material.dart';
