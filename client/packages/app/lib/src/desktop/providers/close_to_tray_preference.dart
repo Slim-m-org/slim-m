@@ -8,19 +8,22 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/preference_controller.dart';
 import '../../providers/providers.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const closeToTrayKey = 'slimm.desktop.close_to_tray';
 
-class CloseToTrayController extends Notifier<bool> {
+class CloseToTrayController extends Notifier<bool>
+    implements RestorablePreference {
   @override
   bool build() {
-    unawaited(_restore());
+    unawaited(restore());
     return true;
   }
 
-  Future<void> _restore() async {
+  @override
+  Future<void> restore() async {
     try {
       final prefs = await ref.read(preferencesProvider.future);
       final stored = prefs.getBool(closeToTrayKey);

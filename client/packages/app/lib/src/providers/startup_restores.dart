@@ -20,6 +20,7 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'app_lock_preference.dart';
 import '../features/background/providers/app_background_controller.dart';
 import '../features/messages/providers/attachment_preview_quality.dart';
+import '../desktop/providers/close_to_tray_preference.dart';
 import '../desktop/providers/desktop_splash_preference.dart';
 import '../features/settings/providers/display_density.dart';
 import '../features/settings/providers/display_preferences.dart';
@@ -82,6 +83,7 @@ restorablePreferences = {
   'ui scale': (c) => c.read(uiScaleControllerProvider.notifier),
   'app lock': (c) => c.read(appLockPreferenceProvider.notifier),
   'rail width': (c) => c.read(railWidthControllerProvider.notifier),
+  'close to tray': (c) => c.read(closeToTrayProvider.notifier),
 };
 
 /// Re-reads the shared appearance and behaviour preferences into a container

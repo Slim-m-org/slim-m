@@ -450,7 +450,7 @@ class DesktopWindowShell {
       positionSupported: _positionSupported,
       onShow: (action) => _offerFirstRunNoticeIfNeeded(container, action),
       fullscreenHeld: () => fullscreenHolds.any,
-      keepInTray: () => container.read(closeToTrayProvider),
+      keepInTray: () => _onScreen(container).read(closeToTrayProvider),
       quit: () => quit(port),
     )..start();
     // Read now so the stored choice has loaded before the first close.
@@ -477,9 +477,13 @@ class DesktopWindowShell {
     if (action == null) return;
     final notice = await container.read(firstRunTrayNoticeProvider.future);
     if (notice.hasBeenShown(action)) return;
-    container.read(firstRunTrayNoticeCloseActionProvider.notifier).state =
-        action;
+    final screen = _onScreen(container);
+    screen.read(firstRunTrayNoticeCloseActionProvider.notifier).state = action;
   }
+
+  /// The account on screen owns the settings a close acts on, not the first one built.
+  ProviderContainer _onScreen(ProviderContainer fallback) =>
+      fallback.read(accountHostProvider)?.active?.container ?? fallback;
 }
 
 final desktopWindowShellProvider = Provider<DesktopWindowShell>(
