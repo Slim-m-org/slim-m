@@ -50,7 +50,7 @@ def sfu_participants(room):
         headers={"Authorization": f"Bearer {header}.{payload}.{sig}",
                  "Content-Type": "application/json",
                  "User-Agent": e2e_api.USER_AGENT})
-    return json.load(urllib.request.urlopen(req)).get("participants", [])
+    return json.load(e2e_api.urlopen(req)).get("participants", [])
 
 
 def tracks_of(participant, source):

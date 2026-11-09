@@ -15,8 +15,8 @@ import re
 import os
 import tempfile
 import time
-import urllib.request
 
+import e2e_api
 import e2e_js
 
 TIMEOUT = 90
@@ -66,7 +66,7 @@ class Client:
     def _connect(self):
         from websocket import create_connection
 
-        targets = json.load(urllib.request.urlopen(
+        targets = json.load(e2e_api.urlopen(
             f"http://127.0.0.1:{self.port}/json/list"))
         page = next(t for t in targets if t["type"] == "page"
                     and self.target in (None, t["id"]))

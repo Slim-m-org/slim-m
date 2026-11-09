@@ -6,7 +6,9 @@ inspects the `Request` object that would have been sent rather than any
 real response. What matters is what leaves the process, not what a server
 does with it.
 """
+import socket
 import sys
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -34,7 +36,7 @@ class KeepSignedInTest(unittest.TestCase):
         api.keep_signed_in("ada", "pw", "seed-0")
         seen = []
 
-        def fake_open(request):
+        def fake_open(request, timeout=None):
             seen.append((request.full_url.rsplit("/", 1)[-1], request.get_header("Authorization")))
             if request.full_url.endswith("/auth/login"):
                 return _fake_response(b'{"access_token": "new"}')
@@ -62,6 +64,30 @@ class KeepSignedInTest(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError):
                 api.call("POST", "/auth/login", {})
         self.assertEqual(mock_open.call_count, 1)
+
+
+class TimeoutTest(unittest.TestCase):
+    def test_a_call_carries_the_default_timeout(self):
+        api = e2e_api.Api("https://example.invalid")
+        with patch("urllib.request.urlopen", return_value=_fake_response()) as mock_open:
+            api.call("GET", "/me")
+        self.assertEqual(mock_open.call_args.kwargs["timeout"], e2e_api.HTTP_TIMEOUT)
+
+    def test_a_caller_can_choose_its_own_timeout(self):
+        api = e2e_api.Api("https://example.invalid", timeout=120)
+        with patch("urllib.request.urlopen", return_value=_fake_response()) as mock_open:
+            api.version()
+        self.assertEqual(mock_open.call_args.kwargs["timeout"], 120)
+
+    def test_a_server_that_never_answers_fails_the_call(self):
+        with socket.socket() as silent:
+            silent.bind(("127.0.0.1", 0))
+            silent.listen(1)
+            api = e2e_api.Api(f"http://127.0.0.1:{silent.getsockname()[1]}", timeout=0.3)
+            began = time.monotonic()
+            with self.assertRaises(OSError):
+                api.call("GET", "/me")
+        self.assertLess(time.monotonic() - began, 5)
 
 
 class UserAgentTest(unittest.TestCase):

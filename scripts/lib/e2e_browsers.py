@@ -15,13 +15,17 @@ import subprocess
 import tempfile
 import time
 import urllib.error
-import urllib.request
 
+import e2e_api
 from e2e_api import Api
 from e2e_client import Client
 
 # Offsets from E2E_CDP_BASE (9800); 1 and 2 are alice and bob, which e2e.sh owns and pkills by port.
 EXTRA_OFFSETS = {"carol": 11, "noisy": 13, "raw": 14, "vqa": 15, "vqb": 16, "tabs": 17}
+
+
+# A readiness probe is retried, so one that hangs must give up quickly to be retried.
+PROBE_TIMEOUT = 2
 
 
 def cdp_base():
@@ -57,7 +61,7 @@ def _wait_for_debugger(port, timeout=40):
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version")
+            e2e_api.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=PROBE_TIMEOUT)
             return
         except OSError:
             time.sleep(0.25)
@@ -69,7 +73,7 @@ def _wait_for_page(port, timeout=40):
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as r:
+            with e2e_api.urlopen(f"http://127.0.0.1:{port}/json", timeout=PROBE_TIMEOUT) as r:
                 tabs = json.load(r)
         except OSError:
             tabs = []

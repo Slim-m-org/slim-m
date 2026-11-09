@@ -20,6 +20,14 @@ TOUCHED = set()
 # Cloudflare 403s ("error code: 1010") a default urllib UA; see CLAUDE.md.
 USER_AGENT = "Mozilla/5.0 (compatible; slim-m-scripts/1.0)"
 
+# Seconds a socket may stay silent; a stalled server must fail the call, not hang the run.
+HTTP_TIMEOUT = 30
+
+
+def urlopen(request, timeout=HTTP_TIMEOUT):
+    """urllib's urlopen with a timeout by default, for every HTTP call the harness makes."""
+    return urllib.request.urlopen(request, timeout=timeout)
+
 
 def _list_body(got):
     """A list endpoint sends a bare array; anything else is a wire break."""
@@ -41,9 +49,10 @@ def wait_until(read, satisfied, failure_message, timeout=15):
 class Api:
     """One signed-in caller's view of the server."""
 
-    def __init__(self, base, token=None):
+    def __init__(self, base, token=None, timeout=HTTP_TIMEOUT):
         self.base = base.rstrip("/")
         self.token = token
+        self.timeout = timeout
         self.relogin = None
 
     def keep_signed_in(self, username, password, device):
@@ -77,7 +86,7 @@ class Api:
         TOUCHED.add(path)
         req = urllib.request.Request(f"{self.base}{path}", data=data,
                                      headers=headers, method=method)
-        with urllib.request.urlopen(req) as res:
+        with urlopen(req, timeout=self.timeout) as res:
             payload = res.read()
             if not payload:
                 return None
@@ -199,4 +208,4 @@ class Api:
         return None
 
     def version(self):
-        return Api(self.base).call("GET", "/version")
+        return Api(self.base, timeout=self.timeout).call("GET", "/version")
