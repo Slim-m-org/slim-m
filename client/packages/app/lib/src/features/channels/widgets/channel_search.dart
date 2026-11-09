@@ -78,8 +78,9 @@ class ChannelSearchResults extends ConsumerWidget {
   /// `Semantics` widget an ancestor happens to build.
   static const Key liveRegionKey = Key('channel_search_results_announcer');
 
-  /// Null while loading or after a failure; only an empty (not null) list
-  /// means the search genuinely came back with nothing.
+  /// Null before the first reply and after a failure; only an empty (not
+  /// null) list means the search genuinely came back with nothing. While a
+  /// newer query loads this still holds the last one's hits.
   final List<api.Message>? results;
   final Set<String> knownUsernames;
 
@@ -135,7 +136,7 @@ class ChannelSearchResults extends ConsumerWidget {
   }
 
   Widget _body(BuildContext context, WidgetRef ref, AppTokens tokens) {
-    if (loading) {
+    if (loading && (results?.isEmpty ?? true)) {
       return const Center(child: AppSpinner(size: AppSpinnerSize.lg));
     }
     if (failed) {

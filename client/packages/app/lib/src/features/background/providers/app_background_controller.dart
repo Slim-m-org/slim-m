@@ -197,17 +197,52 @@ final appBackgroundControllerProvider =
       AppBackgroundController.new,
     );
 
-/// The decoded picture, held once for as long as the shell watches it.
-final backgroundPictureProvider = FutureProvider<ui.Image?>((ref) async {
+/// Owns the decoded bitmap and releases a replaced one only once its successor
+/// is ready, so a widget still painting it never holds a disposed image.
+class _PictureSlot {
+  ui.Image? _held;
+
+  void replace(ui.Image? next) {
+    final previous = _held;
+    _held = next;
+    previous?.dispose();
+  }
+}
+
+/// Outlives the picture provider's own rebuilds, and ends with its last listener.
+final _pictureSlotProvider = Provider.autoDispose<_PictureSlot>((ref) {
+  final slot = _PictureSlot();
+  ref.onDispose(() => slot.replace(null));
+  return slot;
+});
+
+/// The decoded picture, held once for as long as something shows it.
+final backgroundPictureProvider = FutureProvider.autoDispose<ui.Image?>((
+  ref,
+) async {
+  final slot = ref.watch(_pictureSlotProvider);
   final settings = ref.watch(
     appBackgroundControllerProvider.select((s) => (s.hasImage, s.revision)),
   );
-  if (!settings.$1) return null;
+  var current = true;
+  ref.onDispose(() => current = false);
+  if (!settings.$1) {
+    slot.replace(null);
+    return null;
+  }
   final bytes = await ref.read(backgroundImageStoreProvider).read();
-  if (bytes == null) return null;
+  if (!current) return null;
+  if (bytes == null) {
+    slot.replace(null);
+    return null;
+  }
   try {
     final image = await decodeBoundedImage(bytes, maxSide: backgroundMaxSide);
-    ref.onDispose(image.dispose);
+    if (!current) {
+      image.dispose();
+      return null;
+    }
+    slot.replace(image);
     return image;
   } catch (error, stack) {
     AppLog.swallowed(
@@ -216,6 +251,7 @@ final backgroundPictureProvider = FutureProvider<ui.Image?>((ref) async {
       error,
       stack,
     );
+    if (current) slot.replace(null);
     return null;
   }
 });

@@ -171,65 +171,81 @@ class ChannelNotificationOverridesController
   }
 
   /// Mutes [channelId] entirely.
-  Future<void> mute(String channelId) =>
-      _set(channelId, api.NotificationPreference.nothing);
+  Future<void> mute(String channelId) => _change(
+    channelId,
+    api.NotificationPreference.nothing,
+    () => _ref
+        .read(apiProvider)
+        .setChannelNotificationOverride(
+          channelId,
+          api.NotificationPreference.nothing,
+        ),
+  );
 
   /// Asks for every message in [channelId], past a mentions-only default.
-  Future<void> everything(String channelId) =>
-      _set(channelId, api.NotificationPreference.everything);
+  Future<void> everything(String channelId) => _change(
+    channelId,
+    api.NotificationPreference.everything,
+    () => _ref
+        .read(apiProvider)
+        .setChannelNotificationOverride(
+          channelId,
+          api.NotificationPreference.everything,
+        ),
+  );
 
   /// Narrows [channelId] to mentions only.
-  Future<void> mentionsOnly(String channelId) =>
-      _set(channelId, api.NotificationPreference.mentions);
+  Future<void> mentionsOnly(String channelId) => _change(
+    channelId,
+    api.NotificationPreference.mentions,
+    () => _ref
+        .read(apiProvider)
+        .setChannelNotificationOverride(
+          channelId,
+          api.NotificationPreference.mentions,
+        ),
+  );
 
-  Future<void> _set(
+  /// Clears [channelId]'s override, reverting it to the account default.
+  Future<void> clear(String channelId) => _change(
+    channelId,
+    null,
+    () => _ref.read(apiProvider).clearChannelNotificationOverride(channelId),
+  );
+
+  /// Shows [preference] for [channelId] at once (null is no override) and, if
+  /// [request] fails, puts back that channel alone, and only if nothing newer
+  /// has changed it since, so a slow failure cannot undo another edit.
+  Future<void> _change(
     String channelId,
-    api.NotificationPreference preference,
+    api.NotificationPreference? preference,
+    Future<void> Function() request,
   ) async {
-    final before = state.byChannel;
-    final after = {...before, channelId: preference};
+    final previous = state.byChannel[channelId];
     _edits[channelId] = preference;
-    state = ChannelNotificationOverridesState(
-      byChannel: after,
-      settled: state.settled,
-    );
+    _show(channelId, preference);
     try {
-      await _ref
-          .read(apiProvider)
-          .setChannelNotificationOverride(channelId, preference);
+      await request();
     } catch (_) {
-      _edits.remove(channelId);
-      if (mounted) {
-        state = ChannelNotificationOverridesState(
-          byChannel: before,
-          settled: state.settled,
-        );
+      if (mounted && state.byChannel[channelId] == preference) {
+        _edits.remove(channelId);
+        _show(channelId, previous);
       }
       rethrow;
     }
   }
 
-  /// Clears [channelId]'s override, reverting it to the account default.
-  Future<void> clear(String channelId) async {
-    final before = state.byChannel;
-    final after = {...before}..remove(channelId);
-    _edits[channelId] = null;
+  void _show(String channelId, api.NotificationPreference? preference) {
+    final byChannel = {...state.byChannel};
+    if (preference == null) {
+      byChannel.remove(channelId);
+    } else {
+      byChannel[channelId] = preference;
+    }
     state = ChannelNotificationOverridesState(
-      byChannel: after,
+      byChannel: byChannel,
       settled: state.settled,
     );
-    try {
-      await _ref.read(apiProvider).clearChannelNotificationOverride(channelId);
-    } catch (_) {
-      _edits.remove(channelId);
-      if (mounted) {
-        state = ChannelNotificationOverridesState(
-          byChannel: before,
-          settled: state.settled,
-        );
-      }
-      rethrow;
-    }
   }
 
   @override

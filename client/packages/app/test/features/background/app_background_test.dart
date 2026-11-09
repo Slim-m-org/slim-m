@@ -33,6 +33,12 @@ Future<Uint8List> _widePng(int w, int h) async {
   return data!.buffer.asUint8List();
 }
 
+/// Decodes the picture and keeps it, as the mounted host does by watching it.
+Future<ui.Image?> _decoded(ProviderContainer c) {
+  c.listen(backgroundPictureProvider, (_, _) {});
+  return c.read(backgroundPictureProvider.future);
+}
+
 class _BrokenPrefs extends Fake implements SharedPreferences {
   @override
   Future<bool> setBool(String key, bool value) =>
@@ -200,7 +206,7 @@ void main() {
             .read(appBackgroundControllerProvider.notifier)
             .importPicture(_forest),
       );
-      await tester.runAsync(() => c.read(backgroundPictureProvider.future));
+      await tester.runAsync(() => _decoded(c));
       await tester.pumpWidget(_host(c, const _Probe()));
       await tester.pump();
       expect(find.byKey(const Key('app_background_layer')), findsOneWidget);
@@ -218,7 +224,7 @@ void main() {
             .read(appBackgroundControllerProvider.notifier)
             .importPicture(_forest),
       );
-      await tester.runAsync(() => c.read(backgroundPictureProvider.future));
+      await tester.runAsync(() => _decoded(c));
       await tester.pumpWidget(_host(c, const _Probe()));
       await tester.pump();
       await tester.runAsync(
@@ -238,7 +244,7 @@ void main() {
             .read(appBackgroundControllerProvider.notifier)
             .importPicture(_forest),
       );
-      await tester.runAsync(() => c.read(backgroundPictureProvider.future));
+      await tester.runAsync(() => _decoded(c));
       final builds = <int>[];
       final probe = _Probe(builds);
       await tester.pumpWidget(_host(c, probe));
@@ -264,7 +270,7 @@ void main() {
             .read(appBackgroundControllerProvider.notifier)
             .importPicture(_forest),
       );
-      await tester.runAsync(() => c.read(backgroundPictureProvider.future));
+      await tester.runAsync(() => _decoded(c));
       await tester.pump();
       await tester.pump();
       expect(builds.last, id);
