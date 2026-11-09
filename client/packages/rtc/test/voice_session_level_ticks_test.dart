@@ -86,5 +86,39 @@ void main() {
 
       expect(levels, [0.0]);
     });
+
+    test('drops to zero when the room drops mid-speech', () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      call.room.localLevel = 0.6;
+      call.room.emit(_speakersChanged);
+      await pumpEventQueue();
+      final levels = <double>[];
+      call.session.localAudioLevels.listen(levels.add);
+
+      call.room.emit(lk.RoomDisconnectedEvent(
+        reason: lk.DisconnectReason.reconnectAttemptsExceeded,
+      ));
+      await pumpEventQueue();
+
+      expect(call.session.state, VoiceSessionState.failed);
+      expect(levels, [0.0]);
+    });
+
+    test('drops to zero while a full restart has no roster to report',
+        () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      call.room.localLevel = 0.6;
+      call.room.emit(_speakersChanged);
+      await pumpEventQueue();
+      final levels = <double>[];
+      call.session.localAudioLevels.listen(levels.add);
+
+      call.room.emit(const lk.RoomReconnectingEvent());
+      await pumpEventQueue();
+
+      expect(levels, [0.0]);
+    });
   });
 }
