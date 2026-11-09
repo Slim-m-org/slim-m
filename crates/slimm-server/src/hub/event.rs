@@ -15,10 +15,12 @@ use crate::voice::CallRingOutcome;
 
 mod canvas;
 mod message;
+mod presence_change;
 mod role_change;
 
 pub use canvas::CanvasEvent;
 pub use message::MessageEvent;
+pub use presence_change::PresenceChange;
 pub use role_change::{RoleChange, RoleLook};
 
 /// Something that happened and should reach interested connections.
@@ -36,7 +38,7 @@ pub enum Event {
     /// (see `http::ws::authorize`), so a hidden user's true state is never
     /// present in the event payload, only in the answer computed for one
     /// specific viewer.
-    PresenceChanged(UserId),
+    PresenceChanged(PresenceChange),
     /// A member was timed out, or their timeout was lifted. `until` is Unix
     /// milliseconds, or `None` for a lift.
     ///

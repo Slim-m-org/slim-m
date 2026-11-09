@@ -97,7 +97,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             message_id: message,
         }),
         Event::SessionRevoked(SessionId(id(5))),
-        Event::PresenceChanged(bob),
+        Event::presence_changed(bob),
         Event::MemberTimeoutChanged {
             user_id: bob,
             until: Some(1_700_000_000_003),

@@ -49,7 +49,7 @@ mod memory_guard;
 mod moderation_seq;
 mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
-pub use event::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
+pub use event::{CanvasEvent, Event, MessageEvent, PresenceChange, RoleChange, RoleLook};
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
@@ -574,7 +574,7 @@ mod epoch_tests {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
         });
-        hub.publish(Event::PresenceChanged(UserId::generate()));
+        hub.publish(Event::presence_changed(UserId::generate()));
         hub.publish(Event::Message(MessageEvent::Deleted {
             op_seq: None,
             channel_id: ChannelId::generate(),
