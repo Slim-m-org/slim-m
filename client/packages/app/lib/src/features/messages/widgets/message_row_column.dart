@@ -33,6 +33,7 @@ import 'card_spacing.dart';
 import 'message_inline.dart' show extractLinkPreviewUrls;
 import 'message_row_identity.dart';
 import 'message_row_parts.dart';
+import 'poll_vote_failure_line.dart';
 import 'message_text.dart';
 import '../../composer/widgets/poll_view.dart';
 import 'reactions_row.dart';
@@ -250,6 +251,7 @@ class MessageRowColumn extends ConsumerWidget {
           onRank: callbacks.onRank,
         ),
       ),
+    if (extras.poll != null) PollVoteFailureLine(messageId: message.id),
     if (extras.call != null)
       Padding(
         padding: const EdgeInsets.only(top: AppSpacing.s4),
