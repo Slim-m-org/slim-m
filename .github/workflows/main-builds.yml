@@ -38,7 +38,11 @@ on:
       - "docker/web*"
       - ".github/workflows/web-image.yml"
       - ".github/workflows/copr-publish.yml"
-      - ".github/actions/**"
+      - ".github/actions/apt-install/**"
+      - ".github/actions/linux-build-deps/**"
+      - ".github/actions/linux-tarball/**"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
       - ".sqlx/**"
       # Its own file, so a change to how these builds work is run by them.
       - ".github/workflows/main-builds.yml"
@@ -109,7 +113,11 @@ jobs:
               - 'client/**'
               - 'docker/web*'
               - '.github/workflows/web-image.yml'
-              - '.github/actions/**'
+              - '.github/actions/apt-install/**'
+              - '.github/actions/linux-build-deps/**'
+              - '.github/actions/linux-tarball/**'
+              - '.github/actions/native-hooks-cache/**'
+              - '.github/actions/native-hooks-diagnose/**'
             server:
               - 'crates/**'
             listener:

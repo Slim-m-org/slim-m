@@ -821,7 +821,8 @@ The redundant build pushes the same `latest` the release itself would have pushe
 
 The trigger must also name everything the workflow calls.
 Commit f453f678 fixed `.github/actions/linux-tarball` and matched no path, so the run it started skipped every job and finished green with nothing built.
-`.github/actions/**` now triggers the run and feeds the `client` filter, and `copr-publish.yml` feeds `packaging`.
+The trigger and the `client` filter now list each composite action the workflow reaches, nested calls included (`apt-install`, `linux-build-deps`, `linux-tarball`, `native-hooks-cache`, `native-hooks-diagnose`), and `copr-publish.yml` feeds `packaging`.
+A wildcard over `.github/actions/` is deliberately not used: the `release-*` actions are called only by `release.yml`, so an edit to one of them would otherwise build the client, upload to TestFlight and redeploy web.
 `scripts/lib/test_main_builds_triggers_on_everything_it_uses.py` fails when a `uses: ./.github/...` target is missing from the trigger or the filter, or when a trigger path reaches no filter and is not on its short allowlist.
 A change to `main-builds.yml` itself still triggers a run that builds nothing; that is on the allowlist on purpose.
 
@@ -903,7 +904,7 @@ That is the old behaviour, and it is the safe direction: an extra image costs mi
 `scripts/lib/test_server_image_base.py` pins the decision itself, including the cancelled-then-skipped shape this was built for, and that malformed API output degrades rather than fails.
 
 The web image closed the same hole later, because Watchtower follows it and a cancelled build left the live web client stale for a median of about 1.7 hours and once for 23.
-The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles, `web-image.yml` or `.github/actions/**` moved since.
+The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles or `web-image.yml` moved since; the web image calls no local action.
 Both scripts share `scripts/image-needed.sh`, and `scripts/lib/test_main_builds_web_image_decides_from_what_is_deployed.py` pins that only `web-image` reads the new output.
 
 `client` and `packaging` still decide from the push diff alone and keep the same hole.

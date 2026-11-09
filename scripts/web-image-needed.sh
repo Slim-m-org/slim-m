@@ -7,4 +7,4 @@ current_sha="${1:?usage: web-image-needed.sh <current-sha>}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 exec "$here/image-needed.sh" web "web-image / merge" "$current_sha" \
-  client/ 'docker/web*' .github/workflows/web-image.yml .github/actions/
+  client/ 'docker/web*' .github/workflows/web-image.yml
