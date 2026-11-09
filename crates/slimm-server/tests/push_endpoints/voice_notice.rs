@@ -88,3 +88,57 @@ async fn a_join_wakes_an_opted_in_device_with_a_sealed_voice_envelope() {
         "names need the content opt-in"
     );
 }
+
+#[tokio::test]
+async fn a_notice_no_device_took_does_not_spend_the_ten_minutes() {
+    let (store, _general, _guard) = seeded_store().await;
+    let (mock, relay_url) = spawn_mock_relay().await;
+    let push = PushSender::with_debounce_window_ms(&push_config(&relay_url), SHORT_DEBOUNCE_MS)
+        .expect("relay config is valid");
+    let voice = VoiceService::for_test("http://127.0.0.1:1", KEY, SECRET);
+    let app = app_with_voice(store.clone(), push, voice, Hub::new());
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
+    let (alice_token, alice_id) = register_user(&store, "alice").await;
+    let (bob_token, bob_id) = register_user(&store, "bob").await;
+    let (_carol_token, carol_id) = register_user(&store, "carol").await;
+    register_push(&app, &alice_token, "alice-phone").await;
+    register_push(&app, &bob_token, "bob-phone").await;
+    let every = VoiceNotifyChoice {
+        joins: JoinMode::Every,
+        streams: false,
+    };
+    store
+        .set_voice_notify_choice(
+            bob_id.parse().map(slimm_server::ids::UserId).unwrap(),
+            channel.id,
+            every,
+        )
+        .await
+        .unwrap();
+    let join = |who: &str, sid: &str| {
+        let room = slimm_server::voice::room_for_channel(channel.id);
+        webhook_request(
+            json!({
+                "event": "participant_joined",
+                "room": { "name": room },
+                "participant": { "identity": who, "sid": sid },
+            }),
+            KEY,
+            SECRET,
+        )
+    };
+
+    mock.fail_next_calls(1);
+    let first = app.clone().oneshot(join(&alice_id, "PA_alice")).await;
+    assert_eq!(first.unwrap().status(), 204);
+    assert!(wait_until(|| mock.attempt_count() >= 1, WAIT_TIMEOUT).await);
+    assert!(mock.all_messages().is_empty(), "the relay was unreachable");
+    // Letting the failed send hand the window back before the next join claims it.
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let second = app.clone().oneshot(join(&carol_id, "PA_carol")).await;
+    assert_eq!(second.unwrap().status(), 204);
+
+    assert!(wait_until(|| !mock.all_messages().is_empty(), WAIT_TIMEOUT).await);
+    assert_eq!(mock.all_messages()[0]["token"], "bob-phone");
+}

@@ -6,6 +6,7 @@
 //! seals and sends. The relay is told the coarse `message` kind it already knows, since an
 //! unknown kind is refused, and the sealed envelope says what actually happened.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -43,12 +44,17 @@ struct VoiceNoticeEnvelope<'a> {
     channel_name: Option<&'a str>,
 }
 
-pub(super) async fn deliver(enabled: Arc<Enabled>, store: Store, notice: VoiceNotice) {
+/// Sends the notice and returns the recipients the relay delivered to.
+pub(super) async fn deliver(
+    enabled: Arc<Enabled>,
+    store: Store,
+    notice: VoiceNotice,
+) -> HashSet<UserId> {
     let targets = match store.push_targets(&notice.recipients).await {
         Ok(targets) => targets,
         Err(err) => {
             tracing::warn!(error = %err, "push: failed to load a voice notice's push targets");
-            return;
+            return HashSet::new();
         }
     };
     let now = now_ms();
@@ -58,7 +64,7 @@ pub(super) async fn deliver(enabled: Arc<Enabled>, store: Store, notice: VoiceNo
         .filter(|target| !is_foreground_and_recent(target, now))
         .collect();
     if targets.is_empty() {
-        return;
+        return HashSet::new();
     }
     let (actor_name, channel_name) = names(&store, &notice).await;
     let encode = |named: bool| {
@@ -76,7 +82,7 @@ pub(super) async fn deliver(enabled: Arc<Enabled>, store: Store, notice: VoiceNo
     };
     let (Ok(bare), Ok(named)) = (encode(false), encode(true)) else {
         tracing::error!("push: voice notice envelope failed to serialize");
-        return;
+        return HashSet::new();
     };
     let messages: Vec<_> = targets
         .iter()
@@ -89,7 +95,9 @@ pub(super) async fn deliver(enabled: Arc<Enabled>, store: Store, notice: VoiceNo
             seal_to(target, TokenSlot::Push, PushKind::Voice, plaintext)
         })
         .collect();
-    dispatch::send_and_prune(&enabled, &store, &messages, "voice notice").await;
+    dispatch::send_and_prune(&enabled, &store, &messages, "voice notice")
+        .await
+        .unwrap_or_default()
 }
 
 async fn names(store: &Store, notice: &VoiceNotice) -> (Option<String>, Option<String>) {

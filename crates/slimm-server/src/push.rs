@@ -55,6 +55,7 @@ mod sealing;
 mod security;
 mod voice_notice;
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU32, AtomicU64, Ordering};
 
@@ -243,11 +244,16 @@ impl PushSender {
     }
 
     /// Wakes the devices of members who asked to hear that a voice call started, grew or went live.
-    pub fn notify_voice_activity(&self, store: Store, notice: VoiceNotice) {
+    /// Returns the members the relay delivered to.
+    pub async fn notify_voice_activity(
+        &self,
+        store: Store,
+        notice: VoiceNotice,
+    ) -> HashSet<UserId> {
         let Some(enabled) = self.inner.clone() else {
-            return;
+            return HashSet::new();
         };
-        tokio::spawn(voice_notice::deliver(enabled, store, notice));
+        voice_notice::deliver(enabled, store, notice).await
     }
 
     /// Pushes an operator alert to `recipients`, who the caller has already checked and unmuted.

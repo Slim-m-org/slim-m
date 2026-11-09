@@ -58,14 +58,19 @@ async fn run(
 
     let reachable = reachable(state, &audience).await?;
     let windows = state.voice.notice_windows();
-    let told: Vec<UserId> = audience
+    let claimed: Vec<(UserId, i64)> = audience
         .into_iter()
         .filter(|user| reachable.contains(user))
-        .filter(|user| windows.claim(channel_id, *user, now_ms).is_some())
+        .filter_map(|user| {
+            windows
+                .claim(channel_id, user, now_ms)
+                .map(|stamp| (user, stamp))
+        })
         .collect();
-    if told.is_empty() {
+    if claimed.is_empty() {
         return Ok(());
     }
+    let told: Vec<UserId> = claimed.iter().map(|(user, _)| *user).collect();
     for user_id in &told {
         state.hub.publish(Event::VoiceNotice {
             user_id: *user_id,
@@ -74,15 +79,24 @@ async fn run(
             activity,
         });
     }
-    state.push.notify_voice_activity(
-        state.store.clone(),
-        VoiceNotice {
-            channel_id,
-            actor_id: actor,
-            activity,
-            recipients: told,
-        },
-    );
+    let delivered = state
+        .push
+        .notify_voice_activity(
+            state.store.clone(),
+            VoiceNotice {
+                channel_id,
+                actor_id: actor,
+                activity,
+                recipients: told,
+            },
+        )
+        .await;
+    let presence = state.hub.presence();
+    for (user, stamp) in claimed {
+        if !delivered.contains(&user) && !presence.is_connected(user) {
+            windows.release(channel_id, user, stamp);
+        }
+    }
     Ok(())
 }
 
