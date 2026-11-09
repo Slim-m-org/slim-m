@@ -22,11 +22,7 @@ Widget _harness(double width) => ProviderScope(
         alignment: Alignment.topLeft,
         child: SizedBox(
           width: width,
-          child: ComposerEmojiPicker(
-            width: width,
-            onSelect: (_) {},
-            onClose: () {},
-          ),
+          child: ComposerEmojiPicker(onSelect: (_) {}, onClose: () {}),
         ),
       ),
     ),

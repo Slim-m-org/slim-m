@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'clipboard_lone_web_address.dart';
 import 'composer_clipboard_image.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -36,9 +37,9 @@ bool isClipboardPasteChord(KeyEvent event) {
 /// person had not read yet would be its own small bug.
 ///
 /// [textWins] is for a text field: copied cells or a slide carry their text
-/// beside a picture, and pasted into a field the text is what was meant, as the
-/// web route already decides. A lone web address does not count as text, since
-/// a browser adds its picture's own address to every "Copy image".
+/// beside a picture, and pasted into a field the text is what was meant. A lone
+/// web address does not count as text, since a browser adds its picture's own
+/// address to every "Copy image".
 /// The "Paste image" row still forces the picture.
 Future<void> pasteClipboardImageFromKeystroke(
   Future<void> Function(Uint8List bytes, String filename) stage,
@@ -54,15 +55,7 @@ Future<void> pasteClipboardImageFromKeystroke(
 Future<bool> _clipboardHoldsRealText() async {
   if (!await Clipboard.hasStrings()) return false;
   final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
-  return text != null && text.isNotEmpty && !_isSingleWebAddress(text);
-}
-
-bool _isSingleWebAddress(String text) {
-  if (text.contains(RegExp(r'\s'))) return false;
-  final uri = Uri.tryParse(text);
-  return uri != null &&
-      (uri.isScheme('http') || uri.isScheme('https')) &&
-      uri.host.isNotEmpty;
+  return text != null && text.isNotEmpty && !isLoneWebAddress(text);
 }
 
 /// Whether the "+" sheet's own "Paste image" row is worth offering.

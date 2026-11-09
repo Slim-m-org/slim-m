@@ -39,7 +39,6 @@ class ComposerEmojiPicker extends ConsumerStatefulWidget {
     super.key,
     required this.onSelect,
     required this.onClose,
-    this.width = 320,
   });
 
   /// Exposed so a test can find this exact node rather than any other
@@ -48,7 +47,6 @@ class ComposerEmojiPicker extends ConsumerStatefulWidget {
 
   final ValueChanged<String> onSelect;
   final VoidCallback onClose;
-  final double width;
 
   @override
   ConsumerState<ComposerEmojiPicker> createState() =>
@@ -99,7 +97,7 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
   }
 
   /// The grid's laid-out cross-axis extent, since the card around the picker
-  /// pads it below [ComposerEmojiPicker.width].
+  /// pads it below the card's own width.
   double? _gridExtent;
 
   EmojiSectionNavigation? _navigation(List<EmojiSection> sections) {
