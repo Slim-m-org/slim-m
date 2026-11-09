@@ -94,11 +94,12 @@ MessageTranscript transcript({
   required int count,
   String channelId = 'c1',
   bool short = false,
+  List<Message>? rows,
   Key? key,
 }) => MessageTranscript(
   key: key,
   channelId: channelId,
-  messages: short ? shortMessages(count) : messages(count),
+  messages: rows ?? (short ? shortMessages(count) : messages(count)),
   syncStatus: SyncStatus.live,
   historyKnown: true,
   channelName: 'general',

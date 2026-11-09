@@ -41,6 +41,8 @@ typedef MessageActionsFor =
 /// Past this many rows a thread scrolls as an ordinary reversed list.
 const int _shrinkWrapThreadMax = 40;
 
+const _startKey = ValueKey<String>('transcript-start');
+
 class MessageTranscript extends StatefulWidget {
   const MessageTranscript({
     super.key,
@@ -359,11 +361,14 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     final frame = _Frame(
       items: items,
       start: start,
-      newestId: newestId,
       animateNewest: animateNewest,
       // A reply's parent, built from the same already-filtered list this transcript renders; see `reply_quote.dart`.
       byId: {for (final m in messages) m.id: m},
       order: [for (final m in messages) m.id],
+      slotById: {
+        for (var i = 0; i < items.length; i++)
+          items[i].id: items.length - 1 - i,
+      },
     );
 
     // Reversed so a short conversation sits against the composer; the start header rides one past the oldest message, which reverse puts at the top.
@@ -378,13 +383,16 @@ class _MessageTranscriptState extends State<MessageTranscript> {
           (context, i) => _itemAt(context, frame, i),
           childCount: items.length + 1,
           estimator: _extent,
+          findChildIndexCallback: (key) => frame.slotOf(key),
         ),
       ),
     );
   }
 
   Widget _itemAt(BuildContext context, _Frame frame, int i) {
-    if (i == frame.items.length) return frame.start;
+    if (i == frame.items.length) {
+      return KeyedSubtree(key: _startKey, child: frame.start);
+    }
     // Index 0 is the newest; `previous` stays the row visually above, so grouping still reads right.
     final index = frame.items.length - 1 - i;
     final item = frame.items[index];
@@ -392,17 +400,15 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       PrivateItem() => _privateRow(item),
       StoredItem(:final message) => _storedRow(context, frame, message, index),
     };
-    if (i != 0) return content;
     return MessageEntrance(
-      key: ValueKey('entrance-${frame.newestId}'),
-      animateOnMount: frame.animateNewest,
+      key: ValueKey(item.id),
+      animateOnMount: frame.animateNewest && i == 0,
       child: content,
     );
   }
 
   Widget _privateRow(PrivateItem item) {
     return EphemeralRow(
-      key: ValueKey(item.id),
       message: item.message,
       knownUsernames: widget.knownUsernames,
       knownRoleNames: widget.knownRoleNames,
@@ -427,8 +433,6 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       above: storedAbove(frame.items, index),
     );
     final row = MessageRowExtras(
-      // By message, not by slot: an arrival shifts every index by one.
-      key: ValueKey(message.id),
       messageId: message.id,
       channelId: widget.channelId,
       previousMessageId: previous?.id,
@@ -468,16 +472,23 @@ class _Frame {
   const _Frame({
     required this.items,
     required this.start,
-    required this.newestId,
     required this.animateNewest,
     required this.byId,
     required this.order,
+    required this.slotById,
   });
 
   final List<TranscriptItem> items;
   final Widget start;
-  final String newestId;
   final bool animateNewest;
   final Map<String, Message> byId;
   final List<String> order;
+
+  /// Each item's list slot (newest is 0), so a keyed row an arrival pushed along is found again rather than rebuilt.
+  final Map<String, int> slotById;
+
+  int? slotOf(Key key) {
+    if (key == _startKey) return items.length;
+    return key is ValueKey<String> ? slotById[key.value] : null;
+  }
 }
