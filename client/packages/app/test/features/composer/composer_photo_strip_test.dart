@@ -118,6 +118,20 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
+  testWidgets('Photo library opens the strip when the keyboard was up first', (
+    tester,
+  ) async {
+    await pump(tester, _FakeLibrary(PhotoAccess.full));
+    await tester.tap(find.byWidgetPredicate((w) => w is EditableText));
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await _openStrip(tester);
+
+    expect(find.bySemanticsLabel('Attach photo'), findsNWidgets(2));
+    expect(tester.testTextInput.isVisible, isFalse);
+  });
+
   testWidgets('the All photos tile opens the full system picker', (
     tester,
   ) async {
