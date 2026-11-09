@@ -153,12 +153,13 @@ class HomeShell extends ConsumerWidget {
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
-    ref.watch(voiceNoticeProvider);
+    // The notice's state is for its banner host; held here without rebuilding the shell per notice.
+    ref.watch(voiceNoticeProvider.select((_) => null));
     ref.watch(liveQualityRestartProvider);
     // Session-lifetime, so the overlay follows the share without a call screen mounted.
     ref.watch(screenOverlayControllerProvider.select((_) => null));
     // Same reasoning: read lazily, its first read would race a module's own sound trigger against this provider's async load from disk.
-    ref.watch(moduleSoundSettingsProvider);
+    ref.watch(moduleSoundSettingsProvider.select((_) => null));
     // Same reasoning as the channel-mute watch above: session-lifetime, for the sound and desktop-notifier paths.
     ref.watch(notificationScheduleProvider.select((_) => null));
     // Same reasoning: the periodic local-store/extras sweep only needs to run for the session.
