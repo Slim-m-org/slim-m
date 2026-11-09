@@ -36,6 +36,7 @@ import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
 import '../widgets/channel_search.dart';
 import 'channel_composer_area.dart';
+import 'channel_draft_saver.dart';
 import 'channel_read_marker.dart';
 import 'channel_screen_streams.dart';
 import 'channel_transcript_pane.dart';
@@ -172,6 +173,10 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   /// once resolved, so holding it plainly is enough.
   late final ChannelDraftsController _drafts = ref.read(channelDraftsProvider);
 
+  /// Writes the composer's text as it is typed; the switch and dispose saves
+  /// below stay as the final flush.
+  late final ChannelDraftSaver _draftSaver;
+
   /// Captured once, not read via `ref` in [dispose] - see [_drafts]'s own
   /// note for why. This is the registry `providers/retention_sweep.dart`
   /// reads to know which channels are actually open; see
@@ -192,6 +197,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     unawaited(_hydrateExtras());
     // Fresh or reused (see [ReadMarker]), this must open on this channel's own draft.
     _composer.text = _drafts.draftFor(widget.channelId);
+    _draftSaver = ChannelDraftSaver(
+      composer: _composer,
+      drafts: _drafts,
+      channelId: () => widget.channelId,
+    );
     unawaited(_fillFromRestore());
   }
 
@@ -252,6 +262,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     _mountedChannels.unregister(widget.channelId);
     // Last chance to save unsent text before a torn-down State (voice, a DM call, canvas) loses it.
     _drafts.save(widget.channelId, _composer.text);
+    _draftSaver.dispose();
     _composer.dispose();
     _composerFocusRequests.dispose();
     _scrollTracker.dispose();
