@@ -56,9 +56,9 @@ extension CanvasDocumentSelection on CanvasDocument {
   bool setZIndex(String id, int zIndex) {
     final slot = _slotById[id];
     final stroke = slot == null ? null : _strokes[slot];
-    if (stroke == null || !stroke.alive) return false;
+    if (slot == null || stroke == null || !stroke.alive) return false;
     stroke.zIndex = zIndex;
-    _paintOrder.markDirty();
+    _paintOrder.reordered(slot);
     _changed();
     return true;
   }
