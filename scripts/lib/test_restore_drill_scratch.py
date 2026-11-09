@@ -4,17 +4,27 @@ import contextlib
 import io
 import os
 import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import backup_fixtures as fixtures  # noqa: E402
 import restore_drill_lib  # noqa: E402
-from test_restore_drill_lib import RestoreDrillTestCase  # noqa: E402
 
 
-class SweepStaleScratchTest(RestoreDrillTestCase):
+class SweepStaleScratchTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.backup_root = self.root / "backup"
+
+    def _write_snapshot(self):
+        fixtures.build_database(self.backup_root / "db" / "slimm-20260101T000000Z.db")
+
     def _scratch(self, name, age_s):
         path = self.backup_root / "restore-drill" / name
         path.mkdir(parents=True)
