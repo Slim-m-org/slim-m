@@ -45,7 +45,8 @@ pub(super) async fn insert_attachment(
         sqlx::query!(
             "INSERT INTO attachment_uploaders (sha256, uploaded_by, uploaded_at, filename)
              VALUES (?, ?, ?, ?)
-             ON CONFLICT (sha256, uploaded_by) DO UPDATE SET filename = excluded.filename",
+             ON CONFLICT (sha256, uploaded_by)
+             DO UPDATE SET filename = excluded.filename, uploaded_at = excluded.uploaded_at",
             sha256,
             uploader,
             now,
