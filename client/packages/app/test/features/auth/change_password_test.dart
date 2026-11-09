@@ -162,7 +162,8 @@ void main() {
     );
     await type(tester, ['old-password', 'long-enough-1', 'long-enough-1']);
     await tester.tap(find.widgetWithText(AppButton, 'Change password'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('A current two-factor code is required.'), findsOneWidget);
     expect(find.textContaining('That code was not accepted'), findsNothing);
@@ -184,7 +185,8 @@ void main() {
       '123456',
     ]);
     await tester.tap(find.widgetWithText(AppButton, 'Change password'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       find.text('That code was not accepted. Check the code and try again.'),
