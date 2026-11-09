@@ -317,6 +317,14 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Stream<double> get autoInputThresholds => const Stream.empty();
 
+  final _localLevels = StreamController<double>.broadcast();
+
+  /// Reports your own mic level as the SFU would on a host with no input gate.
+  void emitLocalLevel(double level) => _localLevels.add(level);
+
+  @override
+  Stream<double> get localAudioLevels => _localLevels.stream;
+
   @override
   double get inputThresholdDb => -50;
 
@@ -452,6 +460,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   Future<void> dispose() async {
     await _states.close();
     await _participants.close();
+    await _localLevels.close();
     await cameraOpens.close();
     await _audioDeviceChanges.close();
   }

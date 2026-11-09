@@ -246,6 +246,11 @@ final inputGateReadingProvider = StreamProvider.autoDispose<InputGateReading>(
   (ref) => ref.watch(voiceControllerProvider.notifier).input.inputGateReadings,
 );
 
+/// Your mic's level as the SFU reports it, for hosts with no input gate.
+final localReportedLevelProvider = StreamProvider.autoDispose<double>(
+  (ref) => ref.watch(voiceControllerProvider.notifier).input.localAudioLevels,
+);
+
 /// Where automatic sensitivity has put the gate threshold, as it moves.
 final autoInputThresholdProvider = StreamProvider.autoDispose<double>(
   (ref) =>
@@ -263,9 +268,6 @@ final localMicLevelProvider = Provider<double>((ref) {
     // Twenty steps is as fine as the bar can show, and spares the rebuilds.
     return (fraction * 20).round() / 20;
   }
-  return ref.watch(
-    voiceParticipantsProvider.select(
-      (all) => all.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0,
-    ),
-  );
+  final reported = ref.watch(localReportedLevelProvider).valueOrNull ?? 0;
+  return (reported * 20).round() / 20;
 });

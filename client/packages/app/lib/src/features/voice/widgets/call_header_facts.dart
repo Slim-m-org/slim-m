@@ -8,7 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
-import '../providers/voice_controller.dart';
+import '../providers/voice_flags.dart';
 import '../providers/voice_ping.dart';
 import 'call_participant_tiles.dart';
 import 'voice_ping_readout.dart';
@@ -42,7 +42,8 @@ class CallHeaderLine extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final voice = ref.watch(voiceControllerProvider);
+    final voice = ref.watch(voiceFlagsProvider);
+    final count = ref.watch(voiceParticipantsProvider.select((p) => p.length));
     final name = ref.watch(channelByIdProvider(channelId)).valueOrNull?.name;
     final inThisCall = voice.channelId == channelId;
     final title = [if (name != null && name.isNotEmpty) name, ?mode].join(', ');
@@ -68,7 +69,7 @@ class CallHeaderLine extends ConsumerWidget {
     final factsRow = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('${voice.participants.length} in call', style: facts),
+        Text('$count in call', style: facts),
         if (voice.connectedAt != null) ...[
           Text(' · ', style: facts),
           CallDuration(since: voice.connectedAt!, style: facts),

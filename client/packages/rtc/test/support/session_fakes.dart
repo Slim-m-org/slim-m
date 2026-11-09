@@ -25,9 +25,10 @@ class _LiveShare extends Fake
 }
 
 class _Me extends Fake implements lk.LocalParticipant {
-  _Me(this.identity, this.videos, this.camera, this.sharing);
+  _Me(this.identity, this.videos, this.camera, this.sharing, this.level);
 
   final bool sharing;
+  final double level;
 
   @override
   final String identity;
@@ -51,7 +52,7 @@ class _Me extends Fake implements lk.LocalParticipant {
   bool get isSpeaking => false;
 
   @override
-  double get audioLevel => 0;
+  double get audioLevel => level;
 
   @override
   UnmodifiableMapView<String, String> get attributes => UnmodifiableMapView({});
@@ -117,11 +118,15 @@ class InstantRoom extends ConnectlessRoom {
   /// Whether the local participant has a live screen share published.
   final bool sharing;
 
+  /// The level the SFU last reported for the local microphone.
+  double localLevel = 0;
+
   /// Drives the camera; null opens it at once.
   final CameraHook? camera;
 
   @override
-  lk.LocalParticipant? get localParticipant => _Me(me, videos, camera, sharing);
+  lk.LocalParticipant? get localParticipant =>
+      _Me(me, videos, camera, sharing, localLevel);
 }
 
 /// A microphone that counts how often the capture is opened muted.

@@ -20,13 +20,16 @@
 /// worse than a missing one. Everything else here acts.
 library;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/voice_controller.dart';
+import '../providers/voice_flags.dart';
 import '../../../routing/routes.dart';
 import '../screens/dm_call_pane.dart';
 import 'call_participant_tiles.dart';
@@ -48,7 +51,7 @@ class VoiceStripIndicator extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final voice = ref.watch(voiceControllerProvider);
+    final voice = ref.watch(voiceFlagsProvider);
     if (!voice.callLive) {
       return const SizedBox.shrink();
     }
@@ -109,7 +112,7 @@ void returnToCall(WidgetRef ref, BuildContext context, String channelId) {
 class _ReturnToCall extends ConsumerWidget {
   const _ReturnToCall({required this.voice, required this.onPressed});
 
-  final VoiceState voice;
+  final VoiceFlags voice;
   final VoidCallback onPressed;
 
   @override
@@ -129,25 +132,26 @@ class _ReturnToCall extends ConsumerWidget {
 
 /// Avatars, channel name, clock and what the call is; drawn over the press
 /// surface and left out of semantics, which the button's own label covers.
-class _Summary extends StatelessWidget {
+class _Summary extends ConsumerWidget {
   const _Summary({required this.voice});
 
-  final VoiceState voice;
+  final VoiceFlags voice;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final faces = ref.watch(voiceParticipantsProvider.select(_Faces.of)).people;
     return ExcludeSemantics(
       child: Row(
         children: [
-          for (final p in voice.participants.take(2))
+          for (final (identity, name, speaking) in faces)
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: UserAvatar(
-                userId: p.identity,
-                name: p.name,
+                userId: identity,
+                name: name,
                 size: AppAvatarSize.s20,
-                speaking: p.isSpeaking,
+                speaking: speaking,
               ),
             ),
           const SizedBox(width: 6),
@@ -192,6 +196,23 @@ class _Summary extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The two avatars the strip draws, so only their changes rebuild it.
+class _Faces {
+  _Faces(this.people);
+
+  factory _Faces.of(List<VoiceParticipant> all) =>
+      _Faces([for (final p in all.take(2)) (p.identity, p.name, p.isSpeaking)]);
+
+  final List<(String, String, bool)> people;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _Faces && listEquals(other.people, people);
+
+  @override
+  int get hashCode => Object.hashAll(people);
 }
 
 /// The separator only exists to sit after the timer; without one it would lead.
@@ -241,7 +262,7 @@ class CallChannelName extends ConsumerWidget {
 class _Controls extends StatelessWidget {
   const _Controls({required this.voice, required this.controller});
 
-  final VoiceState voice;
+  final VoiceFlags voice;
   final VoiceController controller;
 
   @override
