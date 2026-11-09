@@ -97,7 +97,7 @@ async fn add(
         Err(ReactError::Internal(e)) => return Err(e.into()),
     };
 
-    let moved = added.then(|| ReactionMoved {
+    let moved = added.then_some(ReactionMoved {
         emoji,
         user_id: ctx.user_id,
         added: true,
@@ -120,7 +120,7 @@ async fn remove(
         .store
         .remove_reaction(message_id, ctx.user_id, &emoji)
         .await?;
-    let moved = removed.then(|| ReactionMoved {
+    let moved = removed.then_some(ReactionMoved {
         emoji,
         user_id: ctx.user_id,
         added: false,
