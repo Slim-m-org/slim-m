@@ -20,6 +20,7 @@ TAP_MODULES = {
     "/__e2e/xp-tap.js": e2e_xp_js.TAP_WORKLET,
 }
 
+LOOPBACK = "127.0.0.1"
 HEADERS_CONF = Path(__file__).resolve().parents[2] / "docker" / "web-security-headers.conf"
 _ADD_HEADER = re.compile(r'^\s*add_header\s+(\S+)\s+"([^"]*)"')
 
@@ -58,13 +59,16 @@ def _handler(directory, headers):
     return functools.partial(Handler, directory=directory)
 
 
-def main(argv):
-    port, directory = int(argv[1]), argv[2]
+def make_server(port, directory):
+    """A server for [directory] on loopback; the bundle is a throwaway, not something to offer the LAN."""
     headers = parse_headers(HEADERS_CONF.read_text())
     if not headers:
         sys.exit(f"no add_header lines in {HEADERS_CONF}")
-    server = http.server.ThreadingHTTPServer(("", port), _handler(directory, headers))
-    server.serve_forever()
+    return http.server.ThreadingHTTPServer((LOOPBACK, port), _handler(directory, headers))
+
+
+def main(argv):
+    make_server(int(argv[1]), argv[2]).serve_forever()
 
 
 if __name__ == "__main__":

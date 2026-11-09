@@ -22,6 +22,7 @@
 #   E2E_RTC_TCP_PORT [7881]  LiveKit's ICE TCP port
 #   E2E_RTC_UDP_START [21000]  first and last of LiveKit's ICE UDP ports; a second stack
 #   E2E_RTC_UDP_END [21050]    beside the first needs all three moved
+#   E2E_SFU_WAIT_SECONDS [30]  how long to wait for LiveKit to answer before failing
 #   E2E_WEB_DIR           serve this prebuilt web bundle instead of the tree's own
 #   E2E_REBUILD           set to rebuild the web client even if one exists
 #   E2E_SKIP_SERVER_BUILD  use the release binary as it is; a parallel run builds it once
@@ -40,6 +41,7 @@ LIVEKIT_VERSION="${LIVEKIT_VERSION:-v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac
 RTC_UDP_START="${E2E_RTC_UDP_START:-21000}"
 RTC_UDP_END="${E2E_RTC_UDP_END:-21050}"
 RTC_TCP_PORT="${E2E_RTC_TCP_PORT:-7881}"
+SFU_WAIT="${E2E_SFU_WAIT_SECONDS:-30}"
 TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
 PIDS="$WORK/pids"
 # LiveKit's dev-mode key pair for a throwaway container; overridable.
@@ -62,17 +64,19 @@ need() {
   command -v "$tool" >/dev/null || { echo "missing: $tool"; exit 1; }
 }
 
+# A pid file that outlived a reboot names whatever got that pid since, so only a command line still ours is killed.
 stop_pid_file() {
-  local file="$PIDS/$1.pid" pid
+  local file="$PIDS/$1.pid" marker="$2" pid cmdline=""
   [[ -f "$file" ]] || return 0
   pid="$(cat "$file")"
-  if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; fi
+  if [[ "$pid" =~ ^[0-9]+$ ]]; then cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"; fi
+  if [[ -n "$cmdline" && "$cmdline" == *"$marker"* ]]; then kill "$pid" 2>/dev/null || true; fi
   rm -f "$file"
 }
 
 down() {
-  stop_pid_file web
-  stop_pid_file api
+  stop_pid_file web e2e_web_server.py
+  stop_pid_file api slimm-server
   docker rm -f "$LK_CONTAINER" >/dev/null 2>&1 || true
   rm -rf "$WORK/slimm.db"* "$WORK/stack.json" "$WORK/stack.env"
 }
@@ -89,11 +93,14 @@ wait_for_url() {
 start_sfu() {
   echo "== SFU =="
   docker rm -f "$LK_CONTAINER" >/dev/null 2>&1 || true
-  docker run -d --name "$LK_CONTAINER" --rm \
-    -p "$LK_PORT:7880" -p "$RTC_TCP_PORT:$RTC_TCP_PORT" -p "$RTC_UDP_START-$RTC_UDP_END:$RTC_UDP_START-$RTC_UDP_END/udp" \
+  # Loopback only, since --dev's key pair is public; no --rm, so a container that dies keeps the logs the failure prints.
+  docker run -d --name "$LK_CONTAINER" \
+    -p "127.0.0.1:$LK_PORT:7880" -p "127.0.0.1:$RTC_TCP_PORT:$RTC_TCP_PORT" \
+    -p "127.0.0.1:$RTC_UDP_START-$RTC_UDP_END:$RTC_UDP_START-$RTC_UDP_END/udp" \
     -e LIVEKIT_CONFIG="rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}" \
     "livekit/livekit-server:$LIVEKIT_VERSION" --dev --bind 0.0.0.0 >/dev/null
-  wait_for_url "http://localhost:$LK_PORT" 30 || true
+  wait_for_url "http://localhost:$LK_PORT" "$SFU_WAIT" || {
+    echo "livekit never came up:"; docker logs "$LK_CONTAINER" 2>&1 | tail -20; exit 1; }
 }
 
 start_server() {
@@ -224,7 +231,7 @@ up() {
 
 # Kills and relaunches only the server, keeping its database: what a deploy does to connected clients.
 restart_server() {
-  stop_pid_file api
+  stop_pid_file api slimm-server
   for _ in $(seq 20); do
     curl -sf -o /dev/null "http://localhost:$API_PORT/healthz" 2>/dev/null || break
     sleep 0.5
@@ -232,9 +239,14 @@ restart_server() {
   start_server
 }
 
-case "${1:-}" in
-  up) up ;;
-  down) down ;;
-  restart-server) restart_server ;;
-  *) echo "usage: $0 up|down|restart-server" >&2; exit 2 ;;
-esac
+main() {
+  case "${1:-}" in
+    up) up ;;
+    down) down ;;
+    restart-server) restart_server ;;
+    *) echo "usage: $0 up|down|restart-server" >&2; exit 2 ;;
+  esac
+}
+
+# Sourced, not run, by the tests that drive one function at a time.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
