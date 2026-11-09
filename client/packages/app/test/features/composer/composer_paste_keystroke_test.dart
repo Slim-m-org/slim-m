@@ -44,13 +44,28 @@ void _answer({required bool hasImage, Uint8List? image, String? readError}) {
       });
 }
 
-void _holdsText(bool holds) {
+void _clipboardText(String? text) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-        return call.method == 'Clipboard.hasStrings'
-            ? <String, Object?>{'value': holds}
-            : null;
+        switch (call.method) {
+          case 'Clipboard.hasStrings':
+            return <String, Object?>{'value': text != null};
+          case 'Clipboard.getData':
+            return text == null ? null : <String, Object?>{'text': text};
+          default:
+            return null;
+        }
       });
+}
+
+Future<List<String>> _ctrlVInTextField() async {
+  final staged = <String>[];
+  await pasteClipboardImageFromKeystroke(
+    (bytes, filename) async => staged.add(filename),
+    (_) {},
+    textWins: true,
+  );
+  return staged;
 }
 
 /// Presses [keys] in order, releases them in reverse, and reports what
@@ -163,7 +178,7 @@ void main() {
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       _answer(hasImage: true, image: _png);
-      _holdsText(true);
+      _clipboardText('Q1\t12\nQ2\t18');
 
       final staged = <String>[];
       var setErrorCalls = 0;
@@ -183,7 +198,7 @@ void main() {
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       _answer(hasImage: true, image: _png);
-      _holdsText(true);
+      _clipboardText('Q1\t12\nQ2\t18');
 
       final staged = <String>[];
       await pasteClipboardImageFromKeystroke(
@@ -194,6 +209,44 @@ void main() {
       expect(staged, ['pasted-image.png']);
     },
   );
+
+  test(
+    'a browser-copied picture, whose only text is its own address, is staged',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      _answer(hasImage: true, image: _png);
+      _clipboardText(' https://example.com/photos/cat.png\n');
+
+      expect(await _ctrlVInTextField(), ['pasted-image.png']);
+    },
+  );
+
+  test('a picture beside blank text is staged', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    _answer(hasImage: true, image: _png);
+    _clipboardText('  \n ');
+
+    expect(await _ctrlVInTextField(), ['pasted-image.png']);
+  });
+
+  for (final text in [
+    'see https://example.com/cat.png',
+    'https://example.com/a.png\nhttps://example.com/b.png',
+    'ftp://example.com/cat.png',
+    'Q1\t12\nQ2\t18',
+    'a slide title',
+  ]) {
+    test(
+      'a picture beside "${text.replaceAll('\n', ' / ')}" pastes as text',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+        _answer(hasImage: true, image: _png);
+        _clipboardText(text);
+
+        expect(await _ctrlVInTextField(), isEmpty);
+      },
+    );
+  }
 
   test(
     'a text field still takes an image that has no text beside it',

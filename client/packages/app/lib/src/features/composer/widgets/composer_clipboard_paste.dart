@@ -37,7 +37,9 @@ bool isClipboardPasteChord(KeyEvent event) {
 ///
 /// [textWins] is for a text field: copied cells or a slide carry their text
 /// beside a picture, and pasted into a field the text is what was meant, as the
-/// web route already decides. The "Paste image" row still forces the picture.
+/// web route already decides. A lone web address does not count as text, since
+/// a browser adds its picture's own address to every "Copy image".
+/// The "Paste image" row still forces the picture.
 Future<void> pasteClipboardImageFromKeystroke(
   Future<void> Function(Uint8List bytes, String filename) stage,
   void Function(String? message) setError, {
@@ -45,8 +47,22 @@ Future<void> pasteClipboardImageFromKeystroke(
 }) async {
   if (!pasteKeystrokeReadsClipboardImage) return;
   if (!await hasClipboardImage()) return;
-  if (textWins && await Clipboard.hasStrings()) return;
+  if (textWins && await _clipboardHoldsRealText()) return;
   await pasteClipboardImage(stage, setError);
+}
+
+Future<bool> _clipboardHoldsRealText() async {
+  if (!await Clipboard.hasStrings()) return false;
+  final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim();
+  return text != null && text.isNotEmpty && !_isSingleWebAddress(text);
+}
+
+bool _isSingleWebAddress(String text) {
+  if (text.contains(RegExp(r'\s'))) return false;
+  final uri = Uri.tryParse(text);
+  return uri != null &&
+      (uri.isScheme('http') || uri.isScheme('https')) &&
+      uri.host.isNotEmpty;
 }
 
 /// Whether the "+" sheet's own "Paste image" row is worth offering.

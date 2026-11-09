@@ -17,16 +17,21 @@ final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
 );
 
-void _clipboard({required bool holdsText}) {
+void _clipboard({String? text}) {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   messenger.setMockMethodCallHandler(_imageChannel, (call) async {
     return call.method == 'hasImage' ? true : _png;
   });
   messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-    return call.method == 'Clipboard.hasStrings'
-        ? <String, Object?>{'value': holdsText}
-        : null;
+    switch (call.method) {
+      case 'Clipboard.hasStrings':
+        return <String, Object?>{'value': text != null};
+      case 'Clipboard.getData':
+        return text == null ? null : <String, Object?>{'text': text};
+      default:
+        return null;
+    }
   });
 }
 
@@ -68,7 +73,7 @@ void main() {
   }
 
   testWidgets('a picture alone is staged by Ctrl+V', (tester) async {
-    _clipboard(holdsText: false);
+    _clipboard();
     await pumpFocused(tester);
 
     await _pressPaste(tester);
@@ -76,14 +81,25 @@ void main() {
     expect(find.text('pasted-image.png'), findsOneWidget);
   });
 
-  testWidgets('a picture beside text leaves Ctrl+V to the text', (
+  testWidgets('a picture beside copied cells leaves Ctrl+V to the text', (
     tester,
   ) async {
-    _clipboard(holdsText: true);
+    _clipboard(text: 'Q1\t12\nQ2\t18');
     await pumpFocused(tester);
 
     await _pressPaste(tester);
 
     expect(find.text('pasted-image.png'), findsNothing);
+  });
+
+  testWidgets('a picture copied in a browser is staged beside its address', (
+    tester,
+  ) async {
+    _clipboard(text: 'https://example.com/photos/cat.png');
+    await pumpFocused(tester);
+
+    await _pressPaste(tester);
+
+    expect(find.text('pasted-image.png'), findsOneWidget);
   });
 }
