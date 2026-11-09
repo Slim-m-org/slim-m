@@ -81,10 +81,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   Future<void> _savePronouns() async {
     final text = _pronouns.text.trim();
     if (text == _savedPronouns) return;
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(memberActionsProvider).updateMe(pronouns: text);
+      await container.read(memberActionsProvider).updateMe(pronouns: text);
       _savedPronouns = text;
-      ref.invalidate(meProvider);
+      container.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
       final sentence = reportFailureSentence(
         api.LogTag.ui,
@@ -99,10 +100,11 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   Future<void> _saveAbout() async {
     final text = _about.text.trim();
     if (text == _savedAbout) return;
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(memberActionsProvider).updateMe(about: text);
+      await container.read(memberActionsProvider).updateMe(about: text);
       _savedAbout = text;
-      ref.invalidate(meProvider);
+      container.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
       final sentence = reportFailureSentence(
         api.LogTag.ui,

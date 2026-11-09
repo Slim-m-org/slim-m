@@ -121,9 +121,13 @@ class AppMemberPane extends ConsumerWidget {
             MemberSelectionBar(
               canTimeOut: canTimeOut,
               canRemove: canRemove,
-              onTimeOut: (duration) =>
-                  unawaited(timeOutSelectedMembers(ref, duration)),
-              onRemove: () => confirmAndRemoveSelectedMembers(ref, context),
+              onTimeOut: (duration) => unawaited(
+                timeOutSelectedMembers(
+                  ProviderScope.containerOf(context, listen: false),
+                  duration,
+                ),
+              ),
+              onRemove: () => confirmAndRemoveSelectedMembers(context),
             ),
         ],
       ),

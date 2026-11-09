@@ -65,14 +65,17 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
   /// write in this app, rather than closing over a change that never landed.
   Future<void> _apply(String text) async {
     setState(() => _saving = true);
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: 'update your status',
       action: () async {
-        final profile = await ref
+        final profile = await container
             .read(memberActionsProvider)
             .updateMe(statusText: text);
-        ref.invalidate(meProvider);
-        ref.read(memberProfileOverridesProvider.notifier).applyKnown(profile);
+        container.invalidate(meProvider);
+        container
+            .read(memberProfileOverridesProvider.notifier)
+            .applyKnown(profile);
       },
     );
     if (!mounted) return;
