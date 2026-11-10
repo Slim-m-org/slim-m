@@ -40,6 +40,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/day_stable_now.dart';
 import '../../support/sync_harness.dart';
 
 const _tokens = api.TokenPair(
@@ -128,7 +129,7 @@ Future<ProviderContainer> _pumpChannelScreen(
 void main() {
   testWidgets('a catch-up round landing after an optimistic send does not flash a '
       'day divider onto the sent message', (tester) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = await dayStableNowMs(tester);
     final db = SlimmDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final store = MessageStore(db);
