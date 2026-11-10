@@ -48,6 +48,9 @@ Future<void> _capture(
     ),
   );
   await tester.pump(const Duration(milliseconds: 350));
+  // At phone width the tool strip scrolls, and the shape's caret starts past its edge.
+  await tester.ensureVisible(find.byIcon(AppIcons.chevronDown));
+  await tester.pump();
   await tester.tap(find.byIcon(AppIcons.chevronDown));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 350));
