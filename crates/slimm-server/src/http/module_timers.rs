@@ -13,7 +13,7 @@ use serde_json::Value;
 use super::AppState;
 use super::module_host::{background_surface, schedule_approved};
 use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
-use crate::store::{InstalledModule, TimerSpec, now_ms};
+use crate::store::{DueTimer, InstalledModule, TimerSpec, now_ms};
 
 /// A timer fires no sooner than this after it was asked for, whatever the module wrote.
 pub(crate) const MIN_DELAY_MS: i64 = 10_000;
@@ -128,42 +128,61 @@ pub(crate) fn spawn_sweep(state: AppState) {
 }
 
 /// Runs every timer due at `now` once, one at a time; returns how many ran.
+///
+/// Each timer is claimed just before its run, so it runs at most once: a failed run, a restart
+/// mid-run, and a timer whose module is disabled or gone are not retried. A timer not yet claimed
+/// when an error stops the sweep stays stored for the next one.
 pub async fn run_due(state: &AppState, now: i64) -> anyhow::Result<usize> {
     let mut ran = 0;
-    for timer in state.store.take_due_module_timers(now, BATCH).await? {
-        let Some(module) = state.store.installed_module(&timer.module_id).await? else {
+    for listed in state.store.due_module_timers(now, BATCH).await? {
+        let Some(timer) = state.store.claim_module_timer(&listed, now).await? else {
             continue;
         };
-        let Some(bot) = module.bot_user_id else {
-            continue;
-        };
-        if !module.enabled
-            || !schedule_approved(&module)
-            || !declares_command(&module, &timer.command)
-        {
-            continue;
-        }
-        let request = RunRequest {
-            caller: bot,
-            command: &timer.command,
-            input: &timer.input,
-            kind: RunKind::Background,
-            context: RunContext {
-                channel: timer.channel_id,
-                voice_channel: None,
-            },
-        };
-        let surface = background_surface(state, &module, bot);
-        match run_installed(state, &module, &request, surface).await {
-            Ok(outcome) if outcome.ok => {}
-            Ok(outcome) => {
-                tracing::info!(module = %module.id, command = %timer.command, error = %outcome.payload, "module timer run failed");
-            }
-            Err(_) => {
-                tracing::warn!(module = %module.id, command = %timer.command, "module timer run refused")
+        match run_claimed(state, &timer).await {
+            Ok(true) => ran += 1,
+            Ok(false) => {}
+            Err(err) => {
+                if let Err(release) = state.store.release_module_timer(&timer).await {
+                    tracing::warn!(%release, module = %timer.module_id, "could not put a module timer back");
+                }
+                return Err(err);
             }
         }
-        ran += 1;
     }
     Ok(ran)
+}
+
+/// Runs one claimed timer; `false` when its module can no longer run it.
+async fn run_claimed(state: &AppState, timer: &DueTimer) -> anyhow::Result<bool> {
+    let Some(module) = state.store.installed_module(&timer.module_id).await? else {
+        return Ok(false);
+    };
+    let Some(bot) = module.bot_user_id else {
+        return Ok(false);
+    };
+    if !module.enabled || !schedule_approved(&module) || !declares_command(&module, &timer.command)
+    {
+        return Ok(false);
+    }
+    let request = RunRequest {
+        caller: bot,
+        command: &timer.command,
+        input: &timer.input,
+        kind: RunKind::Background,
+        context: RunContext {
+            channel: timer.channel_id,
+            voice_channel: None,
+        },
+    };
+    let surface = background_surface(state, &module, bot);
+    match run_installed(state, &module, &request, surface).await {
+        Ok(outcome) if outcome.ok => {}
+        Ok(outcome) => {
+            tracing::info!(module = %module.id, command = %timer.command, error = %outcome.payload, "module timer run failed");
+        }
+        Err(_) => {
+            tracing::warn!(module = %module.id, command = %timer.command, "module timer run refused")
+        }
+    }
+    Ok(true)
 }

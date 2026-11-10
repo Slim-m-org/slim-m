@@ -112,3 +112,115 @@ async fn a_module_may_have_a_bounded_number_of_timers_waiting() {
         "asking again for a key it already has replaces it"
     );
 }
+
+fn spec<'a>(key: &'a str, input: &'a str, run_at: i64) -> TimerSpec<'a> {
+    TimerSpec {
+        command: "run",
+        key,
+        input,
+        channel_id: None,
+        run_at,
+    }
+}
+
+#[tokio::test]
+async fn an_error_part_way_through_a_sweep_leaves_the_rest_of_the_batch_stored() {
+    use sqlx::{Connection, Executor};
+    let w = world("slimm-timers-midbatch").await;
+    install(&w, ASKS, &["schedule"]).await;
+    w.install(Install {
+        id: "broken",
+        wasm: canned_raw_wasm(ASKS),
+        declared: &["schedule"],
+        approved_host: &["schedule"],
+    })
+    .await;
+    let store = &w.store;
+    store
+        .set_module_timer("broken", &spec("a", "", 1), 32)
+        .await
+        .unwrap();
+    store
+        .set_module_timer("pomo", &spec("b", "", 2), 32)
+        .await
+        .unwrap();
+    store
+        .set_module_timer("pomo", &spec("c", "", 3), 32)
+        .await
+        .unwrap();
+    let mut conn = sqlx::SqliteConnection::connect(&format!("sqlite://{}", w.db_path))
+        .await
+        .unwrap();
+    conn.execute("PRAGMA foreign_keys = OFF").await.unwrap();
+    conn.execute("UPDATE installed_modules SET bot_user_id = x'01' WHERE id = 'broken'")
+        .await
+        .unwrap();
+
+    assert!(run_module_timers(&w.state, 10).await.is_err());
+
+    assert_eq!(
+        store.pending_module_timers("pomo").await.unwrap(),
+        2,
+        "the timers after the failing one were never claimed"
+    );
+    assert_eq!(
+        store.pending_module_timers("broken").await.unwrap(),
+        1,
+        "the one that hit the error is put back"
+    );
+}
+
+#[tokio::test]
+async fn a_claim_leaves_a_timer_the_module_has_since_moved_later() {
+    let w = world("slimm-timers-claim-moved").await;
+    install(&w, ASKS, &["schedule"]).await;
+    w.store
+        .set_module_timer("pomo", &spec("k", "first", 5), 32)
+        .await
+        .unwrap();
+    let listed = w.store.due_module_timers(10, 16).await.unwrap();
+    assert_eq!(listed.len(), 1);
+
+    w.store
+        .set_module_timer("pomo", &spec("k", "later", 500), 32)
+        .await
+        .unwrap();
+
+    assert!(
+        w.store
+            .claim_module_timer(&listed[0], 10)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(w.store.pending_module_timers("pomo").await.unwrap(), 1);
+}
+
+#[tokio::test]
+async fn putting_a_claimed_timer_back_never_overwrites_a_newer_one() {
+    let w = world("slimm-timers-release").await;
+    install(&w, ASKS, &["schedule"]).await;
+    w.store
+        .set_module_timer("pomo", &spec("k", "old", 5), 32)
+        .await
+        .unwrap();
+    let listed = w.store.due_module_timers(10, 16).await.unwrap();
+    let claimed = w
+        .store
+        .claim_module_timer(&listed[0], 10)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(claimed.input, "old");
+    assert_eq!(w.store.pending_module_timers("pomo").await.unwrap(), 0);
+
+    w.store
+        .set_module_timer("pomo", &spec("k", "new", 6), 32)
+        .await
+        .unwrap();
+    w.store.release_module_timer(&claimed).await.unwrap();
+
+    let after = w.store.due_module_timers(10, 16).await.unwrap();
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].input, "new");
+}
