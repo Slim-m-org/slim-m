@@ -23,8 +23,14 @@ runs:
         sudo apt-get update
         read -ra extra <<<"$EXTRA_PACKAGES"
         sudo apt-get install -y --no-install-recommends clang-21 cmake libclang-21-dev libglib2.0-dev "${extra[@]}"
+        # whisper.cpp otherwise builds for this runner's own CPU, and a job that restores the build on another runner dies with SIGILL.
         {
           echo "CC=clang-21"
           echo "CXX=clang++-21"
           echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib"
+          echo "GGML_NATIVE=OFF"
+          echo "GGML_AVX=ON"
+          echo "GGML_AVX2=ON"
+          echo "GGML_FMA=ON"
+          echo "GGML_F16C=ON"
         } >> "$GITHUB_ENV"
