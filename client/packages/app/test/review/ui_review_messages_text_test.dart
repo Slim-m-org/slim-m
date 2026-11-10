@@ -40,7 +40,7 @@ const _snippet =
     'print(sorted(ops))\n'
     '```';
 
-final _run = api.CodeRun(
+const _run = api.CodeRun(
   blockIndex: 0,
   moduleId: 'code-exec',
   command: 'run',

@@ -8,7 +8,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -24,12 +23,13 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart' show MessageStore;
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_test_support/slimm_test_support.dart'
-    show jsonHttpResponse;
 
 import '../support/fake_sync.dart';
 import '../support/mid_flight_capture.dart';
 import '../ui_snapshot_support.dart';
+import 'ui_review_messages_api.dart';
+
+export 'ui_review_messages_api.dart' show reviewApi, reviewReactor;
 
 /// The two windows a review captures; a desktop narrower than 1280 would
 /// switch the app to its touch layout and review the wrong thing.
@@ -112,68 +112,6 @@ const reviewAuthors = {
   'user-hook': 'Deploy Hook',
 };
 
-const _extraProfiles = [
-  {
-    'id': 'user-bot',
-    'username': 'reminderbot',
-    'display_name': 'Reminder Bot',
-    'created_at': 0,
-    'roles': <String>[],
-    'is_bot': true,
-  },
-  {
-    'id': 'user-hook',
-    'username': 'deployhook',
-    'display_name': 'Deploy Hook',
-    'created_at': 0,
-    'roles': <String>[],
-    'is_webhook': true,
-  },
-];
-
-/// Answers [route] first when it returns a response, then the fixture's own
-/// answers, with the review bot added to the member reads.
-Override reviewApi([
-  FutureOr<http.Response?> Function(http.Request request)? route,
-]) => apiProvider.overrideWith((ref) {
-  final client = api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: ref.watch(sessionProvider),
-    httpClient: _ReviewClient(route),
-  );
-  ref.onDispose(client.close);
-  return client;
-});
-
-class _ReviewClient extends http.BaseClient {
-  _ReviewClient(this._route);
-
-  final FutureOr<http.Response?> Function(http.Request request)? _route;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final plain = http.Request(request.method, request.url)
-      ..bodyBytes = await request.finalize().toBytes()
-      ..headers.addAll(request.headers);
-    final answer = await _route?.call(plain) ?? await _fixture(plain);
-    return http.StreamedResponse(
-      Stream.value(answer.bodyBytes),
-      answer.statusCode,
-      headers: answer.headers,
-      request: request,
-    );
-  }
-
-  Future<http.Response> _fixture(http.Request request) async {
-    final answer = await fixtureResponse(request);
-    final path = request.url.path;
-    if (path != '/users') return answer;
-    final people = (jsonDecode(answer.body) as List<dynamic>)
-      ..addAll(_extraProfiles);
-    return jsonHttpResponse(people);
-  }
-}
-
 /// What a case can reach once the shell is up: the container, the real
 /// navigator's context (to open a sheet from) and a live [WidgetRef].
 class ReviewScene {
@@ -209,8 +147,10 @@ class ReviewScene {
 typedef SceneStep = Future<void> Function(ReviewScene scene);
 
 /// Mounts [route] (the general channel unless a case needs another) at
-/// [viewport] with [messages] as its transcript, runs [seed] before the first frame and [act] once it settles,
-/// then captures [surface] (and [state]) in both themes.
+/// [viewport] with [messages] as its transcript, runs [seed] before the first
+/// frame and [act] once it settles, then captures [surface] (and [state]) in
+/// both themes. [release] runs after the last capture, for a request a case
+/// held open to show a loading state.
 Future<void> captureMessages(
   WidgetTester tester, {
   required String surface,
@@ -222,6 +162,7 @@ Future<void> captureMessages(
   FutureOr<http.Response?> Function(http.Request request)? serve,
   SceneStep? seed,
   SceneStep? act,
+  SceneStep? release,
   List<String> themes = reviewThemes,
 }) async {
   tester.view.physicalSize = reviewViewports[viewport]!;
@@ -281,5 +222,6 @@ Future<void> captureMessages(
     firstException ??= tester.takeException();
   }
   expect(firstException, isNull);
+  if (release != null) await release(scene);
   await teardownFixture(tester, fixture.container, fixture.db);
 }
