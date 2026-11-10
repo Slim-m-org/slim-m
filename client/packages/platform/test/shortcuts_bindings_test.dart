@@ -79,6 +79,41 @@ void deafenAndRemapTests() {
       expect(describeAppAction(AppAction.toggleDeafenCall), isNotEmpty);
     });
 
+    test('the call overlay toggle defaults to Ctrl+Shift+O, alone on it', () {
+      expect(
+        describeAppAction(AppAction.toggleCallOverlay, forWeb: false),
+        ['Ctrl', 'Shift', 'O'],
+      );
+      final resolved = resolveBindings(forWeb: false);
+      final overlayKey = resolved.entries
+          .where((e) => e.value == AppAction.toggleCallOverlay)
+          .single
+          .key as SingleActivator;
+      final sameChord = resolved.keys.whereType<SingleActivator>().where(
+            (k) =>
+                k.trigger == overlayKey.trigger &&
+                k.control == overlayKey.control &&
+                k.shift == overlayKey.shift &&
+                k.alt == overlayKey.alt &&
+                k.meta == overlayKey.meta,
+          );
+      expect(sameChord, hasLength(1));
+    });
+
+    test('the call overlay toggle can be remapped like the other call keys',
+        () {
+      const custom = SingleActivator(LogicalKeyboardKey.f8);
+      final resolved = resolveBindings(
+        overrides: {AppAction.toggleCallOverlay: custom},
+        forWeb: false,
+      );
+      expect(resolved[custom], AppAction.toggleCallOverlay);
+      expect(
+        resolved.values.where((a) => a == AppAction.toggleCallOverlay),
+        hasLength(1),
+      );
+    });
+
     test('userShortcutOverrides is what a caller with none sees', () {
       const custom = SingleActivator(LogicalKeyboardKey.f9);
       userShortcutOverrides = {AppAction.toggleMuteCall: custom};

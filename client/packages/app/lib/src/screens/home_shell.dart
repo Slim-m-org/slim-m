@@ -25,6 +25,7 @@ import '../features/admin_setup/screens/admin_setup_gate.dart';
 import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
 import '../features/screen_overlay/providers/screen_overlay_controller.dart';
+import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
 import '../features/voice/providers/voice_notice_controller.dart';
@@ -437,6 +438,7 @@ class HomeShell extends ConsumerWidget {
       if (shareCall != null) shareCall: () => call()?.toggleShare(),
       if (leaveCall != null) leaveCall: () => call()?.leave(),
       ...serverSwitchBindings(ref),
+      ...callOverlayShortcutBindings(ref),
     };
   }
 

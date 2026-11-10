@@ -11,8 +11,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
@@ -57,7 +59,7 @@ GoRouter _router(ProviderContainer container) => GoRouter(
 );
 
 Future<({ProviderContainer container, InertSession session, SlimmDatabase db})>
-_pump(WidgetTester tester) async {
+_pump(WidgetTester tester, {bool overlayHosted = false}) async {
   final session = InertSession();
   final s = setup(
     httpClient: quietClient(),
@@ -66,6 +68,7 @@ _pump(WidgetTester tester) async {
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session),
       ),
+      screenOverlaySupportedProvider.overrideWithValue(overlayHosted),
     ],
   );
   tester.view.physicalSize = const Size(1400, 900);
@@ -152,4 +155,36 @@ void main() {
     expect(p.session.leaveCalls, 0);
     await teardown(tester, p.container, p.db);
   });
+
+  testWidgets('Ctrl+Shift+O flips the call overlay where it can be hosted', (
+    tester,
+  ) async {
+    final p = await _pump(tester, overlayHosted: true);
+    bool shown() =>
+        p.container.read(voiceSettingsControllerProvider).callOverlayEnabled;
+    expect(shown(), isFalse);
+
+    await tester.tap(find.byKey(const Key('composer')));
+    await tester.pump();
+    await _ctrlShift(tester, LogicalKeyboardKey.keyO);
+    expect(shown(), isTrue);
+    await _ctrlShift(tester, LogicalKeyboardKey.keyO);
+    expect(shown(), isFalse);
+    await teardown(tester, p.container, p.db);
+  });
+
+  testWidgets(
+    'Ctrl+Shift+O is left to the platform where there is no overlay',
+    (tester) async {
+      final p = await _pump(tester);
+      await tester.tap(find.byKey(const Key('composer')));
+      await tester.pump();
+      await _ctrlShift(tester, LogicalKeyboardKey.keyO);
+      expect(
+        p.container.read(voiceSettingsControllerProvider).callOverlayEnabled,
+        isFalse,
+      );
+      await teardown(tester, p.container, p.db);
+    },
+  );
 }

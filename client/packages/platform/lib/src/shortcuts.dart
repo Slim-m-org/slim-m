@@ -48,7 +48,10 @@ enum AppAction {
   toggleShareCall,
 
   /// Leave the call currently connected.
-  leaveCall;
+  leaveCall,
+
+  /// Show or hide the call overlay on a desktop that can host it.
+  toggleCallOverlay;
 
   /// A human-readable name, for a keybinding screen.
   String get label => switch (this) {
@@ -64,6 +67,7 @@ enum AppAction {
         AppAction.toggleCameraCall => 'Turn camera on or off (in a call)',
         AppAction.toggleShareCall => 'Start or stop screen share (in a call)',
         AppAction.leaveCall => 'Leave the call',
+        AppAction.toggleCallOverlay => 'Toggle call overlay',
       };
 }
 
@@ -136,6 +140,8 @@ Map<ShortcutActivator, AppAction> defaultBindings({bool forWeb = kIsWeb}) => {
           AppAction.toggleCameraCall,
       _primary(LogicalKeyboardKey.keyS, shift: true): AppAction.toggleShareCall,
       _primary(LogicalKeyboardKey.keyH, shift: true): AppAction.leaveCall,
+      _primary(LogicalKeyboardKey.keyO, shift: true):
+          AppAction.toggleCallOverlay,
     };
 
 /// What the person remapped, applied wherever a caller passes no overrides of

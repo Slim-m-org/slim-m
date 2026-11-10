@@ -143,8 +143,17 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
   Linux cannot keep a window out of the capture, and the owner does not want the panel in his stream.
   A window share leaves it up, since the share does not include it.
 - One row per person: you first, then the call's own order so rows do not jump, at most 8 rows and then "+N more".
-  Each row has a dot that lights in the accent colour (with a soft ring) while they talk, the name, and a struck-through microphone or headphones when muted or deafened.
-  It is always the dark tokens at 88% opacity with a hairline border and the 10 radius, so it reads over any background.
+  Each row has a 24px round avatar, the name, and a struck-through microphone or headphones when muted or deafened.
+  While they talk the avatar gets a 2px accent ring, and nothing otherwise.
+  It is always the dark tokens with a hairline border and the 10 radius, so it reads over any background.
+  Owner, 2026-11-07, looking at the first version (a grey dot per name): "clean up overlay? keybinds?".
+  He chose avatars with mute icons, a toggle keybind, and a smaller, fainter panel, and added "show voice activity rings also, kindve just want to align with discord for this but simple".
+  So rows are 28px tall with 11px text and 8/6 padding, the surface is 60% opaque and the text 90%.
+- Avatars are baked in Dart, once per person and picture: the cached avatar (or the tinted initials disc, as `AppAvatar` draws it) is cropped to a 48px circle and encoded as a PNG.
+  A row carries its user `id`, and an `avatar` PNG only the first time that picture is sent.
+  The runner decodes it into a cache keyed by user id (cairo on Linux, GDI+ on Windows) and draws that, so a speaking flicker never resends bytes.
+  The cache lives as long as the window: Dart forgets what it sent whenever the window is shown or hidden, and the runner empties its cache on `hide`.
+  A row with no picture yet is drawn as a plain disc until it arrives, and the picture upgrades from initials to the photo when the bytes land.
 - The protocol gains `panel` (rows, corner, monitor index, colours; null clears it) and `appMonitor` (the index of the monitor the app window is on, or -1).
   Dart decides the rows and the colours; the runner only draws, and it repaints only when `panel` is called.
   Dart sends `panel` only when the panel differs from the last one it sent, so a speaking flicker that changes no row costs nothing, and the runner has no timer.
@@ -156,6 +165,9 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
   Owner, 2026-11-06: "on the call overlay can we have it pick a monitor to display on? might help with the canvas drawing also".
   The pick is stored as the screen's position and size, so a reorder does not move it, and an unplugged pick falls back to Automatic.
   When a share cannot say which screen it is and more than one could match, the drawing overlay uses the picked screen instead of covering them all.
+- Keyboard (2026-11-07): "Toggle call overlay", default Ctrl+Shift+O (Cmd on Apple), is one of the remappable call shortcuts and flips "Show call overlay".
+  It is bound only where the desktop can host the overlay, so the browser and other platforms keep the key.
+  In a call it is also a global hotkey beside mute and deafen, so it works while a game has focus.
 - Windows draws the same panel with GDI+ and, like the drawing overlay, is excluded from capture; it is compiled for syntax only.
 
 ## In-app preview and window shares (2026-11-04)
@@ -206,3 +218,4 @@ Owner, 2026-11-06: "why cant i use the normal controls ... if i draw on canvas w
 - Packaging gtk-layer-shell in the tarball and the flatpak; the rpm recommends it.
 - macOS, web, Android and iOS, by decision.
 - A real Windows run, an X11 run, a real GNOME run, and a real multi-monitor run.
+  The Windows avatar path (the PNG decoded through `SHCreateMemStream` and GDI+) has been read against the API but never built or run.
