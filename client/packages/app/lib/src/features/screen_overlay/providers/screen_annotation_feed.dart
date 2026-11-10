@@ -46,13 +46,24 @@ class ScreenAnnotationFeed extends ChangeNotifier {
     final now = _clock();
     if (frame.kind == 'consent') {
       _consent.apply(frame, now);
-    } else {
-      (_boards[frame.targetUserId] ??= ScreenAnnotationBoard()).apply(
-        frame,
-        now,
-      );
+    } else if (!_applyMark(frame, now)) {
+      return;
     }
+    _boards.removeWhere((_, board) => board.pruneAt(now));
     notifyListeners();
+  }
+
+  /// A board exists only for my own screen or a sharer who allowed drawing, so a relayed mark aimed at anyone else costs nothing.
+  bool _applyMark(api.CanvasScreenAnnotation frame, DateTime now) {
+    final target = frame.targetUserId;
+    var board = _boards[target];
+    if (board == null) {
+      final allowed = target == _selfId() || _consent.of(target, now) != null;
+      if (!allowed) return false;
+      board = _boards[target] = ScreenAnnotationBoard();
+    }
+    board.apply(frame, now);
+    return true;
   }
 
   /// The sharer's live consent, or null when they have not allowed drawing.
@@ -63,6 +74,9 @@ class ScreenAnnotationFeed extends ChangeNotifier {
       _boards[sharerId]?.liveAt(_clock()) ?? const [];
 
   DateTime get now => _clock();
+
+  @visibleForTesting
+  int get boardCount => _boards.length;
 }
 
 final screenAnnotationFeedProvider = Provider<ScreenAnnotationFeed>((ref) {
