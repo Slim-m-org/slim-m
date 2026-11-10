@@ -88,7 +88,6 @@ Future<void> confirmAndDeleteCategory(
 /// it rather than an inline [AppErrorState] with nowhere left to sit.
 Future<void> moveCategoryAndReport(
   BuildContext context,
-  WidgetRef ref,
   List<ChannelCategoryRow> ordered,
   ChannelCategoryRow category,
   int delta,
@@ -99,10 +98,11 @@ Future<void> moveCategoryAndReport(
 
   final ids = [for (final c in ordered) c.id];
   ids.insert(target, ids.removeAt(index));
-  final controller = ref.read(categoryOrderControllerProvider.notifier);
+  final container = ProviderScope.containerOf(context, listen: false);
+  final controller = container.read(categoryOrderControllerProvider.notifier);
   await controller.reorder(ids);
 
-  final error = ref.read(categoryOrderControllerProvider).error;
+  final error = container.read(categoryOrderControllerProvider).error;
   if (error == null) return;
   controller.dismiss();
   if (context.mounted) showAppSnackbar(context, error);

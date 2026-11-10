@@ -4,6 +4,7 @@ library;
 
 import 'dart:io';
 
+import 'package:dbus/dbus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_platform/src/autostart.dart';
 import 'package:slimm_platform/src/autostart_io.dart';
@@ -101,6 +102,68 @@ void main() {
           await WindowsRunKeyAutostart(executable: 'x', run: missing)
               .isEnabled(),
           isFalse);
+    });
+  });
+
+  group('Flatpak portal autostart', () {
+    late Directory dir;
+    late File marker;
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('slimm-flatpak-');
+      marker = File('${dir.path}/autostart/top.npcserver.slimm.desktop');
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    FlatpakAutostart portalSays(int code, {bool? autostart}) =>
+        FlatpakAutostart(
+          marker: marker,
+          request: (asked) async => (
+            code: code,
+            results: {
+              if (autostart != null) 'autostart': DBusBoolean(autostart),
+            },
+          ),
+        );
+
+    test('an approved request marks it on', () async {
+      final autostart = portalSays(0, autostart: true);
+      await autostart.setEnabled(true);
+      expect(await autostart.isEnabled(), isTrue);
+    });
+
+    test('a dismissed dialog throws and leaves it off', () async {
+      final autostart = portalSays(1);
+      await expectLater(
+        autostart.setEnabled(true),
+        throwsA(isA<AutostartDeniedException>()),
+      );
+      expect(await autostart.isEnabled(), isFalse);
+    });
+
+    test('an answer that registers nothing throws and leaves it off', () async {
+      final autostart = portalSays(0, autostart: false);
+      await expectLater(
+        autostart.setEnabled(true),
+        throwsA(isA<AutostartDeniedException>()),
+      );
+      expect(await autostart.isEnabled(), isFalse);
+    });
+
+    test('turning it off removes the mark once the portal agrees', () async {
+      marker.parent.createSync(recursive: true);
+      marker.writeAsStringSync('on');
+      await portalSays(0, autostart: false).setEnabled(false);
+      expect(marker.existsSync(), isFalse);
+    });
+
+    test('a refused turn off keeps the mark', () async {
+      marker.parent.createSync(recursive: true);
+      marker.writeAsStringSync('on');
+      await expectLater(
+        portalSays(2).setEnabled(false),
+        throwsA(isA<AutostartDeniedException>()),
+      );
+      expect(marker.existsSync(), isTrue);
     });
   });
 

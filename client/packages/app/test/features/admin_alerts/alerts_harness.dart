@@ -49,6 +49,8 @@ Map<String, dynamic> storageJson(Map<String, dynamic> backup) => {
 class FakeServer {
   List<Map<String, dynamic>> alerts = [];
   bool muted = false;
+  bool failMute = false;
+  Completer<void>? muteGate;
   Map<String, dynamic> backup = {'state': 'never', 'stale': false};
   final requests = <String>[];
   final events = StreamController<api.ServerEvent>.broadcast();
@@ -65,6 +67,8 @@ class FakeServer {
       case ('GET', '/space/alerts'):
         return _json({'alerts': alerts, 'muted': muted});
       case ('PUT', '/space/alerts/mute'):
+        await muteGate?.future;
+        if (failMute) return http.Response('', 500);
         muted =
             (jsonDecode(request.body) as Map<String, dynamic>)['muted'] as bool;
         return _json({'alerts': alerts, 'muted': muted});

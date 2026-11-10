@@ -6,33 +6,17 @@
 use std::time::Duration;
 
 use futures_util::SinkExt;
-use serde_json::{Value, json};
+use serde_json::json;
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
-
-async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
-    let outcome = tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            let frame = read_frame(ws).await;
-            if frame["type"] == frame_type {
-                return frame;
-            }
-        }
-    })
-    .await;
-    outcome.unwrap_or_else(|_| panic!("no {frame_type} arrived in time"))
-}
-
-async fn assert_nothing_of_type(ws: &mut Client, frame_type: &str) {
-    let outcome =
-        tokio::time::timeout(Duration::from_millis(300), next_of_type(ws, frame_type)).await;
-    assert!(outcome.is_err(), "unexpected {frame_type}");
-}
+use support::ws::{
+    Client, assert_no_frame_of_type, connect, read_frame, read_frame_of_type, serve,
+    user_ticket_and_id,
+};
 
 async fn send_cursor(ws: &mut Client, channel_id: &str, x: f64, y: f64) {
     ws.send(WsMessage::Text(
@@ -62,7 +46,7 @@ async fn a_viewer_with_both_bits_receives_the_cursor() {
 
     send_cursor(&mut alice_ws, &channel.to_string(), 12.5, -4.0).await;
 
-    let frame = next_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.cursor.moved").await;
     assert_eq!(frame["channel_id"], channel.to_string());
     assert_eq!(frame["user_id"], alice_id.to_string());
     assert_eq!(frame["x"], 12.5);
@@ -94,7 +78,7 @@ async fn a_pointer_leaving_the_canvas_is_relayed() {
         .await
         .unwrap();
 
-    let frame = next_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.cursor.moved").await;
     assert_eq!(frame["left"], true);
     assert_eq!(frame["user_id"], alice_id.to_string());
 }
@@ -124,7 +108,7 @@ async fn a_member_denied_use_canvas_never_sees_a_cursor() {
 
     send_cursor(&mut alice_ws, &channel.to_string(), 12.5, -4.0).await;
 
-    assert_nothing_of_type(&mut carol_ws, "canvas.cursor.moved").await;
+    assert_no_frame_of_type(&mut carol_ws, "canvas.cursor.moved").await;
 }
 
 /// Hiding presence does not hide live ink from people who can view the
@@ -150,7 +134,7 @@ async fn a_hidden_users_cursor_reaches_a_viewer_of_the_same_canvas() {
 
     send_cursor(&mut alice_ws, &channel.to_string(), 1.0, 1.0).await;
 
-    let frame = next_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    let frame = read_frame_of_type(&mut bob_ws, "canvas.cursor.moved").await;
     assert_eq!(frame["user_id"], alice_id.to_string());
 }
 
@@ -172,7 +156,7 @@ async fn an_out_of_bounds_cursor_is_dropped() {
 
     send_cursor(&mut alice_ws, &channel.to_string(), 50_000_000.0, 0.0).await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    assert_no_frame_of_type(&mut bob_ws, "canvas.cursor.moved").await;
 }
 
 /// Cursor frames are rate limited independently of the channel: a tight loop

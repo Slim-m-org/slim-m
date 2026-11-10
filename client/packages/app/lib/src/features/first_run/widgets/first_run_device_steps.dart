@@ -4,7 +4,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -183,19 +182,10 @@ class _PermissionBlock extends ConsumerWidget {
   }
 }
 
-/// [webAskFirst] holds the capture back until the member taps, because a
-/// browser answers the first capture with a permission prompt.
-class FirstRunVoiceStep extends ConsumerStatefulWidget {
-  const FirstRunVoiceStep({super.key, this.webAskFirst = kIsWeb});
-
-  final bool webAskFirst;
-
-  @override
-  ConsumerState<FirstRunVoiceStep> createState() => _FirstRunVoiceStepState();
-}
-
-class _FirstRunVoiceStepState extends ConsumerState<FirstRunVoiceStep> {
-  late bool _meterOn = !widget.webAskFirst;
+/// The level meter holds the capture back until a tap wherever a first capture
+/// raises a permission prompt (see `MicPreviewHold`), so this step adds no gate.
+class FirstRunVoiceStep extends StatelessWidget {
+  const FirstRunVoiceStep({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -216,17 +206,10 @@ class _FirstRunVoiceStepState extends ConsumerState<FirstRunVoiceStep> {
           ),
         ),
         const SizedBox(height: AppSpacing.s16),
-        if (_meterOn)
-          const MicPreviewHold(child: _LevelMeter())
-        else
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: AppButton(
-              label: 'Test microphone',
-              variant: AppButtonVariant.secondary,
-              onPressed: () => setState(() => _meterOn = true),
-            ),
-          ),
+        const MicPreviewHold(
+          tapPadding: EdgeInsets.only(top: AppSpacing.s8),
+          child: _LevelMeter(),
+        ),
       ],
     );
   }

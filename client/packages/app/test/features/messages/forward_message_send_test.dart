@@ -8,6 +8,7 @@
 /// `content`, which is empty whenever they wrote none.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -107,6 +108,7 @@ class _Harness {
             final body = jsonDecode(request.body) as Map<String, dynamic>;
             postedBodies.add(body);
             postedChannels.add(send.group(1)!);
+            await sendGate?.future;
             if (dropNextReply) {
               dropNextReply = false;
               throw http.ClientException('connection closed');
@@ -162,6 +164,9 @@ class _Harness {
 
   /// The server takes the next send but its reply never arrives.
   bool dropNextReply = false;
+
+  /// Holds every send's reply until completed.
+  Completer<void>? sendGate;
 
   Future<void> dispose() async {
     container.dispose();
@@ -280,6 +285,27 @@ void main() {
     final body = harness.postedBodies.single;
     expect(body['content'], 'look at this');
     expect(body['forwarded_from_id'], 'm1');
+  });
+
+  testWidgets('a forward still lands locally when the picker was dismissed '
+      'while it was in flight', (tester) async {
+    final harness = _Harness()..sendGate = Completer<void>();
+    addTearDown(harness.dispose);
+    await _pump(tester, harness);
+
+    await tester.tap(find.text('general'));
+    await pumpFrames(tester);
+    Navigator.of(tester.element(find.text('Forward'))).pop();
+    await pumpFrames(tester, frames: 20);
+    harness.sendGate!.complete();
+    await pumpFrames(tester);
+    final id = harness.postedBodies.single['id'] as String;
+    final landed = await tester.runAsync(
+      () => harness.store.hasMessage('c2', id),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(landed, isTrue);
   });
 
   testWidgets('a forward that fails shows an AppErrorState, never a '

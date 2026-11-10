@@ -9,6 +9,8 @@
 //! via [`record_sweep_run`], best-effort, so `GET /space/storage` can show an
 //! operator when each last ran and roughly what it reclaimed.
 
+#[cfg(test)]
+mod tests;
 mod voice;
 pub(crate) use voice::{
     spawn_call_history_sweep, spawn_call_sweep, spawn_ring_sweep, spawn_room_sweep,
@@ -207,8 +209,9 @@ pub(crate) fn spawn_canvas_op_sweep(store: store::Store) {
 
 /// How often the message retention window is applied. Long, the same
 /// reasoning [`TOKEN_SWEEP_INTERVAL`] gives: a day-granularity setting has
-/// no reason to be checked more often than this, and a deployment with the
-/// window off pays only the one cheap config read every tick.
+/// no reason to be checked more often than this. A tick with nothing to prune
+/// costs a config read and index probes, plus a read of the live messages of any
+/// channel that sets its own window; see `retention_candidates`.
 const MESSAGE_RETENTION_SWEEP_INTERVAL: std::time::Duration =
     std::time::Duration::from_secs(6 * 60 * 60);
 

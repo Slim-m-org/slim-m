@@ -58,4 +58,9 @@ jobs:
         working-directory: client/packages/app
         run: flutter build macos --debug
 
+      # The one test that drives the real ditto, xattr and codesign; it skips on every other OS.
+      - name: macos self-update install test
+        working-directory: client/packages/app
+        run: flutter test test/desktop/self_update/macos_install_test.dart
+
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}

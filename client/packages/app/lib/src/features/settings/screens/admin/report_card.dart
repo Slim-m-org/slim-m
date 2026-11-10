@@ -93,6 +93,9 @@ class _ReportCardState extends ConsumerState<ReportCard>
     unawaited(ref.read(batchProfilesControllerProvider.notifier).resolve(ids));
   }
 
+  ProviderContainer get _container =>
+      ProviderScope.containerOf(context, listen: false);
+
   /// See [reportedChannelReachable]. Left null (jump disabled) for a report
   /// with nothing to jump to at all.
   Future<void> _checkReachability() async {
@@ -133,18 +136,19 @@ class _ReportCardState extends ConsumerState<ReportCard>
       confirmLabel: verb,
     );
     if (!confirmed || !mounted) return;
+    final container = _container;
+    final reportId = widget.report.id;
     await _runQuickAction((g) async {
       await g(
         whatFailed: 'close the report',
         action: () async {
-          await ref
+          await container
               .read(apiProvider)
-              .resolveReport(
-                reportId: widget.report.id,
-                resolution: resolution,
-              );
+              .resolveReport(reportId: reportId, resolution: resolution);
           // Without this the closed report stays in the open queue until something else reloads it.
-          await ref.read(reportsControllerProvider.notifier).refresh();
+          if (container.exists(reportsControllerProvider)) {
+            await container.read(reportsControllerProvider.notifier).refresh();
+          }
         },
       );
     });
@@ -269,7 +273,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
               _runQuickAction(
                 (g) => deleteReportedMessage(
                   context,
-                  ref,
+                  _container,
                   g,
                   channelId: report.channelId!,
                   messageId: report.subjectId,
@@ -283,7 +287,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
               _runQuickAction(
                 (g) => removeReportedAuthor(
                   context,
-                  ref,
+                  _container,
                   g,
                   userId: targetUserId!,
                   name: facts.targetName,
@@ -296,7 +300,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
           ? (d) => unawaited(
               _runQuickAction(
                 (g) => timeOutReportedAuthor(
-                  ref,
+                  _container,
                   g,
                   userId: targetUserId!,
                   duration: d,

@@ -3,50 +3,17 @@
 //! because the room token withholds `canUpdateOwnMetadata` (which would also
 //! let a client rewrite its own display name).
 
-use std::sync::{Arc, Mutex};
-
-use axum::Router as SfuRouter;
-use axum::extract::State;
+use axum::Router;
 use axum::http::StatusCode;
-use axum::routing::post;
-use axum::{Json, Router};
 use serde_json::{Value, json};
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
 use support::app::request_json;
-
-#[derive(Clone, Default)]
-struct RecordingRoomService {
-    updates: Arc<Mutex<Vec<Value>>>,
-}
-
-async fn update_participant(
-    State(recorder): State<RecordingRoomService>,
-    Json(body): Json<Value>,
-) -> StatusCode {
-    recorder.updates.lock().unwrap().push(body);
-    StatusCode::OK
-}
-
-async fn spawn_sfu(recorder: RecordingRoomService) -> String {
-    let router = SfuRouter::new()
-        .route(
-            "/twirp/livekit.RoomService/UpdateParticipant",
-            post(update_participant),
-        )
-        .with_state(recorder);
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    format!("http://{addr}")
-}
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 
 fn app(store: Store, voice: VoiceService) -> Router {
     support::app::builder(store).voice(voice).router()

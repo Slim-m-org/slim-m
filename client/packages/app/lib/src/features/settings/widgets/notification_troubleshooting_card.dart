@@ -3,11 +3,10 @@
 /// iPhone, a push re-registration.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart'
     show LocalAlertChannel, isAndroidHost, isLinuxHost;
@@ -37,38 +36,80 @@ class NotificationTroubleshootingCard extends StatelessWidget {
 /// confirm slim-m's notifications reach their OS - most useful on the Linux
 /// desktop, where there is no remote push to fall back on and a silent
 /// failure is otherwise invisible.
-class TestNotificationRow extends ConsumerWidget {
+class TestNotificationRow extends ConsumerStatefulWidget {
   const TestNotificationRow({super.key});
 
   // Only where a local notification actually displays (Android, Linux desktop); a pipe test via the same LocalNotifications.show path a real alert uses.
   static bool get _supported => isAndroidHost || isLinuxHost;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return AppListRow(
-      label: 'Test notification',
-      subtitle: 'Check that notifications reach you.',
-      trailing: AppButton(
-        label: 'Send test',
-        size: AppButtonSize.sm,
-        variant: AppButtonVariant.secondary,
-        onPressed: _supported
-            ? () {
-                unawaited(
-                  ref
-                      .read(localNotificationsProvider)
-                      .show(
-                        'Test notification - if you can see this, slim-m can '
-                        'reach your notifications.',
-                        channel: LocalAlertChannel.messages,
-                      ),
-                );
-                ref
-                    .read(toastsProvider.notifier)
-                    .show('Test notification sent.');
-              }
-            : null,
-      ),
+  ConsumerState<TestNotificationRow> createState() =>
+      _TestNotificationRowState();
+}
+
+class _TestNotificationRowState extends ConsumerState<TestNotificationRow> {
+  bool _sending = false;
+  String? _error;
+
+  Future<void> _send() async {
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(localNotificationsProvider)
+          .show(
+            'Test notification - if you can see this, slim-m can '
+            'reach your notifications.',
+            channel: LocalAlertChannel.messages,
+          );
+      if (!mounted) return;
+      ref.read(toastsProvider.notifier).show('Test notification sent.');
+    } catch (e, stack) {
+      api.reportFailure(
+        api.LogTag.platform,
+        'show the test notification',
+        e,
+        stack,
+      );
+      if (mounted) setState(() => _error = _failureSentence);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  static const _failureSentence =
+      'Could not show the test notification. Check that your system allows '
+      'notifications from slim-m.';
+
+  @override
+  Widget build(BuildContext context) {
+    final error = _error;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppListRow(
+          label: 'Test notification',
+          subtitle: 'Check that notifications reach you.',
+          trailing: AppButton(
+            label: 'Send test',
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.secondary,
+            onPressed: TestNotificationRow._supported && !_sending
+                ? _send
+                : null,
+          ),
+        ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.s16),
+            child: AppErrorState(
+              message: error,
+              onDismiss: () => setState(() => _error = null),
+            ),
+          ),
+      ],
     );
   }
 }

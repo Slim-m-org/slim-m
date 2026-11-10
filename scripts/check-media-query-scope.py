@@ -82,7 +82,7 @@ def offenders_in(sources: dict[str, str], allowed: dict[str, int]) -> list[str]:
     """
     offenders: list[str] = []
     for rel, source in sources.items():
-        text = strip_block_comments(source)
+        text = strip_block_comments(source, blank_strings=True)
         hits = [
             lineno
             for lineno, line in enumerate(text.splitlines(), start=1)

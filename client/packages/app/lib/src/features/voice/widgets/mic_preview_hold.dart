@@ -11,12 +11,26 @@ import '../../../widgets/visible_hold.dart';
 import '../providers/mic_preview.dart';
 import 'level_display_hold.dart';
 
+const _cardTapPadding = EdgeInsets.fromLTRB(
+  AppSpacing.s16,
+  0,
+  AppSpacing.s16,
+  AppSpacing.s16,
+);
+
 /// Keeps the preview capture open while it is mounted and its route is shown,
 /// and counts as a displayed meter for the in-call level polling.
 class MicPreviewHold extends ConsumerWidget {
-  const MicPreviewHold({super.key, required this.child});
+  const MicPreviewHold({
+    super.key,
+    required this.child,
+    this.tapPadding = _cardTapPadding,
+  });
 
   final Widget child;
+
+  /// Around the "Test microphone" button; the default suits a [child] drawn inside a padded card.
+  final EdgeInsets tapPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,7 +43,7 @@ class MicPreviewHold extends ConsumerWidget {
         release: () {
           if (controller.mounted) controller.release();
         },
-        child: _TapToTest(child: child),
+        child: _TapToTest(padding: tapPadding, child: child),
       ),
     );
   }
@@ -38,9 +52,10 @@ class MicPreviewHold extends ConsumerWidget {
 /// On a phone the meter stays still until the tap, so the pane never opens the
 /// microphone by itself.
 class _TapToTest extends ConsumerWidget {
-  const _TapToTest({required this.child});
+  const _TapToTest({required this.child, required this.padding});
 
   final Widget child;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,12 +68,7 @@ class _TapToTest extends ConsumerWidget {
       children: [
         child,
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s16,
-          ),
+          padding: padding,
           child: armed
               ? AppButton(
                   key: micTestStopKey,

@@ -10,11 +10,17 @@
 # to its callers and to `dart doc` / `cargo doc`, which is a different job.
 #
 # Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks
-# included) and TOML. Shell, YAML and TOML only have `#` comments, and a `#`
-# block is also how such a file documents itself, so the leading block at the
-# top of the file (shebang, SPDX line, description, blank lines between them)
-# is a file header and is never a run. Any run after the first line of real
-# content counts like it does everywhere else.
+# included), TOML, and the native and web sources (Swift, Kotlin, C, C++,
+# Objective-C, TypeScript, JavaScript). Generated files and the vendored
+# wayland-scanner output are skipped.
+#
+# Shell, YAML and TOML only have `#` comments, and a `#` block is also how such
+# a file documents itself, so the leading block at the top of the file (shebang,
+# SPDX line, description, blank lines between them) is a file header and is
+# never a run. Any run after the first line of real content counts like it does
+# everywhere else. Python has `#` comments only too, with no header exemption.
+# Every other language has no `#` comments, so a stacked Rust `#[attr]` or a C
+# `#include` is never a run.
 #
 # Ratcheting, not a big-bang sweep: runs that predate this gate are held in
 # scripts/comment-cap-allow.txt at each file's count when it was listed, and
@@ -45,18 +51,19 @@ fi
 
 # Counts maximal runs of 2+ plain-comment lines, including /* */ blocks that open their own line (not /** or /*!); nested blocks are not modelled.
 runs_in() {
-  local file="$1" hash_only=0
+  local file="$1" hash=1 slash=1 header=0
   case $file in
-    *.sh | *.yml | *.yaml | *.toml) hash_only=1 ;;
-    *) ;;
+    *.sh | *.yml | *.yaml | *.toml) slash=0 header=1 ;;
+    *.py) slash=0 ;;
+    *) hash=0 ;;
   esac
-  awk -v hash_only="$hash_only" -v header="$hash_only" '
+  awk -v hash="$hash" -v slash="$slash" -v header="$header" '
     # The top-of-file block of a #-only file is its header, not a run.
     header && (/^[[:space:]]*$/ || /^[[:space:]]*#/) { next }
     { header = 0 }
-    # A plain comment is // not followed by / or !, or # not followed by !; shell and YAML have no // or /*.
-    !hash_only && (/^[[:space:]]*\/\/[^\/!]/ || /^[[:space:]]*\/\/$/) { streak++; next }
-    /^[[:space:]]*#([^!]|$)/ { streak++; next }
+    # A plain comment is // not followed by / or !, or # not followed by !; hash and slash select which of the two the language has.
+    slash && (/^[[:space:]]*\/\/[^\/!]/ || /^[[:space:]]*\/\/$/) { streak++; next }
+    hash && /^[[:space:]]*#([^!]|$)/ { streak++; next }
     in_block {
       block_lines++
       if ($0 ~ /\*\//) { if (block_lines > 1) runs++; in_block = 0; block_lines = 0 }
@@ -64,7 +71,7 @@ runs_in() {
       streak = 0
       next
     }
-    !hash_only && (/^[[:space:]]*\/\*[^*!]/ || /^[[:space:]]*\/\*$/) {
+    slash && (/^[[:space:]]*\/\*[^*!]/ || /^[[:space:]]*\/\*$/) {
       if (streak > 1) runs++
       streak = 0
       if ($0 ~ /\*\//) next
@@ -81,13 +88,18 @@ runs_in() {
   ' "$file"
 }
 
+extensions=(dart rs py sh yml yaml toml swift kt kts c cc cpp h m ts tsx js mjs)
+pathspecs=("${extensions[@]/#/*.}")
+joined=$(IFS='|' && echo "${extensions[*]}")
+extension_pattern="\\.($joined)\$"
+
 status=0
 checked=0
 over=0
 
 while IFS= read -r file; do
   case $file in
-    *.g.dart | *.freezed.dart | .sqlx/* | */generated/*) continue ;;
+    *.g.dart | *.freezed.dart | .sqlx/* | */generated/* | *generated_plugin_registrant.* | */GeneratedPluginRegistrant.swift | *-protocol.c | *-protocol.h) continue ;;
     *) ;;
   esac
   checked=$((checked + 1))
@@ -113,9 +125,9 @@ while IFS= read -r file; do
   fi
 done < <(
   if (($# > 0)); then
-    printf '%s\n' "$@" | grep -E '\.(dart|rs|py|sh|yml|yaml|toml)$' || true
+    printf '%s\n' "$@" | grep -E "$extension_pattern" || true
   else
-    git ls-files '*.dart' '*.rs' '*.py' '*.sh' '*.yml' '*.yaml' '*.toml'
+    git ls-files "${pathspecs[@]}"
   fi
 )
 

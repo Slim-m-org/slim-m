@@ -7,53 +7,17 @@
 //! blocking now evicts the blocked party - never the blocker - from the DM
 //! call the two of them share, if one is live.
 
-use std::sync::{Arc, Mutex};
-
-use axum::Router as SfuRouter;
-use axum::extract::State;
+use axum::Router;
 use axum::http::StatusCode;
-use axum::routing::post;
-use axum::{Json, Router};
-use serde_json::Value;
 use slimm_server::ids::UserId;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
 use support::app::request_bearer as request;
-
-/// Records every `RemoveParticipant` call it receives; see
-/// `tests/voice_sweep.rs` for the shape this borrows.
-#[derive(Clone, Default)]
-struct RecordingRoomService {
-    removed: Arc<Mutex<Vec<Value>>>,
-}
-
-async fn remove_participant(
-    State(recorder): State<RecordingRoomService>,
-    Json(body): Json<Value>,
-) -> StatusCode {
-    recorder.removed.lock().unwrap().push(body);
-    StatusCode::OK
-}
-
-async fn spawn_sfu(recorder: RecordingRoomService) -> String {
-    let router = SfuRouter::new()
-        .route(
-            "/twirp/livekit.RoomService/RemoveParticipant",
-            post(remove_participant),
-        )
-        .with_state(recorder);
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    format!("http://{addr}")
-}
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 
 fn app(store: Store, voice: VoiceService) -> Router {
     support::app::builder(store).voice(voice).router()

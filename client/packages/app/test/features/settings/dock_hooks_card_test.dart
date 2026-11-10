@@ -138,5 +138,34 @@ void main() {
     await _settle(tester);
     expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
     expect(find.byWidgetPredicate((w) => w is SnackBar), findsNothing);
+    expect(find.text('Could not change the check.'), findsOneWidget);
+  });
+
+  testWidgets('a failed change offers Dismiss, which clears it without a '
+      'second request', (tester) async {
+    var puts = 0;
+    await _pump(tester, (request) async {
+      if (request.method == 'PUT') {
+        puts++;
+        return _json({'error': 'no'}, 500);
+      }
+      return _json([_hook('filter')]);
+    });
+    await tester.tap(find.byTooltip('Run earlier'));
+    await _settle(tester);
+    expect(find.text('Retry'), findsNothing);
+
+    await tester.tap(find.text('Dismiss'));
+    await _settle(tester);
+
+    expect(find.text('Could not change the check.'), findsNothing);
+    expect(puts, 1);
+  });
+
+  testWidgets('a checks list that will not load says which part failed', (
+    tester,
+  ) async {
+    await _pump(tester, (_) async => _json({'error': 'down'}, 500));
+    expect(find.text('Could not load the checks.'), findsOneWidget);
   });
 }

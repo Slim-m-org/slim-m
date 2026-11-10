@@ -26,6 +26,14 @@ const _iso = api.Attachment(
   size: 100,
 );
 
+const _kept = api.Attachment(
+  id: 'img1',
+  filename: 'IMG_1.jpg',
+  contentType: 'image/jpeg',
+  size: 4,
+  original: api.AttachmentOriginal(size: 8, filename: 'IMG_1.heic'),
+);
+
 void main() {
   late FakeAttachmentServer server;
   late FakeSaveDialog dialog;
@@ -119,6 +127,32 @@ void main() {
     await settle(tester);
     expect(server.requests, 2);
     expect(find.text('Could not save Win11.iso.'), findsNothing);
+
+    unawaited(server.body.close());
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('Retry on a failed original fetches the original again', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    dialog.make = () => FakeTarget()..failWrite = dialog.targets.isEmpty;
+    unawaited(
+      container.read(downloadsProvider.notifier).start(_kept, original: true),
+    );
+    await settle(tester);
+    server.body.add([1]);
+    await settle(tester);
+    expect(find.text('Could not save IMG_1.heic.'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await settle(tester);
+    await settle(tester);
+
+    expect(server.requests, 2);
+    expect(server.lastUri!.queryParameters['original'], 'true');
+    expect(dialog.filenames, ['IMG_1.heic', 'IMG_1.heic']);
 
     unawaited(server.body.close());
     await settle(tester);

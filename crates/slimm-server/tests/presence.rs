@@ -11,7 +11,7 @@ use axum::http::{Request, StatusCode};
 use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use slimm_server::hub::{Event, Hub};
 use slimm_server::presence;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
@@ -183,6 +183,47 @@ async fn presence_flips_to_offline_when_the_last_socket_closes() {
         presence_status(&state, &bob_access, &alice_id_str).await == "offline"
     })
     .await;
+}
+
+/// A fan-out racing an account deletion must not synthesize presence for the
+/// account that is gone, so its socket closing announces nothing at all.
+#[tokio::test]
+async fn a_deleted_accounts_departure_announces_nothing() {
+    let (store, _guard) = support::new_store("slimm-presence-test").await;
+    let hub = Hub::new();
+    let state = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .build();
+    let (_, _, admin_id) = user_ticket(&store, "root").await;
+    store.bootstrap_deployment(admin_id).await.unwrap();
+    let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let alice_id_str = alice_id.to_string();
+
+    let addr = serve(state).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let _ = next_presence_for(&mut bob_ws, &bob_id.to_string()).await;
+    let _alice_ws = connect(addr, &alice_ticket).await;
+    let online = next_presence_for(&mut bob_ws, &alice_id_str).await;
+    assert_eq!(online["status"], "online");
+
+    for session_id in store.delete_account(alice_id).await.unwrap() {
+        hub.publish(Event::SessionRevoked(session_id));
+    }
+    support::wait::wait_until_async("alice's socket to close", || async {
+        !hub.presence().is_connected(alice_id)
+    })
+    .await;
+
+    let announced = tokio::time::timeout(
+        Duration::from_millis(300),
+        next_presence_for(&mut bob_ws, &alice_id_str),
+    )
+    .await;
+    assert!(
+        announced.is_err(),
+        "a deleted account's departure was announced"
+    );
 }
 
 /// One `GET /presence` request naming a hidden user, a plainly visible one,

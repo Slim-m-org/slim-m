@@ -7,6 +7,7 @@
 
 mod build;
 pub(crate) mod call_audio;
+mod candidates;
 mod depths;
 mod dispatch;
 mod queue;
@@ -18,7 +19,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 
-use self::build::{ReactionTally, build, classify};
+use self::build::{build, classify};
+use self::candidates::Candidates;
 pub(super) use self::depths::QueueDepths;
 use self::queue::Origin;
 pub(super) use self::queue::{QUEUE_CAPACITY, Queues};
@@ -67,11 +69,11 @@ async fn consume(
     (state, queues, lagged): (AppState, Arc<Queues>, Arc<AtomicU64>),
     mut events: tokio::sync::broadcast::Receiver<Event>,
 ) {
-    let tally = ReactionTally::default();
+    let mut candidates = Candidates::default();
     loop {
         match events.recv().await {
             Ok(event) => {
-                if let Err(err) = enqueue(&state, &queues, &tally, event).await {
+                if let Err(err) = enqueue(&state, &queues, &mut candidates, event).await {
                     tracing::warn!(%err, "could not queue a module event");
                 }
             }
@@ -87,14 +89,14 @@ async fn consume(
 async fn enqueue(
     state: &AppState,
     queues: &Queues,
-    tally: &ReactionTally,
+    candidates: &mut Candidates,
     event: Event,
 ) -> anyhow::Result<()> {
     let event = event.into_inner();
     let Some(kind) = classify(&event) else {
         return Ok(());
     };
-    let candidates = state.store.module_event_candidates(kind.name).await?;
+    let candidates = candidates.of(&state.store, kind.name).await?;
     if candidates.is_empty() {
         return Ok(());
     }
@@ -104,7 +106,7 @@ async fn enqueue(
         return Ok(());
     }
     let mut receivers = Vec::new();
-    for candidate in candidates {
+    for candidate in candidates.iter() {
         let sees = match kind.channel {
             Some(channel) => {
                 state
@@ -115,13 +117,13 @@ async fn enqueue(
             None => true,
         };
         if sees {
-            receivers.push((candidate.module_id, candidate.bot_user_id));
+            receivers.push((candidate.module_id.clone(), candidate.bot_user_id));
         }
     }
     if receivers.is_empty() {
         return Ok(());
     }
-    for built in build(&state.store, &event, tally, now_ms()).await? {
+    for built in build(&state.store, &event, now_ms()).await? {
         let body: Arc<str> = serde_json::to_string(&ModuleEvent {
             contract: format!("event/{}", crate::module_runtime::EVENT_CONTRACT),
             event: kind.name,

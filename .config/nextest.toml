@@ -1,0 +1,3 @@
+# A test that hangs (a frame that never arrives, a lock never released) fails after six minutes instead of the job's 75.
+[profile.default]
+slow-timeout = { period = "90s", terminate-after = 4 }

@@ -21,8 +21,8 @@
 /// `spawn_ring_sweep` timeout) that is lost if it is missed, and "focused"
 /// only means the app has focus, not that anyone is looking at it.
 ///
-/// Read once from bootstrap, beside the message notifier, so the subscription
-/// lives for the whole signed-in session.
+/// Read by `startAccountServices` for every account's container, beside the
+/// message notifier, so a ring in a Space out of view still raises one.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

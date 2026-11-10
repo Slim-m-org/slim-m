@@ -12,7 +12,7 @@ import '../../../providers/server_info.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/settings_actions.dart';
-import 'join_policy_row.dart' show spaceSettingsProvider;
+import '../providers/space_settings.dart';
 import 'settings_save_feedback.dart';
 import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';
@@ -49,16 +49,19 @@ class _SpaceSettingSwitchSectionState
     with
         GuardedActionState<SpaceSettingSwitchSection>,
         OptimisticSettingState<SpaceSettingSwitchSection, bool> {
-  Future<void> _set(bool value) async {
-    await saveOptimistic(
+  Future<void> _set(bool value) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return saveOptimistic(
       value,
       whatFailed: widget.whatFailed,
-      action: () => ref
-          .read(settingsActionsProvider)
-          .setSpaceSettings(widget.update(value)),
+      action: () async {
+        await container
+            .read(settingsActionsProvider)
+            .setSpaceSettings(widget.update(value));
+        container.invalidate(serverInfoProvider);
+      },
       refresh: spaceSettingsProvider,
     );
-    ref.invalidate(serverInfoProvider);
   }
 
   @override

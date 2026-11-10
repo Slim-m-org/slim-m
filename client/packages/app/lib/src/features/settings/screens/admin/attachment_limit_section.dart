@@ -68,15 +68,18 @@ class _AttachmentLimitSectionState extends ConsumerState<AttachmentLimitSection>
     with
         GuardedActionState<AttachmentLimitSection>,
         OptimisticSettingState<AttachmentLimitSection, int> {
-  Future<void> _setLimit(int maxBytes) => saveOptimistic(
-    maxBytes,
-    whatFailed: 'change the attachment size limit',
-    action: () async {
-      await ref.read(apiProvider).setSpaceAttachmentLimit(maxBytes);
-      ref.invalidate(serverInfoProvider);
-    },
-    refresh: spaceAttachmentLimitProvider,
-  );
+  Future<void> _setLimit(int maxBytes) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return saveOptimistic(
+      maxBytes,
+      whatFailed: 'change the attachment size limit',
+      action: () async {
+        await container.read(apiProvider).setSpaceAttachmentLimit(maxBytes);
+        container.invalidate(serverInfoProvider);
+      },
+      refresh: spaceAttachmentLimitProvider,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

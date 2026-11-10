@@ -165,11 +165,12 @@ async fn startable_module(
     Ok((module, subject))
 }
 
-/// Who is on the call per LiveKit's own webhooks, falling back to the SFU after a restart.
+/// Who is on the call per LiveKit's own webhooks, falling back to the SFU whenever they cannot be
+/// trusted: nobody is known, or the channel was never read off the SFU since a restart.
 async fn people_in_call(state: &AppState, channel: ChannelId) -> Vec<UserId> {
     let live = state.voice.live_state();
     let mut present = live.present(channel);
-    if present.is_empty()
+    if (present.is_empty() || !live.is_reconciled(channel))
         && let Ok(listed) = state.voice.list_participants(channel).await
     {
         present = listed.into_iter().map(|p| p.user_id).collect();

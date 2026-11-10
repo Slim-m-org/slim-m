@@ -308,8 +308,7 @@ async fn the_dev_source_is_absent_without_the_flag() {
 
 #[tokio::test]
 async fn the_dev_source_installs_and_reinstalls_an_overwritten_build_without_a_push() {
-    let dir = std::env::temp_dir().join(format!("slimm-dockc-dev-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let (dir, _dir_guard) = support::TestDirGuard::new("slimm-dockc-dev");
     std::fs::create_dir_all(&dir).unwrap();
     write_dev_module(&dir, &canned_ok_wasm("first"));
     let h = harness("slimm-dockc-dev-on", Some(&dir)).await;
@@ -349,5 +348,4 @@ async fn the_dev_source_installs_and_reinstalls_an_overwritten_build_without_a_p
         .await;
     assert_eq!(status, StatusCode::OK, "{second}");
     assert_ne!(first["artifact_sha256"], second["artifact_sha256"]);
-    std::fs::remove_dir_all(&dir).unwrap();
 }

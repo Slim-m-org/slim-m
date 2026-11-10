@@ -32,13 +32,16 @@ while IFS= read -r line; do
   ceiling["$path"]=$max
 done <"$allowfile"
 
+extensions=(rs dart py sh swift kt kts js mjs ts tsx go css sql yml yaml toml cc cpp h gradle)
+pathspecs=("${extensions[@]/#/*.}")
+joined=$(IFS='|' && echo "${extensions[*]}")
+extension_pattern="\\.($joined)\$"
+
 list_candidates() {
   if (($# > 0)); then
-    printf '%s\n' "$@" | grep -E '\.(rs|dart|py|sh|swift|kt|kts|js|sql|yml|yaml|toml|cc|h|gradle)$' || true
+    printf '%s\n' "$@" | grep -E "$extension_pattern" || true
   else
-    git ls-files -- \
-      '*.rs' '*.dart' '*.py' '*.sh' '*.swift' '*.kt' '*.kts' '*.js' \
-      '*.sql' '*.yml' '*.yaml' '*.toml' '*.cc' '*.h' '*.gradle'
+    git ls-files -- "${pathspecs[@]}"
   fi
 }
 

@@ -63,6 +63,46 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
+  double overlayOpacity(WidgetTester tester) => tester
+      .widget<Opacity>(
+        find
+            .ancestor(
+              of: find.text('Drop to attach'),
+              matching: find.byWidgetPredicate((w) => w is Opacity),
+            )
+            .first,
+      )
+      .opacity;
+
+  testWidgets('the overlay fades in rather than popping in', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    await tester.pumpWidget(_harness(enabled: true, onDrop: (_) {}));
+
+    _dropTarget(tester).onDragEntered!(_zeroEvent);
+    await tester.pump();
+    expect(overlayOpacity(tester), 0);
+
+    await tester.pump(AppMotion.fast);
+    expect(overlayOpacity(tester), 1);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('reduced motion shows the overlay at full strength at once', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pumpWidget(_harness(enabled: true, onDrop: (_) {}));
+
+    _dropTarget(tester).onDragEntered!(_zeroEvent);
+    await tester.pump();
+
+    expect(overlayOpacity(tester), 1);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('the overlay disappears once the drag exits', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     await tester.pumpWidget(_harness(enabled: true, onDrop: (_) {}));

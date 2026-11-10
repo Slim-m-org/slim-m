@@ -60,7 +60,6 @@ Future<void> _reporting(
 /// Saves an inline edit and closes it once it lands. Unchanged text is not a
 /// request. A refusal leaves the field open with its text and says why under it.
 Future<void> submitMessageEdit(
-  WidgetRef ref,
   BuildContext context,
   Message message,
   String content,
@@ -79,7 +78,7 @@ Future<void> submitMessageEdit(
     try {
       failure = await runGuarded(
         whatFailed: 'save the edit',
-        action: () => editMessageAction(ref, message, content),
+        action: () => editMessageAction(container.read, message, content),
       );
     } finally {
       watch.close();
@@ -96,7 +95,6 @@ Future<void> submitMessageEdit(
 
 /// Asks first, because a delete removes the message for everyone.
 Future<void> confirmAndDeleteMessage(
-  WidgetRef ref,
   BuildContext context,
   Message message,
 ) async {
@@ -107,10 +105,11 @@ Future<void> confirmAndDeleteMessage(
     confirmLabel: 'Delete',
   );
   if (!confirmed || !context.mounted) return;
+  final container = ProviderScope.containerOf(context, listen: false);
   await _reporting(
     context,
     'delete the message',
-    () => deleteMessageAction(ref, message),
+    () => deleteMessageAction(container.read, message),
   );
 }
 
@@ -329,7 +328,7 @@ MessageActions messageActionsFor(
     canEdit: canEditMessage(message, myId),
     onEdit: () => onEdit(message),
     canDelete: canDeleteMessage(message, myId, myPermissions),
-    onDelete: () => unawaited(confirmAndDeleteMessage(ref, context, message)),
+    onDelete: () => unawaited(confirmAndDeleteMessage(context, message)),
     canManagePins: canManageMessagePin(message, myPermissions),
     pinned: pinned,
     onTogglePin: () => unawaited(

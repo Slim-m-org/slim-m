@@ -33,7 +33,6 @@ import 'src/providers/app_badge_sync.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
-import 'src/desktop/providers/desktop_call_notifier.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
@@ -268,7 +267,6 @@ Future<void> _runBootstrapSequence(
   startAccountServices(container);
   container.listen(appBadgeSyncProvider, (_, _) {});
   container.read(deepLinkControllerProvider);
-  container.read(desktopCallNotifierProvider);
   await shell.registerListenersAndTray(container);
 }
 

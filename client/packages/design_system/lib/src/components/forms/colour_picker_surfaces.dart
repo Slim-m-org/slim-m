@@ -3,6 +3,7 @@
 /// hue slider. Both take a pointer drag or the arrow keys.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,6 +16,16 @@ const double _thumb = 20;
 /// Fine and coarse keyboard steps for a 0..1 value.
 const double _step = 0.01;
 const double _bigStep = 0.1;
+
+/// A pan that wins the arena on pointer down, so a drag handle or scroll view
+/// around the surface (a bottom sheet) cannot take a drag that heads its way.
+class _EagerPanRecognizer extends PanGestureRecognizer {
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    resolve(GestureDisposition.accepted);
+  }
+}
 
 /// Maps a local pointer position to a 0..1 pair and the arrow keys to a step.
 class _Draggable extends StatelessWidget {
@@ -76,13 +87,20 @@ class _Draggable extends StatelessWidget {
                       (p.dy / box.maxHeight).clamp(0.0, 1.0),
                     ),
                   );
-              return GestureDetector(
+              return RawGestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onPanDown: (d) {
-                  Focus.of(context).requestFocus();
-                  at(d.localPosition);
+                gestures: {
+                  _EagerPanRecognizer:
+                      GestureRecognizerFactoryWithHandlers<_EagerPanRecognizer>(
+                    _EagerPanRecognizer.new,
+                    (recognizer) => recognizer
+                      ..onDown = (d) {
+                        Focus.of(context).requestFocus();
+                        at(d.localPosition);
+                      }
+                      ..onUpdate = (d) => at(d.localPosition),
+                  ),
                 },
-                onPanUpdate: (d) => at(d.localPosition),
                 child: child,
               );
             },

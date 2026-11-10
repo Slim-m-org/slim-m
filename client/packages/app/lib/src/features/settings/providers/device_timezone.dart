@@ -9,11 +9,9 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
-/// Read once and cached for the session: the device's own zone does not
-/// change while the app is running, and a stale read only matters the next
-/// time the schedule is saved, which re-reads nothing here anyway - the
-/// value is captured at that save, not watched live.
-final deviceTimezoneProvider = FutureProvider<String>((ref) async {
+/// Read at each save and not kept: a failed platform call must not stay
+/// cached for the session, and the zone is cheap to ask for again.
+final deviceTimezoneProvider = FutureProvider.autoDispose<String>((ref) async {
   final info = await FlutterTimezone.getLocalTimezone();
   return info.identifier;
 });

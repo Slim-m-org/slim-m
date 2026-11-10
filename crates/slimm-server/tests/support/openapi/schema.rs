@@ -16,15 +16,25 @@ pub struct SchemaRoute {
     pub operation_id: Option<String>,
     /// Whether the operation's `responses:` block documents a `"429":` key.
     pub has_429: bool,
+    /// Whether the operation opts out of the default bearer auth with `security: []`.
+    pub public: bool,
     pub line: usize,
 }
 
-/// Scans the operation block under `lines[at]` for its `operationId` and a documented "429".
-///
-/// Returns both, plus the index of the first line past the block.
-fn scan_operation_block(lines: &[&str], at: usize) -> (Option<String>, bool, usize) {
+/// What [`scan_operation_block`] reads out of one operation.
+struct OperationScan {
+    operation_id: Option<String>,
+    has_429: bool,
+    public: bool,
+    /// The index of the first line past the block.
+    end: usize,
+}
+
+/// Scans the operation block under `lines[at]` for its `operationId`, a documented "429" and `security: []`.
+fn scan_operation_block(lines: &[&str], at: usize) -> OperationScan {
     let mut operation_id = None;
     let mut has_429 = false;
+    let mut public = false;
     let mut j = at + 1;
     while j < lines.len() {
         let l = lines[j];
@@ -40,10 +50,17 @@ fn scan_operation_block(lines: &[&str], at: usize) -> (Option<String>, bool, usi
             operation_id = Some(id.trim().to_owned());
         } else if t == "\"429\":" {
             has_429 = true;
+        } else if t == "security: []" {
+            public = true;
         }
         j += 1;
     }
-    (operation_id, has_429, j)
+    OperationScan {
+        operation_id,
+        has_429,
+        public,
+        end: j,
+    }
 }
 
 /// Extracts every `(method, path)` documented under `paths:` in
@@ -112,15 +129,16 @@ pub fn extract_schema_routes(repo_root: &Path) -> Vec<SchemaRoute> {
                 )
             });
 
-            let (operation_id, has_429, j) = scan_operation_block(&lines, i);
+            let scan = scan_operation_block(&lines, i);
             routes.push(SchemaRoute {
                 method,
                 path,
-                operation_id,
-                has_429,
+                operation_id: scan.operation_id,
+                has_429: scan.has_429,
+                public: scan.public,
                 line: line_no,
             });
-            i = j;
+            i = scan.end;
             continue;
         }
 

@@ -73,6 +73,8 @@ const double _widenStep = 1.25;
     ),
     textDirection: TextDirection.ltr,
   )..layout(maxWidth: width - _notePad * 2);
-  final needed = painter.height + _notePad * 2 + _lineBudgetMargin(fontSize);
+  final textHeight = painter.height;
+  painter.dispose();
+  final needed = textHeight + _notePad * 2 + _lineBudgetMargin(fontSize);
   return (width: width, height: needed.clamp(minHeight, maxObjectExtent));
 }

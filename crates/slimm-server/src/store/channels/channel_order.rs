@@ -64,7 +64,7 @@ pub struct ReorderOutcome {
     pub moved: Vec<ChannelId>,
 }
 
-/// Every live, non-DM, non-thread channel's id, category and position - the
+/// Every live, non-DM, non-thread, non-room channel's id, category and position - the
 /// one read both reorder shapes validate against and diff their target
 /// arrangement from.
 async fn live_channels(
@@ -75,7 +75,8 @@ async fn live_channels(
                   category_id AS "category_id: ChannelCategoryId",
                   position AS "position!: i64"
            FROM channels
-           WHERE deleted_at IS NULL AND kind != 'dm' AND parent_message_id IS NULL"#
+           WHERE deleted_at IS NULL AND kind != 'dm' AND parent_message_id IS NULL
+             AND room_owner_id IS NULL AND room_lobby_id IS NULL"#
     )
     .fetch_all(&mut **tx)
     .await?;
@@ -83,6 +84,59 @@ async fn live_channels(
         .into_iter()
         .map(|r| (r.id, r.category_id, r.position))
         .collect())
+}
+
+/// Every temporary room's id, live or since removed, so an arrangement made before a room came
+/// or went is not refused over it.
+async fn room_ids(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> Result<HashSet<ChannelId>, sqlx::Error> {
+    let rows = sqlx::query_scalar!(
+        r#"SELECT id AS "id!: ChannelId" FROM channels
+           WHERE room_owner_id IS NOT NULL OR room_lobby_id IS NOT NULL"#
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    Ok(rows.into_iter().collect())
+}
+
+/// Puts each live room back beside the lobby that made it, returning the rooms that moved.
+async fn settle_rooms(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> Result<Vec<ChannelId>, ReorderChannelsError> {
+    let drifted = sqlx::query!(
+        r#"SELECT r.id AS "id!: ChannelId",
+                  r.category_id AS "was_in: ChannelCategoryId",
+                  l.category_id AS "category_id: ChannelCategoryId",
+                  l.position AS "position!: i64"
+           FROM channels r JOIN channels l ON l.id = r.room_lobby_id
+           WHERE r.deleted_at IS NULL
+             AND (r.position != l.position OR r.category_id IS NOT l.category_id)"#
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    for room in &drifted {
+        sqlx::query!(
+            "UPDATE channels SET category_id = ?, position = ? WHERE id = ?",
+            room.category_id,
+            room.position,
+            room.id
+        )
+        .execute(&mut **tx)
+        .await?;
+        if room.was_in != room.category_id {
+            super::super::category_overwrites::mark_unsynced(&mut **tx, room.id).await?;
+        }
+    }
+    Ok(drifted.into_iter().map(|room| room.id).collect())
+}
+
+/// `ids` without the rooms, which no arrangement orders.
+fn without_rooms(ids: &[ChannelId], rooms: &HashSet<ChannelId>) -> Vec<ChannelId> {
+    ids.iter()
+        .copied()
+        .filter(|id| !rooms.contains(id))
+        .collect()
 }
 
 /// Refuses `ordered` unless it names exactly the ids in `live` - no more, no
@@ -182,8 +236,9 @@ impl Store {
     ) -> Result<ReorderOutcome, ReorderChannelsError> {
         let mut tx = self.begin_write().await?;
         let live = live_channels(&mut tx).await?;
-        validate_live_set(&visible_part(&live, hidden), ordered)?;
-        let ordered = &splice_hidden(ordered.to_vec(), &current_order(&live, None), hidden);
+        let ordered = without_rooms(ordered, &room_ids(&mut tx).await?);
+        validate_live_set(&visible_part(&live, hidden), &ordered)?;
+        let ordered = &splice_hidden(ordered, &current_order(&live, None), hidden);
 
         let before_position: HashMap<ChannelId, i64> = live
             .into_iter()
@@ -205,6 +260,7 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         }
+        moved.extend(settle_rooms(&mut tx).await?);
         tx.commit().await?;
 
         let channels = self.list_channels().await?;
@@ -242,17 +298,21 @@ impl Store {
         let mut tx = self.begin_write().await?;
         let live = live_channels(&mut tx).await?;
 
+        let rooms = room_ids(&mut tx).await?;
         let ordered: Vec<ChannelId> = groups
             .iter()
             .flat_map(|group| group.channel_ids.iter().copied())
             .collect();
-        validate_live_set(&visible_part(&live, hidden), &ordered)?;
+        validate_live_set(
+            &visible_part(&live, hidden),
+            &without_rooms(&ordered, &rooms),
+        )?;
         let groups: Vec<ChannelOrderGroup> = groups
             .iter()
             .map(|group| ChannelOrderGroup {
                 category_id: group.category_id,
                 channel_ids: splice_hidden(
-                    group.channel_ids.clone(),
+                    without_rooms(&group.channel_ids, &rooms),
                     &current_order(&live, Some(group.category_id)),
                     hidden,
                 ),
@@ -309,6 +369,7 @@ impl Store {
                 }
             }
         }
+        moved.extend(settle_rooms(&mut tx).await?);
         tx.commit().await?;
 
         let channels = self.list_channels().await?;

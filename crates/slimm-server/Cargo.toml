@@ -66,6 +66,8 @@ wat = "1"
 flate2 = "1"
 # A real client for the fan-out test; the round-trip tests use tower above.
 tokio-tungstenite = "0.24"
+# A paused clock for the sweep combinator's timing test (src/sweeps/tests.rs); no new crates.
+tokio = { workspace = true, features = ["test-util"] }
 # Validates responses against schema/openapi.yaml in tests/response_contract.rs; default-features cut is deliberate (docs/dependencies.md).
 jsonschema = { version = "0.49", default-features = false }
 # Pure-Rust YAML, used only to load schema/openapi.yaml in tests; serde_yaml_ng pulled in the unmaintained unsafe-libyaml (#2154).

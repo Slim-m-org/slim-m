@@ -29,14 +29,17 @@ class _LinkPreviewsSectionState extends ConsumerState<LinkPreviewsSection>
     with
         GuardedActionState<LinkPreviewsSection>,
         OptimisticSettingState<LinkPreviewsSection, bool> {
-  Future<void> _set(bool enabled) async {
-    await saveOptimistic(
+  Future<void> _set(bool enabled) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return saveOptimistic(
       enabled,
       whatFailed: 'change link previews',
-      action: () => ref.read(apiProvider).setSpaceLinkPreviews(enabled),
+      action: () async {
+        await container.read(apiProvider).setSpaceLinkPreviews(enabled);
+        container.invalidate(serverInfoProvider);
+      },
       refresh: spaceLinkPreviewsProvider,
     );
-    ref.invalidate(serverInfoProvider);
   }
 
   @override

@@ -173,6 +173,9 @@ impl Store {
         }
 
         tx.commit().await?;
+        if !attachment_ids.is_empty() {
+            self.touch_attachment_links();
+        }
         Ok(Sent {
             message,
             fresh: true,

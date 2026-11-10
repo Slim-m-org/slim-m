@@ -56,6 +56,25 @@ fn a_display_label_is_bounded_and_may_not_be_only_whitespace() {
     assert!(super::validate_label("   ", msg).is_err());
 }
 
+/// A name of only variation selectors draws nothing, so it is as blank as
+/// whitespace; the same selectors after a visible character are fine.
+#[test]
+fn a_display_label_made_only_of_variation_selectors_is_blank() {
+    let msg = "label bad";
+    for blank in [
+        "\u{FE0F}",
+        "\u{FE0E}\u{FE0F}",
+        "\u{E0100}",
+        "\u{180B}\u{180C}\u{180D}",
+        " \u{FE0F} ",
+    ] {
+        assert!(super::validate_label(blank, msg).is_err(), "{blank:?}");
+    }
+    for ok in ["\u{2764}\u{FE0F}", "\u{8FBB}\u{E0100}", "a\u{FE0E}"] {
+        assert!(super::validate_label(ok, msg).is_ok(), "{ok:?}");
+    }
+}
+
 /// The one thing a display label cannot carry: control characters, and the
 /// zero-width and bidi-override characters a name would otherwise use to
 /// spoof how it renders (the right-to-left override is the classic one).

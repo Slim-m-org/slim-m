@@ -63,7 +63,9 @@ class _CanvasBoardObjectSemanticsState
           final selected = document.selectedObjectId.value;
           return Stack(
             children: [
-              for (final id in document.visibleIds.take(_maxNodes))
+              for (final id in document.visibleIdsInReadingOrder(
+                limit: _maxNodes,
+              ))
                 if (id != selected)
                   if (document.objectBounds(id) case final bounds?)
                     Positioned.fromRect(

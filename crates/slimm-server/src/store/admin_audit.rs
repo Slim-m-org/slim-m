@@ -41,6 +41,39 @@ impl Store {
         Ok(())
     }
 
+    /// [`Self::record_admin_change`] unless `actor_id` already recorded `action` on `target_id`
+    /// within `window_ms`; answers whether it wrote a row. One statement, so racing calls write once.
+    pub async fn record_admin_change_unless_recent(
+        &self,
+        actor_id: UserId,
+        (action, target_id): (&str, &str),
+        detail: &str,
+        window_ms: i64,
+    ) -> anyhow::Result<bool> {
+        let created_at = now_ms();
+        let since = created_at - window_ms;
+        let written = sqlx::query!(
+            "INSERT INTO admin_audit_log (actor_id, action, target_id, detail, created_at)
+             SELECT ?, ?, ?, ?, ?
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM admin_audit_log
+                 WHERE actor_id = ? AND action = ? AND target_id = ? AND created_at > ?
+             )",
+            actor_id,
+            action,
+            target_id,
+            detail,
+            created_at,
+            actor_id,
+            action,
+            target_id,
+            since
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(written.rows_affected() == 1)
+    }
+
     /// Up to `limit` changes older than `before` (an entry id), newest first.
     pub async fn admin_changes(
         &self,

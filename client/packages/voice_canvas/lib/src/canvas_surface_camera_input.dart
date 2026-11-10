@@ -50,14 +50,13 @@ extension _CanvasSurfaceCameraInput on _CanvasSurfaceState {
     if (start == null || anchor == null || details.pointerCount < 2) return;
     // A resting palm beside a stylus is not a pinch.
     if (_stylusPointers.isNotEmpty) return;
-    final document = widget.document;
-    document.setCamera(start.copyWith(zoom: start.zoom * details.scale));
-    final camera = document.camera;
-    final focal = details.localFocalPoint;
-    document.setCamera(
-      camera.copyWith(
-        x: anchor.dx - focal.dx / camera.zoom,
-        y: anchor.dy - focal.dy / camera.zoom,
+    widget.document.setCamera(
+      cameraAfterPinch(
+        start,
+        anchor: anchor,
+        focal: details.localFocalPoint,
+        scale: details.scale,
+        zoomFloor: widget.document.zoomFloor,
       ),
     );
   }

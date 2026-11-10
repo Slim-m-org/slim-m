@@ -78,7 +78,7 @@ class DataExportCard extends ConsumerWidget {
           api.reportFailure(api.LogTag.ui, copy.failureWhat, e, stack);
           return e is api.RateLimitedException
               ? 'An export was just made, or there were too many password tries. Wait a few minutes.'
-              : reauthFailure(e);
+              : reauthFailure(e, copy.failureWhat);
         }
       },
     );

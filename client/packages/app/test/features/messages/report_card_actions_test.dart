@@ -6,8 +6,11 @@
 /// line budget.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -17,6 +20,7 @@ import 'package:slimm_app/src/features/members/widgets/member_profile_sections.d
 import 'package:slimm_data/data.dart' hide Channel, Message;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
 import '../settings/report_card_harness.dart';
 
 void main() {
@@ -277,6 +281,35 @@ void main() {
         contains(const Call('PUT', '/members/author-1/timeout')),
       );
       expect(harness.calls, contains(const Call('PATCH', '/reports/r1')));
+    });
+
+    testWidgets('still closes the report when the card left meanwhile', (
+      tester,
+    ) async {
+      final timedOut = Completer<void>();
+      final harness = await pumpReports(
+        tester,
+        reports: [
+          reportJson(id: 'r1', subjectKind: 'user', subjectId: 'author-1'),
+        ],
+        permissions: Perm.kickMembers,
+        beforeReply: (call) async {
+          if (call.path == '/members/author-1/timeout') await timedOut.future;
+        },
+      );
+
+      await tester.tap(find.widgetWithText(AppButton, '1h'));
+      await tester.pump();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: harness.container,
+          child: const SizedBox.shrink(),
+        ),
+      );
+      timedOut.complete();
+      await pumpFrames(tester);
+
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets(

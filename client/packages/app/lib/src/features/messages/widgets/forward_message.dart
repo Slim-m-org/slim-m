@@ -84,14 +84,14 @@ Future<void> forwardMessage(
 /// transcript (if this forward landed in a channel already open) picks it
 /// up without waiting for its own `message.created` broadcast to loop back.
 Future<void> _sendForward(
-  WidgetRef ref, {
+  ProviderContainer container, {
   required ForwardTarget target,
   required String id,
   required String forwardedFromId,
   required String note,
   required List<String> attachmentIds,
 }) async {
-  final sent = await ref
+  final sent = await container
       .read(messageApiActionsProvider)
       .sendMessage(
         channelId: target.channelId,
@@ -100,9 +100,9 @@ Future<void> _sendForward(
         attachmentIds: attachmentIds,
         forwardedFromId: forwardedFromId,
       );
-  final store = await ref.read(storeProvider.future);
+  final store = await container.read(storeProvider.future);
   await store.applyMessage(sent);
-  ref.read(messageExtrasProvider.notifier).applyMessage(sent);
+  container.read(messageExtrasProvider.notifier).applyMessage(sent);
 }
 
 const _headingPadding = EdgeInsets.fromLTRB(
@@ -168,10 +168,11 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
     clearActionError();
     setState(() => _sendingToChannelId = target.channelId);
     final note = _noteController.text.trim();
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: 'forward the message',
       action: () => _sendForward(
-        ref,
+        container,
         target: target,
         id: _forwardId.forRequest((channelId: target.channelId, note: note)),
         forwardedFromId: widget.forwardedFromId,

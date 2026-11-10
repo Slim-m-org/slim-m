@@ -177,8 +177,23 @@ class _RoleNavState extends ConsumerState<_RoleNav>
       action: () => ref.read(apiProvider).reorderRoles(reorderableIds),
     );
     if (!mounted) return;
-    setState(() => _pendingOrder = null);
-    if (ok) ref.invalidate(rolesProvider);
+    if (ok) await _refetchRoles();
+    if (mounted) setState(() => _pendingOrder = null);
+  }
+
+  /// The dropped order stays on screen until the roles it describes arrive.
+  Future<void> _refetchRoles() async {
+    try {
+      ref.invalidate(rolesProvider);
+      await ref.read(rolesProvider.future);
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'The roles refetch after a reorder failed; the pane shows it',
+        error,
+        stack,
+      );
+    }
   }
 
   @override

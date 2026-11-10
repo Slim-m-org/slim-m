@@ -45,11 +45,12 @@ if [ -n "$(printf '%s\n' "${CHANGED[@]}" | grep -E '^crates/.*\.rs$' | xargs -r 
   queries=1
 fi
 touched '^(schema/|crates/slimm-server/src/http)' && schema=1
+mapfile -t CLIENT_PKGS < <(printf '%s\n' "${CHANGED[@]}" | python3 .githooks/affected-packages.py .)
 touched '^\.github/(workflows|actions)/' && workflows=1
 touched '(\.sh$|^scripts/)' && shell=1
 
-printf 'pre-push: %d changed files (client=%d rust=%d migrations=%d sqlx=%d schema=%d workflows=%d shell=%d)\n' \
-  "${#CHANGED[@]}" "$client" "$rust" "$migrations" "$queries" "$schema" "$workflows" "$shell" >&2
+printf 'pre-push: %d changed files (client=%d client_pkgs=%d rust=%d migrations=%d sqlx=%d schema=%d workflows=%d shell=%d)\n' \
+  "${#CHANGED[@]}" "$client" "${#CLIENT_PKGS[@]}" "$rust" "$migrations" "$queries" "$schema" "$workflows" "$shell" >&2
 
 # Cheap gates first, so a slow suite never runs on a push that was going to fail anyway.
 FIX="see the error lines above"
@@ -64,6 +65,7 @@ step "every workflow is in docs/ci.md" python3 scripts/check-ci-docs.py
 step "no emoji in UI source" bash scripts/check-no-emoji.sh
 step "SPDX headers, Dart" bash scripts/check-spdx-dart.sh
 step "SPDX headers, Rust" bash scripts/check-spdx-rust.sh
+step "SPDX headers, Kotlin and Swift" bash scripts/check-spdx-native.sh
 step "ios purpose strings" bash scripts/check-ios-purpose-strings.sh
 step "ios broadcast extension wired" bash scripts/check-ios-broadcast-wired.sh
 step "ios notification extension wired" bash scripts/check-ios-nse-wired.sh
@@ -91,7 +93,8 @@ if [ "$workflows" = 1 ] || [ "$shell" = 1 ]; then
   fi
 fi
 
-if [ "$client" = 1 ]; then
+# Client tests also read files outside client/ (the OpenAPI schema, shared fixtures), so they can be affected without a client/ change.
+if [ "$client" = 1 ] || [ "${#CLIENT_PKGS[@]}" -gt 0 ]; then
   if ! have flutter; then
     skip "client analyze, format and tests" "flutter not installed"
   else
@@ -99,10 +102,12 @@ if [ "$client" = 1 ]; then
       FIX="cd client && flutter pub get --enforce-lockfile"
       step "flutter pub get (worktree not resolved)" bash -c "cd client && flutter pub get --enforce-lockfile"
     fi
-    FIX="cd client && dart analyze"
-    step "dart analyze (workspace)" bash -c "cd client && dart analyze"
-    FIX="cd client && dart format ."
-    step "dart format (workspace)" bash -c "cd client && dart format --output=none --set-exit-if-changed ."
+    if [ "$client" = 1 ]; then
+      FIX="cd client && dart analyze"
+      step "dart analyze (workspace)" bash -c "cd client && dart analyze"
+      FIX="cd client && dart format ."
+      step "dart format (workspace)" bash -c "cd client && dart format --output=none --set-exit-if-changed ."
+    fi
   fi
 fi
 
@@ -137,12 +142,11 @@ elif [ "$schema" = 1 ] && have cargo; then
   step "openapi contract test" cargo test --locked -p slimm-server --test openapi_contract
 fi
 
-if [ "$client" = 1 ] && have flutter; then
-  while IFS= read -r pkg; do
-    [ -n "$pkg" ] || continue
+if have flutter; then
+  for pkg in "${CLIENT_PKGS[@]}"; do
     FIX="cd $pkg && flutter test --concurrency=$FLUTTER_CONCURRENCY"
     step "flutter test $pkg" bash -c "cd $pkg && flutter test --concurrency=$FLUTTER_CONCURRENCY"
-  done < <(printf '%s\n' "${CHANGED[@]}" | python3 .githooks/affected-packages.py .)
+  done
 fi
 
 summary

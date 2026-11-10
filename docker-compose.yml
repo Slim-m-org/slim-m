@@ -199,15 +199,24 @@ services:
         condition: service_healthy
     volumes:
       - slimm_data:/data
+      - ./deploy/litestream:/sidecar:ro
     environment:
       # Litestream reads these two exact variable names natively.
       LITESTREAM_ACCESS_KEY_ID: ${LITESTREAM_ACCESS_KEY_ID:-}
       LITESTREAM_SECRET_ACCESS_KEY: ${LITESTREAM_SECRET_ACCESS_KEY:-}
-    # No config file: endpoint and region ride as query parameters on the replica
-    # URL, and 0.3.x auto-enables force-path-style whenever `endpoint` is set.
-    command: >
-      replicate /data/slimm.db
-      "s3://${LITESTREAM_S3_BUCKET}/${LITESTREAM_S3_PATH:-slimm}?endpoint=${LITESTREAM_S3_ENDPOINT}&region=${LITESTREAM_S3_REGION:-auto}"
+      # Filled into deploy/litestream/litestream.yml; not `:?` because compose checks that with the profile off too, so sidecar.sh refuses an empty bucket or key at start.
+      LITESTREAM_S3_BUCKET: ${LITESTREAM_S3_BUCKET:-}
+      LITESTREAM_S3_PATH: ${LITESTREAM_S3_PATH:-slimm}
+      LITESTREAM_S3_ENDPOINT: ${LITESTREAM_S3_ENDPOINT:-}
+      LITESTREAM_S3_REGION: ${LITESTREAM_S3_REGION:-auto}
+    entrypoint: ["/bin/sh", "/sidecar/sidecar.sh", "start"]
+    # Unhealthy when the replica cannot be listed or is more than five minutes behind the database; the S3 listing is why this runs every ten minutes.
+    healthcheck:
+      test: ["CMD", "/bin/sh", "/sidecar/sidecar.sh", "health"]
+      interval: 10m
+      timeout: 1m
+      retries: 2
+      start_period: 15m
 
   # Nightly verified backup, off unless COMPOSE_PROFILES=backup; deploy/README.md, Nightly verified backups.
   backup:

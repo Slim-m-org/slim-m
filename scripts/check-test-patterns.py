@@ -13,8 +13,9 @@ Each file's current counts are the ceiling listed in
 `scripts/test-pattern-allow.txt` as `<path> <byType> <pumpAndSettle>`; a file
 that is not listed has a ceiling of zero. `--update` rewrites the file with the
 counts as they are now, which can only lower an entry: a count above its
-ceiling is still an error and stays out of the rewrite. Comments are stripped
-before counting, through `dart_source`.
+ceiling is still an error and stays out of the rewrite. Comments and string
+contents are blanked before counting, through `dart_source`, so a test title
+that names a pattern is not one.
 """
 import re
 import subprocess
@@ -40,7 +41,7 @@ HEADER = (
 
 
 def counts_in(source: str) -> tuple[int, int]:
-    text = strip_block_comments(source)
+    text = strip_block_comments(source, blank_strings=True)
     return tuple(len(p.findall(text)) for p in PATTERNS.values())
 
 

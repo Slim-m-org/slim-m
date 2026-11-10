@@ -163,3 +163,27 @@ async fn a_module_is_not_sent_the_messages_its_own_principal_wrote() {
     assert_eq!(seen.len(), 1, "{seen:?}");
     assert_eq!(seen[0]["id"], json!(format!("message:{theirs}")));
 }
+
+#[tokio::test]
+async fn minting_a_modules_principal_moves_the_epoch_the_consumer_caches_by() {
+    let w = world("slimm-modevents-principal-epoch").await;
+    w.install_event_module_without_principal(EventModule {
+        id: "echo",
+        wasm: event_recorder_wasm(),
+        subscribes: &["message.created"],
+        approved: &["events", "kv.store"],
+    })
+    .await;
+
+    let before = w.store.module_epoch();
+    w.store.ensure_module_bot("echo", "Echo").await.unwrap();
+    assert_ne!(w.store.module_epoch(), before);
+
+    let minted = w.store.module_epoch();
+    w.store.ensure_module_bot("echo", "Echo").await.unwrap();
+    assert_eq!(
+        w.store.module_epoch(),
+        minted,
+        "a second call mints nothing"
+    );
+}

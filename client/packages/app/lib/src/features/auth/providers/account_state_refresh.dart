@@ -2,12 +2,13 @@
 /// Brings what decides who and what can alert this device back in line with
 /// the server when the socket connects.
 ///
-/// The block list, the per-channel overrides, the notification schedule and the
-/// account preference are each fetched once, and a change made on another
-/// device while this one was offline arrives as a frame nobody replays.
-/// Without this a failed first fetch (launching offline, a 500) left them
-/// empty until the app restarted: blocked authors' messages showed everywhere
-/// and muted channels kept chiming.
+/// The block list, the per-channel overrides, the notification schedule, the
+/// account preference and the Space themes are each fetched once, and a change
+/// made on another device while this one was offline arrives as a frame nobody
+/// replays. Without this a failed first fetch (launching offline, a 500) left
+/// them empty until the app restarted: blocked authors' messages showed
+/// everywhere, muted channels kept chiming and a new Space default theme never
+/// applied.
 library;
 
 import 'dart:async';
@@ -18,10 +19,11 @@ import '../../members/providers/blocks_controller.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../settings/providers/notification_preference_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
+import '../../settings/providers/theme_store.dart';
 import '../../voice/providers/voice_notification_controller.dart';
 
-/// Refetches the block list, the channel overrides, the schedule and the
-/// account preference.
+/// Refetches the block list, the channel overrides, the schedule, the account
+/// preference and the Space themes.
 ///
 /// On the first connect of a session only what failed or never answered is
 /// refetched, since each already fetched once on its own; after a reconnect all
@@ -53,5 +55,9 @@ void refreshAccountNotificationState(Ref ref, {required bool reconnect}) {
   if (ref.exists(notificationPreferenceProvider) &&
       (reconnect || ref.read(notificationPreferenceProvider).hasError)) {
     ref.invalidate(notificationPreferenceProvider);
+  }
+  if (ref.exists(spaceThemesProvider) &&
+      (reconnect || !ref.read(spaceThemesProvider).hasValue)) {
+    ref.invalidate(spaceThemesProvider);
   }
 }

@@ -40,6 +40,11 @@ unused-allowed-license = "allow"
 name = "slimm-server"
 allow = ["LicenseRef-PolyForm-Noncommercial-1.0.0"]
 
+# The call-audio listener has its own lockfile outside the workspace (decision 0105) and is scanned with it.
+[[licenses.exceptions]]
+name = "slimm-listener"
+allow = ["LicenseRef-PolyForm-Noncommercial-1.0.0"]
+
 # MPL-2.0 is per-file copyleft and reaches neither client; see docs/ci.md.
 [[licenses.exceptions]]
 name = "dbus"

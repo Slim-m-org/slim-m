@@ -201,6 +201,11 @@ When this is unset the listener uses the address clients use.
 Litestream is off by default because it needs a real S3-compatible bucket.
 To turn it on: fill in the `LITESTREAM_*` values in `.env`, uncomment `COMPOSE_PROFILES=litestream`, then re-run `docker compose up -d`.
 
+The sidecar refuses to start while the bucket or either key is empty, so a half-filled `.env` shows as a restarting container with the missing name in `docker compose logs litestream`.
+Once it runs, it reports its own health: `docker compose ps` shows `unhealthy` when the bucket cannot be listed (wrong bucket, endpoint or key) or the replica is more than five minutes behind the database.
+The check runs every ten minutes, because each run lists the replica in the bucket, and it needs a first generation to exist, so a large database can show `starting` for a while after the first start.
+Nothing sends an alert on its own: point whatever already watches your containers at the health status.
+
 **Litestream replicates only the SQLite database file. Attachment and avatar bytes are not covered, neither are the module data files in `SLIMM_MODULES_DIR` (default `/data/modules`), and neither is `slimm-data.key`, the key that opens the stored two-factor secrets (docs/OPERATING.md, The data key).**
 Back that key up apart from the replica: a restore without it leaves two-factor members unable to sign in until an administrator clears their factor.
 They live on disk beside the database, at `SLIMM_ATTACHMENTS_DIR` (default `/data/media` inside the container, so the same `slimm_data` volume as the database), specifically because multi-megabyte blobs in the SQLite file would bloat what Litestream streams for no benefit.
@@ -213,6 +218,8 @@ The `backup` service runs `scripts/backup.py`, then `scripts/restore-drill.py`, 
 It needs the repo's `scripts/` directory beside `docker-compose.yml`.
 Snapshots go to the `slimm_backups` volume; set `SLIMM_BACKUP_DIR` to a host path on another disk to survive losing this one.
 It writes `status.json` into `slimm_backup_status`, which the server mounts read-only and shows in Settings, Storage as "Last verified backup".
+A backup that finishes but finds database rows whose file is gone from the live volume is still drilled, and the drill decides the verdict: it passes while the mirror holds every file the database references.
+Those findings are listed under `warnings` in `status.json`.
 The server never runs a backup itself.
 A failed run or a verified backup older than 48 hours alerts everyone with the Manage server permission; see docs/OPERATING.md, Admin alerts.
 The same volume keeps `slimm-data.key` out: back that up apart, as above.
@@ -238,7 +245,9 @@ Modules that keep structured data have one small SQLite file each, in `--modules
 Each is copied with `VACUUM INTO` as well, to `/backup/modules/<module id>.db`; that mirror holds the latest copy of each file, taken moments after the database snapshot rather than in the same transaction, and a file that cannot be copied makes the run exit non-zero.
 
 It takes a `VACUUM INTO` snapshot of the database (a consistent point-in-time copy SQLite produces from inside its own read transaction, safe to take while the server keeps writing through WAL - it does not need the server stopped, and the source volume above is mounted read-only on purpose) and mirrors every attachment and avatar file referenced by that snapshot into `/backup`.
-Attachments are content-addressed by their own sha256, so a byte-identical file already mirrored from a previous run is never re-copied; avatars are small, mutable, and few, so they are simply re-copied every run.
+Attachments are content-addressed by their own sha256, so a mirrored file whose size and recomputed sha256 still match its name is never re-copied, and one that was truncated or has rotted is replaced from the live copy; avatars are small, mutable, and few, so they are simply re-copied every run.
+Checking the mirror reads every mirrored attachment once per run.
+A run that finishes but finds database rows with no file behind them on the live volume exits 3, where a run that could not back something up exits 1.
 Nothing is ever deleted from the mirror by this script, and every copy is an independent one (never a hardlink to the live file) - a backup that could still be corrupted by whatever corrupts the original is not a backup.
 Pass `--keep N` to prune older database snapshots (the media mirror itself is never pruned).
 Run it on a schedule (cron, systemd timer) the same way you would Litestream.
@@ -255,6 +264,7 @@ docker run --rm \
 It copies the newest snapshot to a fresh scratch path, runs `PRAGMA integrity_check` on that standalone copy, then checks that every attachment the database references exists in the mirror *and* that the file's real, recomputed sha256 actually matches its name (not merely that a same-named file exists), and the same existence check for every user's avatar, then runs `PRAGMA integrity_check` on every module data file in the mirror.
 A snapshot too damaged to query is reported as a failed integrity check rather than a traceback, and the later checks are skipped.
 The scratch copy is deleted when the run ends; `--keep-scratch` keeps it, and a directory given with `--scratch-dir` is always yours.
+A default copy a killed run left behind is removed by the next run once it is six hours old, unless that run uses `--keep-scratch` or `--scratch-dir`.
 It prints exactly what is missing or corrupt and exits non-zero if anything is, which is the property a restore drill exists for.
 Run it after every backup, or at least on a schedule of its own - a backup nobody has restored is a guess.
 
@@ -659,6 +669,7 @@ Every service runs with a read-only root filesystem, all Linux capabilities drop
 What must be written is a volume or a tmpfs: the server writes under `/data`, Caddy under `/data` and `/config`, and the server, Caddy and the web image get a small `/tmp`.
 Caddy keeps only `NET_BIND_SERVICE`.
 Litestream runs as uid 65532, the user the server image runs as, because the database files belong to that user and root without capabilities cannot write beside them.
+Its config and health script are the two files in `deploy/litestream/`, mounted read-only.
 If you add a service or an overlay of your own, merge the same block in (`<<: *hardened`) and give it the volume or tmpfs it writes to.
 `docker inspect <container>` shows `ReadonlyRootfs` and `CapDrop` for each.
 

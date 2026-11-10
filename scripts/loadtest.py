@@ -26,8 +26,9 @@ measured latency starts coming from Python rather than from the server. Watch
 the server's own processor time before believing a latency number this
 prints. When they disagree, this harness is the one that is wrong.
 
-Run it against a local server. Never against production: it is indistinguishable
-from abuse, and the rate limiter will treat it accordingly.
+Run it against a local server. It refuses any address that is not loopback:
+load is indistinguishable from abuse, and the rate limiter will treat it
+accordingly.
 
     scripts/loadtest.py --base-url http://127.0.0.1:8080 --users 100
 
@@ -49,6 +50,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 import load_report  # noqa: E402
 import load_pool  # noqa: E402
 import load_accounts  # noqa: E402
+import load_target  # noqa: E402
 import seed_guard  # noqa: E402
 
 _SERVER_PID = {}
@@ -67,9 +69,12 @@ def parse_args(argv=None):
                         help="seconds between one sender's messages")
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--invite-code", default=None)
-    parser.add_argument("--out", default="loadtest-result.json")
-    parser.add_argument("--cache-dir", default=".",
-                        help="where cached session tokens live")
+    parser.add_argument("--out", default=None,
+                        help="where the result goes; defaults to loadtest-result.json "
+                             "in the cache dir")
+    parser.add_argument("--cache-dir", default=None,
+                        help="where cached session tokens live; defaults to "
+                             "~/.cache/slim-m-load")
     parser.add_argument("--workers", type=int, default=4,
                         help="processes to spread listeners across")
     parser.add_argument("--per-account", type=int, default=1,
@@ -80,7 +85,18 @@ def parse_args(argv=None):
     parser.add_argument("--channel", default=None,
                         help="name of the channel to send into; defaults to "
                              "the first text channel the admin can see")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    args.cache_dir = args.cache_dir or load_accounts.default_cache_dir()
+    args.out = args.out or os.path.join(args.cache_dir, "loadtest-result.json")
+    return args
+
+
+def require_local_target(base_url):
+    """The URL without a trailing slash, or an exit: load only ever goes to this machine."""
+    try:
+        return load_target.check(base_url)
+    except seed_guard.GuardError as exc:
+        raise SystemExit(f"refusing: {exc}") from None
 
 
 def server_cpu(pid=None):
@@ -114,30 +130,20 @@ def find_server_pid():
         return None
 
 
-LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
 WS_SCHEME = {"https": "wss", "http": "ws"}
 
 
 def ws_url_for(base_url):
-    """The socket address for `base_url`, encrypted unless it is loopback.
+    """The socket address for `base_url`.
 
     Parsed rather than string-replaced, so the scheme is derived from what
     was given instead of assumed, and a malformed address is refused rather
     than half-rewritten.
-
-    An unencrypted socket is allowed only to this machine. The harness is
-    meant to load a server running beside it, and cleartext to anywhere else
-    is either a mistake or a run against something it has no business
-    loading.
     """
     parsed = urllib.parse.urlsplit(base_url)
     scheme = WS_SCHEME.get(parsed.scheme)
     if scheme is None or not parsed.hostname:
         raise SystemExit(f"cannot read {base_url!r} as an http address")
-    if scheme != "wss" and parsed.hostname not in LOOPBACK:
-        raise SystemExit(
-            f"refusing an unencrypted socket to {parsed.hostname!r}; "
-            "use https")
     path = parsed.path.rstrip("/") + "/ws"
     return urllib.parse.urlunsplit((scheme, parsed.netloc, path, "", ""))
 
@@ -299,8 +305,7 @@ async def run(args):
 
 def main(argv=None):
     args = parse_args(argv)
-    if seed_guard.is_known_production(args.base_url):
-        raise SystemExit("refusing to load test the live deployment")
+    args.base_url = require_local_target(args.base_url)
     _SERVER_PID["pid"] = args.server_pid or find_server_pid()
     asyncio.run(run(args))
     return 0

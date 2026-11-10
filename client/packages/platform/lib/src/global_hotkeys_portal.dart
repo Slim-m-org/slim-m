@@ -15,13 +15,12 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'global_hotkeys.dart';
 import 'global_hotkeys_keys.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
+import 'portal_request.dart';
 
-const _portalName = 'org.freedesktop.portal.Desktop';
-const _portalPath = '/org/freedesktop/portal/desktop';
+export 'portal_request.dart' show portalRequestPath;
+
 const _shortcutsInterface = 'org.freedesktop.portal.GlobalShortcuts';
-const _requestInterface = 'org.freedesktop.portal.Request';
 const _sessionInterface = 'org.freedesktop.portal.Session';
-const _approvalTimeout = Duration(minutes: 2);
 
 const portalAvailableMessage =
     'Works when slim-m is in the background. Pick the key in System Settings, Shortcuts.';
@@ -29,12 +28,6 @@ const portalMissingMessage =
     'This desktop has no background shortcuts, so it works only while slim-m is focused.';
 const portalDeclinedMessage =
     'Background shortcuts were not approved, so this works only while slim-m is focused.';
-
-/// Where the portal answers a request made by [uniqueName] with [token].
-String portalRequestPath(String uniqueName, String token) {
-  final sender = uniqueName.replaceFirst(':', '').replaceAll('.', '_');
-  return '/org/freedesktop/portal/desktop/request/$sender/$token';
-}
 
 List<DBusValue> createSessionValues({
   required String handleToken,
@@ -98,10 +91,20 @@ GlobalHotkeyEvent? portalEventFromSignal(
 }
 
 class PortalGlobalHotkeySource implements GlobalHotkeySource {
-  PortalGlobalHotkeySource({DBusClient Function()? clientFactory})
-      : _clientFactory = clientFactory ?? DBusClient.session;
+  /// [responses] and [approvalTimeout] let a test stand in for the portal's answers.
+  PortalGlobalHotkeySource({
+    DBusClient Function()? clientFactory,
+    Stream<DBusSignal> Function(DBusClient bus, DBusObjectPath request)?
+        responses,
+    Duration approvalTimeout = portalApprovalTimeout,
+  })  : _clientFactory = clientFactory ?? DBusClient.session,
+        _responses = responses ?? portalResponses,
+        _approvalTimeout = approvalTimeout;
 
   final DBusClient Function() _clientFactory;
+  final Stream<DBusSignal> Function(DBusClient bus, DBusObjectPath request)
+      _responses;
+  final Duration _approvalTimeout;
   final _events = StreamController<GlobalHotkeyEvent>.broadcast();
   final _listening = <StreamSubscription<DBusSignal>>[];
   DBusClient? _client;
@@ -120,8 +123,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     try {
       final version = await DBusRemoteObject(
         _bus,
-        name: _portalName,
-        path: DBusObjectPath(_portalPath),
+        name: portalBusName,
+        path: DBusObjectPath(portalPath),
       ).getProperty(_shortcutsInterface, 'version');
       return version.asUint32() >= 1
           ? const GlobalHotkeyAvailability.available(portalAvailableMessage)
@@ -158,8 +161,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       }
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     } on Object catch (error, stack) {
-      reportFailure(
-          LogTag.platform, 'close the global shortcuts session', error, stack);
+      reportFailure(LogTag.platform, 'bind the global shortcuts', error, stack);
       _endSession();
       return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
     }
@@ -180,7 +182,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     _session = null;
     try {
       await _bus.callMethod(
-        destination: _portalName,
+        destination: portalBusName,
         path: DBusObjectPath(handle),
         interface: _sessionInterface,
         name: 'Close',
@@ -216,7 +218,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       _listening.add(
         DBusSignalStream(
           _bus,
-          sender: _portalName,
+          sender: portalBusName,
           interface: _shortcutsInterface,
           name: name,
         ).listen((signal) {
@@ -228,7 +230,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     _listening.add(
       DBusSignalStream(
         _bus,
-        sender: _portalName,
+        sender: portalBusName,
         interface: _sessionInterface,
         name: 'Closed',
         path: DBusObjectPath(handle),
@@ -246,32 +248,26 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     if (!_events.isClosed) _events.add(const GlobalHotkeyEvent.lost());
   }
 
-  /// Runs a portal method and waits for its Response, subscribing first so a
-  /// fast answer is not missed. Null results mean the person declined.
+  /// Runs a portal method and waits for its Response. Null results mean the person declined.
   Future<Map<String, DBusValue>?> _request(
     String method,
     List<DBusValue> Function(String token) values,
   ) async {
     final token = _token('request');
     final path = DBusObjectPath(portalRequestPath(_bus.uniqueName, token));
-    final response = DBusSignalStream(
-      _bus,
-      sender: _portalName,
-      interface: _requestInterface,
-      name: 'Response',
-      path: path,
-    ).first;
-    await _bus.callMethod(
-      destination: _portalName,
-      path: DBusObjectPath(_portalPath),
-      interface: _shortcutsInterface,
-      name: method,
-      values: values(token),
-      replySignature: DBusSignature('o'),
+    final response = await awaitPortalResponse(
+      responses: _responses(_bus, path),
+      call: () => _bus.callMethod(
+        destination: portalBusName,
+        path: DBusObjectPath(portalPath),
+        interface: _shortcutsInterface,
+        name: method,
+        values: values(token),
+        replySignature: DBusSignature('o'),
+      ),
+      timeout: _approvalTimeout,
     );
-    final signal = await response.timeout(_approvalTimeout);
-    if (signal.values[0].asUint32() != 0) return null;
-    return signal.values[1].asStringVariantDict();
+    return response.code == 0 ? response.results : null;
   }
 
   @override

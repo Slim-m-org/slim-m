@@ -50,6 +50,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// Null means "no choice known yet", not any of [choices]: a caller with
   /// nothing to read the current value back from must be able to say so
   /// rather than being forced to assert one of the real choices in its place.
+  /// A value that matches none of [choices] reads as [unknownLabel] too.
   final T? value;
   final List<SettingsChoice<T>> choices;
   final ValueChanged<T> onChanged;
@@ -62,8 +63,9 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// inside the open dropdown or sheet.
   final String? description;
 
-  /// Shown in place of a choice's label when [value] is null. Must never be a
-  /// real choice's own label, or "not known" reads as that choice.
+  /// Shown in place of a choice's label when [value] is null or matches no
+  /// choice. Must never be a real choice's own label, or "not known" reads as
+  /// that choice.
   final String unknownLabel;
 
   /// Renders as an indented sub-row of the row above, not a row of its own.
@@ -72,10 +74,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
   SettingsChoice<T>? get _currentChoice {
     final current = value;
     if (current == null) return null;
-    return choices.firstWhere(
-      (c) => c.value == current,
-      orElse: () => choices.first,
-    );
+    return choices.where((c) => c.value == current).firstOrNull;
   }
 
   String get _currentLabel => _currentChoice?.label ?? unknownLabel;

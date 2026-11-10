@@ -74,8 +74,8 @@ mixin GuardedActionState<T extends StatefulWidget> on State<T> {
     if (mounted) setState(() => _actionError = message);
   }
 
-  /// [runGuarded], with the result stored and a `mounted` check after the
-  /// await - the guard every one of the twenty-six copies had to remember.
+  /// [runGuarded] with the result stored. True when the request worked even if the widget has left, so check `mounted`
+  /// before `ref`; a follow-up that must still land goes inside [action], on a container taken before the await.
   Future<bool> guard({
     required String whatFailed,
     required Future<void> Function() action,

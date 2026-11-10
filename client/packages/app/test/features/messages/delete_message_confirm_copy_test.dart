@@ -58,7 +58,7 @@ void main() {
   ) async {
     await _pumpButton(
       tester,
-      (context, ref) => confirmAndDeleteMessage(ref, context, _message),
+      (context, ref) => confirmAndDeleteMessage(context, _message),
     );
 
     expect(find.text(deleteMessageConfirmTitle), findsOneWidget);
@@ -72,7 +72,7 @@ void main() {
         tester,
         (context, ref) => deleteReportedMessage(
           context,
-          ref,
+          ProviderScope.containerOf(context, listen: false),
           ({required whatFailed, required action}) async =>
               fail('the guard must not run before the dialog is confirmed'),
           channelId: 'c1',

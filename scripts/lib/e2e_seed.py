@@ -13,6 +13,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import e2e_api
+
 CHANNEL = "lounge"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]"}
 
@@ -36,7 +38,7 @@ def call(base, path, body, token=None):
     req = urllib.request.Request(f"{base}{path}", data=json.dumps(body).encode(),
                                  headers=headers)
     try:
-        return json.load(urllib.request.urlopen(req))
+        return json.load(e2e_api.urlopen(req))
     except urllib.error.HTTPError as exc:
         sys.exit(f"{path} failed {exc.code}: {exc.read()[:300].decode()}")
 

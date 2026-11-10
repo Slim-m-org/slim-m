@@ -6,6 +6,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show isWindowsHost;
 
 import '../desktop/relaunch.dart';
 import '../desktop/self_update/self_update_failure.dart';
@@ -14,8 +15,7 @@ import 'providers.dart';
 
 /// True only on Windows, outside the layout, in a bundle that has a launcher.
 final windowsAdoptAvailableProvider = Provider<bool>(
-  (ref) =>
-      Platform.isWindows && canAdoptWindowsInstall(Platform.resolvedExecutable),
+  (ref) => isWindowsHost && canAdoptWindowsInstall(Platform.resolvedExecutable),
 );
 
 /// Moves this copy into the layout and restarts into it. Throws a

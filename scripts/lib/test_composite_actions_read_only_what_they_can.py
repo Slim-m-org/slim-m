@@ -5,8 +5,13 @@ actionlint never opens action.yml, so `vars.X` in one only failed at run time;
 `docs/ci.md` has the incident.
 """
 import re
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from config_source import strip_comments  # noqa: E402
 
 ACTIONS = Path(__file__).resolve().parents[2] / ".github" / "actions"
 
@@ -15,23 +20,6 @@ FORBIDDEN = re.compile(r"\b(vars|secrets|needs|jobs|matrix|strategy)\b\s*[.\[]")
 STEP_START = re.compile(r"^(\s*)- ")
 RUN_KEY = re.compile(r"^\s*(?:- )?run:")
 SHELL_KEY = re.compile(r"^\s*(?:- )?shell:")
-
-
-def strip_comments(text: str) -> str:
-    """Drops whole-line and trailing `#` comments, keeping `#` inside quotes."""
-    out = []
-    for line in text.splitlines():
-        quote = None
-        for i, ch in enumerate(line):
-            if quote:
-                quote = None if ch == quote else quote
-            elif ch in "'\"":
-                quote = ch
-            elif ch == "#" and (i == 0 or line[i - 1] in " \t"):
-                line = line[:i]
-                break
-        out.append(line)
-    return "\n".join(out)
 
 
 def forbidden_contexts(text: str) -> list[str]:

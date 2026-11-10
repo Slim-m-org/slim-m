@@ -5,12 +5,23 @@
 namespace, so it shapes what the SFU sends to every listener (the downlink,
 which is the path a listener's jitter buffer and concealment see).
 """
+import hashlib
 import os
 import subprocess
 import time
 
-IMAGE = "slimm-netem:local"
-DOCKERFILE = "FROM alpine:latest\nRUN apk add --no-cache iproute2\n"
+# Alpine drops superseded package versions from a release's index, so iproute2 itself cannot be pinned.
+DOCKERFILE = (
+    "FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf\n"
+    "RUN apk add --no-cache iproute2\n")
+
+
+def image_for(recipe):
+    """Named by its recipe, so an image built from an older one is rebuilt rather than reused."""
+    return "slimm-netem:" + hashlib.sha256(recipe.encode()).hexdigest()[:12]
+
+
+IMAGE = image_for(DOCKERFILE)
 # The stack names its SFU from the same variable, so a second stack is shaped, not the first.
 LIVEKIT_CONTAINER = os.environ.get("E2E_LK_CONTAINER", "slimm-e2e-lk")
 DEVICE = "eth0"

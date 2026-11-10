@@ -28,11 +28,9 @@ import '../providers/member_actions.dart';
 ///
 /// Confirmed because it is the destructive half: a removal revokes sessions
 /// and invites and does not lapse on its own, unlike the timeout beside it.
-Future<void> confirmAndRemoveSelectedMembers(
-  WidgetRef ref,
-  BuildContext context,
-) async {
-  final ids = ref.read(memberSelectionProvider).ids.toList();
+Future<void> confirmAndRemoveSelectedMembers(BuildContext context) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final ids = container.read(memberSelectionProvider).ids.toList();
   if (ids.isEmpty) return;
   final confirmed = await confirmDangerousAction(
     context,
@@ -44,17 +42,17 @@ Future<void> confirmAndRemoveSelectedMembers(
   );
   if (!confirmed || !context.mounted) return;
 
-  ref.read(memberModerationErrorProvider.notifier).state = null;
+  container.read(memberModerationErrorProvider.notifier).state = null;
   final failure = await runGuarded(
     whatFailed: ids.length == 1 ? 'remove the member' : 'remove the members',
     action: () =>
-        ref.read(memberActionsProvider).bulkRemoveMembers(userIds: ids),
+        container.read(memberActionsProvider).bulkRemoveMembers(userIds: ids),
   );
   if (failure != null) {
-    ref.read(memberModerationErrorProvider.notifier).state = failure;
+    container.read(memberModerationErrorProvider.notifier).state = failure;
     return;
   }
-  ref.read(memberSelectionProvider.notifier).clear();
+  container.read(memberSelectionProvider.notifier).clear();
 }
 
 /// Times every selected member out for [duration].
@@ -62,22 +60,25 @@ Future<void> confirmAndRemoveSelectedMembers(
 /// No confirmation, matching the single member's own timeout chips: a timeout
 /// lapses on its own and re-issuing replaces it, so the act is reversible by
 /// doing it again.
-Future<void> timeOutSelectedMembers(WidgetRef ref, Duration duration) async {
-  final ids = ref.read(memberSelectionProvider).ids.toList();
+Future<void> timeOutSelectedMembers(
+  ProviderContainer container,
+  Duration duration,
+) async {
+  final ids = container.read(memberSelectionProvider).ids.toList();
   if (ids.isEmpty) return;
 
-  ref.read(memberModerationErrorProvider.notifier).state = null;
+  container.read(memberModerationErrorProvider.notifier).state = null;
   final failure = await runGuarded(
     whatFailed: ids.length == 1
         ? 'time the member out'
         : 'time the members out',
-    action: () => ref
+    action: () => container
         .read(memberActionsProvider)
         .bulkTimeoutMembers(userIds: ids, duration: duration),
   );
   if (failure != null) {
-    ref.read(memberModerationErrorProvider.notifier).state = failure;
+    container.read(memberModerationErrorProvider.notifier).state = failure;
     return;
   }
-  ref.read(memberSelectionProvider.notifier).clear();
+  container.read(memberSelectionProvider.notifier).clear();
 }

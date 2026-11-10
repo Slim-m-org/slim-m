@@ -5,6 +5,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'support/canvas_hit_probes.dart';
+
 CanvasStrokeInput horizontalStroke(
   String id, {
   double y = 0,
@@ -54,7 +56,7 @@ void main() {
       ..applyPlaced(horizontalStroke('a'))
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(50, 0)), 'a');
+    expect(strokeHitAt(document, const Offset(50, 0)), 'a');
   });
 
   test('a point well past the tolerance is not a hit', () {
@@ -63,7 +65,7 @@ void main() {
       ..applyPlaced(horizontalStroke('a', width: 2))
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(50, 40), slopPx: 4), isNull);
+    expect(strokeHitAt(document, const Offset(50, 40)), isNull);
   });
 
   test('a point just inside width/2 + slop is a hit, just outside is not', () {
@@ -73,8 +75,8 @@ void main() {
       ..refresh();
 
     // tolerance = width / 2 + slop = 1 + 4 = 5.
-    expect(hitTestStroke(document, const Offset(50, 4.9), slopPx: 4), 'a');
-    expect(hitTestStroke(document, const Offset(50, 5.1), slopPx: 4), isNull);
+    expect(strokeHitAt(document, const Offset(50, 4.9)), 'a');
+    expect(strokeHitAt(document, const Offset(50, 5.1)), isNull);
   });
 
   test('the topmost stroke wins when two overlap', () {
@@ -84,7 +86,7 @@ void main() {
       ..applyPlaced(horizontalStroke('over', zIndex: 2))
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(50, 0)), 'over');
+    expect(strokeHitAt(document, const Offset(50, 0)), 'over');
   });
 
   test('a removed stroke is never hit', () {
@@ -92,12 +94,12 @@ void main() {
     document
       ..applyPlaced(horizontalStroke('a'))
       ..refresh();
-    expect(hitTestStroke(document, const Offset(50, 0)), 'a');
+    expect(strokeHitAt(document, const Offset(50, 0)), 'a');
 
     document
       ..removeObject('a')
       ..refresh();
-    expect(hitTestStroke(document, const Offset(50, 0)), isNull);
+    expect(strokeHitAt(document, const Offset(50, 0)), isNull);
   });
 
   test('a killed (never-landed) stroke is never hit', () {
@@ -105,12 +107,12 @@ void main() {
     document
       ..applyPlaced(horizontalStroke('a'))
       ..refresh();
-    expect(hitTestStroke(document, const Offset(50, 0)), 'a');
+    expect(strokeHitAt(document, const Offset(50, 0)), 'a');
 
     document
       ..kill('a')
       ..refresh();
-    expect(hitTestStroke(document, const Offset(50, 0)), isNull);
+    expect(strokeHitAt(document, const Offset(50, 0)), isNull);
   });
 
   test('allowed skips a disallowed candidate for the one behind it', () {
@@ -120,9 +122,9 @@ void main() {
       ..applyPlaced(horizontalStroke('mine', zIndex: 1))
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(50, 0)), 'foreign');
+    expect(strokeHitAt(document, const Offset(50, 0)), 'foreign');
     expect(
-      hitTestStroke(
+      strokeHitAt(
         document,
         const Offset(50, 0),
         allowed: (stroke) => stroke.id == 'mine',
@@ -138,7 +140,7 @@ void main() {
       ..refresh();
 
     expect(
-      hitTestStroke(document, const Offset(50, 0), allowed: (_) => false),
+      strokeHitAt(document, const Offset(50, 0), allowed: (_) => false),
       isNull,
     );
   });
@@ -162,8 +164,8 @@ void main() {
       )
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(11, 11)), 'dot');
-    expect(hitTestStroke(document, const Offset(200, 200)), isNull);
+    expect(strokeHitAt(document, const Offset(11, 11)), 'dot');
+    expect(strokeHitAt(document, const Offset(200, 200)), isNull);
   });
 
   test('a point inside an image box is a hit, outside is not', () {
@@ -172,17 +174,17 @@ void main() {
       ..applyPlaced(imageAt('pic', x: 10, y: 10, w: 50, h: 50))
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(20, 20)), 'pic');
-    expect(hitTestBoxAt(document, const Offset(200, 200)), isNull);
+    expect(boxHitAt(document, const Offset(20, 20)), 'pic');
+    expect(boxHitAt(document, const Offset(200, 200)), isNull);
   });
 
-  test('hitTestBoxAt never matches a stroke sharing the same point', () {
+  test('a box lookup never matches a stroke sharing the same point', () {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document
       ..applyPlaced(horizontalStroke('line'))
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(50, 0)), isNull);
+    expect(boxHitAt(document, const Offset(50, 0)), isNull);
   });
 
   test('the topmost image wins when two overlap', () {
@@ -192,7 +194,7 @@ void main() {
       ..applyPlaced(imageAt('over', x: 0, y: 0, w: 50, h: 50, zIndex: 2))
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(10, 10)), 'over');
+    expect(boxHitAt(document, const Offset(10, 10)), 'over');
   });
 
   test('a point inside a note box, or on the outline of a shape, is a hit', () {
@@ -232,8 +234,8 @@ void main() {
       )
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(10, 10)), 'note');
-    expect(hitTestBoxAt(document, const Offset(100.2, 120)), 'shape');
+    expect(boxHitAt(document, const Offset(10, 10)), 'note');
+    expect(boxHitAt(document, const Offset(100.2, 120)), 'shape');
   });
 
   test('allowed skips a disallowed image for the one behind it', () {
@@ -244,7 +246,7 @@ void main() {
       ..refresh();
 
     expect(
-      hitTestBoxAt(
+      boxHitAt(
         document,
         const Offset(10, 10),
         allowed: (stroke) => stroke.id == 'mine',
@@ -262,11 +264,11 @@ void main() {
 
     // 12 screen px at 0.25 zoom is 48 world units.
     expect(
-      hitTestStroke(document, const Offset(50, 47), slopPx: touchHitSlopPx),
+      strokeHitAt(document, const Offset(50, 47), touch: true),
       'a',
     );
     expect(
-      hitTestStroke(document, const Offset(50, 49), slopPx: touchHitSlopPx),
+      strokeHitAt(document, const Offset(50, 49), touch: true),
       isNull,
     );
   });
@@ -277,9 +279,9 @@ void main() {
       ..applyPlaced(imageAt('img', x: 100, y: 100))
       ..refresh();
 
-    expect(hitTestBoxAt(document, const Offset(95, 120)), isNull);
+    expect(boxHitAt(document, const Offset(95, 120)), isNull);
     expect(
-      hitTestBoxAt(document, const Offset(95, 120), slopPx: touchHitSlopPx),
+      boxHitAt(document, const Offset(95, 120), touch: true),
       'img',
     );
   });

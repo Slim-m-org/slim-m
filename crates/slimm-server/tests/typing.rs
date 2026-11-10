@@ -183,8 +183,8 @@ async fn typing_lapses_without_a_refresh() {
 /// A refresh sent well within the TTL keeps the state alive rather than
 /// letting it lapse, and does not re-fan-out a second `typing.started`.
 ///
-/// Waiting up to t=650ms is comfortably past the original (now-superseded)
-/// t=400ms deadline while staying clear of the refreshed one, so nothing
+/// Waiting up to t=1100ms is past the original (now-superseded) t=1000ms
+/// deadline while staying clear of the refreshed one at t=1400ms, so nothing
 /// arriving proves both halves at once: no rebroadcast of "started", and no
 /// "stopped" let through by the old deadline either.
 #[tokio::test]
@@ -201,7 +201,7 @@ async fn a_refresh_within_the_ttl_does_not_lapse_or_repeat() {
     let channel = store.create_channel("general", "text").await.unwrap();
     // A refresh well before this deadline should push it out rather than
     // merely being ignored; see the timing note below.
-    let ttl = Duration::from_millis(400);
+    let ttl = Duration::from_millis(1000);
     let state = support::app::builder(store.clone())
         .hub(Hub::with_typing_ttl(ttl))
         .build();
@@ -216,14 +216,14 @@ async fn a_refresh_within_the_ttl_does_not_lapse_or_repeat() {
     send_typing(&mut alice_ws, &channel.id.to_string()).await;
     next_of_type(&mut bob_ws, "typing.started", &channel.id.to_string()).await;
 
-    // Refresh at t=300ms (comfortably before the original 400ms deadline),
-    // which pushes the real deadline out to roughly t=700ms.
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    // Refresh at t=400ms (well before the original 1000ms deadline), which
+    // pushes the real deadline out to roughly t=1400ms.
+    tokio::time::sleep(Duration::from_millis(400)).await;
     send_typing(&mut alice_ws, &channel.id.to_string()).await;
 
-    // Nothing should arrive for a good while, out to t=650ms; see this test's
+    // Nothing should arrive for a good while, out to t=1100ms; see this test's
     // doc comment for why that window proves both halves.
-    let nothing = tokio::time::timeout(Duration::from_millis(350), read_frame(&mut bob_ws)).await;
+    let nothing = tokio::time::timeout(Duration::from_millis(700), read_frame(&mut bob_ws)).await;
     assert!(
         nothing.is_err(),
         "a refresh must neither repeat the start nor let the old deadline stop it early, \

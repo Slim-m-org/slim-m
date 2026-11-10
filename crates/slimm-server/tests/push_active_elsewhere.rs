@@ -110,8 +110,7 @@ async fn an_active_viewing_frame_counts_even_with_no_channel_open_and_ends_with_
 
     let idle = json!({ "type": "viewing", "channel_ids": [] });
     ws.send(WsMessage::Text(idle.to_string())).await.unwrap();
-    // A frame that changes nothing has no effect to wait for, so give it time to wrongly land.
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    support::ws::settle(&mut ws).await;
     assert!(
         !viewing.is_recently_active(alice),
         "a frame without active is not activity"

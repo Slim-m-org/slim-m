@@ -21,7 +21,7 @@ import 'avatar_crop_sheet.dart';
 import '../../messages/widgets/image_downscale.dart';
 import '../../messages/widgets/image_drop_zone.dart';
 import 'invite_landing_card.dart';
-import '../../settings/widgets/join_policy_row.dart';
+import '../../settings/providers/space_settings.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_field.dart';
@@ -110,8 +110,9 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       return;
     }
     final nameChanged = _nameChanged;
+    final container = ProviderScope.containerOf(context, listen: false);
     await _run('save the Space profile', () async {
-      final updated = await ref
+      final updated = await container
           .read(settingsActionsProvider)
           .setSpaceSettings(
             api.SpaceSettingsUpdate(
@@ -121,12 +122,13 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
                   : null,
             ),
           );
+      if (nameChanged) container.invalidate(serverInfoProvider);
+      if (!mounted) return;
       _savedName = updated.name;
       _name.text = updated.name;
       _saved = updated.description;
       _description.text = updated.description;
     });
-    if (nameChanged) ref.invalidate(serverInfoProvider);
   }
 
   Future<void> _chooseBanner() async {
@@ -161,6 +163,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   /// A picked or dropped icon: cropped square, then minified to fit.
   Future<void> _setIcon(Uint8List picked) async {
     if (!mounted) return;
+    final container = ProviderScope.containerOf(context, listen: false);
     final cropped = await showAvatarCropSheet(context, picked, circular: false);
     if (cropped == null || !mounted) return;
     final bytes = await minifiedPng(cropped, width: _iconEdge) ?? cropped;
@@ -169,19 +172,18 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
       maxEdge: _iconEdge,
       maxBytes: _iconMaxBytes,
     );
-    await _run(
-      'upload the icon',
-      () => ref.read(memberActionsProvider).uploadSpaceIcon(safe),
-    );
-    ref.invalidate(serverInfoProvider);
+    await _run('upload the icon', () async {
+      await container.read(memberActionsProvider).uploadSpaceIcon(safe);
+      container.invalidate(serverInfoProvider);
+    });
   }
 
-  Future<void> _removeIcon() async {
-    await _run(
-      'remove the icon',
-      () => ref.read(memberActionsProvider).deleteSpaceIcon(),
-    );
-    ref.invalidate(serverInfoProvider);
+  Future<void> _removeIcon() {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return _run('remove the icon', () async {
+      await container.read(memberActionsProvider).deleteSpaceIcon();
+      container.invalidate(serverInfoProvider);
+    });
   }
 
   Widget? _banner(int? updatedAt) {

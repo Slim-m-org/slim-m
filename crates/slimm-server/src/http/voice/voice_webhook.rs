@@ -52,6 +52,7 @@ async fn receive(
 
     track_session(&state, &event).await;
     let room_finished = room_finished_channel(&event);
+    reconcile_roster(&state, &event).await;
     let presence = apply(&state, event);
     track_call_audio(&state, room_finished, presence).await;
     StatusCode::NO_CONTENT
@@ -96,6 +97,21 @@ async fn track_session(state: &AppState, event: &WebhookEvent) {
     };
     if let Err(err) = outcome {
         tracing::warn!(%err, "could not update a voice session");
+    }
+}
+
+/// Reads the SFU's members into the live state before the first participant event for a channel
+/// after a restart is applied, so that event sees everyone already on the call.
+async fn reconcile_roster(state: &AppState, event: &WebhookEvent) {
+    if event.participant.is_none() || event.event == "room_finished" {
+        return;
+    }
+    if let Some(channel_id) = event
+        .room
+        .as_ref()
+        .and_then(|room| voice::channel_for_room(&room.name))
+    {
+        state.voice.reconcile_live_state(channel_id).await;
     }
 }
 
@@ -169,7 +185,8 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
         "participant_joined" => {
             // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
             record(state, channel_id, user_id, VoiceEventKind::Joined);
-            let present_before = live_state.present(channel_id);
+            let present_before =
+                live_state.present_before(channel_id, event.participant_joined_at_ms());
             if live_state.mark_joined(channel_id, user_id, sid) {
                 let activity = super::voice_notice::join_activity(&present_before, user_id);
                 super::voice_notice::announce(state, channel_id, user_id, activity);

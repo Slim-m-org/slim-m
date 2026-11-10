@@ -49,7 +49,8 @@ mod memory_guard;
 mod moderation_seq;
 mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
-pub use event::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
+pub use event::{CanvasEvent, Event, MessageEvent, PresenceChange, RoleChange, RoleLook};
+pub use event_util::ReactionMoved;
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
@@ -408,6 +409,11 @@ impl Hub {
         self.sender.len()
     }
 
+    /// Connections and consumers currently subscribed to the durable channel.
+    pub fn durable_subscribers(&self) -> usize {
+        self.sender.receiver_count()
+    }
+
     /// The number of the latest moderation event, for the connect `hello`; see
     /// `hub::moderation_seq`.
     pub fn moderation_head(&self) -> u64 {
@@ -515,6 +521,7 @@ mod epoch_tests {
             channel_id: ChannelId::generate(),
             message_id: crate::ids::MessageId::generate(),
             reactors: Arc::new(vec![("+1".to_owned(), vec![(UserId::generate(), 1)])]),
+            moved: None,
         }));
         let reactors = |event| match event {
             Event::Message(MessageEvent::ReactionsChanged { reactors, .. }) => reactors,
@@ -574,7 +581,7 @@ mod epoch_tests {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
         });
-        hub.publish(Event::PresenceChanged(UserId::generate()));
+        hub.publish(Event::presence_changed(UserId::generate()));
         hub.publish(Event::Message(MessageEvent::Deleted {
             op_seq: None,
             channel_id: ChannelId::generate(),

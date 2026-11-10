@@ -159,16 +159,18 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
       _signingOutAll = true;
       _bulkError = null;
     });
+    final container = ProviderScope.containerOf(context, listen: false);
+    final actions = container.read(settingsActionsProvider);
     final remaining = <String>[];
     for (final device in others) {
       try {
-        await ref.read(settingsActionsProvider).removeDevice(device.id);
+        await actions.removeDevice(device.id);
       } on api.ApiException catch (error, stack) {
         api.reportFailure(api.LogTag.ui, 'sign out a device', error, stack);
         remaining.add(device.name);
       }
     }
-    ref.invalidate(devicesProvider);
+    container.invalidate(devicesProvider);
     if (!mounted) return;
     setState(() {
       _signingOutAll = false;

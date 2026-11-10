@@ -26,9 +26,20 @@ async fn queued_writers_leave_the_read_connections_free() {
             })
         })
         .collect();
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    support::wait::wait_until("a writer to hold a connection waiting for the lock", || {
+        store.pool_stats().in_use >= 2
+    })
+    .await;
 
-    let read = tokio::time::timeout(Duration::from_secs(1), store.ping()).await;
+    // Probed throughout rather than once, so writers that pile up late still starve a read.
+    let mut starved = false;
+    let probing = tokio::time::Instant::now();
+    while !starved && probing.elapsed() < Duration::from_millis(300) {
+        starved = tokio::time::timeout(Duration::from_secs(1), store.ping())
+            .await
+            .is_err();
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     sqlx::query("ROLLBACK").execute(&mut *holder).await.unwrap();
     drop(holder);
     for writer in writers {
@@ -36,7 +47,7 @@ async fn queued_writers_leave_the_read_connections_free() {
     }
 
     assert!(
-        read.is_ok(),
+        !starved,
         "a read waited behind writers that were waiting for the write lock"
     );
 }

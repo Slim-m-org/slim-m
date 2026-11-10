@@ -38,40 +38,6 @@ async fn run(wasm: Vec<u8>, limits: RunLimits) -> Result<Vec<u8>, RunError> {
     ModuleHost::run(wasm, sha, limits, b"hi".to_vec()).await
 }
 
-fn proc_status_kib(key: &str) -> u64 {
-    let status = std::fs::read_to_string("/proc/self/status").unwrap();
-    let line = status.lines().find(|l| l.starts_with(key)).unwrap();
-    line.split_whitespace().nth(1).unwrap().parse().unwrap()
-}
-
-fn cpu_seconds() -> f64 {
-    let stat = std::fs::read_to_string("/proc/self/stat").unwrap();
-    let after_comm = stat.rsplit_once(')').unwrap().1;
-    let fields: Vec<&str> = after_comm.split_whitespace().collect();
-    let ticks: u64 = fields[11].parse::<u64>().unwrap() + fields[12].parse::<u64>().unwrap();
-    ticks as f64 / 100.0
-}
-
-#[tokio::test]
-async fn a_huge_declared_table_is_refused_before_it_is_allocated() {
-    let wasm = module(&format!(
-        "(table 400000000 funcref) {}",
-        run_export("(i64.const 0)")
-    ));
-    // Resets the kernel's peak-RSS watermark so VmHWM covers only this run.
-    std::fs::write("/proc/self/clear_refs", "5").unwrap();
-    let before = proc_status_kib("VmHWM:");
-
-    let err = run(wasm, LIMITS).await.expect_err("table must be refused");
-
-    let grew_mib = (proc_status_kib("VmHWM:") - before.min(proc_status_kib("VmHWM:"))) / 1024;
-    assert!(
-        matches!(&err, RunError::Instantiate(m) if m.contains("table")),
-        "{err}"
-    );
-    assert!(grew_mib < 64, "peak RSS grew {grew_mib} MiB");
-}
-
 #[tokio::test]
 async fn a_second_table_or_memory_is_refused() {
     let tables = module(&format!(
@@ -111,28 +77,6 @@ async fn a_response_over_the_cap_is_refused_not_copied() {
     assert!(
         matches!(&err, RunError::ResourceLimited(m) if m.contains("response")),
         "{err}"
-    );
-}
-
-#[tokio::test]
-async fn a_timed_out_module_stops_burning_cpu() {
-    let wasm = module(&run_export("(loop $l (br $l)) (i64.const 0)"));
-    let limits = RunLimits {
-        fuel: 2_000_000_000,
-        wall: Duration::from_millis(100),
-        ..LIMITS
-    };
-
-    let err = run(wasm, limits).await.expect_err("must time out");
-    assert!(matches!(err, RunError::Timeout), "{err}");
-
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    let start = cpu_seconds();
-    tokio::time::sleep(Duration::from_millis(1500)).await;
-    let burned = cpu_seconds() - start;
-    assert!(
-        burned < 0.3,
-        "wasm kept burning {burned}s of CPU after the timeout"
     );
 }
 
@@ -247,4 +191,112 @@ async fn a_host_call_after_the_deadline_is_refused() {
         1,
         "the second post ran after the deadline"
     );
+}
+
+/// Tests that read process-wide counters, so each runs alone in a child process.
+#[cfg(target_os = "linux")]
+mod alone {
+    use super::*;
+
+    /// Set in the child process that `run_alone` starts.
+    const ALONE: &str = "SLIMM_LIMITS_TEST_ALONE";
+
+    /// Re-runs `test` as the only test of a fresh process and reports whether this call was that parent.
+    ///
+    /// The process-wide CPU and peak-RSS readings below also count every test sharing the process.
+    fn run_alone(test: &str) -> bool {
+        if std::env::var_os(ALONE).is_some() {
+            return false;
+        }
+        let path = module_path!().split_once("::").map_or("", |(_, rest)| rest);
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([&format!("{path}::{test}"), "--exact", "--test-threads=1"])
+            .env(ALONE, "1")
+            .output()
+            .unwrap();
+        let report = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && ran_one_test(&report),
+            "{test} did not run and pass on its own:\n{report}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        true
+    }
+
+    /// A child whose name matches nothing runs zero tests and still exits 0, so the report has to say one passed.
+    fn ran_one_test(report: &str) -> bool {
+        report.contains("running 1 test\n") && report.contains(" 1 passed;")
+    }
+
+    #[test]
+    fn a_child_that_matched_no_test_is_not_a_pass() {
+        let none = "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored;";
+        let one = "running 1 test\ntest a ... ok\n\ntest result: ok. 1 passed; 0 failed;";
+        let many = "running 11 tests\n\ntest result: ok. 11 passed; 0 failed;";
+        assert!(!ran_one_test(none));
+        assert!(!ran_one_test(many));
+        assert!(ran_one_test(one));
+    }
+
+    fn proc_status_kib(key: &str) -> u64 {
+        let status = std::fs::read_to_string("/proc/self/status").unwrap();
+        let line = status.lines().find(|l| l.starts_with(key)).unwrap();
+        line.split_whitespace().nth(1).unwrap().parse().unwrap()
+    }
+
+    fn cpu_seconds() -> f64 {
+        let stat = std::fs::read_to_string("/proc/self/stat").unwrap();
+        let after_comm = stat.rsplit_once(')').unwrap().1;
+        let fields: Vec<&str> = after_comm.split_whitespace().collect();
+        let ticks: u64 = fields[11].parse::<u64>().unwrap() + fields[12].parse::<u64>().unwrap();
+        ticks as f64 / 100.0
+    }
+
+    #[tokio::test]
+    async fn a_huge_declared_table_is_refused_before_it_is_allocated() {
+        if run_alone("a_huge_declared_table_is_refused_before_it_is_allocated") {
+            return;
+        }
+        let wasm = module(&format!(
+            "(table 400000000 funcref) {}",
+            run_export("(i64.const 0)")
+        ));
+        // Resets the kernel's peak-RSS watermark so VmHWM covers only this run.
+        std::fs::write("/proc/self/clear_refs", "5").unwrap();
+        let before = proc_status_kib("VmHWM:");
+
+        let err = run(wasm, LIMITS).await.expect_err("table must be refused");
+
+        let grew_mib = (proc_status_kib("VmHWM:") - before.min(proc_status_kib("VmHWM:"))) / 1024;
+        assert!(
+            matches!(&err, RunError::Instantiate(m) if m.contains("table")),
+            "{err}"
+        );
+        assert!(grew_mib < 64, "peak RSS grew {grew_mib} MiB");
+    }
+
+    #[tokio::test]
+    async fn a_timed_out_module_stops_burning_cpu() {
+        if run_alone("a_timed_out_module_stops_burning_cpu") {
+            return;
+        }
+        let wasm = module(&run_export("(loop $l (br $l)) (i64.const 0)"));
+        let limits = RunLimits {
+            fuel: 2_000_000_000,
+            wall: Duration::from_millis(100),
+            ..LIMITS
+        };
+
+        let err = run(wasm, limits).await.expect_err("must time out");
+        assert!(matches!(err, RunError::Timeout), "{err}");
+
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let start = cpu_seconds();
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        let burned = cpu_seconds() - start;
+        assert!(
+            burned < 0.3,
+            "wasm kept burning {burned}s of CPU after the timeout"
+        );
+    }
 }

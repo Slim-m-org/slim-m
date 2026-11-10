@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Which stroke, or box object, a pointer landed on.
+/// Which object a pointer landed on.
 /// A stroke is nearest-segment-within-tolerance, never its bounding box, so an eraser cannot take a neighbour the line never crossed; images and notes are their whole box and a shape answers only on its outline.
 library;
 
@@ -27,70 +27,6 @@ const double defaultHitSlopPx = 4;
 
 /// [defaultHitSlopPx] for a finger.
 const double touchHitSlopPx = 12;
-
-/// Finds the topmost live stroke within tolerance of [world] that [allowed]
-/// accepts, or null.
-///
-/// Candidates come from a small cull around the pointer, never a full scan.
-/// They are tested highest z-index first, so an eraser takes the same
-/// stroke a viewer sees on top, and the first one within its own
-/// `width / 2 + slop` wins. A candidate [allowed] refuses is skipped rather
-/// than stopping the search, so a foreign stroke on top of the caller's own
-/// ink does not shield it: the eraser is meant to scope what it can pick up
-/// at hit-test time, not merely at the request the server would refuse.
-String? hitTestStroke(
-  CanvasDocument document,
-  Offset world, {
-  double slopPx = defaultHitSlopPx,
-  CullResult? scratch,
-  bool Function(CanvasStroke stroke)? allowed,
-}) {
-  // The board's clip hides everything past its edge, so nothing there can be hit.
-  if (!document.acceptsPlacementAt(world)) return null;
-  final out = scratch ?? CullResult();
-  final pad = _reach(document) + slopPx / document.camera.zoom;
-  document.scene.queryRect(
-    world.dx - pad,
-    world.dy - pad,
-    world.dx + pad,
-    world.dy + pad,
-    out,
-  );
-
-  final candidates = <int>[];
-  for (final slot in out.slots) {
-    if (document.strokeIfAlive(slot) != null) candidates.add(slot);
-  }
-  candidates.sort((a, b) => document.comparePaintOrder(b, a));
-
-  for (final slot in candidates) {
-    final stroke = document.strokeAt(slot);
-    if (allowed != null && !allowed(stroke)) continue;
-    final tolerance = stroke.width / 2 + slopPx / document.camera.zoom;
-    if (_withinTolerance(stroke.points, world.dx, world.dy, tolerance)) {
-      return stroke.id;
-    }
-  }
-  return null;
-}
-
-/// Finds the topmost live image, note or shape [world] lands on that [allowed] accepts, or null; a shape is only its outline so presses through its empty inside reach what lies beneath.
-String? hitTestBoxAt(
-  CanvasDocument document,
-  Offset world, {
-  double slopPx = 0,
-  CullResult? scratch,
-  bool Function(CanvasStroke stroke)? allowed,
-}) =>
-    _topmost(
-      document,
-      world,
-      strokeSlopPx: slopPx,
-      boxSlopPx: slopPx,
-      scratch: scratch,
-      allowed: allowed,
-      accepts: (stroke) => stroke.kind != CanvasObjectKind.stroke,
-    );
 
 /// The topmost live object of any kind [world] lands on that [allowed] accepts, so select, erase and the context menu agree; [touch] widens the reach and [accepts] narrows the kinds.
 String? hitTestTopmost(

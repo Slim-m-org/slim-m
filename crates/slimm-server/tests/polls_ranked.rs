@@ -6,7 +6,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
@@ -23,9 +23,7 @@ use uuid::Uuid;
 mod support;
 
 use support::app::request_authed as request;
-
-type WsClient =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::read_frame_of_type;
 
 struct World {
     store: Store,
@@ -201,19 +199,6 @@ async fn a_ballot_must_fit_the_poll() {
         StatusCode::NO_CONTENT,
         "an ordinary poll still takes a plain option"
     );
-}
-
-async fn read_frame_of_type(ws: &mut WsClient, frame_type: &str) -> Value {
-    for _ in 0..10 {
-        let Some(Ok(WsMessage::Text(text))) = ws.next().await else {
-            continue;
-        };
-        let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-        if frame["type"] == frame_type {
-            return frame;
-        }
-    }
-    panic!("did not see a `{frame_type}` frame within 10 frames");
 }
 
 #[tokio::test]

@@ -91,10 +91,11 @@ void main() {
     const refusal = api.ForbiddenException(
       'this server does not accept new two-factor enrolments',
     );
-    expect(reauthFailure(refusal), refusal.message);
+    expect(reauthFailure(refusal, 'start two-factor setup'), refusal.message);
     expect(
       reauthFailure(
         const api.ForbiddenException('that password is not correct'),
+        'start two-factor setup',
       ),
       'That password is not correct.',
     );

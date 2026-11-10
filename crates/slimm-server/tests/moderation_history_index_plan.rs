@@ -36,24 +36,6 @@ fn source_of(relative: &str) -> String {
         .unwrap_or_else(|_| panic!("read {relative}"))
 }
 
-/// The whole `r#"..."#` string literal's body containing [anchor] - duplicated
-/// from the sibling plan tests, since an integration test cannot import
-/// another test binary's helpers.
-fn extract_raw_containing(source: &str, anchor: &str) -> String {
-    let pos = source
-        .find(anchor)
-        .unwrap_or_else(|| panic!("{anchor:?} no longer appears in the source"));
-    let start = source[..pos]
-        .rfind("r#\"")
-        .unwrap_or_else(|| panic!("no opening quote before {anchor:?}"))
-        + "r#\"".len();
-    let end = source[pos..]
-        .find("\"#")
-        .unwrap_or_else(|| panic!("no closing quote after {anchor:?}"))
-        + pos;
-    source[start..end].to_owned()
-}
-
 async fn plan_of(pool: &SqlitePool, sql: &str) -> Vec<String> {
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
     let rows = sqlx::query(&explain)
@@ -84,7 +66,7 @@ fn assert_walks_index(plan: &[String], index: &str) {
 async fn paging_resolved_reports_walks_the_resolved_index() {
     let (pool, _guard) = new_pool("slimm-history-reports-plan").await;
     let source = source_of("src/store/moderation_history.rs");
-    let base = extract_raw_containing(&source, "FROM reports r");
+    let base = support::query_literal_containing(&source, "FROM reports r");
     let sql = format!("{base} ORDER BY r.resolved_at DESC, r.id DESC LIMIT ?");
 
     let plan = plan_of(&pool, &sql).await;

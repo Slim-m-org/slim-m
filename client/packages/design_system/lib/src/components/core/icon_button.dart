@@ -10,6 +10,7 @@ import '../../app_haptics.dart';
 import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
+import '../../press_tracking.dart';
 import '../../touch_targets.dart';
 import 'control_with_options.dart';
 
@@ -99,13 +100,9 @@ class AppIconButton extends StatefulWidget {
   State<AppIconButton> createState() => _AppIconButtonState();
 }
 
-class _AppIconButtonState extends State<AppIconButton> {
+class _AppIconButtonState extends State<AppIconButton> with PressTracking {
   bool _hovered = false;
   bool _focused = false;
-
-  /// Finger-down feedback for a phone, where there is no hover fill to lean
-  /// on; a small scale-down that a haptic tick lands alongside.
-  bool _pressed = false;
 
   final _tooltip = GlobalKey<TooltipState>();
 
@@ -120,19 +117,6 @@ class _AppIconButtonState extends State<AppIconButton> {
     } else {
       Tooltip.dismissAllToolTips();
     }
-  }
-
-  /// A tap can be cancelled while its recognizers are re-synced mid-build, where setState is not allowed.
-  void _setPressed(bool pressed) {
-    if (_pressed == pressed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _pressed = pressed);
-      });
-      return;
-    }
-    setState(() => _pressed = pressed);
   }
 
   @override
@@ -200,9 +184,9 @@ class _AppIconButtonState extends State<AppIconButton> {
     return GestureDetector(
       // Opaque so the whole hit box responds, not just the visual inside it.
       behavior: HitTestBehavior.opaque,
-      onTapDown: enabled ? (_) => _setPressed(true) : null,
-      onTapUp: enabled ? (_) => _setPressed(false) : null,
-      onTapCancel: enabled ? () => _setPressed(false) : null,
+      onTapDown: enabled ? (_) => setPressed(true) : null,
+      onTapUp: enabled ? (_) => setPressed(false) : null,
+      onTapCancel: enabled ? () => setPressed(false) : null,
       onTap: enabled
           ? () {
               AppHaptics.selection();
@@ -215,7 +199,7 @@ class _AppIconButtonState extends State<AppIconButton> {
         child: Align(
           alignment: joined ? Alignment.centerRight : Alignment.center,
           child: AnimatedScale(
-            scale: _pressed ? AppMotion.pressScale : 1,
+            scale: pressed ? AppMotion.pressScale : 1,
             duration: AppMotion.reduced(context, AppMotion.fast),
             curve: AppMotion.entrance,
             child: button,

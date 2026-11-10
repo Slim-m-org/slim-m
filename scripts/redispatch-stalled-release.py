@@ -22,8 +22,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKAGES = (
-    ("server", ".release-please-manifest.server.json"),
-    ("client", ".release-please-manifest.client.json"),
+    ("server", ".release-please-manifest.server.json", "crates/slimm-server"),
+    ("client", ".release-please-manifest.client.json", "client"),
 )
 MAX_AGE_SECONDS = 72 * 3600
 VERIFY_FAILED = {"failure", "cancelled", "timed_out"}
@@ -96,11 +96,12 @@ def git(*args: str) -> str:
     return subprocess.run(["git", *args], check=True, capture_output=True, text=True, cwd=REPO_ROOT).stdout.strip()
 
 
-def component_tag(component: str, manifest: str) -> str | None:
+def component_tag(component: str, manifest: str, key: str) -> str | None:
     path = REPO_ROOT / manifest
     if not path.is_file():
         return None
-    return f"{component}-v{next(iter(json.loads(path.read_text()).values()))}"
+    version = json.loads(path.read_text()).get(key)
+    return f"{component}-v{version}" if version else None
 
 
 def release_runs(repo: str, tag: str, sha: str) -> tuple[list[dict], dict]:
@@ -135,8 +136,8 @@ def main() -> int:
     repo = os.environ["GITHUB_REPOSITORY"]
     dry_run = os.environ.get("DRY_RUN") == "1"
     release_yml = (REPO_ROOT / ".github/workflows/release.yml").read_text()
-    for component, manifest in PACKAGES:
-        tag = component_tag(component, manifest)
+    for component, manifest, key in PACKAGES:
+        tag = component_tag(component, manifest, key)
         if tag:
             handle(repo, component, tag, release_yml, dry_run)
     return 0

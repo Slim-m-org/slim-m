@@ -10,7 +10,7 @@ use axum::Router;
 use axum::http::StatusCode;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
-use serde_json::Value;
+use serde_json::{Value, json};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
@@ -60,7 +60,7 @@ async fn connect_is_what_gets_you_a_token() {
         .create_role("everyone", Permissions::VIEW_CHANNEL, true)
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), enabled_voice());
     let token = member(&store, "alice").await;
 
@@ -91,7 +91,7 @@ async fn a_listener_gets_a_token_that_cannot_publish() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), enabled_voice());
     let token = member(&store, "alice").await;
 
@@ -138,7 +138,7 @@ async fn speak_rights_carry_into_the_token() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), enabled_voice());
     let token = member(&store, "alice").await;
 
@@ -176,7 +176,7 @@ async fn a_channel_denying_connect_beats_the_role_that_grants_it() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     store
         .set_role_overwrite(
             channel.id,
@@ -213,7 +213,7 @@ async fn a_channel_that_does_not_exist_refuses_like_one_you_cannot_join() {
         )
         .await
         .unwrap();
-    store.create_channel("general", "text").await.unwrap();
+    store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), enabled_voice());
     let token = member(&store, "alice").await;
 
@@ -244,7 +244,7 @@ async fn a_text_only_deployment_says_so_instead_of_pretending() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     // No SFU configured, which is a supported way to run this.
     let app = app(store.clone(), VoiceService::disabled());
     let token = member(&store, "alice").await;
@@ -272,7 +272,7 @@ async fn a_text_only_deployment_says_so_instead_of_pretending() {
 #[tokio::test]
 async fn a_token_requires_authentication() {
     let (store, _guard) = support::new_store("slimm-voice-test").await;
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store, enabled_voice());
 
     let response = app
@@ -302,7 +302,7 @@ async fn kicking_needs_kick_members_in_that_channel() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), enabled_voice());
 
     let token = member(&store, "alice").await;
@@ -347,7 +347,7 @@ async fn kicking_without_an_sfu_says_so() {
         )
         .await
         .unwrap();
-    let channel = store.create_channel("general", "text").await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
     let app = app(store.clone(), VoiceService::disabled());
 
     let token = member(&store, "alice").await;
@@ -376,4 +376,38 @@ async fn kicking_without_an_sfu_says_so() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
+}
+
+#[tokio::test]
+async fn a_text_channel_has_no_voice_room() {
+    let (store, _guard) = support::new_store("slimm-voice-test").await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::CONNECT),
+            true,
+        )
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let app = app(store.clone(), enabled_voice());
+    let token = member(&store, "alice").await;
+
+    for (method, route, body) in [
+        ("POST", "token", None),
+        ("POST", "heartbeat", None),
+        ("PUT", "deafened", Some(json!({ "deafened": true }))),
+    ] {
+        let uri = format!("/channels/{}/voice/{route}", channel.id);
+        let response = app
+            .clone()
+            .oneshot(support::app::request(method, &uri, Some(&token), body))
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "{method} {route} on a text channel"
+        );
+    }
 }

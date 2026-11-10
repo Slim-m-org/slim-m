@@ -93,6 +93,9 @@ def safe_work_dir(path):
 
 def start(index, env, names, log_dir):
     os.makedirs(env["E2E_WORK"], exist_ok=True)
+    # A shard that dies before writing its own results must not report the last run's.
+    if os.path.exists(env["E2E_RESULTS"]):
+        os.remove(env["E2E_RESULTS"])
     with open(env["E2E_ONLY_FILE"], "w", encoding="utf-8") as fh:
         json.dump(names, fh)
     log = open(os.path.join(log_dir, f"shard-{index}.log"), "wb")
@@ -123,18 +126,15 @@ def read_results(env):
         return None
 
 
-def merge(shards, names, codes):
+def merge(shards, names):
     """One row per scenario: (name, shard, ok, seconds); a missing result is a failure."""
-    rows, seen = [], set()
+    rows = []
     for index, (env, assigned) in enumerate(shards):
-        results = read_results(env) or []
-        for row in results:
-            seen.add(row["name"])
-            rows.append((row["name"], index, row["ok"], row["seconds"]))
+        done = {row["name"]: row for row in read_results(env) or []}
         for name in assigned:
-            if name not in {r["name"] for r in results}:
-                rows.append((name, index, False, 0.0))
-                seen.add(name)
+            row = done.get(name)
+            rows.append((name, index, False, 0.0) if row is None
+                        else (name, index, row["ok"], row["seconds"]))
     order = {name: i for i, name in enumerate(names)}
     rows.sort(key=lambda r: order.get(r[0], 1 << 30))
     return rows
@@ -217,7 +217,7 @@ def main(argv=None):
         stop_all(procs)
         for _, log in procs:
             log.close()
-    rows = merge(shards, names, codes)
+    rows = merge(shards, names)
     code = report(rows, time.time() - began, shards, codes)
     if args.record and code == 0:
         record_durations(rows)

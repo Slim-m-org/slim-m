@@ -4,7 +4,9 @@
 //! keeps the channel for everyone else, and a call rings every other person.
 
 mod calls;
+mod create_errors;
 mod lifecycle;
+mod live;
 mod membership;
 mod rig;
 #[path = "../support/mod.rs"]

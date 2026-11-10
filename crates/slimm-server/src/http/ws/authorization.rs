@@ -253,6 +253,7 @@ async fn channel_frame(
             channel_id,
             message_id,
             reactors,
+            ..
         }) => match reactions_frame(store, hub, ctx, cache, (channel_id, message_id), &reactors)
             .await
         {

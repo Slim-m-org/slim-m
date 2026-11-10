@@ -47,18 +47,17 @@ final bannerAdminAlertsProvider = Provider.autoDispose<List<api.AdminAlert>>((
 });
 
 /// Saves the caller's mute, then re-reads the list so the switch shows what the server holds.
-Future<void> setAdminAlertsMuted(WidgetRef ref, bool muted) async {
+///
+/// Takes a container because the pane can close before the server answers.
+Future<void> setAdminAlertsMuted(
+  ProviderContainer container,
+  bool muted,
+) async {
   try {
-    await ref.read(apiProvider).setAdminAlertsMuted(muted);
-  } catch (error, stack) {
-    api.AppLog.swallowed(
-      api.LogTag.ui,
-      'Could not change the alert mute; the list reloads from the server',
-      error,
-      stack,
-    );
+    await container.read(apiProvider).setAdminAlertsMuted(muted);
+  } finally {
+    container.invalidate(adminAlertsProvider);
   }
-  ref.invalidate(adminAlertsProvider);
 }
 
 /// Hides [alerts] until they recover and open again.

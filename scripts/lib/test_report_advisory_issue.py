@@ -71,6 +71,20 @@ class ReportAdvisoryIssueTest(unittest.TestCase):
         self.assertTrue(any(c.startswith("issue create") for c in calls), calls)
 
 
+    def test_the_issue_names_which_lockfile_was_flagged(self) -> None:
+        calls = run(
+            self.tmp_path,
+            "found",
+            extra={"ADVISORY_LOCKFILES": "crates/slimm-listener/Cargo.lock"},
+        )
+        self.assertIn("dependency in: crates/slimm-listener/Cargo.lock", "\n".join(calls))
+
+
+    def test_the_issue_falls_back_to_the_root_lockfile_when_none_is_named(self) -> None:
+        calls = run(self.tmp_path, "found")
+        self.assertIn("dependency in: Cargo.lock", "\n".join(calls))
+
+
     def test_a_found_advisory_does_not_open_a_second_issue(self) -> None:
         """The check runs daily; without this it would file one issue per day."""
         calls = run(self.tmp_path, "found", existing="42")

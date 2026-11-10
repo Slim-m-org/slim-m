@@ -27,6 +27,7 @@ import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../press_tracking.dart';
 import '../../touch_targets.dart';
 import 'menu_cascade.dart';
 
@@ -263,13 +264,9 @@ class AppMenuItem extends StatefulWidget {
   State<AppMenuItem> createState() => _AppMenuItemState();
 }
 
-class _AppMenuItemState extends State<AppMenuItem> {
+class _AppMenuItemState extends State<AppMenuItem> with PressTracking {
   bool _hovered = false;
   bool _focused = false;
-
-  /// A finger has no hover, so on a phone this is the only sign a tap landed
-  /// before its action runs - [AppListRow]'s own reasoning, applied here.
-  bool _pressed = false;
 
   Color _toneColor(AppTokens tokens) => switch (widget.tone) {
         AppMenuItemTone.normal => tokens.textPrimary,
@@ -302,9 +299,9 @@ class _AppMenuItemState extends State<AppMenuItem> {
           onEnter: (_) => _pointerEntered(),
           onExit: (_) => widget.onPointerExit?.call(),
           child: GestureDetector(
-            onTapDown: active ? (_) => setState(() => _pressed = true) : null,
-            onTapUp: active ? (_) => setState(() => _pressed = false) : null,
-            onTapCancel: active ? () => setState(() => _pressed = false) : null,
+            onTapDown: active ? (_) => setPressed(true) : null,
+            onTapUp: active ? (_) => setPressed(false) : null,
+            onTapCancel: active ? () => setPressed(false) : null,
             onTap: active
                 ? () {
                     AppHaptics.selection();
@@ -328,7 +325,7 @@ class _AppMenuItemState extends State<AppMenuItem> {
   /// theme; surfaceSunken read as a hole in a dark menu.
   Color _fill(AppTokens tokens) {
     if (widget.selected) return tokens.accentSoft;
-    if (_pressed) return tokens.textPrimary.withValues(alpha: 0.12);
+    if (pressed) return tokens.textPrimary.withValues(alpha: 0.12);
     return _hovered || widget.highlighted
         ? tokens.textPrimary.withValues(alpha: 0.07)
         : Colors.transparent;

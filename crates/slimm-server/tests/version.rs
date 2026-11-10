@@ -105,52 +105,53 @@ async fn version_reports_the_attachment_ceiling() {
     assert!(body["max_attachment_bytes"].as_u64().unwrap() > 0);
 }
 
-/// No floor is the ordinary case, and it has to be absent rather than null
-/// or empty: a client reads "no field" as "this server does not gate on my
-/// version", and an empty string would parse as a version nothing satisfies.
-#[tokio::test]
-async fn version_declares_no_client_floor_by_default() {
-    unsafe { std::env::remove_var("SLIMM_MIN_CLIENT_VERSION") };
+const FLOOR_VAR: &str = "SLIMM_MIN_CLIENT_VERSION";
 
-    let (store, _guard) = support::new_store("slimm-version-test").await;
-    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+/// Clears the floor variable on drop so a failed assert cannot leak it into a later case.
+struct FloorVar;
 
-    assert!(
-        body.get("min_client_version").is_none(),
-        "an unset floor must not appear at all: {body}"
-    );
+impl FloorVar {
+    fn set(value: Option<&str>) -> Self {
+        unsafe {
+            match value {
+                Some(value) => std::env::set_var(FLOOR_VAR, value),
+                None => std::env::remove_var(FLOOR_VAR),
+            }
+        }
+        Self
+    }
 }
 
-/// The one lever an operator has when an old client genuinely cannot keep
-/// working against a new server. Set per deployment, beside the build it
-/// qualifies; see decision 0025.
-#[tokio::test]
-async fn version_publishes_the_client_floor_an_operator_set() {
-    unsafe { std::env::set_var("SLIMM_MIN_CLIENT_VERSION", "0.76.0") };
-
-    let (store, _guard) = support::new_store("slimm-version-test").await;
-    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
-
-    assert_eq!(body["min_client_version"], "0.76.0");
-
-    unsafe { std::env::remove_var("SLIMM_MIN_CLIENT_VERSION") };
+impl Drop for FloorVar {
+    fn drop(&mut self) {
+        unsafe { std::env::remove_var(FLOOR_VAR) };
+    }
 }
 
-/// An operator who sets the variable to nothing at all means no floor, not a
-/// floor of "": a blank value is how a compose file spells "leave it off".
-#[tokio::test]
-async fn version_reads_a_blank_floor_as_no_floor() {
-    unsafe { std::env::set_var("SLIMM_MIN_CLIENT_VERSION", "   ") };
-
+async fn floor_with(value: Option<&str>) -> Value {
+    let _floor = FloorVar::set(value);
     let (store, _guard) = support::new_store("slimm-version-test").await;
-    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+    get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await
+}
 
+/// One test, because the floor is a process-wide variable read per request.
+/// Unset and blank both leave the field absent: "" would parse as a version nothing satisfies.
+#[tokio::test]
+async fn version_floor_follows_the_operator_variable() {
+    let unset = floor_with(None).await;
     assert!(
-        body.get("min_client_version").is_none(),
-        "blank is not a floor"
+        unset.get("min_client_version").is_none(),
+        "an unset floor must not appear at all: {unset}"
     );
 
-    unsafe { std::env::remove_var("SLIMM_MIN_CLIENT_VERSION") };
+    let blank = floor_with(Some("   ")).await;
+    assert!(
+        blank.get("min_client_version").is_none(),
+        "blank is not a floor: {blank}"
+    );
+
+    let set = floor_with(Some("0.76.0")).await;
+    assert_eq!(set["min_client_version"], "0.76.0");
 }
 
 /// The build id is baked in at compile time, so this asserts the wire agrees

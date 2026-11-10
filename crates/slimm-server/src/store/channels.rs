@@ -214,6 +214,9 @@ impl Store {
     /// wrong. Deleting a thread cannot reduce the number of real channels, so
     /// there is nothing here for it to protect.
     ///
+    /// A temporary voice room is treated like a thread: never in the count and never held by the
+    /// guard, so the sweep can still remove an emptied one.
+    ///
     /// It excludes a thread's own channels from that same count for the
     /// identical reason: a thread is never where anyone lands, and without
     /// this a deployment holding a handful of threads on its one real channel
@@ -227,9 +230,11 @@ impl Store {
             "UPDATE channels SET deleted_at = ?
              WHERE id = ? AND deleted_at IS NULL AND kind != 'dm'
                AND (parent_message_id IS NOT NULL
+                    OR room_owner_id IS NOT NULL OR room_lobby_id IS NOT NULL
                     OR (SELECT COUNT(*) FROM channels
                         WHERE deleted_at IS NULL AND kind != 'dm'
-                          AND parent_message_id IS NULL) > 1)",
+                          AND parent_message_id IS NULL
+                          AND room_owner_id IS NULL AND room_lobby_id IS NULL) > 1)",
             now,
             id
         )

@@ -8,17 +8,35 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
+import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_empty.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../providers/admin_alerts.dart';
 
-class AdminAlertsCard extends ConsumerWidget {
+class AdminAlertsCard extends ConsumerStatefulWidget {
   const AdminAlertsCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminAlertsCard> createState() => _AdminAlertsCardState();
+}
+
+class _AdminAlertsCardState extends ConsumerState<AdminAlertsCard>
+    with GuardedActionState<AdminAlertsCard> {
+  bool _lastMute = false;
+
+  Future<void> _setMuted(bool muted) async {
+    _lastMute = muted;
+    final container = ProviderScope.containerOf(context, listen: false);
+    await guard(
+      whatFailed: 'change the alert mute',
+      action: () => setAdminAlertsMuted(container, muted),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final alerts = ref.watch(adminAlertsProvider).valueOrNull;
     if (alerts == null) return const SizedBox.shrink();
     return SettingsSectionCard(
@@ -37,8 +55,23 @@ class AdminAlertsCard extends ConsumerWidget {
           description: 'No pushes or banners for you.',
           semanticLabel: 'Mute server alerts',
           value: alerts.muted,
-          onChanged: (muted) => setAdminAlertsMuted(ref, muted),
+          onChanged: _setMuted,
         ),
+        if (actionError != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s8,
+            ),
+            child: AppErrorState(
+              key: const Key('admin-alerts-mute-error'),
+              message: actionError!,
+              onRetry: () => _setMuted(_lastMute),
+              onDismiss: clearActionError,
+            ),
+          ),
       ],
     );
   }

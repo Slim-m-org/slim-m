@@ -206,6 +206,11 @@ The three `SC2015` sites it did find (`[[ -n "$PID" ]] && kill "$PID" || true` i
 `scripts/lib/test_*.py` covers the harness's scenario logic (the read-state and sync assertions, the settings assertions) against stubs, with no server and no browser.
 `e2e.yml` runs the same discovery, but only on push to main and on path-matching PRs, and only as an advisory check; this is the unconditional `pull_request` gate on it, so a regression in the harness itself fails a PR rather than a nightly run nobody is watching.
 
+Three optional dependencies decide whether some of those tests run at all: `numpy` (the canvas alignment detector), `websockets` (the load-test listener pool) and `rpmdev-vercmp` (the only proof that the Python port of rpm's version compare behind the COPR snapshot Release equals real rpm).
+A test that needs one skips when it is missing, which is right on a laptop and invisible on a runner.
+The `hygiene` job installs the first two as pinned wheels and `scripts/check-rpm-ordering.sh` runs the COPR tests in the `fedora:44` image the COPR jobs use, because `rpmdev-vercmp` is not packaged for Ubuntu.
+Both name what they provide in `SLIMM_REQUIRE_TEST_DEPS`, and `test_required_test_dependencies_are_present.py` fails when a named dependency is absent, so a dropped install step turns red instead of skipping.
+
 ### iOS purpose strings
 
 App Store review rejects a binary whose linked SDKs reference a sensitive API without a purpose string, and it does it asynchronously.
@@ -243,7 +248,7 @@ the pre-trim CLAUDE.md's own contribution rule says "a CI gate checks the Rust o
 It warns at 300 and past 500, and fails only more than 60 lines past 500 (or past an allowlisted file's own ceiling), because 300 is the review budget rather than a limit and a file a few lines over 500 wants a split card, not a split in the middle of a feature (owner, 2026-10-13).
 When this was written 64 files were over 300 and 14 were over 500.
 
-The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.h`, `.gradle`.
+The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.mjs`, `.ts`, `.tsx`, `.go`, `.css`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.cpp`, `.h`, `.gradle`.
 Generated Dart (`.g.dart`, `.freezed.dart`, the protobuf suffixes), the committed `.sqlx/` cache, the vendored `node_modules/` and `schema/openapi.yaml` are excluded, because their size is nobody's decision here.
 The schema is the wire contract, already guarded by the router contract test and the additive-only breaking-change gate, and it had its own allowlist line that nearly every server PR edited, so any two of them conflicted.
 Markdown is excluded too, deliberately: the budget is a code-review budget, and prose is not reviewed by the line.
@@ -273,10 +278,13 @@ Prefer `expectSettled`, `waitUntil` (`test/support/async_wait.dart`) and the geo
 `scripts/check-comment-cap.sh` enforces the other half of the same `CLAUDE.md` rule: a plain `//` or `#` comment never exceeds one line.
 It ratchets rather than merely allows: a file may not gain a new run past its listed count, and the pre-existing ones are frozen at the count they were found at in `scripts/comment-cap-allow.txt`, the same shape as the file-size allowlist above.
 Doc comments (`///`, `//!`, `/**`) are exempt everywhere.
-Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks included) and TOML.
+Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks included), TOML, and the native and web sources: Swift, Kotlin, C, C++, Objective-C, TypeScript and JavaScript.
+Generated files (`generated_plugin_registrant.*`, `GeneratedPluginRegistrant.swift`) and the vendored wayland-scanner output are skipped.
 Shell, YAML and TOML only have `#` comments, and a `#` block is also how such a file documents itself, so the leading block at the top of the file is a header and never counts as a run.
 That covers the shebang, the SPDX line, a description and the blank lines between them, up to the first line of real content.
 Any run after that point counts like it does in every other language, and `//` and `/* */` are not read as comments in these file types.
+Python reads `#` comments only too, with no header exemption.
+Every other language has no `#` comments, so a stacked Rust `#[attr]` or a C `#include` is never counted as a run.
 
 ## licenses
 
@@ -285,14 +293,18 @@ Any run after that point counts like it does in every other language, and `//` a
 Every entry in `allow` is permissive and imposes no source-disclosure obligation on either the server or the client (see `LICENSING.md`).
 Nothing is listed speculatively: the list is exactly what the two trees resolve to today, so a new license of any kind stops the gate and gets a human decision.
 
-Three package-level exceptions, each named one package at a time rather than allowing the license outright:
+Package-level exceptions, each named one package at a time rather than allowing the license outright:
 
-- `slimm-server` is allowed `LicenseRef-PolyForm-Noncommercial-1.0.0`, since it is slim-m itself. Allowing that across the board would let an unrelated crate claim it unnoticed, which is the opposite of what this is for.
+- `slimm-server` and `slimm-listener` are allowed `LicenseRef-PolyForm-Noncommercial-1.0.0`, since they are slim-m itself. Allowing that across the board would let an unrelated crate claim it unnoticed, which is the opposite of what this is for.
 - `dbus` and `nm` are allowed `MPL-2.0`. MPL-2.0 is per-file copyleft: the obligation reaches modifications to those packages' own files and not the application that links them, so it is compatible with shipping the client. That is a decision rather than a default, which is why it is two named entries and not a line in `allow`; a new MPL dependency still stops the gate. Both are Linux desktop transitives reached through `connectivity_plus`.
 
 Advisories and bans are deliberately not configured here, so this is `cargo deny check licenses` and not `check all`.
 A CVE published upstream would turn every unrelated pull request red through no fault of its own, which is a different job wanting a different trigger; `docs/STRATEGY.md` names `cargo audit` and `osv-scanner` for it.
 Advisories are checked daily by `advisory-watchdog` (cargo-deny `check advisories`, which gates nothing and opens an issue); `osv-scanner` is not wired.
+
+The call-audio listener is excluded from the root workspace and has its own `Cargo.lock` (decision 0105), so a cargo-deny run at the repo root never reads it.
+`licenses` and `advisory-watchdog` each run cargo-deny a second time with `manifest-path: crates/slimm-listener/Cargo.toml`, and the advisory issue names which lockfile was flagged.
+`scripts/lib/test_cargo_deny_covers_the_listener.py` keeps those steps from being dropped.
 
 `-A license-exception-not-encountered` is passed because the allow list is shared: `dbus` and `nm` are pub packages, so cargo-deny correctly reports never having seen them, and that is not a finding.
 `unused-allowed-license = "allow"` in the config is there for the same reason in the other direction.
@@ -817,7 +829,8 @@ The redundant build pushes the same `latest` the release itself would have pushe
 
 The trigger must also name everything the workflow calls.
 Commit f453f678 fixed `.github/actions/linux-tarball` and matched no path, so the run it started skipped every job and finished green with nothing built.
-`.github/actions/**` now triggers the run and feeds the `client` filter, and `copr-publish.yml` feeds `packaging`.
+The trigger and the `client` filter now list each composite action the workflow reaches, nested calls included (`apt-install`, `linux-build-deps`, `linux-tarball`, `native-hooks-cache`, `native-hooks-diagnose`), and `copr-publish.yml` feeds `packaging`.
+A wildcard over `.github/actions/` is deliberately not used: the `release-*` actions are called only by `release.yml`, so an edit to one of them would otherwise build the client, upload to TestFlight and redeploy web.
 `scripts/lib/test_main_builds_triggers_on_everything_it_uses.py` fails when a `uses: ./.github/...` target is missing from the trigger or the filter, or when a trigger path reaches no filter and is not on its short allowlist.
 A change to `main-builds.yml` itself still triggers a run that builds nothing; that is on the allowlist on purpose.
 
@@ -899,7 +912,7 @@ That is the old behaviour, and it is the safe direction: an extra image costs mi
 `scripts/lib/test_server_image_base.py` pins the decision itself, including the cancelled-then-skipped shape this was built for, and that malformed API output degrades rather than fails.
 
 The web image closed the same hole later, because Watchtower follows it and a cancelled build left the live web client stale for a median of about 1.7 hours and once for 23.
-The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles, `web-image.yml` or `.github/actions/**` moved since.
+The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles or `web-image.yml` moved since; the web image calls no local action.
 Both scripts share `scripts/image-needed.sh`, and `scripts/lib/test_main_builds_web_image_decides_from_what_is_deployed.py` pins that only `web-image` reads the new output.
 
 `client` and `packaging` still decide from the push diff alone and keep the same hole.

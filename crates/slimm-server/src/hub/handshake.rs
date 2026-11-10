@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Bounds on sockets that have connected but not yet proven who they are.
+//! Bounds on sockets: before they prove who they are, and how long a proven one may stay silent.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -14,12 +14,17 @@ const MAX_PENDING_PER_ADDRESS: usize = 8;
 /// How long a freshly connected socket has to send its `hello` before it is dropped.
 const AUTH_DEADLINE: Duration = Duration::from_secs(10);
 
+/// How long an authenticated socket may send nothing at all before it is treated as dead.
+/// The client pings every 20 s, so this tolerates a throttled background tab with room to spare.
+const LIVENESS_DEADLINE: Duration = Duration::from_secs(90);
+
 /// The limits on pre-auth sockets, and the live count of them per address.
 #[derive(Clone)]
 pub(super) struct Handshake {
     pending: Arc<Mutex<HashMap<String, usize>>>,
     per_address: usize,
     deadline: Duration,
+    liveness: Duration,
 }
 
 impl Handshake {
@@ -28,6 +33,7 @@ impl Handshake {
             pending: Arc::default(),
             per_address: MAX_PENDING_PER_ADDRESS,
             deadline: AUTH_DEADLINE,
+            liveness: LIVENESS_DEADLINE,
         }
     }
 }
@@ -74,6 +80,17 @@ impl Hub {
         }
     }
 
+    /// Builds a hub that drops a silent authenticated socket after `deadline`, so a test need not wait out the real one.
+    pub fn with_liveness_deadline(deadline: Duration) -> Self {
+        Self {
+            handshake: Handshake {
+                liveness: deadline,
+                ..Handshake::new()
+            },
+            ..Self::new()
+        }
+    }
+
     /// Claims one of `key`'s pre-auth socket slots, or `None` if it is holding its share.
     pub fn try_hold_pending(&self, key: &str) -> Option<PendingGuard> {
         let mut pending = self
@@ -95,5 +112,10 @@ impl Hub {
     /// How long a new socket has to send its `hello`.
     pub fn auth_deadline(&self) -> Duration {
         self.handshake.deadline
+    }
+
+    /// How long an authenticated socket may send nothing before it is closed.
+    pub fn liveness_deadline(&self) -> Duration {
+        self.handshake.liveness
     }
 }

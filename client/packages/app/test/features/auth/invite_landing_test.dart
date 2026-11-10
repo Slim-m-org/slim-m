@@ -140,6 +140,7 @@ void main() {
               'expires_at': null,
               'description': 'A small home server.',
               'banner_updated_at': 5,
+              'icon_updated_at': 6,
             },
           }),
           200,
@@ -189,11 +190,29 @@ void main() {
     expect(find.text('A small home server.'), findsOneWidget);
     expect(find.text('3 members'), findsOneWidget);
     expect(chosen, isNull, reason: 'nothing is chosen until Join is pressed');
-    final image = tester.widget<Image>(find.byType(Image));
-    expect(
-      (image.image as NetworkImage).url,
+    final images = tester
+        .widgetList<Image>(find.byType(Image))
+        .map((image) => image.image)
+        .toList();
+    expect(images, hasLength(2));
+    for (final provider in images) {
+      expect(
+        provider,
+        isA<ResizeImage>()
+            .having((i) => i.width, 'width', isNotNull)
+            .having((i) => i.height, 'height', isNotNull)
+            .having((i) => i.policy, 'policy', ResizeImagePolicy.fit),
+        reason: 'an untrusted server must not choose the decode size',
+      );
+    }
+    final urls = [
+      for (final provider in images)
+        ((provider as ResizeImage).imageProvider as NetworkImage).url,
+    ];
+    expect(urls, [
       contains('/invites/CODE123/banner'),
-    );
+      contains('/invites/CODE123/icon'),
+    ]);
 
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();

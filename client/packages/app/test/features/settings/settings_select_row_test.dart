@@ -74,4 +74,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(picked, 50);
   });
+
+  testWidgets('a value that matches no choice reads as unknown, not as the '
+      'first choice', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        SettingsSelectRow<String>(
+          label: 'Mode',
+          value: 'removed-option',
+          choices: const [
+            SettingsChoice(value: 'fast', label: 'Fast'),
+            SettingsChoice(value: 'slow', label: 'Slow'),
+          ],
+          onChanged: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Unknown'), findsOneWidget);
+    expect(find.text('Fast'), findsNothing);
+  });
+
+  testWidgets('a value that matches a choice shows that choice', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        SettingsSelectRow<String>(
+          label: 'Mode',
+          value: 'slow',
+          choices: const [
+            SettingsChoice(value: 'fast', label: 'Fast'),
+            SettingsChoice(value: 'slow', label: 'Slow'),
+          ],
+          onChanged: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Slow'), findsOneWidget);
+    expect(find.text('Unknown'), findsNothing);
+  });
 }

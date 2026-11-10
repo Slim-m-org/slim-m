@@ -5,13 +5,19 @@
 //! minimal: a single Docker Compose deployment sets a handful of variables and
 //! nothing more.
 
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Config {
     /// TCP port the HTTP and WebSocket surface binds to.
     #[serde(default = "default_port")]
     pub port: u16,
+
+    /// Address the HTTP and WebSocket surface binds to; every interface unless narrowed.
+    #[serde(default = "default_bind_address")]
+    pub bind_address: IpAddr,
 
     /// Filesystem path to the embedded SQLite database file.
     #[serde(default = "default_database_path")]
@@ -229,6 +235,10 @@ fn default_port() -> u16 {
     8080
 }
 
+fn default_bind_address() -> IpAddr {
+    IpAddr::V4(Ipv4Addr::UNSPECIFIED)
+}
+
 fn default_database_path() -> String {
     "data/slimm.db".to_owned()
 }
@@ -267,6 +277,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             port: default_port(),
+            bind_address: default_bind_address(),
             database_path: default_database_path(),
             data_key: None,
             hash_concurrency: default_hash_concurrency(),
@@ -337,7 +348,7 @@ where
 pub const MIN_LISTENER_SECRET_CHARS: usize = 32;
 
 /// Where the call-audio listener is and how to authenticate to it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ListenerSettings {
     pub url: String,
     pub secret: String,
@@ -400,6 +411,11 @@ impl Config {
         }))
     }
 
+    /// Where the HTTP and WebSocket surface listens.
+    pub fn listen_addr(&self) -> SocketAddr {
+        SocketAddr::new(self.bind_address, self.port)
+    }
+
     /// The room service address override, blank read as absent like the trio.
     pub fn livekit_service_url(&self) -> Option<String> {
         self.livekit_service_url
@@ -435,6 +451,8 @@ impl Config {
         Ok(config)
     }
 }
+
+mod redacted;
 
 #[cfg(test)]
 mod tests;

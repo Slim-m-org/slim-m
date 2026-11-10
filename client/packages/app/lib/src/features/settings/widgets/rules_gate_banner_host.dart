@@ -88,7 +88,7 @@ class _RulesSheetState extends ConsumerState<RulesSheet> {
       _error = null;
     });
     final error = await runGuarded(
-      whatFailed: 'Could not accept the rules',
+      whatFailed: 'accept the rules',
       action: () => ref.read(settingsActionsProvider).acceptSpaceRules(),
     );
     if (!mounted) return;

@@ -32,10 +32,8 @@ extension CanvasDocumentQueries on CanvasDocument {
     return (stroke != null && stroke.alive) ? stroke : null;
   }
 
-  /// The slot [id] currently occupies, or null if it is unknown or no longer
-  /// alive. The companion to [strokeAt], which takes a slot: together they
-  /// let a caller holding an id reach the object without this document
-  /// handing out its own map.
+  /// The slot [id] currently occupies, or null if it is unknown or no longer alive.
+  @visibleForTesting
   int? slotOf(String id) {
     final slot = _slotById[id];
     if (slot == null) return null;
@@ -82,6 +80,31 @@ extension CanvasDocumentQueries on CanvasDocument {
         for (final slot in scene.visible)
           if (strokeIfAlive(slot) case final stroke?) stroke.id,
       };
+
+  /// Ids of the live objects in view with notes, images, shapes and text before drawings, each group in paint order: the order a person steps through them in.
+  /// A fresh list, since [paintOrder] reuses its own; [limit] stops the walk once that many are found.
+  List<String> visibleIdsInReadingOrder({int? limit}) {
+    final order = paintOrder;
+    final ids = <String>[];
+    for (final boxes in const [true, false]) {
+      for (final slot in order) {
+        final stroke = _strokes[slot]!;
+        if ((stroke.kind != CanvasObjectKind.stroke) != boxes) continue;
+        ids.add(stroke.id);
+        if (ids.length == limit) return ids;
+      }
+    }
+    return ids;
+  }
+
+  /// The boxes of the live notes, images, shapes and text in view, bar [exceptId]: the edges a drag snaps to.
+  List<ui.Rect> visibleBoxRects({String? exceptId}) => [
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?
+              when stroke.kind != CanvasObjectKind.stroke &&
+                  stroke.id != exceptId)
+            ui.Rect.fromLTWH(stroke.x, stroke.y, stroke.w, stroke.h),
+      ];
 
   /// The on-screen images that still wait for a bitmap, with the attachment
   /// to fetch for each: what a pan inside an already fetched region needs to

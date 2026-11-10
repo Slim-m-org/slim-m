@@ -140,24 +140,28 @@ void main() {
     await _leave(tester);
   });
 
-  testWidgets('on the web the capture waits for Test microphone', (
+  testWidgets('on the web one tap on Test microphone starts the capture', (
     tester,
   ) async {
     final source = FakeMicSource(level: -20);
     await tester.pumpWidget(
       wrap(
-        const FirstRunVoiceStep(webAskFirst: true),
-        overrides: _overrides(source),
+        const FirstRunVoiceStep(),
+        overrides: [
+          ..._overrides(source),
+          micPreviewNeedsTapProvider.overrideWithValue(true),
+        ],
       ),
     );
     await _settle(tester);
     expect(source.opened, isEmpty, reason: 'no prompt before the member asks');
-    expect(find.text('Your level'), findsNothing);
+    expect(find.text('Test microphone'), findsOneWidget);
 
     await tester.tap(find.text('Test microphone'));
     await _settle(tester);
-    expect(source.opened, [null]);
-    expect(find.text('Your level'), findsOneWidget);
+    expect(source.opened, [null], reason: 'the first tap is the only ask');
+    expect(find.text('Test microphone'), findsNothing);
+    expect(find.text('Stop test'), findsOneWidget);
     await _leave(tester);
   });
 

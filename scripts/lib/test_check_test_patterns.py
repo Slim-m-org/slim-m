@@ -23,6 +23,13 @@ class CountingTest(unittest.TestCase):
         source = "// find.byType(A) and pumpAndSettle\n/* pumpAndSettle */\nfind.byType(B);"
         self.assertEqual(gate.counts_in(source), (1, 0))
 
+    def test_a_test_title_naming_a_pattern_does_not_count(self):
+        source = "testWidgets('pumpAndSettle hangs on find.byType', (t) async { await t.pump(); });"
+        self.assertEqual(gate.counts_in(source), (0, 0))
+
+    def test_a_pattern_inside_an_interpolation_still_counts(self):
+        self.assertEqual(gate.counts_in("final s = '${find.byType(A)}';"), (1, 0))
+
     def test_similar_names_do_not_count(self):
         self.assertEqual(gate.counts_in("find.byKey(k); tester.pump(); pumpAndSettleLater();"), (0, 0))
 

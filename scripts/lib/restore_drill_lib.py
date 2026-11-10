@@ -25,15 +25,20 @@ This module holds the logic; scripts/restore-drill.py is the thin CLI
 entry point that imports it (see that file for the command-line usage).
 """
 import argparse
-import hashlib
+import re
 import shutil
 import sqlite3
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import backup_modules
+import file_digest
 import path_guard
+
+STALE_SCRATCH_AGE_S = 6 * 60 * 60
+_SCRATCH_NAME = re.compile(r"\d{8}T\d{6}Z")
 
 
 def parse_args(argv):
@@ -57,7 +62,8 @@ def parse_args(argv):
         "--keep-scratch",
         action="store_true",
         help="keep the default scratch directory after the run; one given "
-        "with --scratch-dir is always kept",
+        "with --scratch-dir is always kept; a later run without this flag removes "
+        f"default copies more than {STALE_SCRATCH_AGE_S // 3600} hours old",
     )
     return parser.parse_args(argv)
 
@@ -103,10 +109,9 @@ def check_attachments(restored_db, mirror_dir):
         if not path.is_file():
             missing.append(expected)
             continue
-        actual_bytes = path.read_bytes()
-        actual = hashlib.sha256(actual_bytes).hexdigest()
-        if actual != expected or len(actual_bytes) != size:
-            mismatched.append((expected, actual, size, len(actual_bytes)))
+        actual, actual_size = file_digest.sha256_of_file(path)
+        if actual != expected or actual_size != size:
+            mismatched.append((expected, actual, size, actual_size))
             continue
         verified += 1
     return {
@@ -211,6 +216,23 @@ def _drill(snapshot, scratch_dir, backup_root):
     return 0 if ok else 1
 
 
+def sweep_stale_scratch(backup_root):
+    """Removes default scratch copies a killed run never cleaned up.
+
+    Copies younger than STALE_SCRATCH_AGE_S are spared, since a drill may still be using one.
+    """
+    cutoff = time.time() - STALE_SCRATCH_AGE_S
+    root = Path(backup_root, "restore-drill")
+    if not root.is_dir():
+        return []
+    removed = []
+    for path in sorted(root.iterdir()):
+        if path.is_dir() and _SCRATCH_NAME.fullmatch(path.name) and path.stat().st_mtime < cutoff:
+            shutil.rmtree(path, ignore_errors=True)
+            removed.append(path.name)
+    return removed
+
+
 def _remove_default_scratch(scratch_dir):
     shutil.rmtree(scratch_dir, ignore_errors=True)
     try:
@@ -225,6 +247,11 @@ def run(args):
     if snapshot is None or not snapshot.is_file():
         print(f"no database snapshot found under {backup_root}/db/", file=sys.stderr)
         return 1
+
+    if not (args.scratch_dir or args.keep_scratch):
+        swept = sweep_stale_scratch(backup_root)
+        if swept:
+            print(f"removed stale scratch copies left by an earlier run: {', '.join(swept)}")
 
     if args.scratch_dir:
         scratch_dir = Path(args.scratch_dir)

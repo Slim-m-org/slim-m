@@ -169,24 +169,6 @@ fn read_source(relative: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {relative}"))
 }
 
-/// The raw-string body containing [anchor]; the technique
-/// `tests/canvas_ops/index_plan.rs` documents, duplicated here because
-/// integration-test binaries cannot import each other's helpers.
-fn extract_raw_containing(source: &str, anchor: &str) -> String {
-    let pos = source
-        .find(anchor)
-        .unwrap_or_else(|| panic!("{anchor:?} no longer appears in the source"));
-    let start = source[..pos]
-        .rfind("r#\"")
-        .unwrap_or_else(|| panic!("no opening quote before {anchor:?}"))
-        + 3;
-    let end = source[pos..]
-        .find("\"#")
-        .unwrap_or_else(|| panic!("no closing quote after {anchor:?}"))
-        + pos;
-    source[start..end].to_owned()
-}
-
 /// The plan alone cannot kill a revert to `MAX(created_at)`: both forms plan
 /// as `SEARCH m USING INDEX messages_channel_live (channel_id=?)`, because
 /// the `LIMIT 1` short-circuit happens in the bytecode, below what EXPLAIN
@@ -197,7 +179,7 @@ fn extract_raw_containing(source: &str, anchor: &str) -> String {
 #[tokio::test]
 async fn the_activity_lookup_is_the_seek_form_not_the_aggregate() {
     let source = read_source("src/store/dms.rs");
-    let sql = extract_raw_containing(&source, "activity_at!: i64");
+    let sql = support::query_literal_containing(&source, "activity_at!: i64");
     assert!(
         sql.contains("ORDER BY m.seq DESC LIMIT 1"),
         "the activity subquery must seek the newest row by seq; got:\n{sql}"
@@ -212,7 +194,7 @@ async fn the_activity_lookup_is_the_seek_form_not_the_aggregate() {
 async fn the_activity_subquery_seeks_the_live_index_rather_than_scanning() {
     let (_store, pool, _guard) = new_store("slimm-dm-activity-plan").await;
     let source = read_source("src/store/dms.rs");
-    let sql = extract_raw_containing(&source, "activity_at!: i64");
+    let sql = support::query_literal_containing(&source, "activity_at!: i64");
 
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
     let zero = vec![0u8; 16];

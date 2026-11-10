@@ -51,6 +51,7 @@ class _Rig {
     this.permissions = 0,
     this.defaultId,
     this.storeFails = false,
+    this.deletesDrop = false,
     List<Map<String, dynamic>>? themes,
   }) : themes =
            themes ??
@@ -62,6 +63,9 @@ class _Rig {
   final int permissions;
   final String? defaultId;
   final bool storeFails;
+
+  /// Delete requests die on the wire, as they do when the network drops.
+  final bool deletesDrop;
   final List<Map<String, dynamic>> themes;
   final calls = <String>[];
   Object? lastBody;
@@ -73,6 +77,9 @@ class _Rig {
         (ref) => testApi((request) async {
           calls.add('${request.method} ${request.url.path}');
           if (request.body.isNotEmpty) lastBody = jsonDecode(request.body);
+          if (deletesDrop && request.method == 'DELETE') {
+            throw http.ClientException('socket closed', request.url);
+          }
           if (request.url.path == '/space/themes' && request.method == 'GET') {
             if (storeFails) return http.Response('', 500);
             return jsonHttpResponse({
@@ -190,6 +197,25 @@ void main() {
     await _openRowMenu(tester, 't1');
     await _pickMenu(tester, 'Remove');
     expect(rig.calls, contains('DELETE /space/themes/t1'));
+  });
+
+  testWidgets('a removal that never reached the server says so in words', (
+    tester,
+  ) async {
+    final rig = _Rig(permissions: Perm.manageServer, deletesDrop: true);
+    await _pump(tester, rig);
+
+    await _openRowMenu(tester, 't1');
+    await _pickMenu(tester, 'Remove');
+
+    expect(
+      find.text(
+        'Could not remove the theme: the server could not be reached. '
+        'Nothing was changed.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('DELETE'), findsNothing);
   });
 
   testWidgets('tapping a store theme makes it the custom theme in use', (

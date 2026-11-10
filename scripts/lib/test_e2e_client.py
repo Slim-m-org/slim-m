@@ -63,6 +63,33 @@ class EvTest(unittest.TestCase):
         self.assertEqual(c.taps, [])
 
 
+class NetworkEventsTest(unittest.TestCase):
+    def setUp(self):
+        self.addCleanup(e2e_client.REQUEST_URLS.clear)
+
+    def sent(self, url):
+        return {"method": "Network.requestWillBeSent",
+                "params": {"request": {"url": url}}}
+
+    def test_every_request_the_page_makes_is_kept_across_clients(self):
+        e2e_client.Client("a", 0)._note(self.sent("http://localhost:8095/me"))
+        e2e_client.Client("b", 0)._note(self.sent("http://localhost:8095/channels"))
+        self.assertEqual(e2e_client.REQUEST_URLS,
+                         {"http://localhost:8095/me", "http://localhost:8095/channels"})
+
+    def test_data_and_blob_urls_are_not_kept(self):
+        client = e2e_client.Client("a", 0)
+        client._note(self.sent("data:image/png;base64," + "A" * 1000))
+        client._note(self.sent("blob:http://localhost:8356/abc"))
+        client._note({"method": "Network.requestWillBeSent", "params": {}})
+        self.assertEqual(e2e_client.REQUEST_URLS, set())
+
+    def test_a_request_is_not_mistaken_for_a_console_line(self):
+        client = e2e_client.Client("a", 0)
+        client._note(self.sent("http://localhost:8095/me"))
+        self.assertEqual(client._log, [])
+
+
 class FakeTime:
     """A clock that only moves when the code under test sleeps."""
 

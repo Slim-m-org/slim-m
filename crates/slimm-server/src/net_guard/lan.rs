@@ -14,6 +14,8 @@ use tokio::net::lookup_host;
 
 use super::is_blocked;
 
+mod v6;
+
 /// Lets an integration test dial the loopback listener a fake upstream binds to.
 static LOOPBACK_AS_LAN_FOR_TESTS: AtomicBool = AtomicBool::new(false);
 
@@ -123,17 +125,22 @@ impl OwnAddresses {
         self
     }
 
-    /// What this host answers on right now (read from the kernel on Linux), every docker
-    /// bridge network the process can see, the `SLIMM_DIRECT_ADDRESSES` hosts and the
+    /// What this host answers on right now (read from the kernel on Linux, v4 and v6), every
+    /// docker bridge network the process can see, the `SLIMM_DIRECT_ADDRESSES` hosts and the
     /// `SLIMM_MODULE_LAN_DENY` list.
     pub fn detect() -> Self {
         let mut found = local_ipv4s("/proc/net/fib_trie");
         found.extend(default_gateway("/proc/net/route"));
         let direct = std::env::var("SLIMM_DIRECT_ADDRESSES").unwrap_or_default();
         let operator = std::env::var("SLIMM_MODULE_LAN_DENY").unwrap_or_default();
-        let routes = std::fs::read_to_string("/proc/net/route").unwrap_or_default();
+        let read = |path| std::fs::read_to_string(path).unwrap_or_default();
+        let routes = read("/proc/net/route");
         Self::new(found.into_iter().map(IpAddr::V4))
             .with_denied(bridge_networks(&routes))
+            .with_denied(v6::own_ranges(
+                &read("/proc/net/if_inet6"),
+                &read("/proc/net/ipv6_route"),
+            ))
             .with_denied(direct_hosts(&direct).into_iter().map(Cidr::host))
             .with_denied(parse_denied(&operator))
     }
@@ -159,13 +166,17 @@ fn bridge_networks(route_table: &str) -> Vec<Cidr> {
                 .swap_bytes()
                 .count_ones();
             let direct = u32::from_str_radix(gateway, 16).ok()? == 0;
-            let docker = iface.starts_with("br-") || iface.starts_with("docker");
+            let docker = is_docker_interface(iface);
             (direct && prefix > 0 && (docker || in_docker_range(network))).then_some(Cidr {
                 network: IpAddr::V4(network),
                 prefix: prefix as u8,
             })
         })
         .collect()
+}
+
+fn is_docker_interface(name: &str) -> bool {
+    name.starts_with("br-") || name.starts_with("docker")
 }
 
 /// Docker's default bridge networks live in 172.16/12.

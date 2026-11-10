@@ -35,8 +35,8 @@ void on_method_call(FlMethodChannel* channel, FlMethodCall* call, gpointer) {
   if (g_strcmp0(fl_method_call_get_name(call), "isMapped") == 0) {
     gint64 on_screen_ms =
         g_mapped_at < 0 ? -1 : (g_get_monotonic_time() - g_mapped_at) / 1000;
-    response = FL_METHOD_RESPONSE(
-        fl_method_success_response_new(fl_value_new_int(on_screen_ms)));
+    g_autoptr(FlValue) reply = fl_value_new_int(on_screen_ms);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(reply));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }

@@ -66,6 +66,7 @@ import e2e_voice_rejoin
 import e2e_tabs
 import e2e_api
 import e2e_browsers
+import e2e_client
 from e2e_api import Api
 from e2e_client import Client
 
@@ -447,13 +448,13 @@ def main():
         if not selected(name, only, exact):
             continue
         print(f"\n== {name} ==")
+        began = time.time()
         try:
             # Every scenario starts from the channel list, so one that ends on
             # a settings screen cannot strand the next one somewhere it cannot
             # see the rail.
             go_home(a)
             go_home(b)
-            began = time.time()
             run()
             took = time.time() - began
             results.append({"name": name, "ok": True, "seconds": round(took, 1)})
@@ -469,12 +470,8 @@ def main():
 
     write_results(results)
     print("\n== what this run actually touched ==")
-    touched = set(e2e_api.TOUCHED)
-    for client in (a, b):
-        try:
-            touched |= e2e_coverage.from_browser(client, server)
-        except Exception:
-            print(f"  (could not read {client.name}'s request log)")
+    touched = set(e2e_api.TOUCHED) | e2e_coverage.from_requests(
+        e2e_client.REQUEST_URLS, server)
     e2e_coverage.report(touched, os.environ.get(
         "E2E_SCHEMA", "schema/openapi.yaml"))
 

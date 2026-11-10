@@ -50,9 +50,9 @@ impl From<sqlx::Error> for SearchError {
 }
 
 /// The structured half of an advanced search, already resolved to SQL-ready
-/// values by `http::search`: a username to compare exactly (live usernames are
-/// unique case-insensitively since migration 0095), and
-/// two cheap content/existence predicates. `channel_ids` is not here - it is
+/// values by `http::search`: a username to compare case-insensitively (live
+/// usernames are unique that way since migration 0095), and two cheap
+/// content/existence predicates. `channel_ids` is not here - it is
 /// [`Store::search_messages`]'s own parameter, since which channels are in
 /// scope is answered once, before this struct is built, and an `in:` that
 /// resolved to nothing is handled by the caller returning empty without
@@ -278,9 +278,9 @@ impl Store {
         };
         builder.push_bind(seq_ceiling.unwrap_or(i64::MAX));
         if let Some(username) = &filters.author_username {
-            builder.push(" AND m.author_id = (SELECT id FROM users WHERE username = ");
+            builder.push(" AND m.author_id = (SELECT id FROM users WHERE lower(username) = lower(");
             builder.push_bind(username.to_owned());
-            builder.push(" AND deleted_at IS NULL)");
+            builder.push(") AND deleted_at IS NULL)");
         }
         if filters.has_attachment {
             builder.push(

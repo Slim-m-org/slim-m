@@ -19,6 +19,7 @@ To set one of those you need a compose override file that adds it to the `server
 | Variable | Default | What it does | Compose passes it |
 | --- | --- | --- | --- |
 | `SLIMM_PORT` | `8080` | TCP port for HTTP and WebSocket. | no, the image sets 8080 |
+| `SLIMM_BIND_ADDRESS` | `0.0.0.0` | Address HTTP and WebSocket bind to. Narrow it to `127.0.0.1` for a server only a local process should reach. | no |
 | `SLIMM_DATABASE_PATH` | `data/slimm.db` | The SQLite file. | no, the image sets `/data/slimm.db` |
 | `SLIMM_DATA_KEY_ALLOW_NEW` | unset | Set to `1` to let a server with sealed two-factor secrets and no key start with a fresh one. Only after every factor was cleared; see [The data key](#the-data-key). | yes |
 | `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | no |

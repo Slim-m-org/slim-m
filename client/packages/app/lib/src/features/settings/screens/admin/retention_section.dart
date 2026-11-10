@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../../providers/admin_providers.dart';
+import '../../../../preset_options.dart';
 import '../../../../providers/providers.dart';
 import '../../../../widgets/attachment_format.dart' show formatByteSize;
 import '../../../../widgets/confirm_dialog.dart';
@@ -29,6 +30,8 @@ const _retentionDayOptions = <(String, int)>[
   ('90 days', 90),
   ('365 days', 365),
 ];
+
+String _daysLabel(int days) => '$days days';
 
 /// `YYYY-MM-DD`, local time - retention is a whole-day window, so a
 /// time-of-day carries no information a fuller timestamp would otherwise add.
@@ -153,9 +156,7 @@ class _RetentionSectionState extends ConsumerState<RetentionSection>
     final retention = ref.watch(spaceRetentionProvider);
     ref.listen(spaceRetentionProvider, (_, next) => retireOptimistic(next));
     final current = shown(retention.valueOrNull, 0);
-    final selectedIndex = _retentionDayOptions.indexWhere(
-      (o) => o.$2 == current,
-    );
+    final options = presetsIncluding(_retentionDayOptions, current, _daysLabel);
     final stats = ref.watch(spaceAnalyticsProvider).valueOrNull?.stats;
 
     return Column(
@@ -167,11 +168,10 @@ class _RetentionSectionState extends ConsumerState<RetentionSection>
           children: [
             SettingsSegmentedBlock(
               semanticLabel: 'Message retention window',
-              labels: [for (final option in _retentionDayOptions) option.$1],
-              selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+              labels: [for (final option in options) option.$1],
+              selectedIndex: options.indexWhere((o) => o.$2 == current),
               disabled: saving,
-              onSelected: (i) =>
-                  _setDays(_retentionDayOptions[i].$2, current: current),
+              onSelected: (i) => _setDays(options[i].$2, current: current),
             ),
             SettingsSubRow(label: retentionConsequence(current, stats)),
           ],

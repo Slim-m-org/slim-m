@@ -2,7 +2,9 @@
 """Unit coverage for scripts/redispatch-stalled-release.py's decision."""
 
 import importlib.util
+import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -77,6 +79,36 @@ class DecideTest(unittest.TestCase):
 
     def test_no_run_for_the_commit(self):
         self.assertFalse(decide([], {})[0])
+
+
+class ComponentTagTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        saved = mod.REPO_ROOT
+        mod.REPO_ROOT = self.root
+        self.addCleanup(setattr, mod, "REPO_ROOT", saved)
+
+    def write(self, body):
+        (self.root / "manifest.json").write_text(json.dumps(body))
+
+    def test_reads_the_named_package_not_the_first_entry(self):
+        self.write({".": "0.50.0", "crates/slimm-server": "0.76.0"})
+        self.assertEqual(
+            mod.component_tag("server", "manifest.json", "crates/slimm-server"),
+            "server-v0.76.0",
+        )
+
+    def test_a_missing_key_or_file_names_no_tag(self):
+        self.write({".": "0.50.0"})
+        self.assertIsNone(mod.component_tag("server", "manifest.json", "crates/slimm-server"))
+        self.assertIsNone(mod.component_tag("server", "absent.json", "crates/slimm-server"))
+
+    def test_every_package_key_exists_in_the_real_manifests(self):
+        for component, manifest, key in mod.PACKAGES:
+            versions = json.loads((ROOT / manifest).read_text())
+            self.assertIn(key, versions, component)
 
 
 class RequiredChecksTest(unittest.TestCase):

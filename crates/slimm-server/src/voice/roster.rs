@@ -23,6 +23,8 @@ use super::{VoiceError, VoiceService, room_for_channel};
 pub struct RoomParticipant {
     /// The token's `sub`, the identity LiveKit trusts because we signed it.
     pub user_id: UserId,
+    /// LiveKit's id for this connection, which tells one session of a member from the next.
+    pub sid: String,
     /// The token's `name`, as it was when this participant joined.
     pub display_name: String,
     /// Whether any of this participant's published tracks is screen-share
@@ -77,7 +79,7 @@ impl RosterCache {
 }
 
 /// LiveKit's JSON carries int64 fields as strings; accept either form.
-fn lenient_i64<'de, D>(d: D) -> Result<Option<i64>, D::Error>
+pub(super) fn lenient_i64<'de, D>(d: D) -> Result<Option<i64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -87,6 +89,13 @@ where
         Some(serde_json::Value::String(t)) => t.parse().ok(),
         _ => None,
     })
+}
+
+/// When a participant joined in unix milliseconds, from LiveKit's millisecond field or else its seconds one.
+pub(super) fn joined_at_from(millis: Option<i64>, secs: Option<i64>) -> Option<i64> {
+    millis
+        .filter(|&ms| ms > 0)
+        .or(secs.filter(|&s| s > 0).map(|s| s * 1000))
 }
 
 /// The shape of a LiveKit `ListParticipants` twirp response; only the fields
@@ -100,6 +109,8 @@ struct ListParticipantsResponse {
 #[derive(serde::Deserialize)]
 struct ParticipantInfo {
     identity: String,
+    #[serde(default)]
+    sid: String,
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
@@ -187,13 +198,11 @@ impl VoiceService {
                 let has_video = p.tracks.iter().any(|t| t.track_type == "VIDEO");
                 Some(RoomParticipant {
                     user_id,
+                    sid: p.sid,
                     display_name: p.name.unwrap_or_default(),
                     is_sharing_screen,
                     has_video,
-                    joined_at_ms: p
-                        .joined_at_ms
-                        .filter(|&ms| ms > 0)
-                        .or(p.joined_at.filter(|&s| s > 0).map(|s| s * 1000)),
+                    joined_at_ms: joined_at_from(p.joined_at_ms, p.joined_at),
                 })
             })
             .collect())
@@ -312,6 +321,7 @@ mod tests {
             participants,
             vec![RoomParticipant {
                 user_id: alice,
+                sid: String::new(),
                 display_name: "Alice".to_owned(),
                 is_sharing_screen: false,
                 has_video: false,
@@ -348,6 +358,7 @@ mod tests {
             participants,
             vec![RoomParticipant {
                 user_id: alice,
+                sid: String::new(),
                 display_name: "Alice".to_owned(),
                 is_sharing_screen: true,
                 has_video: true,

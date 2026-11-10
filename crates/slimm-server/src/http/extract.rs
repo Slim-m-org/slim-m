@@ -381,8 +381,8 @@ pub(crate) async fn require_base_permission(
 #[cfg(test)]
 mod tests {
     use super::{
-        ASSET, AUTHED_READ, CANVAS, GIF, INVITE_CHECK, LINK_PREVIEW, PASSWORD, READ, REFRESH,
-        UPLOAD, WRITE, anonymous_key, class_of, forwarded_for,
+        ASSET, AUTHED_READ, CANVAS, GIF, INVITE_CHECK, LINK_PREVIEW, MODULE, PASSWORD, READ,
+        REFRESH, TOTP, UPLOAD, WRITE, anonymous_key, class_of, forwarded_for,
     };
     use crate::ratelimit::Class;
     use axum::http::Request;
@@ -404,6 +404,8 @@ mod tests {
             (ASSET, Class::Asset),
             (GIF, Class::Gif),
             (LINK_PREVIEW, Class::LinkPreview),
+            (MODULE, Class::Module),
+            (TOTP, Class::Totp),
             (AUTHED_READ, Class::AuthedRead),
             (super::DIAGNOSTIC_PING, Class::DiagnosticPing),
             (super::DIAGNOSTIC_TRANSFER, Class::DiagnosticTransfer),

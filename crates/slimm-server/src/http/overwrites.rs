@@ -444,7 +444,11 @@ pub(super) async fn previously_visible_to(
 ) -> Result<Vec<UserId>, ApiError> {
     let affected = match target {
         Target::Member(user_id) => vec![user_id],
-        Target::Role(role_id) => state.store.members_with_role(role_id).await?,
+        Target::Role(role_id) => match state.store.role(role_id).await? {
+            // `@everyone` has no `member_roles` rows; it applies to every live member.
+            Some(role) if role.is_everyone => state.store.all_live_user_ids().await?,
+            _ => state.store.members_with_role(role_id).await?,
+        },
     };
     Ok(state.store.viewers_among(channel_id, &affected).await?)
 }

@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """How the parallel e2e run deals scenarios across stacks."""
+import json
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -82,7 +85,30 @@ class ShardEnvTest(unittest.TestCase):
 
     def test_a_missing_result_is_a_failure(self):
         env = {"E2E_RESULTS": "/nonexistent/results.json"}
-        rows = e2e_parallel.merge([(env, ["x: one"])], ["x: one"], [1])
+        rows = e2e_parallel.merge([(env, ["x: one"])], ["x: one"])
+        self.assertEqual(rows, [("x: one", 0, False, 0.0)])
+
+    def test_a_row_the_shard_was_never_dealt_is_not_reported(self):
+        with tempfile.TemporaryDirectory() as work:
+            env = e2e_parallel.shard_env(0, work)
+            os.makedirs(env["E2E_WORK"])
+            with open(env["E2E_RESULTS"], "w", encoding="utf-8") as fh:
+                json.dump([{"name": "x: one", "ok": True, "seconds": 3.0},
+                           {"name": "x: old", "ok": True, "seconds": 9.0}], fh)
+            rows = e2e_parallel.merge([(env, ["x: one", "x: two"])], ["x: one", "x: two"])
+        self.assertEqual(rows, [("x: one", 0, True, 3.0), ("x: two", 0, False, 0.0)])
+
+    def test_starting_a_shard_forgets_the_last_run_s_results(self):
+        with tempfile.TemporaryDirectory() as work:
+            env = e2e_parallel.shard_env(0, work)
+            os.makedirs(env["E2E_WORK"])
+            with open(env["E2E_RESULTS"], "w", encoding="utf-8") as fh:
+                json.dump([{"name": "x: one", "ok": True, "seconds": 3.0}], fh)
+            with mock.patch.object(e2e_parallel.subprocess, "Popen"):
+                _, log = e2e_parallel.start(0, env, ["x: one"], work)
+            log.close()
+            self.assertEqual(e2e_parallel.read_results(env), None)
+            rows = e2e_parallel.merge([(env, ["x: one"])], ["x: one"])
         self.assertEqual(rows, [("x: one", 0, False, 0.0)])
 
 

@@ -8,7 +8,7 @@ set -uo pipefail
 limit=$((1024 * 1024))
 status=0
 
-name_pattern='(^|/)(\.env|\.env\.[a-z]+|id_rsa|id_ed25519|.*\.pem|.*\.p12|.*\.pfx|.*\.keystore|.*\.jks|.*\.mobileprovision|slimm-data\.key|discord\.json)$'
+name_pattern='(^|/)(\.env|\.env\.[a-z]+|id_rsa|id_ed25519|.*\.pem|.*\.p12|.*\.pfx|.*\.keystore|.*\.jks|.*\.mobileprovision|slimm-data\.key|discord\.json|loadtest-tokens-.*\.json)$'
 allowed_names='(^|/)\.env\.example$'
 secret_pattern='-----BEGIN ([A-Z]+ )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{50,}|xox[abprs]-[A-Za-z0-9-]{10,}|sk-ant-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{35}'
 

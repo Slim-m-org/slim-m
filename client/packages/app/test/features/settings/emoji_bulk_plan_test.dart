@@ -180,6 +180,85 @@ void main() {
     expect(plan.skipped.single.reason, 'larger than 1 MB');
   });
 
+  test('a pack past the image cap inflates only the images it queues', () {
+    var inflated = 0;
+    final entries = [
+      for (var i = 0; i < maxPlannedEmojiCount + 5; i++)
+        ZipEntryData.deferred(
+          path: 'e$i.png',
+          size: 3,
+          inflate: () {
+            inflated++;
+            return [1, 2, 3];
+          },
+        ),
+    ];
+
+    final plan = planEmojiZip(entries);
+
+    expect(plan.uploads, hasLength(maxPlannedEmojiCount));
+    expect(plan.skipped, hasLength(5));
+    expect(inflated, maxPlannedEmojiCount);
+  });
+
+  test('an image refused for its name is never inflated', () {
+    var inflated = 0;
+    final plan = planEmojiZip([
+      ZipEntryData.deferred(
+        path: '!!!.png',
+        size: 3,
+        inflate: () {
+          inflated++;
+          return [1, 2, 3];
+        },
+      ),
+    ]);
+
+    expect(plan.uploads, isEmpty);
+    expect(inflated, 0);
+  });
+
+  test(
+    'an entry that will not inflate is refused alone and frees its name',
+    () {
+      final plan = planEmojiZip([
+        ZipEntryData.deferred(
+          path: 'a.png',
+          size: 3,
+          inflate: () => throw const FormatException('Filter error, bad data'),
+        ),
+        _file('a.gif'),
+      ]);
+
+      expect(plan.uploads.map((u) => u.fileName), ['a.gif']);
+      expect(plan.skipped.single.fileName, 'a.png');
+      expect(plan.skipped.single.reason, 'could not be read from the zip');
+    },
+  );
+
+  test('an image that inflates past the cap is refused though its header '
+      'said it fit', () {
+    final plan = planEmojiZip([
+      ZipEntryData.deferred(
+        path: 'liar.png',
+        size: 500,
+        inflate: () => List.filled(maxPlannedEmojiBytes + 1, 0),
+      ),
+    ]);
+
+    expect(plan.uploads, isEmpty);
+    expect(plan.skipped.single.reason, 'larger than 1 MB');
+  });
+
+  test('an image that inflates to nothing is refused as empty', () {
+    final plan = planEmojiZip([
+      ZipEntryData.deferred(path: 'hollow.png', size: 9, inflate: () => []),
+    ]);
+
+    expect(plan.uploads, isEmpty);
+    expect(plan.skipped.single.reason, 'the file is empty');
+  });
+
   test('a zip with more entries than the cap is refused unread', () {
     final zip = buildEmojiZip({
       for (var i = 0; i <= maxZipEntries; i++) 'f$i.txt': [1],

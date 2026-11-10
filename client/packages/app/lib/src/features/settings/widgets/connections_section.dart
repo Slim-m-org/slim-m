@@ -37,16 +37,17 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
 
   Future<void> _link() async {
     setState(() => _busy = true);
+    final container = ProviderScope.containerOf(context, listen: false);
     await guard(
       whatFailed: 'start linking Discord',
       action: () async {
         try {
-          final url = await ref
+          final url = await container
               .read(settingsActionsProvider)
               .startDiscordLink();
           await openExternalHttpUrl(
             url,
-            launcher: ref.read(externalUrlLauncherProvider),
+            launcher: container.read(externalUrlLauncherProvider),
           );
         } on api.NotConfiguredException catch (error, stack) {
           api.AppLog.swallowed(
@@ -55,7 +56,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
             error,
             stack,
           );
-          ref.read(discordLinkUnavailableProvider.notifier).state = true;
+          container.read(discordLinkUnavailableProvider.notifier).state = true;
         }
       },
     );
@@ -64,11 +65,14 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
 
   Future<void> _unlink() async {
     setState(() => _busy = true);
-    final ok = await guard(
+    final container = ProviderScope.containerOf(context, listen: false);
+    await guard(
       whatFailed: 'unlink Discord',
-      action: () => ref.read(settingsActionsProvider).unlinkDiscord(),
+      action: () async {
+        await container.read(settingsActionsProvider).unlinkDiscord();
+        container.invalidate(myLinkedAccountsProvider);
+      },
     );
-    if (ok) ref.invalidate(myLinkedAccountsProvider);
     if (mounted) setState(() => _busy = false);
   }
 

@@ -55,8 +55,10 @@ The suite signs each user in once per run and restores that session for the othe
 | `E2E_KEEP` | unset | `1` leaves the stack running afterwards |
 | `E2E_REBUILD` | unset | Rebuild the web client even if a build exists |
 | `E2E_LINGER_MS` | `700` | How long each step's end state stays on screen, so the video shows it |
+| `E2E_PW_WORK` | `~/.cache/slimm-e2e/pw` | Where `scripts/e2e-playwright-parallel.sh` keeps each spec's stack, results and report; it must sit inside `~/.cache/slimm-e2e` or `e2e/.work` |
 
 The suite refuses to run against anything that is not a local stack, and never against the live deployment (`scripts/lib/e2e_stack_guard.py`).
+The stack publishes LiveKit's ports, binds the server and serves the web bundle on loopback only, because LiveKit runs with its public development key pair and the first account to register owns the server.
 
 ## Where the results land
 

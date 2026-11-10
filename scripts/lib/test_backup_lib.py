@@ -144,6 +144,21 @@ class SyncAttachmentsTest(BackupTestCase):
         self.assertEqual(result["copied"], 1)
         self.assertEqual((mirror_dir / sha.hex()).read_bytes(), data)
 
+    def test_a_same_sized_corrupt_mirror_file_is_repaired(self):
+        data = b"the real, correctly sized attachment content"
+        sha = fixtures.sha256_of(data)
+        fixtures.build_database(self.source_db, attachments=[(sha, len(data), "text/plain")])
+        fixtures.write_attachment_file(self.media_dir, sha, data)
+        mirror_dir = self.backup_root / "attachments"
+        mirror_dir.mkdir(parents=True)
+        (mirror_dir / sha.hex()).write_bytes(b"x" * len(data))
+
+        result = backup_lib.sync_attachments(self.source_db, self.media_dir, self.backup_root)
+
+        self.assertEqual(result["repaired"], 1)
+        self.assertEqual(result["already_present"], 0)
+        self.assertEqual((mirror_dir / sha.hex()).read_bytes(), data)
+
     def test_a_malformed_sha256_is_reported_and_never_mirrored(self):
         fixtures.build_database(
             self.source_db, attachments=[(b"not-a-real-digest", 17, "text/plain")]
@@ -280,28 +295,35 @@ class RunTest(BackupTestCase):
         manifests = list((self.backup_root / "db").glob("*.manifest.json"))
         self.assertEqual(len(manifests), 1)
 
-    def test_a_missing_source_file_exits_non_zero(self):
+    def test_a_clean_backup_has_no_warnings(self):
+        fixtures.build_database(self.source_db)
+
+        self.assertEqual(backup_lib.take_backup(self._args()), (0, []))
+
+    def test_a_missing_source_file_exits_with_the_warning_code_and_names_the_rows(self):
         data = b"referenced by the row but never written to disk"
         sha = fixtures.sha256_of(data)
         fixtures.build_database(self.source_db, attachments=[(sha, len(data), "text/plain")])
 
-        code = backup_lib.run(self._args())
+        code, warnings = backup_lib.take_backup(self._args())
 
-        self.assertEqual(code, 1)
+        self.assertEqual(code, backup_lib.EXIT_WARNINGS)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("orphaned database rows", warnings[0])
+        self.assertIn("(1)", warnings[0])
+        self.assertEqual(len(list((self.backup_root / "db").glob("slimm-*.db"))), 1)
 
     def test_no_source_database_exits_non_zero(self):
         code = backup_lib.run(self._args())
 
         self.assertEqual(code, 1)
 
-    def test_a_malformed_attachment_id_exits_non_zero(self):
+    def test_a_malformed_attachment_id_exits_with_the_warning_code(self):
         fixtures.build_database(
             self.source_db, attachments=[(b"not-a-real-digest", 17, "text/plain")]
         )
 
-        code = backup_lib.run(self._args())
-
-        self.assertEqual(code, 1)
+        self.assertEqual(backup_lib.run(self._args()), backup_lib.EXIT_WARNINGS)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      # Decides when `cargo nextest run` kills a hung test, so an edit to it must run the suite.
+      - ".config/nextest.toml"
       - "docker/server.Dockerfile"
       - ".github/workflows/server-ci.yml"
   pull_request:
@@ -28,6 +30,8 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      # Decides when `cargo nextest run` kills a hung test, so an edit to it must run the suite.
+      - ".config/nextest.toml"
       - "docker/server.Dockerfile"
       - ".github/workflows/server-ci.yml"
 

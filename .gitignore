@@ -11,7 +11,7 @@ Thumbs.db
 /target
 **/*.rs.bk
 
-# Node (schema-ci installs @redocly/cli fresh into this on every run; never vendor it)
+# Node (schema-ci runs npm ci into this from the committed lockfile; never vendor it)
 node_modules/
 
 # Runtime data (embedded SQLite lives here)
@@ -23,6 +23,11 @@ node_modules/
 # Env
 .env
 .env.local
+
+# Load test session tokens and results; they default to ~/.cache, and --cache-dir can still point here.
+loadtest-tokens-*.json
+loadtest-result.json
+reconnect-storm-result.json
 
 # Push credentials. These are downloaded as files from Firebase and Apple, land
 # in whatever directory the browser chose, and are unrecoverable once leaked -

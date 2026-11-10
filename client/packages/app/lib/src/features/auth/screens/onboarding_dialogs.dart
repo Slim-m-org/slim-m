@@ -19,7 +19,18 @@ import '../../../server_address_reduction.dart';
 import '../../../server_scheme_policy.dart';
 import '../../members/widgets/invite_landing_card.dart';
 import '../../members/widgets/invite_landing_view.dart';
+import '../../../widgets/image_decode.dart';
 import '../../../widgets/space_icon.dart';
+
+const double _bannerDecodeWidth = 520;
+
+/// Decoded inside a bound the client picks, since this server is not vouched for yet.
+ImageProvider _boundedNetworkImage(Uri url, int edge) => ResizeImage(
+  NetworkImage(url.toString()),
+  width: edge,
+  height: edge,
+  policy: ResizeImagePolicy.fit,
+);
 
 /// Redeeming an invite: check the code against the server before asking anyone
 /// to fill in a signup form, and accept the terms at the point of joining.
@@ -183,8 +194,16 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
             ? null
             : SpaceIconFrame(
                 size: kInviteIconSize,
-                child: Image.network(
-                  landing.icon.toString(),
+                child: Image(
+                  image: _boundedNetworkImage(
+                    landing.icon,
+                    decodeEdge(
+                      context,
+                      kInviteIconSize,
+                      minRatio: 2,
+                      oversample: 3,
+                    ),
+                  ),
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) =>
                       ColoredBox(color: tokens.surfaceSunken),
@@ -192,8 +211,11 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
               ),
         banner: community.bannerUpdatedAt == null
             ? null
-            : Image.network(
-                landing.banner.toString(),
+            : Image(
+                image: _boundedNetworkImage(
+                  landing.banner,
+                  decodeEdge(context, _bannerDecodeWidth),
+                ),
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) =>
                     ColoredBox(color: tokens.surfaceSunken),

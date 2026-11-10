@@ -49,7 +49,7 @@ fn bench_hub_publish_fanout(c: &mut Criterion) {
     let _subscribers: Vec<_> = (0..64).map(|_| hub.subscribe()).collect();
 
     c.bench_function("hub_publish_fanout_64", |b| {
-        b.iter(|| hub.publish(black_box(Event::PresenceChanged(UserId::generate()))));
+        b.iter(|| hub.publish(black_box(Event::presence_changed(UserId::generate()))));
     });
 }
 

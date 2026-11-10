@@ -30,7 +30,7 @@ use crate::world::{Contract, Payload};
 /// The 409 case was a second 400 wearing a 409's comment until the statuses
 /// were read back rather than assumed.
 pub(super) async fn refusal_calls(c: &mut Contract, member: &str, admin_id: &str, invite: &str) {
-    // 401: a token that never existed; one stands for all 158.
+    // 401: a token that never existed; unauthenticated_refusal.rs sweeps every operation.
     c.refuses(
         "getMe",
         "GET",

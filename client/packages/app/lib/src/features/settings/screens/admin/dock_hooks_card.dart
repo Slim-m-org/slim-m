@@ -76,7 +76,7 @@ class _DockHooksCardState extends ConsumerState<DockHooksCard>
 
   Future<void> _load() async {
     final ok = await guard(
-      whatFailed: 'Could not load the checks',
+      whatFailed: 'load the checks',
       action: () async {
         final all = await ref.read(apiProvider).moduleHooks();
         if (mounted) _hooks = all;
@@ -92,7 +92,7 @@ class _DockHooksCardState extends ConsumerState<DockHooksCard>
   }) async {
     setState(() => _busy = true);
     await guard(
-      whatFailed: 'Could not change the check',
+      whatFailed: 'change the check',
       action: () async {
         final client = ref.read(apiProvider);
         await client.updateModuleHook(
@@ -137,7 +137,7 @@ class _DockHooksCardState extends ConsumerState<DockHooksCard>
         if (actionError case final message?)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.s16),
-            child: AppErrorState(message: message, onRetry: clearActionError),
+            child: AppErrorState(message: message, onDismiss: clearActionError),
           ),
         for (final hook in mine) ..._rows(hook),
       ],

@@ -27,9 +27,22 @@ pub mod livekit_webhook;
 #[allow(dead_code)]
 pub mod wait;
 
+/// A LiveKit room service that records the calls it receives and lists a seated roster.
+#[allow(dead_code)]
+pub mod fake_sfu;
+
+/// The step clock the TOTP suites mint codes against.
+#[allow(dead_code)]
+pub mod totp_clock;
+
 /// Route and schema extraction shared by `tests/openapi_contract.rs` and
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;
+
+/// The comment, string and char-literal scrubber the source-reading gates share.
+mod scrub;
+#[allow(unused_imports)]
+pub use self::scrub::{code_only, rust_files_under};
 
 /// Picture bytes whose headers parse, for every upload that reads them.
 #[allow(dead_code)]
@@ -296,104 +309,6 @@ impl Drop for TestDirGuard {
     }
 }
 
-/// Blanks `//` and `/* */` comments and `"..."`/raw-string (`r"..."`,
-/// `r#"..."#`, ...) literals to spaces, keeping every byte's position, so
-/// [function_body]'s brace count only ever sees real code.
-///
-/// A stray unmatched `}` inside an ordinary `//` comment - "think of this
-/// like a code block }" is enough - closed a naive brace-depth scan the
-/// moment it appeared, hiding a real second `.fetch_all(`/`&self.pool`
-/// call placed after it in the actual function; reproduced directly,
-/// independently, against both `canvas_index.rs`'s and
-/// `thread_reply_count.rs`'s own former private copies of this logic
-/// before this shared one replaced them. Raw strings need their own
-/// handling because this crate's own SQL literals (`r#"SELECT ..."#`) are
-/// exactly that shape.
-#[allow(dead_code)]
-pub fn code_only(source: &str) -> String {
-    let bytes = source.as_bytes();
-    let mut out = vec![b' '; bytes.len()];
-    let mut i = 0usize;
-    while i < bytes.len() {
-        if let Some(end) = raw_string_end(bytes, i) {
-            keep_newlines(bytes, &mut out, i, end);
-            i = end.max(i + 1);
-            continue;
-        }
-        if bytes[i] == b'"' {
-            let end = plain_string_end(bytes, i);
-            keep_newlines(bytes, &mut out, i, end);
-            i = end;
-            continue;
-        }
-        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
-            while i < bytes.len() && bytes[i] != b'\n' {
-                i += 1;
-            }
-            continue;
-        }
-        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
-            let end = block_comment_end(bytes, i);
-            keep_newlines(bytes, &mut out, i, end);
-            i = end;
-            continue;
-        }
-        out[i] = bytes[i];
-        i += 1;
-    }
-    String::from_utf8(out)
-        .expect("only ever ASCII space/newline or original bytes, so always valid utf-8")
-}
-
-/// Keeps the line breaks of `bytes[from..to]` in `out`, so line numbers survive blanking.
-fn keep_newlines(bytes: &[u8], out: &mut [u8], from: usize, to: usize) {
-    for idx in from..to {
-        if bytes[idx] == b'\n' {
-            out[idx] = b'\n';
-        }
-    }
-}
-
-/// The end of the raw string (`r"..."`, `r#"..."#`, ...) starting at `i`, if one does.
-fn raw_string_end(bytes: &[u8], i: usize) -> Option<usize> {
-    if bytes[i] != b'r' {
-        return None;
-    }
-    let mut hashes = 0usize;
-    let mut j = i + 1;
-    while j < bytes.len() && bytes[j] == b'#' {
-        hashes += 1;
-        j += 1;
-    }
-    if j >= bytes.len() || bytes[j] != b'"' {
-        return None;
-    }
-    let close: Vec<u8> = std::iter::once(b'"')
-        .chain(std::iter::repeat_n(b'#', hashes))
-        .collect();
-    let mut k = j + 1;
-    while k < bytes.len() && bytes[k..].get(..close.len()) != Some(close.as_slice()) {
-        k += 1;
-    }
-    Some((k + close.len()).min(bytes.len()))
-}
-
-fn plain_string_end(bytes: &[u8], i: usize) -> usize {
-    let mut k = i + 1;
-    while k < bytes.len() && bytes[k] != b'"' {
-        k += if bytes[k] == b'\\' { 2 } else { 1 };
-    }
-    (k + 1).min(bytes.len())
-}
-
-fn block_comment_end(bytes: &[u8], i: usize) -> usize {
-    let mut k = i + 2;
-    while k < bytes.len() && bytes.get(k..k + 2) != Some(b"*/") {
-        k += 1;
-    }
-    (k + 2).min(bytes.len())
-}
-
 /// A function's body, from its signature's `marker` to the matching closing
 /// brace, by depth counting over [code_only] rather than the raw source, so
 /// a comment's or a string's own brace-shaped text cannot end the scan
@@ -427,10 +342,10 @@ pub fn function_body(source: &str, marker: &str) -> String {
 }
 
 #[allow(dead_code)]
-/// The SQL of the first `sqlx::query*!` call whose literal contains [anchor],
-/// plain or raw.
+/// The SQL of the first `sqlx::query*!` macro or `QueryBuilder::new` call whose
+/// literal contains [anchor], plain or raw.
 ///
-/// Anchored to a real macro call rather than to the nearest quote, because the
+/// Anchored to a real call rather than to the nearest quote, because the
 /// nearest quote can belong to a comment. A comment quoting an older version of
 /// the query is extracted and validated in place of the code by a bare search,
 /// so the query itself can regress to a scan while this passes - the
@@ -444,6 +359,23 @@ pub fn function_body(source: &str, marker: &str) -> String {
 /// the literal is then read back out of the original source at that offset.
 pub fn query_literal_containing(source: &str, anchor: &str) -> String {
     let code = code_only(source);
+    for args in query_call_args(&code) {
+        if let Some(sql) = literal_at(source, args)
+            && sql.contains(anchor)
+        {
+            return sql;
+        }
+    }
+    panic!("no sqlx query literal contains {anchor:?}; has the query itself changed?")
+}
+
+/// Offsets just past the `(` of every `query*!(` macro call and `QueryBuilder::new(` call, in source order.
+fn query_call_args(code: &str) -> Vec<usize> {
+    const BUILDER: &str = "QueryBuilder::new(";
+    let mut found: Vec<usize> = code
+        .match_indices(BUILDER)
+        .map(|(at, _)| at + BUILDER.len())
+        .collect();
     let mut from = 0usize;
     while let Some(rel) = code[from..].find("query") {
         let at = from + rel;
@@ -456,16 +388,12 @@ pub fn query_literal_containing(source: &str, anchor: &str) -> String {
             && name[..name.len() - 1]
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '_');
-        if !macro_call {
-            continue;
-        }
-        if let Some(sql) = literal_at(source, at + paren + 1)
-            && sql.contains(anchor)
-        {
-            return sql;
+        if macro_call {
+            found.push(at + paren + 1);
         }
     }
-    panic!("no sqlx query literal contains {anchor:?}; has the query itself changed?")
+    found.sort_unstable();
+    found
 }
 
 /// The string literal starting at the next non-whitespace byte, `r#"..."#`

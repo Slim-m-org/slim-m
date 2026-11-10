@@ -38,24 +38,6 @@ fn read_source(relative: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {relative}"))
 }
 
-/// The plain-string literal containing [anchor]; sibling of
-/// `canvas_ops/index_plan.rs`'s raw-string extractor, duplicated because
-/// integration-test binaries cannot import each other's helpers.
-fn extract_plain_containing(source: &str, anchor: &str) -> String {
-    let pos = source
-        .find(anchor)
-        .unwrap_or_else(|| panic!("{anchor:?} no longer appears in the source"));
-    let start = source[..pos]
-        .rfind('"')
-        .unwrap_or_else(|| panic!("no opening quote before {anchor:?}"))
-        + 1;
-    let end = source[pos..]
-        .find('"')
-        .unwrap_or_else(|| panic!("no closing quote after {anchor:?}"))
-        + pos;
-    source[start..end].to_owned()
-}
-
 async fn plan_of(pool: &SqlitePool, sql: &str, bind_count: usize) -> String {
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
     let mut query = sqlx::query(&explain);
@@ -76,7 +58,7 @@ async fn plan_of(pool: &SqlitePool, sql: &str, bind_count: usize) -> String {
 async fn the_revocation_update_seeks_the_session_index() {
     let (pool, _guard) = new_pool("slimm-rt-plan-update").await;
     let source = read_source("src/store/sessions.rs");
-    let sql = extract_plain_containing(
+    let sql = support::query_literal_containing(
         &source,
         "UPDATE refresh_tokens SET revoked_at = ? WHERE session_id",
     );

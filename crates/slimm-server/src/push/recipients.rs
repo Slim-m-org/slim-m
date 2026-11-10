@@ -71,13 +71,24 @@ pub async fn message_recipients(
     content: &str,
     presence: &PresenceTracker,
 ) -> anyhow::Result<Vec<UserId>> {
-    let (recipients, _mentioned) =
-        message_audience(store, channel_id, author_id, content, presence, None).await?;
+    let (recipients, _mentioned) = message_audience(
+        store,
+        channel_id,
+        author_id,
+        content,
+        presence,
+        None,
+        Some(author_id),
+    )
+    .await?;
     Ok(recipients)
 }
 
 /// [`message_recipients`] plus who among everyone the message mentions, so a mention can be
 /// pushed as one.
+///
+/// `mass_authority` is whose [`Permissions::MENTION_EVERYONE`] decides how far a mass or role
+/// mention goes: the author for what they typed, someone else or `None` for text they did not.
 pub(crate) async fn message_audience(
     store: &Store,
     channel_id: ChannelId,
@@ -85,6 +96,7 @@ pub(crate) async fn message_audience(
     content: &str,
     presence: &PresenceTracker,
     reply_ping: Option<UserId>,
+    mass_authority: Option<UserId>,
 ) -> anyhow::Result<(Vec<UserId>, HashSet<UserId>)> {
     // Push registrations first, permissions second; see the note above.
     let candidates = store.users_with_push_devices().await?;
@@ -94,8 +106,15 @@ pub(crate) async fn message_audience(
         .filter(|user_id| *user_id != author_id && !blockers.contains(user_id))
         .collect();
     let viewers = store.viewers_among(channel_id, &candidates).await?;
-    let mut mentioned =
-        resolved_mentions(store, channel_id, author_id, content, &viewers, presence).await?;
+    let mut mentioned = resolved_mentions(
+        store,
+        channel_id,
+        mass_authority,
+        content,
+        &viewers,
+        presence,
+    )
+    .await?;
     // A reply's ping was already checked against the channel at send; it still needs a device and no block.
     mentioned.extend(reply_ping.filter(|pinged| viewers.contains(pinged)));
     // Resolved once: both steps below ask the same "is this a thread, and whose" question.
@@ -168,7 +187,7 @@ pub(crate) fn mention_kinds(content: &str) -> MentionKinds {
 pub(crate) async fn resolved_mentions(
     store: &Store,
     channel_id: ChannelId,
-    author_id: UserId,
+    mass_authority: Option<UserId>,
     content: &str,
     viewers: &[UserId],
     presence: &PresenceTracker,
@@ -192,12 +211,13 @@ pub(crate) async fn resolved_mentions(
     };
 
     // Shared by both overrides below, so paid for once, not once per mention kind.
-    let mention_everyone_held = if mentions_everyone || mentions_here || !role_names.is_empty() {
-        store
-            .has_permission(author_id, channel_id, Permissions::MENTION_EVERYONE)
-            .await?
-    } else {
-        false
+    let mention_everyone_held = match mass_authority {
+        Some(holder) if mentions_everyone || mentions_here || !role_names.is_empty() => {
+            store
+                .has_permission(holder, channel_id, Permissions::MENTION_EVERYONE)
+                .await?
+        }
+        _ => false,
     };
 
     if (mentions_everyone || mentions_here) && mention_everyone_held {

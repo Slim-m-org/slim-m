@@ -7,6 +7,9 @@
 /// exception's `toString` in front of a person.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/widgets/run_guarded.dart';
@@ -96,4 +99,54 @@ void main() {
       expect(failure, contains('save the change'), reason: '$thrown');
     }
   });
+
+  group('GuardedActionState.guard', () {
+    Future<(Completer<void>, Future<bool> Function())> pumpHost(
+      WidgetTester tester,
+    ) async {
+      final gate = Completer<void>();
+      final key = GlobalKey<_GuardHostState>();
+      await tester.pumpWidget(MaterialApp(home: _GuardHost(key: key)));
+      Future<bool> run() => key.currentState!.guard(
+        whatFailed: 'save the change',
+        action: () => gate.future,
+      );
+      return (gate, run);
+    }
+
+    testWidgets('says yes while the widget is still there', (tester) async {
+      final (gate, run) = await pumpHost(tester);
+
+      final result = run();
+      gate.complete();
+
+      expect(await result, isTrue);
+    });
+
+    testWidgets('still reports a request that worked after the widget left', (
+      tester,
+    ) async {
+      final (gate, run) = await pumpHost(tester);
+
+      final result = run();
+      await tester.pumpWidget(const SizedBox.shrink());
+      gate.complete();
+
+      expect(await result, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+  });
+}
+
+class _GuardHost extends StatefulWidget {
+  const _GuardHost({super.key});
+
+  @override
+  State<_GuardHost> createState() => _GuardHostState();
+}
+
+class _GuardHostState extends State<_GuardHost>
+    with GuardedActionState<_GuardHost> {
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

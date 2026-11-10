@@ -12,8 +12,8 @@ use slimm_server::store::ModuleSchedule;
 use tower::ServiceExt;
 
 mod support;
-use support::module_world::{Install, World, world};
-use support::wasm_fixtures::{canned_ok_wasm, canned_raw_wasm};
+use support::module_world::{Install, World, message_id_in, post_request, world};
+use support::wasm_fixtures::{canned_ok_wasm, canned_raw_wasm, host_call_loop_wasm};
 
 async fn admin_token(w: &World) -> String {
     let role = w
@@ -304,4 +304,119 @@ async fn slash_output_cannot_be_posted_where_the_member_cannot_post() {
             .unwrap()
             .is_empty()
     );
+}
+
+/// The member who runs commands may mention everyone; a second member only watches.
+async fn pinger_and_bystander(w: &World) -> slimm_server::ids::UserId {
+    let role = w
+        .store
+        .create_role("pingers", Permissions::MENTION_EVERYONE, false)
+        .await
+        .unwrap();
+    w.store.assign_role(w.user.id, role).await.unwrap();
+    w.store.create_user("bob", "Bob").await.unwrap().id
+}
+
+fn message_of(body: &Value) -> slimm_server::ids::MessageId {
+    slimm_server::ids::MessageId(body["message_id"].as_str().unwrap().parse().unwrap())
+}
+
+#[tokio::test]
+async fn the_invoker_typing_everyone_still_pings_the_space() {
+    let w = world("slimm-modping-control").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let bob = pinger_and_bystander(&w).await;
+
+    let uri = format!("/channels/{}/messages", channel.id);
+    let typed = json!({ "id": uuid::Uuid::now_v7().to_string(), "content": "@everyone hi" });
+    let (status, sent) = send(&w, "POST", &uri, &w.token, typed).await;
+
+    assert_eq!(status, StatusCode::OK, "{sent}");
+    let id = slimm_server::ids::MessageId(sent["id"].as_str().unwrap().parse().unwrap());
+    assert!(w.store.is_mentioned(id, bob).await.unwrap());
+}
+
+#[tokio::test]
+async fn slash_output_saying_everyone_does_not_borrow_the_invokers_reach() {
+    let w = world("slimm-modping-output").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let bob = pinger_and_bystander(&w).await;
+    w.install(Install {
+        id: "printer",
+        wasm: canned_ok_wasm("@everyone heads up"),
+        declared: &[],
+        approved_host: &[],
+    })
+    .await;
+
+    let (_, body) = post_output(&w, "printer", channel.id, json!({})).await;
+
+    let id = message_of(&body);
+    assert!(!w.store.is_mentioned(id, bob).await.unwrap(), "{body}");
+}
+
+#[tokio::test]
+async fn a_post_made_during_a_run_does_not_borrow_the_invokers_reach() {
+    let w = world("slimm-modping-post").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let bob = pinger_and_bystander(&w).await;
+    let post = post_request(&channel.id.to_string(), "@everyone heads up");
+    w.install(Install {
+        id: "announcer",
+        wasm: host_call_loop_wasm(&post, 1),
+        declared: &["message.post"],
+        approved_host: &["message.post"],
+    })
+    .await;
+
+    let id = message_id_in(&w.answer_in("announcer", Some(channel.id)).await);
+
+    assert!(!w.store.is_mentioned(id, bob).await.unwrap());
+}
+
+#[tokio::test]
+async fn a_module_whose_own_principal_may_mention_everyone_still_can() {
+    let w = world("slimm-modping-principal").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let bob = pinger_and_bystander(&w).await;
+    w.install(Install {
+        id: "printer",
+        wasm: canned_ok_wasm("@everyone heads up"),
+        declared: &[],
+        approved_host: &[],
+    })
+    .await;
+    let bot = w
+        .store
+        .ensure_module_bot("printer", "Printer")
+        .await
+        .unwrap();
+    let role = w
+        .store
+        .create_role("module-pingers", Permissions::MENTION_EVERYONE, false)
+        .await
+        .unwrap();
+    w.store.assign_role(bot, role).await.unwrap();
+
+    let (_, body) = post_output(&w, "printer", channel.id, json!({})).await;
+
+    assert!(w.store.is_mentioned(message_of(&body), bob).await.unwrap());
+}
+
+#[tokio::test]
+async fn slash_output_naming_a_person_still_mentions_them() {
+    let w = world("slimm-modping-name").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let bob = pinger_and_bystander(&w).await;
+    w.install(Install {
+        id: "printer",
+        wasm: canned_ok_wasm("@bob your roll is 17"),
+        declared: &[],
+        approved_host: &[],
+    })
+    .await;
+
+    let (_, body) = post_output(&w, "printer", channel.id, json!({})).await;
+
+    assert!(w.store.is_mentioned(message_of(&body), bob).await.unwrap());
 }

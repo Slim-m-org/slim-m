@@ -57,7 +57,7 @@ class DownloadFailureHost extends ConsumerWidget {
                             message:
                                 task.message ??
                                 'Could not save ${task.attachment.filename}.',
-                            onRetry: () => downloads.start(task.attachment),
+                            onRetry: () => downloads.retry(task.id),
                             onDismiss: () => downloads.dismiss(task.id),
                           ),
                       ],

@@ -353,7 +353,17 @@ void main() {
         }
       },
     ]);
-    expect(foreignPlayback(dump, 1), isEmpty);
+    expect(ShareGraphSnapshot.parse(dump).foreignPlayback(1), isEmpty);
+  });
+
+  test('one parsed dump answers every question about the graph', () async {
+    await isolation.begin();
+    final snapshot = ShareGraphSnapshot.parse((await graph.dump())!);
+    expect(snapshot.nodeIdNamed(shareMixNode), 90);
+    expect(snapshot.mixState(90).inPorts, [91, 92]);
+    expect(snapshot.mixState(90).linkedOutPorts, {301, 302});
+    expect(snapshot.portChannels()[301], 'FL');
+    expect(snapshot.foreignPlayback(_ownPid).map((s) => s.nodeId), [30]);
   });
 
   _sessionTests();
@@ -366,8 +376,8 @@ void main() {
   });
 
   test('a dump that is not a graph yields nothing to link', () {
-    expect(foreignPlayback('not json', 1), isEmpty);
-    expect(nodeIdNamed('{}', 'x'), isNull);
+    expect(ShareGraphSnapshot.parse('not json').foreignPlayback(1), isEmpty);
+    expect(ShareGraphSnapshot.parse('{}').nodeIdNamed('x'), isNull);
   });
 }
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The screen-annotation signal: viewers' marks over a shared screen, and the sharer's consent for them.
 
+use std::sync::Arc;
+
 use super::canvas_gate::{Frame, may_relay};
 use super::permission_cache::PermissionCache;
 use super::signals_canvas::valid_preview_color;
@@ -60,7 +62,7 @@ pub(super) async fn handle_canvas_screen_annotation(
     if !may_relay(store, hub, ctx, cache, event.channel_id, Frame::Ink).await {
         return;
     }
-    hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Box::new(
+    hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Arc::new(
         event,
     ))));
 }

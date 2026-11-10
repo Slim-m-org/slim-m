@@ -9,7 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_permissions.dart';
 import '../../../widgets/run_guarded.dart';
-import 'join_policy_row.dart' show spaceSettingsProvider;
+import '../providers/space_settings.dart';
 import 'settings_field.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';

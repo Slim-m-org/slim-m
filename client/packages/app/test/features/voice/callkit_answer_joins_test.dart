@@ -48,7 +48,14 @@ Map<String, Object> _outstanding(String channelId, String ringId) => {
 };
 
 class _Rig {
-  _Rig(this.container, this.events, this.voice, this.router, this.ended);
+  _Rig(
+    this.container,
+    this.events,
+    this.voice,
+    this.router,
+    this.ended,
+    this.declined,
+  );
 
   final ProviderContainer container;
   final StreamController<api.ServerEvent> events;
@@ -58,14 +65,17 @@ class _Rig {
   /// Call ids Dart asked the native side to end.
   final List<String> ended;
 
+  /// Channels whose ring the server was asked to decline.
+  final List<String> declined;
+
   DmCallRingState get ring => container.read(dmCallRingControllerProvider);
 
-  Future<void> nativeSends(String event) {
+  Future<void> nativeSends(String event, {String id = 'uuid-1'}) {
     return TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
           _channelName,
           const StandardMethodCodec().encodeMethodCall(
-            MethodCall('onCallKitEvent', {'event': event, 'id': 'uuid-1'}),
+            MethodCall('onCallKitEvent', {'event': event, 'id': id}),
           ),
           (_) {},
         );
@@ -82,6 +92,7 @@ Future<_Rig> _rig({
   List<Map<String, Object>>? outstanding,
 }) async {
   final ended = <String>[];
+  final declined = <String>[];
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(const MethodChannel(_channelName), (
         call,
@@ -116,6 +127,10 @@ Future<_Rig> _rig({
       storeProvider.overrideWith((ref) async => throw StateError('no store')),
       apiProvider.overrideWith((ref) {
         final client = testApi((request) async {
+          if (request.url.path.endsWith('/voice/ring/decline')) {
+            declined.add(request.url.pathSegments[1]);
+            return http.Response('', 204);
+          }
           if (request.url.path != '/voice/rings/incoming' ||
               outstanding == null) {
             return http.Response('', 500);
@@ -134,7 +149,7 @@ Future<_Rig> _rig({
   addTearDown(container.dispose);
   container.read(dmCallRingControllerProvider);
   container.read(voiceControllerProvider);
-  final rig = _Rig(container, events, voice, router, ended);
+  final rig = _Rig(container, events, voice, router, ended, declined);
   await rig.settle();
   return rig;
 }
@@ -226,6 +241,44 @@ void main() {
       await rig.settle();
 
       expect(rig.ring.visibleIncoming?.ringId, 'ring-1');
+    },
+  );
+
+  test(
+    'a late end for a finished CallKit call leaves the newer ring',
+    () async {
+      final rig = await _rig();
+      await rig.nativeSends('ringing');
+      rig.events.add(_ringFrame);
+      await rig.settle();
+      rig.events.add(
+        const api.CallRingEnded(
+          channelId: 'dm-1',
+          ringId: 'ring-1',
+          outcome: api.CallOutcome.canceled,
+        ),
+      );
+      await rig.settle();
+
+      await rig.nativeSends('ringing', id: 'uuid-2');
+      rig.events.add(
+        const api.CallRinging(
+          channelId: 'dm-1',
+          ringId: 'ring-2',
+          callerId: 'caller-1',
+        ),
+      );
+      await rig.settle();
+      await rig.nativeSends('ended');
+      await rig.settle();
+
+      expect(
+        rig.declined,
+        isEmpty,
+        reason: 'the first call timing out is not a decline',
+      );
+      expect(rig.ring.incoming?.ringId, 'ring-2');
+      expect(rig.ring.callKit, CallKitPhase.ringing);
     },
   );
 

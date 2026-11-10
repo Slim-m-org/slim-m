@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../api_failure.dart';
 import '../../../permissions.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
@@ -50,7 +51,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
   String? _error;
   bool _busy = false;
 
-  Future<void> _run(Future<void> Function() action) async {
+  Future<void> _run(String whatFailed, Future<void> Function() action) async {
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -58,16 +59,20 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     });
     try {
       await action();
-    } on api.ApiException catch (e) {
-      _error = e.message;
-    } catch (_) {
-      _error = 'Something went wrong. Try again.';
+    } catch (e, stack) {
+      _error = reportFailureSentence(api.LogTag.ui, whatFailed, e, stack);
     }
     if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _rowAction(api.SpaceTheme theme, ThemeRowAction action) {
-    return _run(() async {
+    final whatFailed = switch (action) {
+      ThemeRowAction.copy => 'copy the theme',
+      ThemeRowAction.setDefault => 'set the default theme',
+      ThemeRowAction.clearDefault => 'clear the default theme',
+      ThemeRowAction.remove => 'remove the theme',
+    };
+    return _run(whatFailed, () async {
       switch (action) {
         case ThemeRowAction.copy:
           _editCopyOf(theme);
@@ -253,7 +258,9 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
       isSpaceDefault: isDefault,
       onApply: document == null || _busy
           ? () {}
-          : () => unawaited(_run(() => applyStoreTheme(ref, theme))),
+          : () => unawaited(
+              _run('apply the theme', () => applyStoreTheme(ref, theme)),
+            ),
       menu: _rowMenu(theme, isDefault: isDefault),
     );
   }

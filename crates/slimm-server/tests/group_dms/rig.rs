@@ -6,6 +6,7 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
+use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
@@ -17,8 +18,10 @@ use crate::support::app::{register_token_id as register, request};
 
 pub(crate) struct Harness {
     pub(crate) app: Router,
+    pub(crate) state: AppState,
     pub(crate) store: Store,
     pub(crate) hub: Hub,
+    pub(crate) pool: sqlx::SqlitePool,
     pub(crate) _guard: support::TestDbGuard,
 }
 
@@ -30,21 +33,24 @@ pub(crate) async fn harness() -> Harness {
         hash_concurrency: 2,
         ..Config::default()
     };
-    let store = Store::new(db::connect(&config).await.expect("connect + migrate"));
+    let pool = db::connect(&config).await.expect("connect + migrate");
+    let store = Store::new(pool.clone());
     let hub = Hub::new();
     let voice = VoiceService::for_test(
         "wss://livekit.example.com",
         "APItestkey",
         "a-test-secret-of-at-least-32-characters",
     );
-    let app = support::app::builder(store.clone())
+    let state = support::app::builder(store.clone())
         .hub(hub.clone())
         .voice(voice)
-        .router();
+        .build();
     Harness {
-        app,
+        app: http::router(state.clone()),
+        state,
         store,
         hub,
+        pool,
         _guard: guard,
     }
 }

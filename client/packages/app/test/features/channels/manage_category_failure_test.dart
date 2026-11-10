@@ -4,6 +4,8 @@
 /// `manage_category_sheet_test.dart`; this pins the failures.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,7 @@ const _voice = ChannelCategoryRow(id: 'cat-b', name: 'Voice', position: 1);
 Future<({ProviderContainer container, MessageStore store})> _pump(
   WidgetTester tester, {
   required Widget Function(BuildContext, WidgetRef) button,
+  Future<void>? answerAfter,
 }) async {
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -50,9 +53,10 @@ Future<({ProviderContainer container, MessageStore store})> _pump(
         ),
       ),
       storeProvider.overrideWith((ref) async => store),
-      mockApiOverride(
-        (request) async => http.Response('{"error":"nope"}', 500),
-      ),
+      mockApiOverride((request) async {
+        await answerAfter;
+        return http.Response('{"error":"nope"}', 500);
+      }),
     ],
   );
   addTearDown(container.dispose);
@@ -97,6 +101,36 @@ void main() {
     expect(await r.store.allCategories(), hasLength(2));
   });
 
+  testWidgets('a refused move answered after the header is gone is dropped '
+      'quietly', (tester) async {
+    final answer = Completer<void>();
+    final r = await _pump(
+      tester,
+      answerAfter: answer.future,
+      button: (context, ref) => ElevatedButton(
+        onPressed: () =>
+            moveCategoryAndReport(context, [_general, _voice], _voice, -1),
+        child: const Text('move'),
+      ),
+    );
+
+    await tester.tap(find.text('move'));
+    await tester.pump();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: r.container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    answer.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(r.container.read(categoryOrderControllerProvider).error, isNull);
+  });
+
   testWidgets('a refused move is reported and the failure is dismissed', (
     tester,
   ) async {
@@ -104,7 +138,7 @@ void main() {
       tester,
       button: (context, ref) => ElevatedButton(
         onPressed: () =>
-            moveCategoryAndReport(context, ref, [_general, _voice], _voice, -1),
+            moveCategoryAndReport(context, [_general, _voice], _voice, -1),
         child: const Text('move'),
       ),
     );

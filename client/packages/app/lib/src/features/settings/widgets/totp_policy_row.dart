@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'join_policy_row.dart';
+import '../providers/space_settings.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
 import '../providers/settings_actions.dart';

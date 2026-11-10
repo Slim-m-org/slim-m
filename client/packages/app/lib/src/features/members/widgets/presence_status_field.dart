@@ -64,14 +64,17 @@ class _PresenceStatusFieldState extends ConsumerState<PresenceStatusField>
   /// `memberProfileOverridesProvider`'s own doc comment for why the roster
   /// provider itself cannot just be patched in place.
   Future<void> _apply(String text) async {
+    final container = ProviderScope.containerOf(context, listen: false);
     final ok = await guard(
       whatFailed: text.isEmpty ? 'clear your status' : 'update your status',
       action: () async {
-        final profile = await ref
+        final profile = await container
             .read(memberActionsProvider)
             .updateMe(statusText: text);
-        ref.invalidate(meProvider);
-        ref.read(memberProfileOverridesProvider.notifier).applyKnown(profile);
+        container.invalidate(meProvider);
+        container
+            .read(memberProfileOverridesProvider.notifier)
+            .applyKnown(profile);
       },
     );
     if (ok && mounted) widget.onDone();

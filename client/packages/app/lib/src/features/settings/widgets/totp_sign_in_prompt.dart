@@ -66,5 +66,5 @@ String _failure(api.ApiException e) => switch (e) {
   api.UnauthorizedException() =>
     'This sign-in took too long and has expired. Close this and enter your '
         'password again.',
-  _ => totpCodeFailure(e),
+  _ => totpCodeFailure(e, 'verify the two-factor code'),
 };

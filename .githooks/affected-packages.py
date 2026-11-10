@@ -4,8 +4,10 @@
 
 Reads changed file paths on stdin. A package is affected when a file under it changed or when
 any package it depends on (transitively, through the workspace) is affected. A change to the
-workspace pubspec, lockfile or analysis options affects every package. Only packages that
-have a test/ directory are printed. Stdlib only, so it runs on a bare machine.
+workspace pubspec, lockfile or analysis options affects every package. A file outside client/
+that a package's tests read (the OpenAPI schema, the server's shared fixtures) affects that
+package alone, because it changes what the tests see and not what the package exports. Only
+packages that have a test/ directory are printed. Stdlib only, so it runs on a bare machine.
 """
 import re
 import sys
@@ -14,6 +16,13 @@ from pathlib import Path
 root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
 packages = root / "client" / "packages"
 GLOBAL = ("client/pubspec.yaml", "client/pubspec.lock", "client/analysis_options.yaml")
+TEST_INPUTS = (
+    (r"schema/", "api"),
+    (r"crates/slimm-server/tests/fixtures/", "app"),
+    (r"crates/slimm-server/src/emoji/", "app"),
+    (r"docs/design/wording\.md$", "app"),
+    (r"packaging/(rpm|linux)/", "app"),
+)
 
 
 def pubspec_names(path):
@@ -44,6 +53,9 @@ while grew:
         if d not in hit and any(by_name.get(dep) in hit for dep in deps):
             hit.add(d)
             grew = True
+
+for c in changed:
+    hit.update(pkg for pattern, pkg in TEST_INPUTS if re.match(pattern, c) and pkg in info)
 
 for d in sorted(hit):
     if (packages / d / "test").is_dir():

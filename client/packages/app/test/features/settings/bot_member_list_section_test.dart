@@ -11,9 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/providers/roster_grouping.dart';
+import 'package:slimm_app/src/features/settings/providers/space_settings.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/bots_screen.dart';
-import 'package:slimm_app/src/features/settings/widgets/join_policy_row.dart'
-    show spaceSettingsProvider;
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/live_events.dart';

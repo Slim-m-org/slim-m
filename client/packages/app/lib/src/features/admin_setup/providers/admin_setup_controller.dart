@@ -61,6 +61,8 @@ class AdminSetupController extends StateNotifier<AdminSetupState> {
 }
 
 final adminSetupControllerProvider =
-    StateNotifierProvider<AdminSetupController, AdminSetupState>(
-      (ref) => AdminSetupController(ref),
-    );
+    StateNotifierProvider<AdminSetupController, AdminSetupState>((ref) {
+      // Rebuilt per account, or the next one signed in inherits the last one's overlay.
+      ref.watch(sessionProvider.select((s) => s.tokens?.userId));
+      return AdminSetupController(ref);
+    });

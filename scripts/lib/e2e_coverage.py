@@ -2,13 +2,13 @@
 """How much of the documented API a run actually touched.
 
 Counted from what was really called rather than from a list kept by hand: the
-API helper records every request it makes, and each browser is asked for its
-own resource timings at the end, so the clients' traffic counts too. A list
-kept by hand drifts the moment a scenario changes and then overstates coverage
-for as long as nobody checks.
+API helper records every request it makes, and the browsers' own traffic comes
+from their DevTools network events, so the clients count too. A list kept by
+hand drifts the moment a scenario changes and then overstates coverage for as
+long as nobody checks.
 """
-import json
 import re
+import urllib.parse
 from pathlib import Path
 
 UUID = re.compile(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -41,16 +41,14 @@ def documented(schema_path):
     return paths
 
 
-def from_browser(client, origin):
-    """Every request the page itself made, which the harness never sees."""
-    raw = client.ev(
-        "JSON.stringify(performance.getEntriesByType('resource')"
-        ".map(function(e){return e.name;}))")
+def from_requests(urls, origin):
+    """The API paths among the URLs the browsers requested, which the harness never sees."""
+    wanted = urllib.parse.urlsplit(origin)
     out = set()
-    for url in json.loads(raw or "[]"):
-        if origin not in url:
-            continue
-        out.add(canon(url.split(origin, 1)[1]))
+    for url in urls:
+        got = urllib.parse.urlsplit(url)
+        if (got.scheme, got.netloc) == (wanted.scheme, wanted.netloc):
+            out.add(canon(got.path or "/"))
     return out
 
 

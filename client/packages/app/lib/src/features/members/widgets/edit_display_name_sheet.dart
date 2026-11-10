@@ -64,12 +64,13 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
       _saving = true;
       _error = null;
     });
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref
+      await container
           .read(memberActionsProvider)
           .updateMe(displayName: _name.text.trim());
       // updateMe returns a UserProfile, not the Me shape meProvider holds, so refetch rather than merge.
-      ref.invalidate(meProvider);
+      container.invalidate(meProvider);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'save the display name', e, stack);

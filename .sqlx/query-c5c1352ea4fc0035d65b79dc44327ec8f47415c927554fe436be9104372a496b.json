@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: ChannelId\" FROM channels\n           WHERE room_owner_id IS NOT NULL OR room_lobby_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c5c1352ea4fc0035d65b79dc44327ec8f47415c927554fe436be9104372a496b"
+}

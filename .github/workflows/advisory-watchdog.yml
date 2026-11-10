@@ -29,10 +29,20 @@ jobs:
         with:
           command: check advisories
 
+      # The listener is its own workspace with its own lockfile; -A because the root's dated ignore list is not its business.
+      - id: scan_listener
+        continue-on-error: true
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: crates/slimm-listener/Cargo.toml
+          command: check advisories
+          command-arguments: "-A advisory-not-detected"
+
       - name: open or close the advisory issue
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          ADVISORY_STATUS: ${{ steps.scan.outcome == 'success' && 'clean' || 'found' }}
+          ADVISORY_STATUS: ${{ steps.scan.outcome == 'success' && steps.scan_listener.outcome == 'success' && 'clean' || 'found' }}
+          ADVISORY_LOCKFILES: ${{ steps.scan.outcome != 'success' && 'Cargo.lock ' || '' }}${{ steps.scan_listener.outcome != 'success' && 'crates/slimm-listener/Cargo.lock' || '' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bash scripts/report-advisory-issue.sh

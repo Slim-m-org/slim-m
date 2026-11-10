@@ -118,6 +118,7 @@ impl Store {
         target_type: &str,
         target_id: Uuid,
     ) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
         sqlx::query!(
             "DELETE FROM channel_overwrites
              WHERE channel_id = ? AND target_type = ? AND target_id = ?",
@@ -125,9 +126,10 @@ impl Store {
             target_type,
             target_id
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
-        super::category_overwrites::mark_unsynced(&self.pool, channel_id).await?;
+        super::category_overwrites::mark_unsynced(&mut *tx, channel_id).await?;
+        tx.commit().await?;
         Ok(())
     }
 

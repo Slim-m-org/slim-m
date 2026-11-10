@@ -25,9 +25,13 @@ fn png() -> Vec<u8> {
     out.into_inner()
 }
 
+/// How long the upstream takes over the card image, so a read that waited on it is told apart from a cached one.
+const IMAGE_DELAY: Duration = Duration::from_millis(400);
+
 struct Upstream {
     host: String,
     image_hits: Arc<AtomicUsize>,
+    image_served: Arc<AtomicUsize>,
     dead_hits: Arc<AtomicUsize>,
 }
 
@@ -35,7 +39,9 @@ struct Upstream {
 async fn upstream() -> Upstream {
     let image_hits = Arc::new(AtomicUsize::new(0));
     let dead_hits = Arc::new(AtomicUsize::new(0));
-    let (image_count, dead_count) = (image_hits.clone(), dead_hits.clone());
+    let image_served = Arc::new(AtomicUsize::new(0));
+    let (image_count, served_count, dead_count) =
+        (image_hits.clone(), image_served.clone(), dead_hits.clone());
     let bytes = png();
     let router = Router::new()
         .route(
@@ -60,9 +66,10 @@ async fn upstream() -> Upstream {
             "/card.png",
             get(move || {
                 image_count.fetch_add(1, Ordering::SeqCst);
-                let bytes = bytes.clone();
+                let (bytes, served) = (bytes.clone(), served_count.clone());
                 async move {
-                    tokio::time::sleep(Duration::from_millis(150)).await;
+                    tokio::time::sleep(IMAGE_DELAY).await;
+                    served.fetch_add(1, Ordering::SeqCst);
                     ([(header::CONTENT_TYPE, "image/png")], bytes)
                 }
             }),
@@ -80,6 +87,7 @@ async fn upstream() -> Upstream {
     Upstream {
         host: format!("127.0.0.1:{}", addr.port()),
         image_hits,
+        image_served,
         dead_hits,
     }
 }
@@ -152,9 +160,7 @@ async fn a_fresh_preview_fetches_its_image_before_anyone_asks() {
     let (app, token, _guard) = world("slimm-image-warmed").await;
     let up = upstream().await;
     let image = image_token(&app, &token, format!("http://{}/page", up.host)).await;
-    wait_for(&up.image_hits, 1).await;
-    // The cache fill after the upstream hit has no signal to wait on.
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    wait_for(&up.image_served, 1).await;
 
     let started = std::time::Instant::now();
     let (status, body) = get_path(&app, &token, format!("/link-preview/image/{image}")).await;
@@ -162,7 +168,7 @@ async fn a_fresh_preview_fetches_its_image_before_anyone_asks() {
     assert_eq!(status, StatusCode::OK);
     assert!(!body.is_empty());
     assert!(
-        started.elapsed() < Duration::from_millis(100),
+        started.elapsed() < IMAGE_DELAY,
         "the image was already cached, so no upstream wait"
     );
     assert_eq!(up.image_hits.load(Ordering::SeqCst), 1);

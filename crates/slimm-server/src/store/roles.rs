@@ -262,8 +262,10 @@ impl Store {
 
     // Bot-managed-role reads live in `role_bots.rs`; see that file's own doc.
 
-    /// Who holds a role, for a caller that has to notify them about something
-    /// their membership decides.
+    /// Who holds a role through an explicit assignment, for a caller that has
+    /// to notify them about something their membership decides.
+    ///
+    /// Empty for `@everyone`, which applies to everyone with no assignment row.
     ///
     /// Bounded by the role's own membership rather than by the deployment, and
     /// the only caller is the overwrite handler, which needs the set *before*

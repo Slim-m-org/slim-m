@@ -3,6 +3,7 @@
 /// each row's own sign-out already uses. See `devices_section.dart`.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
@@ -32,9 +34,9 @@ String _deviceJson(String id, String name, {bool isCurrent = false}) =>
       'is_current': isCurrent,
     });
 
-Future<void> _pump(
+Future<ProviderContainer> _pump(
   WidgetTester tester,
-  http.Response Function(http.Request) handler,
+  FutureOr<http.Response> Function(http.Request) handler,
 ) async {
   final container = ProviderContainer(
     overrides: [
@@ -55,6 +57,7 @@ Future<void> _pump(
     ),
   );
   await tester.pumpAndSettle();
+  return container;
 }
 
 void main() {
@@ -153,6 +156,49 @@ void main() {
       );
     },
   );
+
+  testWidgets('leaving the pane mid sign-out still signs out the rest', (
+    tester,
+  ) async {
+    final removed = <String>{};
+    final firstDelete = Completer<void>();
+    final container = await _pump(tester, (request) async {
+      if (request.method == 'GET' && request.url.path == '/devices') {
+        final live = [
+          _deviceJson('this', 'This laptop', isCurrent: true),
+          if (!removed.contains('phone')) _deviceJson('phone', 'A phone'),
+          if (!removed.contains('tablet')) _deviceJson('tablet', 'A tablet'),
+        ];
+        return http.Response(
+          '[${live.join(',')}]',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'DELETE') {
+        if (removed.isEmpty) await firstDelete.future;
+        removed.add(request.url.pathSegments.last);
+        return http.Response('', 204);
+      }
+      return http.Response('{}', 404);
+    });
+
+    await tester.tap(find.text('Sign out others'));
+    await pumpFrames(tester, frames: 20);
+    await tester.tap(find.widgetWithText(AppButton, 'Sign out all'));
+    await tester.pump();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SizedBox.shrink(),
+      ),
+    );
+    firstDelete.complete();
+    await pumpFrames(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(removed, {'phone', 'tablet'});
+  });
 
   testWidgets(
     'no bulk action is offered when there is nothing else to sign out',

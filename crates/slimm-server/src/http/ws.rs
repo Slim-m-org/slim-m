@@ -13,8 +13,13 @@
 //! behind the durable broadcast buffer it is closed and the client resyncs
 //! over REST; falling behind the ephemeral one (cursors, stroke previews)
 //! never closes anything, see `crate::hub`'s own doc comment.
+//!
+//! Inbound, a connection is closed when it sends nothing for
+//! [`crate::hub::Hub::liveness_deadline`], since a peer that vanished without a
+//! FIN would otherwise hold its slot and presence for minutes, and when it
+//! sends faster than `frame_budget` allows.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::Router;
 use axum::extract::State;
@@ -37,6 +42,7 @@ use crate::ratelimit::Class;
 use crate::store::SessionContext;
 use authorization::{Authorization, authorize};
 use client_frames::ClientFrame;
+use frame_budget::{FrameBudget, Verdict};
 use frames::ServerFrame;
 use pending_key::PendingKey;
 use permission_cache::PermissionCache;
@@ -51,6 +57,7 @@ mod channel_scope;
 mod client_frames;
 mod deployment_frames;
 mod ephemeral_frames;
+mod frame_budget;
 mod frames;
 mod interaction_frames;
 mod message_frames;
@@ -165,12 +172,24 @@ async fn serve(
     // A client that sends `active` frames reports real use; its keepalives then prove nothing.
     let mut reports_activity = reported_active.is_some();
     let mut canvas_watch = canvas_watch::CanvasWatch::default();
+    let mut budget = FrameBudget::new(Instant::now());
+    let liveness = state.hub.liveness_deadline();
+    let silence = tokio::time::sleep(liveness);
+    tokio::pin!(silence);
     loop {
         tokio::select! {
             incoming = stream.next() => {
+                silence.as_mut().reset(tokio::time::Instant::now() + liveness);
+                if matches!(&incoming, Some(Ok(frame)) if !matches!(frame, Message::Close(_))) {
+                    match budget.take(Instant::now()) {
+                        Verdict::Allow => {}
+                        Verdict::Refuse => continue,
+                        Verdict::Close => break,
+                    }
+                }
                 match incoming {
                     Some(Ok(Message::Text(text))) => {
-                        // Touch after the parse, never before: it takes the shared presence lock and nothing rate-limits inbound frames.
+                        // Touch after the parse, never before: it takes the shared presence lock.
                         match serde_json::from_str::<ClientFrame>(text.as_str()) {
                             Ok(ClientFrame::Active) => {
                                 reports_activity = true;
@@ -373,6 +392,7 @@ async fn serve(
                     }
                 }
             }
+            () = &mut silence => break,
             event = events.recv() => {
                 match event {
                     // Our own session was revoked: close the socket at once.

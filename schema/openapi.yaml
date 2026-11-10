@@ -5770,7 +5770,7 @@ paths:
         - name: from
           in: query
           description: >
-            Only messages authored by this exact username (`from:username`).
+            Only messages authored by this username, ignoring case (`from:username`).
             A username matching no live account answers with no results,
             never an error - the same oracle-safety rule `in` states above,
             applied to an account instead of a channel.
@@ -5882,7 +5882,7 @@ paths:
         - name: from
           in: query
           description: >
-            Only messages authored by this exact username (`from:username`).
+            Only messages authored by this username, ignoring case (`from:username`).
             A username matching no live account answers with no results,
             never an error.
           schema:
@@ -7533,6 +7533,10 @@ paths:
         a button.
 
 
+        Only a voice channel or a direct message has a room; a text channel or
+        a thread answers 400.
+
+
         The room name is derived from the channel id on the server and echoed
         back; it is never accepted from the caller, so a token can only ever be
         for the channel that was authorized. The token is deliberately
@@ -7823,6 +7827,10 @@ paths:
         nothing.
 
 
+        Only a voice channel or a direct message has a room; any other channel
+        answers 400.
+
+
         A LiveKit room eventually reaps a connection that vanished without a
         clean close on its own, but that timing is the SFU's, not this
         server's to promise. A client still on the call sends this on a plain
@@ -7994,8 +8002,8 @@ paths:
       summary: Tell the room whether the caller has deafened themselves.
       description: >
         Sets or clears a participant attribute that everyone in the call
-        reads. Needs VIEW_CHANNEL and CONNECT. Idempotent, and a no-op when
-        the caller is not in the room.
+        reads. Needs VIEW_CHANNEL and CONNECT, on a voice channel or a direct
+        message. Idempotent, and a no-op when the caller is not in the room.
       requestBody:
         required: true
         content:
@@ -11285,7 +11293,10 @@ paths:
         `/auth/ws-ticket` and the protocol version. The server redeems the
         ticket and replies with its own `hello`. After that the connection
         carries server-to-client events, authorized per event, plus a ping and
-        pong keepalive. See the ClientFrame and ServerFrame schemas.
+        pong keepalive. A connection that sends nothing for 90 seconds is
+        closed as dead, so ping at least every 30 seconds (the app pings every
+        20). One that sends more than about 100 frames a second for a few
+        seconds is closed too. See the ClientFrame and ServerFrame schemas.
       responses:
         "101":
           description: Switching protocols.
@@ -13754,7 +13765,8 @@ components:
           type: string
           description: >
             A digest of the artifact, capabilities, hosts, schedules,
-            permission keys and limits shown here. Send it back as
+            permission keys, limits, hooks, extension points, settings and
+            slots shown here. Send it back as
             `reviewed_digest` on install so consent is for this manifest.
     ModuleSettingDef:
       type: object
@@ -18867,8 +18879,9 @@ components:
       description: >
         The canvases this connection has open, replacing its previous report;
         an empty list says none is open. Live cursors, stroke previews, object
-        previews and tile previews are then sent only for the listed channels,
-        and never back to the member who sent them. A connection that has not
+        previews, tile previews and view rectangles are then sent only for the
+        listed channels, and never back to the member who sent them. A summon
+        is a one-off request and is always sent. A connection that has not
         sent this frame receives them for every channel it can view. It is
         never broadcast, and at most 8 ids are honoured.
       properties:

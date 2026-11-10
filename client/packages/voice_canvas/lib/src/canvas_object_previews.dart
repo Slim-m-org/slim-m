@@ -112,6 +112,7 @@ class RemoteObjectPreviews {
       final original = document.objectBounds(objectId);
       if (original == null) return;
       _previews[objectId] = _Preview(original: original, at: now, target: box);
+      document.holdLive(objectId);
       return;
     }
     existing
@@ -130,7 +131,7 @@ class RemoteObjectPreviews {
 
   /// The committed move arrived; the preview has nothing left to say.
   void settle(String objectId, {required DateTime now}) {
-    _previews.remove(objectId);
+    if (_previews.remove(objectId) != null) document.releaseLive(objectId);
     _settledAt[objectId] = now;
   }
 
@@ -148,6 +149,7 @@ class RemoteObjectPreviews {
         if (entry.value.expired(now)) entry.key,
     ];
     for (final id in gone) {
+      document.releaseLive(id);
       _move(_previews.remove(id)!.original, id);
     }
     return gone.isNotEmpty;
@@ -177,6 +179,7 @@ class RemoteObjectPreviews {
       document.moveObject(id, box.x, box.y, box.w, box.h);
 
   void clear() {
+    _previews.keys.forEach(document.releaseLive);
     _previews.clear();
     _settledAt.clear();
   }

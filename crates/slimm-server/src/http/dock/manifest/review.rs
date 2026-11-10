@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 
 use super::Manifest;
 use crate::media::to_hex;
+use crate::store::SettingKind;
 
 #[derive(Serialize)]
 struct Reviewed<'a> {
@@ -26,7 +27,26 @@ struct Reviewed<'a> {
     /// The words everyone in a call is shown, so a swap after review changes the digest.
     #[serde(skip_serializing_if = "Option::is_none")]
     call_audio: Option<(&'a str, &'a str, Option<&'a str>)>,
+    /// Where it stands in front of a message or a permission check, and what it reads there.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    hooks: Vec<(&'a str, &'a str, &'a str, Vec<&'a str>)>,
+    /// The commands and apps it adds: kind, name, command, permission and language.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    extension_points: Vec<ExtensionPoint<'a>>,
+    /// Each setting's key, type and the hosts a secret may be sent to.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    settings: Vec<(&'a str, SettingKind, Vec<&'a str>)>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    slots: Vec<(&'a str, &'a str)>,
 }
+
+type ExtensionPoint<'a> = (
+    &'a str,
+    &'a str,
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<&'a str>,
+);
 
 fn sorted<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
     let mut v: Vec<&str> = items.collect();
@@ -35,8 +55,8 @@ fn sorted<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
 }
 
 impl Manifest {
-    /// Hex sha256 over the artifact, capabilities, hosts, schedules,
-    /// permission keys and limits, each list in sorted order.
+    /// Hex sha256 over the artifact, capabilities, hosts, schedules, permission keys, limits,
+    /// hooks, extension points, settings and slots, each list in sorted order.
     pub(in crate::http) fn review_digest(&self) -> String {
         let mut schedules: Vec<(&str, u32)> = self
             .schedules
@@ -45,6 +65,47 @@ impl Manifest {
             .collect();
         schedules.sort_unstable();
         let limits = &self.runtime.limits;
+        let mut hooks: Vec<_> = self
+            .platform
+            .hooks
+            .iter()
+            .map(|h| {
+                let reads = sorted(h.reads.iter().map(String::as_str));
+                (h.kind.as_str(), h.hook.as_str(), h.phase.as_str(), reads)
+            })
+            .collect();
+        hooks.sort_unstable();
+        let mut extension_points: Vec<ExtensionPoint> = self
+            .extension_points
+            .iter()
+            .map(|e| {
+                (
+                    e.kind.as_str(),
+                    e.name.as_str(),
+                    e.command.as_deref(),
+                    e.permission.as_deref(),
+                    e.language.as_deref(),
+                )
+            })
+            .collect();
+        extension_points.sort_unstable();
+        let mut settings: Vec<_> = self
+            .platform
+            .settings_schema
+            .iter()
+            .map(|d| {
+                let hosts = sorted(d.hosts.iter().map(String::as_str));
+                (d.key.as_str(), d.kind, hosts)
+            })
+            .collect();
+        settings.sort_unstable_by_key(|setting| setting.0);
+        let mut slots: Vec<_> = self
+            .platform
+            .slots
+            .iter()
+            .map(|s| (s.kind.as_str(), s.name.as_str()))
+            .collect();
+        slots.sort_unstable();
         let reviewed = Reviewed {
             id: &self.id,
             version: &self.version,
@@ -64,8 +125,15 @@ impl Manifest {
                     c.permission.as_deref(),
                 )
             }),
+            hooks,
+            extension_points,
+            settings,
+            slots,
         };
         let json = serde_json::to_vec(&reviewed).unwrap_or_default();
         to_hex(&Sha256::digest(json))
     }
 }
+
+#[cfg(test)]
+mod tests;
