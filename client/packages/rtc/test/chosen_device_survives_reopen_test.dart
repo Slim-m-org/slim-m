@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 import 'support/session_fakes.dart';
 
@@ -143,14 +144,6 @@ class _Rig {
   }
 }
 
-Future<void> _until(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting');
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 Future<void> _settle([int ms = 120]) =>
     Future<void>.delayed(Duration(milliseconds: ms));
 
@@ -175,14 +168,14 @@ void main() {
       () async {
     await start();
     rig.mic.end();
-    await _until(() => rig.mic.opened.length >= 2);
+    await pollUntil(() => rig.mic.opened.length >= 2);
     rig.expectAllChosen();
   });
 
   test('the stalled-capture restart uses the chosen microphone', () async {
     await start();
     rig.mic.frozen = true;
-    await _until(() => rig.mic.opened.length >= 2);
+    await pollUntil(() => rig.mic.opened.length >= 2);
     rig.expectAllChosen();
   });
 
@@ -190,7 +183,7 @@ void main() {
       () async {
     await start();
     await rig.session.setMicrophoneEnabled(false);
-    await _until(() => rig.mic.released);
+    await pollUntil(() => rig.mic.released);
     await rig.session.setMicrophoneEnabled(true);
     rig.expectAllChosen();
     expect(rig.mic.opened.length, 2);
@@ -200,7 +193,7 @@ void main() {
       () async {
     await start();
     await rig.session.setMicrophoneEnabled(false);
-    await _until(() => rig.mic.released);
+    await pollUntil(() => rig.mic.released);
     await _settle(20);
     await rig.session.setKeepMicReady(true);
     rig.expectAllChosen();
@@ -235,7 +228,7 @@ void main() {
       AudioDevice(id: 'mic-2', label: 'Desk'),
     ];
     rig.devices.changes.add(null);
-    await _until(() => rig.mic.opened.length >= 3);
+    await pollUntil(() => rig.mic.opened.length >= 3);
     expect(rig.mic.opened.last, 'mic-1');
   });
 
@@ -282,8 +275,8 @@ void main() {
   test('the chosen speaker is applied after every capture reopen', () async {
     await start();
     rig.mic.end();
-    await _until(() => rig.mic.opened.length >= 2);
-    await _until(() => rig.outputs.length >= 2);
+    await pollUntil(() => rig.mic.opened.length >= 2);
+    await pollUntil(() => rig.outputs.length >= 2);
     expect(rig.outputs.toSet(), {'spk-1'});
   });
 }

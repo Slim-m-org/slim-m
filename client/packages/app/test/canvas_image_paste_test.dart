@@ -53,6 +53,7 @@ Future<void> _pumpUntil(WidgetTester tester, bool Function() done) async {
     }
   });
   await tester.pump();
+  expect(done(), isTrue, reason: 'the paste never finished within 30s');
 }
 
 void main() {

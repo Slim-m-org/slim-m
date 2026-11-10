@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 import 'support/session_fakes.dart';
 
@@ -171,14 +172,6 @@ class _Rig {
       );
 }
 
-Future<void> _until(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting');
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 250));
 
@@ -191,8 +184,8 @@ void main() {
     expect(rig.mic.enables, 1);
 
     rig.mic.end();
-    await _until(() => rig.mic.enables == 2);
-    await _until(() => rig.session.micStatus == MicStatus.ok);
+    await pollUntil(() => rig.mic.enables == 2);
+    await pollUntil(() => rig.session.micStatus == MicStatus.ok);
 
     expect(rig.mic.open, isTrue);
     expect(rig.statuses, [MicStatus.reconnecting, MicStatus.ok]);
@@ -224,7 +217,7 @@ void main() {
     rig.mic.enableFailures = 100;
 
     rig.mic.end();
-    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    await pollUntil(() => rig.session.micStatus == MicStatus.unavailable);
     expect(rig.mic.enables, 1);
 
     rig.mic.enableFailures = 0;
@@ -246,7 +239,7 @@ void main() {
     rig.devices.changes
       ..add(null)
       ..add(null);
-    await _until(() => rig.mic.restarts.isNotEmpty);
+    await pollUntil(() => rig.mic.restarts.isNotEmpty);
     await _settle();
 
     expect(rig.mic.restarts, hasLength(1));
@@ -259,8 +252,8 @@ void main() {
     await rig.join();
     expect(rig.mic.open, isFalse);
 
-    await _until(() => rig.mic.open);
-    await _until(() => rig.session.micStatus == MicStatus.ok);
+    await pollUntil(() => rig.mic.open);
+    await pollUntil(() => rig.session.micStatus == MicStatus.ok);
     expect(rig.statuses, [MicStatus.reconnecting, MicStatus.ok]);
   });
 
@@ -271,7 +264,7 @@ void main() {
     rig.mic.enableFailures = 100;
     await rig.join();
 
-    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    await pollUntil(() => rig.session.micStatus == MicStatus.unavailable);
   });
 
   test('a muted join does not try to open the mic', () async {
@@ -296,12 +289,12 @@ void main() {
 
     rig.devices.mics = const [AudioDevice(id: 'desk', label: 'Desk')];
     rig.devices.changes.add(null);
-    await _until(() => rig.mic.restartDevices.isNotEmpty);
+    await pollUntil(() => rig.mic.restartDevices.isNotEmpty);
     expect(rig.mic.restartDevices.last, isNull);
 
     rig.devices.mics = const [headset];
     rig.devices.changes.add(null);
-    await _until(() => rig.mic.restartDevices.length == 2);
+    await pollUntil(() => rig.mic.restartDevices.length == 2);
     expect(rig.mic.restartDevices.last, 'bt');
   });
 
@@ -337,7 +330,7 @@ void main() {
     rig.mic.published = false;
 
     rig.devices.changes.add(null);
-    await _until(() => rig.mic.enables == 2);
+    await pollUntil(() => rig.mic.enables == 2);
   });
 
   test('a mic reading digital silence is left alone and noted once', () async {
@@ -346,7 +339,8 @@ void main() {
     rig.mic.counterReadable = true;
     await rig.join();
 
-    await _until(() => rig.logs.any((l) => l.contains('read digital silence')));
+    await pollUntil(
+        () => rig.logs.any((l) => l.contains('read digital silence')));
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
     expect(rig.mic.restarts, isEmpty);
@@ -364,7 +358,7 @@ void main() {
     final before = rig.gateConfigures;
 
     rig.mic.end();
-    await _until(() => rig.mic.enables == 2 && rig.gateConfigures > before);
+    await pollUntil(() => rig.mic.enables == 2 && rig.gateConfigures > before);
 
     expect(rig.mic.enables, 2);
   });
@@ -454,12 +448,12 @@ void main() {
     await rig.join();
     rig.mic.frozen = true;
 
-    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    await pollUntil(() => rig.session.micStatus == MicStatus.unavailable);
     expect(rig.mic.restarts, hasLength(2));
     expect(rig.session.micFailure, MicFailureReason.stalled);
 
     rig.mic.frozen = false;
-    await _until(() => rig.session.micStatus == MicStatus.ok);
+    await pollUntil(() => rig.session.micStatus == MicStatus.ok);
   });
 
   test('retrying after giving up restores the status and the budget', () async {
@@ -468,7 +462,7 @@ void main() {
     rig.mic.counterReadable = true;
     await rig.join();
     rig.mic.frozen = true;
-    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    await pollUntil(() => rig.session.micStatus == MicStatus.unavailable);
     rig.mic.frozen = false;
 
     expect(await rig.session.resetMicrophone(), isTrue);
@@ -487,7 +481,7 @@ void main() {
     rig.devices.systemDefault = const AudioDevice(id: 'b', label: 'b');
     rig.devices.changes.add(null);
 
-    await _until(() => rig.mic.restarts.length == 1);
+    await pollUntil(() => rig.mic.restarts.length == 1);
   });
 
   test('a speaker change does not reopen a capture on the same default',

@@ -10,6 +10,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 import 'support/no_audio_devices.dart';
 
 import 'support/session_fakes.dart';
@@ -121,14 +122,6 @@ class _Rig {
       );
 }
 
-Future<void> _until(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting');
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 Future<void> _quiet() =>
     Future<void>.delayed(const Duration(milliseconds: 120));
 
@@ -139,7 +132,7 @@ void main() {
     addTearDown(rig.session.dispose);
     rig.session.setStrongNoiseSuppression(true);
     await rig.join();
-    await _until(() => rig.gate.configured.isNotEmpty);
+    await pollUntil(() => rig.gate.configured.isNotEmpty);
     await _quiet();
     final (enabled, options) = rig.mic.enables.single;
     expect(enabled, isTrue);
@@ -157,11 +150,11 @@ void main() {
     addTearDown(rig.session.dispose);
     rig.session.setStrongNoiseSuppression(true, strongest: true);
     await rig.join();
-    await _until(() => rig.gate.configured.isNotEmpty);
+    await pollUntil(() => rig.gate.configured.isNotEmpty);
     expect(rig.gate.configured.last, isTrue);
     expect(rig.gate.strongest.last, isTrue);
     rig.session.setStrongNoiseSuppression(true);
-    await _until(() => rig.gate.strongest.last == false);
+    await pollUntil(() => rig.gate.strongest.last == false);
     expect(rig.gate.configured.last, isTrue, reason: 'Strong stays on');
     expect(rig.mic.restarts, isEmpty);
   });
@@ -188,14 +181,14 @@ void main() {
     addTearDown(rig.session.dispose);
     await rig.join();
     rig.session.setStrongNoiseSuppression(true);
-    await _until(() => rig.gate.configured.contains(true));
-    await _until(() => rig.mic.restarts.isNotEmpty);
+    await pollUntil(() => rig.gate.configured.contains(true));
+    await pollUntil(() => rig.mic.restarts.isNotEmpty);
     expect(rig.mic.restartOptions.single.autoGainControl, isFalse);
     expect(rig.mic.restartOptions.single.noiseSuppression, isTrue,
         reason: "libwebrtc's own suppression stays on");
     await rig.session.setMicrophoneEnabled(false);
     rig.session.setStrongNoiseSuppression(false);
-    await _until(() => rig.gate.configured.last == false);
+    await pollUntil(() => rig.gate.configured.last == false);
     await rig.session.setMicrophoneEnabled(true);
     await _quiet();
     expect(rig.mic.restarts, hasLength(1),

@@ -3,4 +3,5 @@
 library;
 
 export 'src/fake_slimm_server.dart';
+export 'src/poll_until.dart';
 export 'src/test_api.dart';

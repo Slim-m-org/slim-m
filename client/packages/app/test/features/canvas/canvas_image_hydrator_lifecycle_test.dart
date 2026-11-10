@@ -17,17 +17,6 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/synthetic_png.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
-Future<void> _settleUntil(
-  bool Function() ready, {
-  Duration timeout = const Duration(seconds: 10),
-}) async {
-  final deadline = DateTime.now().add(timeout);
-  while (!ready() && DateTime.now().isBefore(deadline)) {
-    await pumpEventQueue();
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 class _Rig {
   _Rig({this.bytes, this.maxDecodedBytes = defaultMaxDecodedImageBytes}) {
     final png = bytes ?? solidPng(8, 8);
@@ -114,14 +103,14 @@ void main() {
     final rig = _Rig();
     addTearDown(rig.dispose);
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
     expect(rig.fetched, hasLength(1));
 
     rig.document
       ..removeObject('a')
       ..forgetRemoved(['a']);
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
 
     expect(rig.fetched, hasLength(1), reason: 'the preview bytes are cached');
     expect(rig.has('a'), isTrue);
@@ -131,11 +120,11 @@ void main() {
     final rig = _Rig();
     addTearDown(rig.dispose);
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
 
     rig.document.reset();
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
 
     expect(rig.has('a'), isTrue, reason: 'bitmap after hard reset');
   });
@@ -155,7 +144,7 @@ void main() {
       ..removeObject('a')
       ..forgetRemoved(['a']);
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
 
     expect(rig.has('a'), isTrue);
   });
@@ -165,13 +154,13 @@ void main() {
     final rig = _Rig(maxDecodedBytes: 512);
     addTearDown(rig.dispose);
     rig.arrive('off', x: 5000, y: 5000);
-    await _settleUntil(() => rig.has('off'));
+    await pollUntil(() => rig.has('off'));
     rig.arrive('b', x: 30);
-    await _settleUntil(() => rig.has('b'));
+    await pollUntil(() => rig.has('b'));
 
     rig.document.removeObject('b');
     rig.arrive('c', x: 60);
-    await _settleUntil(() => rig.has('c'));
+    await pollUntil(() => rig.has('c'));
 
     expect(
       rig.has('off'),
@@ -185,7 +174,7 @@ void main() {
     final rig = _Rig(bytes: solidPng(4032, 3024));
     addTearDown(rig.dispose);
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
 
     final image = rig.document.strokeIfAlive(rig.document.slotOf('a')!)!.image!;
     expect(
@@ -199,9 +188,9 @@ void main() {
     final rig = _Rig(bytes: solidPng(4032, 3024));
     addTearDown(rig.dispose);
     rig.arrive('a', x: 0);
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
     rig.arrive('b', x: 30);
-    await _settleUntil(() => rig.has('b'));
+    await pollUntil(() => rig.has('b'));
     rig.hydrator
       ..hydrate(rig.wire('a', x: 0))
       ..hydrate(rig.wire('b', x: 30));
@@ -216,11 +205,11 @@ void main() {
     final rig = _Rig(maxDecodedBytes: 512);
     addTearDown(rig.dispose);
     rig.arrive('a', x: 0);
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
     rig.arrive('far', x: 5000, y: 5000);
-    await _settleUntil(() => rig.has('far'));
+    await pollUntil(() => rig.has('far'));
     rig.arrive('b', x: 30);
-    await _settleUntil(() => rig.has('b'));
+    await pollUntil(() => rig.has('b'));
 
     expect(rig.has('a'), isTrue);
     expect(rig.has('b'), isTrue);
@@ -232,7 +221,7 @@ void main() {
     addTearDown(rig.dispose);
     for (final (i, id) in ['a', 'b', 'c'].indexed) {
       rig.arrive(id, x: i * 30.0);
-      await _settleUntil(() => rig.has(id));
+      await pollUntil(() => rig.has(id));
     }
 
     expect([rig.has('a'), rig.has('b'), rig.has('c')], everyElement(isTrue));
@@ -245,16 +234,16 @@ void main() {
       final rig = _Rig(maxDecodedBytes: 256);
       addTearDown(rig.dispose);
       rig.arrive('far', x: 5000, y: 5000);
-      await _settleUntil(() => rig.has('far'));
+      await pollUntil(() => rig.has('far'));
       rig.arrive('a', x: 0);
-      await _settleUntil(() => rig.has('a'));
+      await pollUntil(() => rig.has('a'));
       expect(rig.has('far'), isFalse);
 
       rig.document
         ..setCamera(const Camera(x: 4900, y: 4900, zoom: 1))
         ..refresh();
       rig.hydrator.hydrateVisible();
-      await _settleUntil(() => rig.has('far'));
+      await pollUntil(() => rig.has('far'));
 
       expect(rig.has('far'), isTrue);
       expect(rig.fetched.where((id) => id == 'att-far'), hasLength(1));
@@ -266,7 +255,7 @@ void main() {
     final rig = _Rig();
     addTearDown(rig.dispose);
     rig.arrive('a');
-    await _settleUntil(() => rig.has('a'));
+    await pollUntil(() => rig.has('a'));
 
     rig.hydrator.hydrateVisible();
     await pumpEventQueue();
@@ -291,7 +280,7 @@ void main() {
         ..moveObject('off', 100, 100, 20, 20)
         ..refresh();
       rig.hydrator.hydrateVisible();
-      await _settleUntil(() => rig.has('off'));
+      await pollUntil(() => rig.has('off'));
 
       expect(rig.has('off'), isTrue);
       expect(rig.fetched, ['att-off']);

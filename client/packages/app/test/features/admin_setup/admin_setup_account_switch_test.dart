@@ -13,6 +13,7 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import 'admin_setup_harness.dart' show SetupFacts;
 
@@ -30,12 +31,11 @@ Future<void> _settle() async {
 }
 
 /// The offer waits on the welcome check and the server, which take real time.
-Future<void> _untilShowing(bool Function() showing) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!showing() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-}
+Future<void> _untilShowing(bool Function() showing) => pollUntil(
+  showing,
+  timeout: const Duration(seconds: 5),
+  reason: 'the setup offer never showed',
+);
 
 void main() {
   late ProviderContainer container;

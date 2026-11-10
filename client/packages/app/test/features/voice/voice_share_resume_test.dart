@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_share_resume.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import 'voice_controller_harness.dart';
 
@@ -57,14 +58,11 @@ class _Session extends FakeSession {
 const _neverRejoins = Duration(hours: 1);
 
 /// Polls the real condition rather than guessing how long a loaded box needs.
-Future<void> until(bool Function() done, {String? reason}) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 30));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) {
-      fail(reason ?? 'condition never held');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
+Future<void> until(
+  bool Function() done, {
+  String reason = 'condition never held',
+}) async {
+  await pollUntil(done, timeout: const Duration(seconds: 30), reason: reason);
   await pumpEventQueue(times: 100);
 }
 

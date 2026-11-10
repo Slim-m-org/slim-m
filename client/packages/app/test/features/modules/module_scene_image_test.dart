@@ -19,6 +19,7 @@ import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_images.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_painter.dart';
 import 'package:flutter/material.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// A real 2x2 opaque-red PNG, 74 bytes.
 const _png =
@@ -160,11 +161,11 @@ void main() {
       await tester.runAsync(() async {
         cache.snapshot(scene);
         // Poll rather than sleep a guessed interval: a decode is real work.
-        final deadline = DateTime.now().add(const Duration(seconds: 5));
-        while (DateTime.now().isBefore(deadline) &&
-            cache.snapshot(scene).isEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        await pollUntil(
+          () => cache.snapshot(scene).isNotEmpty,
+          timeout: const Duration(seconds: 5),
+          reason: 'the png never decoded',
+        );
       });
 
       final ready = cache.snapshot(scene);
@@ -187,10 +188,11 @@ void main() {
 
       await tester.runAsync(() async {
         cache.snapshot(scene);
-        final deadline = DateTime.now().add(const Duration(seconds: 5));
-        while (DateTime.now().isBefore(deadline) && !cache.hasFailed(op.key)) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        await pollUntil(
+          () => cache.hasFailed(op.key),
+          timeout: const Duration(seconds: 5),
+          reason: 'the broken payload was never marked failed',
+        );
       });
 
       expect(
@@ -212,11 +214,11 @@ void main() {
 
       await tester.runAsync(() async {
         cache.snapshot(scene);
-        final deadline = DateTime.now().add(const Duration(seconds: 5));
-        while (DateTime.now().isBefore(deadline) &&
-            cache.snapshot(scene).isEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        await pollUntil(
+          () => cache.snapshot(scene).isNotEmpty,
+          timeout: const Duration(seconds: 5),
+          reason: 'the image was never decoded and kept',
+        );
       });
 
       expect(

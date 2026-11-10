@@ -15,6 +15,8 @@ The part that needs Riverpod and the app's providers stays in `client/packages/a
 - `testApi(handler)` builds a `SlimmApi` on an `http` `MockClient` handler with signed-in credentials, for tests that want to stub one route by hand.
 - `fakeTokens`, `fakeSession()` and `fakeBaseUrl` are the canned credentials and address.
 - `jsonHttpResponse(body, [status])` is a JSON `http.Response`.
+- `pollUntil(condition)` waits in real time for the thing itself and throws a `TimeoutException` with a reason if it never happens.
+  Reach for it instead of a guessed `Future.delayed`, or a hand-rolled deadline loop that gives up silently.
 
 ## In the app package
 
