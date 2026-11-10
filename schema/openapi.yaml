@@ -10440,7 +10440,9 @@ paths:
         grant of them - nothing dangles. A scheduled module's own principal
         is removed too, with its overwrite in the channel it posted to; its
         earlier messages stay, still marked as the module's. The module's
-        data file (decision 0091) is kept unless delete_data is true.
+        data file (decision 0091) is kept unless delete_data is true. If
+        deleting the data fails, the module is already uninstalled, so a repeat
+        call with delete_data removes what is left and answers 204.
       parameters:
         - name: delete_data
           in: query
