@@ -64,8 +64,11 @@ enum CallKitCallEvent: Equatable {
 /// be tested: the delegate below is a few lines of glue, and everything worth
 /// asserting on happens here against an injected `CallReporting`.
 final class VoipCallHandler {
+  /// Arms a ring timer to fire after a delay.
+  typealias Schedule = (TimeInterval, DispatchWorkItem) -> Void
+
   private let provider: CallReporting
-  private let ringWindow: TimeInterval
+  private let schedule: Schedule
   private var ringTimers: [UUID: DispatchWorkItem] = [:]
   private let ringTimersLock = NSLock()
 
@@ -75,9 +78,15 @@ final class VoipCallHandler {
   /// Matches the server's ring timeout, past which the ring is over.
   static let ringTimeout: TimeInterval = 30
 
-  init(provider: CallReporting, ringTimeout: TimeInterval = VoipCallHandler.ringTimeout) {
+  /// Tests pass their own `schedule`: the hosted app can hold the main queue for longer than a ring window.
+  init(
+    provider: CallReporting,
+    schedule: @escaping Schedule = { delay, timer in
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: timer)
+    }
+  ) {
     self.provider = provider
-    self.ringWindow = ringTimeout
+    self.schedule = schedule
   }
 
   /// A call the user picked up must outlive the unanswered-ring timeout below.
@@ -107,7 +116,7 @@ final class VoipCallHandler {
       self.onEvent?(.ended(id))
     }
     replaceRingTimer(id, with: timer)?.cancel()
-    DispatchQueue.main.asyncAfter(deadline: .now() + ringWindow, execute: timer)
+    schedule(VoipCallHandler.ringTimeout, timer)
   }
 
   /// A call that already ended must not report a second end that could hit a newer ring.
