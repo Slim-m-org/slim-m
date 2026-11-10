@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Staged emoji and typed names are not lost to an accidental dismiss: Escape,
 /// a click outside, the system back and a phone's drag down each ask first,
-/// and only a deliberate Discard closes the dialog.
+/// and only a deliberate Discard closes the dialog. Mid-upload nothing is
+/// discarded, so it says the upload carries on instead.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +16,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/emoji_add_dialog.d
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'emoji_add_harness.dart' show emojiPick;
+import 'emoji_add_harness.dart';
 
 const _desktop = Size(1280, 800);
 const _phone = Size(390, 844);
@@ -24,18 +27,19 @@ Future<void> _frames(WidgetTester tester) async {
   }
 }
 
-Future<void> _open(
+Future<ProviderContainer> _open(
   WidgetTester tester,
   Size size, {
   required bool staged,
+  List<Override>? overrides,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
-    overrides: [
-      customEmojiProvider.overrideWith((ref) async => <api.CustomEmoji>[]),
-    ],
+    overrides:
+        overrides ??
+        [customEmojiProvider.overrideWith((ref) async => <api.CustomEmoji>[])],
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -61,6 +65,7 @@ Future<void> _open(
   );
   await tester.tap(find.text('open'));
   await _frames(tester);
+  return container;
 }
 
 Finder get _asked => find.text('Discard these emoji?');
@@ -145,6 +150,47 @@ void main() {
       expect(_stillOpen, findsNothing);
       expect(_asked, findsNothing);
     });
+
+    testWidgets(
+      'closing mid-upload says it carries on, and it does at $width',
+      (tester) async {
+        final gate = Completer<void>();
+        final h = EmojiHarness(
+          onBulk: (r) => emojiJson([
+            for (final n in bulkNames(r)) emojiRow(n),
+          ], status: 201),
+        );
+        h.holdBulk = (_) => gate.future;
+        final container = await _open(
+          tester,
+          size,
+          staged: true,
+          overrides: h.overrides,
+        );
+        final sub = container.listen(customEmojiProvider, (_, _) {});
+        addTearDown(sub.close);
+        await tester.tap(find.text('Create 2 emoji'));
+        await _frames(tester);
+        expect(h.bulks, hasLength(1), reason: 'the upload is in flight');
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await _frames(tester);
+        expect(_asked, findsNothing, reason: 'nothing is discarded');
+        expect(find.text('Close before it finishes?'), findsOneWidget);
+
+        await tester.tap(find.widgetWithText(AppButton, 'Close'));
+        await _frames(tester);
+        expect(_stillOpen, findsNothing);
+        final fetches = h.listFetches;
+        gate.complete();
+        await _frames(tester);
+        expect(
+          h.listFetches,
+          greaterThan(fetches),
+          reason: 'it finished anyway',
+        );
+      },
+    );
 
     testWidgets('with nothing staged Escape closes at once at $width', (
       tester,

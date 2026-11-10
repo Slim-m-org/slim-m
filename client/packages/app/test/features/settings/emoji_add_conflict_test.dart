@@ -94,6 +94,40 @@ void main() {
     expect(find.textContaining('Added 3 of 3'), findsOneWidget);
   });
 
+  testWidgets(
+    'a refused chunk leaves its unsent images counted, so the summary '
+    'is not a full success',
+    (tester) async {
+      var calls = 0;
+      final h = EmojiHarness(
+        picks: [for (var i = 0; i < 120; i++) emojiPick('pic$i.png')],
+        onBulk: (r) {
+          if (++calls == 2) return _taken('pic57', 7);
+          return emojiJson([
+            for (final n in bulkNames(r)) emojiRow(n),
+          ], status: 201);
+        },
+      );
+      await h.pump(tester);
+      await h.choose(tester);
+
+      await tester.tap(find.text('Create 120 emoji'));
+      await _settle(tester);
+
+      expect(calls, 3, reason: 'the chunks around the refused one still land');
+      const summary = 'Added 70 of 120 images.';
+      expect(find.text(summary), findsOneWidget);
+      expect(
+        tester
+            .widget<AppCallout>(find.widgetWithText(AppCallout, summary))
+            .tone,
+        AppCalloutTone.warn,
+      );
+      expect(find.text('Create 50 emoji'), findsOneWidget);
+      expect(find.text('1 name needs fixing.'), findsOneWidget);
+    },
+  );
+
   testWidgets('the list is refreshed when every chunk failed, so a taken name '
       'shows on its row', (tester) async {
     final h = EmojiHarness(

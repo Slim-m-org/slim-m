@@ -99,42 +99,46 @@ class EmojiHarness {
   Iterable<http.Request> get bulks =>
       requests.where((r) => r.url.path == '/emoji/bulk');
 
+  /// The provider overrides the dialog runs under, for a test that opens it itself.
+  List<Override> get overrides => [
+    customEmojiProvider.overrideWith((ref) async {
+      listFetches++;
+      await catalogGate;
+      return [...existing, ...added];
+    }),
+    emojiFilesPickerProvider.overrideWithValue(() async {
+      if (pickerThrows) throw StateError('no portal');
+      return picks;
+    }),
+    apiProvider.overrideWith((ref) {
+      final client = testApi((request) async {
+        requests.add(request);
+        if (request.url.path == '/emoji/bulk') {
+          await holdBulk?.call(request);
+          return onBulk!(request);
+        }
+        if (request.method == 'POST' && request.url.path == '/emoji') {
+          return onSingle!(request);
+        }
+        return emojiJson(const {});
+      }, session: api.SessionStore(tokens: emojiTestTokens));
+      ref.onDispose(client.close);
+      return client;
+    }),
+  ];
+
   Future<ProviderContainer> pump(
     WidgetTester tester, {
     Size? size,
+    double textScale = 1,
     List<EmojiPick> initial = const [],
   }) async {
     tester.view.physicalSize = size ?? const Size(1280, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final container = ProviderContainer(
-      overrides: [
-        customEmojiProvider.overrideWith((ref) async {
-          listFetches++;
-          await catalogGate;
-          return [...existing, ...added];
-        }),
-        emojiFilesPickerProvider.overrideWithValue(() async {
-          if (pickerThrows) throw StateError('no portal');
-          return picks;
-        }),
-        apiProvider.overrideWith((ref) {
-          final client = testApi((request) async {
-            requests.add(request);
-            if (request.url.path == '/emoji/bulk') {
-              await holdBulk?.call(request);
-              return onBulk!(request);
-            }
-            if (request.method == 'POST' && request.url.path == '/emoji') {
-              return onSingle!(request);
-            }
-            return emojiJson(const {});
-          }, session: api.SessionStore(tokens: emojiTestTokens));
-          ref.onDispose(client.close);
-          return client;
-        }),
-      ],
-    );
+    tester.platformDispatcher.textScaleFactorTestValue = textScale;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final container = ProviderContainer(overrides: overrides);
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(
