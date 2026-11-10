@@ -14,6 +14,7 @@ use super::envelope::SealedMessage;
 /// Bounded so one slow relay round trip cannot hang the delivery task
 /// indefinitely. The message this notifies about is already committed and its
 /// HTTP response already sent, so nothing but this background task is waiting.
+/// The relay's own send deadline (8 seconds by default) must end before this does.
 pub(super) const RELAY_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Messages per request. The relay refuses more than 500 or a body over 1 MiB, and a sealed
@@ -49,7 +50,7 @@ pub(super) struct RelayResult {
 }
 
 /// The relay's own per-token status vocabulary (slim-m-relay's
-/// `internal/push.Status`), pinned here as the same five literal wire
+/// `internal/push.Status`), pinned here as the same seven literal wire
 /// strings the cross-repo contract test pins on the Go side (see
 /// `push_relay_contract_test.go`'s `contractCases`). `RelayResult::status`
 /// above stays a bare `String` because the wire body carries no guarantee it
@@ -63,6 +64,11 @@ pub(super) enum RelayStatus {
     Delivered,
     Unregistered,
     Forbidden,
+    /// Refused for good: resending the same message cannot succeed.
+    Rejected,
+    /// Not delivered now; a later attempt may succeed.
+    Retry,
+    /// Only a relay that predates `Rejected` and `Retry` sends this, so it may not know the kind.
     Error,
     NotAttempted,
 }
@@ -79,6 +85,8 @@ impl RelayResult {
             "delivered" => Some(RelayStatus::Delivered),
             "unregistered" => Some(RelayStatus::Unregistered),
             "forbidden" => Some(RelayStatus::Forbidden),
+            "rejected" => Some(RelayStatus::Rejected),
+            "retry" => Some(RelayStatus::Retry),
             "error" => Some(RelayStatus::Error),
             "not_attempted" => Some(RelayStatus::NotAttempted),
             _ => None,
@@ -166,6 +174,8 @@ mod tests {
             ("delivered", Some(RelayStatus::Delivered)),
             ("unregistered", Some(RelayStatus::Unregistered)),
             ("forbidden", Some(RelayStatus::Forbidden)),
+            ("rejected", Some(RelayStatus::Rejected)),
+            ("retry", Some(RelayStatus::Retry)),
             ("error", Some(RelayStatus::Error)),
             ("not_attempted", Some(RelayStatus::NotAttempted)),
             ("bogus", None),
@@ -179,5 +189,12 @@ mod tests {
             };
             assert_eq!(result.parsed_status(), want, "status {wire:?}");
         }
+    }
+
+    /// Pins slim-m-relay's `config.DefaultSendTimeoutSeconds`, which that repo pins too.
+    #[test]
+    fn the_timeout_outlasts_the_relays_default_send_deadline() {
+        const RELAY_DEFAULT_SEND_DEADLINE: Duration = Duration::from_secs(8);
+        assert!(RELAY_TIMEOUT > RELAY_DEFAULT_SEND_DEADLINE);
     }
 }
