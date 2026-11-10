@@ -37,17 +37,7 @@ impl LivekitWatch {
 
 /// Free bytes on the filesystem holding `path`, or `None` when it cannot be read.
 pub fn free_bytes(path: &std::path::Path) -> Option<u64> {
-    use std::os::unix::ffi::OsStrExt;
-    let c_path = std::ffi::CString::new(path.as_os_str().as_bytes()).ok()?;
-    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    // SAFETY: c_path is NUL-terminated and stat is a valid out-pointer for one statvfs.
-    let rc = unsafe { libc::statvfs(c_path.as_ptr(), stat.as_mut_ptr()) };
-    if rc != 0 {
-        return None;
-    }
-    // SAFETY: statvfs returned 0, so it filled the struct.
-    let stat = unsafe { stat.assume_init() };
-    Some(stat.f_bavail.saturating_mul(stat.f_frsize))
+    crate::capacity::host::disk_bytes(path).map(|(free, _)| free)
 }
 
 /// The problem when `free` is under the threshold. A threshold of 0 turns the check off.
