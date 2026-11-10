@@ -78,7 +78,9 @@ The list holds 220 files (api, app, design_system, platform, rtc, voice_canvas),
 A file is opt-in: run `flutter test --platform chrome <file>` first and add it only if it passes.
 A logic test kept off the list on purpose goes in `client/chrome-tests-vm-only.txt` with its reason, tab separated: the twelve there need drift's native database, `dart:io`, or desktop-only code (`isDesktopHost` is false on the web), and `scripts/lib/test_chrome_test_lists.py` checks both lists name real files and never the same one.
 `canvas_convergence_property_test` runs 10 random seeds as JavaScript instead of the VM's 40, since it was only ever too slow for the 30 second default there, never wrong.
-Locally the whole list takes about nine minutes, but a CI runner took 20.6 minutes at the median (p90 21.1, max 21.8 over 38 runs), so the job runs as two legs (`logic tests under dart2js (chrome 1)` and `(chrome 2)`) and `CHROME_SHARD` hands each `flutter test --total-shards=2` its half of every package's files; each leg is about half of that plus setup.
+Locally the whole list takes about nine minutes, but a CI runner took 20.6 minutes at the median (p90 21.1, max 21.8 over 38 runs), so the job runs as two legs (`logic tests under dart2js (chrome 1)` and `(chrome 2)`).
+Until 2026-11-10 each leg passed `flutter test --total-shards=2`, which splits the tests but still compiles every file in every leg: both legs ran tests from all 222 listed files, took 15 to 24 minutes each against the 25 minute limit, and twice hit it.
+Now `CHROME_LEG=<n>/2` deals the list's files alternately between the legs, so each compiles only its own half, and `scripts/lib/test_chrome_tests_legs.py` checks the legs together run every file exactly once.
 The job has no `needs`, so it runs beside the test shards.
 It is not in `verify-client-ci`'s `required_checks`.
 

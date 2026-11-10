@@ -230,8 +230,16 @@ jobs:
             -scheme Runner \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:RunnerTests \
+            -resultBundlePath "$RUNNER_TEMP/RunnerTests.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty || exit "${PIPESTATUS[0]}"
+
+      # xcpretty drops Xcode 26's test lines, so a failing test showed its name and never its message.
+      - name: print the failing tests' messages
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/RunnerTests.xcresult" \
+            | jq -r '.testFailures[]? | "::error::\(.targetName // "") \(.testName): \(.failureText)"' || true
 
       # PR #292's actual failure: a link error only `build ipa` (Release,
       # device) hit, never the Debug simulator build above. This is that
