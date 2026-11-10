@@ -32,24 +32,21 @@ class _FakeOrientation extends OrientationChannel {
   }
 }
 
-class _Voice extends VoiceController {
-  _Voice(super.ref) : super(session: FakeSession()) {
-    state = const VoiceState(
-      channelId: 'c1',
-      state: VoiceSessionState.connected,
-      participants: [
-        VoiceParticipant(
-          identity: 'user-ada',
-          name: 'Ada',
-          isSpeaking: false,
-          isMuted: false,
-          isLocal: false,
-          isScreenSharing: true,
-        ),
-      ],
-    );
-  }
-}
+/// The call every capture here is taken in.
+const _call = VoiceState(
+  channelId: 'c1',
+  state: VoiceSessionState.connected,
+  participants: [
+    VoiceParticipant(
+      identity: 'user-ada',
+      name: 'Ada',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: false,
+      isScreenSharing: true,
+    ),
+  ],
+);
 
 Size _paneSize(WidgetTester tester) =>
     MediaQuery.sizeOf(tester.element(find.byType(CanvasPaneBody)));
@@ -64,7 +61,9 @@ Future<ProviderContainer> _pump(
   final fixture = CanvasPaneFixture();
   final container = fixture.container(
     extraOverrides: [
-      voiceControllerProvider.overrideWith(_Voice.new),
+      voiceControllerProvider.overrideWith(
+        (ref) => FixedVoiceController(ref, _call),
+      ),
       orientationChannelProvider.overrideWithValue(orientation),
     ],
   );

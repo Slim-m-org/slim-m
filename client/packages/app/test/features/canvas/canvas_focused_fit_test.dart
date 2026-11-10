@@ -15,25 +15,22 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../voice/voice_controller_harness.dart';
 import 'canvas_pane_harness.dart';
 
-class _Voice extends VoiceController {
-  _Voice(super.ref) : super(session: FakeSession()) {
-    state = const VoiceState(
-      channelId: 'c1',
-      state: VoiceSessionState.connected,
-      participants: [
-        VoiceParticipant(
-          identity: 'user-ada',
-          name: 'Ada',
-          isSpeaking: false,
-          isMuted: false,
-          isLocal: false,
-          isScreenSharing: true,
-          isCameraOn: false,
-        ),
-      ],
-    );
-  }
-}
+/// The call every capture here is taken in.
+const _call = VoiceState(
+  channelId: 'c1',
+  state: VoiceSessionState.connected,
+  participants: [
+    VoiceParticipant(
+      identity: 'user-ada',
+      name: 'Ada',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: false,
+      isScreenSharing: true,
+      isCameraOn: false,
+    ),
+  ],
+);
 
 const _tileKey = 'screen:user-ada';
 const _video = ValueKey('video:$_tileKey');
@@ -44,7 +41,11 @@ Future<({ProviderContainer container, CanvasPaneFixture fixture})> _pump(
 }) async {
   final fixture = CanvasPaneFixture();
   final container = fixture.container(
-    extraOverrides: [voiceControllerProvider.overrideWith((r) => _Voice(r))],
+    extraOverrides: [
+      voiceControllerProvider.overrideWith(
+        (ref) => FixedVoiceController(ref, _call),
+      ),
+    ],
   );
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);

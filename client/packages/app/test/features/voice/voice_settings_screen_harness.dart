@@ -24,7 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../support/video_quality_recorder.dart';
+import '../../support/dead_voice_session.dart';
 
 const tokens = TokenPair(
   userId: 'user-1',
@@ -52,14 +52,13 @@ http.Client voiceTokenClient() => MockClient((request) async {
   );
 });
 
-/// The minimum [VoiceSession] surface the controller needs, driven by hand.
-/// Implemented rather than subclassed so a new member on the real session is
-/// a compile error here, matching `voice_controller_test.dart`'s own fake.
-class FakeSession with VideoQualityRecorder implements VoiceSession {
+/// A [VoiceSession] for the settings screens: audio device lists and the input
+/// gate, driven by hand over the inert defaults of [DeadVoiceSession].
+class FakeSettingsSession extends DeadVoiceSession {
   /// Every value the controller passed to [setLevelDisplayed].
   final levelDisplayedCalls = <bool>[];
 
-  FakeSession({
+  FakeSettingsSession({
     this.supportsScreenShareAudio = true,
     this.supportsAudioInputSelection = true,
     this.supportsAudioOutputSelection = true,
@@ -70,24 +69,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   @override
   bool get supportsParticipantVolume => true;
-
-  @override
-  double screenVolumeFor(String identity) => 1.0;
-
-  @override
-  Future<void> setScreenVolumeFor(String identity, double volume) async {}
-
-  @override
-  bool isScreenAudioMuted(String identity) => false;
-
-  @override
-  Future<void> setScreenAudioMuted(String identity, bool muted) async {}
-
-  @override
-  bool hasScreenAudio(String identity) => false;
-
-  @override
-  Object? volumeFailureFor(String identity, {bool screen = false}) => null;
 
   @override
   final bool supportsScreenShareAudio;
@@ -153,40 +134,16 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   VoiceSessionState _state = VoiceSessionState.idle;
 
   @override
-  bool deafened = false;
-
-  @override
   VoiceSessionState get state => _state;
 
   @override
   Stream<VoiceSessionState> get states => _states.stream;
 
   @override
-  List<VoiceParticipant> get participants => const [];
-
-  @override
   Stream<List<VoiceParticipant>> get participantChanges => _participants.stream;
 
   @override
-  Object? get lastError => null;
-
-  @override
-  VoiceDisconnect? get lastDisconnect => null;
-
-  @override
-  bool get screenShareNeedsSource => false;
-
-  @override
   bool get screenShareSourcePickerUseful => true;
-
-  @override
-  Stream<String> get screenShareSourceLost => const Stream.empty();
-
-  @override
-  VoidCallback holdEnlargedVideo(String tileKey) => () {};
-
-  @override
-  Future<List<ScreenShareSource>> screenShareSources() async => const [];
 
   final Set<String> _locallyMuted = {};
 
@@ -205,11 +162,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Widget cameraViewFor(String identity) =>
       SizedBox.shrink(key: Key('fake-camera-view-$identity'));
-  @override
-  void setVideoInterest(Set<String>? tileKeys) {}
-
-  @override
-  void setVideoBlocked(Set<String> tileKeys) {}
 
   /// The last sensitivity this session was handed, so a test can assert it
   /// reached the session rather than only the controller's own copy.
@@ -233,9 +185,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   bool autoInputThreshold = false;
   double currentInputThresholdDb = -50;
 
-  @override
-  Stream<double> get autoInputThresholds => const Stream.empty();
-
   final localLevelController = StreamController<double>.broadcast();
 
   @override
@@ -253,21 +202,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   void setSpeakingSensitivity(double sensitivity) =>
       lastSpeakingSensitivity = sensitivity;
-
-  @override
-  bool get canFlipCamera => false;
-
-  @override
-  bool get cameraNeedsSelection => false;
-
-  @override
-  Future<List<CameraDevice>> cameraDevices() async => const [];
-
-  @override
-  Future<bool> flipCamera() async => false;
-
-  @override
-  Future<bool> selectCameraDevice(CameraDevice device) async => false;
 
   /// What the controller actually passed through, so a test can assert the
   /// camera-on-join preference reached the join call rather than only the
@@ -294,12 +228,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   }
 
   @override
-  Future<bool> setMicrophoneEnabled(bool enabled) async => true;
-
-  @override
-  Future<bool> setCameraEnabled(bool enabled) async => true;
-
-  @override
   Future<ScreenShareOutcome> setScreenShareEnabled(
     bool enabled, {
     ScreenShareQuality quality = ScreenShareQuality.standard,
@@ -310,9 +238,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     screenShareAudioCalls.add(includeAudio);
     return enabled ? ScreenShareOutcome.started : ScreenShareOutcome.stopped;
   }
-
-  @override
-  Future<bool> setDeafened(bool value) async => true;
 
   @override
   Future<void> dispose() async {
@@ -326,11 +251,11 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   void emitParticipants(List<VoiceParticipant> p) => _participants.add(p);
 }
 
-/// A controller over a gateless [FakeSession], so the pane renders the same
+/// A controller over a gateless [FakeSettingsSession], so the pane renders the same
 /// on every test host rather than following that host's own gate support.
 List<Override> ungatedSession() => [
   voiceControllerProvider.overrideWith(
-    (ref) => VoiceController(ref, session: FakeSession()),
+    (ref) => VoiceController(ref, session: FakeSettingsSession()),
   ),
 ];
 

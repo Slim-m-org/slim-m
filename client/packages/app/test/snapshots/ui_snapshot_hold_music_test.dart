@@ -18,7 +18,8 @@ import 'package:slimm_platform/testing.dart';
 
 import '../support/fake_mic_preview.dart' show quietMicPreview;
 import '../ui_snapshot_support.dart';
-import '../features/voice/voice_settings_screen_harness.dart' show FakeSession;
+import '../features/voice/voice_settings_screen_harness.dart'
+    show FakeSettingsSession;
 
 void main() {
   setUpAll(loadRealFonts);
@@ -36,7 +37,7 @@ void main() {
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
             quietMicPreview,
             voiceControllerProvider.overrideWith(
-              (ref) => VoiceController(ref, session: FakeSession()),
+              (ref) => VoiceController(ref, session: FakeSettingsSession()),
             ),
           ],
         )..read(preferencesProvider);

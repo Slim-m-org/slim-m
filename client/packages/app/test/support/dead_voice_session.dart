@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A [VoiceSession] that connects to nothing, for tests that drive
 /// [VoiceController] state directly.
+///
+/// The one `implements VoiceSession` in the test tree: every other fake
+/// extends it and scripts only what differs, so a new member on the real
+/// session is a compile error here and nowhere else.
 library;
 
 import 'package:flutter/widgets.dart';

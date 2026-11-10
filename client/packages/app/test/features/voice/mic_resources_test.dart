@@ -43,10 +43,10 @@ class _Source extends FakeMicSource {
 }
 
 class _Rig {
-  _Rig() : source = _Source(), session = FakeSession();
+  _Rig() : source = _Source(), session = FakeSettingsSession();
 
   final _Source source;
-  final FakeSession session;
+  final FakeSettingsSession session;
   final shown = ValueNotifier(true);
   final covered = ValueNotifier(false);
 

@@ -27,7 +27,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../support/video_quality_recorder.dart';
+import '../../support/dead_voice_session.dart';
 
 /// Mirrors `voice_settings_controller.dart`'s own private key: that file's
 /// `VoiceSettingsController` is the real one under test here too, loaded from
@@ -37,7 +37,7 @@ const qualityKey = 'slimm.voice.screen_share_quality';
 
 /// The controls take their [VoiceState] as a parameter, so the session behind
 /// the controller never has to reach any of these states itself.
-class InertSession with VideoQualityRecorder implements VoiceSession {
+class InertSession extends DeadVoiceSession {
   InertSession({
     bool needsSource = false,
     Future<List<ScreenShareSource>>? sources,
@@ -90,24 +90,6 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   @override
   bool get supportsParticipantVolume => true;
 
-  @override
-  double screenVolumeFor(String identity) => 1.0;
-
-  @override
-  Future<void> setScreenVolumeFor(String identity, double volume) async {}
-
-  @override
-  bool isScreenAudioMuted(String identity) => false;
-
-  @override
-  Future<void> setScreenAudioMuted(String identity, bool muted) async {}
-
-  @override
-  bool hasScreenAudio(String identity) => false;
-
-  @override
-  Object? volumeFailureFor(String identity, {bool screen = false}) => null;
-
   final Map<String, double> _volumes = {};
 
   @override
@@ -122,34 +104,16 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   final _participants = StreamController<List<VoiceParticipant>>.broadcast();
 
   @override
-  bool deafened = false;
-
-  @override
   VoiceSessionState get state => VoiceSessionState.connected;
 
   @override
   Stream<VoiceSessionState> get states => _states.stream;
 
   @override
-  List<VoiceParticipant> get participants => const [];
-
-  @override
   Stream<List<VoiceParticipant>> get participantChanges => _participants.stream;
 
   @override
-  Object? get lastError => null;
-
-  @override
-  VoiceDisconnect? get lastDisconnect => null;
-
-  @override
   bool get screenShareNeedsSource => _needsSource;
-
-  @override
-  Stream<String> get screenShareSourceLost => const Stream.empty();
-
-  @override
-  VoidCallback holdEnlargedVideo(String tileKey) => () {};
 
   @override
   Future<List<ScreenShareSource>> screenShareSources() {
@@ -174,11 +138,6 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   @override
   Widget cameraViewFor(String identity) =>
       SizedBox.shrink(key: Key('fake-camera-view-$identity'));
-  @override
-  void setVideoInterest(Set<String>? tileKeys) {}
-
-  @override
-  void setVideoBlocked(Set<String> tileKeys) {}
 
   @override
   final bool supportsInputGate;
@@ -188,27 +147,6 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
 
   @override
   Stream<InputGateReading> get inputGateReadings => gateReadings.stream;
-
-  @override
-  void setInputGate({required bool enabled, required double thresholdDb}) {}
-
-  @override
-  Stream<double> get autoInputThresholds => const Stream.empty();
-
-  @override
-  Stream<double> get localAudioLevels => const Stream.empty();
-
-  @override
-  double get inputThresholdDb => -50;
-
-  @override
-  void setLevelDisplayed(bool displayed) {}
-
-  @override
-  void setAutoInputThreshold(bool enabled) {}
-
-  @override
-  void setSpeakingSensitivity(double sensitivity) {}
 
   /// Every camera-switching call this session received, in order, so a test
   /// can assert on how the control chose between flipping and picking.
@@ -256,9 +194,6 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   AudioDevice? lastSelectedAudioOutput;
 
   @override
-  Stream<void> get audioDeviceChanges => const Stream.empty();
-
-  @override
   Future<List<AudioDevice>> audioInputDevices() async => audioInputDeviceList;
 
   @override
@@ -276,15 +211,6 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
     return true;
   }
 
-  @override
-  Future<void> join({
-    required String url,
-    required String token,
-    bool microphoneEnabled = true,
-    bool cameraEnabled = false,
-    bool canPublish = true,
-  }) async {}
-
   /// How many times [leave] was actually reached, so a test can assert a
   /// control (or a shortcut standing in for one) reached the session rather
   /// than only that the button existed.
@@ -294,9 +220,6 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   Future<void> leave() async {
     leaveCalls += 1;
   }
-
-  @override
-  Future<bool> setMicrophoneEnabled(bool enabled) async => true;
 
   /// Every call `setCameraEnabled` received, so a test can assert the
   /// toggle button actually reached the session.

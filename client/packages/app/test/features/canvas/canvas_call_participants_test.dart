@@ -15,13 +15,6 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../voice/voice_controller_harness.dart';
 import 'canvas_pane_harness.dart';
 
-class _DrivenVoiceController extends VoiceController {
-  _DrivenVoiceController(super.ref, VoiceState initial)
-    : super(session: FakeSession()) {
-    state = initial;
-  }
-}
-
 const _shareKey = ValueKey('screen:user-ada');
 
 VoiceParticipant _p({
@@ -51,7 +44,7 @@ Future<ProviderContainer> _pumpPaneWithShare(
   final container = fixture.container(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => _DrivenVoiceController(
+        (ref) => FixedVoiceController(
           ref,
           const VoiceState(
             channelId: 'c1',

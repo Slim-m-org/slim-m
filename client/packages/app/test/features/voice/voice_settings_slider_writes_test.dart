@@ -52,7 +52,7 @@ class _Rig {
   }
 
   final prefs = _CountingPrefs();
-  final session = FakeSession();
+  final session = FakeSettingsSession();
   late final ProviderContainer container;
   late final VoiceSettingsController controller;
 

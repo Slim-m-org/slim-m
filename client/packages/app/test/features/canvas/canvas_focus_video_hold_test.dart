@@ -12,18 +12,10 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../voice/fake_voice_session.dart';
 import '../voice/voice_controller_harness.dart';
 import 'canvas_pane_harness.dart';
 
 const _cameraKey = 'camera:user-ada';
-
-class _DrivenVoiceController extends VoiceController {
-  _DrivenVoiceController(super.ref, VoiceState initial, FakeSession session)
-    : super(session: session) {
-    state = initial;
-  }
-}
 
 const _ada = VoiceParticipant(
   identity: 'user-ada',
@@ -43,7 +35,7 @@ Future<({FakeSession session, ProviderContainer container})> _pump(
   final container = fixture.container(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => _DrivenVoiceController(
+        (ref) => FixedVoiceController(
           ref,
           const VoiceState(
             channelId: 'c1',

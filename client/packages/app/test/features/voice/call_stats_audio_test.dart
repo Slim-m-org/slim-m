@@ -15,7 +15,7 @@ import 'voice_settings_screen_harness.dart';
 
 Future<VoiceController> _joined(
   WidgetTester tester,
-  FakeSession session,
+  FakeSettingsSession session,
 ) async {
   await tester.pumpWidget(callStatsScreenFor(session));
   final controller = ProviderScope.containerOf(
@@ -33,7 +33,7 @@ void main() {
   testWidgets('the audio card shows the last minute of each person', (
     tester,
   ) async {
-    final session = FakeSession()
+    final session = FakeSettingsSession()
       ..callStats = CallStatsSampler(targets: () => const []);
     session.health = _HealthWithAnn();
     final controller = await _joined(tester, session);
@@ -49,7 +49,7 @@ void main() {
   testWidgets('the audio card says it is waiting before any numbers', (
     tester,
   ) async {
-    final session = FakeSession();
+    final session = FakeSettingsSession();
     final controller = await _joined(tester, session);
 
     expect(find.text('Waiting for audio numbers.'), findsOneWidget);

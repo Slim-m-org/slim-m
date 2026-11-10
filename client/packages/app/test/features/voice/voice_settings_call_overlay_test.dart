@@ -43,7 +43,7 @@ Future<void> _pump(
       const VoiceSettingsBody(),
       overrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => VoiceController(ref, session: FakeSession()),
+          (ref) => VoiceController(ref, session: FakeSettingsSession()),
         ),
         screenOverlaySupportedProvider.overrideWithValue(supported),
         screenOverlaySupportProvider.overrideWith(

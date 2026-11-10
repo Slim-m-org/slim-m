@@ -19,7 +19,7 @@ import 'voice_settings_screen_harness.dart';
 
 const _usb = AudioDevice(id: 'usb', label: 'USB headset');
 
-class _LateSession extends FakeSession {
+class _LateSession extends FakeSettingsSession {
   List<AudioDevice> mics = const [];
   Completer<void>? hold;
 

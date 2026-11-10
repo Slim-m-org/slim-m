@@ -79,7 +79,7 @@ void main() {
   testWidgets('speaking in a live call raises the meter target', (
     tester,
   ) async {
-    final session = FakeSession();
+    final session = FakeSettingsSession();
     await tester.pumpWidget(
       wrap(
         const VoiceSettingsBody(),
@@ -207,7 +207,7 @@ void main() {
   testWidgets(
     'screen share audio is offered only where the platform can publish it',
     (tester) async {
-      final unsupported = FakeSession(supportsScreenShareAudio: false);
+      final unsupported = FakeSettingsSession(supportsScreenShareAudio: false);
       await tester.pumpWidget(
         wrap(
           const VoiceSettingsBody(),
@@ -230,7 +230,7 @@ void main() {
         reason: 'absent, never disabled, where nothing would happen',
       );
 
-      final supported = FakeSession(supportsScreenShareAudio: true);
+      final supported = FakeSettingsSession(supportsScreenShareAudio: true);
       await tester.pumpWidget(
         wrap(
           const VoiceSettingsBody(),
@@ -253,7 +253,7 @@ void main() {
   );
 
   testWidgets('turning on screen share audio persists it', (tester) async {
-    final session = FakeSession(supportsScreenShareAudio: true);
+    final session = FakeSettingsSession(supportsScreenShareAudio: true);
     await tester.pumpWidget(
       wrap(
         const VoiceSettingsBody(),
