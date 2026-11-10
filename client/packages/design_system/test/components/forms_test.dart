@@ -71,6 +71,23 @@ void main() {
       expect(find.text('This field is required'), findsOneWidget);
     });
 
+    testWidgets('lines an error up with the field border, not the ring', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(const AppInput(errorText: 'This field is required')),
+      );
+
+      final field = find
+          .ancestor(
+              of: find.byType(TextField), matching: find.byType(Container))
+          .first;
+      expect(
+        tester.getTopLeft(find.text('This field is required')).dx,
+        tester.getTopLeft(field).dx,
+      );
+    });
+
     testWidgets('reports focus when the field is tapped', (tester) async {
       final focusNode = FocusNode();
       addTearDown(focusNode.dispose);

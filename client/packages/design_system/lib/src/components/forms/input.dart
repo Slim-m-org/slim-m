@@ -179,6 +179,11 @@ class _AppInputState extends State<AppInput> {
 
   bool get _multiline => widget.minLines != null || widget.maxLines != null;
 
+  /// The focus ring's reserved 2px plus the 2px border: what lines text under the field up with the border it explains.
+  static const _beneathTheBorder = EdgeInsets.symmetric(
+    horizontal: AppSpacing.s4,
+  );
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -194,14 +199,23 @@ class _AppInputState extends State<AppInput> {
           if (widget.counterMax case final max?) ...[
             const SizedBox(height: AppSpacing.s4),
             // Its own node, so the count never merges into the field's label.
-            Semantics(container: true, child: _counter(tokens, max)),
+            Semantics(
+              container: true,
+              child: Padding(
+                padding: _beneathTheBorder,
+                child: _counter(tokens, max),
+              ),
+            ),
           ],
           if (hasError) ...[
             const SizedBox(height: AppSpacing.s4),
-            Text(
-              widget.errorText!,
-              style: AppText.caption.copyWith(
-                  color: tokens.dangerText, fontFamily: AppFonts.sans),
+            Padding(
+              padding: _beneathTheBorder,
+              child: Text(
+                widget.errorText!,
+                style: AppText.caption.copyWith(
+                    color: tokens.dangerText, fontFamily: AppFonts.sans),
+              ),
             ),
           ],
         ],

@@ -11,12 +11,23 @@ import 'emoji_name.dart';
 
 /// One planned image and how its upload ended.
 class EmojiAddResult {
-  const EmojiAddResult({required this.upload, this.reason});
+  const EmojiAddResult({
+    required this.upload,
+    this.reason,
+    this.problem,
+    this.named = false,
+  });
 
   final PlannedEmojiUpload upload;
 
   /// Null when the image was created.
   final String? reason;
+
+  /// What the server said is wrong with this image's name, when it named the image.
+  final String? problem;
+
+  /// A row on screen already says why, so the summary counts it without listing it.
+  final bool named;
 
   bool get failed => reason != null;
 }
@@ -39,8 +50,9 @@ class EmojiAddSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = succeeded.length + failed.length + skipped.length;
+    final listed = failed.where((r) => !r.named);
     final groups = <String, List<String>>{};
-    for (final r in failed) {
+    for (final r in listed) {
       (groups[r.reason ?? 'failed'] ??= []).add(r.upload.fileName);
     }
     for (final s in skipped) {
@@ -49,7 +61,7 @@ class EmojiAddSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (succeeded.isNotEmpty || failed.isNotEmpty)
+        if (succeeded.isNotEmpty || listed.isNotEmpty)
           AppCallout(
             tone: succeeded.length == total
                 ? AppCalloutTone.accent

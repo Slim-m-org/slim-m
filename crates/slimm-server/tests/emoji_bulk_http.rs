@@ -241,6 +241,52 @@ async fn a_refused_batch_names_the_image_that_broke_it() {
     assert!(message.contains("Party-Parrot"), "{message}");
 }
 
+/// The refusal also says which image it is about and why in fields of their
+/// own, so a client can flag that row without reading the sentence.
+#[tokio::test]
+async fn a_refused_image_is_identified_by_index_and_code() {
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+    let taken = single_upload(&app, &admin, "taken", png(b"existing")).await;
+    assert_eq!(taken.status(), StatusCode::CREATED);
+
+    let images: Vec<(&str, Vec<u8>)> = vec![
+        ("fresh", png(b"fresh")),
+        ("other", png(b"other")),
+        ("taken", png(b"new")),
+    ];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let body = json_body(response).await;
+    assert_eq!(body["item_index"], 2, "{body}");
+    assert_eq!(body["item_code"], "name_taken", "{body}");
+
+    let images: Vec<(&str, Vec<u8>)> = vec![
+        ("first", png(b"first")),
+        ("junk_file", b"this is plainly not an image".to_vec()),
+    ];
+    let response = bulk_upload(&app, &admin, &images).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = json_body(response).await;
+    assert_eq!(body["item_index"], 1, "{body}");
+    assert_eq!(body["item_code"], "unsupported_type", "{body}");
+}
+
+/// A refusal that is not about one image carries neither field.
+#[tokio::test]
+async fn a_refusal_about_the_whole_request_names_no_image() {
+    let (store, _guard) = support::new_store("slimm-emoji-bulk-http").await;
+    let app = app(store.clone());
+    let admin = register(&store, "admin").await;
+
+    let response = bulk_upload(&app, &admin, &[]).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = json_body(response).await;
+    assert!(body.get("item_index").is_none(), "{body}");
+    assert!(body.get("item_code").is_none(), "{body}");
+}
+
 /// Two images in the same batch sharing a normalised name is the same
 /// refusal the single path gives for uploading a taken name twice: a
 /// conflict, with nothing from the batch written.

@@ -214,22 +214,45 @@ async fn bulk_upload(
 }
 
 /// Anything about one image in the batch reuses [`refusal`]'s status and
-/// wording, prefixed with which image it was so the caller can fix that file.
+/// wording, prefixed with which image it was so the caller can fix that file,
+/// and carries the image's index and a stable reason as fields of their own.
 fn bulk_refusal(err: BulkAddError, names: &[String]) -> ApiError {
     match err {
         BulkAddError::Item { index, error } => {
             let name = names.get(index).map(String::as_str).unwrap_or_default();
             let at = |message: &str| format!("image {} ({name}): {message}", index + 1);
-            match refusal(error) {
-                ApiError::BadRequest(message) => ApiError::BadRequestDetail(at(message)),
-                ApiError::Conflict(message) => ApiError::ConflictDetail(at(message)),
-                other => other,
+            let code = refusal_code(&error);
+            let (status, message) = match refusal(error) {
+                ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
+                ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
+                other => return other,
+            };
+            ApiError::AtItem {
+                status,
+                message: at(message),
+                index,
+                code,
             }
         }
         BulkAddError::Storage(err) => {
             tracing::error!(error = %err, "failed to store a bulk-uploaded emoji");
             ApiError::Internal
         }
+    }
+}
+
+/// The stable reason a bulk refusal reports beside its sentence, as `item_code`.
+fn refusal_code(err: &AddError) -> &'static str {
+    match err {
+        AddError::UnusableName => "unusable_name",
+        AddError::Empty => "empty",
+        AddError::TooLarge => "too_large",
+        AddError::UnsupportedType => "unsupported_type",
+        AddError::TooManyPixels => "too_many_pixels",
+        AddError::NameTaken => "name_taken",
+        AddError::BuiltinName => "builtin_name",
+        AddError::Full => "full",
+        AddError::Storage(_) => "storage",
     }
 }
 

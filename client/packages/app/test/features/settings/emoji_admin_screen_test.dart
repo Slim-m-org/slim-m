@@ -202,7 +202,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(AppInput).last, 'Party Parrot');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Import 1 emoji'));
+    await tester.tap(find.text('Create 1 emoji'));
     await tester.pumpAndSettle();
 
     final posts = server.seen.where((r) => r.method == 'POST').toList();
@@ -226,7 +226,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Already taken.'), findsOneWidget);
-    await tester.tap(find.text('Import 1 emoji'));
+    await tester.tap(find.text('Create 1 emoji'));
     await tester.pumpAndSettle();
     expect(server.seen.where((r) => r.method == 'POST'), isEmpty);
   });

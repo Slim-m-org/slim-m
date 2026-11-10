@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_bulk_plan.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_name.dart';
 
 import 'emoji_add_harness.dart' show buildEmojiZip;
 
@@ -52,35 +53,28 @@ void main() {
     },
   );
 
-  test('a name that sanitizes to nothing is skipped with a reason', () {
+  test('a name that sanitizes to nothing is still planned, to be renamed', () {
     final plan = planEmojiZip([_file('!!!.png')]);
 
-    expect(plan.uploads, isEmpty);
-    expect(plan.skipped, hasLength(1));
-    expect(plan.skipped.single.fileName, '!!!.png');
-    expect(plan.skipped.single.reason, contains('no usable name'));
+    expect(plan.skipped, isEmpty);
+    expect(plan.uploads.single.fileName, '!!!.png');
+    expect(plan.uploads.single.name, isEmpty);
   });
 
-  test('two files that sanitize to the same name: the first wins, the '
-      'second is reported as a collision', () {
+  test('a name past the limit is planned whole, for the review to flag', () {
+    final stem = 'x' * (maxEmojiNameLength + 8);
+    final plan = planEmojiZip([_file('$stem.png')]);
+
+    expect(plan.skipped, isEmpty);
+    expect(plan.uploads.single.name, stem);
+  });
+
+  test('two files with one stem are both planned, never silently dropped', () {
     final plan = planEmojiZip([_file('Smile.png'), _file('smile.gif')]);
 
-    expect(plan.uploads, hasLength(1));
-    expect(plan.uploads.single.fileName, 'Smile.png');
-    expect(plan.skipped, hasLength(1));
-    expect(plan.skipped.single.fileName, 'smile.gif');
-    expect(plan.skipped.single.reason, contains(':smile:'));
-  });
-
-  test('a name already used by an existing emoji is refused before any '
-      'request, not left to a 409 partway through the batch', () {
-    final plan = planEmojiZip(
-      [_file('party_parrot.png')],
-      existingNames: {'party_parrot'},
-    );
-
-    expect(plan.uploads, isEmpty);
-    expect(plan.skipped.single.reason, contains(':party_parrot:'));
+    expect(plan.skipped, isEmpty);
+    expect(plan.uploads.map((u) => u.fileName), ['Smile.png', 'smile.gif']);
+    expect(plan.uploads.map((u) => u.name), ['smile', 'smile']);
   });
 
   test('a file over the 1 MB server limit is refused up front', () {
@@ -199,23 +193,6 @@ void main() {
     expect(plan.uploads, hasLength(maxPlannedEmojiCount));
     expect(plan.skipped, hasLength(5));
     expect(inflated, maxPlannedEmojiCount);
-  });
-
-  test('an image refused for its name is never inflated', () {
-    var inflated = 0;
-    final plan = planEmojiZip([
-      ZipEntryData.deferred(
-        path: '!!!.png',
-        size: 3,
-        inflate: () {
-          inflated++;
-          return [1, 2, 3];
-        },
-      ),
-    ]);
-
-    expect(plan.uploads, isEmpty);
-    expect(inflated, 0);
   });
 
   test(

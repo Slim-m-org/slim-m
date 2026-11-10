@@ -50,12 +50,9 @@ Future<List<EmojiPick>> readDroppedEmoji(List<DropItem> items) async => [
 
 bool _isZip(String name) => name.toLowerCase().endsWith('.zip');
 
-/// Plans every pick together: zips expand into their images, loose files are
-/// planned as they are, and one name pool keeps a clash across sources a skip.
-EmojiZipPlan planEmojiPicks(
-  List<EmojiPick> picks, {
-  Set<String> existingNames = const {},
-}) {
+/// Plans every pick together: zips expand into their images and loose files
+/// are planned as they are, all through the same rules.
+EmojiZipPlan planEmojiPicks(List<EmojiPick> picks) {
   final entries = <ZipEntryData>[];
   final refused = <SkippedZipEntry>[];
   for (final pick in picks) {
@@ -95,7 +92,7 @@ EmojiZipPlan planEmojiPicks(
       entries.add(ZipEntryData(path: pick.fileName, bytes: pick.bytes));
     }
   }
-  final plan = planEmojiZip(entries, existingNames: existingNames);
+  final plan = planEmojiZip(entries);
   return EmojiZipPlan(
     uploads: plan.uploads,
     skipped: [...refused, ...plan.skipped],

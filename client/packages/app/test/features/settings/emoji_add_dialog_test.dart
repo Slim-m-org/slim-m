@@ -37,8 +37,8 @@ void main() {
     await h.choose(tester);
 
     expect(_nameFields, findsNWidgets(3));
-    expect(find.text('Import 3 emoji'), findsOneWidget);
-    await tester.tap(find.text('Import 3 emoji'));
+    expect(find.text('Create 3 emoji'), findsOneWidget);
+    await tester.tap(find.text('Create 3 emoji'));
     await tester.pumpAndSettle();
 
     expect(h.bulks, hasLength(1));
@@ -66,8 +66,8 @@ void main() {
     await h.choose(tester);
 
     expect(_nameFields, findsNWidgets(3));
-    expect(find.text('Import 3 emoji'), findsOneWidget);
-    await tester.tap(find.text('Import 3 emoji'));
+    expect(find.text('Create 3 emoji'), findsOneWidget);
+    await tester.tap(find.text('Create 3 emoji'));
     await tester.pumpAndSettle();
 
     expect(bulkNames(h.bulks.single), ['solo', 'aaa', 'bbb']);
@@ -103,7 +103,7 @@ void main() {
       findsOneWidget,
       reason: 'refusals are named before anything uploads',
     );
-    await tester.tap(find.text('Import 2 emoji'));
+    await tester.tap(find.text('Create 2 emoji'));
     await tester.pumpAndSettle();
     expect(find.textContaining('notes.txt: not a PNG'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
@@ -127,7 +127,7 @@ void main() {
     expect(find.text('Already taken.'), findsOneWidget);
     expect(
       tester
-          .widget<AppButton>(find.widgetWithText(AppButton, 'Import 2 emoji'))
+          .widget<AppButton>(find.widgetWithText(AppButton, 'Create 2 emoji'))
           .disabled,
       isTrue,
     );
@@ -142,7 +142,7 @@ void main() {
 
     await tester.enterText(_nameFields.first, 'Party Parrot');
     await tester.pump();
-    await tester.tap(find.text('Import 2 emoji'));
+    await tester.tap(find.text('Create 2 emoji'));
     await tester.pumpAndSettle();
     expect(bulkNames(h.bulks.single), ['party_parrot', 'blob']);
   });
@@ -158,7 +158,7 @@ void main() {
     );
     await h.pump(tester);
     await h.choose(tester);
-    await tester.tap(find.text('Import 1 emoji'));
+    await tester.tap(find.text('Create 1 emoji'));
     await tester.pumpAndSettle();
 
     expect(h.singles.single.url.queryParameters['name'], 'blorp');
@@ -185,7 +185,7 @@ void main() {
     );
     await h.pump(tester);
     await h.choose(tester);
-    await tester.tap(find.text('Import 1 emoji'));
+    await tester.tap(find.text('Create 1 emoji'));
     await tester.pumpAndSettle();
 
     expect(
@@ -219,7 +219,7 @@ void main() {
     );
     await h.pump(tester);
     await h.choose(tester);
-    await tester.tap(find.text('Import 60 emoji'));
+    await tester.tap(find.text('Create 60 emoji'));
     await tester.pumpAndSettle();
 
     expect(calls, 2);
@@ -228,13 +228,13 @@ void main() {
       find.textContaining('10 images could not be added:'),
       findsOneWidget,
     );
-    await tester.ensureVisible(find.text('Import 10 emoji'));
-    await tester.tap(find.text('Import 10 emoji'));
+    await tester.ensureVisible(find.text('Create 10 emoji'));
+    await tester.tap(find.text('Create 10 emoji'));
     await tester.pumpAndSettle();
 
     expect(calls, 3);
     expect(find.textContaining('Added 60 of 60'), findsOneWidget);
-    expect(find.text('Import 10 emoji'), findsNothing);
+    expect(find.text('Create 10 emoji'), findsNothing);
   });
 
   testWidgets('wrong, oversize and empty files are each named', (tester) async {
@@ -247,7 +247,7 @@ void main() {
     await h.pump(tester);
     await h.choose(tester);
 
-    await tester.tap(find.text('Import 1 emoji'));
+    await tester.tap(find.text('Create 1 emoji'));
     await tester.pumpAndSettle();
     expect(find.textContaining('big.png: larger than 1 MB'), findsOneWidget);
     expect(find.textContaining('empty.png: the file is empty'), findsOneWidget);

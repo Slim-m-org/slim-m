@@ -11602,6 +11602,10 @@ paths:
         more than one call. Each image is otherwise checked exactly as
         `uploadCustomEmoji` checks its own: normalised name, non-empty, at
         most 1 MiB, and sniffed as an inline image type.
+
+
+        A refusal about one image names it in `error` and also in the
+        `item_index` and `item_code` fields of the error body.
       requestBody:
         required: true
         content:
@@ -12033,6 +12037,19 @@ components:
             The permission bits the caller lacked. Present only on the 403
             from a channel overwrite write that would grant bits the caller
             does not hold.
+        item_index:
+          type: integer
+          description: >
+            Present with `item_code` on the 400 or 409 of `bulkUploadCustomEmoji`
+            that is about one image: its zero-based position in `images`.
+        item_code:
+          type: string
+          description: >
+            Why that image was refused, so a client can mark its row without
+            reading `error`: one of `unusable_name`, `empty`, `too_large`,
+            `unsupported_type`, `too_many_pixels`, `name_taken`,
+            `builtin_name` or `full`. Present only with `item_index`; read
+            an unknown value as a refusal of that image for another reason.
 
     Version:
       type: object
