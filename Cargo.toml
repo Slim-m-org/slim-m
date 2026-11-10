@@ -98,3 +98,13 @@ codegen-units = 1
 strip = true
 # Unwind so a request panic answers 500; any other panic still aborts (http::panic_guard).
 panic = "unwind"
+
+# CPU-bound dependencies built for speed inside the size budget; the choice and its measurements are in docs/dependencies.md.
+[profile.release.package]
+sha2 = { opt-level = 3 }
+image = { opt-level = 3 }
+zune-core = { opt-level = 3 }
+zune-jpeg = { opt-level = 3 }
+wasmi = { opt-level = 3 }
+wasmi_core = { opt-level = 3 }
+wasmi_ir = { opt-level = 3 }
