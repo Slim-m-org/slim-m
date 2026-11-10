@@ -93,3 +93,108 @@ api.Attachment imageAttachment(
   contentType: 'image/png',
   size: size,
 );
+
+int _lerp(int a, int b, double t) => (a + (b - a) * t).round().clamp(0, 255);
+
+List<int> _palette() {
+  final out = <int>[];
+  for (var i = 0; i < 256; i++) {
+    if (i < 200) {
+      final t = i / 199;
+      out.addAll([
+        _lerp(0x2d, 0xf6, t),
+        _lerp(0x6f, 0xc2, t),
+        _lerp(0xb7, 0x7a, t),
+      ]);
+    } else if (i < 240) {
+      final t = (i - 200) / 39;
+      out.addAll([
+        _lerp(0x3d, 0x1d, t),
+        _lerp(0x7a, 0x3a, t),
+        _lerp(0x45, 0x26, t),
+      ]);
+    } else {
+      out.addAll([0xff, 0xf6, 0xc8]);
+    }
+  }
+  return out;
+}
+
+List<int> _lzw(List<int> pixels) {
+  final bits = <int>[];
+  var buffer = 0;
+  var held = 0;
+  void emit(int code) {
+    buffer |= code << held;
+    held += 9;
+    while (held >= 8) {
+      bits.add(buffer & 0xff);
+      buffer >>= 8;
+      held -= 8;
+    }
+  }
+
+  for (var i = 0; i < pixels.length; i++) {
+    if (i % 250 == 0) emit(256);
+    emit(pixels[i]);
+  }
+  emit(257);
+  if (held > 0) bits.add(buffer & 0xff);
+  final blocks = <int>[];
+  for (var at = 0; at < bits.length; at += 255) {
+    final chunk = bits.sublist(at, math.min(at + 255, bits.length));
+    blocks
+      ..add(chunk.length)
+      ..addAll(chunk);
+  }
+  return blocks..add(0);
+}
+
+List<int> _frame(int w, int h, double sun) {
+  final pixels = List<int>.filled(w * h, 0);
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      final t = y / h;
+      final ridge = 0.64 + 0.07 * math.sin(x / w * 6.5);
+      final dx = x / w - sun;
+      final dy = (t - 0.3) * h / w;
+      pixels[y * w + x] = dx * dx + dy * dy < 0.004
+          ? 250
+          : t > ridge
+          ? 200 + ((t - ridge) / (1 - ridge) * 39).round()
+          : (t / ridge * 199).round();
+    }
+  }
+  return pixels;
+}
+
+/// A looping two-frame gif (the sun in two places), so the transcript has an
+/// animation to hold on its first frame.
+Uint8List animatedGif({int w = 320, int h = 200}) {
+  List<int> le16(int v) => [v & 0xff, v >> 8];
+  final out = <int>[
+    ...ascii.encode('GIF89a'),
+    ...le16(w),
+    ...le16(h),
+    0xf7,
+    0,
+    0,
+    ..._palette(),
+    0x21,
+    0xff,
+    0x0b,
+    ...ascii.encode('NETSCAPE2.0'),
+    3,
+    1,
+    0,
+    0,
+    0,
+  ];
+  for (final sun in const [0.3, 0.7]) {
+    out
+      ..addAll([0x21, 0xf9, 4, 0, 50, 0, 0, 0])
+      ..addAll([0x2c, 0, 0, 0, 0, ...le16(w), ...le16(h), 0, 8])
+      ..addAll(_lzw(_frame(w, h, sun)));
+  }
+  return Uint8List.fromList(out..add(0x3b));
+}
