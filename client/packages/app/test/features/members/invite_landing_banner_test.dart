@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The landing preview's banner. The preview page was handed a card built at
-/// the tap, and the banner's download only started inside that build, so the
-/// page always kept the placeholder, however fast the banner arrived.
+/// The live landing preview at the top of Customize. It used to be a page
+/// handed a card built at the tap, and the banner's download only started
+/// inside that build, so the page always kept the placeholder.
 library;
 
 import 'dart:async';
@@ -12,12 +12,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/members/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/features/members/widgets/invite_landing_section.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
-import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 // A 1x1 PNG.
@@ -26,6 +26,8 @@ final _png = base64Decode(
 );
 
 const _json = {'content-type': 'application/json'};
+
+http.Response _bannerReply() => http.Response.bytes(_png, 200);
 
 class _Server {
   Completer<http.Response> banner = Completer();
@@ -87,44 +89,102 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
       ),
     ),
   );
-  await waitUntil(
-    tester,
-    () => find.text('Space profile').evaluate().isNotEmpty,
-  );
+  await _framesUntil(tester, () => _card.evaluate().isNotEmpty);
 }
 
 final _bannerImage = find.byWidgetPredicate(
   (w) => w is Image && w.image is MemoryImage,
 );
 
+final _card = find.byWidgetPredicate((w) => w is InviteLandingCard);
+
+/// A mocked reply resolves on the real clock and the preview only shows it after a frame, so alternate the two.
+Future<void> _framesUntil(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 100 && !done(); i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
+}
+
+Finder _input(String label) => find.descendant(
+  of: find.byWidgetPredicate((w) => w is AppInput && w.semanticLabel == label),
+  matching: find.byWidgetPredicate((w) => w is EditableText),
+);
+
 void main() {
-  testWidgets('a banner that lands after the preview opened still shows', (
+  testWidgets(
+    'a banner that lands after Customize opened shows in the preview',
+    (tester) async {
+      final server = _Server();
+      await _pump(tester, server);
+      expect(_card, findsOneWidget);
+      expect(_bannerImage, findsNothing);
+
+      server.banner.complete(_bannerReply());
+      await _framesUntil(tester, () => _bannerImage.evaluate().isNotEmpty);
+      expect(
+        find.descendant(of: _card, matching: _bannerImage),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('a banner that will not load says so, and retry fetches it', (
     tester,
   ) async {
     final server = _Server();
     await _pump(tester, server);
+    server.banner.complete(http.Response('{}', 500, headers: _json));
+    await _framesUntil(
+      tester,
+      () => find.text('Could not load the banner.').evaluate().isNotEmpty,
+    );
 
-    await tester.ensureVisible(find.text('Preview as a visitor'));
-    await tester.tap(find.text('Preview as a visitor'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    server.banner.complete(http.Response.bytes(_png, 200));
-    await waitUntil(tester, () => _bannerImage.evaluate().isNotEmpty);
-    expect(_bannerImage, findsOneWidget);
+    server.banner = Completer()..complete(http.Response.bytes(_png, 200));
+    await tester.tap(find.text('Retry'));
+    await _framesUntil(tester, () => _bannerImage.evaluate().isNotEmpty);
+    expect(find.text('Could not load the banner.'), findsNothing);
   });
 
-  testWidgets('a banner that landed before the preview opened shows', (
+  testWidgets('the preview follows the name and description as typed', (
     tester,
   ) async {
-    final server = _Server();
-    server.banner.complete(http.Response.bytes(_png, 200));
-    await _pump(tester, server);
-    await tester.pump(const Duration(milliseconds: 400));
+    await _pump(tester, _Server()..banner.complete(_bannerReply()));
+    await tester.enterText(_input('Space name'), 'Hearth Hall');
+    await tester.enterText(_input('Description'), 'Friends only.');
+    await tester.pump();
 
-    await tester.ensureVisible(find.text('Preview as a visitor'));
-    await tester.tap(find.text('Preview as a visitor'));
-    await waitUntil(tester, () => _bannerImage.evaluate().isNotEmpty);
-    expect(_bannerImage, findsOneWidget);
+    expect(
+      find.descendant(of: _card, matching: find.text('Hearth Hall')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: _card, matching: find.text('Friends only.')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(_input('Space name'), '');
+    await tester.pump();
+    expect(
+      find.descendant(of: _card, matching: find.text('Hearth Home')),
+      findsOneWidget,
+      reason: 'an emptied name previews the saved one',
+    );
+  });
+
+  testWidgets('at phone width the preview sits above the fields and fits', (
+    tester,
+  ) async {
+    await _pump(tester, _Server()..banner.complete(_bannerReply()));
+    final card = tester.getRect(_card);
+    expect(
+      card.bottom,
+      lessThanOrEqualTo(tester.getRect(_input('Space name')).top),
+    );
+    expect(card.left, greaterThanOrEqualTo(0));
+    expect(card.right, lessThanOrEqualTo(390));
+    expect(find.text('Preview as a visitor'), findsNothing);
   });
 }
