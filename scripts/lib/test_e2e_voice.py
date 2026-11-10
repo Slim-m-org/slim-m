@@ -10,6 +10,7 @@ microphone track on whatever call it joins next. That is exactly what made
 running before it in scripts/lib/e2e_run.py's own order - not a DM-calling
 bug, a cross-scenario state leak this test pins shut.
 """
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -50,6 +51,46 @@ class SfuState(unittest.TestCase):
         lines = [call.args[0] for call in printed.call_args_list]
         self.assertTrue(any("SFU at the failure: no participants" in line for line in lines), lines)
         self.assertTrue(any("unreadable" in line for line in lines), lines)
+
+    def test_a_page_without_the_audio_probe_reports_its_audio_elements(self):
+        element = [{"paused": False, "muted": False, "volume": 1,
+                    "tracks": [{"state": "live", "enabled": True, "muted": False}]}]
+
+        class Unprobed:
+            name = "bob"
+            def ev(self, expr):
+                if "typeof window.__e2eAudio" in expr:
+                    return False
+                if expr == e2e_voice.AUDIO_ELEMENTS_JS:
+                    return json.dumps(element)
+                raise AssertionError(f"bob: the injected script threw: {expr}")
+
+        self.assertEqual(e2e_voice.media_state(Unprobed()),
+                         {"probe": "not installed", "audio_elements": element})
+
+
+class MuteActuallySilencesTest(unittest.TestCase):
+    def test_a_mute_that_never_lands_prints_what_the_sfu_and_pages_held(self):
+        class Speaking(_FakeClient):
+            name = "alice"
+            def __init__(self):
+                super().__init__()
+                self.shots = []
+            def wait_for(self, label, timeout):
+                pass
+            def shot(self, name):
+                self.shots.append(name)
+
+        a, b = Speaking(), Speaking()
+        never_gone = AssertionError("alice: 'Bob, speaking' never went away")
+        with patch.object(e2e_voice, "sfu_participants", return_value=[_participant("bob", False)]), \
+                patch.object(e2e_voice, "_wait_until_gone", side_effect=never_gone), \
+                patch("builtins.print") as printed:
+            with self.assertRaises(AssertionError):
+                e2e_voice.mute_actually_silences(a, b, "room")
+        lines = [call.args[0] for call in printed.call_args_list]
+        self.assertTrue(any("SFU at the failure: bob" in line and "[MICROPHONE]" in line for line in lines), lines)
+        self.assertEqual(b.shots, ["muting-failed"])
 
 
 class _FakeClient:
