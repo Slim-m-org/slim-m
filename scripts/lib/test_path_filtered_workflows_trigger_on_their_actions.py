@@ -115,6 +115,11 @@ class PathFilteredWorkflowsTriggerOnTheirActionsTest(unittest.TestCase):
         for event in EVENTS:
             self.assertIn("client/packages/app/assets/audio/**", paths[event])
 
+    def test_server_ci_watches_the_nextest_config_it_runs_with(self):
+        paths = event_paths((WORKFLOWS / "server-ci.yml").read_text())
+        for event in EVENTS:
+            self.assertIn(".config/nextest.toml", paths[event])
+
     def test_the_gate_reads_the_real_files(self):
         text = (WORKFLOWS / "client-ci.yml").read_text()
         self.assertIn(".github/actions/native-hooks-cache", used_actions(text))
