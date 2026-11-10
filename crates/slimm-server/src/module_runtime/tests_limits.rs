@@ -214,13 +214,28 @@ mod alone {
             .env(ALONE, "1")
             .output()
             .unwrap();
+        let report = String::from_utf8_lossy(&output.stdout);
         assert!(
-            output.status.success(),
-            "{test} failed on its own:\n{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
+            output.status.success() && ran_one_test(&report),
+            "{test} did not run and pass on its own:\n{report}\n{}",
             String::from_utf8_lossy(&output.stderr)
         );
         true
+    }
+
+    /// A child whose name matches nothing runs zero tests and still exits 0, so the report has to say one passed.
+    fn ran_one_test(report: &str) -> bool {
+        report.contains("running 1 test\n") && report.contains(" 1 passed;")
+    }
+
+    #[test]
+    fn a_child_that_matched_no_test_is_not_a_pass() {
+        let none = "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored;";
+        let one = "running 1 test\ntest a ... ok\n\ntest result: ok. 1 passed; 0 failed;";
+        let many = "running 11 tests\n\ntest result: ok. 11 passed; 0 failed;";
+        assert!(!ran_one_test(none));
+        assert!(!ran_one_test(many));
+        assert!(ran_one_test(one));
     }
 
     fn proc_status_kib(key: &str) -> u64 {
