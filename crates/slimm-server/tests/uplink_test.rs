@@ -64,7 +64,11 @@ async fn throttled_endpoint(bytes_per_s: u64) -> String {
         "ok"
     };
     let router = Router::new().route("/up", post(handler));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    // A fixed receive buffer turns off autotuning, which under load kept growing in the rated half and read as rate.
+    let socket = tokio::net::TcpSocket::new_v4().unwrap();
+    socket.set_recv_buffer_size(128 * 1024).unwrap();
+    socket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+    let listener = socket.listen(64).unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     format!("http://{addr}/up")
