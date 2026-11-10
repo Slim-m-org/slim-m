@@ -41,9 +41,6 @@ import 'toolbar_clearance.dart';
 /// The least width a grouped body keeps once the toolbar's reserve is taken off its right.
 const double _minBodyWidth = 280;
 
-/// The least width an author line keeps beside its name's badges and time.
-const double _minHeaderWidth = 240;
-
 class MessageRowColumn extends ConsumerWidget {
   const MessageRowColumn({
     super.key,
@@ -131,16 +128,13 @@ class MessageRowColumn extends ConsumerWidget {
 
   List<Widget> _header() => [
     if (!grouped)
-      ToolbarClearance(
+      MessageRowHeader(
+        key: MessageRowHeader.headerKey,
+        message: message,
+        webhookUsername: extras.webhookUsername,
+        editing: editing,
         // Compact has no hover to reserve for, and no room to spare.
-        clearance: MessageHoverToolbar.clearance(compact: compact),
-        minWidth: _minHeaderWidth,
-        child: MessageRowHeader(
-          key: MessageRowHeader.headerKey,
-          message: message,
-          webhookUsername: extras.webhookUsername,
-          editing: editing,
-        ),
+        nameReserve: MessageHoverToolbar.clearance(compact: compact).right,
       )
     else if (editing)
       const Padding(

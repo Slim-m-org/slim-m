@@ -313,15 +313,25 @@ class MessageRowLeading extends ConsumerWidget {
 class MessageRowHeader extends ConsumerWidget {
   static const Key headerKey = Key('message_row_header');
 
+  /// The least width a name keeps once [nameReserve] is taken off its right.
+  static const double minNameWidth = 72;
+
   const MessageRowHeader({
     super.key,
     required this.message,
     this.webhookUsername,
     this.editing = false,
     this.assumeBot = false,
+    this.nameReserve = 0,
   });
 
   final Message message;
+
+  /// Room the hover toolbar needs past the name, from `MessageHoverToolbar.clearance`.
+  ///
+  /// Taken off the name alone, so the badges and time keep their width; the
+  /// name runs under the toolbar instead once it would fall under [minNameWidth].
+  final double nameReserve;
 
   /// For an author the server guarantees is a bot before its profile resolves.
   final bool assumeBot;
@@ -363,16 +373,19 @@ class MessageRowHeader extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Flexible(
-            child: AuthorProfileTapTarget(
-              authorId: message.authorId,
-              semanticLabel: '$name, view profile',
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.semi,
+            child: _NameRoom(
+              reserve: nameReserve,
+              child: AuthorProfileTapTarget(
+                authorId: message.authorId,
+                semanticLabel: '$name, view profile',
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body.copyWith(
+                    color: tokens.textPrimary,
+                    fontWeight: AppWeights.semi,
+                  ),
                 ),
               ),
             ),
@@ -393,6 +406,32 @@ class MessageRowHeader extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Holds a name [reserve] short of the room the line leaves it.
+///
+/// The reserve is dropped when it would leave the name under
+/// [MessageRowHeader.minNameWidth], so a narrow pane keeps a readable name.
+class _NameRoom extends StatelessWidget {
+  const _NameRoom({required this.reserve, required this.child});
+
+  final double reserve;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (reserve == 0) return child;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final kept = box.maxWidth - reserve;
+        final fits = kept >= MessageRowHeader.minNameWidth;
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: fits ? kept : box.maxWidth),
+          child: child,
+        );
+      },
     );
   }
 }
