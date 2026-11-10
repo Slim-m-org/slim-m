@@ -14,6 +14,7 @@ fn default_matches_deserializing_an_empty_config() {
     let defaulted = Config::default();
 
     assert_eq!(from_empty_env.port, defaulted.port);
+    assert_eq!(from_empty_env.bind_address, defaulted.bind_address);
     assert_eq!(from_empty_env.database_path, defaulted.database_path);
     assert_eq!(from_empty_env.hash_concurrency, defaulted.hash_concurrency);
     assert_eq!(from_empty_env.push_relay_url, defaulted.push_relay_url);
@@ -37,6 +38,29 @@ fn default_matches_deserializing_an_empty_config() {
     );
     assert_eq!(from_empty_env.addons_repo, defaulted.addons_repo);
     assert_eq!(from_empty_env.code_runner_url, defaulted.code_runner_url);
+}
+
+/// Narrowing the bind is how a throwaway server (the e2e stack) stays off the LAN;
+/// the default must stay every interface because the container publishes the port.
+#[test]
+fn the_server_binds_every_interface_unless_told_to_narrow() {
+    let none = std::collections::HashMap::<String, String>::new();
+    let config: Config = envy::from_iter(none).expect("defaults parse");
+    assert!(config.bind_address.is_unspecified());
+    assert_eq!(config.listen_addr().to_string(), "0.0.0.0:8080");
+
+    let env =
+        std::collections::HashMap::from([("BIND_ADDRESS".to_owned(), "127.0.0.1".to_owned())]);
+    let config: Config = envy::from_iter(env).expect("a loopback address parses");
+    assert!(config.bind_address.is_loopback());
+    assert_eq!(config.listen_addr().to_string(), "127.0.0.1:8080");
+}
+
+#[test]
+fn a_nonsense_bind_address_fails_the_boot() {
+    let env =
+        std::collections::HashMap::from([("BIND_ADDRESS".to_owned(), "localhost".to_owned())]);
+    assert!(envy::from_iter::<_, Config>(env).is_err());
 }
 
 /// The shipped `docker-compose.yml` writes

@@ -22,6 +22,7 @@ impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Config {
             port,
+            bind_address,
             database_path,
             data_key,
             hash_concurrency,
@@ -54,6 +55,7 @@ impl fmt::Debug for Config {
         } = self;
         f.debug_struct("Config")
             .field("port", port)
+            .field("bind_address", bind_address)
             .field("database_path", database_path)
             .field("data_key", &Redacted(data_key))
             .field("hash_concurrency", hash_concurrency)

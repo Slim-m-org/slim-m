@@ -18,6 +18,27 @@ exit 0
 """
 
 
+SERVER_STUB = """#!/usr/bin/env python3
+import http.server, os
+
+
+class Health(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, *args):
+        pass
+
+
+host = os.environ.get("SLIMM_BIND_ADDRESS", "0.0.0.0")
+server = http.server.HTTPServer((host, int(os.environ["SLIMM_PORT"])), Health)
+open(os.environ["SERVER_STUB_BOUND"], "w").write(server.server_address[0])
+server.serve_forever()
+"""
+
+
 def closed_port():
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -114,6 +135,21 @@ class StartSfuTest(StackScriptCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("livekit never came up", result.stdout)
         self.assertIn("stub livekit: could not bind", result.stdout)
+
+
+class StartServerTest(StackScriptCase):
+    def test_the_server_listens_on_loopback_only(self):
+        release = self.tmp / "target" / "release"
+        release.mkdir(parents=True)
+        (release / "slimm-server").write_text(SERVER_STUB)
+        (release / "slimm-server").chmod(0o755)
+        bound = self.tmp / "bound.txt"
+        self.addCleanup(lambda: self.call("stop_pid_file api slimm-server"))
+        result = self.call(
+            "start_server", CARGO_TARGET_DIR=str(self.tmp / "target"), E2E_SKIP_SERVER_BUILD="1",
+            E2E_API_PORT=str(closed_port()), SERVER_STUB_BOUND=str(bound))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(bound.read_text(), "127.0.0.1")
 
 
 class SourcingTest(StackScriptCase):

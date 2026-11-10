@@ -110,6 +110,8 @@ start_server() {
   if curl -sf -o /dev/null "http://localhost:$API_PORT/healthz" 2>/dev/null; then
     echo "port $API_PORT is already serving something; stop that first"; exit 1
   fi
+  # Loopback only: the first account to register owns the deployment, and that must be the seed.
+  SLIMM_BIND_ADDRESS=127.0.0.1 \
   SLIMM_PORT=$API_PORT \
   SLIMM_DATABASE_PATH="$WORK/slimm.db" \
   SLIMM_CORS_ALLOWED_ORIGINS="http://localhost:$WEB_PORT" \

@@ -204,7 +204,7 @@ pub async fn run() -> anyhow::Result<()> {
         router = router.layer(axum::Extension(discord));
     }
     let app = cors.apply(router);
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+    let addr = config.listen_addr();
     let listener = TcpListener::bind(addr)
         .await
         .with_context(|| format!("binding to {addr}"))?;
