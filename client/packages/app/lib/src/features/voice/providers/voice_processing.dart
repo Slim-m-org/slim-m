@@ -10,7 +10,7 @@ import '../../../providers/providers.dart';
 import 'voice_controller.dart';
 
 const _echoKey = 'slimm.voice.echo_cancellation';
-const _gainKey = 'slimm.voice.auto_gain';
+const autoGainKey = 'slimm.voice.auto_gain';
 const _suppressionKey = 'slimm.voice.webrtc_noise_suppression';
 
 /// The persisted filters, for `VoiceInputSettings.restoreVoiceProcessing`.
@@ -18,7 +18,7 @@ Future<VoiceProcessing> loadVoiceProcessing(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return VoiceProcessing(
     echoCancellation: prefs.getBool(_echoKey) ?? true,
-    autoGainControl: prefs.getBool(_gainKey) ?? true,
+    autoGainControl: prefs.getBool(autoGainKey) ?? true,
     noiseSuppression: prefs.getBool(_suppressionKey) ?? true,
   );
 }
@@ -40,7 +40,7 @@ class VoiceProcessingController extends StateNotifier<VoiceProcessing> {
     state = next;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_echoKey, next.echoCancellation);
-    await prefs.setBool(_gainKey, next.autoGainControl);
+    await prefs.setBool(autoGainKey, next.autoGainControl);
     await prefs.setBool(_suppressionKey, next.noiseSuppression);
     await _ref
         .read(voiceControllerProvider.notifier)

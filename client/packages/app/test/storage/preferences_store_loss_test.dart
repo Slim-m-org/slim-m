@@ -3,10 +3,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/storage/atomic_preferences_store.dart';
 
 import 'preferences_store_contract.dart';
 
-final _stores = <String, StoreFactory>{'stock linux plugin': stockLinuxStore};
+final _stores = <String, StoreFactory>{
+  'atomic store': (dir) => AtomicPreferencesStore(directory: () async => dir),
+};
 
 void main() {
   for (final entry in _stores.entries) {

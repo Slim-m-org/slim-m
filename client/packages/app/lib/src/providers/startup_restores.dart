@@ -27,6 +27,7 @@ import '../features/settings/providers/display_preferences.dart';
 import '../features/messages/providers/image_cache_preference.dart';
 import '../features/messages/providers/media_preferences.dart';
 import '../features/messages/providers/message_page_size.dart';
+import '../diagnostics/voice_choices_log.dart';
 import 'preference_controller.dart';
 import 'providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
@@ -140,7 +141,20 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
   return Future.wait([
     for (final entry in restores.entries)
       restoreOrDefault(container, entry.key, entry.value),
-  ]);
+  ]).then((_) => _logSavedVoiceChoices(container));
+}
+
+Future<void> _logSavedVoiceChoices(ProviderContainer container) async {
+  try {
+    logSavedVoiceChoices(await container.read(preferencesProvider.future));
+  } on Object catch (error, stack) {
+    AppLog.debug(
+      LogTag.data,
+      'Could not log the saved voice choices',
+      error: error,
+      stack: stack,
+    );
+  }
 }
 
 /// Restores the splash preference and answers its duration, or the default one

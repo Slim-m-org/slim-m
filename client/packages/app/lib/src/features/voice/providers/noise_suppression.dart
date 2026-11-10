@@ -71,12 +71,12 @@ final strongestSupportedProvider = Provider<bool>(
   (ref) => supportsStrongestNoiseSuppression,
 );
 
-const _choiceKey = 'slimm.voice.noise_suppression';
+const noiseSuppressionKey = 'slimm.voice.noise_suppression';
 
 /// The persisted choice, for `VoiceInputSettings.restoreNoiseSuppression`.
 Future<NoiseSuppressionChoice> loadNoiseSuppressionChoice(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
-  return NoiseSuppressionChoice.parse(prefs.getString(_choiceKey));
+  return NoiseSuppressionChoice.parse(prefs.getString(noiseSuppressionKey));
 }
 
 /// Whether the Space defaults to strong suppression, or null when the server
@@ -112,7 +112,7 @@ class NoiseSuppressionController extends StateNotifier<NoiseSuppressionChoice> {
   Future<void> set(NoiseSuppressionChoice choice) async {
     state = choice;
     final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(_choiceKey, choice.wire);
+    await prefs.setString(noiseSuppressionKey, choice.wire);
     _ref
         .read(voiceControllerProvider.notifier)
         .input
