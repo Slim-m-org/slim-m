@@ -31,7 +31,7 @@ const _tokens = api.TokenPair(
 
 final _sha = List.filled(64, 'a').join();
 
-Map<String, dynamic> _manifest() => {
+Map<String, dynamic> _manifest([Map<String, dynamic> extras = const {}]) => {
   'id': 'ladder',
   'name': 'Ladder',
   'version': '0.1.0',
@@ -52,20 +52,25 @@ Map<String, dynamic> _manifest() => {
   'extension_points': [
     {'kind': 'command', 'name': 'run', 'permission': 'play'},
   ],
+  ...extras,
 };
 
-Map<String, dynamic> _installedRow(List<String> approvedHost, {String? sha}) =>
-    {
-      'id': 'ladder',
-      'name': 'Ladder',
-      'version': '0.1.0',
-      'artifact_sha256': sha ?? _sha,
-      'approved_capabilities': ['kv.store', 'message.post', 'surface.render'],
-      'approved_host_capabilities': approvedHost,
-      'extension_points': <Map<String, dynamic>>[],
-      'enabled': true,
-      'installed_at': 1000,
-    };
+Map<String, dynamic> _installedRow(
+  List<String> approvedHost, {
+  String? sha,
+  Map<String, dynamic> extras = const {},
+}) => {
+  'id': 'ladder',
+  'name': 'Ladder',
+  'version': '0.1.0',
+  'artifact_sha256': sha ?? _sha,
+  'approved_capabilities': ['kv.store', 'message.post', 'surface.render'],
+  'approved_host_capabilities': approvedHost,
+  'extension_points': <Map<String, dynamic>>[],
+  'enabled': true,
+  'installed_at': 1000,
+  ...extras,
+};
 
 http.Response _json(Object body) => http.Response(
   jsonEncode(body),
@@ -79,6 +84,8 @@ Future<List<Map<String, dynamic>>> _pump(
   WidgetTester tester, {
   List<String>? installedApproved,
   String? installedSha,
+  Map<String, dynamic> manifestExtras = const {},
+  Map<String, dynamic> installedExtras = const {},
   Size size = const Size(420, 1400),
 }) async {
   final installs = <Map<String, dynamic>>[];
@@ -92,10 +99,16 @@ Future<List<Map<String, dynamic>>> _pump(
     if (path == '/space/dock/installed') {
       return _json([
         if (installedApproved != null)
-          _installedRow(installedApproved, sha: installedSha),
+          _installedRow(
+            installedApproved,
+            sha: installedSha,
+            extras: installedExtras,
+          ),
       ]);
     }
-    if (path == '/space/dock/modules/ladder') return _json(_manifest());
+    if (path == '/space/dock/modules/ladder') {
+      return _json(_manifest(manifestExtras));
+    }
     if (path == '/space/dock/modules/ladder/install') {
       installs.add(jsonDecode(request.body) as Map<String, dynamic>);
       return _json(_installedRow(const []));
@@ -225,11 +238,53 @@ void main() {
       installedSha: List.filled(64, 'b').join(),
     );
     expect(_switches(tester).sublist(0, 2), [true, false]);
-    expect(find.textContaining('approved again'), findsOneWidget);
+    expect(
+      find.text('This version needs Post messages approved again.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['kv.store']);
+  });
+
+  group('a hook on the same version', () {
+    Map<String, dynamic> hook(List<String> reads) => {
+      'interceptors': [
+        {'hook': 'message.pre_send', 'phase': 'reject', 'reads': reads},
+      ],
+    };
+    final offered = {
+      'capabilities': ['kv.store', 'interceptors'],
+      ...hook(['channel_id', 'content']),
+    };
+
+    testWidgets('that reads more must be approved again', (tester) async {
+      await _pump(
+        tester,
+        installedApproved: ['kv.store', 'interceptors'],
+        manifestExtras: offered,
+        installedExtras: hook(['channel_id']),
+      );
+
+      expect(_switches(tester), [true, false]);
+      expect(
+        find.text('This version needs Check messages approved again.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('that reads the same stays approved', (tester) async {
+      await _pump(
+        tester,
+        installedApproved: ['kv.store', 'interceptors'],
+        manifestExtras: offered,
+        installedExtras: hook(['channel_id', 'content']),
+      );
+
+      expect(_switches(tester), [true, true]);
+      expect(find.textContaining('approved again'), findsNothing);
+    });
   });
 
   testWidgets('desktop: Overview and a changed Access tab', (tester) async {
