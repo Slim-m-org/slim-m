@@ -37,7 +37,7 @@ The Go relay cross-compiles fast enough that one amd64 runner with `docker build
 
 ## 5. Production Dockerfile and docker-compose
 
-The server Dockerfile is a two-stage musl build: `cargo-chef` separates the dependency layer from the application layer for cache reuse, `rustls` replaces OpenSSL so the binary has no C TLS dependency, and SQLite links in statically via the bundled feature against the musl target.
+The server Dockerfile is a musl build whose dependency stage (manifests and empty sources, no `cargo-chef`) is separate from the application stage for cache reuse, `rustls` replaces OpenSSL so the binary has no C TLS dependency, and SQLite links in statically via the bundled feature against the musl target.
 The runtime stage is `distroless/static-debian12:nonroot`: non-root, no shell, no package manager, with a `--healthcheck` subcommand baked into the same binary backing the container `HEALTHCHECK`, since a shell-less image has no `curl` to invoke one externally.
 Because SQLite is embedded and single-writer, the server owns its data on a named volume directly; there is no separate database container to run or back up, meaningfully lighter than a typical Postgres-backed compose file.
 The compose example that actually runs voice adds LiveKit (the already-decided self-hosted SFU), pinned by digest, plus Caddy for automatic TLS.
@@ -67,7 +67,7 @@ SBOMs come from Buildx's native `--sbom`/`--provenance` flags, not a separate to
 
 ## 9. Caching
 
-`Swatinem/rust-cache` for the Cargo workspace, `subosito/flutter-action`'s built-in cache plus a `~/.pub-cache` key on `pubspec.lock`, Buildx `type=gha` layer caching (pairing with `cargo-chef`'s split layer), and Go's built-in module cache for the relay.
+`Swatinem/rust-cache` for the Cargo workspace, `subosito/flutter-action`'s built-in cache plus a `~/.pub-cache` key on `pubspec.lock`, Buildx `type=gha` layer caching (of the Dockerfile's dependency stage), and Go's built-in module cache for the relay.
 Bigger or self-hosted runners are deliberately not adopted up front; standard caches should cover a small OSS project's CI budget, and paying for capacity ahead of a measured bottleneck is premature complexity.
 
 ## Stack interaction note
