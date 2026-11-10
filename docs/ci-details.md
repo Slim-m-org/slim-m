@@ -106,6 +106,9 @@ The tail was apt: about 45 shard jobs were cancelled at the 25 minute limit whil
 So the eight-shard split stays, `libmpv2` (213 packages) replaces `libmpv-dev` (413) in the shards, the apt steps retry and carry their own step timeout, and the shard limit is 30 minutes, twice the slowest observed test step plus setup.
 Retrying the same slow mirror still failed four PRs and a release run on 2026-10-06, so the shards' `libmpv` step and the `linux-build-deps` action now go through `scripts/apt-install.sh` (the `apt-install` composite action for a plain step).
 It bounds each attempt (4 minutes for `update`, 6 for `install`) and, when the runner's Azure mirror stalls or fails, points the sources at `archive.ubuntu.com` and tries once more.
+Around 2026-11-10 jobs on main and on pull requests still stalled with both attempts on Azure: the ubuntu 24.04 image's sources name a mirror list (`mirror+file:/etc/apt/apt-mirrors.txt`) rather than a host, so the rewrite matched nothing, and apt only moves down that list on an error, not on a slow mirror.
+The fallback now rewrites the mirror lists the sources name as well, and `scripts/lib/test_apt_install.py` drives both shapes against a fake apt that stalls while it is resolving to Azure.
+The deb cache is also saved by its own step right after the install, because the post-job save only runs when the whole job passes, so a job that failed later never seeded it and every retry on a new image downloaded everything again.
 `server-binaries` installs nothing from apt: it builds inside the container image's own alpine builder, because Ubuntu's arm64 musl-gcc could not compile jemalloc (server-v0.84.0).
 Runner-minutes per client PR, from the same data: the dart2js job 21, eight shards about 104, `other-packages` 6, `linux desktop compiles` 4 to 23, the rest under 6.
 
