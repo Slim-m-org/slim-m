@@ -101,18 +101,20 @@ class _SectionLabelState extends State<SectionLabel> {
         // Mirrors AppListRow's horizontal padding, so header and row text share a left edge.
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.s8,
-          AppRhythm.headingTop,
-          AppSpacing.s8,
           AppSpacing.s4,
+          AppSpacing.s8,
+          0,
         ),
-        child: trailing == null
-            ? label
-            : Row(
-                children: [
-                  Expanded(child: label),
-                  trailing,
-                ],
-              ),
+        child: ConstrainedBox(
+          // A pointer row tall, which the add button fills, so a header with it and one without lay out alike.
+          constraints: const BoxConstraints(minHeight: AppSizes.rowPointer),
+          child: Row(
+            children: [
+              Expanded(child: label),
+              ?trailing,
+            ],
+          ),
+        ),
       ),
     );
   }
