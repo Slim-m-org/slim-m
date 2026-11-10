@@ -115,7 +115,18 @@ Rect _header(WidgetTester t) =>
 
 void main() {
   group('a finger under the quote', () {
-    for (final below in const [4.0, 12.0, 20.0, 26.0, 32.0, 38.0, 42.0]) {
+    for (final below in const [
+      4.0,
+      12.0,
+      20.0,
+      22.0,
+      23.0,
+      24.0,
+      26.0,
+      32.0,
+      38.0,
+      42.0,
+    ]) {
       testWidgets('jumps ${below.toInt()}dp below its top on a phone', (
         tester,
       ) async {
