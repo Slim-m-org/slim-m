@@ -175,10 +175,8 @@ pub enum Event {
     /// the kind of privileged detail [`Event::RoleChanged`] withholds, and for
     /// the same reason. Gated by the ordinary current-state channel-scoped
     /// check, so a viewer who gains access is told immediately; a viewer
-    /// whose access this exact change revokes is a known, accepted gap (see
-    /// the audit finding this closes), since telling them precisely would need
-    /// the same kind of pre-change snapshot [`Event::ChannelDeleted`] needed,
-    /// scaled to however many members a role-targeted overwrite can name.
+    /// whose access this change revokes is told through `previously_visible_to`,
+    /// the pre-change snapshot [`Event::ChannelDeleted`] needed too.
     OverwriteChanged {
         channel_id: ChannelId,
         /// Who could view the channel immediately *before* this overwrite was
@@ -193,8 +191,9 @@ pub enum Event {
         ///
         /// It leaks nothing. Every id in it is somebody who could see the
         /// channel a moment ago, and the frame carries only the channel id.
-        /// Bounded by the targeted role's membership, or by one for a member
-        /// overwrite.
+        /// Bounded by the deployment for an `@everyone` overwrite, by the role's
+        /// membership for any other role, and by one for a member overwrite.
+        /// Every subscriber scans it per event, so keep per-connection work off it.
         previously_visible_to: Arc<Vec<UserId>>,
     },
     /// Someone's presence on a channel's voice call changed: a first
