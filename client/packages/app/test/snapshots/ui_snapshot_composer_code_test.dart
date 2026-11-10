@@ -16,13 +16,15 @@ import 'package:slimm_app/src/features/modules/providers/code_block_runner.dart'
 
 import '../features/composer/composer_harness.dart';
 import '../ui_snapshot_fonts.dart';
-import '../ui_snapshot_support.dart' show snapshotDir, writingSnapshots;
+import '../ui_snapshot_support.dart'
+    show snapshotDir, writeSnapshotSidecar, writingSnapshots;
 
 /// The whole window, since the picker is an overlay above the composer.
 Future<void> _writeWindow(WidgetTester tester, String name) async {
   if (!writingSnapshots) return;
   final view = tester.binding.renderViews.first;
   final layer = view.debugLayer! as OffsetLayer;
+  writeSnapshotSidecar(tester, name, capture: view.size);
   await tester.runAsync(() async {
     final image = await layer.toImage(Offset.zero & view.size, pixelRatio: 2);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);

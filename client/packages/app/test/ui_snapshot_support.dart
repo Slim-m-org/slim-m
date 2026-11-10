@@ -29,6 +29,7 @@ import 'package:slimm_data/data.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'support/real_shadows.dart';
+import 'support/snapshot_sidecar.dart';
 import 'ui_snapshot_fixture.dart';
 
 export 'ui_snapshot_fixture.dart';
@@ -116,6 +117,12 @@ Future<void> writeSnapshot(WidgetTester tester, String name) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(snapshotBoundary),
   );
+  writeSnapshotSidecar(
+    tester,
+    name,
+    capture: boundary.size,
+    root: tester.element(find.byKey(snapshotBoundary)),
+  );
   await withRealShadows(tester, boundary, () async {
     await tester.runAsync(() async {
       final image = await boundary.toImage(pixelRatio: 2);
@@ -127,6 +134,28 @@ Future<void> writeSnapshot(WidgetTester tester, String name) async {
       ).writeAsBytesSync(bytes!.buffer.asUint8List());
     });
   });
+}
+
+/// Writes `<name>.json` beside the PNG, for the review bundle (see `snapshot_sidecar.dart`).
+///
+/// [writeSnapshot] does this itself; a suite that cuts its own picture calls it with the [capture] size.
+void writeSnapshotSidecar(
+  WidgetTester tester,
+  String name, {
+  required Size capture,
+  Element? root,
+}) {
+  if (!writingSnapshots) return;
+  Directory(snapshotDir).createSync(recursive: true);
+  File('$snapshotDir/$name.json').writeAsStringSync(
+    snapshotSidecar(
+      tester,
+      name,
+      root: root ?? tester.binding.rootElement!,
+      capture: capture,
+      stack: StackTrace.current,
+    ),
+  );
 }
 
 /// Disposing before unmounting is what stops a pending debounce (the member

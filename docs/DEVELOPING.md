@@ -88,6 +88,46 @@ Drift's generated code is committed; regenerate it rather than editing it:
 - `scripts/ui-snapshots.sh` renders the real shell at every shipped resolution into `client/packages/app/build/ui-snapshots`.
 - `scripts/ui-capture.sh` runs the per-surface snapshot harnesses; a new harness needs a `JOBS` line there.
 - Snapshot tests write PNGs only with `SLIMM_UI_SNAPSHOTS=1`; otherwise they just check the layout.
+- `scripts/ui-review.sh` renders every snapshot suite and bundles the pictures for a design review, described next.
+
+### Design review bundle
+
+```bash
+scripts/ui-review.sh                     # every suite, then the bundle
+scripts/ui-review.sh --concurrency 4     # more test processes (default 2)
+scripts/ui-review.sh settings voice      # only suites whose path contains one of these words
+scripts/ui-review.sh --list              # which suites would run
+scripts/ui-review.sh --out ~/review-1    # somewhere other than ~/.slimm-scratch/ui-review/bundle
+```
+
+It runs `test/ui_snapshot_*`, `test/ui_overlay_snapshot_*`, `test/snapshots/ui_snapshot_*`, `test/snapshots/ui_overlay_snapshot_*` and `test/snapshots/ui_review_*`, so a new suite needs no registration.
+A full run starts from an empty `build/ui-snapshots`; a filtered run leaves the other suites' pictures where the last run put them.
+A failing suite does not stop the bundle, but the script still exits non-zero.
+
+`writeSnapshot` writes `<name>.json` beside every PNG with the test file, the test description, the window size in logical pixels and the brightness of the app's `Theme`.
+The sidecar holds no timestamp, so two runs of the same code write the same files.
+A suite that cuts its own picture instead of calling `writeSnapshot` calls `writeSnapshotSidecar`.
+
+`scripts/lib/ui_review_bundle.py` turns the folder into `<out>/shots/*.webp` (at most 1600 px wide, quality 80; PNGs are copied when Pillow is missing) and `<out>/manifest.json`:
+
+- `generated_from_commit` and `dirty`, the commit the pictures were rendered from.
+- `shots`, one per picture, with `id`, `surface`, `state`, `area`, `viewport` (`phone` under 600 px wide, else `desktop`), `theme`, `width`, `height`, `file`, `sha256` of the source PNG, `test` and `description`.
+- `surfaces`, each with its `area` and the ids of its shots, in the order to walk them.
+- `coverage` and `warnings`, covered below.
+
+A picture's name gives its surface: the viewport and theme tokens (`phone-portrait`, `desktop`, `dark`, `light`, a width like `390`) are taken out, wherever they sit.
+A `--` splits the surface from a state (`voice-call--muted--phone--dark`).
+Otherwise the longest name in the registry that leads the rest is the surface and what follows is its state.
+Pictures whose surface is in no registry row land in the `unregistered` area at the end.
+
+`client/packages/app/test/gates/ui_review_coverage.txt` is the registry, one `kind|key|area|snapshots` row per surface.
+`kind` is `route`, `settings` or `space`, and `key` is the router path or the settings pane id.
+`snapshots` is a comma list of surface names, `exclude: <why>` for something with nothing to look at, or `pending: <why>` for a surface still waiting for its pictures.
+`test/gates/ui_review_coverage_gate_test.dart` fails when a route in `router.dart` or a pane in the settings index has no row, so a new screen cannot ship unreviewed.
+A full `scripts/ui-review.sh` run also fails when a registered name was never rendered, and lists the pending rows.
+
+Look at `manifest.json` and `shots/` to review; `ui_review_bundle.py --help` has the rest.
+`scripts/ui-capture.sh` predates this and still builds its own contact sheet from a fixed list of harnesses.
 
 ## End to end
 

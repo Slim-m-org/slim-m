@@ -218,6 +218,7 @@ Other loops:
 ```bash
 (cd client/packages/data && dart run build_runner build --delete-conflicting-outputs)  # drift codegen
 scripts/ui-snapshots.sh                  # real shell at every shipped resolution -> client/packages/app/build/ui-snapshots
+scripts/ui-review.sh                     # every snapshot suite, then a review bundle (webp + manifest.json); docs/DEVELOPING.md
 scripts/e2e.sh --keep                    # real LiveKit + server + two browsers; --keep leaves it up
 (cd scripts/lib && python3 -m unittest discover -p 'test_*.py')   # the e2e harness's own logic
 npx @redocly/cli build-docs schema/openapi.yaml -o /tmp/api.html  # browsable API reference
