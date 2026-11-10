@@ -44,6 +44,13 @@ Source: "{#SourceDir}\slim-m.exe"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{autoprograms}\slim-m"; Filename: "{app}\slim-m.exe"
 Name: "{autodesktop}\slim-m"; Filename: "{app}\slim-m.exe"; Tasks: desktopicon
 
+[Registry]
+; slimm:// links (an invite, Spotify's redirect, the Discord link's hand-back) open the launcher, which starts the current version with the link.
+Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueData: "URL:slim-m"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\slimm"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\slimm\DefaultIcon"; ValueType: string; ValueData: "{app}\slim-m.exe,0"
+Root: HKCU; Subkey: "Software\Classes\slimm\shell\open\command"; ValueType: string; ValueData: """{app}\slim-m.exe"" ""%1"""
+
 [Run]
 Filename: "{app}\slim-m.exe"; Description: "Start slim-m"; Flags: nowait postinstall skipifsilent
 
