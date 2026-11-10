@@ -77,12 +77,30 @@ class NotFoundException extends ApiException {
 /// The request collided with existing state, for example reusing a message id
 /// that already belongs to a different channel or author.
 class ConflictException extends ApiException {
-  const ConflictException(super.message);
+  const ConflictException(super.message, {this.item});
+
+  /// The entry of a batch request the server refused, when it names one.
+  final ItemRefusal? item;
 }
 
 /// The request failed validation.
 class BadRequestException extends ApiException {
-  const BadRequestException(super.message);
+  const BadRequestException(super.message, {this.item});
+
+  /// The entry of a batch request the server refused, when it names one.
+  final ItemRefusal? item;
+}
+
+/// Which entry of a batch request the server refused and why, as the error
+/// body's `item_index` and `item_code` say it, so no caller reads the sentence.
+class ItemRefusal {
+  const ItemRefusal(this.index, this.code);
+
+  /// Zero-based position in the request's list.
+  final int index;
+
+  /// A stable reason such as `name_taken`; an unknown one is still a refusal.
+  final String code;
 }
 
 /// Over the rate budget for this traffic class. Back off before retrying.

@@ -47,6 +47,15 @@ pub(crate) enum ApiError {
     Conflict(&'static str),
     /// Like [`ApiError::Conflict`], naming the other party, which is only known at request time.
     ConflictDetail(String),
+    /// A 400 or 409 about one entry of a batch request: the sentence, plus the
+    /// entry's index and a stable reason so a client can mark that entry
+    /// without reading the sentence.
+    AtItem {
+        status: StatusCode,
+        message: String,
+        index: usize,
+        code: &'static str,
+    },
     TooManyRequests,
     /// The rate limiter refused; says how long until the bucket has a token.
     RateLimited {
@@ -96,6 +105,11 @@ struct ErrorBody {
     /// Only [`ApiError::MissingPermissions`] sets this: the refused bits.
     #[serde(skip_serializing_if = "Option::is_none")]
     missing_permissions: Option<i64>,
+    /// Only [`ApiError::AtItem`] sets these two: the zero-based entry and why.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    item_index: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    item_code: Option<&'static str>,
 }
 
 impl IntoResponse for ApiError {
@@ -113,6 +127,10 @@ impl IntoResponse for ApiError {
             ApiError::MissingPermissions(bits) => Some(bits.bits()),
             _ => None,
         };
+        let (item_index, item_code) = match &self {
+            ApiError::AtItem { index, code, .. } => (Some(*index), Some(*code)),
+            _ => (None, None),
+        };
         let (status, error): (StatusCode, Cow<'static, str>) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.into()),
             ApiError::BadRequestDetail(message) => (StatusCode::BAD_REQUEST, message.into()),
@@ -127,6 +145,9 @@ impl IntoResponse for ApiError {
             ApiError::Conflict(message) => (StatusCode::CONFLICT, message.into()),
             ApiError::ForbiddenDetail(message) => (StatusCode::FORBIDDEN, message.into()),
             ApiError::ConflictDetail(message) => (StatusCode::CONFLICT, message.into()),
+            ApiError::AtItem {
+                status, message, ..
+            } => (status, message.into()),
             ApiError::TooManyRequests => {
                 (StatusCode::TOO_MANY_REQUESTS, "slow down and retry".into())
             }
@@ -164,6 +185,8 @@ impl IntoResponse for ApiError {
                 error,
                 retry_after_seconds,
                 missing_permissions,
+                item_index,
+                item_code,
             }),
         )
             .into_response();

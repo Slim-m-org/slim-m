@@ -284,6 +284,7 @@ extension SlimmApiTransport on SlimmApi {
     var reason = 'request failed';
     var explained = false;
     int? missingPermissions;
+    ItemRefusal? item;
     Duration? bodyRetryAfter;
     try {
       final decoded = jsonDecode(response.body);
@@ -294,6 +295,15 @@ extension SlimmApiTransport on SlimmApi {
       if (decoded is Map<String, dynamic> &&
           decoded['missing_permissions'] is int) {
         missingPermissions = decoded['missing_permissions'] as int;
+      }
+      if (decoded is Map<String, dynamic> &&
+          decoded['item_index'] is int &&
+          (decoded['item_index'] as int) >= 0 &&
+          decoded['item_code'] is String) {
+        item = ItemRefusal(
+          decoded['item_index'] as int,
+          decoded['item_code'] as String,
+        );
       }
       if (decoded is Map<String, dynamic> &&
           decoded['retry_after_seconds'] is int &&
@@ -310,14 +320,14 @@ extension SlimmApiTransport on SlimmApi {
           stack);
     }
     return switch (response.statusCode) {
-      400 => BadRequestException(reason),
+      400 => BadRequestException(reason, item: item),
       401 => UnauthorizedException(reason),
       403 => ForbiddenException(
           reason,
           missingPermissions: missingPermissions,
         ),
       404 => NotFoundException(reason, unexplained: !explained),
-      409 => ConflictException(reason),
+      409 => ConflictException(reason, item: item),
       429 => RateLimitedException(
           reason,
           retryAfter: _retryAfter(response) ?? bodyRetryAfter,
