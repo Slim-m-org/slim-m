@@ -9,9 +9,9 @@
 //! becomes admin" model, and it runs exactly once because it is conditional on
 //! there being no `@everyone` role yet.
 
+use super::channels::channel_row::ChannelRow;
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, RoleId, UserId};
-use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 
 /// What `@everyone` gets on a fresh deployment: read and take part, but no
@@ -80,7 +80,8 @@ impl Store {
     /// of that category's own position, rendering as the implicit section
     /// the decision record describes.
     pub async fn list_channels(&self) -> anyhow::Result<Vec<super::Channel>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query_as!(
+            ChannelRow,
             r#"SELECT c.id AS "id!: ChannelId", c.name AS "name!", c.kind AS "kind!", c.topic,
                       c.position AS "position!: i64",
                       c.parent_message_id AS "parent_message_id: crate::ids::MessageId",
@@ -102,30 +103,7 @@ impl Store {
         )
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows
-            .into_iter()
-            .map(|r| super::Channel {
-                id: r.id,
-                name: r.name,
-                kind: r.kind,
-                topic: r.topic,
-                position: r.position,
-                parent_message_id: r.parent_message_id,
-                category_id: r.category_id,
-                created_at: r.created_at,
-                slow_mode_seconds: r.slow_mode_seconds,
-                join_muted: r.join_muted,
-                default_notification: NotificationPreference::parse(&r.default_notification)
-                    .unwrap_or_default(),
-                room: super::ChannelRoom {
-                    creates_rooms: r.creates_rooms,
-                    user_limit: r.user_limit,
-                    owner_id: r.room_owner_id,
-                    lobby_id: r.room_lobby_id,
-                    locked: r.room_locked,
-                },
-            })
-            .collect())
+        Ok(rows.into_iter().map(super::Channel::from).collect())
     }
 }
 

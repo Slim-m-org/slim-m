@@ -15,10 +15,10 @@ use std::collections::{HashMap, HashSet};
 
 use sqlx::{QueryBuilder, Row};
 
+use super::super::channels::channel_row::{CHANNEL_COLUMNS, ChannelRow};
 use super::super::dms::{BLOCKED_DENY, DM_BASE, DM_CHANNEL_KIND};
 use super::super::{Channel, Store};
 use crate::ids::{ChannelId, MessageId, UserId};
-use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 
 /// Where each requested id landed, keyed by the id as it was asked about so a
@@ -126,41 +126,20 @@ impl Store {
         let mut found = HashMap::with_capacity(ids.len());
         // Chunked under SQLite's bind cap; empty makes no chunks.
         for chunk in ids.chunks(super::super::MAX_IDS_PER_QUERY) {
-            let mut builder = QueryBuilder::new(
-                "SELECT id, name, kind, topic, position, parent_message_id, category_id, \
-                 created_at, slow_mode_seconds, join_muted, default_notification, creates_rooms, user_limit, \
-                 room_owner_id, room_lobby_id, room_locked \
-                 FROM channels WHERE deleted_at IS NULL AND id IN (",
-            );
+            let mut builder = QueryBuilder::new(format!(
+                "SELECT {CHANNEL_COLUMNS} FROM channels WHERE deleted_at IS NULL AND id IN ("
+            ));
             let mut separated = builder.separated(", ");
             for id in chunk {
                 separated.push_bind(*id);
             }
             builder.push(")");
-            for row in builder.build().fetch_all(&self.pool).await? {
-                let channel = Channel {
-                    id: row.try_get("id")?,
-                    name: row.try_get("name")?,
-                    kind: row.try_get("kind")?,
-                    topic: row.try_get("topic")?,
-                    position: row.try_get("position")?,
-                    parent_message_id: row.try_get("parent_message_id")?,
-                    category_id: row.try_get("category_id")?,
-                    created_at: row.try_get("created_at")?,
-                    slow_mode_seconds: row.try_get("slow_mode_seconds")?,
-                    join_muted: row.try_get("join_muted")?,
-                    default_notification: NotificationPreference::parse(
-                        &row.try_get::<String, _>("default_notification")?,
-                    )
-                    .unwrap_or_default(),
-                    room: super::super::ChannelRoom {
-                        creates_rooms: row.try_get("creates_rooms")?,
-                        user_limit: row.try_get("user_limit")?,
-                        owner_id: row.try_get("room_owner_id")?,
-                        lobby_id: row.try_get("room_lobby_id")?,
-                        locked: row.try_get("room_locked")?,
-                    },
-                };
+            for row in builder
+                .build_query_as::<ChannelRow>()
+                .fetch_all(&self.pool)
+                .await?
+            {
+                let channel = Channel::from(row);
                 found.insert(channel.id, channel);
             }
         }
