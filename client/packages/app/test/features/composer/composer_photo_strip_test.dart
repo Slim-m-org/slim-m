@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_photo_strip.dart';
 import 'package:slimm_app/src/features/composer/widgets/photo_library.dart';
+import 'package:slimm_app/src/features/composer/widgets/staged_attachment_model.dart';
 import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -50,8 +51,8 @@ class _FakeLibrary implements PhotoLibrary {
   Future<Uint8List?> thumbnail(String id, int pixels) async => _png;
 
   @override
-  Future<PhotoOriginal?> original(String id) async =>
-      (bytes: _png, name: '$id.png');
+  Future<FileSource?> original(String id) async =>
+      MemoryFile('$id.png', _png).source;
 
   @override
   Future<void> manageLimited() async => manageCalls += 1;

@@ -5,7 +5,9 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+import 'file_source_io.dart';
 import 'photo_library.dart';
+import 'staged_attachment_model.dart';
 
 PhotoLibrary? createPhotoLibrary() {
   final phone =
@@ -55,10 +57,10 @@ class _PluginPhotoLibrary implements PhotoLibrary {
       _assets[id]?.thumbnailDataWithSize(ThumbnailSize.square(pixels));
 
   @override
-  Future<PhotoOriginal?> original(String id) async {
+  Future<FileSource?> original(String id) async {
     final file = await _assets[id]?.file;
     if (file == null) return null;
-    return (bytes: await file.readAsBytes(), name: file.uri.pathSegments.last);
+    return fileSourceOf(file, name: file.uri.pathSegments.last);
   }
 
   @override

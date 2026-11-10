@@ -5,16 +5,9 @@ library;
 import 'dart:io';
 
 import '../../composer/widgets/composer_attachments.dart';
+import '../../composer/widgets/file_source_io.dart';
 import '../providers/incoming_share.dart';
 
 /// Reads [shared] from the app cache copy the platform made when it arrived.
-FileSource sharedFileSource(SharedFile shared) {
-  final file = File(shared.path);
-  return FileSource(
-    name: shared.name,
-    length: file.length,
-    readAll: file.readAsBytes,
-    openRead: file.openRead,
-    openReadAt: (offset) => file.openRead(offset),
-  );
-}
+FileSource sharedFileSource(SharedFile shared) =>
+    fileSourceOf(File(shared.path), name: shared.name);
