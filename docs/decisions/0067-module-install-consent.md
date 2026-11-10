@@ -25,7 +25,14 @@ A consent sheet opens from Install, and from Update when the new version asks fo
 An unverified module that asks for capabilities needs an "I understand what this module can do" tick before Install is enabled.
 A verified module shows the same list with a lighter tone, and pressing Install is the acknowledgement.
 An unverified module with no capabilities gets one line saying it runs code on the server, and no tick.
-Update all leaves a module that asks for new access for its own page, and names it.
+Update all walks the updates in order and opens the same consent step for each module that asks for new access, or whose new build takes back an approved power.
+Approving installs it with exactly the access the step listed, and skipping or closing the step leaves that module on its old version with its update still offered.
+A skip is a choice, so it is only mentioned under the Update all bar; a failed install stays an inline error with its reason.
+A private-network yes already given carries over only while `net.fetch` itself carries over untouched, since the step shows nothing about it.
+When the step asks about `net.fetch` again, the private-network yes is not carried, exactly as for a single update, and the module's own page grants it.
+Access the server withdrew after the install is asked about once more as "updated, give back its access?", and declining it is noted under the Update all bar.
+A module's hooks count as taken back on any new version, since the installed record carries none to compare, and the server applies an approval list as sent.
+Each step reads the module's record when it starts and again once the admin agrees, and so does the give-back after an update, so access revoked while the walk waited is not given back, and a module removed meanwhile is left removed.
 
 The warning sentence per capability is one table, `dockHostCapabilities` in `dock_host_access_card.dart`.
 A capability that carries details, such as a host list, receives them in its sentence function.

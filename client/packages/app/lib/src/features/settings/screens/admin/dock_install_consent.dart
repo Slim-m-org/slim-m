@@ -34,8 +34,8 @@ List<String> newConsentCapabilities(
 
 /// Whether an update takes back an approved power the admin has not seen:
 /// every host power after a new build, new hosts for `net.fetch`, a changed
-/// schedule, a subscription added to `events`, or a wider `data.store`.
-/// Mirrors the server's carry rules in `http/dock/capabilities.rs`.
+/// schedule, a new `events` subscription, a wider `data.store`, or a hook at
+/// any new version. Mirrors the server's rules in `http/dock/capabilities.rs`.
 bool dockNeedsReapproval(
   String capability,
   api.DockManifest manifest,
@@ -44,10 +44,10 @@ bool dockNeedsReapproval(
   if (installed == null) return false;
   final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
   return switch (capability) {
-    'message.post' ||
-    'log.read' ||
+    'message.post' || 'log.read' => newBuild,
+    // The installed record carries no hooks to compare, so a new version asks again.
     'interceptors' ||
-    'permission.hook' => newBuild,
+    'permission.hook' => newBuild || installed.version != manifest.version,
     api.kNetFetchCapability =>
       newBuild ||
           !dockSameHosts(
@@ -154,6 +154,18 @@ List<String> dockScheduleChanges(
 bool dockSameHosts(List<String> a, List<String> b) =>
     a.length == b.length && a.toSet().containsAll(b);
 
+/// Whether the private-network yes [installed] holds still stands for [manifest].
+bool dockLocalNetworkCarries(
+  api.DockManifest manifest,
+  api.InstalledDockModule? installed,
+  Set<String> approved,
+) =>
+    (manifest.network?.local ?? false) &&
+    approved.contains(api.kNetFetchCapability) &&
+    installed != null &&
+    installed.localNetworkApproved &&
+    dockSameHosts(installed.networkHosts, manifest.network!.hosts);
+
 /// Whether pressing Install should stop at the consent step first.
 bool dockNeedsConsent({
   required List<String> newCapabilities,
@@ -201,7 +213,10 @@ class DockVerifiedBadge extends StatelessWidget {
   }
 }
 
-/// Resolves true once the admin agrees, false when they back out.
+/// Resolves true once the admin agrees, false when they back out or close it.
+///
+/// [title] and [intro] replace the headline and the line above the list, and
+/// [confirmLabel] and [cancelLabel] rename the two buttons.
 Future<bool> showDockInstallConsent(
   BuildContext context, {
   required api.DockManifest manifest,
@@ -210,6 +225,10 @@ Future<bool> showDockInstallConsent(
   required bool isUpdate,
   bool localNetwork = false,
   List<String> changes = const [],
+  String? title,
+  String? intro,
+  String? confirmLabel,
+  String? cancelLabel,
 }) async {
   final agreed = await showAppSheet<bool>(
     context,
@@ -220,7 +239,11 @@ Future<bool> showDockInstallConsent(
       verified: verified,
       isUpdate: isUpdate,
       localNetwork: localNetwork,
+      title: title,
+      intro: intro,
       changes: changes,
+      confirmLabel: confirmLabel,
+      cancelLabel: cancelLabel,
     ),
   );
   return agreed ?? false;
@@ -233,7 +256,11 @@ class _ConsentSheet extends StatefulWidget {
     required this.verified,
     required this.isUpdate,
     required this.localNetwork,
+    required this.title,
+    required this.intro,
     required this.changes,
+    required this.confirmLabel,
+    required this.cancelLabel,
   });
 
   final api.DockManifest manifest;
@@ -241,6 +268,10 @@ class _ConsentSheet extends StatefulWidget {
   /// What an update changed about the module's reach or timer.
   final List<String> changes;
   final bool localNetwork;
+  final String? title;
+  final String? intro;
+  final String? confirmLabel;
+  final String? cancelLabel;
   final List<String> capabilities;
   final bool verified;
   final bool isUpdate;
@@ -282,7 +313,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             children: [
               Expanded(
                 child: AppButton(
-                  label: 'Cancel',
+                  label: widget.cancelLabel ?? 'Cancel',
                   variant: AppButtonVariant.ghost,
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
@@ -290,7 +321,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
               const SizedBox(width: AppSpacing.s8),
               Expanded(
                 child: AppButton(
-                  label: verb,
+                  label: widget.confirmLabel ?? verb,
                   variant: AppButtonVariant.primary,
                   disabled: _needsTick && !_understood,
                   onPressed: () => Navigator.of(context).pop(true),
@@ -307,7 +338,7 @@ class _ConsentSheetState extends State<_ConsentSheet> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        '$verb ${widget.manifest.name}?',
+        widget.title ?? '$verb ${widget.manifest.name}?',
         style: AppText.body.copyWith(
           color: tokens.textPrimary,
           fontWeight: AppWeights.semi,
@@ -318,9 +349,10 @@ class _ConsentSheetState extends State<_ConsentSheet> {
       const SizedBox(height: AppSpacing.s12),
       if (widget.capabilities.isNotEmpty) ...[
         Text(
-          widget.isUpdate
-              ? 'This version asks for new access. It can:'
-              : 'This module can:',
+          widget.intro ??
+              (widget.isUpdate
+                  ? 'This version asks for new access. It can:'
+                  : 'This module can:'),
           style: AppText.body.copyWith(color: tokens.textPrimary),
         ),
         const SizedBox(height: AppSpacing.s8),

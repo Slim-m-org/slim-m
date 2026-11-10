@@ -97,11 +97,8 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
         !approved.contains(api.kNetFetchCapability)) {
       return false;
     }
-    final carried =
-        installed != null &&
-        installed.localNetworkApproved &&
-        dockSameHosts(installed.networkHosts, manifest.network!.hosts);
-    return _localNetwork ?? carried;
+    return _localNetwork ??
+        dockLocalNetworkCarries(manifest, installed, approved);
   }
 
   List<String> _reapprovalsFor(
