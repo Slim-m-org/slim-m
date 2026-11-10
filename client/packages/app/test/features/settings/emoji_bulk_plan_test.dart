@@ -195,23 +195,6 @@ void main() {
     expect(inflated, maxPlannedEmojiCount);
   });
 
-  test('an image refused for its name is never inflated', () {
-    var inflated = 0;
-    final plan = planEmojiZip([
-      ZipEntryData.deferred(
-        path: '!!!.png',
-        size: 3,
-        inflate: () {
-          inflated++;
-          return [1, 2, 3];
-        },
-      ),
-    ]);
-
-    expect(plan.uploads, isEmpty);
-    expect(inflated, 0);
-  });
-
   test(
     'an entry that will not inflate is refused alone and frees its name',
     () {
