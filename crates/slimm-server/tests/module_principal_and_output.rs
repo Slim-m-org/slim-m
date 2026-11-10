@@ -129,6 +129,44 @@ async fn uninstalling_removes_the_principal_and_its_channel_overwrite() {
 }
 
 #[tokio::test]
+async fn a_failed_data_delete_still_retires_the_principal_and_a_retry_finishes_it() {
+    let w = world("slimm-modprin-datafail").await;
+    let token = admin_token(&w).await;
+    w.install(Install {
+        id: "ticker",
+        wasm: canned_ok_wasm("tick"),
+        declared: &["schedule"],
+        approved_host: &["schedule"],
+    })
+    .await;
+    let bot = w.store.ensure_module_bot("ticker", "Ticker").await.unwrap();
+    let file = w.modules_dir.join("ticker.db");
+    // remove_file on a directory fails with something other than NotFound.
+    std::fs::create_dir_all(&file).unwrap();
+    let uri = "/space/dock/modules/ticker/install?delete_data=true";
+
+    let (status, _) = send(&w, "DELETE", uri, &token, Value::Null).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(
+        w.store.user_profile(bot).await.unwrap().is_none(),
+        "the principal goes even when the data stays"
+    );
+
+    std::fs::remove_dir(&file).unwrap();
+    std::fs::write(&file, b"left behind").unwrap();
+    let (status, _) = send(&w, "DELETE", uri, &token, Value::Null).await;
+    assert_eq!(
+        status,
+        StatusCode::NO_CONTENT,
+        "the retry finishes the delete"
+    );
+    assert!(!file.exists());
+
+    let (status, _) = send(&w, "DELETE", uri, &token, Value::Null).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "nothing left to remove");
+}
+
+#[tokio::test]
 async fn reinstalling_mints_exactly_one_live_principal() {
     let w = world("slimm-modprin-reinstall").await;
     let token = admin_token(&w).await;

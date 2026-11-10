@@ -542,6 +542,7 @@ A shared scene with `"refresh_ms": 5000` is redrawn by the host every 5 seconds 
 For a moment that is not a redraw, answer with `"run_after": {"command": "phase_end", "after_ms": 15000, "key": "<channel id>"}`: the host runs that command once, at least 10 seconds later, as the module's own principal.
 `"cancel": true` with the same command and key removes it.
 This needs `schedule` approved, and a module may have 32 timers waiting.
+A timer runs at most once: it is not retried when its run fails, when the server restarts during the run, or when the module is disabled at the time it comes due.
 
 ## Limits and the security model
 
@@ -659,7 +660,7 @@ The manifest names where it may go:
 ```
 
 - `hosts` entries are lowercase `name` or `name:port`.
-  A bare name admits only the scheme's default port (443 for https, 80 for http).
+  A bare name admits only the scheme's default port (443 for https, 80 for http), and `name:port` admits exactly that port, so `api.example.com:443` also admits https on the default port.
   At most 16 entries.
 - `net.fetch` and a non-empty `hosts` come together; one without the other is refused when the manifest is read.
 - `"local": true` asks for the second, separate approval described below.

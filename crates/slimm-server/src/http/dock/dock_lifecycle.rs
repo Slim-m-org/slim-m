@@ -13,6 +13,7 @@ use super::super::extract::{Authed, Json, Query, enforce};
 use super::capabilities::held_hooks;
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
+use crate::module_runtime::valid_file_id;
 use crate::ratelimit::Class;
 use crate::store::{DeleteAccountError, InstalledModule};
 
@@ -33,22 +34,29 @@ pub(in crate::http) async fn uninstall(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state.store.installed_module(&id).await?;
-    if !state.store.uninstall_module(&id).await? {
-        return Err(ApiError::NotFound("module not installed"));
-    }
-    if query.delete_data {
-        state
-            .dock
-            .module_data(state.store.modules_dir())
-            .delete_data(&id)
-            .await
-            .map_err(|_| ApiError::Internal)?;
-    }
+    let uninstalled = state.store.uninstall_module(&id).await?;
     state.dock.slot_cache().invalidate_module(&id);
-    if let Some(module) = module {
+    if uninstalled && let Some(module) = module {
         retire_principal(&state, &module).await;
     }
+    // After the retirement, so a failed delete leaves a retry that only has files to remove.
+    let mut found = uninstalled;
+    if query.delete_data && (uninstalled || valid_file_id(&id)) {
+        found |= delete_module_data(&state, &id).await?;
+    }
+    if !found {
+        return Err(ApiError::NotFound("module not installed"));
+    }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Removes a module's data files; `true` when there were any.
+async fn delete_module_data(state: &AppState, id: &str) -> Result<bool, ApiError> {
+    let files = state.dock.module_data(state.store.modules_dir());
+    files.delete_data(id).await.map_err(|err| {
+        tracing::warn!(%err, module = id, "could not delete a module's data");
+        ApiError::Internal
+    })
 }
 
 /// A scheduled module's principal and its channel overwrite go with the module,

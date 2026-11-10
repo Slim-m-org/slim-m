@@ -178,10 +178,10 @@ async fn a_repeated_run_reuses_the_compiled_module_with_a_fresh_instance() {
 }
 
 /// The cache is bounded: past [`super::compiled::MAX_CACHED_MODULES`] distinct
-/// artifacts it is dropped and refilled, so the first one compiled is gone
+/// artifacts the least recently run goes, so the first one compiled is gone
 /// and the cache never holds more than the bound. Only eviction is asserted,
 /// never that the latest survived: other tests in the same process share the
-/// cache and may clear it too, which only makes eviction more certain.
+/// cache and may evict from it too, which only makes eviction more certain.
 #[tokio::test]
 async fn the_compiled_module_cache_evicts_past_its_bound() {
     let first = distinct_wasm(1_000);

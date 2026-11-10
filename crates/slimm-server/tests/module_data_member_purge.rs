@@ -3,11 +3,16 @@
 //! member, for every column the manifest marks `member`, and nobody else's.
 
 use axum::http::StatusCode;
+use std::time::Duration;
+
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http;
-use slimm_server::module_runtime::validate_data_schema;
+use slimm_server::module_runtime::{
+    DataBackend, DataError, DataSchema, Outcome, SqliteData, Statement, purge_member,
+    validate_data_schema,
+};
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
@@ -155,4 +160,58 @@ async fn a_removed_member_who_can_come_back_keeps_their_module_rows() {
         rig.ok(json!({ "op": "count", "table": "xp" }))["count"],
         json!(1)
     );
+}
+
+/// Runs for real, except that any statement touching `failing` is refused.
+struct FailsOn {
+    inner: SqliteData,
+    failing: &'static str,
+}
+
+impl DataBackend for FailsOn {
+    fn schema(&self, module_id: &str) -> Result<DataSchema, DataError> {
+        self.inner.schema(module_id)
+    }
+
+    fn execute(
+        &self,
+        module_id: &str,
+        statement: &Statement,
+        budget: Duration,
+    ) -> Result<Outcome, DataError> {
+        if statement.sql.contains(self.failing) {
+            return Err(DataError::Unavailable);
+        }
+        self.inner.execute(module_id, statement, budget)
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn one_failing_table_does_not_stop_the_purge_of_the_rest() {
+    let (dir, _dir) = TestDirGuard::new("slimm-member-purge-partial");
+    files(&dir)
+        .apply_schema("scores", &validate_data_schema(&schema()).unwrap())
+        .await
+        .unwrap();
+    let mut rig = Rig::attach(&dir, "scores", &["data.store"]);
+    for table in ["xp", "duel"] {
+        let column = if table == "xp" { "user_id" } else { "winner" };
+        rig.ok(json!({ "op": "insert", "table": table, "values": { column: "gone" } }));
+    }
+    let backend = FailsOn {
+        inner: files(&dir),
+        failing: "\"xp\"",
+    };
+
+    let outcome = tokio::task::block_in_place(|| purge_member(&backend, "scores", "gone"));
+
+    assert!(
+        matches!(outcome, Err(DataError::Unavailable)),
+        "{outcome:?}"
+    );
+    rig.renew();
+    let duel = rig.ok(json!({ "op": "count", "table": "duel" }));
+    assert_eq!(duel["count"], json!(0), "the table after the failing one");
+    let xp = rig.ok(json!({ "op": "count", "table": "xp" }));
+    assert_eq!(xp["count"], json!(1), "the failing table keeps its row");
 }
