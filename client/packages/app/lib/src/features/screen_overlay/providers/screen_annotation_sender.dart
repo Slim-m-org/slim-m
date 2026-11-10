@@ -59,7 +59,7 @@ class ScreenAnnotationSender {
     if (_id == null) return;
     _flushStroke(ended: true);
     _id = null;
-    _flush?.cancel();
+    _stopFlush();
   }
 
   /// Sets the ellipse spanned by [from] and [to]; the last call before [endShape] is what stays.
@@ -75,7 +75,7 @@ class ScreenAnnotationSender {
     _emit('shape', points: shape, ended: true);
     _shape = null;
     _id = null;
-    _flush?.cancel();
+    _stopFlush();
   }
 
   /// Places a sticky note with its top-left at [at].
@@ -88,7 +88,7 @@ class ScreenAnnotationSender {
   }
 
   void dispose() {
-    _flush?.cancel();
+    _stopFlush();
     _finish();
   }
 
@@ -99,6 +99,11 @@ class ScreenAnnotationSender {
     } else {
       endStroke();
     }
+  }
+
+  void _stopFlush() {
+    _flush?.cancel();
+    _flush = null;
   }
 
   void _arm() {

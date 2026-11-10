@@ -100,6 +100,39 @@ void main() {
     expect(sent.map((f) => f.annotationId).toSet(), hasLength(2));
   });
 
+  testWidgets('a second stroke on the same sender flushes mid-stroke too', (
+    tester,
+  ) async {
+    sender.beginStroke(const Offset(0.1, 0.1));
+    sender.extendStroke(const Offset(0.2, 0.2));
+    await tester.pump(annotationFlushInterval);
+    sender.endStroke();
+    sent.clear();
+
+    sender.beginStroke(const Offset(0.5, 0.5));
+    sender.extendStroke(const Offset(0.6, 0.6));
+    await tester.pump(annotationFlushInterval);
+    expect(sent.single.points, [0.5, 0.5, 0.6, 0.6]);
+    expect(sent.single.ended, isFalse);
+    sender.dispose();
+  });
+
+  testWidgets('a second circle on the same sender previews while dragged', (
+    tester,
+  ) async {
+    sender.dragShape(const Offset(0.1, 0.1), const Offset(0.4, 0.4));
+    await tester.pump(annotationFlushInterval);
+    sender.endShape();
+    sent.clear();
+
+    sender.dragShape(const Offset(0.2, 0.2), const Offset(0.7, 0.6));
+    await tester.pump(annotationFlushInterval);
+    expect(sent.single.kind, 'shape');
+    expect(sent.single.points, [0.2, 0.2, 0.7, 0.6]);
+    expect(sent.single.ended, isFalse);
+    sender.dispose();
+  });
+
   testWidgets('abandoning a stroke mid-way still ends it', (tester) async {
     sender.beginStroke(const Offset(0.1, 0.1));
     sender.dispose();
