@@ -143,7 +143,7 @@ class CameraSwitching {
   ///
   /// A disable failure is reported with no [CameraFailureReason.noCameraDetected]
   /// framing: the camera was already on, so a device plainly exists, and the
-  /// caller (`VoiceSession._trySetCamera`) does not ask for one in that case.
+  /// caller (`VoiceCamera.trySetEnabled`) does not ask for one in that case.
   /// [_devices] is consulted before enabling only when a camera was chosen by
   /// id, and otherwise only on failure: the extra round trip is for the message.
   Future<CameraToggleResult> setEnabled(

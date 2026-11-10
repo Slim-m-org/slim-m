@@ -24,6 +24,8 @@ extension type _Els._(JSObject _) implements JSObject {
 
 extension type _El._(JSObject _) implements JSObject {
   external set id(String value);
+  external set srcObject(JSObject? value);
+  external bool get muted;
   external void remove();
   external void appendChild(_El child);
 }
@@ -32,6 +34,20 @@ _El _audio(String id) {
   final element = _createElement('audio')..id = id;
   return element;
 }
+
+@JS('AudioContext')
+extension type _Context._(JSObject _) implements JSObject {
+  external _Context();
+  external _Destination createMediaStreamDestination();
+}
+
+extension type _Destination._(JSObject _) implements JSObject {
+  external JSObject get stream;
+}
+
+/// An element with a real stream behind it, as a gain graph needs.
+_El _playingAudio(String id) =>
+    _audio(id)..srcObject = _Context().createMediaStreamDestination().stream;
 
 Future<void> _mutationsDelivered() => Future<void>.delayed(Duration.zero);
 
@@ -93,5 +109,44 @@ void main() {
     await _mutationsDelivered();
 
     expect(arrived, isEmpty);
+  });
+
+  test('a removed element has its gain graph released', () async {
+    final element = _playingAudio('livekit_audio_x');
+    _appendToBody(element);
+    await _mutationsDelivered();
+    expect(applyWebGain('x', 1.5), isNull);
+    expect(element.muted, isTrue);
+
+    element.remove();
+    await _mutationsDelivered();
+
+    expect(element.muted, isFalse);
+  });
+
+  test('a graph on an element that stays is not released by others leaving',
+      () async {
+    final kept = _playingAudio('livekit_audio_kept');
+    final other = _playingAudio('livekit_audio_other');
+    _appendToBody(kept);
+    _appendToBody(other);
+    await _mutationsDelivered();
+    expect(applyWebGain('kept', 1.5), isNull);
+
+    other.remove();
+    await _mutationsDelivered();
+
+    expect(kept.muted, isTrue);
+  });
+
+  test('stopping the watch releases the graphs still in place', () async {
+    final element = _playingAudio('livekit_audio_x');
+    _appendToBody(element);
+    await _mutationsDelivered();
+    expect(applyWebGain('x', 1.5), isNull);
+
+    stop();
+
+    expect(element.muted, isFalse);
   });
 }

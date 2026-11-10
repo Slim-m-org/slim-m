@@ -80,4 +80,47 @@ void main() {
     expect(f.built.first.released, isTrue);
     expect(f.built.last.released, isFalse);
   });
+
+  test('pruning releases a graph whose element has left', () {
+    final f = _Fixture();
+    f.registry.apply('a', 1.4);
+    f.stale.add(f.built.single);
+
+    f.registry.prune('a');
+    f.registry.apply('a', 1.4);
+
+    expect(f.built.first.released, isTrue);
+    expect(f.built, hasLength(2));
+  });
+
+  test('pruning keeps a graph whose element is still current', () {
+    final f = _Fixture();
+    f.registry.apply('a', 1.4);
+
+    f.registry.prune('a');
+    f.registry.apply('a', 1.2);
+
+    expect(f.built, hasLength(1));
+    expect(f.built.single.released, isFalse);
+  });
+
+  test('pruning an id with no graph does nothing', () {
+    final f = _Fixture();
+
+    f.registry.prune('a');
+
+    expect(f.built, isEmpty);
+  });
+
+  test('releasing all hands every element back and forgets them', () {
+    final f = _Fixture()..present.add('b');
+    f.registry.apply('a', 1.4);
+    f.registry.apply('b', 0.5);
+
+    f.registry.releaseAll();
+
+    expect(f.built.every((graph) => graph.released), isTrue);
+    f.registry.apply('a', 1.4);
+    expect(f.built, hasLength(3));
+  });
 }

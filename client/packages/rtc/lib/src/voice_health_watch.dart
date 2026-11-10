@@ -1,11 +1,31 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'voice_session.dart';
+/// A voice session's read of how the call's audio is doing.
+library;
 
-/// [VoiceSession]'s read of how the call's audio is doing, a mixin for the
-/// reason `voice_session_audio_devices.dart` gives.
-mixin VoiceSessionHealth {
-  lk.Room? get _room;
-  void _diag(String line, {LogLevel level});
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show LogLevel;
+
+import 'audio_glitch_watch.dart';
+import 'audio_stats.dart';
+import 'call_diagnostics.dart';
+import 'call_stats.dart';
+import 'voice_health.dart';
+import 'voice_models.dart';
+
+/// What [VoiceHealthWatch] needs from the session that owns it.
+class VoiceHealthWatchHost {
+  const VoiceHealthWatchHost({required this.room, required this.diag});
+
+  final lk.Room? Function() room;
+  final void Function(String line, {LogLevel level}) diag;
+}
+
+/// Samples the call's audio stats into [health] and [diagnostics].
+class VoiceHealthWatch {
+  VoiceHealthWatch(this._host);
+
+  final VoiceHealthWatchHost _host;
 
   /// Per-person quality and the last call's summary; see [VoiceHealth].
   final VoiceHealth health = VoiceHealth();
@@ -13,23 +33,25 @@ mixin VoiceSessionHealth {
   /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
   final CallDiagnostics diagnostics = CallDiagnostics();
 
-  late final _glitchWatch = AudioGlitchWatch(
+  late final AudioGlitchWatch glitchWatch = AudioGlitchWatch(
     sources: _remoteVoiceStats,
     nameOf: _nameOf,
     local: _localVoiceStats,
     shareSources: _remoteShareStats,
-    localIdOf: () => _room?.localParticipant?.identity ?? 'local',
+    localIdOf: () => _host.room()?.localParticipant?.identity ?? 'local',
     health: health,
-    log: _logHealth,
+    log: _log,
   );
 
-  void _logHealth(String line, {LogLevel level = LogLevel.info}) {
+  final _mediaSource = MediaSourceNote();
+
+  void _log(String line, {LogLevel level = LogLevel.info}) {
     diagnostics.noteHealthLine(line);
-    _diag(line, level: level);
+    _host.diag(line, level: level);
   }
 
   String _nameOf(String identity) {
-    final peer = _room?.remoteParticipants[identity];
+    final peer = _host.room()?.remoteParticipants[identity];
     return peer == null || peer.name.isEmpty ? identity : peer.name;
   }
 
@@ -41,7 +63,8 @@ mixin VoiceSessionHealth {
 
   Map<String, AudioStatsSource> _remoteAudioStats(lk.TrackSource source) {
     final out = <String, AudioStatsSource>{};
-    final remotes = _room?.remoteParticipants.values.toList() ?? const [];
+    final remotes =
+        _host.room()?.remoteParticipants.values.toList() ?? const [];
     for (final p in remotes) {
       for (final pub in p.audioTrackPublications) {
         final track = pub.track;
@@ -64,7 +87,10 @@ mixin VoiceSessionHealth {
       };
 
   Future<AudioSendSample?> _localVoiceStats() async {
-    final pub = _room?.localParticipant?.audioTrackPublications
+    final pub = _host
+        .room()
+        ?.localParticipant
+        ?.audioTrackPublications
         .where((p) => p.source == lk.TrackSource.microphone)
         .firstOrNull;
     final track = pub?.track;
@@ -73,35 +99,26 @@ mixin VoiceSessionHealth {
     if (reports == null) return null;
     final entries = _entries(reports);
     diagnostics.noteTransport(parseTransportStats(entries));
-    _mediaSource.note(entries, _diag);
+    _mediaSource.note(entries, _host.diag);
     return parseAudioSend(entries);
   }
-
-  final _mediaSource = MediaSourceNote();
 
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>
       [for (final r in reports) StatsEntry.fromReport(r)];
 
   /// Cancels the sampling timer without ending the call's history.
-  void _stopHealthWatch() => _glitchWatch.stop();
+  void stop() => glitchWatch.stop();
 
   /// Samples while the call is up; the call's summary is logged when it ends,
   /// not when it is only reconnecting.
-  void _syncHealthWatch(VoiceSessionState state) {
+  void sync(VoiceSessionState state) {
     switch (state) {
       case VoiceSessionState.connected:
-        _glitchWatch.start();
+        glitchWatch.start();
       case VoiceSessionState.connecting:
-        _glitchWatch.stop();
+        glitchWatch.stop();
       case VoiceSessionState.idle || VoiceSessionState.failed:
-        _glitchWatch.finish();
+        glitchWatch.finish();
     }
   }
-}
-
-/// Lets tests see the watch behind [VoiceSession.health]; an extension rather
-/// than a member so fakes implementing [VoiceSession] need not provide it.
-@visibleForTesting
-extension VoiceSessionHealthWatchAccess on VoiceSession {
-  AudioGlitchWatch get glitchWatch => _glitchWatch;
 }

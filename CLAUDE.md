@@ -68,6 +68,7 @@ Client (`client/packages/`), layered bottom-up:
 - `api` (wire types and transport, no Flutter) -> `data` (drift local store and sync) -> feature packages (`design_system`, `platform`, `rtc`, `voice_canvas`) -> `app` (screens, routing, providers).
 - `app` uses riverpod for state and go_router for routing. `app/lib/src/features/<feature>/{widgets,providers,screens}` holds each feature (auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings, voice); the top-level `widgets/`, `providers/` and `screens/` are the shared layer (shell, sync, push, app lock, generic UI), next to `routing/`, `desktop/` and the other platform folders. A new file goes in its feature; it goes in the shared layer only when two or more features use it. A widget never imports a screen and a provider never imports a widget; `app/test/gates/layer_direction_gate_test.dart` enforces it, with a shrink-only list of the known exceptions.
 - `data` commits drift's generated `database.g.dart`; regenerate it rather than hand-editing.
+- `rtc`: `VoiceSession` only forwards its public members. `voice_session_core.dart` builds each collaborator (the `voice_*` classes, each with a narrow host of closures) and `voice_call_flow.dart` owns join, leave and teardown. A new call feature is a class with a host, never a mixin or `part` of `VoiceSession`.
 
 ## Critical rules
 
@@ -135,6 +136,7 @@ Never use `:memory:` for tests that depend on the multi-connection SQLite pool.
 - `scripts/check-migration-versions.py` - duplicate or mutated migrations.
 - `scripts/check-test-patterns.py` - no app test gains a `find.byType` or `pumpAndSettle`; `--update` lowers the ceilings in `test-pattern-allow.txt`, and `expectSettled`, `waitUntil` and the geometry helpers are the replacements.
 - `scripts/check-media-query-scope.py` - no unscoped `MediaQuery.of(context)` in `client/**/*.dart` outside `media-query-of-allow.txt`; use the scoped accessor (`MediaQuery.sizeOf`, `MediaQuery.viewInsetsOf`, ...) instead.
+- `scripts/check-part-files.py` - no new hand-written `part` file; split by extracting a class into its own library. `part-file-allow.txt` holds the remaining ones at their count and only shrinks.
 - `scripts/lib/test_release_required_checks_*.py` - the two structural gates on `release.yml`'s `required_checks`: every name is a real job name, and the one it names can reach a release commit.
 - `scripts/lib/test_ci_docs_triggers.py` - a workflow's `docs/ci.md` row mentions every trigger kind it has. `check-ci-docs.py` only checks the row exists; this checks it is not lying about when the workflow runs.
   All three run in the `scripts/lib` unittest suite, not as their own steps.

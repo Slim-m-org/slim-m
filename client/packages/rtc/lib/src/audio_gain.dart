@@ -77,7 +77,8 @@ Future<Object?> applyParticipantVolume(lk.Track track, double volume) async {
 
 /// Calls [onArrive] with the track id of every remote audio element the moment
 /// the browser gets it, before it has played a sample; the returned function
-/// stops watching. Does nothing off the web.
+/// stops watching and frees the gain graphs built meanwhile. Does nothing off
+/// the web.
 void Function() watchAudioArrivals(void Function(String trackId) onArrive) {
   if (!lk.lkPlatformIs(lk.PlatformType.web)) return () {};
   return web_gain.watchWebAudioArrivals(onArrive);

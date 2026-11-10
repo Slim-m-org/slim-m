@@ -10,80 +10,49 @@
 ///
 /// The types this exposes are ours ([VoiceParticipant], [VoiceSessionState]),
 /// so a LiveKit upgrade that renames one of its own is contained here.
+///
+/// Every public member is declared here and forwards to a collaborator
+/// (`VoiceSessionCore` wires them): several tests build a `FakeSession
+/// implements VoiceSession` so that a member added to the real session is a
+/// compile error there rather than a silently untested path.
 library;
 
-import 'dart:async';
-
-import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
-import 'package:flutter/widgets.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
-import 'package:livekit_client/livekit_client.dart' as lk;
-import 'package:slimm_api/api.dart'
-    show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, VoidCallback, visibleForTesting;
+import 'package:flutter/widgets.dart' show Widget;
 
 import 'audio_device_switching.dart';
 import 'audio_devices.dart';
-import 'audio_event_scope.dart';
-import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
-import 'audio_stats.dart';
 import 'broadcast_bridge.dart';
 import 'call_diagnostics.dart';
-import 'call_stats.dart';
 import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
 import 'camera_join.dart';
 import 'camera_switching.dart';
 import 'desktop_sources.dart';
-import 'endpoint_effects.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
-import 'livekit_setup_log.dart';
-import 'local_audio.dart';
 import 'mic_failure.dart';
 import 'mic_port.dart';
 import 'mic_recovery.dart';
 import 'mic_release.dart';
-import 'noise_floor_estimator.dart';
 import 'pulse_audio.dart';
-import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
-import 'speaking_hold.dart';
-import 'start_bitrate_room.dart';
-import 'strong_noise_suppression.dart';
-import 'track_stats_summary.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
-import 'voice_disconnect_reason.dart';
 import 'voice_health.dart';
 import 'voice_log.dart';
-import 'voice_processing.dart';
-import 'voice_processing_control.dart';
 import 'voice_models.dart';
-import 'voice_roster_snapshot.dart';
-import 'voice_session_camera.dart';
-import 'voice_reconnect_tracker.dart';
-import 'voice_session_mic_fallback.dart';
-import 'voice_session_screen_share.dart';
+import 'voice_processing.dart';
+import 'voice_session_core.dart';
 
-part 'voice_session_audio_devices.dart';
-part 'voice_session_health.dart';
-part 'voice_session_input_gate.dart';
-part 'voice_session_join.dart';
-part 'voice_session_listener_audio.dart';
-part 'voice_session_mic_recovery.dart';
-part 'voice_session_mic_release.dart';
-part 'voice_session_stall.dart';
-part 'voice_session_stats.dart';
-part 'voice_session_tracks.dart';
-part 'voice_session_video.dart';
-
-/// Builds the LiveKit room a session drives. The injection seam.
-typedef RoomFactory = lk.Room Function();
+export 'voice_first_audio.dart' show watchFirstAudio;
+export 'voice_session_core.dart' show RoomFactory;
 
 /// A voice call in one channel.
 ///
@@ -91,14 +60,7 @@ typedef RoomFactory = lk.Room Function();
 /// its lifetime. [dispose] must be called, and leaving is not the same as
 /// disposing, because a user can leave and rejoin without the surrounding
 /// screen being torn down.
-class VoiceSession
-    with
-        VoiceSessionAudioDevices,
-        VoiceSessionHealth,
-        VoiceSessionInputGate,
-        VoiceSessionMicRecovery,
-        VoiceSessionMicRelease,
-        VoiceSessionListenerAudio {
+class VoiceSession {
   VoiceSession({
     RoomFactory? roomFactory,
     BroadcastBridge? broadcast,
@@ -118,231 +80,45 @@ class VoiceSession
     JoinTimings? joinTimings,
     ShareAudioIsolation? shareAudioIsolation,
     Duration cameraJoinTimeout = kJoinCameraTimeout,
-  })  : _joinTimings = joinTimings ?? JoinTimings(),
-        _cameraSwitching = CameraSwitching(
-          cameraDevices ?? const HardwareCameraDevices(),
-        ),
-        _cameraJoin = CameraJoin(timeout: cameraJoinTimeout) {
-    _roomFactory = roomFactory ?? _buildRoom;
-    _audio.log = audioLog;
-    // An injected room has no native capture behind it to gate.
-    _gate = inputGate ??
-        (roomFactory == null
-            ? InputGateMonitor()
-            : InputGateMonitor.disabled());
-    _gate.setRate(InputGateRate.watch);
-    _initCapture(micPort);
-    _audioSwitching = _switchingFor(
-      audioDevices,
-      liveOutput,
-      osMicBlocked,
-      liveInput,
-      pulse,
-    );
-    _audioSwitching.levelsNatively = () => _levelsNatively;
-    _initMicRelease(
-      grace: micReleaseGrace,
-      mobile: mobile ?? lk.lkPlatformIsMobile(),
-      plainOptions: () => _openCaptureOptions(reopen: false),
-    );
-    _initMicRecovery(
-      timing: micRecoveryTiming,
-      // An injected room has no sound stack to watch unless a test brings one.
-      watchDevices: audioDevices != null || roomFactory == null,
-      enable: () => _trySetMicrophone(true),
-      afterRestart: _followPreferredDevices,
-    );
-    _share = VoiceScreenShare(
-      VoiceScreenShareHost(
-        room: () => _room,
-        noteError: (error) => _lastError = error,
-        refresh: _refreshParticipants,
-        reported: _reported,
-      ),
-      broadcast: broadcast ?? const MethodChannelBroadcastBridge(),
-      desktopSources: desktopSources ?? const WebrtcDesktopSources(),
-      isolation: shareAudioIsolation ?? ShareAudioIsolation(),
-    );
-    _camera = VoiceCamera(
-      _share.host,
-      _cameraSwitching,
-      _receiveDensity,
-    );
-    _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
-    health.reconnect
-      ..log = _diag
-      ..restarting.addListener(_onReconnectingChanged);
-  }
+  }) : _core = VoiceSessionCore(
+          roomFactory: roomFactory,
+          broadcast: broadcast,
+          desktopSources: desktopSources,
+          cameraDevices: cameraDevices,
+          inputGate: inputGate,
+          micPort: micPort,
+          audioLog: audioLog,
+          audioDevices: audioDevices,
+          liveOutput: liveOutput,
+          liveInput: liveInput,
+          pulse: pulse,
+          osMicBlocked: osMicBlocked,
+          micRecoveryTiming: micRecoveryTiming,
+          micReleaseGrace: micReleaseGrace,
+          mobile: mobile,
+          joinTimings: joinTimings,
+          shareAudioIsolation: shareAudioIsolation,
+          cameraJoinTimeout: cameraJoinTimeout,
+        );
 
-  /// The room a fresh call publishes into: only what is on screen is
-  /// subscribed, at the size shown, so several video tiles do not cost the
-  /// same as all at full size, plus whatever microphone/speaker Voice
-  /// Settings has chosen; see [VoiceSessionAudioDevices].
-  lk.Room _buildRoom() => buildRoomWithStartBitrate(
-        _audioSwitching.roomOptions(receiveRoomOptions()),
-      );
+  final VoiceSessionCore _core;
 
-  late final RoomFactory _roomFactory;
+  // Call lifecycle and state.
 
-  @override
-  late final MicFallback _fallback = MicFallback(
-    MicFallbackHost(
-      switching: () => _audioSwitching,
-      hasRoom: () => _room != null,
-      micWanted: () => _micWanted,
-      mic: () => _mic,
-      timing: () => _micTiming,
-      watchdog: () => _micWatchdog,
-      log: _logMic,
-      setStatus: _setMicStatus,
-      noteFailure: _noteMicFailure,
-      restartCapture: _restartMicCapture,
-      selectInput: (device) => _selectInput(device, remember: false),
-      selectOutput: (device) => _selectOutput(device, remember: false),
-    ),
-  );
+  VoiceSessionState get state => _core.flow.state;
+  Stream<VoiceSessionState> get states => _core.flow.states;
 
-  late final _setupLog = LiveKitSetupLog(_diag);
-
-  late final _processing = VoiceProcessingControl(
-    switching: _audioSwitching,
-    mic: _mic,
-    release: _micRelease,
-    micWanted: () => _micWanted,
-    restartCapture: _restartMicCapture,
-    reopenMuted: () => _mic.reopenMuted(_plainOpenOptions()),
-    log: _diag,
-  );
-
-  /// Reopens the capture when it changed; echo, gain and suppression are fixed at open.
-  Future<void> setVoiceProcessing(VoiceProcessing next) =>
-      _processing.set(next, inCall: _room != null);
-
-  @override
-  Future<void> _reopenCapture(String reason) =>
-      _processing.reopen(reason, inCall: _room != null);
-
-  /// Whether a silent microphone is swapped for another, for this call only.
-  void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;
-
-  /// The microphone the call switched to on its own, until dismissed.
-  String? get micFallbackNotice => _fallback.notice;
-  Stream<String?> get micFallbackNotices => _fallback.notices;
-  void dismissMicFallbackNotice() => _fallback.dismissNotice();
-  @override
-  final JoinTimings _joinTimings;
-  final CameraSwitching _cameraSwitching;
-  final CameraJoin _cameraJoin;
-  late final VoiceCamera _camera;
-  late final VoiceScreenShare _share;
-  late final VideoSubscriptionCuller _videoCuller;
-  final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
-    lk.AdaptiveStreamPixelDensity.auto,
-  );
-
-  /// See [videoHealth]; fed by [callStats] while any remote video is subscribed.
-  late final _stallWatchdog = VideoStallWatchdog(recover: _recoverStalledVideo);
-  StreamSubscription<CallStatsSnapshot>? _stallStats;
-  final _activeVideoKeys = <String>{};
-
-  /// Per-track video stats, sampled while somebody watches, listens or we publish video.
-  late final callStats = CallStatsSampler(
-    targets: () => _callStatsTargets(),
-    log: (line) => AppLog.debug(LogTag.voice, line),
-    onSample: _onStatsSample,
-  );
-
-  late final _trackSummaries =
-      TrackStatsSummary(onSummary: _recordTrackSummary);
-
-  @override
-  lk.Room? _room;
-  // room.events.listen returns a cancel function rather than a
-  // StreamSubscription, so this holds the canceller itself.
-  lk.CancelListenFunc? _cancelEvents;
-  void Function()? _stopArrivalWatch;
-
-  final _stateController = StreamController<VoiceSessionState>.broadcast();
-  final _participantsController =
-      StreamController<List<VoiceParticipant>>.broadcast();
-
-  @override
-  VoiceSessionState _state = VoiceSessionState.idle;
-  List<VoiceParticipant> _participants = const [];
-  Object? _lastError;
-  VoiceDisconnect? _lastDisconnect;
-  bool _disposed = false;
-
-  /// See [setSpeakingSensitivity]; 1.0 is the behaviour before the setting.
-  double _speakingSensitivity = 1.0;
-
-  ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
-  final _loweredVideoSids = <String>{};
-  final _enlargedVideo = EnlargedVideo();
-  CameraQuality _cameraQuality = CameraQuality.balanced;
-
-  /// See [SpeakingHold]; the timer drops a held ring when its time is up.
-  final SpeakingHold _speakingHold = SpeakingHold();
-  Timer? _speakingHoldTimer;
-
-  VoiceSessionState get state => _state;
-  Stream<VoiceSessionState> get states => _stateController.stream;
-
-  List<VoiceParticipant> get participants => _participants;
-  Stream<List<VoiceParticipant>> get participantChanges =>
-      _participantsController.stream;
-
-  /// Whether this host can add a real audio track to a screen share; see
-  /// [rtc_share_audio.supportsScreenShareAudio] for the per-platform trace.
-  bool get supportsScreenShareAudio =>
-      rtc_share_audio.supportsScreenShareAudio();
-
-  /// How readily [VoiceParticipant.isSpeaking] reports true; see
-  /// [passesActivationThreshold] for what this can and cannot do.
-  ///
-  /// Safe before a room exists, and live mid-call: it re-evaluates the roster.
-  void setSpeakingSensitivity(double sensitivity) {
-    _speakingSensitivity = sensitivity.clamp(0.0, 1.0);
-    _refreshParticipants();
-  }
-
-  /// Caps the sharpness of the remote video you watch; live mid-call, and
-  /// kept for the next join.
-  void setReceiveVideoQuality(ReceiveVideoQuality quality) {
-    _receiveQuality = quality;
-    _videoCuller.dwell = videoDwellFor(quality);
-    _receiveDensity.value = pixelDensityFor(quality);
-    _refreshParticipants();
-  }
-
-  /// Keeps the tile [tileKey] at full sharpness, whatever the receive quality, until the result is called.
-  VoidCallback holdEnlargedVideo(String tileKey) => _enlargedVideo.hold(
-      tileKey, () => _disposed ? null : _refreshParticipants());
-
-  /// How sharp your camera publishes. Read when the camera turns on, and a
-  /// different one than it was published at republishes; the app cycles a live
-  /// camera to apply a change.
-  void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
+  List<VoiceParticipant> get participants => _core.roster.participants;
+  Stream<List<VoiceParticipant>> get participantChanges => _core.roster.changes;
 
   /// Why the last attempt failed, when [state] is [VoiceSessionState.failed].
-  Object? get lastError => _lastError;
+  Object? get lastError => _core.lastError;
 
   /// Why the last call ended, when the SFU ended it rather than this client.
-  VoiceDisconnect? get lastDisconnect => _lastDisconnect;
+  VoiceDisconnect? get lastDisconnect => _core.flow.lastDisconnect;
 
   /// Whether the call the SFU just ended was sharing a screen, read before the roster emptied.
-  bool get droppedWhileSharing => _droppedWhileSharing;
-  bool _droppedWhileSharing = false;
-
-  /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
-  Stream<CameraJoinOpen> get cameraJoinOpens => _cameraJoin.events;
-
-  /// The in-flight join, so a second call serializes behind it; see [join].
-  Future<void>? _joining;
-
-  /// Bumped by every join and every leave, so a teardown still unwinding can
-  /// tell that a newer call has taken this session over; see [leave].
-  int _generation = 0;
+  bool get droppedWhileSharing => _core.flow.droppedWhileSharing;
 
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
@@ -352,65 +128,215 @@ class VoiceSession
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
     bool canPublish = true,
-  }) {
-    final previous = _joining ?? Future<void>.value();
-    final current = previous
-        .catchError(ignoreError(LogTag.voice,
-            'An earlier call setup step failed; it was already reported'))
-        .then(
-          (_) => _join(
-            url: url,
-            token: token,
-            microphoneEnabled: microphoneEnabled,
-            cameraEnabled: cameraEnabled,
-            canPublish: canPublish,
-          ),
-        );
-    _joining = current.whenComplete(() {
-      if (identical(_joining, current)) _joining = null;
-    });
-    return current;
-  }
+  }) =>
+      _core.flow.join(
+        url: url,
+        token: token,
+        microphoneEnabled: microphoneEnabled,
+        cameraEnabled: cameraEnabled,
+        canPublish: canPublish,
+      );
 
   /// Leaves the call and resets deafen and mutes with it. Safe to call when not in one.
+  Future<void> leave() => _core.flow.leave();
+
+  Future<void> dispose() => _core.flow.dispose();
+
+  /// Per-person quality and the last call's summary; see [VoiceHealth].
+  VoiceHealth get health => _core.healthWatch.health;
+
+  /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
+  CallDiagnostics get diagnostics => _core.healthWatch.diagnostics;
+
+  /// Per-track video stats, sampled while somebody watches, listens or we publish video.
+  CallStatsSampler get callStats => _core.stats.sampler;
+
+  /// How readily [VoiceParticipant.isSpeaking] reports true; see
+  /// [passesActivationThreshold] for what this can and cannot do.
   ///
-  /// A leave a newer join already superseded resets nothing: [_teardown] clears `_room` before it awaits.
-  Future<void> leave() async {
-    final generation = ++_generation;
-    await _teardown();
-    if (generation != _generation) return;
-    _setRoster(const []);
-    _audio.deafened = false;
-    _audio.muted.clear();
-    _audio.screenMuted.clear();
-    // Gain deliberately survives: somebody you turned down stays turned down.
-    _lastDisconnect = null;
-    _droppedWhileSharing = false;
-    // Whatever a canvas last asked for was about the call that just ended.
-    _videoCuller.setInterest(null);
-    _videoCuller.setBlocked(const {});
-    _setState(VoiceSessionState.idle);
-  }
+  /// Safe before a room exists, and live mid-call: it re-evaluates the roster.
+  void setSpeakingSensitivity(double sensitivity) =>
+      _core.roster.setSensitivity(sensitivity);
+
+  // Microphone.
+
+  /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
+  Future<bool> setMicrophoneEnabled(bool enabled) =>
+      _core.micRecovery.setEnabled(enabled);
+
+  /// Whether the mic is healthy, being brought back, or given up on.
+  MicStatus get micStatus => _core.micRecovery.status;
+  Stream<MicStatus> get micStatuses => _core.micRecovery.statuses;
+
+  /// Why the last attempt to open the microphone failed; null while it works.
+  MicFailureReason? get micFailure => _core.micRecovery.failure;
+  Stream<MicFailureReason?> get micFailures => _core.micRecovery.failures;
+
+  /// Force-restarts the capture; the tap on a mic button that says it is unavailable.
+  Future<bool> resetMicrophone() => _core.micRecovery.reset();
+
+  /// Whether a silent microphone is swapped for another, for this call only.
+  void setMicFallbackEnabled(bool enabled) =>
+      _core.micRecovery.fallback.enabled = enabled;
+
+  /// The microphone the call switched to on its own, until dismissed.
+  String? get micFallbackNotice => _core.micRecovery.fallback.notice;
+  Stream<String?> get micFallbackNotices => _core.micRecovery.fallback.notices;
+  void dismissMicFallbackNotice() => _core.micRecovery.fallback.dismissNotice();
+
+  /// Keeps the capture open while muted, so push to talk keys down instantly.
+  Future<void> setKeepMicReady(bool keepReady) =>
+      _core.readiness.setKeepReady(keepReady);
+
+  /// A phone that goes to the background releases a muted microphone at once.
+  void setAppBackgrounded(bool backgrounded) =>
+      _core.readiness.setBackgrounded(backgrounded);
+
+  /// Reopens the capture when it changed; echo, gain and suppression are fixed at open.
+  Future<void> setVoiceProcessing(VoiceProcessing next) =>
+      _core.processing.set(next, inCall: _core.flow.room != null);
+
+  // Microphone input gate and level.
+
+  bool get supportsInputGate => _core.micGate.supported;
+
+  /// Your microphone's level and voice state, while in a call.
+  Stream<InputGateReading> get inputGateReadings => _core.micGate.gate.readings;
+
+  /// Your microphone's level as the SFU last reported it, for hosts with no input gate.
+  Stream<double> get localAudioLevels => _core.roster.localLevels;
+
+  /// Sets the native gate; [enabled] false keeps metering but stops silencing.
+  void setInputGate({required bool enabled, required double thresholdDb}) =>
+      _core.micGate.setGate(enabled: enabled, thresholdDb: thresholdDb);
+
+  /// Where the automatic threshold currently sits.
+  Stream<double> get autoInputThresholds => _core.micGate.autoThresholds;
+
+  /// The threshold the native gate is using right now.
+  double get inputThresholdDb => _core.micGate.thresholdDb;
+
+  /// Hands the threshold to the automatic noise-floor estimator, or takes it back.
+  void setAutoInputThreshold(bool enabled) =>
+      _core.micGate.setAutoThreshold(enabled);
+
+  /// Whether a meter is on screen in a focused app, which raises the reading rate.
+  void setLevelDisplayed(bool displayed) =>
+      _core.micGate.setLevelDisplayed(displayed);
+
+  /// Softens shouts and caps sudden peaks where the host gates natively.
+  void setEvenOutLoudSounds(bool enabled) =>
+      _core.micGate.setEvenOutLoudSounds(enabled);
+
+  /// Runs rnnoise on the microphone ahead of the gate; [strongest] adds DeepFilterNet.
+  void setStrongNoiseSuppression(bool enabled, {bool strongest = false}) =>
+      _core.micGate.setStrongNoiseSuppression(enabled, strongest: strongest);
+
+  // Audio devices.
+
+  /// Whether picking a specific microphone actually changes the live call.
+  bool get supportsAudioInputSelection => _core.devices.supportsInputSelection;
+
+  /// Whether picking a specific speaker actually changes playback.
+  bool get supportsAudioOutputSelection =>
+      _core.devices.supportsOutputSelection;
+
+  /// The id of the speaker playback is routed to, null for the system default.
+  String? get audioOutputInUse => _core.devices.outputInUse;
+
+  /// The id of the microphone capture is on, null for the system default.
+  String? get audioInputInUse => _core.devices.inputInUse;
+
+  /// Fires when the platform's own device list changes, so a picker can refresh without polling.
+  Stream<void> get audioDeviceChanges => _core.devices.changes;
+
+  /// The microphones this platform offers, for the picker.
+  Future<List<AudioDevice>> audioInputDevices() => _core.devices.inputs();
+
+  /// The speakers this platform offers, for the picker.
+  Future<List<AudioDevice>> audioOutputDevices() => _core.devices.outputs();
+
+  /// Switches the published microphone to [device] (null for the system
+  /// default), live where this platform honours it, and remembered for the
+  /// next join either way.
+  Future<bool> selectAudioInputDevice(AudioDevice? device) =>
+      _core.devices.selectInput(device, remember: true);
+
+  /// [selectAudioInputDevice]'s counterpart for local playback.
+  Future<bool> selectAudioOutputDevice(AudioDevice? device) =>
+      _core.devices.selectOutput(device, remember: true);
+
+  // What this listener hears: deafen, per-participant mute and gain.
+
+  bool get deafened => _core.listener.deafened;
+
+  /// Whether [identity] is silenced for this listener alone.
+  bool isLocallyMuted(String identity) =>
+      _core.listener.isLocallyMuted(identity);
+
+  /// Whether this host can change one participant's volume at all.
+  bool get supportsParticipantVolume =>
+      _core.listener.supportsParticipantVolume;
+
+  /// [identity]'s playback gain for this listener, 1.0 being unchanged.
+  double volumeFor(String identity) => _core.listener.volumeFor(identity);
+
+  /// Sets [identity]'s playback gain for this listener only, clamped to the range the UI offers.
+  Future<void> setVolumeFor(String identity, double volume) =>
+      _core.listener.setVolumeFor(identity, volume);
+
+  /// [identity]'s screen share audio gain, kept apart from their voice.
+  double screenVolumeFor(String identity) =>
+      _core.listener.screenVolumeFor(identity);
+
+  /// Sets [identity]'s screen share audio gain for this listener only.
+  Future<void> setScreenVolumeFor(String identity, double volume) =>
+      _core.listener.setScreenVolumeFor(identity, volume);
+
+  /// Whether [identity]'s screen share audio alone is silenced for you.
+  bool isScreenAudioMuted(String identity) =>
+      _core.listener.isScreenAudioMuted(identity);
+
+  /// Silences (or restores) only [identity]'s screen share audio.
+  Future<void> setScreenAudioMuted(String identity, bool muted) =>
+      _core.listener.setScreenAudioMuted(identity, muted);
+
+  /// Whether [identity] is publishing screen share audio right now.
+  bool hasScreenAudio(String identity) =>
+      _core.listener.hasScreenAudio(identity);
+
+  /// Why the last gain change to [identity] did not land, or null if it did.
+  Object? volumeFailureFor(String identity, {bool screen = false}) =>
+      _core.listener.volumeFailureFor(identity, screen: screen);
+
+  /// Silences (or restores) one participant, for this listener only.
+  Future<void> setLocallyMuted(String identity, bool muted) =>
+      _core.listener.setLocallyMuted(identity, muted);
+
+  /// Silences (or restores) every remote participant locally; false when there is no call to affect.
+  Future<bool> setDeafened(bool deafened) =>
+      _core.listener.setDeafened(deafened);
+
+  // Screen share.
+
+  /// Whether this host can add a real audio track to a screen share; see
+  /// [rtc_share_audio.supportsScreenShareAudio] for the per-platform trace.
+  bool get supportsScreenShareAudio =>
+      rtc_share_audio.supportsScreenShareAudio();
 
   /// Whether starting a share here must name a source first.
-  bool get screenShareNeedsSource => _share.desktopSources.required;
+  bool get screenShareNeedsSource => _core.share.desktopSources.required;
 
   /// Whether more than one enumerated source is worth asking a person to
   /// pick between; see [DesktopSources.sourcePickerUseful].
   bool get screenShareSourcePickerUseful =>
-      _share.desktopSources.sourcePickerUseful;
+      _core.share.desktopSources.sourcePickerUseful;
 
   /// The screens this desktop will let the app capture.
   ///
   /// Calling this is what makes a later [setScreenShareEnabled] able to find
   /// anything at all: see [DesktopSources].
-  Future<List<ScreenShareSource>> screenShareSources() => _share.sources();
-
-  /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
-  Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
-
-  /// Enables or disables the local camera live, mid-call.
-  Future<bool> setCameraEnabled(bool enabled) => _trySetCamera(enabled);
+  Future<List<ScreenShareSource>> screenShareSources() => _core.share.sources();
 
   /// Starts or stops sharing a screen, bounded by [quality] and the space-wide [maxHeight] ceiling.
   /// Reports what happened rather than what was asked for; on iOS those differ, see [ScreenShareOutcome].
@@ -421,97 +347,98 @@ class VoiceSession
     bool includeAudio = false,
     int? maxHeight,
   }) =>
-      _share.setEnabled(
+      _core.share.setEnabled(
         enabled,
         ShareRequest(quality, sourceId, includeAudio, maxHeight),
       );
 
   /// The source id of a share that stopped because its window or screen went away.
-  Stream<String> get screenShareSourceLost => _share.sourceWatch.lost;
+  Stream<String> get screenShareSourceLost => _core.share.sourceWatch.lost;
 
   /// Whether the running share carries an audio track to switch.
-  bool get screenShareHasAudio => _share.hasAudio;
+  bool get screenShareHasAudio => _core.share.hasAudio;
 
   /// Whether the running share's audio is silenced.
-  bool get screenShareAudioMuted => _share.audioMuted;
+  bool get screenShareAudioMuted => _core.share.audioMuted;
 
   /// Silences or restores the share's audio while it keeps running.
   Future<bool> setScreenShareAudioMuted(bool muted) =>
-      _share.setAudioMuted(muted);
+      _core.share.setAudioMuted(muted);
 
   /// The widget that renders [identity]'s shared screen; a plain [Widget] so no LiveKit type crosses the package seam.
   Widget screenShareViewFor(String identity) =>
-      _share.view(identity, _receiveDensity);
+      _core.share.view(identity, _core.video.density);
+
+  // Camera.
+
+  /// Enables or disables the local camera live, mid-call.
+  Future<bool> setCameraEnabled(bool enabled) =>
+      _core.camera.trySetEnabled(enabled);
+
+  /// How sharp your camera publishes. Read when the camera turns on, and a
+  /// different one than it was published at republishes; the app cycles a live
+  /// camera to apply a change.
+  void setCameraQuality(CameraQuality quality) =>
+      _core.camera.quality = quality;
+
+  /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
+  Stream<CameraJoinOpen> get cameraJoinOpens => _core.camera.joinOpens;
+
+  /// The widget that renders [identity]'s live camera feed, the local participant's included.
+  Widget cameraViewFor(String identity) => _core.camera.view(identity);
+
+  /// Whether flipping needs no chosen device; see [CameraSwitching.canFlip].
+  bool get canFlipCamera => _core.camera.switching.canFlip;
+
+  /// Whether picking a camera needs one named first; see
+  /// [CameraSwitching.needsSelection].
+  bool get cameraNeedsSelection => _core.camera.switching.needsSelection;
+
+  /// The cameras this desktop (or browser) offers, for the picker. Calling
+  /// this is what makes a later [selectCameraDevice] able to find anything,
+  /// the same reason [screenShareSources] has to run first.
+  Future<List<CameraDevice>> cameraDevices() => _core.camera.devices();
+
+  /// Flips the published camera between front and back, mobile only.
+  Future<bool> flipCamera() => _core.camera.flip();
+
+  /// Switches the published camera to [device], desktop's answer to
+  /// [flipCamera] where more than one webcam can exist.
+  Future<bool> selectCameraDevice(CameraDevice device) =>
+      _core.camera.select(device);
+
+  // Remote video.
 
   /// Per tile key (`<kind>:<identity>`), what each remote video's tile should
   /// say beyond its picture: paused by the server, stalled and recovering, or
   /// stopped. A tile missing from the map is playing normally.
   ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
-      _stallWatchdog.health;
+      _core.stall.watchdog.health;
 
-  /// The widget that renders [identity]'s live camera feed, the local participant's included.
-  Widget cameraViewFor(String identity) => _camera.view(identity);
+  /// Caps the sharpness of the remote video you watch; live mid-call, and
+  /// kept for the next join.
+  void setReceiveVideoQuality(ReceiveVideoQuality quality) =>
+      _core.video.setQuality(quality);
+
+  /// Keeps the tile [tileKey] at full sharpness, whatever the receive quality, until the result is called.
+  VoidCallback holdEnlargedVideo(String tileKey) =>
+      _core.video.holdEnlarged(tileKey);
 
   /// Declares which `'<kind>:<identity>'` tiles want video so the rest can be unsubscribed; null means no opinion.
   /// See [VideoSubscriptionCuller] for the timing.
-  void setVideoInterest(Set<String>? tileKeys) {
-    _videoCuller.setInterest(tileKeys);
-    _applyVideoInterest();
-  }
+  void setVideoInterest(Set<String>? tileKeys) =>
+      _core.video.setInterest(tileKeys);
 
   /// Keeps the screen-share (or camera) tiles named by [tileKeys] unsubscribed
   /// whatever the interest says, along with a share's own audio, so a viewer
   /// who stopped watching pays no bandwidth or decode for it.
-  void setVideoBlocked(Set<String> tileKeys) {
-    _videoCuller.setBlocked(tileKeys);
-    _applyVideoInterest();
-  }
+  void setVideoBlocked(Set<String> tileKeys) =>
+      _core.video.setBlocked(tileKeys);
+}
 
-  /// Whether flipping needs no chosen device; see [CameraSwitching.canFlip].
-  bool get canFlipCamera => _cameraSwitching.canFlip;
-
-  /// Whether picking a camera needs one named first; see
-  /// [CameraSwitching.needsSelection].
-  bool get cameraNeedsSelection => _cameraSwitching.needsSelection;
-
-  /// The cameras this desktop (or browser) offers, for the picker. Calling
-  /// this is what makes a later [selectCameraDevice] able to find anything,
-  /// the same reason [screenShareSources] has to run first.
-  Future<List<CameraDevice>> cameraDevices() => _camera.devices();
-
-  /// Flips the published camera between front and back, mobile only.
-  Future<bool> flipCamera() => _camera.flip();
-
-  /// Switches the published camera to [device], desktop's answer to
-  /// [flipCamera] where more than one webcam can exist.
-  Future<bool> selectCameraDevice(CameraDevice device) =>
-      _camera.select(device);
-
-  Future<T> _reported<T>(String action, T fallback, Future<T> Function() run) =>
-      runReported(action, fallback, run, (error) => _lastError = error);
-
-  @override
-  void _refreshParticipants() => _rebuildRoster();
-
-  Future<void> dispose() async {
-    if (_disposed) return;
-    _disposed = true;
-    _videoCuller.dispose();
-    _receiveDensity.dispose();
-    _share.dispose();
-    await _stallStats?.cancel();
-    _stallWatchdog.dispose();
-    await callStats.dispose();
-    health.dispose();
-    _joinTimings.finish();
-    // After `_teardown`, or its own `resetFacing()` writes past disposal.
-    await _teardown();
-    _cameraSwitching.dispose();
-    await _cameraJoin.dispose();
-    await _disposeCapture();
-    await _disposeMicRecovery();
-    await _gate.dispose();
-    await _stateController.close();
-    await _participantsController.close();
-  }
+/// Lets tests see the watch behind [VoiceSession.health]; an extension rather
+/// than a member so fakes implementing [VoiceSession] need not provide it.
+@visibleForTesting
+extension VoiceSessionHealthWatchAccess on VoiceSession {
+  AudioGlitchWatch get glitchWatch => _core.healthWatch.glitchWatch;
 }

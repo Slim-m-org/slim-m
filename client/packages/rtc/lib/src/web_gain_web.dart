@@ -36,6 +36,7 @@ extension type _AudioContext._(JSObject _) implements JSObject {
   external _GainNode createGain();
   external _ShaperNode createWaveShaper();
   external JSPromise<JSAny?> resume();
+  external JSPromise<JSAny?> close();
 }
 
 extension type _Node._(JSObject _) implements JSObject {
@@ -121,6 +122,14 @@ final _registry = GainGraphRegistry<_Graph>(
 Object? applyWebGain(String trackCid, double gain) =>
     _registry.apply('$_elementPrefix$trackCid', gain);
 
+/// Hands every element back to the browser and frees the context, which the
+/// next call builds afresh.
+void _releaseAllGraphs() {
+  _registry.releaseAll();
+  _context?.close();
+  _context = null;
+}
+
 @JS('MutationObserver')
 extension type _Observer._(JSObject _) implements JSObject {
   external _Observer(JSFunction callback);
@@ -172,6 +181,9 @@ void _forEachAudioId(_NodeList nodes, void Function(String id) visit) {
 ///
 /// Reads only the nodes each mutation added or removed: Flutter's semantics
 /// tree mutates the body every frame, so a document rescan would run at that rate.
+///
+/// A removed element's gain graph is released with it, and the returned stop
+/// function releases every graph the call built.
 void Function() watchWebAudioArrivals(void Function(String trackId) onArrive) {
   final seen = <String>{};
   void arrive(String id) {
@@ -183,9 +195,14 @@ void Function() watchWebAudioArrivals(void Function(String trackId) onArrive) {
     arrive(existing.item(i)!.id!);
   }
 
+  void depart(String id) {
+    seen.remove(id);
+    _registry.prune(id);
+  }
+
   void onMutations(JSArray<_MutationRecord> records) {
     for (final record in records.toDart) {
-      _forEachAudioId(record.removedNodes, seen.remove);
+      _forEachAudioId(record.removedNodes, depart);
       _forEachAudioId(record.addedNodes, arrive);
     }
   }
@@ -195,5 +212,8 @@ void Function() watchWebAudioArrivals(void Function(String trackId) onArrive) {
   );
   observer.observe(
       _body, {'childList': true, 'subtree': true}.jsify()! as JSObject);
-  return () => observer.disconnect();
+  return () {
+    observer.disconnect();
+    _releaseAllGraphs();
+  };
 }
