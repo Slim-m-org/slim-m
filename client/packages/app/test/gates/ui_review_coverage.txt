@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Every surface the design review walks: kind|key|area|snapshots.
+#   kind       route and settings and space are checked against the router and the settings index
+#              (ui_review_coverage_gate_test.dart); surface rows group the rest and are free-form
+#   key        the router path, the settings pane id, or a slug for a surface row
+#   snapshots  a comma list of surface names, or `exclude: why` (nothing to look at),
+#              or `pending: why` (a screen still waiting for its pictures)
+# A surface name is a picture's name without its viewport and theme (scripts/lib/ui_review_names.py);
+# it also covers every name that continues it with a dash, so `channel` covers `channel-ephemeral`
+# unless a longer registered name, like `channel-settings`, claims it.
+
+# Onboarding and sign-in
+route|/join|auth|onboarding, invite-dialog, manual-server-dialog, invite-landing, invite-required-notice
+route|/sign-in|auth|sign-in, submit, tofu, identity-chip
+route|/share|auth|pending: ShareToScreen opens from the OS share sheet with a share waiting, which no fixture sets up yet
+
+# Channels, conversations and the shell
+route|/channels|shell|no-channel-selected, space-menu, space-header-icon, rail-in-call, rail-compact, favorites
+route|/channels/:channelId|shell|channel, voice, voice-rail, dm, dm-call, group-dm, background, status-banners, database-reset-notice, probe-notices-stacked, safety-notice
+route|/channels/:channelId/m/:messageId|shell|pending: the jump-to-message view with its highlighted row has no picture
+route|/thread/:channelId|shell|thread
+surface|channel-rail|shell|rail-avatars, rail-blank-space-menu, rail-declutter, rail-failure, rail-footer, rail-header, channels-category-menu, channels-create, channels-rename-category, channels-select-row, channels-voice-row-menu, row-menu-notifications
+surface|messages|messages|message-context-menu, message-toolbar, reactions, failed-row, staged-attachments, attachment-states, fullscreen-viewer, fullscreen-controls, image-menu, edit-keys, edit-mode, menu-own, menu-other, activity-card, activity-row, photo-panel, pinned-messages-sheet, saved-messages-sheet
+surface|composer|messages|composer-actions-sheet, composer-code, poll-composer-sheet, emoji-picker-sheet, command-palette
+surface|members|members|member-popover, member-profile, member-roster-roles, member-row-badges, member-drawer-badges, member-selection, member-picker-sheet, module_slots, confirm-eject-from-call, confirm-remove-from-space, report-dialog, report-card
+surface|dialogs|overlays|confirm, create-channel-sheet, create-role-sheet, role-picker-sheet, join-gate, space-emoji-sheet, whats-new-sheet
+surface|phone-insets|shell|inset
+
+# Voice calls
+surface|call-screen|voice|voice-in-call, voice-idle, voice-rejoin, voice-switch-prompt, who-is-here, call-alone, call-two, iphone-call, call-stage-banners, call-mic-menu, call-share-menu, call-dock, share-strip, share-stopped, local-share, remote-share, camera-source, screen-source, hold-music, bot-call-controls, bot-message-menu
+surface|call-audio|voice|call-audio, ios-audio-output, ios-badges-off
+
+# Canvas
+surface|canvas|canvas|canvas
+
+# Dock modules
+surface|dock|modules|dock-file, dock-music, dock-settings, dock-sources, dock-module
+
+# Personal settings
+route|/settings|settings|settings, settings-menu, density
+route|/settings/themes|settings|settings-themes, theme-swatch, theme-appearance, theme-channel, theme-call
+route|/settings/themes/edit|settings|settings-theme-editor
+route|/settings/debug-log|settings|debug-log, settings-debuglog
+settings|profile|settings|settings-pane-profile, profile-banner, avatar-crop-sheet
+settings|account-devices|settings|settings-pane-account-devices, sr-account-totp
+settings|about|settings|settings-pane-about, settings-about, whats-new, release-notes, update-chip, web-update-pill
+settings|appearance|settings|settings-pane-appearance
+settings|notifications|settings|settings-pane-notifications, notify-voice, push-disabled-notice
+settings|desktop|settings|settings-pane-desktop
+settings|voice|settings|settings-pane-voice, input-gate, noise-strongest
+settings|performance|settings|settings-pane-performance
+settings|blocked|settings|settings-pane-blocked, sr-blocked
+settings|report-status|settings|settings-pane-report-status, sr-reports
+settings|troubleshooting|settings|settings-trouble
+route|/settings/call-stats|settings|pending: the call stats screen has no picture
+
+# Space settings and administration
+route|/settings/space|space|space-settings
+route|/settings/reports|space|admin-reports
+route|/settings/invites|space|admin-invites
+route|/settings/customize|space|subpage-customize
+route|/settings/roles|space|admin-roles
+route|/settings/roles/:roleId|space|space-config-roles
+route|/settings/bots|space|addons-bots
+route|/settings/webhooks|space|addons-webhooks
+route|/settings/export|space|space-pane-export
+route|/settings/account-recovery|space|admin-account-recovery
+route|/settings/removed-members|space|admin-removed-members
+route|/settings/permissions|space|admin-overwrites, space-config-overwrites, space-pane-channel-permissions
+route|/settings/channel|space|channel-settings
+route|/settings/emoji|space|admin-emoji, space-config-emoji, subpage-emoji-add
+route|/settings/analytics|space|admin-analytics, space-ops-analytics
+route|/settings/performance|space|admin-performance
+route|/settings/space-voice|space|space-pane-voice-and-screen-share
+route|/settings/storage|space|space-ops-storage, space-pane-storage
+route|/settings/audit-log|space|space-pane-audit-log
+route|/settings/server-metrics|space|space-ops-server-metrics
+route|/settings/dock|space|admin-dock, addons-dock
+route|/settings/dock/:moduleId|space|admin-dock-module, addons-module
+space|reports|space|space-pane-reports
+space|removed-members|space|space-pane-removed-members
+space|invites|space|space-pane-invites
+space|customize|space|space-pane-customize
+space|export|space|space-pane-export
+space|account-recovery|space|space-pane-account-recovery
+space|roles|space|space-pane-roles
+space|emoji|space|space-pane-emoji
+space|space-voice|space|space-pane-voice-and-screen-share
+space|retention|space|space-pane-retention-and-limits, space-ops-retention
+space|analytics|space|space-pane-analytics
+space|audit-log|space|space-pane-audit-log
+space|server-metrics|space|space-pane-server-metrics
+space|dock|space|space-pane-modules
+space|bots|space|space-pane-bots
+space|webhooks|space|space-pane-webhooks
+surface|admin-setup|space|admin_setup
