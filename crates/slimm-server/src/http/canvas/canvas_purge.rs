@@ -12,6 +12,7 @@ use super::super::extract::{AuthedLimited, CANVAS};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
 use super::canvas_ops_write::publish;
+use super::canvas_write::canvas_access;
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId};
 use crate::permissions::Permissions;
@@ -33,14 +34,7 @@ async fn purge(
 ) -> Result<Json<CanvasObjectDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let object_id = CanvasObjectId(parse_uuid(&object_id)?);
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    let needed = Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS);
-    if !permissions.contains(needed) {
-        return Err(ApiError::Forbidden);
-    }
+    let permissions = canvas_access(&state, ctx.user_id, channel_id).await?;
     let may_moderate = permissions.contains(Permissions::MANAGE_CANVAS);
 
     // A moderator's purge outranks a pin; an author must unlock their own object first.

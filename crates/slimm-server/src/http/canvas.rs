@@ -27,13 +27,12 @@ use serde_json::value::RawValue;
 use self::canvas_batch::{MAX_BATCH_BODY_BYTES, place_batch};
 use self::canvas_ops::list_ops;
 use self::canvas_ops_write::submit_op;
-use self::canvas_write::{MAX_BODY_BYTES, place};
+use self::canvas_write::{MAX_BODY_BYTES, canvas_access, place};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, CANVAS, Json, Query};
 use super::messages::parse_uuid;
 use crate::ids::ChannelId;
-use crate::permissions::Permissions;
 use crate::store::{CanvasObject, Rect, ViewportQuery, WORLD_LIMIT};
 
 pub(super) mod canvas_batch;
@@ -157,15 +156,7 @@ async fn viewport(
     State(state): State<AppState>,
 ) -> Result<Json<ViewportDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    // Both bits from one per-channel evaluation, in which a nonexistent
-    // channel grants nothing, so a missing canvas is not distinguishable.
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
-    }
+    canvas_access(&state, ctx.user_id, channel_id).await?;
 
     let view = rect(params.min_x, params.min_y, params.max_x, params.max_y)?;
     let previous = match (

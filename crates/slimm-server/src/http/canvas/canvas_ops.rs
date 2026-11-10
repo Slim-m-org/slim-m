@@ -20,6 +20,7 @@ use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json, Query};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
+use super::canvas_write::canvas_access;
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasOpBody, CanvasOpEntry};
@@ -199,8 +200,7 @@ fn ids<T: std::fmt::Display>(values: Vec<T>) -> Vec<String> {
 
 /// `GET /channels/{channel_id}/canvas/ops`.
 ///
-/// Gate is byte-identical to the viewport read: `VIEW_CHANNEL` and
-/// `USE_CANVAS`, evaluated for this channel, no timeout check, since this is
+/// Gate is [`canvas_access`], the same as the viewport read: no timeout check, since this is
 /// a read.
 pub(in crate::http) async fn list_ops(
     AuthedLimited(ctx): AuthedLimited<CANVAS>,
@@ -209,13 +209,7 @@ pub(in crate::http) async fn list_ops(
     State(state): State<AppState>,
 ) -> Result<Json<CanvasOpsPageDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
-    }
+    let permissions = canvas_access(&state, ctx.user_id, channel_id).await?;
     if params.after_seq < 0 {
         return Err(ApiError::BadRequest("after_seq must not be negative"));
     }

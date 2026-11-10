@@ -177,13 +177,14 @@ pub(super) fn place_error_api(error: PlaceError) -> ApiError {
     }
 }
 
-/// Whether the caller may draw on this channel now: the view and draw bits, and no timeout.
-pub(super) async fn ensure_may_draw(
+/// The caller's permissions in this channel when they hold the view and draw bits, else `Forbidden`.
+///
+/// One per-channel evaluation in which a missing channel grants nothing, so it looks like a forbidden one.
+pub(super) async fn canvas_access(
     state: &AppState,
     user_id: crate::ids::UserId,
     channel_id: ChannelId,
-) -> Result<(), ApiError> {
-    // One per-channel evaluation, as the read does, so a missing channel and a forbidden one look alike.
+) -> Result<Permissions, ApiError> {
     let permissions = state
         .store
         .permissions_in_channel(user_id, channel_id)
@@ -191,6 +192,16 @@ pub(super) async fn ensure_may_draw(
     if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
         return Err(ApiError::Forbidden);
     }
+    Ok(permissions)
+}
+
+/// Whether the caller may draw on this channel now: [`canvas_access`], and no timeout.
+pub(super) async fn ensure_may_draw(
+    state: &AppState,
+    user_id: crate::ids::UserId,
+    channel_id: ChannelId,
+) -> Result<(), ApiError> {
+    canvas_access(state, user_id, channel_id).await?;
     if state.store.timed_out_until(user_id).await?.is_some() {
         return Err(ApiError::Forbidden);
     }

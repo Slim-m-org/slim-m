@@ -155,7 +155,7 @@ crates/slimm-server/src/emoji.rs 2
 crates/slimm-server/src/emoji/import.rs 4
 crates/slimm-server/src/http/attachments.rs 3
 crates/slimm-server/src/http/auth.rs 6
-crates/slimm-server/src/http/canvas.rs 4
+crates/slimm-server/src/http/canvas.rs 3
 crates/slimm-server/src/http/channels.rs 2
 crates/slimm-server/src/http/dms.rs 1
 crates/slimm-server/src/http/error.rs 1
