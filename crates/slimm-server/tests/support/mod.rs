@@ -23,15 +23,11 @@ pub mod ws;
 #[allow(dead_code)]
 pub mod livekit_webhook;
 
-/// A stand-in LiveKit room service that lists a fixed set of participants.
-#[allow(dead_code)]
-pub mod room_service;
-
 /// Bounded polling for an effect that lands asynchronously.
 #[allow(dead_code)]
 pub mod wait;
 
-/// A LiveKit room service that records the calls it receives.
+/// A LiveKit room service that records the calls it receives and lists a seated roster.
 #[allow(dead_code)]
 pub mod fake_sfu;
 

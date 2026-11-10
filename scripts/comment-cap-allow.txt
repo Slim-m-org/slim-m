@@ -263,8 +263,7 @@ client/packages/app/ios/Runner/NotificationTapObserver.swift 1
 client/packages/app/ios/Runner/VoiceCallReporter.swift 1
 client/packages/app/ios/Runner/VoipCallHandler.swift 2
 client/packages/app/ios/RunnerTests/NotificationSoundTests.swift 2
-client/packages/app/ios/RunnerTests/RunnerTests.swift 1
-client/packages/app/ios/RunnerTests/VoipCallHandlerTests.swift 3
+client/packages/app/ios/RunnerTests/VoipCallHandlerTests.swift 2
 client/packages/app/linux/runner/clipboard_image_channel.cc 5
 client/packages/app/linux/runner/clipboard_image_channel.h 1
 client/packages/app/linux/runner/linux_idle_channel.h 1

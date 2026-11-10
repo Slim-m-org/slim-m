@@ -8,7 +8,7 @@ use slimm_server::call_audio::runtime;
 
 mod support;
 use support::call_audio_world::{KEEPS, MODULE, PURPOSE, Rig, now_ms};
-use support::room_service::RoomService;
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 use support::wait::wait_for;
 
 async fn wait_frames(rig: &Rig, kind: &'static str, count: usize) {
@@ -239,8 +239,9 @@ async fn a_request_needs_the_call_the_arming_and_the_module() {
 
 #[tokio::test]
 async fn someone_on_the_call_since_before_a_restart_can_still_ask() {
-    let sfu = RoomService::spawn().await;
-    let rig = Rig::start_with_sfu("call-audio-restart", 2, &sfu.url).await;
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let rig = Rig::start_with_sfu("call-audio-restart", 2, &sfu_url).await;
     let (a, b) = (&rig.people[0], &rig.people[1]);
     sfu.seat(&[a.id, b.id]);
     // The server restarted mid-call: only b's join reached it afterwards.

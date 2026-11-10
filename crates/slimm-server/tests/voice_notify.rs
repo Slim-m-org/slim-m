@@ -18,8 +18,8 @@ use tower::ServiceExt;
 
 mod support;
 
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 use support::livekit_webhook::webhook_request;
-use support::room_service::RoomService;
 use support::ws::{Client, connect, serve, user_ticket};
 
 const API_KEY: &str = "APItestkey";
@@ -365,8 +365,9 @@ async fn without_a_choice_nobody_is_told() {
 
 #[tokio::test]
 async fn a_join_after_a_restart_is_a_join_into_a_call_under_way() {
-    let sfu = RoomService::spawn().await;
-    let world = World::on(&sfu.url).await;
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let world = World::on(&sfu_url).await;
     let mut alice = world.member("alice", Some(EVERY)).await;
     let mut bob = world.member("bob", Some(EVERY)).await;
     let mut dave = world.member("dave", Some(EVERY)).await;
@@ -384,8 +385,9 @@ async fn a_join_after_a_restart_is_a_join_into_a_call_under_way() {
 
 #[tokio::test]
 async fn the_first_join_after_a_restart_into_an_empty_room_still_starts_the_call() {
-    let sfu = RoomService::spawn().await;
-    let world = World::on(&sfu.url).await;
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let world = World::on(&sfu_url).await;
     let mut bob = world.member("bob", Some(EVERY)).await;
     let alice = world.member("alice", None).await;
     sfu.seat(&[alice.id]);
