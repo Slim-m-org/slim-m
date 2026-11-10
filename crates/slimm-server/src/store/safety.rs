@@ -161,8 +161,6 @@ impl Store {
 
     // --- Blocking ---
 
-    /// Blocks a user. Idempotent, and deliberately silent: the blocked user is
-    /// never told, because telling them turns blocking into a provocation.
     /// Whether a user id has ever named a real account, tombstoned or not.
     ///
     /// A report or a block about a `user` must name someone real, or the
@@ -180,6 +178,8 @@ impl Store {
         Ok(found)
     }
 
+    /// Blocks a user. Idempotent, and deliberately silent: the blocked user is
+    /// never told, because telling them turns blocking into a provocation.
     pub async fn block_user(&self, blocker: UserId, blocked: UserId) -> anyhow::Result<bool> {
         if blocker == blocked {
             return Ok(false);

@@ -17,7 +17,7 @@ impl Store {
     /// thread. A thread absent from the answer has zero unread, the same
     /// "not present means none" convention every other batch lookup in
     /// `threads.rs` uses. Reused by
-    /// [`super::super::http::message_enrich`] (the per-message reply-count
+    /// `http::message_enrich` (the per-message reply-count
     /// affordance) and [`Store::list_threads`] (the per-thread row in the
     /// thread list).
     pub async fn thread_unread_counts(

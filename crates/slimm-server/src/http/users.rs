@@ -135,9 +135,8 @@ pub(super) struct UserDto {
     profile_color_rgb: Option<i64>,
     /// The invite this member registered through, or `null` if they had
     /// none. Absent from the response entirely for a caller who does not
-    /// hold BAN_MEMBERS, so it is only ever populated on the `GET /members`
-    /// path and only for a moderator looking for a ban-evading return
-    /// account; see MOD9.
+    /// hold MANAGE_ROLES (a code is redeemable for its role grant), so it is
+    /// only ever populated on the `GET /members` path; see MOD9.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) invite_code: Option<String>,
     /// Whether this account is a bot rather than a person.

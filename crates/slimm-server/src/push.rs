@@ -104,7 +104,7 @@ impl PushSender {
     /// permanently for this process's life, unless both the relay URL and key
     /// are set; logs that decision once, here, at startup. Fails if a relay
     /// URL is set but its scheme is not safe to use (see
-    /// [`validate_relay_url`]), so a misconfigured deployment refuses to start
+    /// [`crate::sidecar_url::validate`]), so a misconfigured deployment refuses to start
     /// rather than leaking silently the first time it sends a push.
     pub fn new(config: &Config) -> anyhow::Result<Self> {
         Self::with_debounce_window_ms(config, DEFAULT_DEBOUNCE_WINDOW_MS)

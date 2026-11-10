@@ -82,8 +82,8 @@ impl From<NewEmbed> for Embed {
     }
 }
 
-/// Writes `embeds` inside the caller's transaction, so a message and its
-/// embeds can commit or roll back together.
+/// Writes `embeds` inside whatever transaction the caller owns; both callers open their own, so
+/// the embeds commit apart from the message they belong to.
 pub(in crate::store) async fn insert_embeds(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     message_id: MessageId,
@@ -177,7 +177,7 @@ impl Store {
     }
 
     /// Every embed for each of `message_ids`, ordered by position, batched
-    /// like [`super::super::attachments_for_messages`].
+    /// like [`Store::attachments_for_messages`].
     pub async fn embeds_for_messages(
         &self,
         message_ids: &[MessageId],

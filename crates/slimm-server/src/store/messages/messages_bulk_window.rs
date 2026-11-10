@@ -14,14 +14,14 @@ use super::super::Store;
 use crate::ids::{ChannelId, MessageId, UserId};
 
 impl Store {
-    /// Ids of [author_id]'s live messages in [channel_id] created at or after
-    /// [since_ms], at most [limit] of them.
+    /// Ids of `author_id`'s live messages in `channel_id` created at or after
+    /// `since_ms`, at most `limit` of them.
     ///
-    /// [limit] is deliberately the caller's cap plus one: asking for one more
+    /// `limit` is deliberately the caller's cap plus one: asking for one more
     /// row than the caller intends to allow is how it tells "matched exactly
     /// the cap" apart from "matched over it" without a separate `COUNT(*)`
     /// query, so a refusal can be a refusal rather than a silent truncation
-    /// to the first [limit] rows.
+    /// to the first `limit` rows.
     ///
     /// Seeks `messages_author_channel_window`
     /// (`channel_id, author_id, created_at WHERE deleted_at IS NULL`, added

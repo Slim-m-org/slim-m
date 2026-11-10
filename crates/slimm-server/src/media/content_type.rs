@@ -167,8 +167,6 @@ fn is_plain_text(bytes: &[u8]) -> bool {
         .all(|c| matches!(c, '\t' | '\n' | '\r') || !c.is_control())
 }
 
-/// Sniffs `bytes` against the allowlist, returning the content type to store
-/// and serve it as. `None` means refuse the upload outright.
 /// The label for an attachment the allowlist does not recognize.
 pub const GENERIC_BINARY: &str = "application/octet-stream";
 
@@ -177,6 +175,8 @@ pub fn attachment_content_type(bytes: &[u8]) -> &'static str {
     sniff_content_type(bytes).unwrap_or(GENERIC_BINARY)
 }
 
+/// Sniffs `bytes` against the allowlist, returning the content type to store
+/// and serve it as. `None` means refuse the upload outright.
 pub fn sniff_content_type(bytes: &[u8]) -> Option<&'static str> {
     ALLOWED_TYPES
         .iter()

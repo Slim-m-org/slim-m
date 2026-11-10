@@ -120,7 +120,7 @@ pub enum MessageEvent {
     /// the raw fact this event exists to broadcast, read once via
     /// [`crate::store::Store::reaction_reactors`] rather than once per
     /// receiving connection. It exists on this internal enum only:
-    /// [`crate::http::ws::frames::ServerFrame::ReactionsChanged`] carries
+    /// `crate::http::ws::frames::ServerFrame::ReactionsChanged` carries
     /// emoji and count alone, never a reactor id or a timestamp, and each
     /// receiving connection is responsible for turning this shared,
     /// unfiltered answer into its own view with a fresh

@@ -12,7 +12,7 @@ use super::permissions::ChannelOverwrite;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 
-/// Replaces [channel]'s overwrites with [category]'s and marks it synced.
+/// Replaces `channel`'s overwrites with `category`'s and marks it synced.
 pub(super) async fn copy_category_overwrites(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel: ChannelId,
@@ -42,7 +42,7 @@ pub(super) async fn copy_category_overwrites(
     Ok(())
 }
 
-/// Marks [channel] as holding its own overwrites, after an edit of its own.
+/// Marks `channel` as holding its own overwrites, after an edit of its own.
 pub(super) async fn mark_unsynced<'e, E>(executor: E, channel: ChannelId) -> anyhow::Result<()>
 where
     E: sqlx::SqliteExecutor<'e>,
@@ -105,7 +105,7 @@ impl Store {
         Ok(row.map(|r| (r.allow, r.deny)))
     }
 
-    /// The live channels in [category] that are synced to it.
+    /// The live channels in `category` that are synced to it.
     pub async fn synced_channels_in(
         &self,
         category: ChannelCategoryId,
@@ -119,7 +119,7 @@ impl Store {
         .await?)
     }
 
-    /// Applies [entries] to [category] (an all-zero pair removes that target)
+    /// Applies `entries` to `category` (an all-zero pair removes that target)
     /// and copies the result into every synced channel, in one transaction.
     pub async fn set_category_overwrites(
         &self,
@@ -169,7 +169,7 @@ impl Store {
         Ok(())
     }
 
-    /// Whether [channel] follows its category; None for a missing channel.
+    /// Whether `channel` follows its category; None for a missing channel.
     pub async fn channel_permissions_synced(
         &self,
         channel: ChannelId,
@@ -182,7 +182,7 @@ impl Store {
         .await?)
     }
 
-    /// Syncs [channel] to its category. False when it has none.
+    /// Syncs `channel` to its category. False when it has none.
     pub async fn sync_channel_permissions(&self, channel: ChannelId) -> anyhow::Result<bool> {
         let mut tx = self.begin_write().await?;
         let category = sqlx::query_scalar!(

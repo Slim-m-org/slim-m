@@ -194,12 +194,12 @@ impl Store {
         Ok(count)
     }
 
-    /// [`unread_count`] for many channels in one query, so a caller listing N
+    /// [`Self::unread_count`] for many channels in one query, so a caller listing N
     /// channels does not pay N round trips; see [`Store::list_dm_conversations`].
     ///
     /// A channel with nothing unread is absent from the map, not present with
     /// a zero, and the caller reads a missing entry as zero. A channel the
-    /// user has never opened counts from zero, matching [`unread_count`], and
+    /// user has never opened counts from zero, matching [`Self::unread_count`], and
     /// every count stops at [`UNREAD_COUNT_CAP`].
     pub async fn unread_counts(
         &self,

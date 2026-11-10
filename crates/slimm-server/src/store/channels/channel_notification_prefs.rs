@@ -125,7 +125,7 @@ impl Store {
     /// resolved here, never written into a row, so editing it leaves every
     /// member's own choices alone.
     ///
-    /// This is the one place [`crate::push::recipients::narrow_for_notification_preference`]
+    /// This is the one place `crate::push::recipients::narrow_for_notification_preference`
     /// reads a preference from, replacing the account-only lookup it used
     /// before a channel override existed to consult.
     pub async fn channel_notification_preferences(

@@ -133,7 +133,7 @@ pub enum Event {
         role_name: Option<String>,
     },
     /// A channel was created. Carries the full row, the way
-    /// [`Event::MessageCreated`] carries its message: a fresh channel has no
+    /// [`MessageEvent::Created`] carries its message: a fresh channel has no
     /// prior state to reconcile against, so whoever can view it right now is
     /// exactly who should be told, the same channel-scoped check every
     /// message event already uses. `Arc`-wrapped for the same reason.
@@ -201,7 +201,7 @@ pub enum Event {
     /// forgotten heartbeat, or the stale-heartbeat sweep evicting someone.
     /// Carries only the channel id, never who.
     ///
-    /// This is a deliberate departure from [`Event::ThreadUpdated`], which
+    /// This is a deliberate departure from [`MessageEvent::ThreadUpdated`], which
     /// carries its whole current answer: a thread's reply count is the same
     /// for every viewer, while a voice roster is not.
     /// `GET .../voice/roster` drops a participant whose
@@ -229,7 +229,7 @@ pub enum Event {
     /// The room's watch position, re-sampled by the bot running the watch
     /// party about every 5 seconds and on every play, pause or seek.
     ///
-    /// Ephemeral by the reasons [`Event::CanvasCursorMoved`] gives: no `seq`,
+    /// Ephemeral by the reasons [`CanvasEvent::CursorMoved`] gives: no `seq`,
     /// never persisted, and a receiver that misses one is corrected by the
     /// next. The durable copy is `watch_sessions`, which a late joiner or a
     /// reconnect reads over REST. `ended` marks the bot's own end of the

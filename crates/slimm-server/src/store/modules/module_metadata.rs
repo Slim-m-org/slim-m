@@ -7,7 +7,7 @@ use crate::store::now_ms;
 /// The metadata half of an install: the `installed_modules` row itself, plus
 /// the `module_permissions` reconciliation [`Store::install_module_with_artifact`]'s own
 /// doc explains. Split out so [`Store::install_module_with_artifact`] and
-/// [`Store::install_module_with_artifact`] run exactly the same metadata
+/// [`Store::install_module_from_dock`] run exactly the same metadata
 /// write inside whichever transaction the caller owns, rather than drifting
 /// into two copies of it.
 pub(in crate::store) async fn insert_module_metadata(

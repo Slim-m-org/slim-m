@@ -280,11 +280,11 @@ impl Media {
     /// Streams `body` to a temp file under the attachments directory, hashing
     /// it as it goes and refusing at `max_bytes` so an oversized upload is
     /// abandoned mid-stream rather than buffered whole in memory - the whole
-    /// point of this path over [`write_attachment`], which takes a `Vec` the
+    /// point of this path over `write_attachment`, which takes a `Vec` the
     /// caller already holds.
     ///
     /// The returned [`PendingAttachment`] carries the temp file, its
-    /// content-hash id, its byte count, and a [`SNIFF_PREFIX_BYTES`] prefix for
+    /// content-hash id, its byte count, and a `SNIFF_PREFIX_BYTES` prefix for
     /// the caller to decide the content type from - a stream already written to
     /// disk cannot be re-read to sniff. The caller then
     /// [`commit`](PendingAttachment::commit)s or

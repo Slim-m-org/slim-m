@@ -45,7 +45,7 @@ pub struct ForwardSource {
 ///
 /// The origin's channel is deliberately not joined: the client resolves the
 /// name from the channel list it already holds, so a name it is not entitled
-/// to never leaves the server. See [`crate::http::messages::message_forwards`].
+/// to never leaves the server. See `crate::http::messages::message_forwards`.
 #[derive(Debug, Clone)]
 pub struct ForwardSummary {
     pub origin: ForwardOrigin,
