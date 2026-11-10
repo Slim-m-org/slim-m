@@ -99,6 +99,11 @@ pub async fn run_token_sweep_pass(store: &store::Store) {
         Ok(swept) => tracing::info!(swept, "swept expired TOTP challenge rows"),
         Err(err) => tracing::warn!(error = %err, "TOTP challenge sweep failed"),
     }
+    match store.sweep_debug_logs().await {
+        Ok(0) => {}
+        Ok(swept) => tracing::info!(swept, "swept expired debug logs"),
+        Err(err) => tracing::warn!(error = %err, "debug log sweep failed"),
+    }
     match store.sweep_dead_invites().await {
         Ok(0) => {}
         Ok(swept) => tracing::info!(swept, "swept spent, expired and revoked invites"),

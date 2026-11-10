@@ -258,6 +258,10 @@ impl Store {
             .bind(user_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM debug_logs WHERE user_id = ?")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM bot_ui_entries WHERE bot_user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)

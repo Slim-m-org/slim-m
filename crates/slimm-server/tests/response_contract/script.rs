@@ -331,6 +331,7 @@ pub async fn run(c: &mut Contract) {
     .await;
     c.bare("listAdminAuditLog", "GET", "/space/audit-log", root)
         .await;
+    debug_log_calls(c, root, bob_token).await;
     discord_link_calls(c, bob_token, &bob_id).await;
     c.bare("listMyLinkedAccounts", "GET", "/me/links", bob_token)
         .await;
@@ -428,4 +429,20 @@ pub async fn run(c: &mut Contract) {
     // Last: a refusal leaves no state behind.
     refusals::refusal_calls(c, bob_token, &admin_id, &code).await;
     farewell_calls(c, root, &bob_id, &code, &channel).await;
+}
+
+async fn debug_log_calls(c: &mut Contract, root: &str, bob_token: &str) {
+    let sent = c
+        .json(
+            "submitDebugLog",
+            "POST",
+            "/debug-logs",
+            bob_token,
+            json!({"log": "12:00:00  ERROR  [sync]  failed", "note": "settings reset", "app_version": "0.1.0", "platform": "linux"}),
+        )
+        .await;
+    let uri = format!("/debug-logs/{}", sent["id"]);
+    c.get("listDebugLogs", "/debug-logs", root).await;
+    c.get("getDebugLog", &uri, root).await;
+    c.bare("deleteDebugLog", "DELETE", &uri, root).await;
 }
