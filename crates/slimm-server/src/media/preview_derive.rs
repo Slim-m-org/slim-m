@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Decoding a stored picture and encoding its previews and first-frame stills.
 
-use std::io::{self, Cursor};
+use std::io::{self, Cursor, Read};
 use std::path::Path;
 
 use image::codecs::jpeg::JpegEncoder;
@@ -151,6 +151,27 @@ pub(super) async fn variant_of(original: &Path) -> Variant {
     }
 }
 
+/// The whole of a `len` byte `source` with how to decode it, or `None` when the original is the
+/// answer. The plan needs only the probe, so a picture it refuses is never read past that.
+fn read_planned(
+    mut source: impl Read,
+    len: u64,
+    variant: Variant,
+) -> io::Result<Option<(Vec<u8>, Plan)>> {
+    if len > MAX_SOURCE_BYTES {
+        return Ok(None);
+    }
+    let mut bytes = Vec::new();
+    (&mut source)
+        .take(HEADER_PROBE_BYTES as u64)
+        .read_to_end(&mut bytes)?;
+    let Some(plan) = plan(variant, &bytes, len) else {
+        return Ok(None);
+    };
+    source.read_to_end(&mut bytes)?;
+    Ok(Some((bytes, plan)))
+}
+
 /// The preview bytes at one `bucket`, or `None` when the original should be served.
 pub(super) fn derive_one(
     original: &Path,
@@ -171,13 +192,9 @@ pub(super) fn derive_many(
     buckets: &[u32],
 ) -> io::Result<Vec<Option<Vec<u8>>>> {
     let none = || Ok(vec![None; buckets.len()]);
-    let len = std::fs::metadata(original)?.len();
-    if len > MAX_SOURCE_BYTES {
-        return none();
-    }
-    let bytes = std::fs::read(original)?;
-    let probe = &bytes[..bytes.len().min(HEADER_PROBE_BYTES)];
-    let Some(plan) = plan(variant, probe, len) else {
+    let file = std::fs::File::open(original)?;
+    let len = file.metadata()?.len();
+    let Some((bytes, plan)) = read_planned(file, len, variant)? else {
         return none();
     };
     let header = plan.header;
@@ -308,6 +325,62 @@ mod tests {
         out.extend_from_slice(&width.to_be_bytes());
         out.extend_from_slice(&[1, 1, 0x11, 0]);
         out
+    }
+
+    struct Counting<R> {
+        inner: R,
+        read: usize,
+    }
+
+    impl<R: Read> Read for Counting<R> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            let n = self.inner.read(buf)?;
+            self.read += n;
+            Ok(n)
+        }
+    }
+
+    fn counted(mut file: Vec<u8>, len: usize) -> Counting<Cursor<Vec<u8>>> {
+        file.resize(len, 0);
+        Counting {
+            inner: Cursor::new(file),
+            read: 0,
+        }
+    }
+
+    #[test]
+    fn a_picture_the_plan_refuses_is_not_read_past_its_probe() {
+        let len = 30 << 20;
+        let mut source = counted(jpeg_header(0xC2, 12_000, 9_000), len);
+
+        let planned = read_planned(&mut source, len as u64, Variant::Preview).unwrap();
+
+        assert!(planned.is_none());
+        assert!(source.read <= HEADER_PROBE_BYTES, "read {}", source.read);
+    }
+
+    #[test]
+    fn a_file_over_the_source_cap_is_not_read_at_all() {
+        let len = usize::try_from(MAX_SOURCE_BYTES).unwrap() + 1;
+        let mut source = counted(jpeg_header(0xC0, 800, 600), len);
+
+        let planned = read_planned(&mut source, len as u64, Variant::Preview).unwrap();
+
+        assert!(planned.is_none());
+        assert_eq!(source.read, 0);
+    }
+
+    #[test]
+    fn a_planned_picture_is_read_whole() {
+        let len = 4 << 20;
+        let mut source = counted(jpeg_header(0xC0, 12_000, 9_000), len);
+
+        let (bytes, planned) = read_planned(&mut source, len as u64, Variant::Preview)
+            .unwrap()
+            .expect("a baseline photo past the pixel cap is planned");
+
+        assert_eq!(bytes, source.inner.into_inner());
+        assert_eq!(planned.divisor, 8);
     }
 
     #[test]
