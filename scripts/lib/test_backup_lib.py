@@ -5,8 +5,8 @@ No real server or network: a fixture SQLite database (backup_fixtures.py,
 matching the real attachments/users columns) and a plain media directory
 under a TemporaryDirectory stand in for a live deployment's volume.
 addCleanup runs the directory's cleanup whether the test passes or fails,
-so a failed assertion never leaves anything behind for the shared /tmp
-tmpfs CLAUDE.md already warns about.
+so a failed assertion never leaves anything behind in the shared /tmp
+tmpfs.
 """
 import sqlite3
 import sys

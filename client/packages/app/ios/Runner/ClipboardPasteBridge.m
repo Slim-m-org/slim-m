@@ -44,8 +44,8 @@
 /// image attaches with no prompt. This swizzle needed no change either way -
 /// it was always correct, only unreached - and still applies on its own to a
 /// non-Material field or an iOS below 16 (`UIMenuController`'s traditional
-/// `canPerformAction:`-driven path). See CLAUDE.md's "Image paste on iPhone,
-/// confirmed working" entry for the full story across all three attempts.
+/// `canPerformAction:`-driven path). See `docs/os_backlog/ios_backlog.md` for
+/// the full story across all three attempts.
 ///
 /// A category on `FlutterTextInputView` emits a link-time reference to
 /// `_OBJC_CLASS_$_FlutterTextInputView`, and the engine ships that class

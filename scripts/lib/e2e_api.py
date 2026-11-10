@@ -17,7 +17,7 @@ import uuid7
 # rather than the coverage somebody once wrote down.
 TOUCHED = set()
 
-# Cloudflare 403s ("error code: 1010") a default urllib UA; see CLAUDE.md.
+# Cloudflare 403s ("error code: 1010") a default urllib UA; see docs/bots/building-bots.md.
 USER_AGENT = "Mozilla/5.0 (compatible; slim-m-scripts/1.0)"
 
 # Seconds a socket may stay silent; a stalled server must fail the call, not hang the run.

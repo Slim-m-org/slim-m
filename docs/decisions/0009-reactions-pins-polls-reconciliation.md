@@ -4,7 +4,7 @@ Date: 2026-08-05.
 Status: designed, not built.
 Nothing in this record is a plan to build a table.
 
-`CLAUDE.md`'s "Reconciling an edit nobody was online for" section closed the project's oldest correctness debt for messages, and named one thing still open: reactions, pins and polls never reconcile after an offline gap.
+The pre-trim `CLAUDE.md`'s "Reconciling an edit nobody was online for" section closed the project's oldest correctness debt for messages, and named one thing still open: reactions, pins and polls never reconcile after an offline gap.
 It also said the day somebody adds a local table for one of the three, the debt reopens with none of `message_ops`' machinery reusable.
 This record does two things: re-verifies that the precondition (nothing persists any of the three yet) still holds, and writes down the designed answer for the day it does not, rather than leaving that day to rediscover the problem from scratch.
 
@@ -60,7 +60,7 @@ Neither half needs an op stream.
 Unlike reactions and polls, a pin is not carried on `MessageDto` at all - `client/packages/api/lib/src/models_pins.dart`'s `PinnedMessage` is its own wire shape, fetched only from the pins endpoint, and a message fetch that happens to catch a client up on everything else says nothing about whether it is pinned.
 
 `store/pins.rs`'s own module doc says pinning is "naturally idempotent" at the store layer - pinning an already-pinned message is a no-op that leaves the original pinner and timestamp in place.
-CLAUDE.md's debt note called a pin "not idempotent by message id the way an edit or delete is," and that is true at a different layer: an edit or a delete happens to a message at most meaningfully once between two points in time (the latest content, or deleted-or-not), where a pin can toggle on, off, and on again, and each toggle is a real, distinct action with its own actor and timestamp - not a value that collapses to "the latest one, blank the rest" the way `message_ops` collapses a run of edits.
+The pre-trim `CLAUDE.md`'s debt note called a pin "not idempotent by message id the way an edit or delete is," and that is true at a different layer: an edit or a delete happens to a message at most meaningfully once between two points in time (the latest content, or deleted-or-not), where a pin can toggle on, off, and on again, and each toggle is a real, distinct action with its own actor and timestamp - not a value that collapses to "the latest one, blank the rest" the way `message_ops` collapses a run of edits.
 
 None of that ends up mattering, because a pin set is bounded at 200 (`MAX_PINS_PER_CHANNEL`) and is *already* cheap to refetch wholesale - which is exactly what `PinsController.refresh()` does today, on construction and on every live pin/unpin event, with no cursor of any kind.
 If pins were ever persisted locally, the correct design is the same wholesale refetch, just written to a table instead of a `StateNotifier`: refetch the whole set on channel open and on reconnect, replace it whole on a live event, same as `channels` itself is "refetched whole on every sync" per `database.dart`'s own migration doc comments.

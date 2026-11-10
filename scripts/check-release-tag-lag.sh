@@ -6,8 +6,8 @@
 # (its release PR merged) with no matching git tag, because the run that
 # should have cut it was cancelled while pending behind another. Nothing
 # else notices this - the merge looks identical to a normal one, and the
-# missing tag is the only trace. See CLAUDE.md's "A release can succeed and
-# still ship no store build" entry and docs/ci.md's release section.
+# missing tag is the only trace. See "release-tag-watchdog closes the
+# detection gap the fix alone leaves open" in docs/ci-details.md.
 #
 # A fresh gap is normal, not a bug: the same push that merges a release PR
 # usually cuts its tag within that same run, a minute or two later.

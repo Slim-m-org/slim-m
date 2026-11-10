@@ -1,7 +1,7 @@
 # The flatpak manifest
 
 `top.npcserver.slimm.yaml` packages the slim-m desktop client as a Flatpak.
-It is the primary Linux artifact per `docs/ROADMAP.md`'s Phase 9 entry ("Flatpak primary, rpm alongside"), and the last half of a residual `CLAUDE.md` carried since 2026-07-28: the rpm half shipped that day, this half did not exist until now.
+It is the primary Linux artifact per `docs/ROADMAP.md`'s Phase 9 entry ("Flatpak primary, rpm alongside"), and the last half of a residual that the pre-trim `CLAUDE.md` carried since 2026-07-28: the rpm half shipped that day, this half did not exist until now.
 
 Like the rpm, it repackages the already-built Flutter Linux bundle rather than running `flutter build linux` inside the sandbox.
 The sandbox has no network by default and `dart pub get` needs one.
@@ -161,7 +161,7 @@ flatpak install --user $HOME/.cache/slim-m-flatpak/slim-m-client.flatpak
 flatpak run top.npcserver.slimm   # launches; see the fourth defect above for how far
 ```
 
-`~/.cache`, not `/tmp`: this box's own `/tmp` is a 16 GiB tmpfs shared with every other agent session on it (`CLAUDE.md`), and this build's own sources and build tree run to several hundred MB.
+`~/.cache`, not `/tmp`: this box's own `/tmp` is a 16 GiB tmpfs shared with every other agent session on it, and this build's own sources and build tree run to several hundred MB.
 `TMPDIR` and `--state-dir` under the same tree as `--repo` and the build dir is load-bearing once a module actually compiles something (see the `EXDEV` finding above) - keeping everything under one path is what avoids it, not the specific choice of `~/.cache` over `/tmp`.
 
 `flutter clean` before `flutter build linux` is not optional if a previous `build/` was removed by hand rather than through `flutter clean`.

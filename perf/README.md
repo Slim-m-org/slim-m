@@ -160,7 +160,7 @@ stated again next to them.
 
 Each run also measures headless Chrome against a bare `about:blank` tab
 under the identical flags and reports the app's cost over that baseline,
-the same control the Space analytics section of `CLAUDE.md` used for a
+the same control `docs/decisions/0008-space-analytics.md` used for a
 server measurement: Chrome's own multi-process overhead (a zygote, a GPU
 process, several renderer helpers) turned out to dwarf the app's own cost
 on this box, and reporting only the raw total would have buried the number

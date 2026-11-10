@@ -8,7 +8,7 @@
 /// no GPU), which used to lie about a `BoxShadow`: `support/real_shadows.
 /// dart`'s own doc comment tells the whole story, now closed here by
 /// [withRealShadows] after misleading five review passes into reading the
-/// floating dock's shadow as a hard-edged defect (see CLAUDE.md). A thin
+/// floating dock's shadow as a hard-edged defect. A thin
 /// diagonal stroke can still appear broken or dotted even when the
 /// underlying geometry is correct - see `visual_render_support.dart`'s own
 /// doc comment in the voice_canvas package for that one, which is a real,

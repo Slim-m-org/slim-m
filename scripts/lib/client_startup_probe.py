@@ -21,8 +21,8 @@ Linux desktop numbers the roadmap's own budget was written against.
 
 Each measurement takes two readings, one against the app and one against
 `about:blank` under the identical Chrome flags, so the app's own cost can be
-told apart from headless Chrome's fixed per-process overhead the way the
-Space analytics section of CLAUDE.md already found necessary for a server
+told apart from headless Chrome's fixed per-process overhead the way
+`docs/decisions/0008-space-analytics.md` found necessary for a server
 control.
 """
 import json

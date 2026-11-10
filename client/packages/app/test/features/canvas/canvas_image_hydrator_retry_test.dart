@@ -28,8 +28,8 @@ final _png = Uint8List.fromList(
 ///
 /// `pumpEventQueue` drains microtasks; decoding a PNG is engine work that is
 /// not one, so a fixed drain finishes it on an idle machine and does not on a
-/// loaded CI runner. This is the same shape CLAUDE.md already records for
-/// `toImage`, and it is what made this file flake once rather than fail.
+/// loaded CI runner. `toImage` has the same shape, and it is what made this
+/// file flake once rather than fail.
 Future<void> _settleUntil(bool Function() ready) async {
   final deadline = DateTime.now().add(const Duration(seconds: 10));
   while (!ready() && DateTime.now().isBefore(deadline)) {

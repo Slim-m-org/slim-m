@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Starting a DM from the member list, then holding a call inside it.
 
-There is no "+" affordance on the DM rail section (deliberately not built,
-per CLAUDE.md); the only way to start a fresh DM is "Message" on a member's
-own profile popover, reached from the member pane. Once the DM exists, a
+The DM rail section's "+" starts a group message of three or more people, so
+the way to start a fresh one-to-one DM is "Message" on a member's own
+profile popover, reached from the member pane. Once the DM exists, a
 call inside it is the same `VoiceScreen` a real voice channel uses (PR #306),
 reached through the DM header's own "Call" button rather than a rail row,
 and published to LiveKit under `channel-<dmChannelId>` - the same

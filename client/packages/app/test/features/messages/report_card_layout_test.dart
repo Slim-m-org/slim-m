@@ -4,10 +4,9 @@
 /// split that file's own doc comment already draws for the quick actions.
 ///
 /// A real overflow found only once the capture harness actually gave the
-/// report fetch enough frames to resolve (see CLAUDE.md, 2026-08-11): the
-/// reporter row's `Text` sat in a bare `Row` beside a `Spacer`, so a long
-/// display name pushed the row 85 logical pixels past a phone-width card
-/// rather than truncating. Geometry, not presence: `find.text` would keep
+/// report fetch enough frames to resolve: the reporter row's `Text` sat in a
+/// bare `Row` beside a `Spacer`, so a long display name pushed the row 85
+/// logical pixels past a phone-width card rather than truncating. Geometry, not presence: `find.text` would keep
 /// finding the label even while its `RenderFlex` overflowed, so these read
 /// the label's real, laid-out rect instead.
 ///
@@ -16,8 +15,7 @@
 /// ships: against the placeholder the row's own fixed children ("Reporter"
 /// and the timestamp, either side of the `Expanded` name) overflow by 2.8px
 /// on their own, which is a font this app never renders rather than a real
-/// defect. See CLAUDE.md's note on the same trap under the design-alignment
-/// push, where an unloaded face read as a layout bug.
+/// defect. An unloaded face has read as a layout bug here before.
 library;
 
 import 'package:flutter/material.dart';

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Fails a captured surface whose settle budget was not actually enough:
-/// see CLAUDE.md's "The report card overflow, and how far the mid-flight
-/// capture problem actually spreads" for the bug this exists to catch.
+/// Fails a captured surface whose settle budget was not actually enough.
 ///
 /// `ui_snapshot_support.dart`'s own settle budget (two or three fixed
 /// pumps) is a guess about how long a surface's async work takes, not a
@@ -112,8 +110,7 @@ bool _hiddenByOpacity(Element element) {
 /// Reads [tester]'s visible text, pumps [extraSettlePumps] further bare
 /// frames, and fails if that changed anything - unless [knownTransient],
 /// the escape hatch for a real, benign transition between two valid loading
-/// states (see `ui_snapshot_test.dart`'s own `thread` entry and CLAUDE.md's
-/// "how far the mid-flight-capture problem actually spreads" for the one
+/// states (see `ui_snapshot_test.dart`'s own `thread` entry for the one
 /// case this is true of today).
 ///
 /// Call this where a caller has decided a surface is settled and is about
