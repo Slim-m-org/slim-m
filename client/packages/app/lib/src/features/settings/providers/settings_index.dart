@@ -121,6 +121,13 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'profile',
+    'Link code',
+    description: 'Paste the code from the browser page.',
+    keywords: ['discord', 'connections', 'link', 'finish', 'paste'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'profile',
     'Spotify',
     keywords: ['connections', 'link', 'unlink', 'music'],
     gate: SettingsGate.spotifyConfigured,

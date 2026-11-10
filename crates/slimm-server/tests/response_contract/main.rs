@@ -98,8 +98,8 @@ const UNCOVERED: &[(&str, &str)] = &[
     (
         "discordLinkCallback",
         "answers HTML to a browser, not JSON, and needs a state minted by \
-         startDiscordLink plus a fake Discord to trade the code with; \
-         tests/discord_link.rs drives every outcome of it.",
+         startDiscordLink plus a fake Discord to trade the code with, and it \
+         links nothing itself; tests/discord_link.rs drives every outcome of it.",
     ),
     (
         "getLinkedDiscordAvatar",

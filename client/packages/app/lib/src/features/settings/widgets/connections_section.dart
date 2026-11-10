@@ -17,7 +17,9 @@ import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
 import '../../../spotify/spotify_config.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/discord_link_finish.dart';
 import '../providers/linked_accounts.dart';
+import 'discord_link_code_sheet.dart';
 import 'settings_detail_row.dart';
 import 'settings_refresh_button.dart';
 import 'spotify_connection_rows.dart';
@@ -145,13 +147,19 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
         ),
       ];
     }
+    final status = ref.watch(discordLinkStatusProvider);
+    final finishing = status is DiscordLinkFinishing;
     return [
       SettingsDetailRow(
         leading:
             _discordPicture(discord) ??
             const SettingsBrandTile(BrandService.discord),
         title: 'Discord',
-        detail: discord == null ? 'Not linked' : discordLabel(discord),
+        detail: finishing
+            ? 'Finishing...'
+            : discord == null
+            ? 'Not linked'
+            : discordLabel(discord),
         error: actionError,
         onErrorDismiss: clearActionError,
         trailing: AppButton(
@@ -160,10 +168,34 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
           variant: discord == null
               ? AppButtonVariant.secondary
               : AppButtonVariant.danger,
-          disabled: _busy,
+          disabled: _busy || finishing,
           onPressed: () => unawaited(discord == null ? _link() : _unlink()),
         ),
       ),
+      if (discord == null)
+        SettingsDetailRow(
+          icon: AppIcons.clipboardPaste,
+          title: 'Link code',
+          detail: 'Paste the code from the browser page.',
+          trailing: AppButton(
+            label: 'Enter code',
+            size: AppButtonSize.sm,
+            variant: AppButtonVariant.secondary,
+            disabled: finishing,
+            onPressed: () => unawaited(showDiscordLinkCodeSheet(context)),
+          ),
+        ),
+      if (status is DiscordLinkFailed)
+        SettingsCardBlock(
+          children: [
+            AppErrorState(
+              message: status.message,
+              onDismiss: () => ref
+                  .read(discordLinkStatusProvider.notifier)
+                  .set(const DiscordLinkIdle()),
+            ),
+          ],
+        ),
     ];
   }
 }

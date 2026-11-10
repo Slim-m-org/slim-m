@@ -12,6 +12,9 @@ constexpr wchar_t kRelaunchArgument[] = L"--relaunch";
 // already runs: it has been asked to come forward, and this one should exit.
 bool ClaimSingleInstance(const wchar_t* command_line);
 
+// Forwards a slimm:// link in `command_line` to the running copy; false when there is none to hand it to.
+bool ForwardLinkToRunningInstance(const wchar_t* command_line);
+
 // The window message a second launch broadcasts to the running copy.
 UINT SecondInstanceMessage();
 

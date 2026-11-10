@@ -168,6 +168,9 @@ impl Store {
         sqlx::query!("DELETE FROM link_states WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query!("DELETE FROM link_handoffs WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query!("DELETE FROM pending_members WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

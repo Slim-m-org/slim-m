@@ -123,6 +123,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         ),
     ),
     ("pending_members", "user_id", OnDelete::Purge),
+    ("link_handoffs", "user_id", OnDelete::Purge),
     ("link_states", "user_id", OnDelete::Purge),
     ("linked_accounts", "user_id", OnDelete::Purge),
     ("message_forwards", "origin_author_id", OnDelete::Anonymize),

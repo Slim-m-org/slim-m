@@ -23,6 +23,10 @@ pub mod ws;
 #[allow(dead_code)]
 pub mod livekit_webhook;
 
+/// Finishing a Discord link: the callback page's handoff and the app's completion.
+#[allow(dead_code)]
+pub mod discord_link;
+
 /// Bounded polling for an effect that lands asynchronously.
 #[allow(dead_code)]
 pub mod wait;

@@ -15,6 +15,7 @@ import 'package:slimm_api/api.dart' show TokenPair;
 import 'package:slimm_design_system/design_system.dart'
     show AppSpinner, AppSpinnerSize;
 
+import '../discord_link_callback.dart';
 import '../invite_pending.dart';
 import '../providers/overlay_cover.dart';
 import '../providers/providers.dart';
@@ -100,7 +101,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     // sign-out and revocation take effect immediately.
     refreshListenable: _RedirectListenable(ref),
     redirect: (context, state) =>
-        (session.isSignedIn ? null : claimWebInvite(ref, state.uri)) ??
+        (session.isSignedIn
+            ? claimWebDiscordLink(ref, state.uri)
+            : claimWebInvite(ref, state.uri)) ??
         _redirect(
           signedIn: session.isSignedIn,
           location: state.matchedLocation,

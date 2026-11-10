@@ -1235,6 +1235,43 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "501":
           description: Discord linking is not configured on this server.
+  /me/links/discord/complete:
+    post:
+      operationId: completeDiscordLink
+      tags: [users]
+      summary: Finish linking a Discord account from the app.
+      description: >
+        The callback holds the Discord account it read under a one-time
+        handoff code and shows it on a page that opens the app
+        (`slimm://discord-link?code=`, or `/app/link/discord?code=` in the web
+        client) beside the code to paste. This links that account, and only
+        when the caller is the member who started the link: any other caller
+        gets 404 and the code is spent, as does a code that is wrong, expired
+        or used; the cases are not told apart. The code works once, for ten
+        minutes; dashes, spaces and letter case in it are ignored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteDiscordLinkRequest"
+      responses:
+        "200":
+          description: The Discord account now linked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedAccount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /me/links/discord:
     delete:
       operationId: unlinkDiscord
@@ -1254,10 +1291,13 @@ paths:
       summary: Where Discord sends the browser back after authorizing.
       description: >
         Unauthenticated: the one-time `state` from `/me/links/discord/start`
-        names the member. Spends the state, trades `code` for a token, reads
-        the Discord account and stores the link. Answers a short HTML page
-        for the browser tab in every case; an expired, replayed or unknown
-        state stores nothing.
+        names the member who started the link, but the browser that comes back
+        cannot be told apart from anyone else's. So this spends the state,
+        trades `code` for a token, reads the Discord account and links
+        nothing: it holds the account under a fresh handoff code and answers a
+        page that opens the app with it and shows it to paste, for
+        `completeDiscordLink`. Answers a short HTML page for the browser tab
+        in every case; an expired, replayed or unknown state holds nothing.
       security: []
       parameters:
         - name: code
@@ -1277,19 +1317,13 @@ paths:
             type: string
       responses:
         "200":
-          description: Linked, or cancelled by the member.
+          description: The page that hands back to the app, or a cancelled link.
           content:
             text/html:
               schema:
                 type: string
         "400":
           description: A missing, expired or used state, or no code.
-          content:
-            text/html:
-              schema:
-                type: string
-        "409":
-          description: That Discord account is linked to another member.
           content:
             text/html:
               schema:
@@ -18235,6 +18269,14 @@ components:
         enabled:
           type: [boolean, "null"]
           description: The caller's choice, or null if never made.
+
+    CompleteDiscordLinkRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: The handoff code the callback page showed.
 
     SetHoldMusicRequest:
       type: object

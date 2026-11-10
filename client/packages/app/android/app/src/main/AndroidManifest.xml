@@ -60,7 +60,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- slimm:// links: join?... opens the join flow, message?... jumps to a message (see lib/src/deep_links.dart),
-                 spotify-callback is the Spotify link's redirect (lib/src/spotify). Every host is listed because a data element scoped to one host is what decides whether the OS
+                 spotify-callback is the Spotify link's redirect (lib/src/spotify), discord-link is the Discord link's hand-back from the browser page. Every host is listed because a data element scoped to one host is what decides whether the OS
                  hands the link over at all; a link to an unlisted host never reaches the app to be parsed. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
@@ -69,6 +69,7 @@
                 <data android:scheme="slimm" android:host="join"/>
                 <data android:scheme="slimm" android:host="message"/>
                 <data android:scheme="slimm" android:host="spotify-callback"/>
+                <data android:scheme="slimm" android:host="discord-link"/>
             </intent-filter>
             <!-- The system share sheet: one filter per action, with every type, so a photo, a video, a snippet of text and any other file all list slim-m. See ShareIntakeChannel. -->
             <intent-filter>

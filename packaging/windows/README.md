@@ -8,6 +8,8 @@ Running a newer setup over an existing install upgrades it in place, writing the
 Setup and the uninstaller both notice a running slim-m (through its `Local\top.npcserver.slimm.instance` mutex) and ask you to close it first.
 Closing the window only sends slim-m to the tray, so quit it from the tray icon (Quit slim-m; on Windows it may sit under the ^ overflow arrow), then click OK.
 Start on login registers the stable `slim-m.exe` launcher, so a login start follows updates; the app rewrites an older registration that named a versioned folder.
+It also registers the `slimm://` scheme for your user, so an invite link, Spotify's redirect and the Discord link's "Open slim-m" button reach this install, and a running copy is handed the link.
+The zip install does not register it: paste an invite into the join dialog, or the Discord code into Settings, Connections.
 Uninstalling removes the app folders, the launcher, the pointers, the `running.pid` marker, a "Start on login" entry that points into the install, and the install folder itself once it is empty.
 The app keeps its data under `%APPDATA%`, outside that folder, so uninstalling leaves it alone.
 

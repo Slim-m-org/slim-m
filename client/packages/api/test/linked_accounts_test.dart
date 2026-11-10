@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The linked-accounts model and the four JSON routes, at the HTTP boundary.
+/// The linked-accounts model and its JSON routes, at the HTTP boundary.
 library;
 
 import 'dart:convert';
@@ -73,6 +73,26 @@ void main() {
   test('a 501 start is NotConfiguredException', () async {
     final api = _api([], (_) => http.Response('', 501));
     expect(api.startDiscordLink(), throwsA(isA<NotConfiguredException>()));
+  });
+
+  test('completeDiscordLink posts the code and answers the account', () async {
+    final seen = <http.Request>[];
+    final api = _api(seen, (_) => _json(_link));
+    final linked = await api.completeDiscordLink('ABCDE-FGHJK');
+    expect(linked.username, 'nick#0');
+    expect(seen.single.method, 'POST');
+    expect(seen.single.url.path, '/me/links/discord/complete');
+    expect(jsonDecode(seen.single.body), {'code': 'ABCDE-FGHJK'});
+  });
+
+  test('a refused code is NotFound and a taken account is Conflict', () async {
+    final refused = _api([], (_) => _json({'error': 'nope'}, 404));
+    expect(
+      refused.completeDiscordLink('x'),
+      throwsA(isA<NotFoundException>()),
+    );
+    final taken = _api([], (_) => _json({'error': 'taken'}, 409));
+    expect(taken.completeDiscordLink('x'), throwsA(isA<ConflictException>()));
   });
 
   test('unlinkDiscord sends DELETE and accepts 204', () async {
