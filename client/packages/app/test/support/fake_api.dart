@@ -35,14 +35,6 @@ MockClientHandler withSpaceSettings(
       )
     : handler(request);
 
-/// Overrides [apiProvider] with an api served by the fake [server].
-Override fakeServerOverride(FakeSlimmServer server) =>
-    apiProvider.overrideWith((ref) {
-      final api = server.api(session: ref.watch(sessionProvider));
-      ref.onDispose(api.close);
-      return api;
-    });
-
 /// Mounts [child] under a fresh container, in the light theme, and returns it.
 Future<ProviderContainer> pumpInApp(
   WidgetTester tester,
