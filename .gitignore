@@ -11,7 +11,7 @@ Thumbs.db
 /target
 **/*.rs.bk
 
-# Node (schema-ci installs @redocly/cli fresh into this on every run; never vendor it)
+# Node (schema-ci runs npm ci into this from the committed lockfile; never vendor it)
 node_modules/
 
 # Runtime data (embedded SQLite lives here)

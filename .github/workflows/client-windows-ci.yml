@@ -8,7 +8,9 @@ on:
       - "client/**"
       - "packaging/windows/**"
       - ".github/workflows/client-windows-ci.yml"
-      - ".github/actions/**"
+      - ".github/actions/install-inno-setup/**"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
       # A release-please bump touches these three only; a real dependency change still runs through the lock file.
       - "!client/CHANGELOG.md"
       - "!client/pubspec.yaml"

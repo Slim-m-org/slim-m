@@ -8,6 +8,8 @@ import re
 import unittest
 from pathlib import Path
 
+from test_path_filtered_workflows_trigger_on_their_actions import reachable_actions
+
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "main-builds.yml"
 
@@ -103,6 +105,12 @@ class MainBuildsTriggersOnEverythingItUsesTest(unittest.TestCase):
 
     def test_every_used_action_and_workflow_triggers_and_filters(self):
         self.assertEqual(uncovered(self.text), [])
+
+    def test_trigger_and_filter_name_the_actions_it_reaches_and_no_others(self):
+        reached = {f"{action}/**" for action in reachable_actions(self.text)}
+        for patterns in (trigger_paths(self.text), filter_patterns(self.text)):
+            listed = {p for p in patterns if p.startswith(".github/actions/")}
+            self.assertEqual(listed, reached)
 
     def test_every_trigger_path_reaches_a_filter_or_is_excused(self):
         self.assertEqual(unfiltered_paths(self.text), [])

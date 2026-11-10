@@ -285,14 +285,18 @@ Any run after that point counts like it does in every other language, and `//` a
 Every entry in `allow` is permissive and imposes no source-disclosure obligation on either the server or the client (see `LICENSING.md`).
 Nothing is listed speculatively: the list is exactly what the two trees resolve to today, so a new license of any kind stops the gate and gets a human decision.
 
-Three package-level exceptions, each named one package at a time rather than allowing the license outright:
+Package-level exceptions, each named one package at a time rather than allowing the license outright:
 
-- `slimm-server` is allowed `LicenseRef-PolyForm-Noncommercial-1.0.0`, since it is slim-m itself. Allowing that across the board would let an unrelated crate claim it unnoticed, which is the opposite of what this is for.
+- `slimm-server` and `slimm-listener` are allowed `LicenseRef-PolyForm-Noncommercial-1.0.0`, since they are slim-m itself. Allowing that across the board would let an unrelated crate claim it unnoticed, which is the opposite of what this is for.
 - `dbus` and `nm` are allowed `MPL-2.0`. MPL-2.0 is per-file copyleft: the obligation reaches modifications to those packages' own files and not the application that links them, so it is compatible with shipping the client. That is a decision rather than a default, which is why it is two named entries and not a line in `allow`; a new MPL dependency still stops the gate. Both are Linux desktop transitives reached through `connectivity_plus`.
 
 Advisories and bans are deliberately not configured here, so this is `cargo deny check licenses` and not `check all`.
 A CVE published upstream would turn every unrelated pull request red through no fault of its own, which is a different job wanting a different trigger; `docs/STRATEGY.md` names `cargo audit` and `osv-scanner` for it.
 Advisories are checked daily by `advisory-watchdog` (cargo-deny `check advisories`, which gates nothing and opens an issue); `osv-scanner` is not wired.
+
+The call-audio listener is excluded from the root workspace and has its own `Cargo.lock` (decision 0105), so a cargo-deny run at the repo root never reads it.
+`licenses` and `advisory-watchdog` each run cargo-deny a second time with `manifest-path: crates/slimm-listener/Cargo.toml`, and the advisory issue names which lockfile was flagged.
+`scripts/lib/test_cargo_deny_covers_the_listener.py` keeps those steps from being dropped.
 
 `-A license-exception-not-encountered` is passed because the allow list is shared: `dbus` and `nm` are pub packages, so cargo-deny correctly reports never having seen them, and that is not a finding.
 `unused-allowed-license = "allow"` in the config is there for the same reason in the other direction.
@@ -817,7 +821,8 @@ The redundant build pushes the same `latest` the release itself would have pushe
 
 The trigger must also name everything the workflow calls.
 Commit f453f678 fixed `.github/actions/linux-tarball` and matched no path, so the run it started skipped every job and finished green with nothing built.
-`.github/actions/**` now triggers the run and feeds the `client` filter, and `copr-publish.yml` feeds `packaging`.
+The trigger and the `client` filter now list each composite action the workflow reaches, nested calls included (`apt-install`, `linux-build-deps`, `linux-tarball`, `native-hooks-cache`, `native-hooks-diagnose`), and `copr-publish.yml` feeds `packaging`.
+A wildcard over `.github/actions/` is deliberately not used: the `release-*` actions are called only by `release.yml`, so an edit to one of them would otherwise build the client, upload to TestFlight and redeploy web.
 `scripts/lib/test_main_builds_triggers_on_everything_it_uses.py` fails when a `uses: ./.github/...` target is missing from the trigger or the filter, or when a trigger path reaches no filter and is not on its short allowlist.
 A change to `main-builds.yml` itself still triggers a run that builds nothing; that is on the allowlist on purpose.
 
@@ -899,7 +904,7 @@ That is the old behaviour, and it is the safe direction: an extra image costs mi
 `scripts/lib/test_server_image_base.py` pins the decision itself, including the cancelled-then-skipped shape this was built for, and that malformed API output degrades rather than fails.
 
 The web image closed the same hole later, because Watchtower follows it and a cancelled build left the live web client stale for a median of about 1.7 hours and once for 23.
-The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles, `web-image.yml` or `.github/actions/**` moved since.
+The `web_undeployed` step runs `scripts/web-image-needed.sh`, which asks the same question of the newest run whose `web-image / merge` job succeeded and reports `web: true` when `client/**`, the web Dockerfiles or `web-image.yml` moved since; the web image calls no local action.
 Both scripts share `scripts/image-needed.sh`, and `scripts/lib/test_main_builds_web_image_decides_from_what_is_deployed.py` pins that only `web-image` reads the new output.
 
 `client` and `packaging` still decide from the push diff alone and keep the same hole.

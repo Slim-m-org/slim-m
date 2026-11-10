@@ -6,10 +6,11 @@
 
 # rust 1.97.1 on bookworm, pinned by digest alone so the tag cannot disagree with it.
 FROM rust@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97 AS builder
-# libwebrtc's build needs clang 21, newer than the base image's, so it comes from LLVM's own signed apt repository.
+# libwebrtc's build needs clang 21, newer than the base image's, so it comes from LLVM's own signed apt repository, whose key is checked against a pinned fingerprint.
+COPY docker/listener-llvm-key.sh /usr/local/bin/listener-llvm-key
 RUN apt-get update \
     && apt-get install -y --no-install-recommends cmake gnupg libglib2.0-dev libssl-dev pkg-config \
-    && curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
+    && listener-llvm-key /usr/share/keyrings/llvm.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main" > /etc/apt/sources.list.d/llvm.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends clang-21 libclang-21-dev \
