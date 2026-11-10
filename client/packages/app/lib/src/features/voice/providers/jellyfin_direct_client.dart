@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Thrown when the media server turns down a sign-in.
 class JellyfinSignInRefused implements Exception {
@@ -44,7 +45,13 @@ class JellyfinDirectClient {
           .get(Uri.parse('$baseUrl/System/Info/Public'))
           .timeout(_timeout);
       return response.statusCode == 200;
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'The media server did not answer; treated as unreachable',
+        error,
+        stack,
+      );
       return false;
     }
   }

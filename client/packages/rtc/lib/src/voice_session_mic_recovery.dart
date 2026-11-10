@@ -205,7 +205,13 @@ mixin VoiceSessionMicRecovery {
   Future<void> _fallbackIfDeviceGone() async {
     try {
       if (!await _audioSwitching.chosenInputMissing()) return;
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not check whether the microphone in use is gone',
+        error,
+        stack,
+      );
       return;
     }
     _logMic('The microphone in use is gone; trying another one');

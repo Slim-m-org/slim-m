@@ -6,7 +6,7 @@ library;
 
 import 'dart:async';
 
-import 'package:slimm_api/api.dart' show LogLevel;
+import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 
 import 'audio_device_switching.dart';
 import 'mic_failure.dart';
@@ -220,7 +220,13 @@ class MicFallback {
   Future<double?> _captured() async {
     try {
       return await _host.mic().capturedSeconds();
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not read the captured seconds; treated as unknown',
+        error,
+        stack,
+      );
       return null;
     }
   }

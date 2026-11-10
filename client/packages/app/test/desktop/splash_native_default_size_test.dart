@@ -8,7 +8,7 @@
 /// reintroducing the resize-before-map race `applyInitialGeometry`'s own
 /// doc comment and decision 0012's superseding section both describe.
 ///
-/// Reads the C file through `support/code_only.dart` before matching, the
+/// Reads the C file through `codeOnly` (`slimm_test_support`) before matching, the
 /// same discipline every other source-reading gate in this suite already
 /// applies, so a comment mentioning some other size cannot satisfy this.
 library;
@@ -18,7 +18,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 
-import '../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 final _defaultSizeCall = RegExp(
   r'gtk_window_set_default_size\(\s*window,\s*(\d+),\s*(\d+)\s*\)',

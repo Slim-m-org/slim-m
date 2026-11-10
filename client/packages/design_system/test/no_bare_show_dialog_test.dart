@@ -10,7 +10,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 final _windowedCalls = RegExp(
   r'(?<![\w.])(showDialog|showAdaptiveDialog|showTimePicker|showDatePicker|'

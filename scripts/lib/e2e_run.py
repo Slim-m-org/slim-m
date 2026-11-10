@@ -67,6 +67,7 @@ import e2e_tabs
 import e2e_api
 import e2e_browsers
 import e2e_client
+import e2e_client_contract
 from e2e_api import Api
 from e2e_client import Client
 
@@ -388,6 +389,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              server, secret, admin, sign_in)),
         ("account: two tabs share one token refresh and both stay signed in",
          lambda: e2e_tabs.two_tabs_survive_rotations(server, admin, sign_in)),
+        # After every scenario that reads the channels, since it sends messages and adds members.
+        ("client contract: the Dart api package against this server",
+         lambda: e2e_client_contract.client_contract_holds(server, admin)),
         # Last, because it wipes bob's browser storage and signs him in again.
         ("account: usernames ignore case, registering and signing in",
          lambda: e2e_accounts.usernames_ignore_case(

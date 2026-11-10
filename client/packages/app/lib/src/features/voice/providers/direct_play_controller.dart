@@ -280,7 +280,8 @@ class DirectPlayController {
         signInError: 'That name and password were not accepted.',
       );
       return;
-    } on Object {
+    } on Object catch (error, stack) {
+      _swallowed('Jellyfin did not answer the sign in', error, stack);
       state = state.copyWith(
         signInError: 'Could not reach Jellyfin to sign in.',
       );
@@ -345,12 +346,7 @@ class DirectPlayController {
       state = state.copyWith(phase: DirectPlayPhase.playing);
       _reportViewing(true);
     } on Object catch (error, stack) {
-      api.AppLog.swallowed(
-        api.LogTag.voice,
-        'Direct play could not start',
-        error,
-        stack,
-      );
+      _swallowed('Direct play could not start', error, stack);
       await _fallBack(
         'Could not play from Jellyfin. Back on the shared stream.',
       );
@@ -479,12 +475,7 @@ class DirectPlayController {
         Object error,
         StackTrace stack,
       ) {
-        api.AppLog.swallowed(
-          api.LogTag.voice,
-          'Could not report direct play',
-          error,
-          stack,
-        );
+        _swallowed('Could not report direct play', error, stack);
       }),
     );
   }
@@ -498,3 +489,6 @@ class DirectPlayController {
 
 String directPlayPauseLine(Duration roomPosition) =>
     'You are paused, the room is at ${formatPlaybackTime(roomPosition)}';
+
+void _swallowed(String reason, Object error, StackTrace stack) =>
+    api.AppLog.swallowed(api.LogTag.voice, reason, error, stack);

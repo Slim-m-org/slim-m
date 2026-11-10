@@ -22,7 +22,7 @@
 /// That is the shape `crates/slimm-server/tests/response_contract`'s
 /// `UNCOVERED` already uses on the server side.
 ///
-/// `_concatDart` runs every file through `support/code_only.dart` before
+/// `_concatDart` runs every file through `codeOnly` (`slimm_test_support`) before
 /// `_mentions` ever searches it: reproduced directly, replacing a method's
 /// only real call with a trailing `// used to call kickVoiceParticipant
 /// here` comment on that same line passed this gate before that existed.
@@ -32,7 +32,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// Methods with no caller in `packages/app/lib`, and why that is not drift.
 ///
@@ -73,7 +73,7 @@ const Map<String, String> _allowlist = {
 const Set<String> _notApiSurface = {'close', 'dispose', 'clear'};
 
 void main() {
-  final repoRoot = _findRepoRoot(Directory.current);
+  final repoRoot = findRepoRoot();
   final apiSrc = Directory('${repoRoot.path}/client/packages/api/lib/src');
   final appLib = Directory('${repoRoot.path}/client/packages/app/lib');
 
@@ -208,20 +208,3 @@ String _concatDart(Directory dir) => dir
     .where((f) => f.path.endsWith('.dart'))
     .map((f) => codeOnly(f.readAsStringSync()))
     .join('\n');
-
-/// Walks upward looking for schema/openapi.yaml, so this does not depend on
-/// whether it was invoked from the repo root, from client/, or from
-/// client/packages/api.
-Directory _findRepoRoot(Directory start) {
-  var dir = start.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    final parent = dir.parent;
-    if (parent.path == dir.path) break;
-    dir = parent;
-  }
-  fail(
-    'could not find schema/openapi.yaml walking up from ${start.path}; is '
-    'this test running from somewhere inside the slim-m repo?',
-  );
-}

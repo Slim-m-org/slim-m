@@ -88,6 +88,9 @@ Drift's generated code is committed; regenerate it rather than editing it:
 - `scripts/ui-snapshots.sh` renders the real shell at every shipped resolution into `client/packages/app/build/ui-snapshots`.
 - `scripts/ui-capture.sh` runs the per-surface snapshot harnesses; a new harness needs a `JOBS` line there.
 - Snapshot tests write PNGs only with `SLIMM_UI_SNAPSHOTS=1`; otherwise they just check the layout.
+- The canvas painter PNGs (`SLIMM_CANVAS_VISUAL=1`, `build/canvas-visual`) are rasterised in software, which dots a 1px diagonal stroke.
+  `zoom_stress_0.25x.png` shows it: the ink is exactly one device pixel wide there, and the same scene at a device pixel ratio of 4 is continuous.
+  It is a rasteriser artifact, not geometry, so do not clamp ink's minimum width to fix it.
 
 ## End to end
 

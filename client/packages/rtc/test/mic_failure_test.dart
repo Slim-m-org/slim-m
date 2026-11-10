@@ -6,9 +6,18 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart'
+    show AppLog, LogLevel, LogRecord, LogSink, LogTag;
 import 'package:slimm_rtc/rtc.dart' hide osBlocksMicrophone;
 import 'package:slimm_rtc/src/os_mic_block_io.dart';
 import 'package:slimm_rtc/src/os_mic_block_parse.dart';
+
+class _Records implements LogSink {
+  final List<LogRecord> records = [];
+
+  @override
+  void write(LogRecord record) => records.add(record);
+}
 
 ProcessResult _reg(String value, {int code = 0}) => ProcessResult(
       0,
@@ -58,12 +67,21 @@ void main() {
           MicFailureReason.busy);
     });
 
-    test('a probe that throws leaves the reason alone', () async {
+    test('a probe that throws leaves the reason alone and says why', () async {
+      final logs = _Records();
+      AppLog.install(logs);
+      addTearDown(() => AppLog.install(null));
+
       expect(
         await refineMicFailure(
             MicFailureReason.stalled, () async => throw StateError('no reg')),
         MicFailureReason.stalled,
       );
+
+      expect(logs.records, hasLength(1));
+      expect(logs.records.single.tag, LogTag.voice);
+      expect(logs.records.single.level, LogLevel.debug);
+      expect(logs.records.single.error, contains('no reg'));
     });
   });
 

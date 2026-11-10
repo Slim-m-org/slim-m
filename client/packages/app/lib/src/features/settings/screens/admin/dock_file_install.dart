@@ -80,7 +80,13 @@ Future<void> installDockModuleFromFile(
   final Map<String, dynamic> package;
   try {
     package = jsonDecode(utf8.decode(pick.bytes)) as Map<String, dynamic>;
-  } on Object {
+  } on Object catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.ui,
+      'The picked file is not a module package; the user was told',
+      error,
+      stack,
+    );
     fail('Could not read ${pick.fileName}. It is not a module file.');
     return;
   }

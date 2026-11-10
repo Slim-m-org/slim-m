@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -82,7 +83,13 @@ typedef SettingsLauncher = Future<bool> Function(Uri uri);
 Future<bool> openMicSettings(Uri uri, {SettingsLauncher? launcher}) async {
   try {
     return await (launcher ?? launchSettingsPage)(uri);
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'The system settings page would not open; reported as not opened',
+      error,
+      stack,
+    );
     return false;
   }
 }

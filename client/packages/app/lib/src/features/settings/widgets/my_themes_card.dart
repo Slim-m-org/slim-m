@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart'
@@ -128,7 +129,13 @@ class MyThemesCard extends ConsumerWidget {
         themeFileName(document.name),
         utf8.encode(document.toJsonText()),
       );
-    } on Object {
+    } on Object catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.platform,
+        'save the theme file',
+        error,
+        stack,
+      );
       onError('Could not save the file.');
     }
   }

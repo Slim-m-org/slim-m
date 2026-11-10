@@ -140,6 +140,7 @@ The `every other workspace package` step in `client-ci`'s `client tests (other-p
 That makes the reference images, not a second workflow edit, the only thing standing between here and a real pixel gate: `update-golden-references` (workflow_dispatch only, so it never runs on a push or pull request) builds on the identical channel, Flutter version and runner as the test job, runs `flutter test --update-goldens --dart-define=SLIMM_GOLDENS=true` inside `design_system`, and uploads the resulting `goldens/` directory as a build artifact.
 A human downloads that artifact and commits its PNGs into `client/packages/design_system/test/goldens/`; the very next `client-ci` run finds them and starts diffing, with no further edit to this workflow.
 The same job is how a deliberate design change gets new references later: run it again, review the diff, commit the replacement PNGs.
+Until the first references are committed the pixel comparison is off, and the step says so with a `pixel goldens are off` warning for each package, so the gap shows on every run instead of only here.
 
 voice_canvas follows the same rule for its painter scenes (`test/visual/`, whose `renderVisualScene` compares against `test/goldens/` under the same flag): the step passes the flag once `client/packages/voice_canvas/test/goldens/` holds PNGs, and `update-golden-references` writes that directory too.
 

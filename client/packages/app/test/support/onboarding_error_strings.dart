@@ -11,6 +11,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// The internal-error and password-length strings a real 500/400 from the
 /// server actually carries.
@@ -21,7 +22,7 @@ class OnboardingErrorStrings {
   final String passwordLengthError;
 
   static OnboardingErrorStrings load() {
-    final repoRoot = _findRepoRoot(Directory.current);
+    final repoRoot = findRepoRoot();
     final fixture = File(
       '${repoRoot.path}/crates/slimm-server/tests/fixtures/onboarding_error_strings.json',
     );
@@ -31,21 +32,4 @@ class OnboardingErrorStrings {
       raw['password_length_error'] as String,
     );
   }
-}
-
-/// Walks upward from [start] looking for schema/openapi.yaml, the same
-/// repo-root anchor `message_inline_mention_charset_test.dart` already uses,
-/// so this test does not depend on which directory it was invoked from.
-Directory _findRepoRoot(Directory start) {
-  var dir = start.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    final parent = dir.parent;
-    if (parent.path == dir.path) break;
-    dir = parent;
-  }
-  throw StateError(
-    'could not find schema/openapi.yaml walking up from ${start.path}; is '
-    'this test running from somewhere inside the slim-m repo?',
-  );
 }

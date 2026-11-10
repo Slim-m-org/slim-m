@@ -8,7 +8,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 Map<String, int> readAllowlist(String path) => {
   for (final line in File(path).readAsLinesSync())
