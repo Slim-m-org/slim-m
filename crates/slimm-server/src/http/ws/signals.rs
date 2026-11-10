@@ -5,7 +5,7 @@
 //! file stays focused on the wire protocol itself.
 
 use super::frames::ServerFrame;
-use crate::hub::{Event, Hub};
+use crate::hub::{Event, Hub, PresenceChange};
 use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::{self, DeviceKind, Status, Visibility};
@@ -43,7 +43,7 @@ impl PresenceGuard {
             hub.presence().load_visibility(user_id, visibility);
         }
         if first {
-            hub.publish(Event::PresenceChanged(user_id));
+            hub.publish(Event::presence_changed(user_id));
         }
         let idle_watch = tokio::spawn(watch_idle(hub.clone(), store, user_id)).abort_handle();
         let connection = hub.presence().viewing().new_connection();
@@ -84,7 +84,7 @@ impl Drop for PresenceGuard {
             .viewing()
             .forget_connection(self.user_id, self.connection);
         if self.hub.presence().disconnect_as(self.user_id, self.kind) {
-            self.hub.publish(Event::PresenceChanged(self.user_id));
+            self.hub.publish(Event::presence_changed(self.user_id));
         }
     }
 }
@@ -130,7 +130,7 @@ async fn watch_idle(hub: Hub, store: Store, user_id: UserId) {
             store.presence_visibility(user_id).await,
             Ok(Some(Visibility::Online))
         ) {
-            hub.publish(Event::PresenceChanged(user_id));
+            hub.publish(Event::presence_changed(user_id));
         }
     }
 }
@@ -149,17 +149,34 @@ pub(super) async fn presence_status(
     viewer: UserId,
     target: UserId,
 ) -> anyhow::Result<Option<Status>> {
-    let tracker = hub.presence();
-    let Some(visibility) = visibility_of(store, hub, target).await? else {
-        return Ok(None);
+    let visibility = visibility_of(store, hub, target).await?;
+    Ok(visibility.map(|v| status_given(hub, viewer, target, v)))
+}
+
+/// [`presence_status`] for a published change: a cache miss shares one store read with every other connection.
+pub(super) async fn change_status(
+    store: &Store,
+    hub: &Hub,
+    viewer: UserId,
+    change: &PresenceChange,
+) -> anyhow::Result<Option<Status>> {
+    let target = change.user_id;
+    let visibility = match hub.presence().visibility(target) {
+        Some(cached) => Some(cached),
+        None => change.stored_visibility(store).await?,
     };
-    Ok(Some(presence::status_for(
+    Ok(visibility.map(|v| status_given(hub, viewer, target, v)))
+}
+
+fn status_given(hub: &Hub, viewer: UserId, target: UserId, visibility: Visibility) -> Status {
+    let tracker = hub.presence();
+    presence::status_for(
         viewer,
         target,
         visibility,
         tracker.is_connected(target),
         tracker.is_idle(target),
-    )))
+    )
 }
 
 /// `target`'s chosen visibility, from the presence cache or else the store; `None` when the account is gone.

@@ -112,3 +112,38 @@ async fn a_stroke_preview_follows_the_same_rule() {
     send(&mut room.alice, preview).await;
     read_frame_of_type(&mut room.bob, "canvas.stroke_preview.updated").await;
 }
+
+fn view(channel: &str, summon: bool) -> Value {
+    json!({
+        "type": "canvas.view", "channel_id": channel,
+        "x": 0.0, "y": 0.0, "w": 100.0, "h": 100.0, "summon": summon,
+    })
+}
+
+#[tokio::test]
+async fn a_followed_view_goes_only_to_a_connection_watching_the_canvas() {
+    let (mut room, _guard) = room().await;
+    watch(&mut room.bob, std::slice::from_ref(&room.other)).await;
+    send(&mut room.alice, view(&room.channel, false)).await;
+    assert_nothing_of_type(&mut room.bob, "canvas.view.updated").await;
+    watch(&mut room.bob, std::slice::from_ref(&room.channel)).await;
+    send(&mut room.alice, view(&room.channel, false)).await;
+    next_of_type(&mut room.bob, "canvas.view.updated").await;
+}
+
+#[tokio::test]
+async fn a_summon_reaches_a_connection_with_no_canvas_open() {
+    let (mut room, _guard) = room().await;
+    watch(&mut room.bob, &[]).await;
+    send(&mut room.alice, view(&room.channel, true)).await;
+    let frame = next_of_type(&mut room.bob, "canvas.view.updated").await;
+    assert_eq!(frame["summon"], true);
+}
+
+#[tokio::test]
+async fn a_followed_view_is_not_echoed_to_its_sender() {
+    let (mut room, _guard) = room().await;
+    send(&mut room.alice, view(&room.channel, false)).await;
+    next_of_type(&mut room.bob, "canvas.view.updated").await;
+    assert_nothing_of_type(&mut room.alice, "canvas.view.updated").await;
+}

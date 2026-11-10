@@ -204,7 +204,9 @@ async fn a_role_change_names_the_member_the_role_and_the_direction() {
             role_name: Some("Mods".to_owned()),
         });
     }
-    let seen = recorded_of(&w, "member.roles.changed", 2).await;
+    let mut seen = recorded_of(&w, "member.roles.changed", 2).await;
+    // Two events in one millisecond tie on `at_ms`, so the recorded order says nothing about delivery.
+    seen.sort_by_key(|e| e["data"]["granted"] != json!(true));
     let data = |granted| {
         json!({"user_id": member.to_string(), "role_id": role.to_string(),
                "granted": granted, "role_name": "Mods"})
@@ -234,7 +236,8 @@ async fn a_poll_vote_carries_the_tally_and_no_voter() {
         winner: Some(0),
     })));
 
-    let seen = recorded_of(&w, "poll.voted", 2).await;
+    let mut seen = recorded_of(&w, "poll.voted", 2).await;
+    seen.sort_by_key(|e| e["data"]["ranked"] == json!(true));
     let base = |ranked: bool, winner: Value| {
         json!({"message_id": message.to_string(), "channel_id": general.id.to_string(),
             "options": [{"position": 0, "votes": 2}, {"position": 1, "votes": 1}],
@@ -269,7 +272,7 @@ async fn a_reaction_names_who_moved_and_a_blocked_reactor_is_not_heard() {
     } else {
         recorded_of(&w, "reaction.changed", 2).await
     };
-    let moves: Vec<(String, bool, i64)> = seen
+    let mut moves: Vec<(String, bool, i64)> = seen
         .iter()
         .map(|e| {
             (
@@ -279,6 +282,7 @@ async fn a_reaction_names_who_moved_and_a_blocked_reactor_is_not_heard() {
             )
         })
         .collect();
+    moves.sort_by_key(|(_, added, _)| !added);
     assert_eq!(
         moves,
         vec![(ann.to_string(), true, 1), (ann.to_string(), false, 1)]

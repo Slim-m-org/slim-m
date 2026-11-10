@@ -64,6 +64,7 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
+        self.touch_modules();
         Ok(id)
     }
 

@@ -16,6 +16,11 @@ pub struct ReactionMoved {
 }
 
 impl Event {
+    /// `user_id`'s presence moved; every connection resolves what its own user may be told.
+    pub fn presence_changed(user_id: UserId) -> Event {
+        Event::PresenceChanged(super::PresenceChange::of(user_id))
+    }
+
     /// The event without any moderation stamp.
     pub fn into_inner(self) -> Event {
         match self {

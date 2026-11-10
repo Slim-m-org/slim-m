@@ -161,9 +161,9 @@ pub enum CanvasEvent {
     /// A viewer's annotation over, or a sharer's consent about, a screen share.
     ///
     /// Ephemeral like [`CanvasEvent::CursorMoved`]: no `seq`, never stored,
-    /// the sharer's overlay fades it within seconds. Boxed so the payload does
-    /// not widen every other variant.
-    ScreenAnnotation(Box<ScreenAnnotationEvent>),
+    /// the sharer's overlay fades it within seconds. `Arc`-wrapped so the payload
+    /// does not widen every other variant and fan-out clones a refcount.
+    ScreenAnnotation(Arc<ScreenAnnotationEvent>),
     /// The part of the shared board a member is looking at, in world units.
     ///
     /// Ephemeral like [`CanvasEvent::CursorMoved`]: no `seq`, never stored, a

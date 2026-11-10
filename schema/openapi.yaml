@@ -11293,7 +11293,10 @@ paths:
         `/auth/ws-ticket` and the protocol version. The server redeems the
         ticket and replies with its own `hello`. After that the connection
         carries server-to-client events, authorized per event, plus a ping and
-        pong keepalive. See the ClientFrame and ServerFrame schemas.
+        pong keepalive. A connection that sends nothing for 90 seconds is
+        closed as dead, so ping at least every 30 seconds (the app pings every
+        20). One that sends more than about 100 frames a second for a few
+        seconds is closed too. See the ClientFrame and ServerFrame schemas.
       responses:
         "101":
           description: Switching protocols.
@@ -18876,8 +18879,9 @@ components:
       description: >
         The canvases this connection has open, replacing its previous report;
         an empty list says none is open. Live cursors, stroke previews, object
-        previews and tile previews are then sent only for the listed channels,
-        and never back to the member who sent them. A connection that has not
+        previews, tile previews and view rectangles are then sent only for the
+        listed channels, and never back to the member who sent them. A summon
+        is a one-off request and is always sent. A connection that has not
         sent this frame receives them for every channel it can view. It is
         never broadcast, and at most 8 ids are honoured.
       properties:

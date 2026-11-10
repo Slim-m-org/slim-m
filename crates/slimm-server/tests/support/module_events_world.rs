@@ -22,6 +22,13 @@ pub struct EventModule<'a> {
 impl World {
     /// Installs and enables the module with its principal; returns the principal.
     pub async fn install_event_module(&self, module: EventModule<'_>) -> UserId {
+        let id = module.id;
+        self.install_event_module_without_principal(module).await;
+        self.store.ensure_module_bot(id, "Listener").await.unwrap()
+    }
+
+    /// Installs and enables the module, before anything has minted its principal.
+    pub async fn install_event_module_without_principal(&self, module: EventModule<'_>) {
         let EventModule {
             id,
             wasm,
@@ -61,7 +68,6 @@ impl World {
             .await
             .unwrap();
         self.store.set_module_enabled(id, true).await.unwrap();
-        self.store.ensure_module_bot(id, "Listener").await.unwrap()
     }
 
     /// Every event the recorder fixture stored for `module`, parsed out of the run's request, oldest first.

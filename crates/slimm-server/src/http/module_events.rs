@@ -7,6 +7,7 @@
 
 mod build;
 pub(crate) mod call_audio;
+mod candidates;
 mod depths;
 mod dispatch;
 mod queue;
@@ -19,6 +20,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 
 use self::build::{build, classify};
+use self::candidates::Candidates;
 pub(super) use self::depths::QueueDepths;
 use self::queue::Origin;
 pub(super) use self::queue::{QUEUE_CAPACITY, Queues};
@@ -67,10 +69,11 @@ async fn consume(
     (state, queues, lagged): (AppState, Arc<Queues>, Arc<AtomicU64>),
     mut events: tokio::sync::broadcast::Receiver<Event>,
 ) {
+    let mut candidates = Candidates::default();
     loop {
         match events.recv().await {
             Ok(event) => {
-                if let Err(err) = enqueue(&state, &queues, event).await {
+                if let Err(err) = enqueue(&state, &queues, &mut candidates, event).await {
                     tracing::warn!(%err, "could not queue a module event");
                 }
             }
@@ -83,12 +86,17 @@ async fn consume(
     }
 }
 
-async fn enqueue(state: &AppState, queues: &Queues, event: Event) -> anyhow::Result<()> {
+async fn enqueue(
+    state: &AppState,
+    queues: &Queues,
+    candidates: &mut Candidates,
+    event: Event,
+) -> anyhow::Result<()> {
     let event = event.into_inner();
     let Some(kind) = classify(&event) else {
         return Ok(());
     };
-    let candidates = state.store.module_event_candidates(kind.name).await?;
+    let candidates = candidates.of(&state.store, kind.name).await?;
     if candidates.is_empty() {
         return Ok(());
     }
@@ -98,7 +106,7 @@ async fn enqueue(state: &AppState, queues: &Queues, event: Event) -> anyhow::Res
         return Ok(());
     }
     let mut receivers = Vec::new();
-    for candidate in candidates {
+    for candidate in candidates.iter() {
         let sees = match kind.channel {
             Some(channel) => {
                 state
@@ -109,7 +117,7 @@ async fn enqueue(state: &AppState, queues: &Queues, event: Event) -> anyhow::Res
             None => true,
         };
         if sees {
-            receivers.push((candidate.module_id, candidate.bot_user_id));
+            receivers.push((candidate.module_id.clone(), candidate.bot_user_id));
         }
     }
     if receivers.is_empty() {
