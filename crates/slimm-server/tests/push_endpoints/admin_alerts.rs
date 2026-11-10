@@ -115,6 +115,53 @@ async fn a_relay_without_the_admin_alert_kind_still_delivers_it_as_security() {
     );
 }
 
+/// How long a test waits to be sure the server sent nothing more.
+const QUIET: std::time::Duration = std::time::Duration::from_millis(400);
+
+fn kinds(world: &World) -> Vec<String> {
+    let sent = world.mock.all_messages();
+    sent.iter()
+        .map(|m| m["kind"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+#[tokio::test]
+async fn a_relay_that_cannot_deliver_right_now_does_not_downgrade_the_kind() {
+    for status in ["retry", "rejected"] {
+        let world = world().await;
+        world.mock.set_status("root-apns", status);
+
+        world.notifier.raise(AlertKind::DiskLow, "", "low").await;
+        assert!(wait_until(|| world.mock.all_messages().len() == 1, WAIT_TIMEOUT).await);
+        assert!(
+            !wait_until(|| world.mock.all_messages().len() > 1, QUIET).await,
+            "{status}: the alert was sent again under another kind"
+        );
+        world.notifier.raise(AlertKind::Backup, "", "failed").await;
+        assert!(wait_until(|| world.mock.all_messages().len() == 2, WAIT_TIMEOUT).await);
+
+        assert_eq!(kinds(&world), ["admin_alert", "admin_alert"], "{status}");
+    }
+}
+
+#[tokio::test]
+async fn an_older_kind_the_relay_also_fails_does_not_prove_it_predates_the_new_one() {
+    let world = world().await;
+    world.mock.refuse_kind("admin_alert");
+    world.mock.set_status("root-apns", "error");
+
+    world.notifier.raise(AlertKind::DiskLow, "", "low").await;
+    assert!(wait_until(|| world.mock.all_messages().len() == 2, WAIT_TIMEOUT).await);
+    world.notifier.raise(AlertKind::Backup, "", "failed").await;
+    assert!(wait_until(|| world.mock.all_messages().len() == 4, WAIT_TIMEOUT).await);
+
+    assert_eq!(
+        kinds(&world),
+        ["admin_alert", "security", "admin_alert", "security"],
+        "an outage that fails both kinds must not switch the server to the older one"
+    );
+}
+
 #[tokio::test]
 async fn a_muted_admin_is_not_pushed() {
     let world = world().await;
