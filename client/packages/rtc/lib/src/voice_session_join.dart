@@ -61,13 +61,14 @@ extension VoiceSessionJoinWork on VoiceSession {
       if (!identical(_room, room)) return;
       _joinTimings.mark(JoinStage.connected);
       // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
-      final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
+      final micFailed =
+          microphoneEnabled && !await _micRecovery.setEnabled(true);
       if (!identical(_room, room)) return;
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
       // A slow webcam must not hold "connected" back; see CameraJoin.
       if (cameraEnabled) unawaited(_openCameraAfterJoin(room, generation));
-      if (micFailed) _retryMicAfterJoin();
+      if (micFailed) _micRecovery.retryAfterJoin();
       if (!microphoneEnabled) await _readiness.primeMuted();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'join the call', e, stack);

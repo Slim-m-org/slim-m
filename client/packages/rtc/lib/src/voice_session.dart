@@ -38,7 +38,6 @@ import 'endpoint_effects.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
 import 'livekit_setup_log.dart';
-import 'local_audio.dart';
 import 'mic_failure.dart';
 import 'mic_port.dart';
 import 'mic_recovery.dart';
@@ -64,16 +63,15 @@ import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'voice_input_gate.dart';
 import 'voice_listener_audio.dart';
+import 'voice_mic_recovery.dart';
 import 'voice_mic_readiness.dart';
 import 'voice_audio_devices.dart';
 import 'voice_health_watch.dart';
 import 'voice_session_camera.dart';
 import 'voice_reconnect_tracker.dart';
-import 'voice_session_mic_fallback.dart';
 import 'voice_session_screen_share.dart';
 
 part 'voice_session_join.dart';
-part 'voice_session_mic_recovery.dart';
 part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
@@ -88,7 +86,7 @@ typedef RoomFactory = lk.Room Function();
 /// its lifetime. [dispose] must be called, and leaving is not the same as
 /// disposing, because a user can leave and rejoin without the surrounding
 /// screen being torn down.
-class VoiceSession with VoiceSessionMicRecovery {
+class VoiceSession {
   VoiceSession({
     RoomFactory? roomFactory,
     BroadcastBridge? broadcast,
@@ -122,7 +120,6 @@ class VoiceSession with VoiceSessionMicRecovery {
             : InputGateMonitor.disabled());
     gate.setRate(InputGateRate.watch);
     _mic = micPort ?? LiveKitMicPort(() => _room);
-    if (osMicBlocked != null) _osMicBlocked = osMicBlocked;
     _audioDevices = VoiceAudioDevices(
       VoiceAudioDevicesHost(
         room: () => _room,
@@ -152,7 +149,7 @@ class VoiceSession with VoiceSessionMicRecovery {
       VoiceMicReadinessHost(
         hasRoom: () => _room != null,
         mic: _mic,
-        micWanted: () => _micWanted,
+        micWanted: () => _micRecovery.micWanted,
         plainOptions: _plainOpenOptions,
         joinTimings: _joinTimings,
         diag: _diag,
@@ -160,12 +157,30 @@ class VoiceSession with VoiceSessionMicRecovery {
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
     );
-    _initMicRecovery(
+    _micRecovery = VoiceMicRecovery(
+      VoiceMicRecoveryHost(
+        room: () => _room,
+        state: () => _state,
+        noteError: (error) => _lastError = error,
+        refresh: _refreshParticipants,
+        diag: _diag,
+        openCaptureOptions: _openCaptureOptions,
+        forgetUnplugged: _audioDevices.forgetUnplugged,
+        followPreferred: _audioDevices.followPreferred,
+        selectInput: (device) =>
+            _audioDevices.selectInput(device, remember: false),
+        selectOutput: (device) =>
+            _audioDevices.selectOutput(device, remember: false),
+        micPublished: () => _joinTimings.mark(JoinStage.micPublished),
+      ),
+      mic: _mic,
+      gate: gate,
+      switching: _audioSwitching,
+      release: _readiness.release,
       timing: micRecoveryTiming,
       // An injected room has no sound stack to watch unless a test brings one.
       watchDevices: audioDevices != null || roomFactory == null,
-      enable: () => _trySetMicrophone(true),
-      afterRestart: _audioDevices.followPreferred,
+      osMicBlocked: osMicBlocked,
     );
     _share = VoiceScreenShare(
       VoiceScreenShareHost(
@@ -199,25 +214,7 @@ class VoiceSession with VoiceSessionMicRecovery {
 
   late final RoomFactory _roomFactory;
 
-  @override
-  late final MicFallback _fallback = MicFallback(
-    MicFallbackHost(
-      switching: () => _audioSwitching,
-      hasRoom: () => _room != null,
-      micWanted: () => _micWanted,
-      mic: () => _mic,
-      timing: () => _micTiming,
-      watchdog: () => _micWatchdog,
-      log: _logMic,
-      setStatus: _setMicStatus,
-      noteFailure: _noteMicFailure,
-      restartCapture: _restartMicCapture,
-      selectInput: (device) =>
-          _audioDevices.selectInput(device, remember: false),
-      selectOutput: (device) =>
-          _audioDevices.selectOutput(device, remember: false),
-    ),
-  );
+  late final VoiceMicRecovery _micRecovery;
 
   late final _setupLog = LiveKitSetupLog(_diag);
 
@@ -225,8 +222,8 @@ class VoiceSession with VoiceSessionMicRecovery {
     switching: _audioSwitching,
     mic: _mic,
     release: _readiness.release,
-    micWanted: () => _micWanted,
-    restartCapture: _restartMicCapture,
+    micWanted: () => _micRecovery.micWanted,
+    restartCapture: _micRecovery.restartCapture,
     reopenMuted: () => _mic.reopenMuted(_plainOpenOptions()),
     log: _diag,
   );
@@ -239,12 +236,31 @@ class VoiceSession with VoiceSessionMicRecovery {
       _processing.reopen(reason, inCall: _room != null);
 
   /// Whether a silent microphone is swapped for another, for this call only.
-  void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;
+  void setMicFallbackEnabled(bool enabled) =>
+      _micRecovery.fallback.enabled = enabled;
 
   /// The microphone the call switched to on its own, until dismissed.
-  String? get micFallbackNotice => _fallback.notice;
-  Stream<String?> get micFallbackNotices => _fallback.notices;
-  void dismissMicFallbackNotice() => _fallback.dismissNotice();
+  String? get micFallbackNotice => _micRecovery.fallback.notice;
+  Stream<String?> get micFallbackNotices => _micRecovery.fallback.notices;
+  void dismissMicFallbackNotice() => _micRecovery.fallback.dismissNotice();
+
+  /// Whether the mic is healthy, being brought back, or given up on.
+  MicStatus get micStatus => _micRecovery.status;
+  Stream<MicStatus> get micStatuses => _micRecovery.statuses;
+
+  /// Why the last attempt to open the microphone failed; null while it works.
+  MicFailureReason? get micFailure => _micRecovery.failure;
+  Stream<MicFailureReason?> get micFailures => _micRecovery.failures;
+
+  /// Force-restarts the capture; the tap on a mic button that says it is unavailable.
+  Future<bool> resetMicrophone() => _micRecovery.reset();
+
+  /// Into the app's debug log when the app wired one, so a tester's export shows it.
+  void _diag(String line, {LogLevel level = LogLevel.info}) =>
+      (_listener.audio.log ?? _appLogVoice)(line, level: level);
+
+  static void _appLogVoice(String line, {LogLevel level = LogLevel.info}) =>
+      AppLog.at(level, LogTag.voice, line);
 
   late final _healthWatch = VoiceHealthWatch(
     VoiceHealthWatchHost(room: () => _room, diag: _diag),
@@ -256,16 +272,13 @@ class VoiceSession with VoiceSessionMicRecovery {
   /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
   CallDiagnostics get diagnostics => _healthWatch.diagnostics;
 
-  @override
   late final MicPort _mic;
   late final VoiceInputGate _inputGate;
 
-  @override
   InputGateMonitor get _gate => _inputGate.gate;
 
   late final VoiceAudioDevices _audioDevices;
 
-  @override
   AudioDeviceSwitching get _audioSwitching => _audioDevices.switching;
 
   /// Whether picking a specific microphone actually changes the live call.
@@ -358,9 +371,6 @@ class VoiceSession with VoiceSessionMicRecovery {
     ),
   );
 
-  @override
-  LocalAudioState get _audio => _listener.audio;
-
   /// Whether the listener is deafened; see [setDeafened].
   bool get deafened => _listener.deafened;
 
@@ -432,7 +442,6 @@ class VoiceSession with VoiceSessionMicRecovery {
   late final _trackSummaries =
       TrackStatsSummary(onSummary: _recordTrackSummary);
 
-  @override
   lk.Room? _room;
   // room.events.listen returns a cancel function rather than a
   // StreamSubscription, so this holds the canceller itself.
@@ -443,7 +452,6 @@ class VoiceSession with VoiceSessionMicRecovery {
   final _participantsController =
       StreamController<List<VoiceParticipant>>.broadcast();
 
-  @override
   VoiceSessionState _state = VoiceSessionState.idle;
   List<VoiceParticipant> _participants = const [];
   Object? _lastError;
@@ -582,7 +590,8 @@ class VoiceSession with VoiceSessionMicRecovery {
   Future<List<ScreenShareSource>> screenShareSources() => _share.sources();
 
   /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
-  Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
+  Future<bool> setMicrophoneEnabled(bool enabled) =>
+      _micRecovery.setEnabled(enabled);
 
   /// Enables or disables the local camera live, mid-call.
   Future<bool> setCameraEnabled(bool enabled) => _trySetCamera(enabled);
@@ -683,7 +692,7 @@ class VoiceSession with VoiceSessionMicRecovery {
     _cameraSwitching.dispose();
     await _cameraJoin.dispose();
     await _inputGate.dispose();
-    await _disposeMicRecovery();
+    await _micRecovery.dispose();
     await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();

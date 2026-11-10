@@ -22,14 +22,14 @@ extension VoiceSessionTracks on VoiceSession {
     _cancelEvents?.call();
     _stopArrivalWatch?.call();
     _stopArrivalWatch = rtc_gain.watchAudioArrivals(
-      (trackId) => _audio.holdArrival(
-          _audio.refsOf(room), trackId, rtc_gain.holdArrivedAudio),
+      (trackId) => _listener.audio.holdArrival(
+          _listener.audio.refsOf(room), trackId, rtc_gain.holdArrivedAudio),
     );
     _cancelEvents = room.events.listen((event) {
       _noteTransport(event);
       _mic.onRoomEvent(event);
       final replaced = audioReplacedBy(event);
-      if (replaced != null) _audio.trackReplaced(replaced);
+      if (replaced != null) _listener.audio.trackReplaced(replaced);
       if (event is lk.TrackSubscribedEvent &&
           event.track is lk.RemoteAudioTrack &&
           event.publication.source == lk.TrackSource.microphone) {
@@ -105,7 +105,7 @@ extension VoiceSessionTracks on VoiceSession {
     // Read from the last roster, before the empty one below erases it.
     _droppedWhileSharing =
         _participants.any((p) => p.isLocal && p.isScreenSharing);
-    _audio.cancelRetry();
+    _listener.audio.cancelRetry();
     await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
     _setRoster(const []);
@@ -127,8 +127,8 @@ extension VoiceSessionTracks on VoiceSession {
   /// uncancelled listener would still reach `_onDisconnected` mid-teardown,
   /// which `_onDisconnected`'s own doc says a `leave()` must never do.
   Future<void> _teardown() async {
-    _audio.cancelRetry();
-    _audio.trackReplaced(everyone);
+    _listener.audio.cancelRetry();
+    _listener.audio.trackReplaced(everyone);
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer = null;
     // Synchronously, and before anything else; see this method's own doc.
@@ -138,7 +138,7 @@ extension VoiceSessionTracks on VoiceSession {
     _cameraJoin.cancel();
     _stopStallWatch();
     _releaseStats();
-    _stopMicWatch();
+    _micRecovery.stopWatch();
     _healthWatch.stop();
     _setupLog.stop();
     _inputGate.strong.reset();
@@ -159,49 +159,8 @@ extension VoiceSessionTracks on VoiceSession {
     }
   }
 
-  Future<bool> _trySetMicrophone(bool enabled) async {
-    final room = _room;
-    if (room == null) return false;
-    final intent = _micWanted;
-    _micWanted = enabled;
-    // A chosen microphone that came back since the last open is used again, not the default.
-    if (enabled && _audioSwitching.chosenInput != null) {
-      await _audioDevices.forgetUnplugged();
-    }
-    try {
-      final reopen = enabled && _readiness.release.onUnmuting();
-      final opened = Stopwatch()..start();
-      await _mic.setEnabled(
-        enabled,
-        _openCaptureOptions(reopen: reopen),
-      );
-      if (reopen) {
-        _diag('Reopened the microphone in ${opened.elapsedMilliseconds} ms');
-      }
-      _noteMicSet(enabled);
-      _refreshParticipants();
-      if (enabled) _audioDevices.followPreferred();
-      _setMicFailure(null);
-      _micRecovery.reset();
-      return true;
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
-      _micWanted = intent;
-      if (enabled && _mic.hasTrack) _readiness.release.onMuted();
-      if (enabled) unawaited(_noteMicFailure(classifyMicFailure(e)));
-      _lastError = e;
-      _refreshParticipants();
-      return false;
-    }
-  }
-
-  void _noteMicSet(bool enabled) {
-    enabled ? _readiness.release.reopened() : _readiness.release.onMuted();
-    if (enabled) _joinTimings.mark(JoinStage.micPublished);
-  }
-
   /// Publishes (or stops) a camera track. Failure is swallowed exactly as
-  /// [_trySetMicrophone]'s is: a camera pre-toggle a device cannot honour
+  /// [VoiceMicRecovery.setEnabled]'s is: a camera pre-toggle a device cannot honour
   /// (permission denied, no hardware) must not fail the join, since a call
   /// with no camera track is still a call.
   Future<bool> _trySetCamera(bool enabled) async {
@@ -272,7 +231,7 @@ extension VoiceSessionTracks on VoiceSession {
         room,
         speakingSensitivity: _speakingSensitivity,
         localVoice: _gate.fast ? _gate.voice : null,
-        localDeafened: _audio.deafened,
+        localDeafened: _listener.audio.deafened,
       ),
       skipLocal: _gate.fast,
     );
@@ -299,7 +258,7 @@ extension VoiceSessionTracks on VoiceSession {
   void _setState(VoiceSessionState next) {
     if (_state == next || _disposed) return;
     _state = next;
-    _syncMicWatch(next);
+    _micRecovery.syncWatch(next);
     _healthWatch.sync(next);
     _syncCallDiagnostics(next);
     if (next == VoiceSessionState.connected) {
