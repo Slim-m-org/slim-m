@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../widgets/image_decode.dart';
@@ -95,24 +96,60 @@ String? _problemWith(
 }
 
 /// Scrolls the list [scroll] drives until the row of [items]`[index]` is on
-/// screen, jumping near it first when the lazy list has not built that row yet.
+/// screen, walking to it a frame at a time because the lazy list builds no row
+/// it has not been near.
 void revealReviewRow(
   ScrollController scroll,
   List<EmojiReviewItem> items,
   int index,
-) {
-  final item = items[index];
-  void show() {
-    final row = item.rowKey.currentContext;
-    if (row != null) unawaited(Scrollable.ensureVisible(row));
-  }
+) => _approach(scroll, items, index, _maxApproachFrames);
 
-  if (item.rowKey.currentContext == null) {
-    scroll.jumpTo(index * _rowExtent);
-    WidgetsBinding.instance.addPostFrameCallback((_) => show());
-  } else {
-    show();
+/// Each step re-measures the rows built so far, so rows taller than assumed
+/// (a problem line, a larger text scale) only cost another frame.
+const _maxApproachFrames = 12;
+
+void _approach(
+  ScrollController scroll,
+  List<EmojiReviewItem> items,
+  int index,
+  int framesLeft,
+) {
+  if (index >= items.length) return;
+  final row = items[index].rowKey.currentContext;
+  if (row != null) {
+    unawaited(Scrollable.ensureVisible(row));
+    return;
   }
+  if (framesLeft == 0 || !scroll.hasClients) return;
+  scroll.jumpTo(_offsetNear(scroll.position, items, index));
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => _approach(scroll, items, index, framesLeft - 1),
+  );
+}
+
+/// Where the row at [index] should sit, extrapolated from the first row built.
+double _offsetNear(
+  ScrollPosition position,
+  List<EmojiReviewItem> items,
+  int index,
+) {
+  final built = [
+    for (var i = 0; i < items.length; i++)
+      if (items[i].rowKey.currentContext?.findRenderObject()
+          case final RenderBox box when box.hasSize)
+        (index: i, box: box),
+  ];
+  if (built.isEmpty) return index * _rowExtent;
+  final first = built.first;
+  final height =
+      built.fold(0.0, (sum, row) => sum + row.box.size.height) / built.length;
+  final firstOffset = RenderAbstractViewport.of(
+    first.box,
+  ).getOffsetToReveal(first.box, 0).offset;
+  return (firstOffset + (index - first.index) * height).clamp(
+    position.minScrollExtent,
+    position.maxScrollExtent,
+  );
 }
 
 class EmojiReviewList extends StatelessWidget {
@@ -215,7 +252,7 @@ Widget _besideTheField(Widget child) => SizedBox(
 /// The field's height plus the focus ring it reserves around itself.
 const double _fieldBoxHeight = AppSizes.controlLg + AppSpacing.s4;
 
-/// What a row without a problem takes in the list, to land near an unbuilt one.
+/// What a row without a problem takes in the list, to start from before any is built.
 const double _rowExtent = _fieldBoxHeight + AppSpacing.s8;
 
 class _Thumb extends StatelessWidget {

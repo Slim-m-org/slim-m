@@ -202,7 +202,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
         }
       }
       _succeeded = [..._succeeded, ...results.where((r) => !r.failed)];
-      _failed = results.where((r) => r.failed && !r.named).toList();
+      _failed = results.where((r) => r.failed).toList();
       _running = false;
     });
   }
@@ -287,15 +287,18 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     if (mounted) setState(() => _running = false);
   }
 
-  Future<void> _confirmDiscard() async {
-    final discard = await confirmDangerousAction(
+  Future<void> _confirmLeave() async {
+    final midRun = _running;
+    final leave = await confirmDangerousAction(
       context,
-      title: 'Discard these emoji?',
-      message: 'The files and names you staged are not saved.',
-      confirmLabel: 'Discard',
-      cancelLabel: 'Keep editing',
+      title: midRun ? 'Close before it finishes?' : 'Discard these emoji?',
+      message: midRun
+          ? 'It carries on without this window, but you will not see how it ends.'
+          : 'The files and names you staged are not saved.',
+      confirmLabel: midRun ? 'Close' : 'Discard',
+      cancelLabel: midRun ? 'Keep waiting' : 'Keep editing',
     );
-    if (discard && mounted) Navigator.of(context).pop();
+    if (leave && mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -308,13 +311,15 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     final blocked = unfixed > 0;
     final finished =
         !_running &&
-        (_succeeded.isNotEmpty || _failed.isNotEmpty || _skipped.isNotEmpty);
+        (_succeeded.isNotEmpty ||
+            _failed.any((r) => !r.named) ||
+            _skipped.isNotEmpty);
     final sameImage = _sameImage;
 
     return PopScope(
       canPop: _items.isEmpty,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_confirmDiscard());
+        if (!didPop) unawaited(_confirmLeave());
       },
       child: AppDropZone(
         enabled: !_running,
@@ -447,6 +452,8 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
 }
 
 /// How many names still stop the upload, and a way to the first of them.
+///
+/// The button drops under the text when large type leaves no room beside it.
 class _FixNamesLine extends StatelessWidget {
   const _FixNamesLine({required this.count, required this.onShow});
 
@@ -456,14 +463,15 @@ class _FixNamesLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
       spacing: AppSpacing.s8,
+      runSpacing: AppSpacing.s8,
       children: [
-        Expanded(
-          child: Text(
-            count == 1 ? '1 name needs fixing.' : '$count names need fixing.',
-            style: AppText.caption.copyWith(color: tokens.dangerText),
-          ),
+        Text(
+          count == 1 ? '1 name needs fixing.' : '$count names need fixing.',
+          style: AppText.caption.copyWith(color: tokens.dangerText),
         ),
         AppButton(
           label: 'Show first',
