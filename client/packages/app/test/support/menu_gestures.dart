@@ -32,3 +32,15 @@ Future<void> keyboardMenu(WidgetTester tester, {int tabs = 1}) async {
   await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
   await tester.pumpAndSettle();
 }
+
+/// Clicks a control its row reveals on hover; the mouse has to arrive first.
+Future<void> clickHoverRevealed(WidgetTester tester, Finder target) async {
+  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await mouse.addPointer(location: Offset.zero);
+  await tester.pump();
+  await mouse.moveTo(tester.getCenter(target));
+  await tester.pump();
+  await mouse.down(tester.getCenter(target));
+  await mouse.up();
+  await mouse.removePointer();
+}

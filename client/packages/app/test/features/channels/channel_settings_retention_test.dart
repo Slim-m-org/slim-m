@@ -12,6 +12,7 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 
 import 'channel_management_harness.dart';
+import '../../support/menu_gestures.dart';
 
 http.Response _json(Object body) => http.Response(
   jsonEncode(body),
@@ -51,7 +52,7 @@ Future<List<http.Request>> _open(
       },
     ),
   );
-  await tester.tap(find.bySemanticsLabel('Manage jellyfin'));
+  await clickHoverRevealed(tester, find.bySemanticsLabel('Manage jellyfin'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Channel settings'));
   await tester.pumpAndSettle();

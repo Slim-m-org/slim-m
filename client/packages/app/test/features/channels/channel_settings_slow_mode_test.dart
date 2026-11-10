@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 
 import 'channel_management_harness.dart';
+import '../../support/menu_gestures.dart';
 
 void main() {
   testWidgets('choosing a preset sends a PATCH with slow_mode_seconds and '
@@ -44,7 +45,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.bySemanticsLabel('Manage general'));
+    await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Channel settings'));
     await tester.pumpAndSettle();

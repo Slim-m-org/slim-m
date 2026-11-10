@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 
 import 'channel_management_harness.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+import '../../support/menu_gestures.dart';
 
 http.Response _json(Object body) => http.Response(
   jsonEncode(body),
@@ -58,7 +59,7 @@ Future<List<http.Request>> _open(
       },
     ),
   );
-  await tester.tap(find.bySemanticsLabel('Manage general'));
+  await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Channel settings'));
   await tester.pumpAndSettle();

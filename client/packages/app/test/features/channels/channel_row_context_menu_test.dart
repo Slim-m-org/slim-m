@@ -42,6 +42,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/fake_api.dart';
+import '../../support/menu_gestures.dart';
 
 api.Me me(int permissions) => api.Me(
   id: 'self',
@@ -306,7 +307,7 @@ void main() {
       await tester.pumpWidget(_harness(_router(channel, canManage: true)));
       await tester.pump();
 
-      await tester.tap(find.byIcon(AppIcons.moreVertical));
+      await clickHoverRevealed(tester, find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
 
       expect(find.text('Notifications'), findsOneWidget);
@@ -336,7 +337,7 @@ void main() {
       );
       await _resolveMe(tester);
 
-      await tester.tap(find.byIcon(AppIcons.moreVertical));
+      await clickHoverRevealed(tester, find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
 
       expect(find.text('Channel settings'), findsOneWidget);
@@ -351,7 +352,7 @@ void main() {
       await tester.pumpWidget(_harness(_router(channel, canManage: true)));
       await tester.pump();
 
-      await tester.tap(find.byIcon(AppIcons.moreVertical));
+      await clickHoverRevealed(tester, find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
@@ -401,7 +402,7 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.byIcon(AppIcons.moreVertical));
+      await clickHoverRevealed(tester, find.byIcon(AppIcons.moreVertical));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Notifications'));
       await tester.pumpAndSettle();

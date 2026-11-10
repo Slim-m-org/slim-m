@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/channels/widgets/rail_drag_lift.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/fake_api.dart';
+import '../../support/menu_gestures.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -169,7 +170,7 @@ void main() {
     tester,
   ) async {
     await _pumpRail(tester, 1280);
-    await tester.tap(find.byIcon(AppIcons.moreVertical).at(1));
+    await clickHoverRevealed(tester, find.byIcon(AppIcons.moreVertical).at(1));
     await tester.pumpAndSettle();
     final kebabItems = _menuLabels(tester);
     expect(kebabItems, contains('Channel settings'));

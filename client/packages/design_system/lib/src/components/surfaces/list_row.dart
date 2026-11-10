@@ -20,6 +20,7 @@ import '../../app_typography.dart';
 import '../../press_tracking.dart';
 import '../../touch_targets.dart';
 import 'list_row_label.dart';
+import 'list_row_reveal.dart';
 import 'list_row_scopes.dart';
 
 export 'list_row_scopes.dart';
@@ -47,6 +48,7 @@ class AppListRow extends StatefulWidget {
     this.meta,
     this.trailing,
     this.trailingExtra,
+    this.revealTrailingExtraOnHover = false,
     this.selected = false,
     this.unread = false,
     this.mentioned = false,
@@ -87,6 +89,11 @@ class AppListRow extends StatefulWidget {
   /// own press/hover highlight stops before it and the row reads as two
   /// pieces rather than one.
   final Widget? trailingExtra;
+
+  /// Shows [trailingExtra] only while the row is hovered or the extra holds
+  /// focus. Hidden, it stays focusable and announced but takes no width, so
+  /// the label runs to the row's end instead of stopping at an empty slot.
+  final bool revealTrailingExtraOnHover;
   final bool selected;
   final bool unread;
   final bool mentioned;
@@ -204,6 +211,7 @@ class AppListRow extends StatefulWidget {
 class _AppListRowState extends State<AppListRow> with PressTracking {
   bool _hovered = false;
   bool _focused = false;
+  bool _pointerInside = false;
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +264,15 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
         onShowHoverHighlight: (v) => setState(() => _hovered = v),
         onShowFocusHighlight: (v) => setState(() => _focused = v),
         actions: _activateActions(),
-        child: _gestures(_visual(tokens, rowHeight, radius, content)),
+        child: _revealsExtra
+            ? MouseRegion(
+                // The pointer, not the hover highlight, which a touch silences until a click.
+                opaque: false,
+                onEnter: (_) => setState(() => _pointerInside = true),
+                onExit: (_) => setState(() => _pointerInside = false),
+                child: _gestures(_visual(tokens, rowHeight, radius, content)),
+              )
+            : _gestures(_visual(tokens, rowHeight, radius, content)),
       ),
     );
   }
@@ -299,49 +315,61 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
     TextStyle labelStyle,
     Widget? trailingContent,
   ) {
-    return Row(
-      spacing: AppSpacing.s8,
-      children: [
-        // Excluded for the same reason the label below is: an avatar names
-        // itself, so a member row announced its name twice.
-        if (widget.leading != null)
-          ExcludeSemantics(
-            child: Opacity(
-              opacity: widget.muted ? 0.62 : 1,
-              child: widget.leading!,
-            ),
-          ),
-        Expanded(
-          // Excluded because the Semantics wrapper below already names this
-          // row; without it a screen reader announces "general, general".
-          child: ExcludeSemantics(
-            child: AppListRowLabel(
-              label: widget.label,
-              subtitle: widget.subtitle,
-              subtitleIcon: widget.subtitleIcon,
-              labelStyle: labelStyle,
-            ),
+    final content = <Widget>[
+      // Excluded for the same reason the label below is: an avatar names
+      // itself, so a member row announced its name twice.
+      if (widget.leading != null)
+        ExcludeSemantics(
+          child: Opacity(
+            opacity: widget.muted ? 0.62 : 1,
+            child: widget.leading!,
           ),
         ),
-        if (widget.meta != null)
-          // Sized to its text and capped, not Flexible: a Flexible beside the
-          // Expanded label split the free space in half and floated the
-          // value mid-row instead of against the trailing edge.
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
-            child: Text(
-              widget.meta!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
+      Expanded(
+        // Excluded because the Semantics wrapper below already names this
+        // row; without it a screen reader announces "general, general".
+        child: ExcludeSemantics(
+          child: AppListRowLabel(
+            label: widget.label,
+            subtitle: widget.subtitle,
+            subtitleIcon: widget.subtitleIcon,
+            labelStyle: labelStyle,
           ),
-        if (trailingContent != null)
-          Opacity(opacity: widget.muted ? 0.62 : 1, child: trailingContent),
-        if (widget.trailingExtra != null) widget.trailingExtra!,
+        ),
+      ),
+      if (widget.meta != null)
+        // Sized to its text and capped, not Flexible: a Flexible beside the
+        // Expanded label split the free space in half and floated the
+        // value mid-row instead of against the trailing edge.
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
+          child: Text(
+            widget.meta!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ),
+      if (trailingContent != null)
+        Opacity(opacity: widget.muted ? 0.62 : 1, child: trailingContent),
+    ];
+    final extra = widget.trailingExtra;
+    if (extra == null || !_revealsExtra) {
+      return Row(
+        spacing: AppSpacing.s8,
+        children: [...content, if (extra != null) extra],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: Row(spacing: AppSpacing.s8, children: content)),
+        ListRowRevealSlot(hovered: _pointerInside, child: extra),
       ],
     );
   }
+
+  bool get _revealsExtra =>
+      widget.revealTrailingExtraOnHover && widget.trailingExtra != null;
 
   // Two fill layers on the motion spec's two clocks: the selection tint
   // fades over the panel duration while hover shifts at press speed, and

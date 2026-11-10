@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 import 'package:slimm_design_system/design_system.dart';
 
 import 'channel_management_harness.dart';
+import '../../support/menu_gestures.dart';
 
 void main() {
   group('channel settings: general and danger zone', () {
@@ -41,7 +42,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage general'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
@@ -92,7 +93,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage general'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
@@ -129,7 +130,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage general'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
@@ -170,7 +171,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage general'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
@@ -224,7 +225,7 @@ void main() {
       );
       expect(find.text('channel:c1'), findsOneWidget);
 
-      await tester.tap(find.bySemanticsLabel('Manage general'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
@@ -271,7 +272,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage general'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();

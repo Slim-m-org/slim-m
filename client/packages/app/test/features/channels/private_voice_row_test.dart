@@ -5,6 +5,7 @@
 /// narrowest rail width. PNGs are written only under SLIMM_UI_SNAPSHOTS=1.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,6 +132,12 @@ void main() {
         limit: 12,
       );
       await _pump(tester, [_row(c)], const Size(railMinWidth, 200));
+      // The kebab shows on hover only, which is the layout this pins.
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await tester.pump();
+      await gesture.moveTo(tester.getCenter(find.text('0/12')));
+      await tester.pump(const Duration(milliseconds: 400));
       final mic = tester.getRect(find.byIcon(AppIcons.micOff));
       final lock = tester.getRect(find.byIcon(AppIcons.roomLocked));
       final count = tester.getRect(find.text('0/12'));
@@ -147,6 +154,7 @@ void main() {
         allOf(contains('Private voice channel'), contains('Joins muted')),
       );
       expect(tester.takeException(), isNull);
+      await gesture.removePointer();
       semantics.dispose();
     },
   );

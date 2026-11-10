@@ -70,9 +70,6 @@ class ManagedChannelRow extends StatefulWidget {
 }
 
 class _ManagedChannelRowState extends State<ManagedChannelRow> {
-  bool _hovered = false;
-  bool _kebabFocused = false;
-
   /// Reached by the kebab too (see [build]'s `onPressed`), so a tap there
   /// opens the exact same menu a right-click or long-press would rather than
   /// the separate "manage" sheet the kebab used to jump to directly.
@@ -122,35 +119,19 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
     // section's add glyph share a right edge; both are AppIconButtonSize.sm.
     const trailingPad = 4.0;
 
-    // A persistent kebab on every row adds a column of noise to the calmest
-    // part of the shell, so a pointer reveals it on row hover (or when tab
-    // reaches it, so a keyboard user never focuses something invisible). The
-    // slot keeps its width either way; nothing reflows.
-    final shown = _hovered || _kebabFocused;
+    // The row reveals it on hover, so the rail carries no column of kebabs.
     final kebab = Padding(
       padding: const EdgeInsets.only(right: trailingPad),
       child: SizedBox(
         height: AppListRow.heightFor(context),
         child: Center(
-          child: Focus(
-            skipTraversal: true,
-            canRequestFocus: false,
-            onFocusChange: (v) => setState(() => _kebabFocused = v),
-            child: AnimatedOpacity(
-              opacity: shown ? 1 : 0,
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              // Hidden from the eye is not hidden from a screen reader: the
-              // manage action must stay in the semantics tree while unhovered.
-              alwaysIncludeSemantics: true,
-              child: AppIconButton(
-                icon: AppIcons.moreVertical,
-                semanticLabel: 'Manage ${widget.channel.name}',
-                size: AppIconButtonSize.sm,
-                onPressed: () => _menuKey.currentState?.open(),
-                // The row's own tint already covers this kebab; see the param's own doc.
-                suppressOwnHoverFill: true,
-              ),
-            ),
+          child: AppIconButton(
+            icon: AppIcons.moreVertical,
+            semanticLabel: 'Manage ${widget.channel.name}',
+            size: AppIconButtonSize.sm,
+            onPressed: () => _menuKey.currentState?.open(),
+            // The row's own tint already covers this kebab; see the param's own doc.
+            suppressOwnHoverFill: true,
           ),
         ),
       ),
@@ -162,11 +143,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
       ownsFocusNode: false,
       menuWidth: 240,
       enableLongPress: enableLongPress,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: widget.row(kebab),
-      ),
+      child: widget.row(kebab),
     );
   }
 }
@@ -279,6 +256,7 @@ class VoiceChannelRow extends ConsumerWidget {
                   ),
             trailing: _trailing(participants.length, inCall: inCall),
             trailingExtra: trailingExtra,
+            revealTrailingExtraOnHover: true,
             onTap: () => openVoiceChannel(
               context,
               ProviderScope.containerOf(context, listen: false),

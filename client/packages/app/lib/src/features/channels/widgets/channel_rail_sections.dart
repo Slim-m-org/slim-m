@@ -386,6 +386,7 @@ class _TextChannelRow extends ConsumerWidget {
             )
           : null,
       trailingExtra: trailingExtra,
+      revealTrailingExtraOnHover: true,
       onTap: () => context.go(Routes.channel(channel.id)),
     );
   }
