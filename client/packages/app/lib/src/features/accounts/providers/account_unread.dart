@@ -35,12 +35,10 @@ class AccountUnread {
 UnreadIndicator _indicatorOf(
   Channel channel,
   ChannelNotificationOverridesState overrides,
-) => unreadIndicatorFor(
+) => unreadIndicatorForChannel(
+  channel,
   channelOverride: overrides.effectiveFor(channel),
   isDm: channel.dmParticipantId != null || channel.isGroupDm,
-  unread: channel.cursor > channel.lastReadSeq,
-  mentioned: channel.mentionedSeq > channel.lastReadSeq,
-  manuallyUnread: channel.manuallyUnread ?? false,
 );
 
 /// Counts what the rail would draw, so a muted channel never lights a badge.

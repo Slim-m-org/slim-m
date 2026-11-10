@@ -6,13 +6,8 @@ import 'database.dart';
 import 'message_store.dart';
 import 'message_store_rows.dart' as rows_impl;
 
-/// The batch body behind [MessageStore.applyMessages], split out of
-/// `message_store.dart` once it grew a real implementation and pushed the file
-/// past its line budget - the same `part of` shape `canvas_painters.dart` uses
-/// for a cohesive second group. A private top-level function, not an extension,
-/// so [MessageStore.applyMessages] stays a real method every caller reaches
-/// through the type; this runs in the store's own library, so it uses
-/// [MessageStore.db] and the private [MessageStore.advanceCursor] directly.
+/// The batch body behind [MessageStore.applyMessages], a sibling library that
+/// takes the store so `message_store.dart` stays under its file budget.
 Future<void> applyMessagesBatched(
   MessageStore store,
   Iterable<api.Message> messages,

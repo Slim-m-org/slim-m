@@ -57,8 +57,7 @@ class CanvasSelfPresenceController
   int _generation = 0;
 
   /// Resolves once the persisted state, if any, has been read. Exposed so a
-  /// caller modelling a relaunch - this controller is rebuilt fresh every
-  /// time the canvas pane reopens - can wait for exactly that, rather than
+  /// caller modelling a relaunch can wait for exactly that, rather than
   /// guessing how many event-loop turns a `SharedPreferences` round trip
   /// takes.
   late final Future<void> ready;
@@ -102,11 +101,9 @@ class CanvasSelfPresenceController
   }
 }
 
-/// Deliberately not `autoDispose`: the canvas pane is torn down and rebuilt
-/// every time it opens and closes (see `canvas_pane.dart`'s own module doc),
-/// and disposing this alongside it would re-run the async load on every
-/// reopen, flashing the bubble back to visible before the stored value loads
-/// back in.
+/// Deliberately not `autoDispose`: the canvas pane is rebuilt every time it
+/// opens, and the controller must outlive it or the async load re-runs and
+/// flashes the bubble back to visible before the stored value loads.
 final canvasSelfPresenceProvider =
     StateNotifierProvider<
       CanvasSelfPresenceController,

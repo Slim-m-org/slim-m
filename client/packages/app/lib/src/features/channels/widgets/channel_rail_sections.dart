@@ -317,12 +317,10 @@ class _RailView {
   final Set<String> collapsed;
   final ChannelNotificationOverridesState overrides;
 
-  UnreadIndicator indicatorOf(Channel channel) => unreadIndicatorFor(
+  UnreadIndicator indicatorOf(Channel channel) => unreadIndicatorForChannel(
+    channel,
     channelOverride: overrides.effectiveFor(channel),
     isDm: false,
-    unread: channel.cursor > channel.lastReadSeq,
-    mentioned: channel.mentionedSeq > channel.lastReadSeq,
-    manuallyUnread: channel.manuallyUnread ?? false,
   );
 
   /// What a folded header shows for its rows: a mention outranks plain unread.
@@ -360,12 +358,10 @@ class _TextChannelRow extends ConsumerWidget {
       ),
     );
     final muted = override == NotificationPreference.nothing;
-    final indicator = unreadIndicatorFor(
+    final indicator = unreadIndicatorForChannel(
+      channel,
       channelOverride: override,
       isDm: false,
-      unread: channel.cursor > channel.lastReadSeq,
-      mentioned: channel.mentionedSeq > channel.lastReadSeq,
-      manuallyUnread: channel.manuallyUnread ?? false,
     );
     return AppListRow(
       label: channel.name,

@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The bodies behind [MessageStore.drafts] and [MessageStore.saveDraft], a
+/// sibling library that takes the store.
+///
+/// Drafts are the one table that is not a cache of server state: they cannot be
+/// refetched, which is why `MessageStore.clear()` has to remember them.
 library;
 
 import 'database.dart';
 import 'message_store.dart';
-
-/// The bodies behind [MessageStore.drafts] and [MessageStore.saveDraft], split
-/// out of `message_store.dart` once the drafts table pushed that file past its
-/// line budget - the same `part of` shape
-/// `message_store_channels.dart` and `message_store_batch.dart` already use.
-///
-/// Worth keeping together for a reason beyond the budget: this is the only table
-/// in the local store that is not a cache of server state. Everything else here
-/// can be refetched and these words cannot, which is why they are written at all
-/// and why `MessageStore.clear()` has to remember them.
 
 /// Every channel's unsent composer text, as a map.
 ///

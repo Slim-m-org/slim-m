@@ -11,7 +11,7 @@ import '../widgets/app_panel_reveal.dart';
 import '../features/members/widgets/member_pane.dart';
 import '../features/messages/screens/thread_screen.dart';
 
-// The two docked third-pane slots (member roster, thread), split from home_shell.dart for the line budget; kept as private part-of classes so the shell's Row still names them.
+// The two docked third-pane slots (member roster, thread), split from home_shell.dart for the line budget.
 /// Builds [build] with whether [channelId] is a DM, resolved from the local store.
 Widget withChannelKind(
   WidgetRef ref,

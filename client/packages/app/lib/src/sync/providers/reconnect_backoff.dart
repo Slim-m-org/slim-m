@@ -7,6 +7,9 @@ import 'dart:math';
 
 import '../../backoff.dart';
 
+/// How long a connection must stay live before the backoff forgets its failures.
+const connectionStableAfter = Duration(seconds: 30);
+
 /// Exponential backoff with jitter, so a server restart does not bring every
 /// client back online in the same instant (a thundering herd).
 ///
@@ -14,9 +17,6 @@ import '../../backoff.dart';
 /// [maxAttempt] is reached, plus a uniformly random jitter in
 /// `[0, jitterMs)` milliseconds. [random] is injectable so a test can seed
 /// or fake the draw; production leaves it as the real `Random()`.
-/// How long a connection must stay live before the backoff forgets its failures.
-const connectionStableAfter = Duration(seconds: 30);
-
 class ReconnectBackoff {
   ReconnectBackoff({
     Random? random,

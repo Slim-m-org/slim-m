@@ -247,10 +247,9 @@ class CanvasStroke {
   double x;
   double y;
 
-  /// The drawn shape. Reassigned on a move, since `dart:ui` has no in-place
-  /// translate - one allocation per move rather than the three a replaced
-  /// object cost.
-  Path path;
+  /// The drawn shape, in object-local coordinates, so a move shifts [x] and [y]
+  /// and never rebuilds it.
+  final Path path;
   final double width;
 
   /// Mutable only so a text box can be recoloured in place.

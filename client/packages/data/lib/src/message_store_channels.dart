@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The bodies behind [MessageStore.upsertChannels] and
+/// [MessageStore.replaceChannels], a sibling library that takes the store so
+/// `message_store.dart` stays under its file budget.
 library;
 
 import 'package:drift/drift.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
 import 'message_store.dart';
-
-/// The bodies behind [MessageStore.upsertChannels] and
-/// [MessageStore.replaceChannels], split out of `message_store.dart` once it
-/// grew slow mode's own column and pushed the file past its line budget -
-/// the same `part of` shape `message_store_batch.dart` already uses. Private
-/// top-level functions, not an extension, so both stay real methods every
-/// caller reaches through the type; this runs in the store's own library, so
-/// it uses [MessageStore.db] directly.
 
 String? joinMemberIds(List<String> ids) => ids.isEmpty ? null : ids.join(',');
 

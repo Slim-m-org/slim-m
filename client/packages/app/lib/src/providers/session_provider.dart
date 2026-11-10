@@ -55,11 +55,7 @@ final sessionProvider = Provider<SessionStore>((ref) {
       } catch (error, stack) {
         reportFailure(LogTag.auth, 'save the sign-in', error, stack);
 
-        /// The server rotates refresh tokens with reuse detection: a write that
-        /// failed here may have left a stale, already-spent token on disk, and
-        /// replaying that on the next launch reads as reuse and revokes the
-        /// whole family. Dropping the stored session outright degrades to a
-        /// fresh sign-in instead of that false replay.
+        // A failed write may leave a spent refresh token on disk, and replaying it reads as reuse and revokes the family; a fresh sign-in is the safe fallback.
         if (tokens != null) {
           await keyStore
               .delete(sessionHandle)

@@ -1,22 +1,24 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The mobile-and-Linux-desktop bridge: iOS, Android and Linux each expose a
-/// real image clipboard that `package:flutter/services.dart`'s own
-/// [Clipboard] cannot reach (see `composer_clipboard_image.dart`'s doc
-/// comment for why that path is a dead end), so this reaches it through a
-/// hand-written platform channel instead - `ClipboardImagePlugin.swift` on
-/// iOS, `ClipboardImageChannel.kt` on Android,
+/// The native image clipboard bridge: every platform but web exposes a real
+/// image clipboard that `package:flutter/services.dart`'s own [Clipboard]
+/// cannot reach (see `composer_clipboard_image.dart`'s doc comment for why that
+/// path is a dead end), so this reaches it through a hand-written platform
+/// channel instead - `ClipboardImagePlugin.swift` on iOS,
+/// `ClipboardImageChannel.kt` on Android,
 /// `linux/runner/clipboard_image_channel.cc` on Linux (GTK's
 /// `gtk_clipboard_wait_for_image`, encoded to PNG before it crosses the
-/// channel).
+/// channel), `windows/runner/clipboard_image_channel.cpp` on Windows and
+/// `ClipboardImageChannel` in `MainFlutterWindow.swift` on macOS.
 ///
 /// Two distinct routes share this one channel, and only iOS has both.
 ///
 /// [hasClipboardImage]/[readClipboardImage] are poll-and-tap: checked once
 /// when the composer's "+" sheet opens, read only if the person taps the row
-/// they gate - see `composer_clipboard_paste.dart`. [readClipboardImage] may
-/// raise iOS's "Allow Paste?" prompt **on every call**, confirmed on a real
-/// device 2026-08-01 (an earlier note here said once per install, which did
-/// not survive contact with a phone).
+/// they gate - see `composer_clipboard_paste.dart`. On every platform but iOS
+/// a Ctrl+V keystroke polls the same pair, see
+/// [pasteKeystrokeReadsClipboardImage]. [readClipboardImage] may raise iOS's
+/// "Allow Paste?" prompt **on every call**, confirmed on a real device
+/// 2026-08-01.
 ///
 /// [startClipboardImagePaste]/[stopClipboardImagePaste] back the better
 /// route on iOS: `ClipboardPasteBridge.m` swizzles Flutter's own private text
@@ -30,14 +32,11 @@
 /// share nothing else. It is inert on Android and Linux: nothing there ever
 /// calls `pastedImage`, so registering the handler costs nothing.
 ///
-/// Windows and macOS register no platform-side handler at all, and neither
-/// does Android for the swizzle-only calls, so a call here simply finds
-/// nothing to answer it. That is treated as "not supported" rather than
-/// surfaced as a crash: every function below catches [MissingPluginException]
-/// and answers false or null. It is also what makes this file exercisable in
-/// a plain `flutter test` run on any host: mocking the channel stands in for
-/// the platform side on every target, whether or not that target has a real
-/// one.
+/// A host with no handler registered finds nothing to answer a call. That is
+/// treated as "not supported" rather than surfaced as a crash: every function
+/// below catches [MissingPluginException] and answers false or null. It is also
+/// what makes this file exercisable in a plain `flutter test` run on any host:
+/// mocking the channel stands in for the platform side on every target.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -48,9 +47,9 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// than waiting to be handed an image by [startClipboardImagePaste].
 ///
 /// True everywhere except iOS. It is not a claim that the platform has an
-/// image clipboard: [hasClipboardImage] already answers false wherever no
-/// handler is registered, so this being true on Windows and macOS costs one
-/// channel call that finds nothing.
+/// image clipboard: [hasClipboardImage] answers false wherever no handler is
+/// registered or the clipboard holds none, so a plain text paste costs one
+/// cheap channel call.
 ///
 /// iOS is the one exclusion, and for a specific reason rather than caution:
 /// [readClipboardImage] raises the "Allow Paste?" prompt on **every** call

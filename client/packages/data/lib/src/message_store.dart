@@ -40,24 +40,14 @@ class MessageStore {
   /// Watches the newest [limit] messages in a channel, oldest first, as the UI
   /// renders them, with pending sends after every delivered one.
   ///
-  /// The window is the *newest* rows, which took a correction: this ordered
-  /// `seq` ascending under the same limit, so it returned the oldest 200. Local
-  /// rows are never pruned and history pagination does not exist, so once a
-  /// channel passed 200 cached messages the transcript was pinned to the first
-  /// 200 ever synced and every later arrival was invisible until a sign-out.
-  /// The read marker froze with it, since the screen takes the newest row it is
-  /// given as the newest there is. `database.dart`'s index is
-  /// `(channel_id, seq DESC)` under a comment saying reads scan newest-first,
-  /// and this read was the one that did not.
+  /// The window is the *newest* rows, never the oldest: an ascending order
+  /// under the limit pins the transcript to the first rows ever synced and the
+  /// read marker freezes with it.
   ///
-  /// Pending sorts last, which is what the schema always claimed and the
-  /// ordering never delivered: a local-only row carries `seq` 0, which is the
-  /// *lowest* value, so ascending put an unsent message at the top of the
-  /// transcript rather than the bottom - permanently, for a failed one, since
-  /// `markFailed` leaves the zero in place. The first ordering term is what
-  /// fixes that, and it has to come before the limit rather than after it in
-  /// Dart, or a channel holding 200 delivered rows would cut the sender's own
-  /// unsent message off the end.
+  /// Pending sorts last: a local-only row carries `seq` 0, the lowest value, so
+  /// the ordering has to rank it ahead of `seq` and before the limit, or a
+  /// channel holding a full window of delivered rows would cut an unsent
+  /// message off the end.
   Stream<List<Message>> watchChannel(String channelId, {int limit = 200}) {
     return channelTranscript(db, channelId, limit)
         .watch()

@@ -39,12 +39,10 @@ final canvasChatUnreadProvider = Provider.autoDispose.family<bool, String>((
   final override = ref.watch(
     channelNotificationOverridesProvider.select((s) => s.effectiveFor(channel)),
   );
-  final indicator = unreadIndicatorFor(
+  final indicator = unreadIndicatorForChannel(
+    channel,
     channelOverride: override,
     isDm: false,
-    unread: channel.cursor > channel.lastReadSeq,
-    mentioned: channel.mentionedSeq > channel.lastReadSeq,
-    manuallyUnread: channel.manuallyUnread ?? false,
   );
   return indicator.unread || indicator.mentioned;
 });

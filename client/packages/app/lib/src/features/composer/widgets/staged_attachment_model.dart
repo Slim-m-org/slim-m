@@ -146,13 +146,6 @@ class FailedAttachment extends StagedAttachment {
   final String message;
 }
 
-/// A small, deliberately client-only guess at whether [filename] is worth a
-/// thumbnail.
-///
-/// The server sniffs the real content type after upload (see `media.rs`);
-/// this only decides what is worth *trying* to draw before that answer
-/// exists, and `StagedAttachmentTile`'s `errorBuilder` is what a wrong guess
-/// falls back to.
 /// [looksLikeImage]'s twin for video, for offering a spoiler before upload.
 bool looksLikeVideo(String filename) {
   final dot = filename.lastIndexOf('.');
@@ -161,6 +154,13 @@ bool looksLikeVideo(String filename) {
   return videoExtensions.contains(filename.substring(dot).toLowerCase());
 }
 
+/// A small, deliberately client-only guess at whether [filename] is worth a
+/// thumbnail.
+///
+/// The server sniffs the real content type after upload (see `media.rs`);
+/// this only decides what is worth *trying* to draw before that answer
+/// exists, and `StagedAttachmentTile`'s `errorBuilder` is what a wrong guess
+/// falls back to.
 bool looksLikeImage(String filename) {
   final dot = filename.lastIndexOf('.');
   if (dot == -1) return false;

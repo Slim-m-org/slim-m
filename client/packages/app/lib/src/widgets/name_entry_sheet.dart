@@ -12,8 +12,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../api_failure.dart';
 import '../entity_name.dart';
 
-/// Makes the thing named [name] and returns what to do once the sheet has
-/// closed (a navigation, say), or null for nothing.
 /// Thrown by a create step that made the thing but not everything around it;
 /// its message is shown as is and the sheet stays open for a retry.
 class NameEntryPartialFailure implements Exception {
@@ -22,6 +20,8 @@ class NameEntryPartialFailure implements Exception {
   final String message;
 }
 
+/// Makes the thing named by its argument and returns what to do once the sheet
+/// has closed (a navigation, say), or null for nothing.
 typedef NameEntryCreate = Future<VoidCallback?> Function(String name);
 
 class NameEntrySheet extends StatefulWidget {

@@ -4,9 +4,9 @@
 ///
 /// Painted rather than loaded from the SVGs in `design_system/brand/`, which
 /// are the source of record for the icon pipeline but are not bundled as
-/// Flutter assets - nothing in this app declares an `assets:` block, and
-/// adding one plus flutter_svg to draw four shapes would be a dependency and
-/// a build step for something a `CustomPainter` does exactly.
+/// Flutter assets. The package's `assets:` block and flutter_svg exist for the
+/// third-party logos in `BrandLogo`; four shapes of our own are exact as a
+/// `CustomPainter` and need neither a bundled file nor an asset-load frame.
 ///
 /// The geometry is copied from `brand/icon-master.svg` and must stay in step
 /// with it: dots of r=3.2 centred at (9,9), (21,9) and (9,21) on a 32 grid,

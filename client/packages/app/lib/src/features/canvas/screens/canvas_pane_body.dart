@@ -326,9 +326,6 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// One resolution of the call tiles for both the backdrop and the layer.
   final _presenceFrames = CanvasPresenceFrameResolver();
 
-  /// Whether this caller has a camera bubble on the canvas at all right now
-  /// - the dock's overflow item's own gate for whether "hide my camera
-  /// bubble" means anything to offer.
   void _acceptSummon() {
     final leave = widget.fullscreen ? widget.onToggleFullscreen : null;
     unawaited(
@@ -341,6 +338,8 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     );
   }
 
+  /// Whether this caller has a camera bubble on the canvas right now, which
+  /// gates the dock overflow item that hides it.
   bool get _hasSelfBubble => widget.callParticipants.any((p) => p.isLocal);
 
   /// Which tiles are hidden, for the phone header's Show rows; it notifies only when that set changes.

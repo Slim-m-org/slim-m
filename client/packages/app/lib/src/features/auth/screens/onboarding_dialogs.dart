@@ -131,10 +131,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
       final check = await client.checkInvite(_code.text.trim());
       if (!mounted) return;
       if (check is api.InviteUnusable) {
-        /// Deliberately vague, and it has to stay that way: the server answers
-        /// expired, spent, revoked and never-issued identically so codes cannot
-        /// be mined, and naming a reason here would undo that from the client
-        /// side by telling an attacker which of the four they hit.
+        // Deliberately vague: the server answers every unusable code identically so codes cannot be mined, and naming a reason here would undo that.
         setState(
           () => _error =
               'That code is not usable. It may have expired '

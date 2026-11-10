@@ -87,20 +87,17 @@ class _PersonalSpaceRowState extends ConsumerState<PersonalSpaceRow>
     if (hidden) return const SizedBox.shrink();
 
     // A DM with yourself, so mentions-only leaves it loud; only an outright mute quietens it.
-    final indicator = unreadIndicatorFor(
-      channelOverride: existing == null
-          ? null
-          : ref.watch(
+    final indicator = existing == null
+        ? (unread: false, mentioned: false)
+        : unreadIndicatorForChannel(
+            existing,
+            channelOverride: ref.watch(
               channelNotificationOverridesProvider.select(
                 (s) => s.overrideFor(existing.id),
               ),
             ),
-      isDm: true,
-      unread: existing != null && existing.cursor > existing.lastReadSeq,
-      mentioned:
-          existing != null && existing.mentionedSeq > existing.lastReadSeq,
-      manuallyUnread: existing?.manuallyUnread ?? false,
-    );
+            isDm: true,
+          );
 
     final touch = AppTouchTargets.of(context);
     final kebabShown = touch || _hovered || _kebabFocused;
