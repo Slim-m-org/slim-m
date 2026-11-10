@@ -161,12 +161,10 @@ class DmRow extends ConsumerWidget {
     );
     final muted = override == api.NotificationPreference.nothing;
     // Mentions-only leaves a DM loud: somebody writing here is addressing this account directly.
-    final indicator = unreadIndicatorFor(
+    final indicator = unreadIndicatorForChannel(
+      channel,
       channelOverride: override,
       isDm: true,
-      unread: channel.cursor > channel.lastReadSeq,
-      mentioned: channel.mentionedSeq > channel.lastReadSeq,
-      manuallyUnread: channel.manuallyUnread ?? false,
     );
     // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
     return KeepsLatestMessageLoaded(

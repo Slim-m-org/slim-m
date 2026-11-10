@@ -236,12 +236,10 @@ class VoiceChannelRow extends ConsumerWidget {
         (s) => s.effectiveFor(channel),
       ),
     );
-    final indicator = unreadIndicatorFor(
+    final indicator = unreadIndicatorForChannel(
+      channel,
       channelOverride: override,
       isDm: false,
-      unread: channel.cursor > channel.lastReadSeq,
-      mentioned: channel.mentionedSeq > channel.lastReadSeq,
-      manuallyUnread: channel.manuallyUnread ?? false,
     );
 
     // A joined call already has this live; an unjoined one polls for it below.

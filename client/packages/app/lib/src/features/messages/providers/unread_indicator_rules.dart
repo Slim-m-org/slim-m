@@ -10,6 +10,7 @@
 library;
 
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart';
 
 /// The two flags `AppListRow` reads, after a channel's own override has had
 /// its say.
@@ -56,3 +57,17 @@ UnreadIndicator unreadIndicatorFor({
   ),
   _ => (unread: manuallyUnread || unread, mentioned: mentioned),
 };
+
+/// [unreadIndicatorFor] fed from [channel]'s own read cursors, so no surface
+/// re-derives what counts as unread.
+UnreadIndicator unreadIndicatorForChannel(
+  Channel channel, {
+  required api.NotificationPreference? channelOverride,
+  required bool isDm,
+}) => unreadIndicatorFor(
+  channelOverride: channelOverride,
+  isDm: isDm,
+  unread: channel.cursor > channel.lastReadSeq,
+  mentioned: channel.mentionedSeq > channel.lastReadSeq,
+  manuallyUnread: channel.manuallyUnread ?? false,
+);

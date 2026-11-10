@@ -18,40 +18,15 @@ import 'group_dm.dart' show channelFromGroupDm;
 /// restored local row and a freshly synced one agree.
 const String dmChannelKind = 'dm';
 
-/// Display copy for a personal space's channel row: a DM opened with
-/// yourself (`store/dms.rs` no longer refuses `caller == target`), used for
-/// private notes that still sync across every signed-in device the way any
-/// other channel does.
+/// Display copy for a personal space's channel row: a DM opened with yourself,
+/// used for private notes that sync across devices like any other channel.
 ///
-/// `Notes`, not `You`: reversed at the owner's direction after this string
-/// shipped as `You` for a while. The earlier reasoning leaned on two
-/// pillars - it matched the second-person convention used for the caller
-/// elsewhere (a voice tile's `$name (you)`, the personal settings screen's
-/// own `You` section group), and it composed with the composer placeholder
-/// so `Message #$personalSpaceName` read as an instruction rather than the
-/// app talking about itself. Both still describe `You`'s trade-offs
-/// accurately; they were outweighed, not wrong. `Notes` names what the row
-/// is *for* rather than who it belongs to, which is the more useful fact
-/// once a caller has more than a couple of DMs: `You` looks like a person in
-/// a list of people, `Notes` reads immediately as the one row that is not a
-/// conversation. It also matches the notebook glyph [PersonalSpaceRow]
-/// already gives this row - a label finally naming what the icon has been
-/// saying - and `Message #Notes` composes at least as well as `Message You`
-/// did, describing an action ("jot something down") instead of asking the
-/// reader to parse a pronoun. `You`'s alignment with the settings group's
-/// own label does not carry over, but that pairing was never load-bearing:
-/// the settings group names *your account settings*, this row names *a
-/// notes channel*, and losing an accidental echo between two different
-/// things does not resurrect the case for the pronoun.
+/// `Notes`, not `You`, at the owner's direction; see
+/// `docs/decisions/0111-personal-space-is-called-notes.md`.
 ///
-/// Purely cosmetic - another member can set this exact string as their own
-/// display name, and a DM with them would render the same label.
-/// [Channel.isPersonalSpace] (`api.Channel`), not this string, is what the
-/// rail matches on; see [channelFromDm]. A caller hunting for this channel by
-/// their own real display name rather than this sentinel still finds it:
-/// `command_palette_items.dart`'s `channelMatchesQuery` matches a personal
-/// space against the caller's own display name too, which is also the one
-/// way back once its rail row has been removed via "Remove from list".
+/// Cosmetic only: [api.Channel.isPersonalSpace] is what the rail matches on (see
+/// [channelFromDm]). The palette's `channelMatchesQuery` also matches the
+/// caller's own display name, the one way back after "Remove from list".
 const String personalSpaceName = 'Notes';
 
 /// Turns a DM listing into the same [api.Channel] shape an ordinary channel

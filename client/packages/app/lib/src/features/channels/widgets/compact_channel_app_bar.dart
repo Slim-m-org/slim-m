@@ -118,7 +118,7 @@ class CompactChannelAppBar extends ConsumerWidget
 }
 
 /// Name over topic, the same two pieces of text the wide header puts side by
-/// side. One line each: the toolbar is 56 high, which two lines of body text
+/// side. One line each: the toolbar is 48 high, which two lines of body text
 /// would not fit, and a long topic ellipsizes here exactly as it does there.
 class _Title extends StatelessWidget {
   const _Title({

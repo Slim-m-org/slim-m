@@ -22,12 +22,10 @@ bool channelShowsUnread(
   api.NotificationPreference? override, {
   required bool isDm,
 }) {
-  final indicator = unreadIndicatorFor(
+  final indicator = unreadIndicatorForChannel(
+    channel,
     channelOverride: override,
     isDm: isDm,
-    unread: channel.cursor > channel.lastReadSeq,
-    mentioned: channel.mentionedSeq > channel.lastReadSeq,
-    manuallyUnread: channel.manuallyUnread ?? false,
   );
   return indicator.unread || indicator.mentioned;
 }
