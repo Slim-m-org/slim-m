@@ -21,6 +21,7 @@ export 'src/logging/log_redaction.dart'
 export 'src/client.dart'
     show
         SlimmApi,
+        TrustGate,
         Bot,
         ChannelRetention,
         DbPoolStats,

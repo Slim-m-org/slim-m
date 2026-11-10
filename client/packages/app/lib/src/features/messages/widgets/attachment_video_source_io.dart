@@ -20,6 +20,7 @@ class _NativeAttachmentVideoSource implements AttachmentVideoSource {
     required api.Attachment attachment,
     required void Function(double? progress) onProgress,
   }) async {
+    await apiClient.awaitTrust();
     final token = apiClient.session.tokens?.accessToken;
     if (token == null) {
       throw const api.UnauthorizedException('not signed in');

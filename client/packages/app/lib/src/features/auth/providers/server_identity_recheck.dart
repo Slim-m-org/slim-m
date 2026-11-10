@@ -45,6 +45,15 @@ class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
     ref.invalidateSelf();
   }
 
+  /// Pins [presented] as this server's key, so the session may reach it again.
+  Future<void> trust(api.ServerIdentity presented) async {
+    final server = ref.read(serverUrlProvider);
+    await ref
+        .read(keyStoreProvider)
+        .put(identityHandleFor(server), presented.publicKey);
+    ref.invalidateSelf();
+  }
+
   @override
   Future<IdentityMismatch?> build() async {
     final proven = state.valueOrNull;
