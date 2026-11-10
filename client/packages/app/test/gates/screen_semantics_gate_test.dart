@@ -38,40 +38,42 @@ void main() {
           final handle = tester.ensureSemantics();
 
           final fixture = await fixtureContainer();
-          final route = surface.value.route;
-          final router = fixtureRouter(route);
-          await tester.pumpWidget(
-            UncontrolledProviderScope(
-              container: fixture.container,
-              child: MaterialApp.router(
-                debugShowCheckedModeBanner: false,
-                theme: buildTheme(Brightness.dark, AppTokens.dark),
-                routerConfig: router,
-                builder: appChromeBuilder,
+          try {
+            final route = surface.value.route;
+            final router = fixtureRouter(route);
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: fixture.container,
+                child: MaterialApp.router(
+                  debugShowCheckedModeBanner: false,
+                  theme: buildTheme(Brightness.dark, AppTokens.dark),
+                  routerConfig: router,
+                  builder: appChromeBuilder,
+                ),
               ),
-            ),
-          );
-          if (isModalFixtureRoute(route)) {
+            );
+            if (isModalFixtureRoute(route)) {
+              await tester.pump();
+              unawaited(router.push(route));
+            }
             await tester.pump();
-            unawaited(router.push(route));
+            await tester.pump(const Duration(milliseconds: 350));
+            await tester.pump(const Duration(milliseconds: 350));
+            await tester.pump(const Duration(milliseconds: 350));
+
+            final problems = semanticsProblems(tester);
+            expect(
+              problems,
+              isEmpty,
+              reason:
+                  '${surface.key} at $viewport paints widgets a screen reader '
+                  'cannot reach:\n  ${problems.join('\n  ')}',
+            );
+            expect(tester.takeException(), isNull);
+          } finally {
+            handle.dispose();
+            await teardownFixture(tester, fixture.container, fixture.db);
           }
-          await tester.pump();
-          await tester.pump(const Duration(milliseconds: 350));
-          await tester.pump(const Duration(milliseconds: 350));
-          await tester.pump(const Duration(milliseconds: 350));
-
-          final problems = semanticsProblems(tester);
-          expect(
-            problems,
-            isEmpty,
-            reason:
-                '${surface.key} at $viewport paints widgets a screen reader '
-                'cannot reach:\n  ${problems.join('\n  ')}',
-          );
-          expect(tester.takeException(), isNull);
-
-          handle.dispose();
-          await teardownFixture(tester, fixture.container, fixture.db);
         },
       );
     }
