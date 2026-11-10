@@ -9,6 +9,7 @@
 
 use super::{Store, now_ms};
 use crate::ids::{EmojiId, UserId};
+use crate::media::to_hex;
 
 /// Most emoji one deployment may hold. Every client lists all of them to
 /// render `:shortcode:` at all, so this bounds a response nothing paginates.
@@ -55,7 +56,7 @@ impl Store {
             .map(|row| CustomEmoji {
                 id: row.id.to_string(),
                 name: row.name,
-                sha256: hex_of(&row.sha256),
+                sha256: to_hex(&row.sha256),
                 uploader_id: row.uploader_id.map(|id| id.to_string()),
                 created_at: row.created_at,
             })
@@ -136,7 +137,7 @@ impl Store {
         Ok(Ok(CustomEmoji {
             id: id.to_string(),
             name: name.to_owned(),
-            sha256: hex_of(sha256),
+            sha256: to_hex(sha256),
             uploader_id: uploader.map(|id| id.to_string()),
             created_at: now,
         }))
@@ -203,7 +204,7 @@ impl Store {
             .map(|(id, name, sha256)| CustomEmoji {
                 id: id.to_string(),
                 name,
-                sha256: hex_of(&sha256),
+                sha256: to_hex(&sha256),
                 uploader_id: uploader.map(|id| id.to_string()),
                 created_at: now,
             })
@@ -246,8 +247,4 @@ impl Store {
             .await?;
         Ok(result.rows_affected() > 0)
     }
-}
-
-fn hex_of(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
