@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use super::Media;
+use super::durable;
 use super::memory_budget::MemoryBudget;
 pub use super::preview_derive::Variant;
 use super::preview_derive::{decode_estimate, derive_many, derive_one, variant_of};
@@ -153,7 +154,7 @@ impl Previews {
         tokio::task::spawn_blocking(move || {
             let _permit = (permit, memory);
             let derived = derive(&original, bucket)?;
-            write_atomic(&target, derived.as_deref().unwrap_or_default())?;
+            durable::write_atomic(&target, derived.as_deref().unwrap_or_default())?;
             Ok(derived.map_or(Preview::Original, |_| Preview::Derived(target)))
         })
         .await
@@ -207,7 +208,7 @@ impl Previews {
             let buckets: Vec<u32> = targets.iter().map(|(bucket, _)| *bucket).collect();
             let derived = derive_many(&original, variant, &buckets)?;
             for ((_, target), bytes) in targets.iter().zip(derived) {
-                write_atomic(target, bytes.as_deref().unwrap_or_default())?;
+                durable::write_atomic(target, bytes.as_deref().unwrap_or_default())?;
             }
             Ok(())
         })
@@ -269,16 +270,6 @@ async fn existing(path: &Path) -> io::Result<Option<Preview>> {
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e),
     }
-}
-
-fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let dir = path.parent().unwrap_or(Path::new("."));
-    let tmp = dir.join(format!(".tmp-{}", uuid::Uuid::now_v7()));
-    let placed = std::fs::write(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, path));
-    if placed.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    placed
 }
 
 #[cfg(test)]

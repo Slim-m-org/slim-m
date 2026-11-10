@@ -17,6 +17,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use super::durable::{self, Name};
 use super::{remove, to_hex};
 
 /// Leading bytes [`stream_attachment`] captures for the caller to sniff the
@@ -96,14 +97,18 @@ impl PendingAttachment {
     /// so the failure cannot leave an orphaned temp file behind.
     pub async fn commit(mut self) -> io::Result<()> {
         let final_path = std::mem::take(&mut self.final_path);
-        self.commit_at(final_path).await
+        self.place(final_path, Name::Content).await
     }
 
-    /// [`commit`](Self::commit) to a path of the caller's choosing, for bytes
-    /// stored under another attachment's name (a kept original).
-    pub async fn commit_at(mut self, final_path: PathBuf) -> io::Result<()> {
+    /// [`commit`](Self::commit) to a path of the caller's choosing, for bytes stored under
+    /// another attachment's name (a kept original), where a file already there stays.
+    pub async fn commit_at(self, final_path: PathBuf) -> io::Result<()> {
+        self.place(final_path, Name::Shared).await
+    }
+
+    async fn place(mut self, final_path: PathBuf, name: Name) -> io::Result<()> {
         let temp_path = std::mem::take(&mut self.temp_path);
-        match commit_temp(temp_path.clone(), final_path).await {
+        match commit_temp(temp_path.clone(), final_path, name).await {
             Ok(()) => {
                 self.committed = true;
                 Ok(())
@@ -223,18 +228,12 @@ where
     Ok((to_hex(&hasher.finalize()), size, prefix))
 }
 
-/// Renames a streamed temp file to its content path, or drops it when the
-/// content is already stored. On the blocking pool for the same reason
-/// `write_atomic` is.
-async fn commit_temp(temp_path: PathBuf, final_path: PathBuf) -> io::Result<()> {
-    tokio::task::spawn_blocking(move || {
-        if final_path.exists() {
-            return std::fs::remove_file(&temp_path);
-        }
-        std::fs::rename(&temp_path, &final_path)
-    })
-    .await
-    .unwrap_or_else(|e| Err(io::Error::other(e)))
+/// Places a streamed temp file at `final_path` through [`durable::place`]. On the blocking pool
+/// for the same reason `write_atomic` is.
+async fn commit_temp(temp_path: PathBuf, final_path: PathBuf, name: Name) -> io::Result<()> {
+    tokio::task::spawn_blocking(move || durable::place(&temp_path, &final_path, name))
+        .await
+        .unwrap_or_else(|e| Err(io::Error::other(e)))
 }
 
 #[cfg(test)]
@@ -324,6 +323,45 @@ mod tests {
             entries,
             vec![std::ffi::OsString::from(&hex)],
             "one file, no temp"
+        );
+    }
+
+    /// A power loss can leave the content name over a short file. Committing
+    /// the same bytes again must repair it, not dedupe onto the torn copy.
+    #[tokio::test]
+    async fn commit_replaces_a_torn_copy_stored_at_the_content_name() {
+        let media = Media::for_tests();
+        let content: &[u8] = b"content-addressed bytes";
+        let pending = media
+            .stream_attachment(chunks(&[content]), 1024)
+            .await
+            .unwrap();
+        let hex = pending.hex_id().to_owned();
+        std::fs::write(media.attachment_file(&hex), &content[..5]).unwrap();
+
+        pending.commit().await.unwrap();
+
+        assert_eq!(media.read_attachment(&hex).await.unwrap(), content);
+    }
+
+    /// A kept original's name is shared by every upload that compresses to the
+    /// same attachment, so the first one stays.
+    #[tokio::test]
+    async fn commit_at_keeps_the_file_already_stored_at_a_shared_name() {
+        let media = Media::for_tests();
+        let kept = media.original_path(&"ef".repeat(32));
+        std::fs::write(&kept, b"first original").unwrap();
+        let pending = media
+            .stream_attachment(chunks(&[b"second"]), 1024)
+            .await
+            .unwrap();
+
+        pending.commit_at(kept.clone()).await.unwrap();
+
+        assert_eq!(std::fs::read(&kept).unwrap(), b"first original");
+        assert_eq!(
+            std::fs::read_dir(&media.attachments_dir).unwrap().count(),
+            1
         );
     }
 
