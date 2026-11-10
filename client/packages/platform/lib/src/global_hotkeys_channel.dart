@@ -22,6 +22,9 @@ const unmappedKeyMessage =
     'This key cannot be captured in the background, so it works only while slim-m is focused.';
 
 /// The native `bind` argument for [bindings], or null when a key has no code.
+///
+/// Push to talk leaves a held Shift alone, as the in-window hold-to-talk does;
+/// every other modifier and every toggle matches exactly.
 List<Map<String, Object>>? hookBindingsFor(
   List<GlobalHotkeyBinding> bindings,
 ) {
@@ -36,6 +39,7 @@ List<Map<String, Object>>? hookBindingsFor(
       'alt': binding.chord.alt,
       'shift': binding.chord.shift,
       'meta': binding.chord.meta,
+      'shiftOptional': binding.id == GlobalHotkeyId.pushToTalk,
     });
   }
   return out;

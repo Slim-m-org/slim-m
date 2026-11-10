@@ -200,6 +200,7 @@ void main() {
     expect(payload['vk'], 0x4D);
     expect(payload['ctrl'], true);
     expect(payload['alt'], false);
+    expect(payload['shiftOptional'], false);
     expect(
         hookBindingsFor([
           const GlobalHotkeyBinding(
@@ -209,6 +210,18 @@ void main() {
           ),
         ]),
         isNull);
+  });
+
+  test('only push to talk lets a held Shift through', () {
+    final payloads = hookBindingsFor([
+      _mute,
+      const GlobalHotkeyBinding(
+        id: GlobalHotkeyId.pushToTalk,
+        description: 'x',
+        chord: HotkeyChord(LogicalKeyboardKey.keyV),
+      ),
+    ])!;
+    expect([for (final p in payloads) p['shiftOptional']], [false, true]);
   });
 
   test('native calls become events', () {
