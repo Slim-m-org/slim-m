@@ -46,6 +46,8 @@ class _Server {
   final calls = <String>[];
   Object? lastPatch;
   int uploadStatus = 200;
+  int members = 0;
+  bool membersFail = false;
 
   http.Response handle(http.Request r) {
     calls.add('${r.method} ${r.url.path}');
@@ -94,7 +96,20 @@ class _Server {
           headers: _json,
         );
       case ('GET', '/members'):
-        return http.Response('[]', 200, headers: _json);
+        if (membersFail) return http.Response('{}', 500, headers: _json);
+        return http.Response(
+          jsonEncode([
+            for (var i = 0; i < members; i++)
+              {
+                'id': 'user-$i',
+                'username': 'u$i',
+                'display_name': 'User $i',
+                'created_at': 0,
+              },
+          ]),
+          200,
+          headers: _json,
+        );
       default:
         return http.Response('{}', 404, headers: _json);
     }
@@ -369,5 +384,36 @@ void main() {
     await tester.tap(find.descendant(of: view, matching: find.text('Back')));
     await tester.pumpAndSettle();
     expect(find.byType(InviteLandingView), findsNothing);
+  });
+  testWidgets('the preview counts the members the Space really has', (
+    tester,
+  ) async {
+    final server = _Server()..members = 3;
+    await _pump(tester, server, 1280);
+    await tester.ensureVisible(find.text('Preview as a visitor'));
+    await tester.tap(find.text('Preview as a visitor'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('3 members'), findsOneWidget);
+    expect(server.calls.where((c) => c == 'GET /members'), hasLength(1));
+  });
+
+  testWidgets('a roster that will not load keeps the preview closed and says '
+      'so in the section', (tester) async {
+    final server = _Server()..membersFail = true;
+    await _pump(tester, server, 1280);
+    await tester.ensureVisible(find.text('Preview as a visitor'));
+    await tester.tap(find.text('Preview as a visitor'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Could not load the member count.'), findsOneWidget);
+    expect(
+      find.text('This is what someone opening one of your invites sees.'),
+      findsNothing,
+    );
   });
 }

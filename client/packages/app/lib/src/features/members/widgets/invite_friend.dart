@@ -71,15 +71,16 @@ Future<void> inviteAFriend(BuildContext context) async {
   final container = ProviderScope.containerOf(context, listen: false);
   if (container.read(inviteInFlightProvider)) return;
   container.read(inviteInFlightProvider.notifier).state = true;
-  final failure = await _mintAndShare(container);
-  if (container.exists(inviteInFlightProvider)) {
-    container.read(inviteInFlightProvider.notifier).state = false;
-  }
+  final failure = await _mintAndShare(container).whenComplete(() {
+    if (container.exists(inviteInFlightProvider)) {
+      container.read(inviteInFlightProvider.notifier).state = false;
+    }
+  });
   if (failure == null || !context.mounted) return;
   await showAppSheet<void>(
     context,
     builder: (sheetContext) => _InviteFailedSheet(
-      message: describeApiFailure('create the invite', failure),
+      message: failure,
       onRetry: () {
         Navigator.of(sheetContext).pop();
         inviteAFriend(context);
@@ -88,8 +89,8 @@ Future<void> inviteAFriend(BuildContext context) async {
   );
 }
 
-/// Returns the failure to show, or null once the link has been handed over.
-Future<api.ApiException?> _mintAndShare(ProviderContainer container) async {
+/// Returns the failure sentence to show, or null once the link has been handed over.
+Future<String?> _mintAndShare(ProviderContainer container) async {
   final String link;
   // A member's invite already defaults to one use and a day on the server's clock, so a skewed device clock cannot get it refused.
   final isMember = !container
@@ -110,21 +111,28 @@ Future<api.ApiException?> _mintAndShare(ProviderContainer container) async {
       code: invite.code,
     );
   } on api.ApiException catch (e, stack) {
-    api.reportFailure(api.LogTag.ui, 'create the invite', e, stack);
-    return e;
+    return reportFailureSentence(api.LogTag.ui, 'create the invite', e, stack);
   }
   final sharer = container.read(inviteSharerProvider);
-  if (sharer.canShare) {
-    await sharer.share(link);
-    return null;
+  final sharing = sharer.canShare;
+  try {
+    if (sharing) {
+      await sharer.share(link);
+    } else {
+      await Clipboard.setData(ClipboardData(text: link));
+    }
+  } on Exception catch (e, stack) {
+    final whatFailed = sharing ? 'share the invite' : 'copy the invite link';
+    return reportFailureSentence(api.LogTag.ui, whatFailed, e, stack);
   }
-  await Clipboard.setData(ClipboardData(text: link));
-  container
-      .read(toastsProvider.notifier)
-      .show(
-        'Invite link copied. It works once, for 24 hours.',
-        severity: AppToastSeverity.success,
-      );
+  if (!sharing) {
+    container
+        .read(toastsProvider.notifier)
+        .show(
+          'Invite link copied. It works once, for 24 hours.',
+          severity: AppToastSeverity.success,
+        );
+  }
   return null;
 }
 

@@ -62,18 +62,24 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
     setState(() => _error = null);
     final container = ProviderScope.containerOf(context, listen: false);
     final actions = container.read(memberActionsProvider);
+    var whatFailed = 'save the profile colour';
     try {
-      if (widget.imageSet) await actions.deleteBanner();
       await save(actions);
-      container.invalidate(meProvider);
+      // The image goes only after the colour is safe, so a failed save loses neither.
+      if (widget.imageSet) {
+        whatFailed = 'remove the banner image';
+        await actions.deleteBanner();
+      }
     } on api.ApiException catch (e, stack) {
       final sentence = reportFailureSentence(
         api.LogTag.ui,
-        'save the profile colour',
+        whatFailed,
         e,
         stack,
       );
       if (mounted) setState(() => _error = sentence);
+    } finally {
+      container.invalidate(meProvider);
     }
   }
 

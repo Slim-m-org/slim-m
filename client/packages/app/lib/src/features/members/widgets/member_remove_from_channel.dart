@@ -30,12 +30,12 @@ bool offersRemoveFromChannel(
   String channelId,
   api.UserProfile profile,
 ) {
-  // Every provider is watched before any short-circuit, so roles start loading on the first build.
   final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-  final roles = ref.watch(rolesProvider).valueOrNull;
-  return channel != null &&
-      canRemoveFromChannel(ref, channelId) &&
-      !memberIsAdministrator(profile, roles);
+  if (channel == null || !canRemoveFromChannel(ref, channelId)) return false;
+  // GET /roles needs MANAGE_ROLES, so it is asked only past that gate, and the row waits for it so it never shows for an administrator and leaves.
+  final roles = ref.watch(rolesProvider);
+  final settled = roles.hasValue || roles.hasError;
+  return settled && !memberIsAdministrator(profile, roles.valueOrNull);
 }
 
 /// Whether [profile]'s roles carry administrator, which no overwrite can deny.

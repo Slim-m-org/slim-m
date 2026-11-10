@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../settings/providers/display_preferences.dart';
 import '../providers/member_presence.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
@@ -286,25 +285,49 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     ),
   );
 
-  InviteLandingCard _card(api.SpaceSettings loaded, {String? invitedBy}) =>
-      InviteLandingCard(
-        name: loaded.name,
-        memberCount: ref.watch(membersProvider).valueOrNull?.length ?? 0,
-        description: _description.text.trim(),
-        banner: _banner(loaded.bannerUpdatedAt),
-        icon: loaded.iconUpdatedAt == null
-            ? null
-            : SpaceIcon(updatedAt: loaded.iconUpdatedAt, size: kInviteIconSize),
-        invitedBy: invitedBy,
-        use24Hour: watchUse24Hour(ref, context),
-      );
+  InviteLandingCard _card(
+    api.SpaceSettings loaded, {
+    required int memberCount,
+    String? invitedBy,
+  }) => InviteLandingCard(
+    name: loaded.name,
+    memberCount: memberCount,
+    description: _description.text.trim(),
+    banner: _banner(loaded.bannerUpdatedAt),
+    icon: loaded.iconUpdatedAt == null
+        ? null
+        : SpaceIcon(updatedAt: loaded.iconUpdatedAt, size: kInviteIconSize),
+    invitedBy: invitedBy,
+  );
 
-  Future<void> _previewAsVisitor(api.SpaceSettings loaded) {
+  /// Holds the autoDispose roster open while it pages, or a lapsed listener would cut the count short.
+  Future<int> _memberCount() async {
+    final hold = ref.listenManual(membersProvider, (_, _) {});
+    try {
+      return (await ref.read(membersProvider.future)).length;
+    } finally {
+      hold.close();
+    }
+  }
+
+  /// The card is a snapshot, so the roster is read before it is built rather than watched from a tap.
+  Future<void> _previewAsVisitor(api.SpaceSettings loaded) async {
     final me = ref.read(meProvider).valueOrNull?.displayName;
-    return Navigator.of(context).push<void>(
+    setState(() => _busy = true);
+    clearActionError();
+    var members = 0;
+    final ok = await guard(
+      whatFailed: 'load the member count',
+      action: () async => members = await _memberCount(),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) return;
+    await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            InviteLandingPreviewPage(card: _card(loaded, invitedBy: me)),
+        builder: (_) => InviteLandingPreviewPage(
+          card: _card(loaded, memberCount: members, invitedBy: me),
+        ),
       ),
     );
   }
@@ -376,6 +399,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           label: 'Preview as a visitor',
           variant: AppButtonVariant.secondary,
           size: AppButtonSize.sm,
+          disabled: _busy,
           onPressed: () => unawaited(_previewAsVisitor(loaded)),
         ),
       ),

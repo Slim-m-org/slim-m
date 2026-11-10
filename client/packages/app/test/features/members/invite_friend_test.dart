@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -37,13 +38,21 @@ class _FakeSharer implements InviteSharer {
   @override
   final bool canShare;
   final shared = <String>[];
+  bool fail = false;
 
   @override
-  Future<void> share(String link) async => shared.add(link);
+  Future<void> share(String link) async {
+    if (fail) throw PlatformException(code: 'share-failed');
+    shared.add(link);
+  }
 }
 
 class _World {
-  _World({required int permissions, required bool membersCanInvite}) {
+  _World({
+    required int permissions,
+    required bool membersCanInvite,
+    bool canShare = true,
+  }) : sharer = _FakeSharer(canShare: canShare) {
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -93,7 +102,7 @@ class _World {
     );
   }
 
-  final sharer = _FakeSharer(canShare: true);
+  final _FakeSharer sharer;
   Completer<void>? holdInvite;
   final created = <Map<String, dynamic>>[];
   late final ProviderContainer container;
@@ -264,6 +273,66 @@ void main() {
     world.holdInvite!.complete();
     await tester.pump(const Duration(milliseconds: 50));
     expect(world.sharer.shared, hasLength(1));
+    await tester.pumpWidget(const SizedBox());
+    world.container.dispose();
+    await tester.pump(const Duration(seconds: 5));
+  });
+  testWidgets('a share sheet that throws opens the failure sheet and lets the '
+      'next press through', (tester) async {
+    final world = _World(permissions: 0, membersCanInvite: true);
+    addTearDown(world.container.dispose);
+    world.sharer.fail = true;
+    await world.pump(tester, _menu);
+    final context = tester.element(find.bySemanticsLabel('Space menu'));
+
+    unawaited(inviteAFriend(context));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Could not share the invite.'), findsOneWidget);
+    expect(world.container.read(inviteInFlightProvider), isFalse);
+
+    world.sharer.fail = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(world.created, hasLength(2), reason: 'the guard let go');
+    expect(world.sharer.shared, hasLength(1));
+    await tester.pumpWidget(const SizedBox());
+    world.container.dispose();
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a clipboard that throws opens the failure sheet', (
+    tester,
+  ) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          throw PlatformException(code: 'clipboard-failed');
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final world = _World(
+      permissions: 0,
+      membersCanInvite: true,
+      canShare: false,
+    );
+    addTearDown(world.container.dispose);
+    await world.pump(tester, _menu);
+    final context = tester.element(find.bySemanticsLabel('Space menu'));
+
+    unawaited(inviteAFriend(context));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Could not copy the invite link.'), findsOneWidget);
+    expect(world.container.read(inviteInFlightProvider), isFalse);
     await tester.pumpWidget(const SizedBox());
     world.container.dispose();
     await tester.pump(const Duration(seconds: 5));
