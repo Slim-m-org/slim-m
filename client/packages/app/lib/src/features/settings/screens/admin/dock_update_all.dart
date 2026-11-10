@@ -284,17 +284,15 @@ Set<String> _carried(
   };
 }
 
-/// Access the server withdrew from [before] that [manifest] still declares.
-///
-/// The client's carry rules mirror the server's, so this is the rare change it
-/// could not see coming, such as a hook that widened without a new build.
+/// What a carrying install withdrew from [before] that this client can show.
+/// A list the admin was shown is applied as sent, so it withdraws nothing.
 List<String> _lostAccess(
   api.DockManifest manifest,
   api.InstalledDockModule? before,
   api.InstalledDockModule installed,
 ) => [
-  for (final capability in before?.approvedHostCapabilities ?? const <String>[])
-    if (manifest.capabilities.contains(capability) &&
+  for (final capability in grantableHostCapabilities(manifest.capabilities))
+    if ((before?.approvedHostCapabilities.contains(capability) ?? false) &&
         !installed.approvedHostCapabilities.contains(capability))
       capability,
 ];
