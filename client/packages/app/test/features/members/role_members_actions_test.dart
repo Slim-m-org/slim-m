@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_members_tab.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import 'roles_config_harness.dart';
 
@@ -48,7 +49,7 @@ void main() {
     final h = await _open(tester);
     await tester.enterText(find.byType(TextField), 'nad');
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('⏎ add'));
+    await tester.tap(find.widgetWithText(AppButton, 'Add'));
     await tester.pumpAndSettle();
 
     expect(h.writes.map((r) => '${r.method} ${r.path}'), [

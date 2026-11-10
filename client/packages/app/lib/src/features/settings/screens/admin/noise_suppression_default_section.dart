@@ -9,7 +9,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/providers.dart';
-import '../../widgets/join_policy_row.dart' show spaceSettingsProvider;
+import '../../providers/space_settings.dart';
 import '../../../../widgets/optimistic_setting_state.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';

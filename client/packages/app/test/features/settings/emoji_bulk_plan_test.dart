@@ -180,6 +180,44 @@ void main() {
     expect(plan.skipped.single.reason, 'larger than 1 MB');
   });
 
+  test('a pack past the image cap inflates only the images it queues', () {
+    var inflated = 0;
+    final entries = [
+      for (var i = 0; i < maxPlannedEmojiCount + 5; i++)
+        ZipEntryData.deferred(
+          path: 'e$i.png',
+          size: 3,
+          inflate: () {
+            inflated++;
+            return [1, 2, 3];
+          },
+        ),
+    ];
+
+    final plan = planEmojiZip(entries);
+
+    expect(plan.uploads, hasLength(maxPlannedEmojiCount));
+    expect(plan.skipped, hasLength(5));
+    expect(inflated, maxPlannedEmojiCount);
+  });
+
+  test('an image refused for its name is never inflated', () {
+    var inflated = 0;
+    final plan = planEmojiZip([
+      ZipEntryData.deferred(
+        path: '!!!.png',
+        size: 3,
+        inflate: () {
+          inflated++;
+          return [1, 2, 3];
+        },
+      ),
+    ]);
+
+    expect(plan.uploads, isEmpty);
+    expect(inflated, 0);
+  });
+
   test('a zip with more entries than the cap is refused unread', () {
     final zip = buildEmojiZip({
       for (var i = 0; i <= maxZipEntries; i++) 'f$i.txt': [1],

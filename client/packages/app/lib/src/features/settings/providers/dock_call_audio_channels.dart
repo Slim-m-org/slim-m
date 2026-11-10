@@ -6,6 +6,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
 
 class DockCallAudioChannels {
@@ -36,10 +37,14 @@ class DockCallAudioChannelsController
     try {
       final saved = await ref.read(apiProvider).setCallAudioChannels(arg, next);
       state = AsyncData(DockCallAudioChannels(ids: saved));
-    } on api.ApiException catch (error) {
-      state = AsyncData(
-        DockCallAudioChannels(ids: current, error: error.message),
+    } on api.ApiException catch (error, stack) {
+      final sentence = reportFailureSentence(
+        api.LogTag.ui,
+        'change the calls it can hear',
+        error,
+        stack,
       );
+      state = AsyncData(DockCallAudioChannels(ids: current, error: sentence));
     }
   }
 }

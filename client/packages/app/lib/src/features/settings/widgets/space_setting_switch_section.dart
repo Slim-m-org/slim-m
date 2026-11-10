@@ -12,7 +12,7 @@ import '../../../providers/server_info.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/settings_actions.dart';
-import 'join_policy_row.dart' show spaceSettingsProvider;
+import '../providers/space_settings.dart';
 import 'settings_save_feedback.dart';
 import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';

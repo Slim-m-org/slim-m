@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/members/providers/blocks_controller.dart'
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_preference_controller.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_store.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -48,7 +49,9 @@ class _Rig {
   int scheduleHits = 0;
   int preferenceHits = 0;
   int versionHits = 0;
+  int themeHits = 0;
   String spaceName = 'Before';
+  String? defaultThemeId;
 
   /// Answered by `GET /notifications/schedule` and `GET /push/preference`.
   int? snoozeUntil;
@@ -88,6 +91,13 @@ class _Rig {
       ..on('GET', '/push/preference', (_) {
         preferenceHits++;
         return jsonResponse({'preference': preference});
+      })
+      ..on('GET', '/space/themes', (_) {
+        themeHits++;
+        return jsonResponse({
+          'themes': <dynamic>[],
+          'default_theme_id': defaultThemeId,
+        });
       })
       ..on('GET', '/version', (_) {
         if (++versionHits <= failFirst) return http.Response('boom', 500);
@@ -139,6 +149,7 @@ class _Rig {
     container.listen(notificationScheduleProvider, (_, _) {});
     container.listen(notificationPreferenceProvider, (_, _) {});
     container.listen(serverInfoProvider, (_, _) {});
+    container.listen(spaceThemesProvider, (_, _) {});
     container.read(syncControllerProvider.notifier);
     container.read(sessionProvider).set(_tokens);
     await untilLive();
@@ -164,34 +175,34 @@ class _Rig {
 }
 
 void main() {
-  testWidgets(
-    'a failed first fetch is retried when the socket first goes live',
-    (tester) async {
-      final rig = _Rig(tester, failFirst: 1);
-      await rig.start();
-      try {
-        await rig.signInAndConnect();
+  testWidgets('a failed first fetch is retried when the socket first goes live', (
+    tester,
+  ) async {
+    final rig = _Rig(tester, failFirst: 1);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
 
-        expect(rig.blockHits, 2);
-        expect(rig.container.read(blocksProvider).error, isNull);
-        expect(rig.container.read(blocksProvider).ids, {'pest'});
-        expect(rig.overrideHits, 2);
-        expect(
-          rig.container
-              .read(channelNotificationOverridesProvider)
-              .isMuted('c1'),
-          isTrue,
-        );
-        expect(rig.versionHits, 2);
-        expect(
-          rig.container.read(serverInfoProvider).valueOrNull?.displayName,
-          'Before',
-        );
-      } finally {
-        await rig.close();
-      }
-    },
-  );
+      expect(rig.blockHits, 2);
+      expect(rig.container.read(blocksProvider).error, isNull);
+      expect(rig.container.read(blocksProvider).ids, {'pest'});
+      expect(rig.overrideHits, 2);
+      expect(
+        rig.container.read(channelNotificationOverridesProvider).isMuted('c1'),
+        isTrue,
+      );
+      expect(rig.versionHits, 2);
+      expect(
+        rig.container.read(serverInfoProvider).valueOrNull?.displayName,
+        'Before',
+      );
+      // The listener built before sign-in, so its own fetch never left the client.
+      expect(rig.themeHits, 1);
+      expect(rig.container.read(spaceThemesProvider).hasValue, isTrue);
+    } finally {
+      await rig.close();
+    }
+  });
 
   testWidgets(
     'a first fetch that worked is not repeated at the first connect',
@@ -231,6 +242,31 @@ void main() {
       );
       expect(overrides.isMuted('c1'), isFalse);
       expect(overrides.overrideFor('c2'), api.NotificationPreference.mentions);
+    } finally {
+      await rig.close();
+    }
+  });
+
+  testWidgets('a reconnect picks up a Space default theme set meanwhile', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+      expect(
+        rig.container.read(spaceThemesProvider).valueOrNull?.defaultThemeId,
+        isNull,
+      );
+      rig.defaultThemeId = 'forest-1';
+
+      await rig.dropAndReconnect();
+
+      expect(rig.themeHits, 2);
+      expect(
+        rig.container.read(spaceThemesProvider).valueOrNull?.defaultThemeId,
+        'forest-1',
+      );
     } finally {
       await rig.close();
     }

@@ -31,8 +31,9 @@ import '../providers/settings_actions.dart';
 
 /// Opens the enrolment flow: the password first, since a session token alone
 /// cannot turn the factor on (decision 0048), then the setup sheet. Resolves
-/// true once the factor is on, so the caller can refresh whatever showed it as
-/// off, and null if it was abandoned at either step.
+/// true when Done closed the recovery codes, and null if it was abandoned at
+/// either step. The factor is on at the server once the code is confirmed, so
+/// the caller refreshes whatever showed it as off whatever this returns.
 Future<bool?> showTotpEnrolSheet(BuildContext context, WidgetRef ref) async {
   api.TotpEnrolment? enrolment;
   String? confirmedPassword;
@@ -51,7 +52,7 @@ Future<bool?> showTotpEnrolSheet(BuildContext context, WidgetRef ref) async {
         return null;
       } on api.ApiException catch (e, stack) {
         api.reportFailure(api.LogTag.auth, 'start two-factor setup', e, stack);
-        return reauthFailure(e);
+        return reauthFailure(e, 'start two-factor setup');
       }
     },
   );
@@ -65,6 +66,8 @@ Future<bool?> showTotpEnrolSheet(BuildContext context, WidgetRef ref) async {
         _TotpEnrolSheet(enrolment: started, password: password),
   );
 }
+
+const _confirmWhat = 'confirm the two-factor code';
 
 class _TotpEnrolSheet extends ConsumerStatefulWidget {
   const _TotpEnrolSheet({required this.enrolment, required this.password});
@@ -103,12 +106,7 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
       if (!mounted) return;
       setState(() => _recoveryCodes = codes);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(
-        api.LogTag.auth,
-        'confirm the two-factor code',
-        e,
-        stack,
-      );
+      api.reportFailure(api.LogTag.auth, _confirmWhat, e, stack);
       if (!mounted) return;
       setState(() {
         _codeError = _confirmFailure(e);
@@ -119,11 +117,10 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
     }
   }
 
-  /// A wrong code is the ordinary case and gets its own sentence; everything
-  /// else falls back to what the server said.
+  /// A wrong code is the ordinary case and gets its own sentence.
   String _confirmFailure(api.ApiException e) => switch (e) {
-    api.ForbiddenException() => reauthFailure(e),
-    _ => totpCodeFailure(e),
+    api.ForbiddenException() => reauthFailure(e, _confirmWhat),
+    _ => totpCodeFailure(e, _confirmWhat),
   };
 
   void _copySecret(String secret) {

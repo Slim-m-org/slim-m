@@ -131,9 +131,15 @@ class _TotpRows extends ConsumerWidget {
   }
 }
 
+const _reissueWhat = 'reissue two-factor recovery codes';
+const _turnOffWhat = 'turn off two-factor sign-in';
+
+/// Refreshes on every close, not only on Done: the factor is on at the server
+/// once the code is confirmed, and a barrier tap or back gesture closes the
+/// codes view without Done.
 Future<void> _enrol(BuildContext context, WidgetRef ref) async {
-  final done = await showTotpEnrolSheet(context, ref);
-  if (done == true) ref.invalidate(totpStatusProvider);
+  await showTotpEnrolSheet(context, ref);
+  ref.invalidate(totpStatusProvider);
 }
 
 /// Replacing the set needs a current code, and the sheet that asks for one
@@ -153,13 +159,8 @@ Future<void> _reissue(BuildContext context, WidgetRef ref) async {
             .reissueTotpRecoveryCodes(code);
         return null;
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(
-          api.LogTag.auth,
-          'reissue two-factor recovery codes',
-          e,
-          stack,
-        );
-        return totpCodeFailure(e);
+        api.reportFailure(api.LogTag.auth, _reissueWhat, e, stack);
+        return totpCodeFailure(e, _reissueWhat);
       }
     },
   );
@@ -188,13 +189,8 @@ Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
         await ref.read(settingsActionsProvider).disableTotp(code);
         return null;
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(
-          api.LogTag.auth,
-          'turn off two-factor sign-in',
-          e,
-          stack,
-        );
-        return totpCodeFailure(e);
+        api.reportFailure(api.LogTag.auth, _turnOffWhat, e, stack);
+        return totpCodeFailure(e, _turnOffWhat);
       }
     },
   );

@@ -17,14 +17,9 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
 import '../providers/settings_actions.dart';
+import '../providers/space_settings.dart';
 
 const _rowLabel = 'Who can join';
-
-/// One read for the whole `/space/settings` object, shared with
-/// [TotpPolicyRow], so two rows on the same screen do not each fetch it.
-final spaceSettingsProvider = FutureProvider.autoDispose<api.SpaceSettings>(
-  (ref) => ref.watch(settingsActionsProvider).spaceSettings(),
-);
 
 const _choices = [
   SettingsChoice(value: api.JoinPolicy.invite, label: 'People with an invite'),

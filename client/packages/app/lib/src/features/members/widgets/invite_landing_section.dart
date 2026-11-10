@@ -21,7 +21,7 @@ import 'avatar_crop_sheet.dart';
 import '../../messages/widgets/image_downscale.dart';
 import '../../messages/widgets/image_drop_zone.dart';
 import 'invite_landing_card.dart';
-import '../../settings/widgets/join_policy_row.dart';
+import '../../settings/providers/space_settings.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_field.dart';

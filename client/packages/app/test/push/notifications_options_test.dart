@@ -15,6 +15,8 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 
 class _FakeNotifications implements LocalNotifications {
+  /// Posting throws, as it does with no notification daemon on the session bus.
+  bool broken = false;
   final shown = <String>[];
   final channels = <LocalAlertChannel>[];
 
@@ -25,6 +27,7 @@ class _FakeNotifications implements LocalNotifications {
     String? title,
     String? payload,
   }) async {
+    if (broken) throw StateError('no notification daemon');
     shown.add(text);
     channels.add(channel);
   }
@@ -85,5 +88,30 @@ void main() {
     for (final toast in container.read(toastsProvider)) {
       toasts.dismiss(toast.id);
     }
+  });
+
+  testWidgets('a notification the OS refuses is not reported as sent', (
+    tester,
+  ) async {
+    final notifications = _FakeNotifications()..broken = true;
+    final container = await _pump(tester, notifications);
+
+    await tester.ensureVisible(find.text('Send test'));
+    await tester.tap(find.text('Send test'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(container.read(toastsProvider), isEmpty);
+    expect(
+      find.text(
+        'Could not show the test notification. Check that your system allows '
+        'notifications from slim-m.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pump();
+    expect(find.textContaining('Could not show'), findsNothing);
   });
 }

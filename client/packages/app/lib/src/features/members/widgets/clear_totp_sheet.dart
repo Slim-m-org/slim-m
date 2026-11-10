@@ -53,7 +53,7 @@ Future<void> showClearTotpSheet(
           e,
           stack,
         );
-        return reauthFailure(e);
+        return reauthFailure(e, "turn off a member's two-factor sign-in");
       }
     },
   );

@@ -43,7 +43,7 @@ class _DockSettingsCardState extends ConsumerState<DockSettingsCard>
       _loadError = null;
     });
     final ok = await guard(
-      whatFailed: 'Could not load the settings',
+      whatFailed: 'load the settings',
       action: () async {
         final doc = await ref.read(apiProvider).moduleSettings(widget.moduleId);
         if (mounted) _doc = doc;
@@ -59,7 +59,7 @@ class _DockSettingsCardState extends ConsumerState<DockSettingsCard>
   Future<void> _save(Map<String, Object?> values) async {
     setState(() => _saving = true);
     await guard(
-      whatFailed: 'Could not save the settings',
+      whatFailed: 'save the settings',
       action: () async {
         final doc = await ref
             .read(apiProvider)

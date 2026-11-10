@@ -33,6 +33,7 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
 /// A fake server with the gate's routes; [requests] records every call.
 class _Server {
   bool pending = true;
+  bool acceptFails = false;
   Map<String, dynamic> gate = {
     'enabled': false,
     'rules': '',
@@ -51,6 +52,9 @@ class _Server {
         'rules_channel_id': null,
         'pending': pending,
       }),
+      ('POST', '/space/rules/accept') when acceptFails => _json({
+        'error': 'down',
+      }, 500),
       ('POST', '/space/rules/accept') => () {
         pending = false;
         return http.Response('', 204);
@@ -142,6 +146,27 @@ void main() {
       expect(find.byType(RulesGateBanner), findsNothing);
     },
   );
+
+  testWidgets('a rules acceptance that fails says so once, in one sentence', (
+    tester,
+  ) async {
+    final server = _Server()..acceptFails = true;
+    await _pump(
+      tester,
+      server,
+      const RulesGateBannerHost(child: Text('shell')),
+    );
+    await tester.tap(find.text('Read the rules'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('I accept the rules'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Could not accept the rules.'), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is RulesSheet), findsOneWidget);
+  });
 
   testWidgets('a member who already accepted sees no banner', (tester) async {
     final server = _Server()..pending = false;

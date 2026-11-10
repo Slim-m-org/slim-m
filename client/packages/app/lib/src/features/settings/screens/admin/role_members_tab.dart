@@ -134,12 +134,16 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                     SettingsSectionCard(
                       title: 'Add to this role',
                       children: [
-                        for (final candidate in candidates)
+                        for (final (index, candidate) in candidates.indexed)
                           AppListRow(
                             leading: _avatar(context, candidate),
                             label: candidate.displayName,
                             meta: '@${candidate.username}',
-                            trailing: const Text('⏎ add'),
+                            trailing: _AddAction(
+                              name: candidate.displayName,
+                              enterAdds: index == 0,
+                              onAdd: () => unawaited(_add(candidate)),
+                            ),
                             onTap: () => unawaited(_add(candidate)),
                           ),
                       ],
@@ -171,6 +175,42 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
           ],
         );
       },
+    );
+  }
+}
+
+/// An Add button on every candidate; Enter in the search adds only the first,
+/// so only that row says so, and only where there is a keyboard to press it on.
+class _AddAction extends StatelessWidget {
+  const _AddAction({
+    required this.name,
+    required this.enterAdds,
+    required this.onAdd,
+  });
+
+  final String name;
+  final bool enterAdds;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s8,
+      children: [
+        if (enterAdds && !AppTouchTargets.of(context))
+          Text(
+            'Enter',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        AppButton(
+          label: 'Add',
+          size: AppButtonSize.sm,
+          semanticLabel: 'Add $name',
+          onPressed: onAdd,
+        ),
+      ],
     );
   }
 }

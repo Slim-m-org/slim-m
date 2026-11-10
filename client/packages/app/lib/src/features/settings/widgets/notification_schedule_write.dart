@@ -11,7 +11,7 @@ import '../providers/settings_actions.dart';
 
 /// Runs [write] through [guard], then refreshes the schedule on [container], which the caller took before any await
 /// so the message alert policy hears the change even if the pane was left.
-Future<void> writeNotificationSchedule(
+Future<bool> writeNotificationSchedule(
   ProviderContainer container,
   Guard guard, {
   required String whatFailed,
