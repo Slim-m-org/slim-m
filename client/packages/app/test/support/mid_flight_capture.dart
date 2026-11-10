@@ -125,13 +125,16 @@ bool _hiddenByOpacity(Element element) {
 /// [allowNoText] opts a genuinely text-free surface (a pure canvas/graphic)
 /// out of the blank check below; every other surface is expected to render
 /// at least one string a person reading the screen would see.
+///
+/// [allowNotFound] is for the one surface that IS the app's not-found page.
 Future<void> expectSettled(
   WidgetTester tester,
   String snapshotName, {
   bool knownTransient = false,
   bool allowNoText = false,
+  bool allowNotFound = false,
 }) async {
-  expectNotNotFound(renderedText(tester), snapshotName);
+  if (!allowNotFound) expectNotNotFound(renderedText(tester), snapshotName);
   final before = renderedText(tester);
   for (var i = 0; i < extraSettlePumps; i++) {
     await tester.pump(extraSettleFrame);

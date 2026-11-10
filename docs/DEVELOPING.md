@@ -86,6 +86,9 @@ Drift's generated code is committed; regenerate it rather than editing it:
 ## Looking at the UI
 
 - `scripts/ui-snapshots.sh` renders the real shell at every shipped resolution into `client/packages/app/build/ui-snapshots`.
+  It also runs the review gallery suites in `client/packages/app/test/review`.
+  `--all` runs every suite that writes PNGs and prints the PNG count.
+- Review suites name every PNG `<surface>[--<state>]--<phone|desktop>-<dark|light>` through `reviewName` in `test/review/review_support.dart`, so a gallery can group them by regex.
 - `scripts/ui-capture.sh` runs the per-surface snapshot harnesses; a new harness needs a `JOBS` line there.
 - Snapshot tests write PNGs only with `SLIMM_UI_SNAPSHOTS=1`; otherwise they just check the layout.
 - `scripts/ui-review.sh` renders every snapshot suite and bundles the pictures for a design review, described next.
