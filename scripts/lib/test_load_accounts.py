@@ -68,6 +68,17 @@ class SaveCacheTest(CacheDirTest):
         self.assertEqual([p.name for p in self.dir.iterdir()],
                          [self.path.name])
 
+    def test_a_directory_the_save_creates_is_private(self):
+        nested = self.dir / "slim-m-load"
+        LA._save_cache(LA._cache_path(nested, URL), rows(1))
+        self.assertEqual(stat.S_IMODE(nested.stat().st_mode), 0o700)
+
+
+class DefaultCacheDirTest(unittest.TestCase):
+    def test_tokens_default_to_a_private_cache_dir_outside_any_checkout(self):
+        with mock.patch.dict(os.environ, {"HOME": "/home/someone"}):
+            self.assertEqual(LA.default_cache_dir(), "/home/someone/.cache/slim-m-load")
+
 
 class ObtainTest(CacheDirTest):
     def seed(self, n):

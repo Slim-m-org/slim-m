@@ -18,6 +18,16 @@ class ParseHeaders(unittest.TestCase):
         self.assertEqual(names["X-Content-Type-Options"], "nosniff")
 
 
+class BindsToLoopback(unittest.TestCase):
+    def test_the_server_listens_on_loopback_only(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            server = e2e_web_server.make_server(0, directory)
+            self.addCleanup(server.server_close)
+            self.assertEqual(server.server_address[0], "127.0.0.1")
+
+
 class ServesTheTapWorklets(unittest.TestCase):
     def test_a_tap_module_is_served_same_origin_under_the_page_csp(self):
         import threading

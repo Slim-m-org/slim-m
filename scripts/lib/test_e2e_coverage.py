@@ -62,6 +62,28 @@ class DocumentedTest(unittest.TestCase):
         self.assertEqual(len(canon), len(set(canon)))
 
 
+class FromRequestsTest(unittest.TestCase):
+    ORIGIN = "http://localhost:8095"
+
+    def test_only_the_servers_own_paths_count_and_ids_collapse(self):
+        urls = {
+            f"{self.ORIGIN}/channels/{UUID}/messages?limit=50",
+            f"{self.ORIGIN}/healthz",
+            "http://localhost:8356/main.dart.js",
+            "https://fonts.gstatic.com/s/roboto.woff2",
+        }
+        self.assertEqual(C.from_requests(urls, self.ORIGIN),
+                         {"/channels/{}/messages", "/healthz"})
+
+    def test_a_different_port_on_the_same_host_is_not_the_server(self):
+        self.assertEqual(C.from_requests({"http://localhost:80951/healthz"}, self.ORIGIN), set())
+
+    def test_thousands_of_requests_all_count(self):
+        urls = {f"{self.ORIGIN}/channels/{UUID[:-4]}{n:04x}/messages" for n in range(5000)}
+        urls.add(f"{self.ORIGIN}/me")
+        self.assertEqual(C.from_requests(urls, self.ORIGIN), {"/channels/{}/messages", "/me"})
+
+
 class ReportTest(unittest.TestCase):
     def test_a_real_invite_request_covers_the_template(self):
         with tempfile.NamedTemporaryFile("w", suffix=".yaml") as fh:

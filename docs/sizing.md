@@ -292,6 +292,9 @@ scripts/reconnect-storm.py --base-url http://127.0.0.1:8080 --users 40 \
   --per-account 3 --rounds 3
 ```
 
+Both tools refuse any address that is not loopback.
+They cache the load accounts' session tokens, and write their result files, in `~/.cache/slim-m-load`, outside the checkout; `--cache-dir` and `--out` move them.
+
 For the memory figure specifically, start the server fresh and reuse cached accounts, so no registration pass leaves Argon2 arenas in the total: the first run of `reconnect-storm.py` against a new database registers accounts and inflates resident memory by tens of megabytes that have nothing to do with connections.
 
 Watch the server's own processor time in the output before believing a latency number.

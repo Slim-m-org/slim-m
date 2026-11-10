@@ -24,6 +24,11 @@ node_modules/
 .env
 .env.local
 
+# Load test session tokens and results; they default to ~/.cache, and --cache-dir can still point here.
+loadtest-tokens-*.json
+loadtest-result.json
+reconnect-storm-result.json
+
 # Push credentials. These are downloaded as files from Firebase and Apple, land
 # in whatever directory the browser chose, and are unrecoverable once leaked -
 # an APNs key signs pushes for every app under the team. They belong on the

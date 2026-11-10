@@ -36,6 +36,10 @@ export E2E_SCHEMA="$ROOT/schema/openapi.yaml"
 export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
 export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
 
+stop_stale_browsers() {
+  python3 "$ROOT/scripts/lib/e2e_browsers.py" stop-stale || true
+}
+
 cleanup() {
   local code=$?
   if [[ $KEEP -eq 1 ]]; then
@@ -43,8 +47,7 @@ cleanup() {
     return
   fi
   echo "== teardown =="
-  # CDP+11..16 are the extra browsers the voice scenarios start for themselves.
-  pkill -f "remote-debugging-port=($((CDP+1))|$((CDP+2))|$((CDP+11))|$((CDP+13))|$((CDP+14))|$((CDP+15))|$((CDP+16))|$((CDP+17)))( |$)" 2>/dev/null || true
+  stop_stale_browsers
   bash "$ROOT/scripts/e2e-stack.sh" down
   rm -rf "$WORK/chrome-alice" "$WORK/chrome-bob" "$WORK"/chrome-carol "$WORK"/chrome-noisy "$WORK"/chrome-raw "$WORK"/chrome-vqa "$WORK"/chrome-vqb "$WORK"/chrome-tabs
   exit $code
@@ -62,6 +65,7 @@ bash "$ROOT/scripts/e2e-stack.sh" up
 source "$WORK/stack.env"
 
 echo "== two browsers =="
+stop_stale_browsers
 for pair in "$((CDP+1)):alice" "$((CDP+2)):bob"; do
   port="${pair%%:*}"; who="${pair##*:}"
   profile="$WORK/chrome-$who"; rm -rf "$profile"; mkdir -p "$profile"

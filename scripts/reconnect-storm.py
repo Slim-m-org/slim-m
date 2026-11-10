@@ -16,13 +16,14 @@ limiter far harder than it tests the connection handling, and the failure
 mode to look for is a client that is refused a ticket, backs off, and takes
 far longer to return than the socket itself needed.
 
-Run it against a local server. Never against production: it is
-indistinguishable from abuse.
+Run it against a local server. It refuses any address that is not loopback:
+it is indistinguishable from abuse.
 
     scripts/reconnect-storm.py --base-url http://127.0.0.1:8080 --users 60
 """
 import argparse
 import asyncio
+import os
 import pathlib
 import sys
 import time
@@ -34,7 +35,6 @@ import load_accounts  # noqa: E402
 import load_report  # noqa: E402
 import load_ws  # noqa: E402
 import loadtest  # noqa: E402
-import seed_guard  # noqa: E402
 
 DEFAULT_PASSWORD = "loadtest-stable-password-1"
 SETTLE = 2.0
@@ -50,10 +50,15 @@ def parse_args(argv=None):
                         help="how many times to drop and re-open everything")
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--invite-code", default=None)
-    parser.add_argument("--cache-dir", default=".")
-    parser.add_argument("--out", default="reconnect-storm-result.json")
+    parser.add_argument("--cache-dir", default=None,
+                        help="defaults to ~/.cache/slim-m-load")
+    parser.add_argument("--out", default=None,
+                        help="defaults to reconnect-storm-result.json in the cache dir")
     parser.add_argument("--server-pid", type=int, default=None)
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    args.cache_dir = args.cache_dir or load_accounts.default_cache_dir()
+    args.out = args.out or os.path.join(args.cache_dir, "reconnect-storm-result.json")
+    return args
 
 
 def build_subscribers(accounts, base_url, ws_url, per_account):
@@ -248,8 +253,7 @@ def render(report):
 
 def main(argv=None):
     args = parse_args(argv)
-    if seed_guard.is_known_production(args.base_url):
-        raise SystemExit("refusing to storm the live deployment")
+    args.base_url = loadtest.require_local_target(args.base_url)
     loadtest._SERVER_PID["pid"] = args.server_pid or loadtest.find_server_pid()
     asyncio.run(run(args))
     return 0

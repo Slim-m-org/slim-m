@@ -14,6 +14,7 @@ import os
 import time
 import urllib.request
 
+import e2e_api
 import e2e_browsers
 import e2e_labels as L
 import e2e_session
@@ -89,7 +90,7 @@ def _open_second_tab(first):
     url = first.ev("location.href")
     req = urllib.request.Request(
         f"http://127.0.0.1:{first.port}/json/new?about:blank", method="PUT")
-    with urllib.request.urlopen(req) as resp:
+    with e2e_api.urlopen(req) as resp:
         target = json.load(resp)["id"]
     second = Client("tab-b", first.port, target=target)
     _install_hook(second)
