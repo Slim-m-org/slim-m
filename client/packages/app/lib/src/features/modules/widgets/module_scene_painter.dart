@@ -147,6 +147,7 @@ class ModuleScenePainter extends CustomPainter {
   void _paintCells(Canvas canvas, CellsOp op, double sx, double sy) {
     if (op.cols <= 0 || op.rows <= 0 || op.palette.isEmpty) return;
     final grid = cellsGridRect(op, scene, sx, sy);
+    if (grid.width <= 0 || grid.height <= 0) return;
     final cellW = grid.width / op.cols;
     final cellH = grid.height / op.rows;
     final inset = op.gap * (cellW < cellH ? cellW : cellH) / 2;
@@ -363,6 +364,7 @@ String? _cellsTapAction(
   String action,
 ) {
   final grid = cellsGridRect(op, scene, sx, sy);
+  if (grid.width <= 0 || grid.height <= 0) return null;
   final col = ((local.dx - grid.left) / (grid.width / op.cols)).floor();
   final row = ((local.dy - grid.top) / (grid.height / op.rows)).floor();
   if (col < 0 || col >= op.cols || row < 0 || row >= op.rows) return null;
