@@ -24,7 +24,7 @@ import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.da
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart'
-    show StagedSend;
+    show FileSource, StagedSend;
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_clipboard_image.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker_grid.dart';
@@ -129,6 +129,32 @@ final class FakePlatformFile extends PlatformFile {
 
   @override
   Stream<Uint8List> readAsByteStream() => Stream.value(_bytes);
+}
+
+/// A [FileSource] over [bytes] that never touches the filesystem, counting how
+/// it was read. [length] stands in for a file too big to really hold.
+class MemoryFile {
+  MemoryFile(this.name, this.bytes, {int? length})
+    : length = length ?? bytes.length;
+
+  final String name;
+  final Uint8List bytes;
+  final int length;
+  int wholeReads = 0;
+  int streamReads = 0;
+
+  FileSource get source => FileSource(
+    name: name,
+    length: () async => length,
+    readAll: () async {
+      wholeReads += 1;
+      return bytes;
+    },
+    openRead: () {
+      streamReads += 1;
+      return Stream.value(bytes);
+    },
+  );
 }
 
 /// A pick that resolves, carrying its own bytes so `readAsBytes` never

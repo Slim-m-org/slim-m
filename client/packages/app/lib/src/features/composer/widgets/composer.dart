@@ -480,7 +480,7 @@ class _ComposerState extends ConsumerState<Composer> {
             ),
             ComposerPhotoStripSlot(
               channelId: widget.channelId,
-              stage: _actions.stageAttachment,
+              stageFile: _actions.stageFile,
               onBrowse: () => unawaited(
                 _actions.pickAttachment(AttachmentSource.photoLibrary),
               ),

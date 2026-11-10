@@ -133,6 +133,9 @@ class StagedAttachmentTile extends StatelessWidget {
 /// The progress line and a bar for an upload in flight: percent, speed and
 /// time left once the rate is stable, so a multi-gigabyte file shows it is
 /// moving and when it will finish.
+///
+/// It listens to the upload's own progress, so a chunk repaints this and
+/// nothing else in the composer.
 class _UploadProgress extends StatelessWidget {
   const _UploadProgress({required this.upload});
 
@@ -141,30 +144,35 @@ class _UploadProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final percent = (upload.fraction * 100).floor();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          formatTransferLine(
-            sent: upload.sent,
-            total: upload.body.length,
-            meter: upload.meter,
-            reconnecting: upload.reconnecting,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        LinearProgressIndicator(
-          value: upload.fraction,
-          minHeight: 3,
-          semanticsLabel: 'Uploading ${upload.filename}',
-          semanticsValue: '$percent%',
-        ),
-      ],
+    return ValueListenableBuilder<UploadProgress>(
+      valueListenable: upload.progress,
+      builder: (context, progress, _) {
+        final fraction = upload.fractionOf(progress.sent);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              formatTransferLine(
+                sent: progress.sent,
+                total: upload.body.length,
+                meter: upload.meter,
+                reconnecting: progress.reconnecting,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.s4),
+            LinearProgressIndicator(
+              value: fraction,
+              minHeight: 3,
+              semanticsLabel: 'Uploading ${upload.filename}',
+              semanticsValue: '${(fraction * 100).floor()}%',
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -4,9 +4,12 @@
 /// and the stored text stays what the member typed everywhere else.
 library;
 
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'package:slimm_app/src/features/emoji/widgets/custom_emoji_image.dart';
 
 import '../composer/composer_harness.dart' hide custom;
@@ -15,6 +18,45 @@ import '../composer/composer_harness.dart' as harness show custom;
 const emoji = harness.custom;
 
 const _bug = '\u{1F41B}';
+
+final _field = find.byWidgetPredicate((w) => w is TextField);
+final _preview = find.byWidgetPredicate((w) => w is CustomEmojiImage);
+
+/// A Space emoji index that counts how often its names are copied out.
+class _CountingIndex extends MapBase<String, String> {
+  final _inner = {'party': 'e-party'};
+  int nameCopies = 0;
+
+  @override
+  Iterable<String> get keys {
+    nameCopies += 1;
+    return _inner.keys;
+  }
+
+  @override
+  bool containsKey(Object? key) => _inner.containsKey(key);
+
+  @override
+  bool get isEmpty => _inner.isEmpty;
+
+  @override
+  bool get isNotEmpty => _inner.isNotEmpty;
+
+  @override
+  int get length => _inner.length;
+
+  @override
+  String? operator [](Object? key) => _inner[key];
+
+  @override
+  void operator []=(String key, String value) => _inner[key] = value;
+
+  @override
+  void clear() => _inner.clear();
+
+  @override
+  String? remove(Object? key) => _inner.remove(key);
+}
 
 void main() {
   late TextEditingController controller;
@@ -111,5 +153,41 @@ void main() {
     expect(controller.text, ':bug:', reason: 'the Space emoji wins the name');
     expect(find.byType(CustomEmojiImage), findsOneWidget);
     expect(find.text(':bug:'), findsWidgets);
+  });
+
+  testWidgets('typing copies the Space emoji names once, not per keystroke', (
+    tester,
+  ) async {
+    final index = _CountingIndex();
+    await tester.pumpWidget(
+      composerHarness(
+        controller: controller,
+        sends: sends,
+        platform: TargetPlatform.linux,
+        extraOverrides: [customEmojiIndexProvider.overrideWithValue(index)],
+      ),
+    );
+
+    var draft = '';
+    for (final ch in 'hello :party: there'.split('')) {
+      draft += ch;
+      await tester.enterText(_field, draft);
+    }
+    await tester.pump();
+
+    expect(_preview, findsOneWidget);
+    expect(index.nameCopies, 1);
+  });
+
+  testWidgets('the preview goes when the shortcode does', (tester) async {
+    await pump(tester, custom: ['bug']);
+    await tester.enterText(_field, ':bug:');
+    await tester.pump();
+    expect(_preview, findsOneWidget);
+
+    await tester.enterText(_field, 'bug');
+    await tester.pump();
+
+    expect(_preview, findsNothing);
   });
 }

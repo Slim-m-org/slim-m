@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'photo_library.dart';
+import 'staged_attachment_model.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Whether a channel's composer has its photo strip open.
@@ -46,12 +47,12 @@ class ComposerPhotoStripSlot extends ConsumerWidget {
   const ComposerPhotoStripSlot({
     super.key,
     required this.channelId,
-    required this.stage,
+    required this.stageFile,
     required this.onBrowse,
   });
 
   final String channelId;
-  final Future<void> Function(Uint8List bytes, String filename) stage;
+  final Future<void> Function(FileSource file) stageFile;
   final VoidCallback onBrowse;
 
   @override
@@ -60,7 +61,7 @@ class ComposerPhotoStripSlot extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     return ComposerPhotoStrip(
-      onAttach: (photo) => stage(photo.bytes, photo.name),
+      onAttach: stageFile,
       onBrowse: onBrowse,
       onClose: () =>
           ref.read(photoStripOpenProvider(channelId).notifier).state = false,
@@ -87,7 +88,7 @@ class ComposerPhotoStrip extends ConsumerStatefulWidget {
   });
 
   /// Hands one photo to the composer's own staging path.
-  final Future<void> Function(PhotoOriginal photo) onAttach;
+  final Future<void> Function(FileSource photo) onAttach;
 
   /// Opens the full system picker, the way out of denied or limited access.
   final VoidCallback onBrowse;
