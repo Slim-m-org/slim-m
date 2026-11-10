@@ -11,6 +11,7 @@ readonly UPDATE_LIMIT="${APT_UPDATE_LIMIT:-4m}"
 readonly INSTALL_LIMIT="${APT_INSTALL_LIMIT:-6m}"
 readonly APT_OPTS=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
 readonly FALLBACK="http://archive.ubuntu.com/ubuntu"
+readonly APT_ETC="${APT_ETC:-/etc/apt}"
 
 readonly DEB_CACHE="${APT_DEB_CACHE:-}"
 CACHE_OPTS=()
@@ -52,9 +53,12 @@ if install_from_cache && all_installed "$@"; then
   exit 0
 fi
 
+# Runner images point their sources at a mirror list (mirror+file:), and apt only leaves its first entry on an error, never for being slow.
 use_fallback_mirror() {
-  local file
-  for file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+  local file sources=("$APT_ETC/sources.list" "$APT_ETC"/sources.list.d/*.list "$APT_ETC"/sources.list.d/*.sources)
+  local mirror_lists=()
+  mapfile -t mirror_lists < <(cat "${sources[@]}" 2>/dev/null | grep -oE 'mirror\+file:[^[:space:]]+' | sed 's#^mirror+file:##' | sort -u)
+  for file in "${sources[@]}" "${mirror_lists[@]}"; do
     [[ -f "$file" ]] || continue
     sudo sed -i -E "s#https?://[a-z0-9.-]*\.archive\.ubuntu\.com/ubuntu/?#${FALLBACK}/#g" "$file"
   done

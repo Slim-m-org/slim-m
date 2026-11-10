@@ -22,7 +22,8 @@ runs:
         echo "version=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
         echo "dir=$RUNNER_TEMP/apt-debs-$(printf '%s' "$PACKAGES" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
     # Keyed on the runner image so a new image resolves its own dependency versions instead of installing stale ones.
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - id: debs
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ steps.image.outputs.dir }}
         key: apt-debs-${{ runner.os }}-${{ steps.image.outputs.version }}-${{ inputs.packages }}-v1
@@ -33,3 +34,9 @@ runs:
       run: |
         read -ra pkgs <<<"$PACKAGES"
         "$GITHUB_WORKSPACE/scripts/apt-install.sh" "${pkgs[@]}"
+    # Saved here, not in the post-job step, which only saves when the whole job passes, so a job failing later never seeded the cache.
+    - if: steps.debs.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ steps.image.outputs.dir }}
+        key: ${{ steps.debs.outputs.cache-primary-key }}
