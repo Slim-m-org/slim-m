@@ -77,18 +77,12 @@ Future<DockUpdateReport?> updateAllDockModules({
   required WidgetRef ref,
   required List<DockOutdated> outdated,
 }) async {
-  final catalog = ref.read(dockCatalogProvider).valueOrNull;
   var updated = 0;
   final skipped = <api.DockIndexEntry>[];
   final failures = <String>[];
   final withoutAccess = <DockLeftBare>[];
   for (final item in outdated) {
-    final turn = await _updateOne(
-      context,
-      ref,
-      item,
-      catalog?.installedFor(item.entry.id),
-    );
+    final turn = await _updateOne(context, ref, item);
     if (turn == null || !context.mounted) return null;
     switch (turn.outcome) {
       case _Outcome.skipped:
@@ -121,14 +115,26 @@ void _refreshAfterInstall(WidgetRef ref) {
   ref.invalidate(appLaunchProvider);
 }
 
+/// The record the server holds for [moduleId] now, or null once it is gone.
+/// Read per step because access is revoked while the walk waits on an admin.
+Future<api.InstalledDockModule?> _heldNow(
+  WidgetRef ref,
+  String moduleId,
+) async {
+  final installed = await ref.read(apiProvider).listInstalledDockModules();
+  return installed.where((m) => m.id == moduleId).firstOrNull;
+}
+
 /// One module's turn, or null when [context] went away while it was asked.
+/// A module removed since the walk began is left removed.
 Future<_Turn?> _updateOne(
   BuildContext context,
   WidgetRef ref,
   DockOutdated item,
-  api.InstalledDockModule? current,
 ) async {
   try {
+    final current = await _heldNow(ref, item.entry.id);
+    if (current == null) return const _Turn(_Outcome.skipped);
     final manifest = await ref
         .read(apiProvider)
         .getDockModule(item.entry.id, source: item.source);
@@ -139,8 +145,11 @@ Future<_Turn?> _updateOne(
       final agreed = await _askAbout(context, item, manifest, current, ask);
       if (!context.mounted) return null;
       if (!agreed) return const _Turn(_Outcome.skipped);
-      grant = _grantFor(manifest, current, {
-        ..._carried(manifest, current),
+      final held = await _heldNow(ref, item.entry.id);
+      if (!context.mounted) return null;
+      if (held == null) return const _Turn(_Outcome.skipped);
+      grant = _grantFor(manifest, held, {
+        ..._carried(manifest, held),
         ...ask.capabilities,
       }, ask.capabilities);
     }
