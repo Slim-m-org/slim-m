@@ -170,14 +170,13 @@ Future<_Turn?> _updateOne(
     );
     if (!context.mounted) return null;
     if (!agreed) return _Turn(_Outcome.updated, declined: lost);
-    final regained = {...installed.approvedHostCapabilities, ...lost};
-    await _install(
-      context,
-      ref,
-      item,
-      manifest,
-      _grantFor(manifest, installed, regained, lost),
-    );
+    final held = await _heldNow(ref, item.entry.id);
+    if (!context.mounted) return null;
+    if (held != null) {
+      final regained = {...held.approvedHostCapabilities, ...lost};
+      final grant = _grantFor(manifest, held, regained, lost);
+      await _install(context, ref, item, manifest, grant);
+    }
     return const _Turn(_Outcome.updated);
   } catch (error, stack) {
     return _Turn(

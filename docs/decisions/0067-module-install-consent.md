@@ -32,7 +32,7 @@ A private-network yes already given carries over only while `net.fetch` itself c
 When the step asks about `net.fetch` again, the private-network yes is not carried, exactly as for a single update, and the module's own page grants it.
 Access the server withdrew after the install is asked about once more as "updated, give back its access?", and declining it is noted under the Update all bar.
 A module's hooks count as taken back on any new version, since the installed record carries none to compare, and the server applies an approval list as sent.
-Each step reads the module's record when it starts and again once the admin agrees, so access revoked while the walk waited is not given back, and a module removed meanwhile is left removed.
+Each step reads the module's record when it starts and again once the admin agrees, and so does the give-back after an update, so access revoked while the walk waited is not given back, and a module removed meanwhile is left removed.
 
 The warning sentence per capability is one table, `dockHostCapabilities` in `dock_host_access_card.dart`.
 A capability that carries details, such as a host list, receives them in its sentence function.
