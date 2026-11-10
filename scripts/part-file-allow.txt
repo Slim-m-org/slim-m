@@ -16,6 +16,6 @@ client/packages/app/lib/src/features/canvas/screens/canvas_ops_controller.dart 6
 client/packages/app/lib/src/features/canvas/screens/canvas_pane.dart 4 # canvas pane state, pre-dates the gate
 client/packages/app/lib/src/features/canvas/screens/canvas_pane_body.dart 1 # canvas pane body, pre-dates the gate
 client/packages/app/test/features/canvas/canvas_gesture_fuzz_driver.dart 2 # fuzz driver, pre-dates the gate
-client/packages/rtc/lib/src/voice_session.dart 5 # VoiceSession mixins and extensions, being moved into collaborator classes
+client/packages/rtc/lib/src/voice_session.dart 2 # VoiceSession mixins and extensions, being moved into collaborator classes
 client/packages/voice_canvas/lib/src/canvas_document.dart 5 # canvas document, pre-dates the gate
 client/packages/voice_canvas/lib/src/canvas_surface.dart 4 # canvas surface, pre-dates the gate

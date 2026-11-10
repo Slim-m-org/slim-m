@@ -43,7 +43,7 @@ extension VoiceSessionTracks on VoiceSession {
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }
-      _syncStatsHold();
+      _stats.syncHold();
       _refreshParticipants();
     });
   }
@@ -74,7 +74,7 @@ extension VoiceSessionTracks on VoiceSession {
     if (health.reconnect.restarting.value) {
       _healthWatch.stop();
       // Tracks are forgotten so the grace period starts again once frames can flow.
-      _stallWatchdog.observe(const []);
+      _stall.watchdog.observe(const []);
       return;
     }
     if (_room == null || _state != VoiceSessionState.connected) return;
@@ -136,8 +136,8 @@ extension VoiceSessionTracks on VoiceSession {
     _room = null;
     health.reconnect.ended('left the call');
     _cameraJoin.cancel();
-    _stopStallWatch();
-    _releaseStats();
+    _stall.stop();
+    _stats.release();
     _micRecovery.stopWatch();
     _healthWatch.stop();
     _setupLog.stop();
@@ -210,14 +210,9 @@ extension VoiceSessionTracks on VoiceSession {
     // Reapplied on every refresh, not only on toggle, so deafening reaches a participant or track that appears afterward too.
     unawaited(_listener.apply(room));
     // Ahead of the unchanged-roster early return below: a subscription can change with no visible roster change at all.
-    _applyVideoInterest();
+    _video.applyInterest();
     unawaited(
-      applyReceiveVideoQuality(
-        remoteVideoQualityRefs(room),
-        _receiveQuality,
-        _loweredVideoSids,
-        enlarged: _enlargedVideo.keys,
-      ),
+      _video.applyQuality(room),
     );
 
     // Only a full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
@@ -260,7 +255,7 @@ extension VoiceSessionTracks on VoiceSession {
     _state = next;
     _micRecovery.syncWatch(next);
     _healthWatch.sync(next);
-    _syncCallDiagnostics(next);
+    _stats.syncDiagnostics(next);
     if (next == VoiceSessionState.connected) {
       unawaited(_inputGate.apply());
       _inputGate.applyRate();

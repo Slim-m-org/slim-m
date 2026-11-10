@@ -16,7 +16,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/widgets.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart'
     show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
@@ -28,13 +27,11 @@ import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'broadcast_bridge.dart';
 import 'call_diagnostics.dart';
-import 'call_stats.dart';
 import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
 import 'camera_join.dart';
 import 'camera_switching.dart';
 import 'desktop_sources.dart';
-import 'endpoint_effects.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
 import 'livekit_setup_log.dart';
@@ -43,14 +40,12 @@ import 'mic_port.dart';
 import 'mic_recovery.dart';
 import 'mic_release.dart';
 import 'pulse_audio.dart';
-import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
 import 'speaking_hold.dart';
 import 'start_bitrate_room.dart';
-import 'track_stats_summary.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
@@ -68,14 +63,14 @@ import 'voice_mic_readiness.dart';
 import 'voice_audio_devices.dart';
 import 'voice_health_watch.dart';
 import 'voice_session_camera.dart';
+import 'voice_stall_wiring.dart';
+import 'voice_stats_wiring.dart';
+import 'voice_video_receive.dart';
 import 'voice_reconnect_tracker.dart';
 import 'voice_session_screen_share.dart';
 
 part 'voice_session_join.dart';
-part 'voice_session_stall.dart';
-part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
-part 'voice_session_video.dart';
 
 /// Builds the LiveKit room a session drives. The injection seam.
 typedef RoomFactory = lk.Room Function();
@@ -193,12 +188,36 @@ class VoiceSession {
       desktopSources: desktopSources ?? const WebrtcDesktopSources(),
       isolation: shareAudioIsolation ?? ShareAudioIsolation(),
     );
-    _camera = VoiceCamera(
-      _share.host,
-      _cameraSwitching,
-      _receiveDensity,
+    _stats = VoiceStatsWiring(
+      VoiceStatsWiringHost(
+        room: () => _room,
+        disposed: () => _disposed,
+        audioInputId: () => _audioDevices.inputInUse,
+        diag: _diag,
+      ),
+      _healthWatch.diagnostics,
     );
-    _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
+    _video = VoiceVideoReceive(
+      VoiceVideoReceiveHost(
+        room: () => _room,
+        disposed: () => _disposed,
+        refresh: _refreshParticipants,
+        syncStall: () => _stall.sync(),
+        diag: _diag,
+      ),
+    );
+    _stall = VoiceStallWiring(
+      VoiceStallWiringHost(
+        room: () => _room,
+        disposed: () => _disposed,
+        reconnecting: () => health.reconnect.restarting.value,
+        receiveQuality: () => _video.quality,
+        diag: _diag,
+      ),
+      sampler: _stats.sampler,
+      culler: _video.culler,
+    );
+    _camera = VoiceCamera(_share.host, _cameraSwitching, _video.density);
     health.reconnect
       ..log = _diag
       ..restarting.addListener(_onReconnectingChanged);
@@ -422,25 +441,12 @@ class VoiceSession {
   final CameraJoin _cameraJoin;
   late final VoiceCamera _camera;
   late final VoiceScreenShare _share;
-  late final VideoSubscriptionCuller _videoCuller;
-  final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
-    lk.AdaptiveStreamPixelDensity.auto,
-  );
-
-  /// See [videoHealth]; fed by [callStats] while any remote video is subscribed.
-  late final _stallWatchdog = VideoStallWatchdog(recover: _recoverStalledVideo);
-  StreamSubscription<CallStatsSnapshot>? _stallStats;
-  final _activeVideoKeys = <String>{};
+  late final VoiceVideoReceive _video;
+  late final VoiceStallWiring _stall;
+  late final VoiceStatsWiring _stats;
 
   /// Per-track video stats, sampled while somebody watches, listens or we publish video.
-  late final callStats = CallStatsSampler(
-    targets: () => _callStatsTargets(),
-    log: (line) => AppLog.debug(LogTag.voice, line),
-    onSample: _onStatsSample,
-  );
-
-  late final _trackSummaries =
-      TrackStatsSummary(onSummary: _recordTrackSummary);
+  CallStatsSampler get callStats => _stats.sampler;
 
   lk.Room? _room;
   // room.events.listen returns a cancel function rather than a
@@ -461,9 +467,6 @@ class VoiceSession {
   /// See [setSpeakingSensitivity]; 1.0 is the behaviour before the setting.
   double _speakingSensitivity = 1.0;
 
-  ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
-  final _loweredVideoSids = <String>{};
-  final _enlargedVideo = EnlargedVideo();
   CameraQuality _cameraQuality = CameraQuality.balanced;
 
   /// See [SpeakingHold]; the timer drops a held ring when its time is up.
@@ -493,16 +496,12 @@ class VoiceSession {
 
   /// Caps the sharpness of the remote video you watch; live mid-call, and
   /// kept for the next join.
-  void setReceiveVideoQuality(ReceiveVideoQuality quality) {
-    _receiveQuality = quality;
-    _videoCuller.dwell = videoDwellFor(quality);
-    _receiveDensity.value = pixelDensityFor(quality);
-    _refreshParticipants();
-  }
+  void setReceiveVideoQuality(ReceiveVideoQuality quality) =>
+      _video.setQuality(quality);
 
   /// Keeps the tile [tileKey] at full sharpness, whatever the receive quality, until the result is called.
-  VoidCallback holdEnlargedVideo(String tileKey) => _enlargedVideo.hold(
-      tileKey, () => _disposed ? null : _refreshParticipants());
+  VoidCallback holdEnlargedVideo(String tileKey) =>
+      _video.holdEnlarged(tileKey);
 
   /// How sharp your camera publishes. Read when the camera turns on, and a
   /// different one than it was published at republishes; the app cycles a live
@@ -569,9 +568,7 @@ class VoiceSession {
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
     _droppedWhileSharing = false;
-    // Whatever a canvas last asked for was about the call that just ended.
-    _videoCuller.setInterest(null);
-    _videoCuller.setBlocked(const {});
+    _video.resetForNewCall();
     _setState(VoiceSessionState.idle);
   }
 
@@ -625,31 +622,25 @@ class VoiceSession {
 
   /// The widget that renders [identity]'s shared screen; a plain [Widget] so no LiveKit type crosses the package seam.
   Widget screenShareViewFor(String identity) =>
-      _share.view(identity, _receiveDensity);
+      _share.view(identity, _video.density);
 
   /// Per tile key (`<kind>:<identity>`), what each remote video's tile should
   /// say beyond its picture: paused by the server, stalled and recovering, or
   /// stopped. A tile missing from the map is playing normally.
   ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
-      _stallWatchdog.health;
+      _stall.watchdog.health;
 
   /// The widget that renders [identity]'s live camera feed, the local participant's included.
   Widget cameraViewFor(String identity) => _camera.view(identity);
 
   /// Declares which `'<kind>:<identity>'` tiles want video so the rest can be unsubscribed; null means no opinion.
   /// See [VideoSubscriptionCuller] for the timing.
-  void setVideoInterest(Set<String>? tileKeys) {
-    _videoCuller.setInterest(tileKeys);
-    _applyVideoInterest();
-  }
+  void setVideoInterest(Set<String>? tileKeys) => _video.setInterest(tileKeys);
 
   /// Keeps the screen-share (or camera) tiles named by [tileKeys] unsubscribed
   /// whatever the interest says, along with a share's own audio, so a viewer
   /// who stopped watching pays no bandwidth or decode for it.
-  void setVideoBlocked(Set<String> tileKeys) {
-    _videoCuller.setBlocked(tileKeys);
-    _applyVideoInterest();
-  }
+  void setVideoBlocked(Set<String> tileKeys) => _video.setBlocked(tileKeys);
 
   /// Whether flipping needs no chosen device; see [CameraSwitching.canFlip].
   bool get canFlipCamera => _cameraSwitching.canFlip;
@@ -679,11 +670,9 @@ class VoiceSession {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-    _videoCuller.dispose();
-    _receiveDensity.dispose();
+    _video.dispose();
     _share.dispose();
-    await _stallStats?.cancel();
-    _stallWatchdog.dispose();
+    await _stall.dispose();
     await callStats.dispose();
     health.dispose();
     _joinTimings.finish();
