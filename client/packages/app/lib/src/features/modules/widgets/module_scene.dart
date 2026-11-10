@@ -239,6 +239,17 @@ class TextOp extends SceneOp {
   final double size;
   final String align;
 
+  /// How many text ops one scene may carry.
+  ///
+  /// Each is laid out on every paint. Sized from minesweeper's largest board
+  /// (30x24, a digit in most cells), which is the busiest scene any shipped
+  /// module draws; a scene wanting more is drawing a table that should be a
+  /// message.
+  static const maxPerScene = 1024;
+
+  /// The size an op without a readable one is drawn at.
+  static const defaultSize = 12.0;
+
   /// Motion the client plays across this op; see `module_scene_sweep.dart`.
   final SceneSweep? sweep;
 }
@@ -337,6 +348,10 @@ class InputOp extends SceneOp {
 
   static const defaultMaxLength = 64;
   static const maxMaxLength = 512;
+
+  /// How many fields one scene may carry; every one is a live widget with a
+  /// controller and a focus node, and the shipped modules ask for one.
+  static const maxPerScene = 8;
 }
 
 /// A module asks slim to play a short sound built from these notes, rather
@@ -460,6 +475,10 @@ class ModuleScene {
   /// 3px sliver. Like [CellsOp.maxPerAxis] it is a ceiling set by what a
   /// person can use, not by whatever else happens to bound the scene.
   static const maxAspect = 4.0;
+
+  /// How many control buttons a scene may offer; the shipped modules use at
+  /// most eight, and each one is a button in a row under the board.
+  static const maxControls = 16;
 
   final double width;
   final double height;
