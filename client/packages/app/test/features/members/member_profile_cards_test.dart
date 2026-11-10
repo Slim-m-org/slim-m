@@ -246,6 +246,8 @@ void main() {
             channelPermissions: Perm.manageRoles,
           ),
         );
+        // Roles are asked only once the channel grants MANAGE_ROLES, a frame after the card.
+        await tester.pump();
 
         expect(find.textContaining('IN #'), findsNothing);
         expect(find.text('Notify me off hours'), findsOneWidget);

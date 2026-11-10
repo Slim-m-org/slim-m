@@ -128,9 +128,12 @@ class MemberRow extends ConsumerWidget {
     );
     // One slot only in a 236px pane; bot beats a role, whose names are a tap away.
     final badge = _badgeLabel(displayed);
-    ref.read(moduleBadgesProvider.notifier).request(profile.id);
-    // Scoped to this member's own entry, and null while empty, so neither another member's badge nor a bare answer rebuilds this row.
     final showModuleBadges = ref.watch(moduleMemberBadgesShownProvider);
+    // Off is the Space default, so an off row asks for nothing; the flag is watched and the row asks when it flips on.
+    if (showModuleBadges) {
+      ref.read(moduleBadgesProvider.notifier).request(profile.id);
+    }
+    // Scoped to this member's own entry, and null while empty, so neither another member's badge nor a bare answer rebuilds this row.
     final moduleBadges = visibleModuleBadges(
       !showModuleBadges
           ? null

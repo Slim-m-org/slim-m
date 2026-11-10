@@ -29,8 +29,23 @@ const _json = {'content-type': 'application/json'};
 
 http.Response _bannerReply() => http.Response.bytes(_png, 200);
 
+http.Response _rosterReply(int members) => http.Response(
+  jsonEncode([
+    for (var i = 0; i < members; i++)
+      {
+        'id': 'user-$i',
+        'username': 'u$i',
+        'display_name': 'User $i',
+        'created_at': 0,
+      },
+  ]),
+  200,
+  headers: _json,
+);
+
 class _Server {
   Completer<http.Response> banner = Completer();
+  Completer<http.Response> roster = Completer()..complete(_rosterReply(0));
 
   Future<http.Response> handle(http.Request r) async {
     switch ((r.method, r.url.path)) {
@@ -50,14 +65,18 @@ class _Server {
       case ('GET', '/space/banner'):
         return banner.future;
       case ('GET', '/members'):
-        return http.Response('[]', 200, headers: _json);
+        return roster.future;
       default:
         return http.Response('{}', 404, headers: _json);
     }
   }
 }
 
-Future<void> _pump(WidgetTester tester, _Server server) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _Server server, {
+  bool Function()? until,
+}) async {
   tester.view.physicalSize = const Size(390, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -89,7 +108,7 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
       ),
     ),
   );
-  await _framesUntil(tester, () => _card.evaluate().isNotEmpty);
+  await _framesUntil(tester, until ?? () => _card.evaluate().isNotEmpty);
 }
 
 final _bannerImage = find.byWidgetPredicate(
@@ -186,5 +205,51 @@ void main() {
     expect(card.left, greaterThanOrEqualTo(0));
     expect(card.right, lessThanOrEqualTo(390));
     expect(find.text('Preview as a visitor'), findsNothing);
+  });
+
+  testWidgets('the preview waits for the roster, then counts its members', (
+    tester,
+  ) async {
+    final server = _Server()..banner.complete(_bannerReply());
+    server.roster = Completer();
+    await _pump(
+      tester,
+      server,
+      until: () => _input('Space name').evaluate().isNotEmpty,
+    );
+    expect(_card, findsNothing);
+    expect(find.text('0 members'), findsNothing);
+
+    server.roster.complete(_rosterReply(3));
+    await _framesUntil(tester, () => _card.evaluate().isNotEmpty);
+    expect(
+      find.descendant(of: _card, matching: find.text('3 members')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a roster that will not load says so, and retry counts it', (
+    tester,
+  ) async {
+    const failed = 'Could not load the member count.';
+    final server = _Server()..banner.complete(_bannerReply());
+    server.roster = Completer()
+      ..complete(http.Response('{}', 500, headers: _json));
+    await _pump(
+      tester,
+      server,
+      until: () => find.text(failed).evaluate().isNotEmpty,
+    );
+    expect(find.text(failed), findsOneWidget);
+    expect(_card, findsNothing);
+
+    server.roster = Completer()..complete(_rosterReply(2));
+    await tester.tap(find.text('Retry'));
+    await _framesUntil(tester, () => _card.evaluate().isNotEmpty);
+    expect(
+      find.descendant(of: _card, matching: find.text('2 members')),
+      findsOneWidget,
+    );
+    expect(find.text(failed), findsNothing);
   });
 }

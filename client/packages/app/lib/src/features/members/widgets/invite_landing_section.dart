@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../settings/providers/display_preferences.dart';
 import '../providers/member_presence.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
@@ -289,33 +288,50 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   );
 
   /// The card as typed, before saving: an emptied name falls back to the saved one.
-  Widget _preview(api.SpaceSettings loaded) {
+  Widget _card(api.SpaceSettings loaded, int memberCount) {
     final name = _name.text.trim();
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kInviteLandingMaxWidth),
+        child: InviteLandingCard(
+          name: name.isEmpty ? loaded.name : name,
+          memberCount: memberCount,
+          description: _description.text.trim(),
+          banner: _banner(loaded.bannerUpdatedAt),
+          icon: loaded.iconUpdatedAt == null
+              ? null
+              : SpaceIcon(
+                  updatedAt: loaded.iconUpdatedAt,
+                  size: kInviteIconSize,
+                ),
+          invitedBy: ref.watch(meProvider).valueOrNull?.displayName,
+        ),
+      ),
+    );
+  }
+
+  /// Waits for the roster, so the card never shows a head count the Space does not have.
+  Widget _preview(api.SpaceSettings loaded) {
+    final roster = ref.watch(membersProvider);
+    final memberCount = roster.valueOrNull?.length;
     final bannerFailed =
         loaded.bannerUpdatedAt != null &&
         ref.watch(_bannerBytesProvider(loaded.bannerUpdatedAt!)).hasError;
     return SettingsCardBlock(
       children: [
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: kInviteLandingMaxWidth),
-            child: InviteLandingCard(
-              name: name.isEmpty ? loaded.name : name,
-              memberCount: ref.watch(membersProvider).valueOrNull?.length ?? 0,
-              description: _description.text.trim(),
-              banner: _banner(loaded.bannerUpdatedAt),
-              icon: loaded.iconUpdatedAt == null
-                  ? null
-                  : SpaceIcon(
-                      updatedAt: loaded.iconUpdatedAt,
-                      size: kInviteIconSize,
-                    ),
-              invitedBy: ref.watch(meProvider).valueOrNull?.displayName,
-              use24Hour: watchUse24Hour(ref, context),
-            ),
+        if (memberCount != null)
+          _card(loaded, memberCount)
+        else if (roster.hasError)
+          AppErrorState(
+            message: 'Could not load the member count.',
+            onRetry: () => ref.invalidate(membersProvider),
+          )
+        else
+          const SizedBox(
+            height: AppSpacing.s48,
+            child: Center(child: AppSpinner(size: AppSpinnerSize.sm)),
           ),
-        ),
         if (bannerFailed)
           AppErrorState(
             message: 'Could not load the banner.',
