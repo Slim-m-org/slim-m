@@ -38,13 +38,26 @@ That is the safe direction: losing a pin can only cost an extra screen, never sk
 
 ## Relaunch
 
-A relaunch of a signed-in session re-probes `/version` behind `ServerIdentityChangeGate`, and again on every reconnect.
+A relaunch of a signed-in session re-probes `/version` behind `ServerIdentityChangeGate`, and again each time sync reaches live.
 A key that contradicts the pin shows the same acknowledgement step as sign-in; trusting it re-pins, cancelling ends the session.
 An unreachable server, or nothing pinned yet, leaves the session alone.
 
-The recheck gates the screen, not the connection.
-On a relaunch, sync starts as soon as the session is restored, so the authenticated socket and REST catch-up are made before the first `/version` answer arrives.
-While the changed-identity step is up, sync, push and presence keep running with the token, and only Cancel stops sync and ends the session.
-The first connect of a restored session therefore reaches a server whose key has not been checked yet.
-Closing that means running the first recheck before sync connects, at the cost of one `/version` round trip on every launch, and having sync and push stand down while a mismatch holds.
-That tradeoff is open and not part of this decision.
+## The check also gates the connection
+
+Decided by the owner on 2026-11-10: signed-in requests wait for the `/version` identity check, one round trip at launch is accepted, and an unreachable `/version` fails open.
+Before this, sync started as soon as the session was restored, so the first connect reached a server whose key had not been checked yet, and sync, push and presence kept running behind the step until Cancel.
+
+- `SlimmApi` takes an optional `TrustGate`, and every call that carries the session awaits it: ordinary requests, byte fetches, downloads, streamed uploads, the diagnostics probes, the token refresh, and the video sources that attach the bearer themselves.
+  `trust_gate_test.dart` lists each path, and a source gate fails a new file that reads the tokens without asking the gate.
+- `apiProvider` hands each client `ServerIdentityGate.forClient()`.
+  The first call waits for that server's identity answer, which is the `/version` read already shared with the client floor, so a matching pin adds no second read.
+  After that, the call waits only while a mismatch stands.
+- A server with nothing pinned, a `/version` that cannot be read, and a pinned server that answers with the pinned key all let the session through.
+- Sync treats a standing mismatch as a stop state: it stops, does not reconnect on a timer, and starts again once the person trusts the key.
+  Cancelling ends the session, so nothing restarts.
+- The socket is minted by a gated ticket request and opened only after the gate, so none is opened while the step is up.
+
+A reconnect after a drop still reconnects first and re-asks `/version` once it is live again, as before.
+A key change seen then stops sync and holds every later call from that point.
+Asking before each reconnect would cost a `/version` round trip per attempt and was not part of the decision.
+A native video already playing keeps the header it was opened with; only a new open waits.

@@ -82,6 +82,12 @@ export 'client_webhooks.dart' show NewWebhook, SlimmApiWebhooks, Webhook;
 
 const _notASlimServer = 'that address is not a slim-m server';
 
+/// What holds the session back from a server, or null when nothing does.
+///
+/// Asked before every call that carries the session; the future it returns
+/// completes once the server may receive it.
+typedef TrustGate = Future<void>? Function();
+
 /// A typed client for one server.
 ///
 /// Refresh is handled here rather than by callers: when a request comes back
@@ -95,12 +101,14 @@ class SlimmApi {
     SessionStore? session,
     http.Client? httpClient,
     DirectRoute? directRoute,
+    TrustGate? trustGate,
   }) : this._(
           baseUrl: baseUrl,
           session: session ?? SessionStore(),
           httpClient: httpClient,
           route:
               directRoute ?? (httpClient == null ? DirectRoute(baseUrl) : null),
+          trustGate: trustGate,
         );
 
   SlimmApi._({
@@ -108,6 +116,7 @@ class SlimmApi {
     required this.session,
     required http.Client? httpClient,
     required DirectRoute? route,
+    required this.trustGate,
   }) : link = ApiLink(
           client: httpClient ?? route?.httpClient ?? http.Client(),
           route: route,
@@ -118,6 +127,15 @@ class SlimmApi {
 
   final Uri baseUrl;
   final SessionStore session;
+
+  /// Keeps the tokens off this server until the person has vouched for it.
+  final TrustGate? trustGate;
+
+  /// Completes once the session may be sent to this server.
+  Future<void> awaitTrust() async {
+    final hold = trustGate?.call();
+    if (hold != null) await hold;
+  }
 
   /// What each refresh reports about this app, so the server's devices list
   /// follows an update instead of the version it signed in with.

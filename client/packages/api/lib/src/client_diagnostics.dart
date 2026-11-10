@@ -77,7 +77,7 @@ class _ApiProbe implements ConnectionProbe {
     UploadCancelToken? cancel,
     void Function(int done)? onProgress,
   }) async {
-    final request = _api._diagnosticsRequest(
+    final request = await _api._diagnosticsRequest(
       'GET',
       '/diagnostics/download',
       query: {'bytes': '$bytes'},
@@ -121,8 +121,8 @@ class _ApiProbe implements ConnectionProbe {
     UploadCancelToken? cancel,
     void Function(int done)? onProgress,
   }) async {
-    final request = _api._diagnosticsRequest('POST', '/diagnostics/upload')
-        as http.StreamedRequest;
+    final request = await _api._diagnosticsRequest(
+        'POST', '/diagnostics/upload') as http.StreamedRequest;
     request.contentLength = bytes;
     final clock = Stopwatch()..start();
     unawaited(
@@ -183,11 +183,12 @@ class _ApiProbe implements ConnectionProbe {
 }
 
 extension on SlimmApi {
-  http.BaseRequest _diagnosticsRequest(
+  Future<http.BaseRequest> _diagnosticsRequest(
     String method,
     String path, {
     Map<String, String>? query,
-  }) {
+  }) async {
+    await awaitTrust();
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
     final uri = requestUri(path, query);

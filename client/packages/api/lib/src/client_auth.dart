@@ -106,7 +106,9 @@ extension SlimmApiAuth on SlimmApi {
     });
   }
 
-  Future<TokenPair> _refreshOnce() {
+  Future<TokenPair> _refreshOnce() async {
+    // The refresh token is the session: it must not reach a server nobody vouched for.
+    await awaitTrust();
     final sync = session.sync;
     if (sync == null) return _rotate();
     return sync.exclusive(() async {

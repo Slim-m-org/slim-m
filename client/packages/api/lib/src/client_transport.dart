@@ -54,6 +54,11 @@ extension SlimmApiTransport on SlimmApi {
     http.Client? over,
     void Function(Map<String, String> headers)? onHeaders,
   }) async {
+    // Inline, not awaitTrust: a trusted server must not cost every request a turn.
+    if (authenticated) {
+      final hold = trustGate?.call();
+      if (hold != null) await hold;
+    }
     final sentWith = session.tokens?.accessToken;
     Future<http.Response> attempt() => _perform(
           _buildRequest(
@@ -182,6 +187,8 @@ extension SlimmApiTransport on SlimmApi {
     Map<String, String>? query,
     bool isRetry = false,
   }) async {
+    final hold = trustGate?.call();
+    if (hold != null) await hold;
     final token = session.tokens?.accessToken;
     if (token == null) {
       throw const UnauthorizedException('not signed in');
