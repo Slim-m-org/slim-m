@@ -7,7 +7,7 @@
 use serde::Deserialize;
 
 use super::capabilities::{
-    approvable_host_capabilities, carried_host_capabilities, local_network_approval,
+    approvable_host_capabilities, carried_host_capabilities, held_hooks, local_network_approval,
 };
 use super::dock_fetch::fetch_artifact;
 use super::keywords::ensure_slash_keywords_free;
@@ -184,5 +184,6 @@ pub(super) async fn install_manifest(
     } else {
         installed
     };
-    Ok(InstalledModuleDto::from(installed))
+    let hooks = held_hooks(state, &installed.id).await?;
+    Ok(InstalledModuleDto::from(installed).with_hooks(&hooks))
 }

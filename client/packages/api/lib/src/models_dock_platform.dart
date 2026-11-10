@@ -112,6 +112,18 @@ List<DockHookDecl> dockHooks(Object? json) {
   ];
 }
 
+/// Whether [held] stands where each of [wanted] does and reads no more than
+/// the hook it matches. Mirrors the server's `hooks_not_widened`.
+bool dockHooksCover(List<DockHookDecl> held, List<DockHookDecl> wanted) =>
+    wanted.every(
+      (hook) => held.any(
+        (old) =>
+            old.hook == hook.hook &&
+            old.phase == hook.phase &&
+            hook.reads.every(old.reads.contains),
+      ),
+    );
+
 /// The data store a module declares, or null when it declares none.
 DockDataSchema? dockDataSchema(Object? json) {
   final maxMb = dockDataMaxMb(json);
