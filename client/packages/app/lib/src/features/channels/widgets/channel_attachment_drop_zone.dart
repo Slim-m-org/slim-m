@@ -18,6 +18,7 @@ import '../providers/channel_permissions.dart';
 import '../../composer/providers/composer_attachment_drop.dart';
 import '../../../widgets/app_drop_zone.dart';
 import '../../composer/widgets/composer_attachments.dart';
+import '../../share/widgets/channel_share_handoff.dart';
 
 /// Whether a drop should even be offered here.
 ///
@@ -76,20 +77,24 @@ class ChannelAttachmentDropZone extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(myChannelPermissionsProvider(channelId));
-    return AppDropZone(
-      enabled: canDropAttachments(
-        permissions: permissions,
-        blockedDm: blockedDm,
-      ),
-      label: 'Drop to attach',
-      icon: AppIcons.attachFile,
-      onDrop: (files) => unawaited(
-        handleComposerDrop(
-          files,
-          ref.read(composerAttachmentDropProvider(channelId)),
+    // A share from the OS sheet reaches the composer the way a drop does.
+    return ChannelShareHandoff(
+      channelId: channelId,
+      child: AppDropZone(
+        enabled: canDropAttachments(
+          permissions: permissions,
+          blockedDm: blockedDm,
         ),
+        label: 'Drop to attach',
+        icon: AppIcons.attachFile,
+        onDrop: (files) => unawaited(
+          handleComposerDrop(
+            files,
+            ref.read(composerAttachmentDropProvider(channelId)),
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }

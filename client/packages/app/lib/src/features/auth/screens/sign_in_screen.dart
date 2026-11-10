@@ -35,7 +35,7 @@ import 'sign_in_invite_notice.dart';
 import 'sign_in_invite_redeem.dart';
 import 'sign_in_register.dart';
 import 'sign_in_server_probe.dart';
-import 'sign_in_session_ended_notice.dart';
+import 'sign_in_reason_notices.dart';
 
 /// Sign in or create an account on a chosen server.
 ///
@@ -420,7 +420,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 style: AppText.code.copyWith(color: tokens.textSecondary),
               ),
             ),
-          const SessionEndedNotice(),
+          const SignInReasonNotices(),
           if (_addressExpanded) ...[
             LabeledField(
               label: 'Server',
