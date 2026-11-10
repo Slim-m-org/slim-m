@@ -7,11 +7,11 @@
 //! not retention was even on. Each query below can stop at its `LIMIT`, and
 //! `tests/message_retention_index_plan.rs` plans every one of them.
 //!
-//! Two reads remain that a `LIMIT` cannot cut short. `messages_channel_live`
-//! has no `created_at`, so every pass reads a channel with its own window in
-//! full. The Space pass post-filters channels with their own window, so it also
-//! walks the old messages of an exempt channel. An index on
-//! `messages(channel_id, created_at)` where `deleted_at IS NULL` would end both.
+//! The two window passes seek `messages_channel_created` by channel and
+//! `created_at`, so a channel with nothing past its window costs one probe
+//! however many live messages it holds. Both start from `channels` for that
+//! reason: starting from the messages would walk the old messages of an
+//! exempt channel only to discard them.
 //!
 //! `CROSS JOIN` is load-bearing in all three: it pins which table is the
 //! outer loop, which a database without `ANALYZE` statistics would otherwise
@@ -24,7 +24,7 @@ use crate::ids::MessageId;
 
 /// Up to `limit` live messages that retention should prune now, oldest first
 /// within what the three sources returned. A source that is off or empty costs
-/// one cheap probe, so an idle tick holds the write lock for next to nothing.
+/// one cheap probe per channel, so an idle tick holds the write lock for next to nothing.
 pub(super) async fn expired_candidates(
     conn: &mut SqliteConnection,
     space_days: i64,
@@ -86,7 +86,7 @@ async fn past_channel_window(
     Ok(rows.into_iter().map(|r| (r.id, r.created_at)).collect())
 }
 
-/// Messages older than `cutoff` in channels that follow the Space window, oldest first.
+/// Messages older than `cutoff` in channels that follow the Space window, threads following their parent channel.
 async fn past_space_window(
     conn: &mut SqliteConnection,
     cutoff: i64,
@@ -94,12 +94,11 @@ async fn past_space_window(
 ) -> Result<Vec<(MessageId, i64)>, sqlx::Error> {
     let rows = sqlx::query!(
         r#"SELECT m.id AS "id!: MessageId", m.created_at AS "created_at!: i64"
-           FROM messages m
-           CROSS JOIN channels c ON c.id = m.channel_id
+           FROM channels c
            LEFT JOIN messages pm ON pm.id = c.parent_message_id
            LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(pm.channel_id, c.id)
-           WHERE m.deleted_at IS NULL AND m.created_at < ?1 AND cr.channel_id IS NULL
-           ORDER BY m.created_at ASC
+           CROSS JOIN messages m ON m.channel_id = c.id AND m.deleted_at IS NULL
+           WHERE cr.channel_id IS NULL AND m.created_at < ?1
            LIMIT ?2"#,
         cutoff,
         limit

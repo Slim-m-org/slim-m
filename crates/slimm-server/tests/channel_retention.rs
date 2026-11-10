@@ -188,6 +188,33 @@ async fn a_thread_follows_its_channels_longer_window_not_the_space_window() {
 }
 
 #[tokio::test]
+async fn a_thread_follows_its_channels_exemption_or_the_space_window() {
+    let (s, pool, _guard) = harness("slimm-chan-retention-thread-space").await;
+    let admin = register(&s, "root").await;
+    let kept = general(&s).await;
+    let plain = s.create_channel("plain", "text").await.unwrap().id;
+    let kept_anchor = post(&s, &pool, kept, admin, 1).await;
+    let plain_anchor = post(&s, &pool, plain, admin, 1).await;
+    let kept_thread = s.open_thread(kept, kept_anchor).await.unwrap().channel.id;
+    let plain_thread = s.open_thread(plain, plain_anchor).await.unwrap().channel.id;
+    let old_kept_reply = post(&s, &pool, kept_thread, admin, 40).await;
+    let old_plain_reply = post(&s, &pool, plain_thread, admin, 40).await;
+    s.set_message_retention_days(30).await.unwrap();
+    s.set_channel_retention_days(kept, Some(0)).await.unwrap();
+
+    s.sweep_message_retention().await.unwrap();
+
+    assert!(
+        is_live(&s, old_kept_reply).await,
+        "a thread of an exempt channel is exempt"
+    );
+    assert!(
+        !is_live(&s, old_plain_reply).await,
+        "a thread of a channel that follows the Space follows it too"
+    );
+}
+
+#[tokio::test]
 async fn deleted_channel_and_channel_window_backlogs_each_clear_in_one_tick() {
     let (s, pool, _guard) = harness("slimm-chan-retention-two-backlogs").await;
     let admin = register(&s, "root").await;
