@@ -10,15 +10,25 @@ listener manifest explicitly.
 from __future__ import annotations
 
 import re
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from config_source import strip_comments  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 LISTENER_MANIFEST = "manifest-path: crates/slimm-listener/Cargo.toml"
 
 
+def code_of(path: Path) -> str:
+    return strip_comments(path.read_text())
+
+
 def workflow(name: str) -> str:
-    return (REPO / ".github/workflows" / name).read_text()
+    return code_of(REPO / ".github/workflows" / name)
 
 
 def deny_steps(text: str, command: str) -> int:
@@ -63,8 +73,26 @@ class CargoDenyCoversTheListenerTest(unittest.TestCase):
         self.assertIn("ADVISORY_LOCKFILES", text)
 
     def test_the_listener_may_carry_its_own_license(self) -> None:
-        deny = (REPO / "deny.toml").read_text()
+        deny = code_of(REPO / "deny.toml")
         self.assertRegex(deny, r'name = "slimm-listener"\nallow = \["LicenseRef-PolyForm')
+
+    def commented_out(self, name: str, needle: str) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = Path(tmp) / name
+            copy.write_text((REPO / ".github/workflows" / name).read_text().replace(needle, f"# {needle}"))
+            return code_of(copy)
+
+    def test_a_commented_out_manifest_path_is_not_a_scan(self) -> None:
+        text = self.commented_out("licenses.yml", LISTENER_MANIFEST)
+        self.assertEqual(listener_steps(text, "licenses"), 0)
+
+    def test_a_commented_out_lockfile_trigger_is_not_a_trigger(self) -> None:
+        text = self.commented_out("licenses.yml", '"crates/slimm-listener/Cargo.lock"')
+        self.assertNotIn("crates/slimm-listener/Cargo.lock", text)
+
+    def test_a_commented_out_finding_reporter_does_not_reach_the_issue(self) -> None:
+        text = self.commented_out("advisory-watchdog.yml", "steps.scan_listener.outcome")
+        self.assertNotIn("steps.scan_listener.outcome", text)
 
 
 if __name__ == "__main__":

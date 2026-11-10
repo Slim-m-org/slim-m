@@ -11,11 +11,15 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from test_compose_hardening import service_blocks
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from config_source import strip_comments  # noqa: E402
+from test_compose_hardening import service_blocks  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 SIDECAR = REPO / "deploy" / "litestream" / "sidecar.sh"
@@ -130,17 +134,32 @@ class SidecarTest(unittest.TestCase):
         self.assertEqual(self.run_sidecar("bogus").returncode, 2)
 
 
+ENTRYPOINT = 'entrypoint: ["/bin/sh", "/sidecar/sidecar.sh", "start"]'
+HEALTHCHECK = 'test: ["CMD", "/bin/sh", "/sidecar/sidecar.sh", "health"]'
+MOUNT = "./deploy/litestream:/sidecar:ro"
+
+
+def litestream_service(compose: str) -> str:
+    return service_blocks(strip_comments(compose))["litestream"]
+
+
 class ComposeWiringTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.text = COMPOSE.read_text()
-        self.body = service_blocks(self.text)["litestream"]
+        self.text = strip_comments(COMPOSE.read_text())
+        self.body = litestream_service(COMPOSE.read_text())
 
     def test_the_service_starts_through_the_sidecar_and_is_health_checked_by_it(self) -> None:
-        self.assertIn('entrypoint: ["/bin/sh", "/sidecar/sidecar.sh", "start"]', self.body)
-        self.assertIn('test: ["CMD", "/bin/sh", "/sidecar/sidecar.sh", "health"]', self.body)
+        self.assertIn(ENTRYPOINT, self.body)
+        self.assertIn(HEALTHCHECK, self.body)
+
+    def test_commented_out_wiring_does_not_count(self) -> None:
+        raw = COMPOSE.read_text()
+        for line in (ENTRYPOINT, HEALTHCHECK, MOUNT):
+            with self.subTest(line=line):
+                self.assertNotIn(line, litestream_service(raw.replace(line, f"# {line}")))
 
     def test_the_sidecar_files_are_mounted_from_the_repo(self) -> None:
-        self.assertIn("./deploy/litestream:/sidecar:ro", self.body)
+        self.assertIn(MOUNT, self.body)
         self.assertTrue(SIDECAR.exists())
         self.assertTrue((SIDECAR.parent / "litestream.yml").exists())
 
