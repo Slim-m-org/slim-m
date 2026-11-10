@@ -91,7 +91,7 @@ class TimeoutTest(unittest.TestCase):
 
 
 class UserAgentTest(unittest.TestCase):
-    """Cloudflare answers a default urllib UA with a 403; see CLAUDE.md."""
+    """Cloudflare answers a default urllib UA with a 403; see docs/bots/building-bots.md."""
 
     def test_every_call_carries_a_non_default_user_agent(self):
         api = e2e_api.Api("https://example.invalid")

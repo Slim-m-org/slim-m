@@ -1,136 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""A failure caught from the server is a SnackBar again, three times over.
+"""A failure caught from the server must not be shown with a SnackBar.
 
-The nine-specialist audit (2026-07-29) replaced 27 vanishing SnackBars with
-persistent `AppErrorState`, on the grounds that a failure which disappears on
-its own is a failure nobody saw. A later copy pass found three of them back:
-the channel overwrites screen, avatar upload and removal, and the blocked-row
-unblock, each caught its own `ApiException` and showed it with a SnackBar
-sitting beside a sibling row doing it properly. Nothing gated that; this does.
+Flags a catch block (`on ApiException` and its siblings, a bare `catch`, or an
+inline `.catchError`) that hands its failure to `showAppSnackbar`, and a
+`runGuarded` result handed to one in the same function. The surface for such a
+failure is `AppErrorState` or `GuardedActionState`; a surface already closed by
+the time the request answers goes in `EXCEPTIONS` or `GUARDED_EXCEPTIONS` with
+its reason, never to silence a regression.
 
-The distinction is not "is there a SnackBar", which `run_guarded.dart`'s own
-doc comment already draws: a surface that has already closed by the time its
-request answers (a popover dismissed on tap) has nowhere to put an inline
-state, and a SnackBar is genuinely the only option left. Every such call site
-in this codebase reaches it through `runGuarded`'s returned sentence, never by
-catching `ApiException` itself - so the shape this gate looks for is narrower
-and sharper than "any SnackBar near a failure": a widget that catches an API
-exception directly and hands the message to `ScaffoldMessenger`/`SnackBar`
-rather than to `GuardedActionState`/`AppErrorState`, the two `run_guarded.dart`
-actually offers for that failure. That is exactly the shape the three
-regressions had, and exactly the shape every fixed site does not.
-
-Reads the `on (api.)?<Something>Exception` blocks straight out of each
-`.dart` file's own text rather than keeping a list of what to check: a case
-this cannot see is a case that was never written the wrong way in the first
-place, so there is nothing to fall out of date.
-
-The `catch (e)` clause is optional in the pattern on purpose: `on
-api.ApiException { ... }` with no bound variable is valid Dart, and an
-earlier version of this regex required the literal word `catch`, so that
-exact shape - unreachable to the interpolation risk `describeApiFailure`
-guards against, but just as reachable to a raw `ScaffoldMessenger` call -
-sailed through unseen. `presence_controller.dart` alone already has one;
-none of them show a SnackBar today, so nothing here was retroactively wrong,
-only the gate meant to keep it that way.
-
-`EXCEPTIONS` below is a short, named allowlist rather than a growing file, the
-same discipline `type_scale_literal_test.dart` already holds everyone else to:
-each entry carries its own one-line why, right beside it. It starts empty,
-deliberately - every legitimate SnackBar in this codebase already routes
-around a raw catch entirely, through `runGuarded`'s own returned sentence, so
-there was no real case to seed it with. Add an entry only for a genuinely new
-case of the same shape a popover already gets away with: a surface gone by the
-time the request answers, never to silence an actual regression.
-
-A `/* ... */` block comment is blanked out before any of the above ever
-runs, because the body-boundary scan below reads "the next line starting
-with `}` at or above this indent" to find where a catch block ends, and a
-block comment can contain exactly that shape - a stray `}` at column 0, in
-a code sample or a note - and stop the scan before it ever reaches a real
-`showAppSnackbar(` sitting after it. Reproduced directly: planting a real
-violation behind a three-line `/* ... */` comment with a bare `}` in it
-made this gate report zero offenders. The stripper is string-aware (a
-single/double-quoted `'/*'` like `message_code_langs.dart`'s own
-`blockComment` tuple is left alone) so it does not trade that hole for a
-new one where a string literal's own `/*`/`*/` characters blank out real
-code between them.
-
-A bare `catch (e) { ... }` is checked too, added when three file-picker-open
-failures (the emoji upload card, the avatar section, the composer) turned out
-to carry this exact shape on a bare catch rather than `on api.*Exception`: a
-native picker throwing is not an `ApiException` at all, so the narrower
-pattern above could never have seen it. The two patterns cannot overlap - `on
-Type catch (e) {` never starts with the literal word `catch`, since `on Type`
-sits before it - so this is strictly a wider net, not a replacement.
-
-`SHOWS_SNACKBAR` had never matched a single real call in this codebase: every
-site (including the three above) calls `showAppSnackbar`, not the raw
-`ScaffoldMessenger`/`SnackBar(` this pattern watched for, so the gate reported
-zero offenders whether or not one existed - confirmed by mutating a fixed site
-back to its old shape and finding the gate said nothing. `showAppSnackbar` is
-now in the pattern too; the two raw shapes stay in it for whatever still
-calls them directly, `personal_space_menu.dart`'s success-notice path among
-them, which is not itself in scope since it sits outside any catch block.
-
-Not caught, and not a defect in the fix: `composer.dart`'s own picker failure
-runs through `attachment_picker.dart`'s shared `runAttachmentPick`, whose
-catch block calls back a plain `onPickerFailed()` parameter rather than
-naming `showAppSnackbar` in its own body - the call is one file away, at the
-composer's own call site. A regex reading one function at a time cannot see
-across that indirection; `composer_affordances_test.dart`'s own regression
-test is what actually guards that site, mutation-tested the same way.
-
-A Future's own `.catchError((e) { ... })` is the same inline shape as a
-`catch` block - the body sits in the same file, on plain text a regex can
-still read - and this codebase already uses that idiom (`sync_controller.dart`,
-`providers.dart`) for the swallow-and-log case, so it is exactly as reachable
-for a SnackBar as `catch` ever was. It carried no pattern until an adversarial
-review planted `().catchError((e) { showAppSnackbar(context, e.toString()); })`
-in a tracked file and the gate reported zero offenders. A `.catchError` whose
-callback is a named function reference rather than an inline literal shares
-the composer's own cross-file indirection and is accepted the same way.
-
-The `api.` prefix on `CATCH_HEADER` assumed every caller imports
-`slimm_api/api.dart` aliased as `api`; roughly a fifth of this package does
-not, and four bare `on ApiException` catches already exist
-(`channel_refresher.dart`, `sign_in_screen.dart`) with nothing showing a
-SnackBar in them today - but nothing stopped one from starting to. Reproduced
-directly: a planted `on ApiException catch (e) { showAppSnackbar(...); }` with
-an unaliased import passed this gate silently. The exception names it now
-matches, prefixed or bare, are read from `exceptions.dart`'s own sealed
-hierarchy rather than hand-kept, the same reason `catch_blocks` reads a file's
-own text instead of a maintained list: a future subtype added there is
-covered the moment it exists, with nothing here to remember to update.
-Deliberately still scoped to that hierarchy rather than any typed exception -
-`PlatformException`, `MissingPluginException` and this file's own
-`ClipboardImageReadException` stay out of it, matching the module doc's own
-line above: this gate is about a failure caught *from the server* becoming a
-SnackBar, not every typed catch in the app becoming one.
-
-Left open rather than chased: a multi-line string literal (`'''...'''`)
-whose own content happens to include a bare `}` at column zero defeats the
-same body-boundary scan the block-comment fix above closed, for the same
-reason - `strip_block_comments` is string-aware for a `/*`/`*/` pair, but
-the boundary scan itself has no notion of "this line is string content,
-not code." Reproduced the same way as the block-comment case. Left alone:
-closing it needs a real Dart string-literal tokenizer (triple-quoted, raw,
-and interpolated forms all differ), for a shape nothing in this codebase
-writes inside a catch block today - the block-comment case was worth
-closing because Dart's own doc-comment convention makes `/* */` an
-ordinary thing to type; a stray `}`-led line inside a string literal is not.
-
-A failure never has to be *caught* to be surfaced wrongly. `runGuarded` does
-the catching itself and hands back a sentence, so `final failure = await
-runGuarded(...); showAppSnackbar(context, failure)` has no `catch` in the
-caller at all, and every pattern above was blind to it: the member pane's
-bulk timeout and bulk remove, the row menu's remove and the profile's eject
-all shipped that way past a gate that reported zero offenders. The sentence
-that reaches a `showAppSnackbar` from a `runGuarded` result in the same
-function is flagged too; see `guarded_snackbars`. A surface that has closed
-by the time the request answers (a menu) may still be listed in
-`GUARDED_EXCEPTIONS` with its reason, keyed by function name.
+Reads each file's own text, so there is no list of call sites to go stale. The
+history, what each pattern is for and the blind spots are in docs/ci-details.md,
+"The error-surface gate".
 """
 
 import re
@@ -279,11 +160,8 @@ def catch_blocks(lines: list[str], catch_header: re.Pattern[str]):
 
     An `on (api.)?ApiException catch { ... }` header (prefixed or bare, see
     [catch_header_pattern]), a bare `catch (e) { ... }` one, or a Future's own
-    `.catchError((e) { ... })`; see this file's own module doc for why all
-    three are in scope. The block's end is the next line, at the header's
-    indentation or less, that opens with `}` - the same section-by-indentation
-    technique `hygiene.yml`'s own `section()` helper already uses for a Dart
-    brace this project has no AST tool handy for in a plain hygiene step.
+    `.catchError((e) { ... })`. The block's end is the next line, at the
+    header's indentation or less, that opens with `}`.
     """
     for i, line in enumerate(lines):
         indent = header_indent(line, catch_header)

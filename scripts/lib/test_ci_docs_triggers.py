@@ -13,6 +13,10 @@ with `workflow_dispatch:` has to admit it can be run by hand. Anything looser
 than the accepted vocabulary below is a documentation choice this cannot
 judge; anything that omits a kind entirely is a factual gap it can.
 
+One path filter is checked the same way: a workflow that lists
+`.github/actions/` among its `paths:` starts on an edit to a local action, and
+its row has to say so, or nobody can tell why such an edit starts a macOS build.
+
 CLAUDE.md sends readers to docs/ci.md as the authoritative workflow list, so a
 row that is wrong there is worse than no row: it is trusted.
 
@@ -43,6 +47,7 @@ VOCABULARY = {
     "push_tags": r"tag",
 }
 CRON = re.compile(r"cron:\s*[\"']([^\"']+)[\"']")
+LOCAL_ACTIONS = r"\.github/actions|local action"
 
 
 def _cadence_words(cron: str) -> str | None:
@@ -64,20 +69,30 @@ def _cadences(text: str) -> list[str]:
     return [w for c in CRON.findall(text) if (w := _cadence_words(c))]
 
 
-def _trigger_kinds(text: str) -> set[str]:
+def _on_body(text: str) -> str:
     lines = text.splitlines()
     start = next((i for i, l in enumerate(lines) if re.match(r"^(on|True):\s*$", l)), None)
     if start is None:
-        return set()
+        return ""
     body = []
     for line in lines[start + 1 :]:
         if line.strip() and not line.startswith(" "):
             break
         body.append(line)
-    kinds = set(TRIGGER.findall("\n".join(body)))
-    if re.search(r"^    tags:", "\n".join(body), re.M):
+    return "\n".join(body)
+
+
+def _trigger_kinds(text: str) -> set[str]:
+    body = _on_body(text)
+    kinds = set(TRIGGER.findall(body))
+    if re.search(r"^    tags:", body, re.M):
         kinds.add("push_tags")
     return kinds
+
+
+def _watches_local_actions(text: str) -> bool:
+    """Whether a `paths:` filter under the triggers lists a local action."""
+    return bool(re.search(r"^\s+- [\"']?\.github/actions/", _on_body(text), re.M))
 
 
 class CiDocsTriggersTest(unittest.TestCase):
@@ -133,3 +148,23 @@ class CiDocsTriggersTest(unittest.TestCase):
         (pattern,) = _cadences('on:\n  schedule:\n    - cron: "0 */6 * * *"\n')
         self.assertNotRegex("a daily schedule", pattern)
         self.assertRegex("a six-hourly schedule", pattern)
+
+    def test_every_row_names_the_local_actions_its_paths_watch(self):
+        for path in self.workflows:
+            if _watches_local_actions(path.read_text()):
+                self.assertRegex(
+                    self.rows.get(path.stem, ""),
+                    LOCAL_ACTIONS,
+                    f"docs/ci.md's `{path.stem}` row never mentions the local actions "
+                    "(`.github/actions/`) its path filter watches",
+                )
+
+    def test_a_local_action_path_filter_is_seen_and_a_comment_about_one_is_not(self):
+        watching = 'on:\n  push:\n    paths:\n      - ".github/actions/apt-install/**"\n'
+        self.assertTrue(_watches_local_actions(watching))
+        commented = (
+            'on:\n  push:\n    paths:\n      # .github/actions/ is not watched\n'
+            '      - "client/**"\n'
+        )
+        self.assertFalse(_watches_local_actions(commented))
+        self.assertFalse(_watches_local_actions('on:\n  push:\n    branches: [main]\n'))

@@ -68,9 +68,8 @@ bool _busyElsewhere(VoiceFlags voice, String channelId) =>
         voice.joining);
 
 /// [voice]'s recap, but only when it belongs to [channelId]: `VoiceController`
-/// is one instance for every channel, and CLAUDE.md already recorded this
-/// exact leak shape once for an in-call error message shown in the wrong
-/// channel's preview.
+/// is one instance for every channel, and an in-call error message has
+/// already leaked this exact way into the wrong channel's preview.
 CallRecap? recapForChannel(VoiceFlags voice, String channelId) =>
     voice.recap?.channelId == channelId ? voice.recap : null;
 

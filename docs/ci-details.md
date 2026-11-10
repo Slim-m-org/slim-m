@@ -293,6 +293,99 @@ Any run after that point counts like it does in every other language, and `//` a
 Python reads `#` comments only too, with no header exemption.
 Every other language has no `#` comments, so a stacked Rust `#[attr]` or a C `#include` is never counted as a run.
 
+### The error-surface gate
+
+`scripts/check-error-surface.py` fails a PR that shows a failure caught from the server in a SnackBar.
+The nine-specialist audit (2026-07-29) replaced 27 vanishing SnackBars with a persistent `AppErrorState`, on the grounds that a failure which disappears on its own is a failure nobody saw.
+A later copy pass found three of them back: the channel overwrites screen, avatar upload and removal, and the blocked-row unblock each caught their own `ApiException` and showed it with a SnackBar, beside a sibling row doing it properly.
+Nothing gated that, and [decision 0018](decisions/0018-confirmation-toasts-and-why-errors-never-are.md) records the rule.
+
+The distinction is not "is there a SnackBar", which `run_guarded.dart`'s own doc comment already draws.
+A surface that has already closed by the time its request answers, such as a popover dismissed on tap, has nowhere to put an inline state, and a SnackBar is the only option left.
+Every such call site reaches it through `runGuarded`'s returned sentence and never catches `ApiException` itself.
+So the gate looks for the narrower shape: a widget that catches an API exception directly and hands the message to `ScaffoldMessenger`, `SnackBar(` or `showAppSnackbar(` instead of `GuardedActionState` or `AppErrorState`.
+
+It reads the catch blocks straight out of each tracked `.dart` file under `client/packages/app/lib/` rather than keeping a list of what to check, so there is nothing to fall out of date.
+Each of these shapes was added after a real file or a planted violation showed the gate reporting zero offenders:
+
+- An `on (api.)?<Something>Exception` block, with `catch (e)` optional, because `on api.ApiException { ... }` is valid Dart and an earlier pattern that required the word `catch` never saw it.
+  The prefix is optional too, since roughly a fifth of the package imports the api library unaliased, and a planted `on ApiException catch (e) { showAppSnackbar(...); }` passed silently.
+  The exception names are read from the sealed hierarchy in `exceptions.dart`, so a subtype added there is covered with nothing to update here.
+  The scope stays that hierarchy: `PlatformException`, `MissingPluginException` and `ClipboardImageReadException` are out, because the gate is about a failure caught from the server.
+- A bare `catch (e) { ... }`, added when three file-picker-open failures (the emoji upload card, the avatar section, the composer) carried this shape.
+  A native picker throwing is not an `ApiException`, so the narrower pattern could never see it, and the two patterns cannot overlap.
+- A Future's own `.catchError((e) { ... })`, which this codebase already uses for the swallow-and-log case (`sync_controller.dart`, `providers.dart`).
+  It carried no pattern until an adversarial review planted one in a tracked file.
+  A callback that is a named function reference rather than an inline literal is accepted, for the reason given under the blind spots below.
+- A `runGuarded` result handed to `showAppSnackbar` in the same function (`guarded_snackbars`).
+  `runGuarded` does the catching itself, so `final failure = await runGuarded(...); showAppSnackbar(context, failure)` has no `catch` in the caller, and the member pane's bulk timeout and bulk remove, the row menu's remove and the profile's eject all shipped that way.
+
+`SHOWS_SNACKBAR` matches `showAppSnackbar(` as well as the raw `ScaffoldMessenger` and `SnackBar(`.
+At first it matched none of the real calls, because every site calls `showAppSnackbar`, so the gate reported zero offenders whether or not one existed (confirmed by mutating a fixed site back to its old shape).
+`personal_space_menu.dart`'s success notice also calls it, outside any catch block, and is not in scope.
+
+A `/* ... */` block comment is blanked out before any of this runs, string-aware so a quoted `'/*'` such as the `blockComment` tuple in `message_code_langs.dart` is left alone.
+The scan that finds where a catch block ends reads "the next line starting with `}` at or above this indent", and a block comment can contain a stray `}` at column zero.
+Planting a real violation behind such a comment made the gate report zero offenders.
+
+`EXCEPTIONS` and `GUARDED_EXCEPTIONS` are short named allowlists, each entry with its one-line reason, and `EXCEPTIONS` starts empty on purpose.
+`GUARDED_EXCEPTIONS` is keyed by function name so an edit above a site does not un-allow it.
+Add an entry only for a surface that has gone by the time the request answers, never to silence a regression.
+
+Two blind spots are accepted rather than chased:
+
+- The composer's picker failure runs through `attachment_picker.dart`'s shared `runAttachmentPick`, whose catch block calls back a plain `onPickerFailed()` instead of naming `showAppSnackbar`.
+  A regex reading one function at a time cannot see across that, so `composer_affordances_test.dart` guards the site, mutation-tested.
+- A multi-line string literal (`'''...'''`) whose own content has a bare `}` at column zero defeats the same body-boundary scan.
+  Closing it needs a real Dart string tokenizer, for a shape nothing writes inside a catch block today.
+
+### The MediaQuery scope gate
+
+`scripts/check-media-query-scope.py` fails a PR that adds an unscoped `MediaQuery.of(context)` or `maybeOf` to a tracked `client/**/*.dart` file.
+The convention, set by `design_system`'s `sheet.dart` and `menu.dart` and followed in 20+ `app` files, is the scoped accessors: `MediaQuery.sizeOf`, `viewInsetsOf`, `textScalerOf` and the rest.
+`MediaQuery.of` subscribes the calling element to every field on `MediaQueryData`, so a widget that only cares about the keyboard inset still rebuilds on a text-scale or brightness change.
+
+A 2026-08 audit found a dozen keyboard-avoidance call sites copy-pasted with the unscoped form, with `threads_sheet.dart` using both forms about a hundred lines apart.
+That made it copy-paste drift and not a choice, so the gate reads each file's own text rather than keeping a list, as the error-surface gate does.
+Comments and string literals are stripped first (`dart_source`, shared with that gate), so a doc comment that mentions `MediaQuery.of(` is never read as a call site.
+
+`scripts/media-query-of-allow.txt` lists the rare call sites that need the whole `MediaQueryData`, usually to `copyWith` one field on top of the ambient value.
+Each entry is a ceiling on how many unscoped calls the file may hold, the ratchet shape `check-comment-cap.sh` uses, and not a line number, which drifts with every edit above it.
+Listing a file used to exempt the whole of it, so a second unrelated unscoped call in an already-listed file was never flagged.
+
+### The native launch screens follow the dark surface token
+
+`scripts/lib/test_launch_screen_color_drift.py` fails when either native launch screen drifts from `AppTokens.dark.surfaceBase` (`#17191C`, in `client/packages/design_system/lib/src/app_tokens.dart`).
+The token is hand-copied into `colors.xml` on Android as a hex string and into `LaunchScreen.storyboard` on iOS as an sRGB float triple, so the native launch screen hands off to the Flutter app without a flash of the wrong colour while the engine starts.
+Neither file is Dart or read by anything else in the repository, so a retune of the token that skips them would bring that flash back on whichever platform was missed, with nothing else able to see it.
+
+The iOS half has a one-step tolerance because a storyboard stores an 8-bit channel divided by 255.
+`round(x * 255)` recovers every one of the 256 byte values from that exactly (checked, not assumed), so the tolerance is for a hand-typed decimal that only approximates the quotient, such as a truncated `0.090196`.
+The Android half compares the full hex string with no tolerance, so a real drift of any size, down to one channel step, fails that assertion first.
+
+### Commit bodies that crash release-please's parser
+
+`scripts/commit-lint/check-parses.mjs` catches a commit body that crashes release-please's real parser, without failing a PR over a commit subject that is merely not a conventional commit, which under squash-merge is normal and harmless.
+release-please reads the squash commit's whole message, not the PR title alone, and parses it with `@conventional-commits/parser`.
+The gate pins that package to the version `googleapis/release-please-action`'s pinned commit resolves (release-please 17.3.0, which depends on `^0.4.1` and resolved to 0.4.1 when this was written), with `package-lock.json` holding the exact version and integrity hash so a floating install cannot drift the gate away from the real parser.
+
+The distinction was found by reading the parser's `lib/parser.js`, not by matching error text.
+The top-level `message()` production parses its first line as `<summary>`, a strict `type ["(" scope ")"] [!] ":" text` grammar, and throws if that fails.
+Every later line is `<body>`, whose footer-detection scan is deliberately forgiving: a candidate footer that does not fully form returns an `Error` value and the scanner treats the line as plain text.
+One production has no such fallback: `scope()` throws unconditionally, with nothing above it catching, whenever a `(` is opened and never closed before a newline or another `(`.
+That fires from body text at any position, is fatal to the whole parse, and is what silently drops a real commit from the changelog (reproduced against real merged history, PR #443's commit `7eebab8`).
+
+The two kinds of input are checked differently:
+
+- A PR title is checked against the strict top-level grammar, because it occupies that position.
+  GitHub composes a squash message as the PR title, then each commit's message as a `* ` bullet, then a deduplicated trailer block (confirmed against `7eebab8` and `58b9d5a`), so a title that fails this parse would throw in the real squash and drop the whole PR from the changelog.
+- An individual commit is never held to that grammar, because under squash-merge its subject becomes a body bullet and an ordinary non-conventional one parses there with no error.
+  Its full message is parsed as body text under a fixed synthetic `chore: placeholder` summary, so `scope()`'s unrecoverable throw is exercised exactly as in the real squash with nothing else disturbed.
+  Against PR #460's history, `7eebab8`'s offending commit still throws this way, and the two ordinary commits an earlier version wrongly failed (`95fb2d5`, `732c0c8`) now parse cleanly, because only testing them out of context made them look broken.
+
+The gate deliberately does not warn on a commit subject that is not conventional: squash-merge discards its standing as a changelog entry, and a warning would be noise about a non-problem.
+What it cannot see is a hand-edit made when the person confirming the squash rewrites the composed message, and nothing that runs before that moment can know what they typed.
+
 ## licenses
 
 ### What is allowed, and what is not

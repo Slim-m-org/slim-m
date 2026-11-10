@@ -6,8 +6,7 @@
 /// Fixtures are a small, deliberate duplicate of that file's own
 /// `_container`/`_mock`/`_tokens` rather than a shared import: Dart privacy
 /// is per-file, so a leading-underscore helper in one test file is not
-/// reachable from a sibling, the same constraint CLAUDE.md already records
-/// for cross-package test fixtures.
+/// reachable from a sibling.
 library;
 
 import 'dart:convert';

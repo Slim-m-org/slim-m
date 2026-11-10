@@ -59,7 +59,7 @@ _MAX_REACTIONS_PER_TURN = 2
 _MAX_REACTORS_PER_EMOJI = 3
 _FALLBACK_EMOJI = "👍"
 
-# Grounded in both the actual product and ordinary friend-group life; see CLAUDE.md.
+# Grounded in both the actual product and ordinary friend-group life.
 TOPICS = (
     "someone found a weird bug in the emoji picker and everyone starts "
     "speculating why",

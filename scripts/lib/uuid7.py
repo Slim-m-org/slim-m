@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """A client-generated UUIDv7 id, matching what a real slim-m client sends.
 
-CLAUDE.md's own architecture summary says identity is "a client-generatable
-UUIDv7", and the server's `Id` newtype is UUIDv7 - but these scripts had
-been minting plain, timestamp-free `uuid.uuid4()` ids for every seeded
-message. The server accepts either (ordering comes from the per-channel
-`seq` column, never the id), so nothing broke, but the point of a realism
-script is to look like real traffic, and a real client never sends this.
+CLAUDE.md's architecture summary says identity is UUIDv7 and durable writes
+are keyed by a client-generated one, and the server's `Id` newtype is UUIDv7
+- but these scripts had been minting plain, timestamp-free `uuid.uuid4()`
+ids for every seeded message. The server accepts either (ordering comes
+from the per-channel `seq` column, never the id), so nothing broke, but the
+point of a realism script is to look like real traffic, and a real client
+never sends this.
 
 Python's stdlib grew `uuid.uuid7()` in 3.14, the version CI pins here, so
 this prefers that where it exists and only falls back to a hand-rolled

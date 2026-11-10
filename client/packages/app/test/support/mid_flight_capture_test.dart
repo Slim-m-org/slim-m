@@ -14,8 +14,7 @@ import 'mid_flight_capture.dart';
 /// Starts showing `'Loading...'` and, once [resolve] completes, rebuilds
 /// showing its value - `ReportCard`'s own nested-resolve shape, driven by a
 /// `Completer` so the test controls exactly when the second hop lands
-/// rather than racing a real timer (the `Completer`-gated shape CLAUDE.md's
-/// join-race entry already uses for the same reason).
+/// rather than racing a real timer.
 class _NestedResolveLabel extends StatefulWidget {
   const _NestedResolveLabel(this.resolve);
 

@@ -2,33 +2,15 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Guard against `MediaQuery.of(context)` drifting back into the client.
 
-This codebase's own convention, set by `design_system`'s `sheet.dart` and
-`menu.dart` and followed in 20+ `app` files, is the scoped accessors -
-`MediaQuery.sizeOf(context)`, `MediaQuery.viewInsetsOf(context)`,
-`MediaQuery.textScalerOf(context)`, and so on. `MediaQuery.of(context)`
-subscribes the calling element to every field on `MediaQueryData` - text
-scale, brightness, padding, orientation - so a widget that only cares about
-the keyboard inset still rebuilds on a text-scale or brightness change.
+`MediaQuery.of` subscribes a widget to every field of `MediaQueryData`, so one
+that only needs the keyboard inset rebuilds on a text-scale or brightness
+change. The scoped accessors (`sizeOf`, `viewInsetsOf`, `textScalerOf`, ...)
+are the convention. `scripts/media-query-of-allow.txt` lists the rare call
+site that needs the whole value, with a ceiling count per file.
 
-A 2026-08 audit found a dozen keyboard-avoidance call sites that had been
-copy-pasted with the unscoped form despite `threads_sheet.dart` using both
-the correct and incorrect form roughly a hundred lines apart in the same
-file - proof this is copy-paste drift, not a deliberate choice anywhere.
-This gate reads each tracked `client/**/*.dart` file's own text rather than
-keeping a list of what to check, the same reason `check-error-surface.py`
-reads `catch` blocks straight out of source: a case this cannot see is a
-case that was never written the wrong way in the first place.
-
-Comments and string literals are stripped first (via `dart_source`, shared
-with `check-error-surface.py`) so a doc comment that mentions
-`MediaQuery.of(` in passing - this file's own module doc among them - can
-never be misread as a call site.
-
-`MEDIA_QUERY_OF_ALLOW` is a short, named allowlist for the rare call site
-that genuinely needs the whole `MediaQueryData`, usually to `copyWith` one
-field on top of the ambient value rather than read a single field of it.
-See `scripts/media-query-of-allow.txt` for the current entries and why each
-one is there.
+Reads each tracked `client/**/*.dart` file's own text, comments and strings
+stripped first. The history and the allowlist format are in docs/ci-details.md,
+"The MediaQuery scope gate".
 """
 
 import re
@@ -47,12 +29,8 @@ MEDIA_QUERY_OF = re.compile(r"MediaQuery\s*\.\s*(?:of|maybeOf)\s*\(")
 def load_allowlist(path: Path) -> dict[str, int]:
     """Each listed path mapped to how many unscoped calls it may hold.
 
-    A ceiling, not a blanket pass: listing a file used to exempt the whole of
-    it, so a second, unrelated `MediaQuery.of(` added to an already-listed file
-    was never flagged. The count is the same ratchet `check-comment-cap.sh`
-    uses, and it is deliberately not a line number - a line number drifts with
-    every edit above it, while a count only changes when the thing being
-    counted does. `N` after the path sets the ceiling; omitting it means one.
+    A ceiling, not a blanket pass, and a count rather than a line number so an
+    edit above a call does not move it. `N` after the path sets it; omitted, it is one.
     """
     allowed: dict[str, int] = {}
     for line in path.read_text().splitlines():

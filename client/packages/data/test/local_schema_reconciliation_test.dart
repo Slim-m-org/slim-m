@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Pins the property that lets reactions, pins and polls skip reconciliation.
 ///
-/// `CLAUDE.md`'s "Reconciling an edit nobody was online for" names an open
+/// `docs/decisions/0009-reactions-pins-polls-reconciliation.md` names an open
 /// debt: an offline client never learns about a reaction, a pin or a poll
 /// vote it missed. That is correct today only because none of the three is
 /// persisted locally - every REST fetch that returns a message (send, list,
@@ -75,8 +75,9 @@ void main() {
         'canvas_personal_layouts',
       },
       reason: 'a new local table means either something server-owned just '
-          'started being cached - read the reconciliation debt in CLAUDE.md '
-          'and build reconciliation for it in the same change - or it is '
+          'started being cached - read the reconciliation debt in '
+          'docs/decisions/0009-reactions-pins-polls-reconciliation.md and '
+          'build reconciliation for it in the same change - or it is '
           'local-only data like channel_drafts, which needs a sign-out wipe '
           'instead. Say which in this file, the way the five above do.',
     );
