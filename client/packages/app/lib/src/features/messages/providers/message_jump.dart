@@ -68,6 +68,9 @@ enum _Paged { more, stop, failed }
 
 enum _Reach { arrived, tooFar, failed }
 
+/// How many times a jump re-reads a message's depth that kept moving.
+const _reachAttempts = 3;
+
 /// Drives one jump at a time. A later [jumpTo] call always wins: its token
 /// invalidates whatever loop an earlier call is still running, so two taps in
 /// quick succession cannot have the first one's page finish and overwrite the
@@ -104,7 +107,14 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       final depth = await store.transcriptDepthOf(channelId, messageId);
       if (_token != token) return;
       if (depth != null) {
-        final arrived = await _reach(history, store, channelId, depth);
+        final arrived = await _reach(
+          history,
+          store,
+          channelId,
+          messageId,
+          depth,
+          token,
+        );
         if (_token != token) return;
         state = switch (arrived) {
           _Reach.arrived => MessageJumpArrived(channelId, messageId, token),
@@ -124,18 +134,35 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
         : MessageJumpUnreachable(channelId, messageId, token);
   }
 
-  /// Fetches the held rows down to [depth] before widening the window over
+  /// Fetches the held rows down to the message before widening the window over
   /// them, or they would be drawn without the extras only a fetch carries.
+  ///
+  /// The depth is read again afterwards and the fetch repeated if it moved,
+  /// since the fetch itself fills holes and live messages arrive meanwhile.
   Future<_Reach> _reach(
     ChannelHistoryController history,
     MessageStore store,
     String channelId,
-    int depth,
+    String messageId,
+    int firstDepth,
+    int token,
   ) async {
-    if (depth > channelWindowCeiling) return _Reach.tooFar;
-    final seq = await store.oldestSeqInWindow(channelId, depth);
-    if (seq != null && !await history.hydrateTo(seq)) return _Reach.failed;
-    return history.widenWindowTo(depth) ? _Reach.arrived : _Reach.tooFar;
+    var depth = firstDepth;
+    for (var attempt = 0; attempt < _reachAttempts; attempt++) {
+      if (depth > channelWindowCeiling) return _Reach.tooFar;
+      final seq = await store.oldestSeqInWindow(channelId, depth);
+      final stop =
+          seq != null &&
+          !await history.hydrateTo(seq, isCancelled: () => _token != token);
+      if (stop) return _Reach.failed;
+      final fresh = await store.transcriptDepthOf(channelId, messageId);
+      if (fresh == null) return _Reach.tooFar;
+      if (fresh == depth) {
+        return history.widenWindowTo(depth) ? _Reach.arrived : _Reach.tooFar;
+      }
+      depth = fresh;
+    }
+    return _Reach.failed;
   }
 
   /// Pages one step older, and says whether the jump should keep looking.

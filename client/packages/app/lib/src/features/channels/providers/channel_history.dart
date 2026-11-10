@@ -47,6 +47,7 @@ import '../../messages/providers/message_page_size.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/rate_limit_retry.dart';
 import '../../messages/providers/retention_policy.dart';
+import 'mounted_channels.dart';
 
 /// The transcript's opening window, matching [MessageStore.watchChannel]'s
 /// own default so a channel that has never been paged reads exactly as it
@@ -172,6 +173,9 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
     }
   }
 
+  MessageExtrasController get _extras =>
+      _ref.read(messageExtrasProvider.notifier);
+
   /// One page into the store and the extras. Null once the session has ended,
   /// so a page landing after sign-out reaches neither for the next account.
   Future<List<api.Message>?> _fetchPage({
@@ -188,9 +192,7 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
     final store = await _ref.read(storeProvider.future);
     await store.applyMessages(page);
     if (!mounted) return null;
-    _ref
-        .read(messageExtrasProvider.notifier)
-        .applyPage(_channelId, page, before: before, limit: limit);
+    _extras.applyPage(_channelId, page, before: before, limit: limit);
     return page;
   }
 
@@ -204,14 +206,17 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
   }
 
   /// Run on opening a channel: refetches the newest page, then every older one
-  /// the window shows, since the store holds no extras for them.
+  /// the window shows, since the store holds no extras for them. Stops walking
+  /// once the channel is closed.
   Future<void> hydrate() => _queued(() async {
     try {
+      _restartIfForgotten();
       if (await _fetchPage(limit: _recentPage) == null) return;
       final store = await _ref.read(storeProvider.future);
       if (!mounted) return;
       final floor = await store.oldestSeqInWindow(_channelId, state.window);
-      if (floor != null) await _hydrateDownTo(floor);
+      if (floor == null) return;
+      await _hydrateDownTo(floor, () => _isClosed);
     } catch (error, stack) {
       api.reportFailure(
         api.LogTag.ui,
@@ -222,25 +227,44 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
     }
   });
 
-  /// Fetches until every row from [floor] up came from the server this
-  /// session; false when a page failed, keeping what was fetched.
-  Future<bool> hydrateTo(int floor) => _queued(() => _hydrateDownTo(floor));
+  bool get _isClosed =>
+      !mounted || !_ref.read(mountedChannelsProvider).isOpen(_channelId);
 
-  Future<bool> _hydrateDownTo(int floor) async {
+  /// A channel whose extras were swept starts over from the initial window,
+  /// since refilling a grown one would cost a request per page.
+  void _restartIfForgotten() {
+    final forgotten =
+        _extras.highestUnhydrated(_channelId, 1) == HydratedRanges.newest;
+    if (!forgotten || state.loading || state.window <= _initialWindow) return;
+    _oldest = null;
+    state = const ChannelHistory();
+  }
+
+  /// Fetches until every row from [floor] up came from the server this
+  /// session; false when a page failed or [isCancelled] said to stop.
+  Future<bool> hydrateTo(int floor, {bool Function()? isCancelled}) {
+    if (!mounted) return Future.value(false);
+    if (_extras.highestUnhydrated(_channelId, floor) == null) {
+      return Future.value(true);
+    }
+    return _queued(() => _hydrateDownTo(floor, isCancelled));
+  }
+
+  Future<bool> _hydrateDownTo(int floor, bool Function()? isCancelled) async {
     final limit = _ref.read(messagePageSizeControllerProvider).rows;
     // The largest window is all a transcript ever shows, so no floor is worth more pages than fill it.
     final maxPages = (channelWindowCeiling / limit).ceil() + 1;
     try {
-      final extras = _ref.read(messageExtrasProvider.notifier);
       for (var fetched = 0; fetched < maxPages; fetched++) {
-        final gap = extras.highestUnhydrated(_channelId, floor);
+        if (isCancelled?.call() ?? false) return false;
+        final gap = _extras.highestUnhydrated(_channelId, floor);
         if (gap == null) return true;
         final before = gap == HydratedRanges.newest ? null : gap + 1;
         if (await _fetchPage(before: before, limit: limit) == null) {
           return false;
         }
       }
-      return extras.highestUnhydrated(_channelId, floor) == null;
+      return _extras.highestUnhydrated(_channelId, floor) == null;
     } catch (error, stack) {
       api.reportFailure(api.LogTag.data, 'load older messages', error, stack);
       return false;
