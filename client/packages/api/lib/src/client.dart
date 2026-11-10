@@ -59,6 +59,7 @@ export 'client_presence.dart' show SlimmApiPresence;
 export 'client_push.dart' show SlimmApiPush;
 export 'client_roles.dart' show SlimmApiRoles;
 export 'client_admin_audit.dart' show SlimmApiAdminAudit;
+export 'client_debug_logs.dart' show SlimmApiDebugLogs;
 export 'client_space.dart' show SlimmApiSpace;
 export 'client_space_setup.dart'
     show SlimmApiSpaceSetup, SpaceCapacity, SpaceCapacityEstimate, SpaceSetup;
