@@ -105,6 +105,70 @@ void main() {
       expect(world.installs, ['a']);
       expect(find.text('Update Mod b?'), findsNothing);
     });
+
+    eachDockUpdateSize('is not installed when it was uninstalled mid-sheet', (
+      tester,
+      size,
+    ) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod('a', asks: ['kv.store']),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+      expect(find.text('Update Mod a?'), findsOneWidget);
+
+      world.installed.remove('a');
+      await tapDock(tester, _approve);
+
+      expect(world.installs, isEmpty);
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Updated 0 of 1'), findsNothing);
+    });
+  });
+
+  group('the give-back', () {
+    DockUpdateWorld withdrawnKvStore() => DockUpdateWorld([
+      const DockUpdateMod(
+        'a',
+        asks: ['kv.store', 'log.read'],
+        approvedBefore: ['kv.store', 'log.read'],
+        dropsOnCarry: ['kv.store'],
+      ),
+    ]);
+    const title = 'Mod a is updated. Give back its access?';
+
+    eachDockUpdateSize('reads the record again once the admin agrees', (
+      tester,
+      size,
+    ) async {
+      final world = withdrawnKvStore();
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+      expect(find.text(title), findsOneWidget);
+
+      _revokeHostAccess(world, 'a');
+      await tapDock(tester, 'Give access back');
+
+      expect(world.installs, ['a', 'a']);
+      expect(world.bodies.last['approved_host_capabilities'], ['kv.store']);
+    });
+
+    eachDockUpdateSize('is not installed when it was uninstalled mid-sheet', (
+      tester,
+      size,
+    ) async {
+      final world = withdrawnKvStore();
+      await openDockUpdateWorld(tester, world, size);
+      await tapDock(tester, 'Update all');
+      expect(find.text(title), findsOneWidget);
+
+      world.installed.remove('a');
+      await tapDock(tester, 'Give access back');
+
+      expect(world.installs, ['a']);
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('without the access'), findsNothing);
+    });
   });
 
   group('access this client cannot describe', () {
