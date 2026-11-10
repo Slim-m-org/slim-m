@@ -11,6 +11,7 @@
 library;
 
 import 'package:archive/archive.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 import 'emoji_name.dart';
 
@@ -63,9 +64,11 @@ class ZipEntryData {
   final bool isFile;
 
   /// The entry's uncompressed size when the bytes were left empty or not yet
-  /// inflated, so an oversized image is still reported as one.
+  /// inflated, so an oversized image is still reported as one. A header can
+  /// understate it, so the inflated length is what the plan finally trusts.
   final int? declaredSize;
 
+  /// Throws for an entry that will not inflate (corrupt, encrypted, unsupported).
   List<int> get bytes => _bytes ?? _inflate!();
 
   int get size => declaredSize ?? bytes.length;
@@ -83,7 +86,8 @@ class ZipEntryData {
 /// empty list rather than throwing, which [planEmojiZip] then reports as
 /// "nothing to upload" - still a refusal, never a crash. A handful of
 /// malformed-but-zip-shaped inputs can still throw (an [ArchiveException] or
-/// a [FormatException]); callers catch those the same way.
+/// a [FormatException]); callers catch those the same way. An entry that only
+/// fails to inflate is refused on its own by [planEmojiZip].
 List<ZipEntryData> decodeEmojiZipEntries(List<int> zipBytes) {
   final archive = ZipDecoder().decodeBytes(zipBytes);
   if (archive.length > maxZipEntries) throw const ZipTooLargeException();
@@ -220,13 +224,16 @@ EmojiZipPlan planEmojiZip(
     if (fileName == null) continue;
 
     final name = normalizeEmojiName(_stem(fileName));
-    final reason = _rejection(entry, fileName, name, uploads.length, usedNames);
+    var reason = _rejection(entry, fileName, name, uploads.length, usedNames);
+    final read = reason == null ? _readBytes(entry) : null;
+    reason ??= read?.reason;
     if (reason != null) {
       skipped.add(SkippedZipEntry(fileName: fileName, reason: reason));
       continue;
     }
+    usedNames.add(name);
     uploads.add(
-      PlannedEmojiUpload(fileName: fileName, name: name, bytes: entry.bytes),
+      PlannedEmojiUpload(fileName: fileName, name: name, bytes: read!.bytes!),
     );
   }
   return EmojiZipPlan(uploads: uploads, skipped: skipped);
@@ -240,7 +247,7 @@ String? _candidateFileName(ZipEntryData entry) {
   return fileName;
 }
 
-/// Why the entry cannot become an upload, or null; claims [name] in [usedNames] when it can.
+/// Why the entry cannot become an upload before it is inflated, or null.
 String? _rejection(
   ZipEntryData entry,
   String fileName,
@@ -254,11 +261,32 @@ String? _rejection(
   if (plannedCount >= maxPlannedEmojiCount) {
     return 'more than $maxPlannedEmojiCount images at once';
   }
-  if (entry.size == 0) return 'the file is empty';
-  if (entry.size > maxPlannedEmojiBytes) return 'larger than 1 MB';
+  final sizeReason = _sizeRefusal(entry.size);
+  if (sizeReason != null) return sizeReason;
   if (!isUsableEmojiName(name)) return 'no usable name after sanitizing';
-  if (!usedNames.add(name)) return '${emojiShortcode(name)} is already used';
+  if (usedNames.contains(name)) {
+    return '${emojiShortcode(name)} is already used';
+  }
   return null;
+}
+
+String? _sizeRefusal(int size) {
+  if (size == 0) return 'the file is empty';
+  if (size > maxPlannedEmojiBytes) return 'larger than 1 MB';
+  return null;
+}
+
+/// The entry's bytes, or why they cannot be queued, judged by their real
+/// length rather than the header's.
+({List<int>? bytes, String? reason}) _readBytes(ZipEntryData entry) {
+  final List<int> bytes;
+  try {
+    bytes = entry.bytes;
+  } catch (error, stack) {
+    reportFailure(LogTag.media, 'inflate an emoji zip entry', error, stack);
+    return (bytes: null, reason: 'could not be read from the zip');
+  }
+  return (bytes: bytes, reason: _sizeRefusal(bytes.length));
 }
 
 /// Whether [path] is macOS's own AppleDouble sidecar junk (`__MACOSX/` and
