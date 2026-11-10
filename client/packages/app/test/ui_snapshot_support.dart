@@ -23,12 +23,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_data/data.dart';
 
 import 'support/mid_flight_capture.dart';
 import 'support/real_shadows.dart';
+import 'support/snapshot_sidecar.dart';
 import 'ui_snapshot_fixture.dart';
 
 export 'ui_snapshot_fixture.dart';
@@ -75,6 +78,8 @@ const viewports = <String, Size>{
   // The laptop and full-hd windows the canvas dock's row count is judged at.
   'laptop-1280': Size(1280, 900),
   'full-hd': Size(1920, 1080),
+  // The desktop half of the review gallery (test/review): wide enough for the desktop layout, small enough to match the laptop screens people use.
+  'review-desktop': Size(1280, 800),
 };
 
 /// A phone and a desktop render: the pair every standalone screen samples by
@@ -116,6 +121,12 @@ Future<void> writeSnapshot(WidgetTester tester, String name) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(snapshotBoundary),
   );
+  writeSnapshotSidecar(
+    tester,
+    name,
+    capture: boundary.size,
+    root: tester.element(find.byKey(snapshotBoundary)),
+  );
   await withRealShadows(tester, boundary, () async {
     await tester.runAsync(() async {
       final image = await boundary.toImage(pixelRatio: 2);
@@ -127,6 +138,28 @@ Future<void> writeSnapshot(WidgetTester tester, String name) async {
       ).writeAsBytesSync(bytes!.buffer.asUint8List());
     });
   });
+}
+
+/// Writes `<name>.json` beside the PNG, for the review bundle (see `snapshot_sidecar.dart`).
+///
+/// [writeSnapshot] does this itself; a suite that cuts its own picture calls it with the [capture] size.
+void writeSnapshotSidecar(
+  WidgetTester tester,
+  String name, {
+  required Size capture,
+  Element? root,
+}) {
+  if (!writingSnapshots) return;
+  Directory(snapshotDir).createSync(recursive: true);
+  File('$snapshotDir/$name.json').writeAsStringSync(
+    snapshotSidecar(
+      tester,
+      name,
+      root: root ?? tester.binding.rootElement!,
+      capture: capture,
+      stack: StackTrace.current,
+    ),
+  );
 }
 
 /// Disposing before unmounting is what stops a pending debounce (the member
@@ -173,7 +206,12 @@ Future<void> teardownFixture(
 /// sequence, never a placeholder standing in for content - see that
 /// function's own doc for the one surface this is true of today.
 /// [allowNoText] passes straight through to [expectSettled]'s own blank
-/// check, for the rare surface that is genuinely text-free.
+/// check, for the rare surface that is genuinely text-free. [allowNotFound]
+/// does the same for its not-found check, for the not-found page itself.
+/// [router] replaces [fixtureRouter] (a one-route router for a standalone
+/// widget, say); [isModalFixtureRoute] still decides the push-over-shell for
+/// [route]. [messages] seed the fixture's local store in place of
+/// `fixtureMessages`.
 /// [textScaler] layers a scale over the ambient one (a copy of it, one field
 /// changed - the same shape `design_system`'s `surfaces_test.dart` already
 /// uses and is allowlisted for) rather than replacing it, so dark/light and
@@ -199,9 +237,12 @@ Future<void> renderSurface(
   bool settleNestedResolve = false,
   bool knownTransient = false,
   bool allowNoText = false,
+  bool allowNotFound = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
   List<Widget> overlays = const [],
+  GoRouter? router,
+  List<api.Message>? messages,
 }) => renderSurfaceThemes(
   tester,
   route,
@@ -215,9 +256,12 @@ Future<void> renderSurface(
   settleNestedResolve: settleNestedResolve,
   knownTransient: knownTransient,
   allowNoText: allowNoText,
+  allowNotFound: allowNotFound,
   textScaler: textScaler,
   afterSettle: afterSettle,
   overlays: overlays,
+  router: router,
+  messages: messages,
 );
 
 /// [renderSurface] for several [themes] in one mount: the surface is built and
@@ -240,16 +284,22 @@ Future<void> renderSurfaceThemes(
   bool settleNestedResolve = false,
   bool knownTransient = false,
   bool allowNoText = false,
+  bool allowNotFound = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
   List<Widget> overlays = const [],
+  GoRouter? router,
+  List<api.Message>? messages,
 }) async {
   tester.view.physicalSize = viewports[viewportName]!;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final fixture = await fixtureContainer(extraOverrides: overrides);
-  final router = fixtureRouter(route);
+  final fixture = await fixtureContainer(
+    extraOverrides: overrides,
+    messages: messages,
+  );
+  final appRouter = router ?? fixtureRouter(route);
   Widget build(String theme) {
     final app = MaterialApp.router(
       debugShowCheckedModeBanner: false,
@@ -257,7 +307,7 @@ Future<void> renderSurfaceThemes(
         snapshotThemes[theme]!.brightness,
         snapshotThemes[theme]!.tokens,
       ),
-      routerConfig: router,
+      routerConfig: appRouter,
       // The same wrapper main.dart ships, so density matches the app.
       builder: overlays.isEmpty
           ? appChromeBuilder
@@ -285,7 +335,7 @@ Future<void> renderSurfaceThemes(
   if (isModalFixtureRoute(route)) {
     // Settle at the base first, then push: see isModalFixtureRoute's doc.
     await tester.pump();
-    unawaited(router.push(route));
+    unawaited(appRouter.push(route));
   }
   // Two pumps settle on-mount entrance animations (a ticker's first frame is its own t=0) without pumpAndSettle, which would hang on the states that show a perpetual spinner.
   await tester.pump();
@@ -316,6 +366,7 @@ Future<void> renderSurfaceThemes(
       snapshotName,
       knownTransient: knownTransient,
       allowNoText: allowNoText,
+      allowNotFound: allowNotFound,
     );
 
     await writeSnapshot(tester, snapshotName);

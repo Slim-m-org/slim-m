@@ -116,6 +116,8 @@ void main() {
             await t.drag(find.text('Reports').first, const Offset(0, -600));
             await t.pump();
           }
+          await t.ensureVisible(find.text(pane.label).first);
+          await t.pump();
           await t.tap(find.text(pane.label).first);
           await t.pump();
           await t.pump(const Duration(milliseconds: 350));

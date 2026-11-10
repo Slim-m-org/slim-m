@@ -71,6 +71,8 @@ void main() {
             'settings-pane-${pane.key}-$viewport-$theme',
             overrides: [_idleVoice],
             afterSettle: (tester) async {
+              await tester.ensureVisible(find.text(pane.value).first);
+              await tester.pump();
               await tester.tap(find.text(pane.value).first);
               await tester.pump();
             },
