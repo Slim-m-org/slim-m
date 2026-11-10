@@ -26,7 +26,6 @@ import 'audio_devices.dart';
 import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
-import 'audio_stats.dart';
 import 'broadcast_bridge.dart';
 import 'call_diagnostics.dart';
 import 'call_stats.dart';
@@ -44,7 +43,6 @@ import 'mic_failure.dart';
 import 'mic_port.dart';
 import 'mic_recovery.dart';
 import 'mic_release.dart';
-import 'noise_floor_estimator.dart';
 import 'pulse_audio.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
@@ -53,7 +51,6 @@ import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
 import 'speaking_hold.dart';
 import 'start_bitrate_room.dart';
-import 'strong_noise_suppression.dart';
 import 'track_stats_summary.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
@@ -65,18 +62,18 @@ import 'voice_processing.dart';
 import 'voice_processing_control.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
+import 'voice_input_gate.dart';
+import 'voice_listener_audio.dart';
+import 'voice_mic_readiness.dart';
+import 'voice_audio_devices.dart';
+import 'voice_health_watch.dart';
 import 'voice_session_camera.dart';
 import 'voice_reconnect_tracker.dart';
 import 'voice_session_mic_fallback.dart';
 import 'voice_session_screen_share.dart';
 
-part 'voice_session_audio_devices.dart';
-part 'voice_session_health.dart';
-part 'voice_session_input_gate.dart';
 part 'voice_session_join.dart';
-part 'voice_session_listener_audio.dart';
 part 'voice_session_mic_recovery.dart';
-part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
@@ -91,14 +88,7 @@ typedef RoomFactory = lk.Room Function();
 /// its lifetime. [dispose] must be called, and leaving is not the same as
 /// disposing, because a user can leave and rejoin without the surrounding
 /// screen being torn down.
-class VoiceSession
-    with
-        VoiceSessionAudioDevices,
-        VoiceSessionHealth,
-        VoiceSessionInputGate,
-        VoiceSessionMicRecovery,
-        VoiceSessionMicRelease,
-        VoiceSessionListenerAudio {
+class VoiceSession with VoiceSessionMicRecovery {
   VoiceSession({
     RoomFactory? roomFactory,
     BroadcastBridge? broadcast,
@@ -124,33 +114,58 @@ class VoiceSession
         ),
         _cameraJoin = CameraJoin(timeout: cameraJoinTimeout) {
     _roomFactory = roomFactory ?? _buildRoom;
-    _audio.log = audioLog;
+    _listener.audio.log = audioLog;
     // An injected room has no native capture behind it to gate.
-    _gate = inputGate ??
+    final gate = inputGate ??
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
-    _gate.setRate(InputGateRate.watch);
-    _initCapture(micPort);
-    _audioSwitching = _switchingFor(
-      audioDevices,
-      liveOutput,
-      osMicBlocked,
-      liveInput,
-      pulse,
+    gate.setRate(InputGateRate.watch);
+    _mic = micPort ?? LiveKitMicPort(() => _room);
+    if (osMicBlocked != null) _osMicBlocked = osMicBlocked;
+    _audioDevices = VoiceAudioDevices(
+      VoiceAudioDevicesHost(
+        room: () => _room,
+        noteError: (error) => _lastError = error,
+        supportsInputGate: () => _inputGate.supported,
+        applyInputGate: () => _inputGate.apply(),
+        diag: _diag,
+      ),
+      _mic,
+      devices: audioDevices,
+      liveOutput: liveOutput,
+      liveInput: liveInput,
+      pulse: pulse,
     );
-    _audioSwitching.levelsNatively = () => _levelsNatively;
-    _initMicRelease(
+    _inputGate = VoiceInputGate(
+      VoiceInputGateHost(
+        refresh: _refreshParticipants,
+        diag: _diag,
+        reopenCapture: _reopenCapture,
+      ),
+      gate: gate,
+      mic: _mic,
+      switching: _audioSwitching,
+    );
+    _audioSwitching.levelsNatively = () => _inputGate.levelsNatively;
+    _readiness = VoiceMicReadiness(
+      VoiceMicReadinessHost(
+        hasRoom: () => _room != null,
+        mic: _mic,
+        micWanted: () => _micWanted,
+        plainOptions: _plainOpenOptions,
+        joinTimings: _joinTimings,
+        diag: _diag,
+      ),
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
-      plainOptions: () => _openCaptureOptions(reopen: false),
     );
     _initMicRecovery(
       timing: micRecoveryTiming,
       // An injected room has no sound stack to watch unless a test brings one.
       watchDevices: audioDevices != null || roomFactory == null,
       enable: () => _trySetMicrophone(true),
-      afterRestart: _followPreferredDevices,
+      afterRestart: _audioDevices.followPreferred,
     );
     _share = VoiceScreenShare(
       VoiceScreenShareHost(
@@ -177,7 +192,7 @@ class VoiceSession
   /// The room a fresh call publishes into: only what is on screen is
   /// subscribed, at the size shown, so several video tiles do not cost the
   /// same as all at full size, plus whatever microphone/speaker Voice
-  /// Settings has chosen; see [VoiceSessionAudioDevices].
+  /// Settings has chosen; see [VoiceAudioDevices].
   lk.Room _buildRoom() => buildRoomWithStartBitrate(
         _audioSwitching.roomOptions(receiveRoomOptions()),
       );
@@ -197,8 +212,10 @@ class VoiceSession
       setStatus: _setMicStatus,
       noteFailure: _noteMicFailure,
       restartCapture: _restartMicCapture,
-      selectInput: (device) => _selectInput(device, remember: false),
-      selectOutput: (device) => _selectOutput(device, remember: false),
+      selectInput: (device) =>
+          _audioDevices.selectInput(device, remember: false),
+      selectOutput: (device) =>
+          _audioDevices.selectOutput(device, remember: false),
     ),
   );
 
@@ -207,7 +224,7 @@ class VoiceSession
   late final _processing = VoiceProcessingControl(
     switching: _audioSwitching,
     mic: _mic,
-    release: _micRelease,
+    release: _readiness.release,
     micWanted: () => _micWanted,
     restartCapture: _restartMicCapture,
     reopenMuted: () => _mic.reopenMuted(_plainOpenOptions()),
@@ -218,7 +235,6 @@ class VoiceSession
   Future<void> setVoiceProcessing(VoiceProcessing next) =>
       _processing.set(next, inCall: _room != null);
 
-  @override
   Future<void> _reopenCapture(String reason) =>
       _processing.reopen(reason, inCall: _room != null);
 
@@ -229,7 +245,168 @@ class VoiceSession
   String? get micFallbackNotice => _fallback.notice;
   Stream<String?> get micFallbackNotices => _fallback.notices;
   void dismissMicFallbackNotice() => _fallback.dismissNotice();
+
+  late final _healthWatch = VoiceHealthWatch(
+    VoiceHealthWatchHost(room: () => _room, diag: _diag),
+  );
+
+  /// Per-person quality and the last call's summary; see [VoiceHealth].
+  VoiceHealth get health => _healthWatch.health;
+
+  /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
+  CallDiagnostics get diagnostics => _healthWatch.diagnostics;
+
   @override
+  late final MicPort _mic;
+  late final VoiceInputGate _inputGate;
+
+  @override
+  InputGateMonitor get _gate => _inputGate.gate;
+
+  late final VoiceAudioDevices _audioDevices;
+
+  @override
+  AudioDeviceSwitching get _audioSwitching => _audioDevices.switching;
+
+  /// Whether picking a specific microphone actually changes the live call.
+  bool get supportsAudioInputSelection => _audioDevices.supportsInputSelection;
+
+  /// Whether picking a specific speaker actually changes playback.
+  bool get supportsAudioOutputSelection =>
+      _audioDevices.supportsOutputSelection;
+
+  /// The id of the speaker playback is routed to, null for the system default.
+  String? get audioOutputInUse => _audioDevices.outputInUse;
+
+  /// The id of the microphone capture is on, null for the system default.
+  String? get audioInputInUse => _audioDevices.inputInUse;
+
+  /// Fires when the platform's own device list changes, so a picker can refresh without polling.
+  Stream<void> get audioDeviceChanges => _audioDevices.changes;
+
+  /// The microphones this platform offers, for the picker.
+  Future<List<AudioDevice>> audioInputDevices() => _audioDevices.inputs();
+
+  /// The speakers this platform offers, for the picker.
+  Future<List<AudioDevice>> audioOutputDevices() => _audioDevices.outputs();
+
+  /// Switches the published microphone to [device] (null for the system
+  /// default), live where this platform honours it, and remembered for the
+  /// next join either way.
+  Future<bool> selectAudioInputDevice(AudioDevice? device) =>
+      _audioDevices.selectInput(device, remember: true);
+
+  /// [selectAudioInputDevice]'s counterpart for local playback.
+  Future<bool> selectAudioOutputDevice(AudioDevice? device) =>
+      _audioDevices.selectOutput(device, remember: true);
+
+  lk.AudioCaptureOptions _openCaptureOptions({required bool reopen}) =>
+      _audioDevices.openCaptureOptions(reopen: reopen);
+
+  bool get supportsInputGate => _inputGate.supported;
+
+  /// Your microphone's level and voice state, while in a call.
+  Stream<InputGateReading> get inputGateReadings => _gate.readings;
+
+  /// Your microphone's level as the SFU last reported it, for hosts with no input gate.
+  Stream<double> get localAudioLevels => _inputGate.localLevels;
+
+  /// Sets the native gate; [enabled] false keeps metering but stops silencing.
+  void setInputGate({required bool enabled, required double thresholdDb}) =>
+      _inputGate.setGate(enabled: enabled, thresholdDb: thresholdDb);
+
+  /// Where the automatic threshold currently sits.
+  Stream<double> get autoInputThresholds => _inputGate.autoThresholds;
+
+  /// The threshold the native gate is using right now.
+  double get inputThresholdDb => _inputGate.thresholdDb;
+
+  /// Hands the threshold to the automatic noise-floor estimator, or takes it back.
+  void setAutoInputThreshold(bool enabled) =>
+      _inputGate.setAutoThreshold(enabled);
+
+  /// Whether a meter is on screen in a focused app, which raises the reading rate.
+  void setLevelDisplayed(bool displayed) =>
+      _inputGate.setLevelDisplayed(displayed);
+
+  /// Softens shouts and caps sudden peaks where the host gates natively.
+  void setEvenOutLoudSounds(bool enabled) =>
+      _inputGate.setEvenOutLoudSounds(enabled);
+
+  /// Runs rnnoise on the microphone ahead of the gate; [strongest] adds DeepFilterNet.
+  void setStrongNoiseSuppression(bool enabled, {bool strongest = false}) =>
+      _inputGate.setStrongNoiseSuppression(enabled, strongest: strongest);
+
+  late final VoiceMicReadiness _readiness;
+
+  lk.AudioCaptureOptions _plainOpenOptions() =>
+      _openCaptureOptions(reopen: false);
+
+  /// Keeps the capture open while muted, so push to talk keys down instantly.
+  Future<void> setKeepMicReady(bool keepReady) =>
+      _readiness.setKeepReady(keepReady);
+
+  /// A phone that goes to the background releases a muted microphone at once.
+  void setAppBackgrounded(bool backgrounded) =>
+      _readiness.setBackgrounded(backgrounded);
+
+  late final _listener = VoiceListenerAudio(
+    VoiceListenerAudioHost(
+      room: () => _room,
+      noteError: (error) => _lastError = error,
+      refresh: _refreshParticipants,
+    ),
+  );
+
+  @override
+  LocalAudioState get _audio => _listener.audio;
+
+  /// Whether the listener is deafened; see [setDeafened].
+  bool get deafened => _listener.deafened;
+
+  /// Whether [identity] is silenced for this listener alone.
+  bool isLocallyMuted(String identity) => _listener.isLocallyMuted(identity);
+
+  /// Whether this host can change one participant's volume at all.
+  bool get supportsParticipantVolume => _listener.supportsParticipantVolume;
+
+  /// [identity]'s playback gain for this listener, 1.0 being unchanged.
+  double volumeFor(String identity) => _listener.volumeFor(identity);
+
+  /// Sets [identity]'s playback gain for this listener only.
+  Future<void> setVolumeFor(String identity, double volume) =>
+      _listener.setVolumeFor(identity, volume);
+
+  /// [identity]'s screen share audio gain, kept apart from their voice.
+  double screenVolumeFor(String identity) =>
+      _listener.screenVolumeFor(identity);
+
+  /// Sets [identity]'s screen share audio gain for this listener only.
+  Future<void> setScreenVolumeFor(String identity, double volume) =>
+      _listener.setScreenVolumeFor(identity, volume);
+
+  /// Whether [identity]'s screen share audio alone is silenced for you.
+  bool isScreenAudioMuted(String identity) =>
+      _listener.isScreenAudioMuted(identity);
+
+  /// Silences (or restores) only [identity]'s screen share audio.
+  Future<void> setScreenAudioMuted(String identity, bool muted) =>
+      _listener.setScreenAudioMuted(identity, muted);
+
+  /// Whether [identity] is publishing screen share audio right now.
+  bool hasScreenAudio(String identity) => _listener.hasScreenAudio(identity);
+
+  /// Why the last gain change to [identity] did not land, or null if it did.
+  Object? volumeFailureFor(String identity, {bool screen = false}) =>
+      _listener.volumeFailureFor(identity, screen: screen);
+
+  /// Silences (or restores) one participant, for this listener only.
+  Future<void> setLocallyMuted(String identity, bool muted) =>
+      _listener.setLocallyMuted(identity, muted);
+
+  /// Silences (or restores) every remote participant locally; false when there is no call to affect.
+  Future<bool> setDeafened(bool deafened) => _listener.setDeafened(deafened);
+
   final JoinTimings _joinTimings;
   final CameraSwitching _cameraSwitching;
   final CameraJoin _cameraJoin;
@@ -380,9 +557,7 @@ class VoiceSession
     await _teardown();
     if (generation != _generation) return;
     _setRoster(const []);
-    _audio.deafened = false;
-    _audio.muted.clear();
-    _audio.screenMuted.clear();
+    _listener.resetForNewCall();
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
     _droppedWhileSharing = false;
@@ -490,7 +665,6 @@ class VoiceSession
   Future<T> _reported<T>(String action, T fallback, Future<T> Function() run) =>
       runReported(action, fallback, run, (error) => _lastError = error);
 
-  @override
   void _refreshParticipants() => _rebuildRoster();
 
   Future<void> dispose() async {
@@ -508,10 +682,17 @@ class VoiceSession
     await _teardown();
     _cameraSwitching.dispose();
     await _cameraJoin.dispose();
-    await _disposeCapture();
+    await _inputGate.dispose();
     await _disposeMicRecovery();
     await _gate.dispose();
     await _stateController.close();
     await _participantsController.close();
   }
+}
+
+/// Lets tests see the watch behind [VoiceSession.health]; an extension rather
+/// than a member so fakes implementing [VoiceSession] need not provide it.
+@visibleForTesting
+extension VoiceSessionHealthWatchAccess on VoiceSession {
+  AudioGlitchWatch get glitchWatch => _healthWatch.glitchWatch;
 }

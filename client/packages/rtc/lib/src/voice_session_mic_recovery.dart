@@ -10,7 +10,6 @@ mixin VoiceSessionMicRecovery {
   lk.Room? get _room;
   VoiceSessionState get _state;
   MicPort get _mic;
-  Future<void> _applyInputGate();
   LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
   MicFallback get _fallback;

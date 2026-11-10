@@ -1,18 +1,66 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'voice_session.dart';
+/// A voice session's microphone noise gate, level meter and the suppression
+/// that feeds them.
+library;
 
-/// [VoiceSession]'s microphone noise gate and level meter, a mixin for the
-/// reason `voice_session_audio_devices.dart` gives.
+import 'dart:async';
+
+import 'package:slimm_api/api.dart' show LogLevel;
+
+import 'audio_device_switching.dart';
+import 'input_gate.dart';
+import 'mic_port.dart';
+import 'noise_floor_estimator.dart';
+import 'strong_noise_suppression.dart';
+import 'voice_models.dart';
+
 /// Smaller moves are not worth a native call or a slider repaint.
 const double _kAutoThresholdStepDb = 0.5;
 
-mixin VoiceSessionInputGate {
-  lk.Room? get _room;
-  AudioDeviceSwitching get _audioSwitching;
-  late final MicPort _mic;
-  late final InputGateMonitor _gate;
-  late final StrongNoiseSuppression _strong;
-  StreamSubscription<InputGateReading>? _captureReadings;
+/// What [VoiceInputGate] needs from the session that owns it.
+class VoiceInputGateHost {
+  const VoiceInputGateHost({
+    required this.refresh,
+    required this.diag,
+    required this.reopenCapture,
+  });
+
+  final void Function() refresh;
+  final void Function(String line, {LogLevel level}) diag;
+  final Future<void> Function(String reason) reopenCapture;
+}
+
+/// Owns the gate's settings and pushes them to the native [InputGateMonitor].
+class VoiceInputGate {
+  VoiceInputGate(
+    this._host, {
+    required this.gate,
+    required this.mic,
+    required this.switching,
+  }) {
+    strong = StrongNoiseSuppression(
+      supported: gate.supported,
+      supportsStrongest: gate.supported && supportsStrongestNoiseSuppression,
+      onChanged: () => unawaited(apply()),
+      log: _host.diag,
+      webrtcNoiseSuppression: () => switching.processing.noiseSuppression,
+    );
+    _captureReadings = gate.readings.listen(
+      (r) => strong.onReading(
+        strongActive: r.strongActive,
+        strongestActive: r.strongestActive,
+        micOpen: mic.open,
+        step: r.step,
+      ),
+    );
+  }
+
+  final VoiceInputGateHost _host;
+  final InputGateMonitor gate;
+  final MicPort mic;
+  final AudioDeviceSwitching switching;
+  late final StrongNoiseSuppression strong;
+  late final StreamSubscription<InputGateReading> _captureReadings;
   bool _gateEnabled = true;
   double _gateThresholdDb = kDefaultInputThresholdDb;
   bool _evenOutLoudSounds = true;
@@ -20,51 +68,23 @@ mixin VoiceSessionInputGate {
   NoiseFloorEstimator? _autoThreshold;
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
-  final _localLevels = StreamController<double>.broadcast();
-  double _lastLocalLevel = 0;
 
-  void _diag(String line, {LogLevel level});
-  void _refreshParticipants();
+  bool get supported => gate.supported;
 
-  bool get supportsInputGate => _gate.supported;
-
-  void _initCapture(MicPort? mic) {
-    _mic = mic ?? LiveKitMicPort(() => _room);
-    _strong = StrongNoiseSuppression(
-      supported: _gate.supported,
-      supportsStrongest: _gate.supported && supportsStrongestNoiseSuppression,
-      onChanged: () => unawaited(_applyInputGate()),
-      log: _diag,
-      webrtcNoiseSuppression: () => _audioSwitching.processing.noiseSuppression,
-    );
-    _captureReadings = _gate.readings.listen(
-      (r) => _strong.onReading(
-        strongActive: r.strongActive,
-        strongestActive: r.strongestActive,
-        micOpen: _mic.open,
-        step: r.step,
-      ),
-    );
-  }
-
-  Future<void> _disposeCapture() async {
-    await _captureReadings?.cancel();
+  Future<void> dispose() async {
+    await _captureReadings.cancel();
     await _localLevels.close();
   }
 
-  /// What the next [MicPort.setEnabled] opens with. [reopen] makes LiveKit
-  /// restart a capture that was released, rather than just unmute it.
-  lk.AudioCaptureOptions _openCaptureOptions({required bool reopen}) =>
-      _audioSwitching.captureOptions().copyWith(stopAudioCaptureOnMute: reopen);
-
-  /// Your microphone's level and voice state, while in a call.
-  Stream<InputGateReading> get inputGateReadings => _gate.readings;
+  final _localLevels = StreamController<double>.broadcast();
+  double _lastLocalLevel = 0;
 
   /// Your microphone's level as the SFU last reported it, for hosts with no input gate.
   /// Kept off the roster because a level change there rebuilds the whole call.
-  Stream<double> get localAudioLevels => _localLevels.stream;
+  Stream<double> get localLevels => _localLevels.stream;
 
-  void _reportLocalLevel(List<VoiceParticipant> roster) {
+  /// Feeds [localLevels] from the freshly built [roster].
+  void reportLocalLevel(List<VoiceParticipant> roster) {
     final level = roster.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0;
     if (level == _lastLocalLevel) return;
     _lastLocalLevel = level;
@@ -73,43 +93,43 @@ mixin VoiceSessionInputGate {
 
   /// [enabled] false keeps metering and detecting voice; it only stops
   /// silencing the quiet frames.
-  void setInputGate({required bool enabled, required double thresholdDb}) {
+  void setGate({required bool enabled, required double thresholdDb}) {
     _gateEnabled = enabled;
     if (_autoThreshold == null) {
       _gateThresholdDb = thresholdDb.clamp(kInputFloorDb, 0.0);
     }
-    unawaited(_applyInputGate());
+    unawaited(apply());
   }
 
   /// Where the automatic threshold currently sits; emits only on a change
   /// worth sending to the native gate.
-  Stream<double> get autoInputThresholds => _autoThresholds.stream;
+  Stream<double> get autoThresholds => _autoThresholds.stream;
 
   /// The threshold the native gate is using right now.
-  double get inputThresholdDb => _gateThresholdDb;
+  double get thresholdDb => _gateThresholdDb;
 
   /// [enabled] hands the threshold to a [NoiseFloorEstimator] fed by the
   /// live level readings, starting from the current one; off keeps it where
   /// it ended up.
-  void setAutoInputThreshold(bool enabled) {
+  void setAutoThreshold(bool enabled) {
     if (enabled == (_autoThreshold != null)) return;
     unawaited(_autoReadings?.cancel());
     _autoReadings = null;
     if (!enabled) {
       _autoThreshold = null;
-      _syncGateRate();
+      _host.refresh();
       return;
     }
     final estimator = _autoThreshold = NoiseFloorEstimator(
       initialThresholdDb: _gateThresholdDb,
     );
-    _syncGateRate();
-    _autoReadings = _gate.readings.listen((reading) {
+    _host.refresh();
+    _autoReadings = gate.readings.listen((reading) {
       final next = estimator.add(reading.levelDb, interval: reading.step);
       if ((next - _gateThresholdDb).abs() < _kAutoThresholdStepDb) return;
       _gateThresholdDb = next;
       _autoThresholds.add(next);
-      unawaited(_applyInputGate());
+      unawaited(apply());
     });
   }
 
@@ -117,56 +137,53 @@ mixin VoiceSessionInputGate {
   void setLevelDisplayed(bool displayed) {
     if (displayed == _levelDisplayed) return;
     _levelDisplayed = displayed;
-    _syncGateRate();
+    _host.refresh();
   }
 
-  void _syncGateRate() => _refreshParticipants();
-
   /// The slowest rate every consumer of a reading is happy with.
-  void _applyGateRate() => _gate.setRate(_gateRate());
+  void applyRate() => gate.setRate(_rate());
 
-  InputGateRate _gateRate() {
+  InputGateRate _rate() {
     if (_levelDisplayed) return InputGateRate.display;
-    if (!_mic.open) return InputGateRate.off;
+    if (!mic.open) return InputGateRate.off;
     if (_autoThreshold != null) return InputGateRate.adapt;
-    return _strong.watching ? InputGateRate.watch : InputGateRate.slow;
+    return strong.watching ? InputGateRate.watch : InputGateRate.slow;
   }
 
   /// Softens shouts and caps sudden peaks on the microphone, where the
   /// host gates the input natively.
   void setEvenOutLoudSounds(bool enabled) {
     _evenOutLoudSounds = enabled;
-    unawaited(_applyInputGate());
+    unawaited(apply());
   }
 
   /// Runs rnnoise on the microphone ahead of the gate, for keyboards, fans
   /// and room noise libwebrtc's own suppressor lets through; [strongest] adds
   /// DeepFilterNet, which costs more CPU.
   void setStrongNoiseSuppression(bool enabled, {bool strongest = false}) {
-    final leveledBefore = _levelsNatively;
-    _strong.setStrong(enabled, strongest: strongest);
-    _syncGateRate();
-    unawaited(_applyInputGate());
+    final leveledBefore = levelsNatively;
+    strong.setStrong(enabled, strongest: strongest);
+    _host.refresh();
+    unawaited(apply());
     // The chain takes over levelling from libwebrtc's auto gain, which is fixed when the capture opens.
-    if (_levelsNatively != leveledBefore &&
-        _audioSwitching.processing.autoGainControl) {
-      unawaited(_reopenCapture('strong noise suppression changed'));
+    if (levelsNatively != leveledBefore &&
+        switching.processing.autoGainControl) {
+      unawaited(_host.reopenCapture('strong noise suppression changed'));
     }
   }
 
   /// Whether the chain lifts quiet speech itself: whenever a suppressor runs
   /// natively, since libwebrtc's auto gain ahead of it lifts quiet mouth
   /// sounds into the band the suppressor keeps.
-  bool get _levelsNatively => _gate.supported && _strong.nativeStrong;
+  bool get levelsNatively => gate.supported && strong.nativeStrong;
 
-  Future<void> _reopenCapture(String reason);
-
-  Future<void> _applyInputGate() => _gate.configure(
+  /// Sends the current settings to the native gate.
+  Future<void> apply() => gate.configure(
         enabled: _gateEnabled,
         thresholdDb: _gateThresholdDb,
         dynamics: _evenOutLoudSounds,
-        strongNoiseSuppression: _strong.nativeStrong,
-        strongestNoiseSuppression: _strong.nativeStrongest,
-        levelAfterSuppression: _levelsNatively,
+        strongNoiseSuppression: strong.nativeStrong,
+        strongestNoiseSuppression: strong.nativeStrongest,
+        levelAfterSuppression: levelsNatively,
       );
 }

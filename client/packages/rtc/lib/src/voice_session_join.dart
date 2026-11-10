@@ -37,18 +37,18 @@ extension VoiceSessionJoinWork on VoiceSession {
     required bool canPublish,
   }) async {
     if (_disposed) return;
-    _mayPublish = canPublish;
+    _readiness.mayPublish = canPublish;
     if (_room != null) await leave();
     // Claims the session past the leave above, whose own guard has run by now.
     _generation++;
     // A leave this join superseded never reached idle, which is what ends the old call's health.
-    _glitchWatch.finish();
+    _healthWatch.glitchWatch.finish();
 
     _lastDisconnect = null;
     _droppedWhileSharing = false;
     _setState(VoiceSessionState.connecting);
     final generation = _generation;
-    await _forgetUnpluggedDevices();
+    await _audioDevices.forgetUnplugged();
     if (_disposed || generation != _generation) return;
     final room = _roomFactory();
     _room = room;
@@ -68,7 +68,7 @@ extension VoiceSessionJoinWork on VoiceSession {
       // A slow webcam must not hold "connected" back; see CameraJoin.
       if (cameraEnabled) unawaited(_openCameraAfterJoin(room, generation));
       if (micFailed) _retryMicAfterJoin();
-      if (!microphoneEnabled) await _primeMutedMic();
+      if (!microphoneEnabled) await _readiness.primeMuted();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(_room, room)) return;

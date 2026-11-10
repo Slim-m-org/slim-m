@@ -17,3 +17,4 @@ crates/slimm-server/tests/dms.rs 594 # pair membership, the deliberately skipped
 client/packages/app/test/features/auth/session_persistence_test.dart 588 # restore, refresh and revocation paths
 crates/slimm-server/src/http/ws/authorization.rs 550 # exhaustive per-connection frame authorization match; each new event adds an arm. Ceiling moves in steps of 50
 crates/slimm-server/src/hub.rs 650 # two exhaustive event classifiers gating the durable/ephemeral split; each new event adds an arm. Ceiling moves in steps of 50
+client/packages/rtc/lib/src/voice_session.dart 640 # transitional while VoiceSession's parts become collaborator classes; removed when the split lands

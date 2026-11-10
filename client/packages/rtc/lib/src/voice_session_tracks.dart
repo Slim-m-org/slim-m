@@ -72,13 +72,13 @@ extension VoiceSessionTracks on VoiceSession {
   void _onReconnectingChanged() {
     if (_disposed) return;
     if (health.reconnect.restarting.value) {
-      _glitchWatch.stop();
+      _healthWatch.stop();
       // Tracks are forgotten so the grace period starts again once frames can flow.
       _stallWatchdog.observe(const []);
       return;
     }
     if (_room == null || _state != VoiceSessionState.connected) return;
-    _glitchWatch.start();
+    _healthWatch.glitchWatch.start();
     _refreshParticipants();
   }
 
@@ -139,9 +139,9 @@ extension VoiceSessionTracks on VoiceSession {
     _stopStallWatch();
     _releaseStats();
     _stopMicWatch();
-    _stopHealthWatch();
+    _healthWatch.stop();
     _setupLog.stop();
-    _strong.reset();
+    _inputGate.strong.reset();
     _stopArrivalWatch?.call();
     _stopArrivalWatch = null;
     final cancelEvents = _cancelEvents;
@@ -166,10 +166,10 @@ extension VoiceSessionTracks on VoiceSession {
     _micWanted = enabled;
     // A chosen microphone that came back since the last open is used again, not the default.
     if (enabled && _audioSwitching.chosenInput != null) {
-      await _forgetUnpluggedDevices();
+      await _audioDevices.forgetUnplugged();
     }
     try {
-      final reopen = enabled && _micRelease.onUnmuting();
+      final reopen = enabled && _readiness.release.onUnmuting();
       final opened = Stopwatch()..start();
       await _mic.setEnabled(
         enabled,
@@ -180,14 +180,14 @@ extension VoiceSessionTracks on VoiceSession {
       }
       _noteMicSet(enabled);
       _refreshParticipants();
-      if (enabled) _followPreferredDevices();
+      if (enabled) _audioDevices.followPreferred();
       _setMicFailure(null);
       _micRecovery.reset();
       return true;
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
       _micWanted = intent;
-      if (enabled && _mic.hasTrack) _micRelease.onMuted();
+      if (enabled && _mic.hasTrack) _readiness.release.onMuted();
       if (enabled) unawaited(_noteMicFailure(classifyMicFailure(e)));
       _lastError = e;
       _refreshParticipants();
@@ -196,7 +196,7 @@ extension VoiceSessionTracks on VoiceSession {
   }
 
   void _noteMicSet(bool enabled) {
-    enabled ? _micRelease.reopened() : _micRelease.onMuted();
+    enabled ? _readiness.release.reopened() : _readiness.release.onMuted();
     if (enabled) _joinTimings.mark(JoinStage.micPublished);
   }
 
@@ -244,12 +244,12 @@ extension VoiceSessionTracks on VoiceSession {
   /// private plumbing, so an extension costs it nothing an
   /// `implements VoiceSession` fake would notice.
   void _rebuildRoster() {
-    _applyGateRate();
+    _inputGate.applyRate();
     final room = _room;
     if (room == null || _disposed) return;
 
     // Reapplied on every refresh, not only on toggle, so deafening reaches a participant or track that appears afterward too.
-    unawaited(_applyLocalAudioState(room));
+    unawaited(_listener.apply(room));
     // Ahead of the unchanged-roster early return below: a subscription can change with no visible roster change at all.
     _applyVideoInterest();
     unawaited(
@@ -263,7 +263,7 @@ extension VoiceSessionTracks on VoiceSession {
 
     // Only a full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
     if (health.reconnect.restarting.value) {
-      _reportLocalLevel(const []);
+      _inputGate.reportLocalLevel(const []);
       return;
     }
 
@@ -281,7 +281,7 @@ extension VoiceSessionTracks on VoiceSession {
         recheck == null ? null : Timer(recheck, _rebuildRoster);
     // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
     if (listEquals(next, _participants)) {
-      _reportLocalLevel(next);
+      _inputGate.reportLocalLevel(next);
       return;
     }
     _setRoster(List.unmodifiable(next));
@@ -290,7 +290,7 @@ extension VoiceSessionTracks on VoiceSession {
   /// The one place the roster changes, so your level is reported with it and never outlives the people it came from.
   void _setRoster(List<VoiceParticipant> next) {
     _participants = next;
-    _reportLocalLevel(next);
+    _inputGate.reportLocalLevel(next);
     if (!_participantsController.isClosed) {
       _participantsController.add(next);
     }
@@ -300,11 +300,11 @@ extension VoiceSessionTracks on VoiceSession {
     if (_state == next || _disposed) return;
     _state = next;
     _syncMicWatch(next);
-    _syncHealthWatch(next);
+    _healthWatch.sync(next);
     _syncCallDiagnostics(next);
     if (next == VoiceSessionState.connected) {
-      unawaited(_applyInputGate());
-      _applyGateRate();
+      unawaited(_inputGate.apply());
+      _inputGate.applyRate();
       _gate.start(_refreshParticipants);
     } else {
       _gate.stop();
