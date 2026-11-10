@@ -15,6 +15,9 @@ import '../../../format.dart';
 /// Wide and short, so a phone photo still leaves the text above the fold.
 const double kInviteBannerAspect = 3;
 
+/// The widest the card is drawn, the width rule 4 of desktop-vs-mobile.md gives a dialog.
+const double kInviteLandingMaxWidth = 460;
+
 /// Large enough to read as the space's mark, small enough to leave the name its line.
 const double kInviteIconSize = AppSizes.icon32 + AppSpacing.s8;
 

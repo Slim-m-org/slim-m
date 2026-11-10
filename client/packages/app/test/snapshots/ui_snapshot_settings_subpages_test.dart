@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The sub pages the settings cleanup moved things onto: Customize's one save
-/// bar and visitor preview page, the emoji add page, and the one-sheet "add to
+/// bar and its landing preview, the emoji add page, and the one-sheet "add to
 /// the permissions grid" picker.
 library;
 
@@ -36,21 +36,19 @@ void main() {
   for (final viewport in phoneAndDesktop) {
     // A phone opens Customize as its own route, which the fixture router lacks.
     if (viewport == 'desktop') {
-      testWidgets('customize preview page at $viewport', (tester) async {
+      testWidgets('customize with its landing preview at $viewport', (
+        tester,
+      ) async {
         await renderSurface(
           tester,
           '/settings/space',
           viewport,
           'dark',
-          'subpage-customize-preview-$viewport-dark',
+          'subpage-customize-$viewport-dark',
           settleNestedResolve: true,
           afterSettle: (tester) async {
             await _openPane(tester, 'Customize');
             await tester.pump(const Duration(milliseconds: 500));
-            await tester.ensureVisible(find.text('Preview as a visitor'));
-            await tester.tap(find.text('Preview as a visitor'));
-            await tester.pump();
-            await tester.pump(const Duration(milliseconds: 400));
           },
         );
       });

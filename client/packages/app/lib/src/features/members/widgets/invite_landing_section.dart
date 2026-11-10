@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The admin's controls for the invite landing card: the Space's name, a short
-/// description, a banner, an icon, and a live preview of the card a visitor
-/// will see.
+/// The admin's controls for the invite landing card: a live preview of the
+/// card a visitor will see, then the Space's name, a short description, a
+/// banner and an icon.
 library;
 
 import 'dart:async';
@@ -28,7 +28,6 @@ import '../../settings/widgets/settings_field.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../../widgets/space_icon.dart';
 import '../../settings/widgets/settings_save_bar.dart';
-import 'invite_landing_preview_page.dart';
 import '../providers/member_actions.dart';
 import '../../settings/providers/settings_actions.dart';
 
@@ -186,15 +185,18 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     });
   }
 
+  /// Watched from the section's own build, so the preview redraws when the bytes land.
   Widget? _banner(int? updatedAt) {
     if (updatedAt == null) return null;
-    final bytes = ref.watch(_bannerBytesProvider(updatedAt)).valueOrNull;
-    if (bytes == null) {
-      return ColoredBox(
-        color: Theme.of(context).extension<AppTokens>()!.surfaceSunken,
-      );
-    }
-    return Image.memory(bytes, fit: BoxFit.cover);
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return switch (ref.watch(_bannerBytesProvider(updatedAt))) {
+      AsyncData(:final value) => Image.memory(value, fit: BoxFit.cover),
+      AsyncError() => ColoredBox(color: tokens.surfaceSunken),
+      _ => ColoredBox(
+        color: tokens.surfaceSunken,
+        child: const Center(child: AppSpinner(size: AppSpinnerSize.sm)),
+      ),
+    };
   }
 
   @override
@@ -286,26 +288,41 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     ),
   );
 
-  InviteLandingCard _card(api.SpaceSettings loaded, {String? invitedBy}) =>
-      InviteLandingCard(
-        name: loaded.name,
-        memberCount: ref.watch(membersProvider).valueOrNull?.length ?? 0,
-        description: _description.text.trim(),
-        banner: _banner(loaded.bannerUpdatedAt),
-        icon: loaded.iconUpdatedAt == null
-            ? null
-            : SpaceIcon(updatedAt: loaded.iconUpdatedAt, size: kInviteIconSize),
-        invitedBy: invitedBy,
-        use24Hour: watchUse24Hour(ref, context),
-      );
-
-  Future<void> _previewAsVisitor(api.SpaceSettings loaded) {
-    final me = ref.read(meProvider).valueOrNull?.displayName;
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) =>
-            InviteLandingPreviewPage(card: _card(loaded, invitedBy: me)),
-      ),
+  /// The card as typed, before saving: an emptied name falls back to the saved one.
+  Widget _preview(api.SpaceSettings loaded) {
+    final name = _name.text.trim();
+    final bannerFailed =
+        loaded.bannerUpdatedAt != null &&
+        ref.watch(_bannerBytesProvider(loaded.bannerUpdatedAt!)).hasError;
+    return SettingsCardBlock(
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kInviteLandingMaxWidth),
+            child: InviteLandingCard(
+              name: name.isEmpty ? loaded.name : name,
+              memberCount: ref.watch(membersProvider).valueOrNull?.length ?? 0,
+              description: _description.text.trim(),
+              banner: _banner(loaded.bannerUpdatedAt),
+              icon: loaded.iconUpdatedAt == null
+                  ? null
+                  : SpaceIcon(
+                      updatedAt: loaded.iconUpdatedAt,
+                      size: kInviteIconSize,
+                    ),
+              invitedBy: ref.watch(meProvider).valueOrNull?.displayName,
+              use24Hour: watchUse24Hour(ref, context),
+            ),
+          ),
+        ),
+        if (bannerFailed)
+          AppErrorState(
+            message: 'Could not load the banner.',
+            onRetry: () =>
+                ref.invalidate(_bannerBytesProvider(loaded.bannerUpdatedAt!)),
+          ),
+      ],
     );
   }
 
@@ -313,6 +330,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     final bannerSet = loaded.bannerUpdatedAt != null;
     final iconSet = loaded.iconUpdatedAt != null;
     return [
+      _preview(loaded),
       SettingsCardBlock(
         children: [
           SettingsField(
@@ -365,18 +383,6 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           isSet: iconSet,
           onChoose: _chooseIcon,
           onRemove: _removeIcon,
-        ),
-      ),
-      SettingsDetailRow(
-        icon: AppIcons.preview,
-        title: 'Landing page',
-        detail: 'What an invite link shows before sign-in.',
-        stackTrailingWhenNarrow: true,
-        trailing: AppButton(
-          label: 'Preview as a visitor',
-          variant: AppButtonVariant.secondary,
-          size: AppButtonSize.sm,
-          onPressed: () => unawaited(_previewAsVisitor(loaded)),
         ),
       ),
       if (actionError != null)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The admin controls for the invite landing card: saving the description,
-/// uploading and removing the banner, and the failure shape.
+/// uploading and removing the banner, and the failure shape. The live
+/// preview above them is in `invite_landing_banner_test.dart`.
 library;
 
 import 'dart:convert';
@@ -16,7 +17,6 @@ import 'package:slimm_app/src/features/messages/widgets/attachment_picker.dart';
 import 'package:slimm_app/src/features/messages/widgets/image_drop_zone.dart';
 import 'package:slimm_app/src/features/members/widgets/invite_landing_card.dart';
 import 'package:slimm_app/src/features/members/widgets/invite_landing_section.dart';
-import 'package:slimm_app/src/features/members/widgets/invite_landing_view.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -185,7 +185,7 @@ void main() {
         final server = _Server();
         await _pump(tester, server, width);
         expect(find.text('Save changes'), findsNothing);
-        expect(find.byType(InviteLandingCard), findsNothing);
+        expect(find.byType(InviteLandingCard), findsOneWidget);
 
         await tester.enterText(_descriptionField, '  A small home server. ');
         await tester.pump();
@@ -338,36 +338,5 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Drop one PNG, JPEG or WebP picture.'), findsOneWidget);
     expect(find.byType(AppErrorState), findsOneWidget);
-  });
-
-  testWidgets('preview as a visitor shows the joiner\'s view, with Join off', (
-    tester,
-  ) async {
-    await _pump(tester, _Server()..description = 'A small server.', 1280);
-    await tester.ensureVisible(find.text('Preview as a visitor'));
-    await tester.tap(find.text('Preview as a visitor'));
-    await tester.pumpAndSettle();
-
-    final view = find.byType(InviteLandingView);
-    expect(view, findsOneWidget);
-    expect(
-      find.descendant(of: view, matching: find.text('A small server.')),
-      findsOneWidget,
-    );
-    final join = tester.widget<AppButton>(
-      find.descendant(
-        of: view,
-        matching: find.widgetWithText(AppButton, 'Join'),
-      ),
-    );
-    expect(join.disabled, isTrue);
-    expect(
-      find.text('This is what someone opening one of your invites sees.'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.descendant(of: view, matching: find.text('Back')));
-    await tester.pumpAndSettle();
-    expect(find.byType(InviteLandingView), findsNothing);
   });
 }
