@@ -92,6 +92,20 @@ Future<void> scrollToOldest(WidgetTester tester) async {
   }
 }
 
+/// Scrolls the transcript toward its oldest end until [target] is built, and
+/// says whether it ever was. Stops at the end rather than looping forever.
+Future<bool> scrollUntilBuilt(WidgetTester tester, Finder target) async {
+  final position = transcriptScroll(tester).position;
+  for (var i = 0; i < 100 && target.evaluate().isEmpty; i++) {
+    if (position.pixels >= position.maxScrollExtent) break;
+    position.jumpTo(
+      (position.pixels + 300).clamp(0.0, position.maxScrollExtent),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+  return target.evaluate().isNotEmpty;
+}
+
 class HistoryHarness {
   HistoryHarness({
     required this.db,

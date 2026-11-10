@@ -161,6 +161,15 @@ Future<Harness> pumpReports(
             headers: {'content-type': 'application/json'},
           );
         }
+        // The history a jump reads before it shows a message; nothing newer than what the test stored.
+        if (request.method == 'GET' &&
+            RegExp(r'^/channels/[^/]+/messages$').hasMatch(request.url.path)) {
+          return http.Response(
+            '[]',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
         if (request.method == 'PUT' && request.url.path.endsWith('/timeout')) {
           return http.Response(
             jsonEncode({'until': 1}),

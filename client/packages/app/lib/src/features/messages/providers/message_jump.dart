@@ -66,6 +66,8 @@ class MessageJumpFailed extends MessageJumpState {
 
 enum _Paged { more, stop, failed }
 
+enum _Reach { arrived, tooFar, failed }
+
 /// Drives one jump at a time. A later [jumpTo] call always wins: its token
 /// invalidates whatever loop an earlier call is still running, so two taps in
 /// quick succession cannot have the first one's page finish and overwrite the
@@ -102,10 +104,13 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       final depth = await store.transcriptDepthOf(channelId, messageId);
       if (_token != token) return;
       if (depth != null) {
-        // Held is not shown: the window must grow to reach a row the store has but the transcript's newest rows do not.
-        state = history.widenWindowTo(depth)
-            ? MessageJumpArrived(channelId, messageId, token)
-            : MessageJumpUnreachable(channelId, messageId, token);
+        final arrived = await _reach(history, store, channelId, depth);
+        if (_token != token) return;
+        state = switch (arrived) {
+          _Reach.arrived => MessageJumpArrived(channelId, messageId, token),
+          _Reach.tooFar => MessageJumpUnreachable(channelId, messageId, token),
+          _Reach.failed => MessageJumpFailed(channelId, messageId, token),
+        };
         return;
       }
       if (page == maxPages) break;
@@ -117,6 +122,20 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
     state = fetchFailed
         ? MessageJumpFailed(channelId, messageId, token)
         : MessageJumpUnreachable(channelId, messageId, token);
+  }
+
+  /// Fetches the held rows down to [depth] before widening the window over
+  /// them, or they would be drawn without the extras only a fetch carries.
+  Future<_Reach> _reach(
+    ChannelHistoryController history,
+    MessageStore store,
+    String channelId,
+    int depth,
+  ) async {
+    if (depth > channelWindowCeiling) return _Reach.tooFar;
+    final seq = await store.oldestSeqInWindow(channelId, depth);
+    if (seq != null && !await history.hydrateTo(seq)) return _Reach.failed;
+    return history.widenWindowTo(depth) ? _Reach.arrived : _Reach.tooFar;
   }
 
   /// Pages one step older, and says whether the jump should keep looking.

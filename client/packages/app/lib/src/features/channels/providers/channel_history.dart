@@ -41,6 +41,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
+import '../../messages/providers/hydrated_ranges.dart';
 import '../../messages/providers/message_extras.dart';
 import '../../messages/providers/message_page_size.dart';
 import '../../../providers/providers.dart';
@@ -51,6 +52,9 @@ import '../../messages/providers/retention_policy.dart';
 /// own default so a channel that has never been paged reads exactly as it
 /// did before this existed.
 const _initialWindow = 200;
+
+/// The newest page [ChannelHistoryController.hydrate] refetches on every open.
+const _recentPage = 50;
 
 /// How much of a channel's history is loaded, and whether that is all of it.
 class ChannelHistory {
@@ -151,16 +155,8 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
     final pageSize = _ref.read(messagePageSizeControllerProvider).rows;
     state = state.copyWith(loading: true);
     try {
-      final older = await retryWhenRateLimited(
-        () => _ref
-            .read(apiProvider)
-            .listMessages(_channelId, before: oldest, limit: pageSize),
-        wait: _ref.read(rateLimitWaitProvider),
-      );
-      final store = await _ref.read(storeProvider.future);
-      await store.applyMessages(older);
-      if (!mounted) return;
-      _ref.read(messageExtrasProvider.notifier).applyMessages(older);
+      final older = await _fetchPage(before: oldest, limit: pageSize);
+      if (older == null) return;
       // Newest first is the server's own contract, so the last entry is oldest.
       if (older.isNotEmpty) _oldest = older.last.seq;
       state = state.copyWith(
@@ -173,6 +169,81 @@ class ChannelHistoryController extends StateNotifier<ChannelHistory> {
       // Not only ApiException: the store write above can fail too, and either must not wedge loading.
       if (!mounted) return;
       state = state.copyWith(loading: false, failed: true);
+    }
+  }
+
+  /// One page into the store and the extras. Null once the session has ended,
+  /// so a page landing after sign-out reaches neither for the next account.
+  Future<List<api.Message>?> _fetchPage({
+    int? before,
+    required int limit,
+  }) async {
+    final page = await retryWhenRateLimited(
+      () => _ref
+          .read(apiProvider)
+          .listMessages(_channelId, before: before, limit: limit),
+      wait: _ref.read(rateLimitWaitProvider),
+    );
+    if (!mounted) return null;
+    final store = await _ref.read(storeProvider.future);
+    await store.applyMessages(page);
+    if (!mounted) return null;
+    _ref
+        .read(messageExtrasProvider.notifier)
+        .applyPage(_channelId, page, before: before, limit: limit);
+    return page;
+  }
+
+  /// Queued so two callers wanting the same pages fetch them once.
+  Future<void> _hydrating = Future.value();
+
+  Future<T> _queued<T>(Future<T> Function() task) {
+    final run = _hydrating.then((_) => task());
+    _hydrating = run.then((_) {}, onError: (_) {});
+    return run;
+  }
+
+  /// Run on opening a channel: refetches the newest page, then every older one
+  /// the window shows, since the store holds no extras for them.
+  Future<void> hydrate() => _queued(() async {
+    try {
+      if (await _fetchPage(limit: _recentPage) == null) return;
+      final store = await _ref.read(storeProvider.future);
+      if (!mounted) return;
+      final floor = await store.oldestSeqInWindow(_channelId, state.window);
+      if (floor != null) await _hydrateDownTo(floor);
+    } catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.ui,
+        'load recent channel messages',
+        error,
+        stack,
+      );
+    }
+  });
+
+  /// Fetches until every row from [floor] up came from the server this
+  /// session; false when a page failed, keeping what was fetched.
+  Future<bool> hydrateTo(int floor) => _queued(() => _hydrateDownTo(floor));
+
+  Future<bool> _hydrateDownTo(int floor) async {
+    final limit = _ref.read(messagePageSizeControllerProvider).rows;
+    // The largest window is all a transcript ever shows, so no floor is worth more pages than fill it.
+    final maxPages = (channelWindowCeiling / limit).ceil() + 1;
+    try {
+      final extras = _ref.read(messageExtrasProvider.notifier);
+      for (var fetched = 0; fetched < maxPages; fetched++) {
+        final gap = extras.highestUnhydrated(_channelId, floor);
+        if (gap == null) return true;
+        final before = gap == HydratedRanges.newest ? null : gap + 1;
+        if (await _fetchPage(before: before, limit: limit) == null) {
+          return false;
+        }
+      }
+      return extras.highestUnhydrated(_channelId, floor) == null;
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.data, 'load older messages', error, stack);
+      return false;
     }
   }
 
