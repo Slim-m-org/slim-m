@@ -2,6 +2,8 @@
 """The review bundle turns snapshot PNGs into a manifest a reviewer walks, so a
 name that parses wrongly, a rerun that rewrites bytes, or a stale image left in
 the bundle each make the review lie."""
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -254,7 +256,8 @@ class CommandLineTest(BundleCase):
         return ["--src", str(self.src), "--out", str(self.out), "--registry", str(self.registry), "--commit", "c", *extra]
 
     def test_no_pictures_is_an_error(self):
-        self.assertEqual(bundle.main(self.args()), 2)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(bundle.main(self.args()), 2)
 
     def test_check_coverage_fails_on_a_missing_surface(self):
         self.shot("onboarding-phone-dark")
