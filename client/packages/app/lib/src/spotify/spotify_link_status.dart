@@ -47,10 +47,4 @@ class SpotifyLinkStatusController extends StateNotifier<SpotifyLinkStatus> {
   void set(SpotifyLinkStatus next) {
     if (mounted) state = next;
   }
-
-  /// Dismissing an error returns to whatever is true without it.
-  void dismissFailure({required bool linked, String? name}) {
-    if (state is! SpotifyFailed) return;
-    set(linked ? SpotifyConnected(name) : const SpotifyUnlinked());
-  }
 }

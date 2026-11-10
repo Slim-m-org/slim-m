@@ -6,6 +6,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../desktop/providers/desktop_call_notifier.dart';
 import '../../../desktop/providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
 import '../../../providers/media_disk_caches.dart';
@@ -40,6 +41,7 @@ void startAccountServices(ProviderContainer container) {
   container.read(directRouteProvider);
   container.read(viewingReporterProvider);
   container.read(desktopMessageNotifierProvider);
+  container.read(desktopCallNotifierProvider);
   container.listen(blocksProvider, (_, _) {});
   container.listen(channelNotificationOverridesProvider, (_, _) {});
   container.listen(roleChangeWatcherProvider, (_, _) {});

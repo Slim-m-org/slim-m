@@ -108,6 +108,10 @@ final spotifyLinkTimeoutProvider = Provider<Duration>(
   (ref) => const Duration(minutes: 10),
 );
 
+/// Every live container's status, since the link is the device's: a change in
+/// one is shown by all.
+final _statusControllers = <SpotifyLinkStatusController>[];
+
 /// Shown in Settings under the Spotify switch. Starts from the stored link so
 /// a restart still says who is connected.
 final spotifyLinkStatusProvider =
@@ -115,6 +119,8 @@ final spotifyLinkStatusProvider =
       ref,
     ) {
       final controller = SpotifyLinkStatusController(const SpotifyUnlinked());
+      _statusControllers.add(controller);
+      ref.onDispose(() => _statusControllers.remove(controller));
       final store = ref.read(spotifyTokenStoreProvider);
       unawaited(() async {
         try {
@@ -136,8 +142,6 @@ class SpotifyLinker {
   final Ref _ref;
   Timer? _timer;
 
-  SpotifyLinkStatusController get _status =>
-      _ref.read(spotifyLinkStatusProvider.notifier);
   SpotifyTokenStore get _store => _ref.read(spotifyTokenStoreProvider);
 
   /// Sends the person to Spotify. Returns once the browser is open; the
@@ -147,14 +151,20 @@ class SpotifyLinker {
     if (clientId.isEmpty) return;
     final verifier = randomUrlSafe();
     final state = randomUrlSafe(32);
-    _status.set(const SpotifyWaiting());
-    await _store.savePending(
-      SpotifyPendingLink(
-        verifier: verifier,
-        state: state,
-        startedAt: DateTime.now(),
-      ),
-    );
+    _show(const SpotifyWaiting());
+    try {
+      await _store.savePending(
+        SpotifyPendingLink(
+          verifier: verifier,
+          state: state,
+          startedAt: DateTime.now(),
+        ),
+      );
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
+      _fail('Could not start linking Spotify. Try again.');
+      return;
+    }
     final uri = spotifyAuthorizeUri(
       clientId: clientId,
       challenge: await codeChallenge(verifier),
@@ -181,18 +191,22 @@ class SpotifyLinker {
   /// Finishes the link from Spotify's redirect, whatever state the app is in.
   /// True when a link was completed.
   Future<bool> handleCallback(Uri uri) async {
-    _timer?.cancel();
     final pending = await _store.loadPending();
-    if (pending == null) return _strayCallback();
+    if (pending == null) {
+      _timer?.cancel();
+      return _strayCallback();
+    }
+    final params = uri.queryParameters;
+    // Only the redirect that carries this attempt's state may spend it.
+    if (params['state'] != pending.state) {
+      AppLog.info(LogTag.ui, 'Ignored a Spotify redirect for another sign-in');
+      return false;
+    }
+    _timer?.cancel();
     await _store.clearPending();
     final timeout = _ref.read(spotifyLinkTimeoutProvider);
     if (DateTime.now().difference(pending.startedAt) > timeout) {
       _fail(_expired);
-      return false;
-    }
-    final params = uri.queryParameters;
-    if (params['state'] != pending.state) {
-      _fail('That Spotify sign-in did not match this device. Try again.');
       return false;
     }
     if (params.containsKey('error')) {
@@ -218,7 +232,7 @@ class SpotifyLinker {
   }
 
   Future<bool> _complete(String code, String verifier) async {
-    _status.set(const SpotifyConnecting());
+    _show(const SpotifyConnecting());
     try {
       final client = _ref.read(spotifyClientProvider);
       final tokens = await client
@@ -227,7 +241,7 @@ class SpotifyLinker {
       await _store.save(tokens);
       final name = await _profileName(client, tokens.accessToken);
       if (name != null) await _store.saveAccount(name);
-      _status.set(SpotifyConnected(name));
+      _show(SpotifyConnected(name));
       await _ref.read(shareSpotifyProvider.notifier).markLinked();
       return true;
     } on SpotifyAuthException catch (e, stack) {
@@ -266,21 +280,26 @@ class SpotifyLinker {
     _fail('Spotify sign-in timed out. Try again.');
   }
 
-  void _fail(String message) {
-    _status.set(SpotifyFailed(message));
+  void _fail(String message) => _show(SpotifyFailed(message));
+
+  void _show(SpotifyLinkStatus next) {
+    final own = _ref.read(spotifyLinkStatusProvider.notifier);
+    for (final each in {own, ..._statusControllers}) {
+      each.set(next);
+    }
   }
 
   /// Gives up on a link that is waiting for the browser.
   Future<void> cancel() async {
     _timer?.cancel();
     await _store.clearPending();
-    _status.set(const SpotifyUnlinked());
+    _show(const SpotifyUnlinked());
   }
 
   Future<void> unlink() async {
     _timer?.cancel();
     await _store.clear();
-    _status.set(const SpotifyUnlinked());
+    _show(const SpotifyUnlinked());
   }
 
   /// Spotify refused the stored grant: the person removed slim-m there.
@@ -292,7 +311,9 @@ class SpotifyLinker {
   /// Clears an error and returns to what is true without it.
   Future<void> dismissFailure() async {
     final linked = await _store.load() != null;
-    _status.dismissFailure(linked: linked, name: await _store.loadAccount());
+    final name = await _store.loadAccount();
+    if (_ref.read(spotifyLinkStatusProvider) is! SpotifyFailed) return;
+    _show(linked ? SpotifyConnected(name) : const SpotifyUnlinked());
   }
 }
 

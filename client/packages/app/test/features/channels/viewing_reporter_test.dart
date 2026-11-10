@@ -159,4 +159,17 @@ void main() {
     input.remove(extra);
     expect(input.reporterCount, base);
   });
+
+  test('a provider-owned reporter disposes with its closing container', () {
+    final closing = ProviderContainer();
+    closing.read(
+      Provider((ref) {
+        final owned = ViewingReporter(ref, send: (_, _) {});
+        ref.onDispose(owned.dispose);
+        return owned;
+      }),
+    );
+
+    closing.dispose();
+  });
 }

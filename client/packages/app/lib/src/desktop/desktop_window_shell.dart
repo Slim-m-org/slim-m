@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/accounts/providers/account_host.dart';
 import '../features/accounts/providers/account_providers.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
@@ -128,6 +129,7 @@ class DesktopWindowShell {
 
   DesktopWindowController? _controller;
   DesktopTrayController? _trayController;
+  AccountHost? _accounts;
   bool _active;
   bool _framelessApplied;
 
@@ -442,6 +444,7 @@ class DesktopWindowShell {
       probe: const MethodChannelLinuxTrayProbe(),
     );
 
+    _accounts = container.read(accountHostProvider);
     _controller = DesktopWindowController(
       port: port,
       store: store,
@@ -450,7 +453,7 @@ class DesktopWindowShell {
       positionSupported: _positionSupported,
       onShow: (action) => _offerFirstRunNoticeIfNeeded(container, action),
       fullscreenHeld: () => fullscreenHolds.any,
-      keepInTray: () => container.read(closeToTrayProvider),
+      keepInTray: () => _onScreen(container).read(closeToTrayProvider),
       quit: () => quit(port),
     )..start();
     // Read now so the stored choice has loaded before the first close.
@@ -462,7 +465,7 @@ class DesktopWindowShell {
     _trayController = DesktopTrayController(
       port: port,
       container: container,
-      host: container.read(accountHostProvider),
+      host: _accounts,
     );
     await _trayController!.start();
   }
@@ -475,11 +478,15 @@ class DesktopWindowShell {
     CloseAction? action,
   ) async {
     if (action == null) return;
-    final notice = await container.read(firstRunTrayNoticeProvider.future);
+    final screen = _onScreen(container);
+    final notice = await screen.read(firstRunTrayNoticeProvider.future);
     if (notice.hasBeenShown(action)) return;
-    container.read(firstRunTrayNoticeCloseActionProvider.notifier).state =
-        action;
+    screen.read(firstRunTrayNoticeCloseActionProvider.notifier).state = action;
   }
+
+  /// The account on screen owns the settings a close acts on; the first one built may be gone.
+  ProviderContainer _onScreen(ProviderContainer fallback) =>
+      _accounts?.active?.container ?? fallback;
 }
 
 final desktopWindowShellProvider = Provider<DesktopWindowShell>(
