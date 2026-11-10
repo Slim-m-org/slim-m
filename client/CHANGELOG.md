@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.127.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.126.1...client-v0.127.0) (2026-11-10)
+
+
+### Features
+
+* a Space setting that hides bots from the member list ([#2366](https://github.com/Slim-m-org/slim-m/issues/2366)) ([a360821](https://github.com/Slim-m-org/slim-m/commit/a360821ccf5ec32b1255aff789733eae93d890e2))
+* **client:** a reply shows what it answers on a joined row above the name ([#2371](https://github.com/Slim-m-org/slim-m/issues/2371)) ([de19a05](https://github.com/Slim-m-org/slim-m/commit/de19a0566682e22ef7d7c26335e57c6810d54ba9))
+* **client:** share photos, files and text into slim-m from android's share menu ([#2374](https://github.com/Slim-m-org/slim-m/issues/2374)) ([3f3f335](https://github.com/Slim-m-org/slim-m/commit/3f3f3359bc5e98b73bbc255c2e7043fee3b90023))
+
+
+### Bug Fixes
+
+* **client:** a member's colour banner follows the phone sheet's rounded corners ([#2368](https://github.com/Slim-m-org/slim-m/issues/2368)) ([22e7a9e](https://github.com/Slim-m-org/slim-m/commit/22e7a9e5d5843352ee67a6f7615d86ca0e361814))
+* **client:** animated emoji play inside the sheet that shows them ([#2367](https://github.com/Slim-m-org/slim-m/issues/2367)) ([6cdec5c](https://github.com/Slim-m-org/slim-m/commit/6cdec5c9fbbe08f624c88cbe928f9f4cbf8bb70c))
+* **client:** Photo library opens the photo strip again when the keyboard was up ([#2365](https://github.com/Slim-m-org/slim-m/issues/2365)) ([4580df7](https://github.com/Slim-m-org/slim-m/commit/4580df7c35d495e22f518d97b17b1035159ba9e4))
+* **client:** Update all asks about new module access instead of failing ([#2372](https://github.com/Slim-m-org/slim-m/issues/2372)) ([e88710e](https://github.com/Slim-m-org/slim-m/commit/e88710e125c45adefddcdc916a8dd9ec5204b0de))
+* Create emoji opens as a dialog and a taken name can be renamed ([#2373](https://github.com/Slim-m-org/slim-m/issues/2373)) ([5ed34b7](https://github.com/Slim-m-org/slim-m/commit/5ed34b7c1b0373fdf2eca44c8f5182e454b3d93c))
+* phone channel search matches partial words, jumps to its hits, and uses the palette's look ([#2369](https://github.com/Slim-m-org/slim-m/issues/2369)) ([2295e37](https://github.com/Slim-m-org/slim-m/commit/2295e37b9ac342ebf72602ec735698d2f2b74455))
+* the first wave of fixes from the 2026-11-08 audit ([#2362](https://github.com/Slim-m-org/slim-m/issues/2362)) ([f509c8e](https://github.com/Slim-m-org/slim-m/commit/f509c8ea0cd16d506a552c3a350e86dfe077fede))
+* wave 2a of the fixes from the 2026-11-08 audit ([#2370](https://github.com/Slim-m-org/slim-m/issues/2370)) ([9e69a7d](https://github.com/Slim-m-org/slim-m/commit/9e69a7d633785a328834a444e9bf2b9fc58aa9a2))
+
 ## [0.126.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.126.0...client-v0.126.1) (2026-11-07)
 
 
