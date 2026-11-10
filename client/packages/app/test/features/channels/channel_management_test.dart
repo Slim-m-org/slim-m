@@ -19,6 +19,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.da
 import 'package:slimm_app/src/features/channels/widgets/rail_insertion_line.dart';
 
 import 'channel_management_harness.dart';
+import '../../support/menu_gestures.dart';
 
 void main() {
   group('section header (backlog item 55)', () {
@@ -291,9 +292,10 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage chat'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage chat'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Channel settings'), findsOneWidget);
       expect(find.text('Remove from category'), findsNothing);
     });
 

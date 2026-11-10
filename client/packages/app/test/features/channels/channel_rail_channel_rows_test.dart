@@ -326,7 +326,7 @@ void main() {
 
   testWidgets(
     'the kebab occupies the same rect hidden or revealed, so a hover never '
-    'reflows the row (backlog 131)',
+    'resizes the row or moves the kebab (backlog 131)',
     (tester) async {
       await tester.pumpWidget(
         _harness(
@@ -361,8 +361,8 @@ void main() {
         tester.getRect(kebabFinder),
         kebabRectBefore,
         reason:
-            "the kebab's slot is reserved up front; a hover only "
-            'animates its opacity, never its geometry',
+            'the kebab sits at the row end hidden or revealed; a hover '
+            "only moves the label's ellipsis",
       );
 
       await gesture.removePointer();

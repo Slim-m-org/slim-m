@@ -10,6 +10,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 
 import 'channel_management_harness.dart';
+import '../../support/menu_gestures.dart';
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 10; i++) {
@@ -42,7 +43,7 @@ void main() {
     );
     await _settle(tester);
 
-    await tester.tap(find.bySemanticsLabel('Manage general'));
+    await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
     await _settle(tester);
     await tester.tap(find.text('Delete channel...'));
     await _settle(tester);
@@ -79,7 +80,7 @@ void main() {
     );
     await _settle(tester);
 
-    await tester.tap(find.bySemanticsLabel('Manage general'));
+    await clickHoverRevealed(tester, find.bySemanticsLabel('Manage general'));
     await _settle(tester);
     await tester.tap(find.text('Delete channel...'));
     await _settle(tester);
