@@ -26,6 +26,7 @@ import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/providers/voice_settings_controller.dart';
 import 'call_overlay_panel.dart';
+import 'overlay_draw_queue.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
 import 'screen_annotation_mapping.dart';
@@ -107,6 +108,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   final ScreenOverlay _window;
   final DateTime Function() _clock;
   final _board = ScreenAnnotationBoard();
+  late final _draws = OverlayDrawQueue(_window);
   StreamSubscription<api.ServerEvent>? _events;
   Timer? _heartbeat;
   Timer? _frames;
@@ -263,6 +265,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     // Showing replaces any panel window, which is why the panel is forgotten rather than hidden.
     _panelUp = false;
     _lastPanel = null;
+    _draws.reset();
     if (!await _window.show(covered)) return false;
     _overlayAspect = sharedAspect(monitors, covered);
     return mounted;
@@ -275,6 +278,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _frames?.cancel();
     _frames = null;
     _board.clear();
+    _draws.reset();
     await _window.hide();
   }
 
@@ -347,7 +351,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   void _paint() {
     final now = _clock();
     final live = _board.liveAt(now);
-    unawaited(_window.draw(overlayShapesFor(live, now)));
+    _draws.draw(overlayShapesFor(live, now));
     if (live.isEmpty) {
       _frames?.cancel();
       _frames = null;
@@ -360,6 +364,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _heartbeat?.cancel();
     _frames?.cancel();
     unawaited(_events?.cancel());
+    _draws.reset();
     if (state.consenting) _sendConsent(allowed: false);
     if (state.active || _panelUp) {
       unawaited(_window.hide());

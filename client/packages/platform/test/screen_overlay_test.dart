@@ -89,6 +89,55 @@ void main() {
       expect(shape.toJson()['x'], 0.4);
       expect(shape.toJson()['text'], 'look');
     });
+
+    test('equal shapes say the same, so a repeat frame can be skipped', () {
+      OverlayStroke stroke({List<double>? points, double alpha = 1}) =>
+          OverlayStroke(
+            points: points ?? [0.1, 0.2, 0.3, 0.4],
+            color: const Color(0xFFE86A5C),
+            alpha: alpha,
+          );
+      expect(stroke(), stroke());
+      expect(stroke().hashCode, stroke().hashCode);
+      expect(stroke(), isNot(stroke(alpha: 0.5)));
+      expect(stroke(), isNot(stroke(points: [0.1, 0.2, 0.3, 0.5])));
+
+      const ellipse = OverlayEllipse(
+        x0: 0.1,
+        y0: 0.2,
+        x1: 0.3,
+        y1: 0.4,
+        color: Color(0xFF5B8FD6),
+        alpha: 1,
+      );
+      const wider = OverlayEllipse(
+        x0: 0.1,
+        y0: 0.2,
+        x1: 0.5,
+        y1: 0.4,
+        color: Color(0xFF5B8FD6),
+        alpha: 1,
+      );
+      expect(ellipse, isNot(wider));
+      expect(ellipse.hashCode, isNot(wider.hashCode));
+
+      const note = OverlayNote(
+        x: 0.4,
+        y: 0.5,
+        text: 'look',
+        color: Color(0xFFE8B04B),
+        alpha: 1,
+      );
+      const edited = OverlayNote(
+        x: 0.4,
+        y: 0.5,
+        text: 'look here',
+        color: Color(0xFFE8B04B),
+        alpha: 1,
+      );
+      expect(note, isNot(edited));
+      expect(stroke(), isNot(note));
+    });
   });
 
   group('call panel', () {
