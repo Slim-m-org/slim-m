@@ -12,9 +12,14 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from config_source import strip_comments  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "docker" / "listener-llvm-key.sh"
@@ -93,8 +98,10 @@ class EveryLlvmKeyFetchIsPinnedTest(unittest.TestCase):
         self.assertEqual(loose, [])
 
     def test_the_listener_image_and_both_ci_jobs_use_the_script(self) -> None:
-        self.assertIn("listener-llvm-key", (REPO / "docker/listener.Dockerfile").read_text())
-        ci = (REPO / ".github/workflows/listener-ci.yml").read_text()
+        self.assertIn("listener-llvm-key", strip_comments((REPO / "docker/listener.Dockerfile").read_text()))
+        ci = strip_comments((REPO / ".github/workflows/listener-ci.yml").read_text())
+        # Both jobs run from crates/slimm-listener, so only a workspace-rooted path reaches the script.
+        self.assertEqual(ci.count('bash "$GITHUB_WORKSPACE/docker/listener-llvm-key.sh"'), 2)
         self.assertEqual(ci.count("docker/listener-llvm-key.sh"), 2)
 
 
