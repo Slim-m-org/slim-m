@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Voice settings "Shortcuts": the push-to-talk key and the call chords
-/// (mute, deafen, camera, share, leave), each remappable, with a reset to
-/// the defaults. Desktop only.
+/// (mute, deafen, camera, share, leave, call overlay), each remappable, with a
+/// reset to the defaults. Desktop only.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../screen_overlay/providers/screen_overlay_controller.dart';
 import '../../settings/widgets/settings_hairline.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
@@ -29,6 +30,8 @@ class VoiceShortcutsSection extends ConsumerWidget {
     final overrides = ref.watch(shortcutOverridesProvider);
     final voice = ref.read(voiceSettingsControllerProvider.notifier);
     final remap = ref.read(shortcutOverridesProvider.notifier);
+    // Absent, never disabled, where this desktop cannot host the overlay window.
+    final overlayHosted = ref.watch(screenOverlaySupportedProvider);
     final changed =
         overrides.isNotEmpty || settings.pushToTalkKey != kDefaultPushToTalkKey;
 
@@ -51,11 +54,12 @@ class VoiceShortcutsSection extends ConsumerWidget {
                 onChanged: voice.setPushToTalkKey,
               ),
             for (final action in remappableActions)
-              _ChordRow(
-                action: action,
-                pushToTalkKey: settings.pushToTalkKey,
-                onChanged: (chord) => remap.set(action, chord),
-              ),
+              if (action != AppAction.toggleCallOverlay || overlayHosted)
+                _ChordRow(
+                  action: action,
+                  pushToTalkKey: settings.pushToTalkKey,
+                  onChanged: (chord) => remap.set(action, chord),
+                ),
             const GlobalHotkeyStatusLine(),
             if (changed)
               Padding(
@@ -86,6 +90,7 @@ String _shortName(AppAction action) => switch (action) {
   AppAction.toggleCameraCall => 'Camera',
   AppAction.toggleShareCall => 'Share',
   AppAction.leaveCall => 'Leave',
+  AppAction.toggleCallOverlay => 'Call overlay',
   _ => action.label,
 };
 

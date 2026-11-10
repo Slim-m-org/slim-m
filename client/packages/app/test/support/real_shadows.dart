@@ -31,10 +31,9 @@
 /// The restore has to finish before this function returns, never via
 /// `addTearDown`: `TestWidgetsFlutterBinding._verifyInvariants` runs
 /// `debugAssertAllPaintingVarsUnset` the instant a test body's `Future`
-/// completes, strictly before any `tearDown`/`addTearDown` callback runs
-/// (the same ordering trap CLAUDE.md already records for a pending
-/// `Timer.periodic`), and that check fails the whole test if
-/// `debugDisableShadows` is not back to `true`.
+/// completes, strictly before any `tearDown`/`addTearDown` callback runs,
+/// and that check fails the whole test if `debugDisableShadows` is not back
+/// to `true`.
 library;
 
 import 'package:flutter/rendering.dart';

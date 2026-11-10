@@ -8,6 +8,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/unread_indicator_rules.dart';
+import 'package:slimm_data/data.dart';
 
 UnreadIndicator _for(
   api.NotificationPreference? override, {
@@ -22,6 +23,29 @@ UnreadIndicator _for(
   mentioned: mentioned,
   manuallyUnread: manuallyUnread,
 );
+
+Channel _channel({
+  int cursor = 5,
+  int lastRead = 5,
+  int mentioned = 0,
+  bool? manuallyUnread,
+}) => Channel(
+  id: 'c1',
+  name: 'general',
+  kind: 'text',
+  createdAt: 0,
+  position: 0,
+  cursor: cursor,
+  lastReadSeq: lastRead,
+  mentionedSeq: mentioned,
+  manuallyUnread: manuallyUnread,
+  slowModeSeconds: 0,
+  joinMuted: false,
+  isPersonalSpace: false,
+);
+
+UnreadIndicator _forChannel(Channel channel) =>
+    unreadIndicatorForChannel(channel, channelOverride: null, isDm: false);
 
 void main() {
   test('no override leaves both flags exactly as they came in', () {
@@ -85,5 +109,23 @@ void main() {
       _for(null),
       reason: 'the server refuses to store it, but a client must not guess',
     );
+  });
+
+  test('a channel is lit from its own cursors', () {
+    expect(_forChannel(_channel()), (unread: false, mentioned: false));
+    expect(_forChannel(_channel(cursor: 6)), (unread: true, mentioned: false));
+    expect(_forChannel(_channel(cursor: 7, mentioned: 6)), (
+      unread: true,
+      mentioned: true,
+    ));
+    expect(_forChannel(_channel(mentioned: 5)), (
+      unread: false,
+      mentioned: false,
+    ), reason: 'a mention at the read marker is already read');
+  });
+
+  test('a channel with no hand-mark value reads as not hand-marked', () {
+    expect(_forChannel(_channel(manuallyUnread: null)).unread, isFalse);
+    expect(_forChannel(_channel(manuallyUnread: true)).unread, isTrue);
   });
 }

@@ -21,16 +21,16 @@ import 'group_dm_people_list.dart';
 const _startTask = 'start the group';
 
 Future<void> showNewGroupDmSheet(BuildContext context) =>
-    showAppSheet<void>(context, builder: (_) => const NewGroupDmSheet());
+    showAppSheet<void>(context, builder: (_) => const _NewGroupDmSheet());
 
-class NewGroupDmSheet extends ConsumerStatefulWidget {
-  const NewGroupDmSheet({super.key});
+class _NewGroupDmSheet extends ConsumerStatefulWidget {
+  const _NewGroupDmSheet();
 
   @override
-  ConsumerState<NewGroupDmSheet> createState() => _NewGroupDmSheetState();
+  ConsumerState<_NewGroupDmSheet> createState() => _NewGroupDmSheetState();
 }
 
-class _NewGroupDmSheetState extends ConsumerState<NewGroupDmSheet> {
+class _NewGroupDmSheetState extends ConsumerState<_NewGroupDmSheet> {
   final _picked = <String>{};
   final _name = TextEditingController();
   final _createId = RetryId(newChannelId);

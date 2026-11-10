@@ -175,7 +175,7 @@ impl ModuleHost {
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = Result<Vec<u8>, RunError>>,
     {
-        let permit = gate::shared(lane).acquire().await?;
+        let permit = gate::acquire(lane).await?;
         let module = match cached_module(sha256) {
             Some(module) => module,
             None => {

@@ -22,6 +22,7 @@ mod content_group_dm_calls;
 mod content_media_slots;
 mod content_messages_window;
 mod content_roles;
+mod discord_link;
 mod dock;
 mod exports;
 mod farewell;
@@ -49,6 +50,7 @@ use content_group_dm_calls::group_dm_calls;
 use content_media_slots::{canvas_more_calls, media_slot_calls, object_lock_calls};
 use content_messages_window::bulk_delete_by_author_call;
 use content_roles::{overwrite_calls, role_calls};
+use discord_link::discord_link_calls;
 use dock::dock_calls;
 use farewell::farewell_calls;
 use gifs::gif_calls;
@@ -329,6 +331,7 @@ pub async fn run(c: &mut Contract) {
     .await;
     c.bare("listAdminAuditLog", "GET", "/space/audit-log", root)
         .await;
+    discord_link_calls(c, bob_token, &bob_id).await;
     c.bare("listMyLinkedAccounts", "GET", "/me/links", bob_token)
         .await;
     c.bare(

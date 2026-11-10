@@ -17,6 +17,7 @@ import 'providers.dart';
 import 'server_info.dart';
 import 'app_lifecycle.dart';
 import '../sync/providers/reconnect_backoff.dart';
+import '../sync/providers/sync_identity_hold.dart';
 import '../sync/providers/sync_failure.dart';
 import '../sync/providers/sync_ephemeral_reset.dart';
 import '../sync/providers/sync_catch_up.dart';
@@ -111,6 +112,13 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// False once [stop] or [dispose] ran, so a resume does not revive a stopped sync.
   bool _wantsConnection = false;
   late final SyncReconnector _reconnector;
+  late final _identityHold = SyncIdentityHold(
+    ref: _ref,
+    wantsConnection: () => _wantsConnection,
+    isDisposed: () => _disposed,
+    stop: stop,
+    start: start,
+  );
   late final SyncCatchUp _catchUp;
   late final SyncEventApplier _applier;
   final _channelRefresher = ChannelRefresher();
@@ -266,6 +274,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     await _teardown();
     if (generation != _generation) return;
     state = SyncStatus.connecting;
+    _identityHold.follow();
     _applier.unlistedChannels.clear();
     resetEphemeralSessionState(_ref);
     try {
@@ -349,6 +358,8 @@ class SyncController extends StateNotifier<SyncStatus> {
   ) async {
     final ticket = await api.webSocketTicket();
     if (generation != _generation) return null;
+    await api.awaitTrust();
+    if (generation != _generation) return null;
     final connection = await EventConnection.connect(
       url: api.webSocketUrl,
       ticket: ticket.ticket,
@@ -378,9 +389,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       (event) {
         if (generation != _generation) return;
 
-        /// Broadcast first and unconditionally: a listener that only cares
-        /// about, say, ReactionsChanged must not depend on this switch ever
-        /// learning about that event type.
+        // Broadcast first and unconditionally, so no listener depends on this switch knowing its event type.
         _liveEvents.add(event);
         frames.add(event);
       },
@@ -392,9 +401,10 @@ class SyncController extends StateNotifier<SyncStatus> {
 
   /// Applies one live event the way [_attach]'s listener would, without
   /// needing a real socket. For tests only.
-  @visibleForTesting
+  ///
   /// [generation] defaults to the live one; a test passes a stale value to
   /// stand in for a sign-out or reconnect that landed mid-event.
+  @visibleForTesting
   Future<void> applyServerEventForTest(
     ServerEvent event, {
     int? generation,
@@ -486,6 +496,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     _wantsConnection = false;
     _generation++;
     unawaited(_sessionSubscription.cancel());
+    _identityHold.close();
     _reconnector.cancelRetry();
     unawaited(_teardown());
     unawaited(_liveEvents.close());

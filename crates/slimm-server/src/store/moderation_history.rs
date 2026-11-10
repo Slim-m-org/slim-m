@@ -10,12 +10,8 @@
 //! member moderation. A single query would need to express both `WHERE`
 //! clauses at once for no shared benefit.
 //!
-//! `moderation_audit_log` indexes `(subject_id, created_at)` and
-//! `(actor_id)`, neither of which serves a bare `created_at DESC` scan; a
-//! full scan of it here is exactly what decision 0015 already accepted at
-//! this table's scale ("one row per moderation act on a deployment sized for
-//! a friend group is not a growth problem"), so this adds a bounded `LIMIT`
-//! rather than a new index and migration.
+//! `moderation_audit_log_created_at` (migration 0068) serves the bare `created_at DESC, id DESC`
+//! scan, so each source's top `limit` is an index read bounded by `LIMIT`.
 //!
 //! Pagination fetches the top `limit` rows from each source and merges them,
 //! which is enough by the standard top-k-per-source argument: any row

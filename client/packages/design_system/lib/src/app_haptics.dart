@@ -2,10 +2,11 @@
 /// The one place a tap turns into a physical tick.
 ///
 /// A finger gets no cursor and no hover, so on a phone the only pre-action
-/// confirmation that a control was actually hit is the haptic. Every tappable
-/// component in this system routes through here rather than calling
+/// confirmation that a control was actually hit is the haptic. Buttons, rows,
+/// menus and the long-press menu route through here rather than calling
 /// [HapticFeedback] directly, so the "only on a device that has a haptic
-/// engine" guard lives in one place instead of at every call site.
+/// engine" guard lives in one place. The form controls built on
+/// `FocusableTapTarget` (toggle, chip, segmented control, slider) do not tick.
 ///
 /// Guarded to iOS and Android on purpose: [HapticFeedback] is a no-op on
 /// desktop and web at the engine, but the guard also skips the platform

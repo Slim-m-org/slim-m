@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO link_handoffs\n                 (handoff_hash, user_id, provider, external_id, username, display_name,\n                  avatar_hash, expires_at)\n             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "e1c67fad1568aac736cd12375764b64b60be4460aa6e9c4853121d68a5fd7fdf"
+}

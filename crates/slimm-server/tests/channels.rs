@@ -5,7 +5,9 @@
 
 use axum::http::StatusCode;
 use serde_json::json;
+use slimm_server::notifications::NotificationPreference;
 use slimm_server::permissions::Permissions;
+use slimm_server::store::ChannelPatch;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -371,4 +373,62 @@ async fn deleting_without_manage_channels_is_forbidden() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+/// Every read of a channel row maps the same columns, room settings included.
+#[tokio::test]
+async fn every_read_of_a_channel_returns_the_same_row() {
+    let (store, _guard) = support::new_store("slimm-channels-test").await;
+    let lobby = store.create_channel("lobby", "voice").await.unwrap();
+    store
+        .update_channel_settings(
+            lobby.id,
+            ChannelPatch {
+                topic: Some(Some("rooms on demand")),
+                slow_mode_seconds: Some(7),
+                join_muted: Some(true),
+                default_notification: Some(NotificationPreference::Mentions),
+                creates_rooms: Some(true),
+                user_limit: Some(5),
+                ..ChannelPatch::default()
+            },
+        )
+        .await
+        .unwrap();
+    let owner = store.create_user("alice", "Alice").await.unwrap();
+    let lobby = store.channel(lobby.id).await.unwrap().unwrap();
+    let room = store
+        .create_voice_room(&lobby, owner.id, "alice's room")
+        .await
+        .unwrap();
+    let room = store
+        .update_channel_settings(
+            room.id,
+            ChannelPatch {
+                room_locked: Some(true),
+                ..ChannelPatch::default()
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(room.room.locked && room.room.owner_id == Some(owner.id));
+
+    let listed = store.list_channels().await.unwrap();
+    for channel in [&lobby, &room] {
+        let by_id = store.channel(channel.id).await.unwrap().unwrap();
+        let with_deleted = store
+            .channel_including_deleted(channel.id)
+            .await
+            .unwrap()
+            .unwrap();
+        let in_list = listed.iter().find(|c| c.id == channel.id).unwrap();
+        let expected = format!("{channel:?}");
+        assert_eq!(format!("{by_id:?}"), expected);
+        assert_eq!(format!("{with_deleted:?}"), expected);
+        assert_eq!(format!("{in_list:?}"), expected);
+    }
+    assert_eq!(lobby.room.user_limit, 5);
+    assert_eq!(lobby.default_notification, NotificationPreference::Mentions);
+    assert_eq!(room.room.lobby_id, Some(lobby.id));
 }

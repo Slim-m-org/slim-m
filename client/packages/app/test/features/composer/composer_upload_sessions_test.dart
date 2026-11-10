@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
@@ -27,9 +28,13 @@ http.Response _json(Map<String, dynamic> body, [int status = 200]) =>
     );
 
 class _Server {
-  _Server({required this.capabilities});
+  _Server({required this.capabilities, this.maxBytes, this.failVersions = 0});
 
   final List<String> capabilities;
+  final int? maxBytes;
+
+  /// How many of the first `/version` requests answer with a server error.
+  int failVersions;
   final calls = <String>[];
   var held = 0;
   var size = 0;
@@ -45,11 +50,16 @@ class _Server {
       'expires_at': 0,
     };
     if (path == '/version') {
+      if (failVersions > 0) {
+        failVersions -= 1;
+        return _json({'error': 'unavailable'}, 503);
+      }
       return _json({
         'name': 's',
         'version': '1.0.0',
         'protocol': 1,
         'capabilities': capabilities,
+        'max_attachment_bytes': ?maxBytes,
       });
     }
     if (path == '/attachments/uploads') {
@@ -69,7 +79,11 @@ class _Server {
   }
 }
 
-AttachmentStagingController _staging(_Server server) {
+/// [watchVersion] stands in for the mounted composer, which always watches it.
+AttachmentStagingController _staging(
+  _Server server, {
+  bool watchVersion = false,
+}) {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -87,6 +101,7 @@ AttachmentStagingController _staging(_Server server) {
     ],
   );
   addTearDown(container.dispose);
+  if (watchVersion) container.listen(serverInfoProvider, (_, _) {});
   return container.read(attachmentStagingProvider('c1'));
 }
 
@@ -141,6 +156,35 @@ void main() {
 
     expect(server.calls.where((c) => c == 'POST /attachments').length, 1);
     expect(server.calls, isNot(contains('POST /attachments/uploads')));
+  });
+
+  test('files staged in a row share one /version fetch', () async {
+    final server = _Server(capabilities: ['upload_sessions']);
+    final staging = _staging(server, watchVersion: true);
+    for (var i = 0; i < 3; i++) {
+      await staging.stageFile(_file(1024));
+    }
+    await staging.stageFile(_file(40 * _mib));
+    await _settled(staging);
+
+    expect(staging.items.whereType<UploadedAttachment>(), hasLength(4));
+    expect(server.calls.where((c) => c == 'GET /version'), hasLength(1));
+  });
+
+  test('a failed /version is asked again by the next file', () async {
+    final server = _Server(
+      capabilities: const [],
+      maxBytes: _mib,
+      failVersions: 1,
+    );
+    final staging = _staging(server, watchVersion: true);
+
+    expect(await staging.stageFile(_file(2 * _mib)), isNull);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    final refusal = await staging.stageFile(_file(2 * _mib));
+
+    expect(refusal, contains('over this server'));
+    expect(server.calls.where((c) => c == 'GET /version'), hasLength(2));
   });
 
   test('removing an uploading tile cancels its upload', () async {

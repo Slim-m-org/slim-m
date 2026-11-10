@@ -406,6 +406,8 @@ class InstalledDockModule {
     this.declaresProfileSection = false,
     this.subscriptions = const [],
     this.dataSchema,
+    this.interceptors = const [],
+    this.permissionHooks = const [],
     this.consecutiveFailures = 0,
     this.disabledReason,
     this.eventsDropped = 0,
@@ -416,8 +418,17 @@ class InstalledDockModule {
   /// Event kinds it was installed to receive.
   final List<String> subscriptions;
 
+  /// The hooks it was installed with; empty from a server that does not send them.
+  final List<DockHookDecl> interceptors;
+  final List<DockHookDecl> permissionHooks;
+
   /// The data store it was installed with; null when it declared none.
   final DockDataSchema? dataSchema;
+
+  /// Whether it holds every hook [wanted] declares, reading no more.
+  bool coversHooksOf(DockManifest wanted) =>
+      dockHooksCover(interceptors, wanted.interceptors) &&
+      dockHooksCover(permissionHooks, wanted.permissionHooks);
 
   /// Failed event or scheduled runs in a row; the host turns it off at five.
   final int consecutiveFailures;
@@ -525,6 +536,8 @@ class InstalledDockModule {
         declaresProfileSection: dockDeclaresProfileSection(json['slots']),
         subscriptions: dockSubscriptions(json['subscriptions']),
         dataSchema: dockDataSchema(json['data']),
+        interceptors: dockHooks(json['interceptors']),
+        permissionHooks: dockHooks(json['permission_hooks']),
         consecutiveFailures: json['consecutive_failures'] as int? ?? 0,
         disabledReason: json['disabled_reason'] as String?,
         eventsDropped: json['events_dropped'] as int? ?? 0,

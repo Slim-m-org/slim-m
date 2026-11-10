@@ -28,8 +28,8 @@ import '../ids.dart';
 ///
 /// The text and the [LocalAlertChannel] it posts through are one record per
 /// kind, not two parallel maps: a second map keyed the same way is exactly
-/// the shape that has drifted before in this project (see CLAUDE.md's role-
-/// name and mention-charset entries), and a record makes "these two facts
+/// the shape that has drifted before in this project (the role-name and
+/// mention-charset rules), and a record makes "these two facts
 /// belong to the same kind" true by construction rather than by convention.
 const _genericAlerts = <String, ({String text, LocalAlertChannel channel})>{
   'message': (text: 'New message', channel: LocalAlertChannel.messages),

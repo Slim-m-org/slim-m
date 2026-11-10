@@ -9,7 +9,8 @@
 # committed placeholder google-services.json makes the google-services plugin
 # apply, so the dependency graph matches the signed build's. When this fails
 # on verification, regenerate with scripts/android-verification-metadata.sh.
-# See docs/ci.md.
+# The app module's JVM unit tests (src/test) run in the same job, after the
+# build has written the Flutter config Gradle needs. See docs/ci.md.
 name: android-ci
 
 on:
@@ -76,5 +77,9 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter build apk --release
           flutter build appbundle --release
+
+      - name: app module unit tests
+        working-directory: client/packages/app/android
+        run: ./gradlew :app:testDebugUnitTest
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}

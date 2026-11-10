@@ -59,9 +59,11 @@ const COLOR_STRIP_LEN: usize = 4;
 /// derived from it that a client displays or pins.
 ///
 /// Deliberately does not carry the secret key: nothing here signs anything
-/// yet, so there is nothing in memory for a signing operation to use, and
-/// the persisted secret is read back only to re-derive this same public key
-/// on the next boot.
+/// yet, so there is nothing in memory for a signing operation to use. The
+/// persisted seed is read back to re-derive this public key and, through
+/// [`derived_key`], to root the module caller-id and link-preview token keys.
+/// It is stored raw, outside the [`DataKey`](crate::data_key::DataKey) seal,
+/// so a copy of the database alone can recompute those two keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ServerIdentity {
     public_key: [u8; PUBLIC_KEY_BYTES],
@@ -87,7 +89,7 @@ impl ServerIdentity {
     /// The fingerprint as one lowercase hex string with no separators, for a
     /// client to store or compare programmatically.
     pub fn fingerprint_hex(&self) -> String {
-        hex_lower(&self.fingerprint())
+        crate::media::to_hex(&self.fingerprint())
     }
 
     /// The same fingerprint, split into eight 4-character hex groups, for
@@ -116,15 +118,6 @@ impl ServerIdentity {
         }
         strip
     }
-}
-
-fn hex_lower(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        write!(out, "{byte:02x}").expect("writing hex digits into a String never fails");
-    }
-    out
 }
 
 /// Loads the persisted identity keypair, generating and storing one if this

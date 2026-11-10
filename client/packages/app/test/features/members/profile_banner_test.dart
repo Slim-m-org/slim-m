@@ -163,7 +163,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Profile colour: Blue'));
     await tester.pumpAndSettle();
 
-    expect(calls.take(2), ['DELETE /me/banner', 'PATCH /me']);
+    expect(calls.take(2), ['PATCH /me', 'DELETE /me/banner']);
     expect(find.text('Colour'), findsOneWidget);
     expect(find.text('Image'), findsNothing);
   });

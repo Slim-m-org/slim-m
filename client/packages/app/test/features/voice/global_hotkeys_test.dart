@@ -3,8 +3,6 @@
 /// in-window handlers, and never leaving the microphone stuck open.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,43 +18,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'global_hotkeys_harness.dart';
 import 'voice_controller_harness.dart';
-
-class FakeHotkeySource implements GlobalHotkeySource {
-  FakeHotkeySource({
-    this.probeResult = const GlobalHotkeyAvailability.available(
-      'Works when slim-m is in the background.',
-    ),
-  });
-
-  final GlobalHotkeyAvailability probeResult;
-  final binds = <List<GlobalHotkeyId>>[];
-  final chords = <List<HotkeyChord>>[];
-  final _events = StreamController<GlobalHotkeyEvent>.broadcast();
-
-  @override
-  Stream<GlobalHotkeyEvent> get events => _events.stream;
-
-  @override
-  Future<GlobalHotkeyAvailability> probe() async => probeResult;
-
-  @override
-  Future<GlobalHotkeyAvailability> bind(
-    List<GlobalHotkeyBinding> bindings,
-  ) async {
-    binds.add([for (final b in bindings) b.id]);
-    chords.add([for (final b in bindings) b.chord]);
-    return probeResult;
-  }
-
-  void send(GlobalHotkeyId id, GlobalHotkeyPhase phase) =>
-      _events.add(GlobalHotkeyEvent(id, phase));
-
-  void lose() => _events.add(const GlobalHotkeyEvent.lost());
-
-  @override
-  Future<void> dispose() async {}
-}
 
 void main() {
   final harness = VoiceHarness();

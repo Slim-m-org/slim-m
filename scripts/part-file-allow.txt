@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Hand-written Dart libraries that still join `part` files, with how many.
+# One `<path> <count> # why` line per library, relative to the repo root.
+# CLAUDE.md says to split a big file by extracting real classes into their own
+# libraries, and `part` is for generated code only (`.g.dart`, `.freezed.dart`
+# and `.mocks.dart` parts are never counted).
+#
+# The count only goes down. A file may not gain a part, and one that lost some
+# must lower its entry, or drop it at zero, so this list shrinks with the work.
+# Nothing is added here: a new split is a new class in its own library.
+
+client/packages/api/lib/src/events.dart 4 # the wire event types, split to stay under the file budget
+client/packages/app/lib/src/features/canvas/screens/canvas_engine.dart 1 # canvas engine, pre-dates the gate
+client/packages/app/lib/src/features/canvas/screens/canvas_ops_controller.dart 6 # canvas ops controller, pre-dates the gate
+client/packages/app/lib/src/features/canvas/screens/canvas_pane.dart 4 # canvas pane state, pre-dates the gate
+client/packages/app/lib/src/features/canvas/screens/canvas_pane_body.dart 1 # canvas pane body, pre-dates the gate
+client/packages/app/test/features/canvas/canvas_gesture_fuzz_driver.dart 2 # fuzz driver, pre-dates the gate
+client/packages/voice_canvas/lib/src/canvas_document.dart 5 # canvas document, pre-dates the gate
+client/packages/voice_canvas/lib/src/canvas_surface.dart 4 # canvas surface, pre-dates the gate

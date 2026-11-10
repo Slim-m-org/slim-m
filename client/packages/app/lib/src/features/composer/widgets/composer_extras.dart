@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The composer's smaller pieces: the text field itself, its markdown key
-/// bindings, and the banners above the action bar.
+/// The composer's smaller pieces: the character counter and the banners above
+/// the action bar, plus a re-export of the text field.
 library;
 
 import 'dart:async';
@@ -50,7 +50,9 @@ class MessageLengthCounter extends StatelessWidget {
   }
 }
 
-/// dismiss to, since editing the text back under the limit is what clears it.
+/// An inline failure, in the composer's own vertical rhythm. Dismissible only
+/// when [onDismiss] is given; the over-limit band has nothing to dismiss to,
+/// since editing the text back under the limit is what clears it.
 class ComposerInlineError extends StatelessWidget {
   const ComposerInlineError({
     super.key,

@@ -15,6 +15,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart'
     show
         PortalMonitor,
+        VoiceParticipant,
         VoiceSessionState,
         localShareCapturedSize,
         portalSharedMonitor;
@@ -25,7 +26,9 @@ import '../../members/providers/blocks_controller.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/providers/voice_settings_controller.dart';
+import 'call_overlay_avatar.dart';
 import 'call_overlay_panel.dart';
+import 'overlay_draw_queue.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
 import 'screen_annotation_mapping.dart';
@@ -107,6 +110,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   final ScreenOverlay _window;
   final DateTime Function() _clock;
   final _board = ScreenAnnotationBoard();
+  late final _draws = OverlayDrawQueue(_window);
   StreamSubscription<api.ServerEvent>? _events;
   Timer? _heartbeat;
   Timer? _frames;
@@ -118,6 +122,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   bool _panelUp = false;
   int _panelMonitor = 0;
   OverlayPanel? _lastPanel;
+  final _avatarWatches =
+      <OverlayAvatarWho, ProviderSubscription<AsyncValue<OverlayAvatar>>>{};
+  // The picture key the runner holds per user id, so a picture crosses the channel once.
+  final _avatarsSent = <String, String>{};
 
   OverlaySupport get _support =>
       _ref.read(screenOverlaySupportProvider).valueOrNull ??
@@ -261,8 +269,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     );
     final covered = preferChosenScreen(candidates, chosen);
     // Showing replaces any panel window, which is why the panel is forgotten rather than hidden.
-    _panelUp = false;
-    _lastPanel = null;
+    _forgetPanel();
+    _draws.reset();
     if (!await _window.show(covered)) return false;
     _overlayAspect = sharedAspect(monitors, covered);
     return mounted;
@@ -275,6 +283,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _frames?.cancel();
     _frames = null;
     _board.clear();
+    _draws.reset();
     await _window.hide();
   }
 
@@ -286,27 +295,73 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     );
     if (!await _window.show([monitor]) || !mounted) return;
     _panelMonitor = monitor;
+    _forgetPanel();
     _panelUp = true;
-    _lastPanel = null;
   }
 
   Future<void> _stopPanel() async {
+    _forgetPanel();
+    await _window.hide();
+  }
+
+  /// A new or closed window holds none of what was sent before, so nothing is assumed sent.
+  void _forgetPanel() {
     _panelUp = false;
     _lastPanel = null;
-    await _window.hide();
+    _avatarsSent.clear();
+    for (final watch in _avatarWatches.values) {
+      watch.close();
+    }
+    _avatarWatches.clear();
   }
 
   /// Sends the panel only when what it says changed, so a speaking flicker that changes no row costs nothing.
   void _syncPanel() {
     if (!_panelUp || !mounted) return;
+    final participants = _ref.read(voiceParticipantsProvider);
     final panel = callOverlayPanel(
-      _ref.read(voiceParticipantsProvider),
+      participants,
       monitor: _panelMonitor,
       corner: _ref.read(voiceSettingsControllerProvider).callOverlayCorner,
+      avatars: _watchAvatars(callOverlayShown(participants)),
     );
     if (panel == _lastPanel) return;
     _lastPanel = panel;
-    unawaited(_window.panel(panel));
+    unawaited(_window.panel(_picturesOnce(panel)));
+  }
+
+  /// Follows the shown people's pictures, so one arriving or changing repaints the panel.
+  Map<String, OverlayAvatar> _watchAvatars(List<VoiceParticipant> shown) {
+    final wanted = {for (final p in shown) (id: p.identity, name: p.name)};
+    _avatarWatches.keys
+        .where((who) => !wanted.contains(who))
+        .toList()
+        .forEach((who) => _avatarWatches.remove(who)?.close());
+    for (final who in wanted) {
+      _avatarWatches.putIfAbsent(
+        who,
+        () =>
+            _ref.listen(callOverlayAvatarProvider(who), (_, _) => _syncPanel()),
+      );
+    }
+    return {
+      for (final entry in _avatarWatches.entries)
+        if (entry.value.read().valueOrNull case final avatar?)
+          entry.key.id: avatar,
+    };
+  }
+
+  OverlayPanel _picturesOnce(OverlayPanel panel) => panel.withRows([
+    for (final row in panel.rows)
+      if (row.avatarKey == null || _avatarsSent[row.id] == row.avatarKey)
+        row.withoutAvatarBytes()
+      else
+        _markSent(row),
+  ]);
+
+  OverlayPanelRow _markSent(OverlayPanelRow row) {
+    _avatarsSent[row.id] = row.avatarKey!;
+    return row;
   }
 
   Future<void> _stop() async {
@@ -347,7 +402,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   void _paint() {
     final now = _clock();
     final live = _board.liveAt(now);
-    unawaited(_window.draw(overlayShapesFor(live, now)));
+    _draws.draw(overlayShapesFor(live, now));
     if (live.isEmpty) {
       _frames?.cancel();
       _frames = null;
@@ -360,10 +415,12 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _heartbeat?.cancel();
     _frames?.cancel();
     unawaited(_events?.cancel());
+    _draws.reset();
     if (state.consenting) _sendConsent(allowed: false);
     if (state.active || _panelUp) {
       unawaited(_window.hide());
     }
+    _forgetPanel();
     super.dispose();
   }
 }

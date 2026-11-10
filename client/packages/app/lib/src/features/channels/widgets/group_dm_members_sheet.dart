@@ -23,20 +23,20 @@ import 'group_dm_people_list.dart';
 Future<void> showGroupDmMembersSheet(BuildContext context, String channelId) =>
     showAppSheet<void>(
       context,
-      builder: (_) => GroupDmMembersSheet(channelId: channelId),
+      builder: (_) => _GroupDmMembersSheet(channelId: channelId),
     );
 
-class GroupDmMembersSheet extends ConsumerStatefulWidget {
-  const GroupDmMembersSheet({super.key, required this.channelId});
+class _GroupDmMembersSheet extends ConsumerStatefulWidget {
+  const _GroupDmMembersSheet({required this.channelId});
 
   final String channelId;
 
   @override
-  ConsumerState<GroupDmMembersSheet> createState() =>
+  ConsumerState<_GroupDmMembersSheet> createState() =>
       _GroupDmMembersSheetState();
 }
 
-class _GroupDmMembersSheetState extends ConsumerState<GroupDmMembersSheet> {
+class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
   final _name = TextEditingController();
   String? _seededFor;
   bool _busy = false;

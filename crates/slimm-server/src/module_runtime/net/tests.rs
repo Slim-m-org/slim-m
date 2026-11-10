@@ -70,6 +70,19 @@ fn a_host_and_port_entry_admits_exactly_that_port() {
 }
 
 #[test]
+fn a_host_entry_spelling_the_default_port_admits_that_scheme_only() {
+    let https = hosts(&["api.example.com:443"]);
+    assert!(host_allowed(&url("https://api.example.com/v1"), &https));
+    assert!(host_allowed(&url("https://api.example.com:443/v1"), &https));
+    assert!(!host_allowed(&url("http://api.example.com/v1"), &https));
+    assert!(!host_allowed(&url("https://api.example.com:8443/"), &https));
+
+    let http = hosts(&["jellyfin.lan:80"]);
+    assert!(host_allowed(&url("http://jellyfin.lan/"), &http));
+    assert!(!host_allowed(&url("https://jellyfin.lan/"), &http));
+}
+
+#[test]
 fn only_http_and_https_to_an_approved_host_parse() {
     let approved = hosts(&["api.example.com"]);
     assert!(parse(br#"{"url":"https://api.example.com/x"}"#, &approved).is_ok());

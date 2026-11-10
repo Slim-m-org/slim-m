@@ -56,8 +56,24 @@ class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
     super.dispose();
   }
 
-  Set<String> get _spaceNames =>
-      ref.read(customEmojiIndexProvider).keys.toSet();
+  Map<String, String>? _indexCopied;
+  Set<String> _copiedNames = const {};
+
+  /// Copied once per change of the index: this is read on every keystroke.
+  Set<String> get _spaceNames {
+    final index = ref.read(customEmojiIndexProvider);
+    if (!identical(index, _indexCopied)) {
+      _indexCopied = index;
+      _copiedNames = index.keys.toSet();
+    }
+    return _copiedNames;
+  }
+
+  /// Nothing to preview without a Space emoji or a colon, which skips parsing the draft.
+  List<String> _previewFor(String text) =>
+      text.contains(':') && _spaceNames.isNotEmpty
+      ? spaceShortcodesIn(text, _spaceNames)
+      : const [];
 
   void _onChange() {
     final value = widget.controller.value;
@@ -94,7 +110,7 @@ class _ComposerShortcodesState extends ConsumerState<ComposerShortcodes> {
       _previous = text;
     }
 
-    final names = spaceShortcodesIn(widget.controller.text, _spaceNames);
+    final names = _previewFor(widget.controller.text);
     if (names.join(',') != _previewNames.join(',')) {
       setState(() => _previewNames = names);
     }

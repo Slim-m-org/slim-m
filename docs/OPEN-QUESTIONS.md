@@ -393,7 +393,21 @@ A proxy that routes only some paths to the server (the live Traefik rule keeps `
 
 What it unblocks and is not built yet: a QR for tap-to-add, and https links to channels and messages.
 
-## 22. The Discord link callback cannot tell who approved it (2026-11-09)
+## 22. ~~The Discord link callback cannot tell who approved it~~ (answered 2026-11-10: finish the link in the app)
+
+**Answered by the owner on 2026-11-10: finish the link in the app, not with a browser confirm page.**
+The browser that comes back from Discord has no slim session, so only the app can say which account is linking.
+`GET /links/discord/callback` now links nothing.
+It trades the code, reads the Discord account and holds it as a pending link under a fresh one-time handoff code, whose hash is all the server keeps (`link_handoffs`, migration 0180).
+The starter never sees that code, which is what the state they hold could not give.
+The page it answers hands back to the app with an "Open slim-m" button on `slimm://discord-link?code=`, an "Open in browser" button on the web client's `/app/link/discord?code=` (shown only when `/app/version.json` answers), and the code itself to paste in Settings, Connections.
+`POST /me/links/discord/complete` finishes it with the app's own bearer.
+It links only when that bearer is the account that started the link, and any other caller gets a 404 that reads like a wrong or expired code and spends the pending link.
+A code works once and lives ten minutes, like the state.
+The Windows setup registers the `slimm://` scheme and the runner hands a link to a running copy; the zip install and a browser that blocks the scheme use the pasted code.
+The "claim imported messages" feature can build on this, but should still ask for a stronger proof of ownership than an OAuth round trip.
+
+The original question follows.
 
 The 2026-11-08 audit (`x-security-13`) found that `GET /links/discord/callback` links whichever slim account minted the state, whoever's browser comes back with the code.
 A member can start a link on their own account and send the Discord authorize URL to someone else.
@@ -408,3 +422,4 @@ That is a wire and client change, so it is parked here rather than decided in a 
 *Question:* build the confirm page now, or hold until the "claim imported messages" feature, which is where a forged link turns into history theft and should need a stronger proof of ownership than an OAuth round trip?
 
 *What the run did instead:* left `crates/slimm-server/src/http/linked_accounts.rs` unchanged.
+The answer above replaced that.

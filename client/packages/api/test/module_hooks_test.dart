@@ -106,4 +106,76 @@ void main() {
     expect(hooks.last.phase, '');
     expect(dockHooks(null), isEmpty);
   });
+
+  group('an installed module', () {
+    Map<String, dynamic> row([Map<String, dynamic> extra = const {}]) => {
+          'id': 'filter',
+          'name': 'Filter',
+          'version': '1.0.0',
+          'artifact_sha256': 'a' * 64,
+          'approved_capabilities': <String>[],
+          'extension_points': <Object>[],
+          'enabled': true,
+          'installed_at': 1,
+          ...extra,
+        };
+
+    test('holds the hooks it was installed with', () {
+      final m = InstalledDockModule.fromJson(row({
+        'interceptors': [
+          {
+            'hook': 'message.pre_send',
+            'phase': 'reject',
+            'reads': ['content'],
+          },
+        ],
+        'permission_hooks': [
+          {'hook': 'message.send', 'reads': <String>[]},
+        ],
+      }));
+      expect(m.interceptors.single.hook, 'message.pre_send');
+      expect(m.interceptors.single.phase, 'reject');
+      expect(m.interceptors.single.reads, ['content']);
+      expect(m.permissionHooks.single.hook, 'message.send');
+      expect(m.permissionHooks.single.phase, '');
+    });
+
+    test('from a server that sends none holds none', () {
+      final m = InstalledDockModule.fromJson(row());
+      expect(m.interceptors, isEmpty);
+      expect(m.permissionHooks, isEmpty);
+    });
+  });
+
+  group('a hook list covers another', () {
+    const held = [
+      DockHookDecl(
+          hook: 'message.pre_send', phase: 'reject', reads: ['channel_id']),
+    ];
+
+    test('when each of its hooks stands there and reads no more', () {
+      expect(dockHooksCover(held, held), isTrue);
+      expect(dockHooksCover(held, const []), isTrue);
+      expect(
+        dockHooksCover(held, const [
+          DockHookDecl(hook: 'message.pre_send', phase: 'reject'),
+        ]),
+        isTrue,
+      );
+    });
+
+    test('not when a hook reads more, is new, or stands in another phase', () {
+      for (final wanted in const [
+        DockHookDecl(
+            hook: 'message.pre_send',
+            phase: 'reject',
+            reads: ['channel_id', 'content']),
+        DockHookDecl(hook: 'message.pre_edit', phase: 'reject'),
+        DockHookDecl(hook: 'message.pre_send', phase: 'rewrite'),
+      ]) {
+        expect(dockHooksCover(held, [wanted]), isFalse, reason: '$wanted');
+      }
+      expect(dockHooksCover(const [], held), isFalse);
+    });
+  });
 }

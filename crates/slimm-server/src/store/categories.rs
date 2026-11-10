@@ -48,20 +48,20 @@ impl Store {
 
     /// Creates a category, appended after every live one - the same
     /// "read the live maximum inside this transaction" shape
-    /// [`super::channel_create::Store::create_channel_with_id`] uses for a
+    /// [`Store::create_channel_with_id`] uses for a
     /// channel's own position, so two concurrent creates cannot both claim
     /// the last slot.
     ///
     /// Idempotent by `id`: a retry with the same id returns the row already
     /// stored under it rather than inserting again, the same contract
-    /// [`super::messages::Store::send_message`] gives a message send.
+    /// [`Store::send_message`] gives a message send.
     /// [`Store::create_category`] is the convenience form for a caller with
     /// no client-supplied id of its own; it mints one and always sees
     /// [`CreatedCategory::fresh`] true, since a freshly generated UUIDv7 id
     /// cannot already be in use.
     ///
-    /// Unlike [`super::channel_create::Store::create_channel_with_id`] and
-    /// [`super::permissions::Store::create_role_with_id`], the id probe
+    /// Unlike [`Store::create_channel_with_id`] and
+    /// [`Store::create_role_with_id`], the id probe
     /// below is never scoped to a sub-type: `channel_categories` is written
     /// by nothing but this function and migration 0031's own seed, so every
     /// row this probe can find is a POST /categories-creatable category and
@@ -122,7 +122,7 @@ impl Store {
 
     /// Renames and/or repositions a category. `None` for either leaves that
     /// field untouched, the same "at least one, absent means unchanged"
-    /// convention [`super::channels::Store::update_channel`] follows.
+    /// convention [`Store::update_channel`] follows.
     /// Returns `None` if the category does not exist or was deleted.
     pub async fn update_category(
         &self,
@@ -192,7 +192,7 @@ impl Store {
     /// never orphaned even for the instant between the two statements.
     /// Returns whether this call performed the delete, so a retry against an
     /// already-deleted category is idempotent rather than an error, the same
-    /// convention [`super::channels::Store::delete_channel`] follows.
+    /// convention [`Store::delete_channel`] follows.
     pub async fn delete_category(&self, id: ChannelCategoryId) -> anyhow::Result<bool> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;

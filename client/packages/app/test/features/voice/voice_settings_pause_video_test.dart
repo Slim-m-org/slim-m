@@ -26,7 +26,7 @@ Future<void> _pump(WidgetTester tester, {bool desktop = true}) async {
       const VoiceSettingsBody(),
       overrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => VoiceController(ref, session: FakeSession()),
+          (ref) => VoiceController(ref, session: FakeSettingsSession()),
         ),
         pauseOnUnfocusedAppliesProvider.overrideWithValue(desktop),
       ],

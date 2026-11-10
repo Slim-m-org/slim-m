@@ -49,4 +49,19 @@ class GainGraphRegistry<G> {
     setGain(graph, gain);
     return null;
   }
+
+  /// Releases the graph on [id] once it no longer wraps what the element
+  /// plays, as when the element left the page.
+  void prune(String id) {
+    final graph = _graphs[id];
+    if (graph == null || isCurrent(id, graph)) return;
+    release(graph);
+    _graphs.remove(id);
+  }
+
+  /// Releases every graph, for when the call that owned them ends.
+  void releaseAll() {
+    _graphs.values.forEach(release);
+    _graphs.clear();
+  }
 }

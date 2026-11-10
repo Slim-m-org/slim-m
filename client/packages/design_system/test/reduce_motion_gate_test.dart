@@ -31,7 +31,7 @@
 /// all) without either using `showAppSnackbar` or writing the override out
 /// by hand and losing the whole point of a shared helper.
 ///
-/// Counts run over `support/code_only.dart`'s comment/string-stripped text,
+/// Counts run over `codeOnly`'s (`slimm_test_support`) comment/string-stripped text,
 /// not the raw file: a per-file count comparison is exactly the shape a
 /// comment can defeat by inflating one side without touching the other,
 /// and reproduced directly - a genuine `showDialog(...)` call with no real
@@ -44,7 +44,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 class _Rule {
   const _Rule(this.name, this.call, this.override);

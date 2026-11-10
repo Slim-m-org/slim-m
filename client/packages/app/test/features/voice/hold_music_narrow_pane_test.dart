@@ -13,7 +13,7 @@ import 'package:slimm_app/src/audio/lounge_tracks.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane_overlays.dart';
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
-import 'package:slimm_app/src/features/modules/widgets/dock_height_reporter.dart';
+import 'package:slimm_app/src/widgets/dock_height_reporter.dart';
 import 'package:slimm_app/src/features/voice/providers/hold_music_actions.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';

@@ -716,8 +716,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: "."
-      ref: "86f68dbd1d24bfdb1bc391c7fbc659c188a27d7b"
-      resolved-ref: "86f68dbd1d24bfdb1bc391c7fbc659c188a27d7b"
+      ref: c0ac4740c6f89e3e1712fabd687987d6db7d2afe
+      resolved-ref: c0ac4740c6f89e3e1712fabd687987d6db7d2afe
       url: "https://github.com/Slim-m-org/flutter-webrtc.git"
     source: git
     version: "1.6.2+hotfix.4"

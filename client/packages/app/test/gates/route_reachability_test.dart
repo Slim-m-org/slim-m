@@ -13,7 +13,7 @@
 /// way the server's OpenAPI contract test reads the router. A route is not a
 /// feature until something links to it.
 ///
-/// Uses `support/code_only.dart` rather than the whole-line-only `//` strip
+/// Uses `codeOnly` (`slimm_test_support`) rather than the whole-line-only `//` strip
 /// this file used to carry: a *trailing* `// was Routes.adminAnalytics
 /// before a rename` comment, or any `/* */` block comment, was left able to
 /// satisfy detection the same way the whole-line case this file's own doc
@@ -27,7 +27,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// Registering a route says a path exists; it says nothing about a user ever
 /// arriving there. `path: Routes.x` is exactly the evidence this test must not

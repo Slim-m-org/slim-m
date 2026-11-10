@@ -130,8 +130,8 @@ impl Store {
     }
 
     /// The live ids behind a batch of usernames, case-insensitively, for
-    /// resolving a message's `@name` mentions to accounts. This deliberately
-    /// disagrees with login's exact-case comparison: `channel_screen.dart`
+    /// resolving a message's `@name` mentions to accounts. This agrees with
+    /// login's case-insensitive comparison: `channel_screen.dart`
     /// builds `knownUsernames` lowercased and `message_text.dart` matches a
     /// typed `@name` against it lowercased too, so a mention chip renders
     /// for any case a reader typed, and the wake it triggers has to agree or
@@ -254,9 +254,9 @@ impl Store {
 
     /// Every live, non-removed account's id, unpaginated - the candidate
     /// pool [`crate::mentions::mentioned_viewers`] narrows with
-    /// [`super::permissions_batch`]'s own `viewers_among` to decide who a
+    /// [`Store::viewers_among`] to decide who a
     /// message actually mentions. Deployment-wide like
-    /// [`super::push::users_with_push_devices`] for the same reason: a
+    /// [`Store::users_with_push_devices`] for the same reason: a
     /// mention badge is not limited to whoever has registered for push, and
     /// a self-host's whole membership is the bound this project already
     /// accepts for that query.

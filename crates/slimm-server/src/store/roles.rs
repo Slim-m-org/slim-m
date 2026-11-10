@@ -136,7 +136,7 @@ impl Store {
     ///
     /// Idempotent by `id`: a retry with the same id returns the row already
     /// stored under it rather than inserting again, the same contract
-    /// [`super::messages::Store::send_message`] gives a message send. Uses
+    /// [`Store::send_message`] gives a message send. Uses
     /// [`Store::begin_write`] (`BEGIN IMMEDIATE`) rather than a bare pool
     /// execute, for the same reason `send_message` does: this reads the id
     /// before it writes.
@@ -269,7 +269,7 @@ impl Store {
     ///
     /// Bounded by the role's own membership rather than by the deployment, and
     /// the only caller is the overwrite handler, which needs the set *before*
-    /// it writes; see [`crate::http::overwrites`].
+    /// it writes; see `crate::http::overwrites`.
     pub async fn members_with_role(&self, role_id: RoleId) -> anyhow::Result<Vec<UserId>> {
         let rows = sqlx::query!(
             r#"SELECT user_id AS "user_id!: UserId" FROM member_roles WHERE role_id = ?"#,

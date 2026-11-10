@@ -16,6 +16,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends clang-21 libclang-21-dev \
     && rm -rf /var/lib/apt/lists/*
 ENV CC=clang-21 CXX=clang++-21 LIBCLANG_PATH=/usr/lib/llvm-21/lib
+# A portable x86-64-v3 whisper.cpp, not one tuned to the build runner's CPU, which the host may lack (arm64 ignores the x86 flags).
+ENV GGML_NATIVE=OFF GGML_AVX=ON GGML_AVX2=ON GGML_FMA=ON GGML_F16C=ON
 WORKDIR /build
 COPY crates/slimm-listener/ .
 RUN cargo build --locked --release --bin slimm-listener

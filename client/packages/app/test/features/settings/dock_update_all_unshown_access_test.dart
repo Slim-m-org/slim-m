@@ -20,7 +20,11 @@ void _revokeHostAccess(DockUpdateWorld world, String id) {
   world.installed[id]!['approved_host_capabilities'] = <String>[];
 }
 
-api.InstalledDockModule _installed(String version) => api.InstalledDockModule(
+api.InstalledDockModule _installed(
+  String version, {
+  List<api.DockHookDecl> interceptors = const [],
+  List<api.DockHookDecl> permissionHooks = const [],
+}) => api.InstalledDockModule(
   id: 'm',
   name: 'm',
   version: version,
@@ -29,19 +33,177 @@ api.InstalledDockModule _installed(String version) => api.InstalledDockModule(
   extensionPoints: const [],
   enabled: true,
   installedAt: 0,
+  interceptors: interceptors,
+  permissionHooks: permissionHooks,
 );
 
-void main() {
-  test('only a hook asks again on a new version of the same build', () {
-    final manifest = api.DockManifest.fromJson(dockManifestJson('m', '2.0.0'));
-    final older = _installed('1.0.0');
+api.DockHookDecl _interceptor(List<String> reads, {String phase = 'reject'}) =>
+    api.DockHookDecl(hook: 'message.pre_send', phase: phase, reads: reads);
 
-    for (final hook in ['interceptors', 'permission.hook']) {
-      expect(dockNeedsReapproval(hook, manifest, older), isTrue, reason: hook);
-      expect(dockNeedsReapproval(hook, manifest, _installed('2.0.0')), isFalse);
+api.DockManifest _manifestWith({
+  List<api.DockHookDecl> interceptors = const [],
+  List<api.DockHookDecl> permissionHooks = const [],
+}) => api.DockManifest.fromJson(
+  dockManifestJson(
+    'm',
+    '1.0.0',
+    extras: {
+      'interceptors': [
+        for (final h in interceptors)
+          {'hook': h.hook, 'phase': h.phase, 'reads': h.reads},
+      ],
+      'permission_hooks': [
+        for (final h in permissionHooks) {'hook': h.hook, 'reads': h.reads},
+      ],
+    },
+  ),
+);
+
+/// The hook JSON a mod holds or is offered for [capability], reading [reads].
+Map<String, List<Map<String, dynamic>>> _hookJson(
+  String capability,
+  List<String> reads,
+) => switch (capability) {
+  'interceptors' => {
+    'interceptors': [
+      {'hook': 'message.pre_send', 'phase': 'reject', 'reads': reads},
+    ],
+  },
+  _ => {
+    'permission_hooks': [
+      {'hook': 'message.send', 'reads': reads},
+    ],
+  },
+};
+
+/// What the consent sentence for [capability] names when its hook reads [reads].
+String _hookWarning(String capability, List<String> reads) =>
+    dockCapabilityWarning(
+      capability,
+      details: capability == 'interceptors' ? reads : ['message.send'],
+    )!;
+
+void main() {
+  group('a hook asks again', () {
+    final held = _installed(
+      '1.0.0',
+      interceptors: [
+        _interceptor(['channel_id']),
+      ],
+      permissionHooks: const [
+        api.DockHookDecl(hook: 'message.send', reads: ['member_joined_ms']),
+      ],
+    );
+    final same = _manifestWith(
+      interceptors: [
+        _interceptor(['channel_id']),
+      ],
+      permissionHooks: const [
+        api.DockHookDecl(hook: 'message.send', reads: ['member_joined_ms']),
+      ],
+    );
+
+    void expectBoth(api.DockManifest manifest, {required bool asks}) {
+      for (final hook in ['interceptors', 'permission.hook']) {
+        expect(dockNeedsReapproval(hook, manifest, held), asks, reason: hook);
+      }
     }
-    expect(dockNeedsReapproval('message.post', manifest, older), isFalse);
-    expect(dockNeedsReapproval('log.read', manifest, older), isFalse);
+
+    test('not when the same hooks stand, whatever the version', () {
+      expectBoth(same, asks: false);
+      final bumped = api.DockManifest.fromJson({
+        ...dockManifestJson('m', '2.0.0'),
+        'interceptors': [
+          {
+            'hook': 'message.pre_send',
+            'phase': 'reject',
+            'reads': ['channel_id'],
+          },
+        ],
+        'permission_hooks': [
+          {
+            'hook': 'message.send',
+            'reads': ['member_joined_ms'],
+          },
+        ],
+      });
+      expectBoth(bumped, asks: false);
+    });
+
+    test('when an interceptor reads more on the same version', () {
+      expectBoth(
+        _manifestWith(
+          interceptors: [
+            _interceptor(['channel_id', 'content']),
+          ],
+          permissionHooks: same.permissionHooks,
+        ),
+        asks: true,
+      );
+    });
+
+    test('when a permission hook reads more', () {
+      expectBoth(
+        _manifestWith(
+          interceptors: same.interceptors,
+          permissionHooks: const [
+            api.DockHookDecl(
+              hook: 'message.send',
+              reads: ['member_joined_ms', 'x.more'],
+            ),
+          ],
+        ),
+        asks: true,
+      );
+    });
+
+    test('when a hook is new or stands in another phase', () {
+      expectBoth(
+        _manifestWith(
+          interceptors: [
+            ...same.interceptors,
+            _interceptor(['channel_id'], phase: 'annotate'),
+          ],
+          permissionHooks: same.permissionHooks,
+        ),
+        asks: true,
+      );
+    });
+
+    test('not when a hook reads less or is dropped', () {
+      expectBoth(
+        _manifestWith(interceptors: [_interceptor(const [])]),
+        asks: false,
+      );
+    });
+
+    test('when the record holds none, as from a server that sends none', () {
+      expect(
+        dockNeedsReapproval('interceptors', same, _installed('1.0.0')),
+        isTrue,
+      );
+    });
+
+    test('and so does a new build, whatever its hooks', () {
+      final newBuild = api.DockManifest.fromJson({
+        ...dockManifestJson('m', '1.0.0'),
+        'artifact': {
+          'kind': 'wasm',
+          'path': 'x',
+          'sha256': List.filled(64, 'c').join(),
+        },
+      });
+      expectBoth(newBuild, asks: true);
+    });
+
+    test('while a host power that is not a hook does not', () {
+      final manifest = api.DockManifest.fromJson(
+        dockManifestJson('m', '2.0.0'),
+      );
+      final older = _installed('1.0.0');
+      expect(dockNeedsReapproval('message.post', manifest, older), isFalse);
+      expect(dockNeedsReapproval('log.read', manifest, older), isFalse);
+    });
   });
 
   group('the record a step acts on', () {
@@ -220,7 +382,7 @@ void main() {
 
   group('a hook', () {
     for (final hook in ['interceptors', 'permission.hook']) {
-      eachDockUpdateSize('on the same build is asked about up front ($hook)', (
+      eachDockUpdateSize('that reads more is asked about up front ($hook)', (
         tester,
         size,
       ) async {
@@ -230,6 +392,8 @@ void main() {
             asks: [hook],
             approvedBefore: [hook],
             dropsOnCarry: [hook],
+            heldHooks: _hookJson(hook, ['channel_id']),
+            offeredHooks: _hookJson(hook, ['channel_id', 'content']),
           ),
         ]);
         await openDockUpdateWorld(tester, world, size);
@@ -237,12 +401,39 @@ void main() {
         await tapDock(tester, 'Update all');
 
         expect(find.text('Update Mod a?'), findsOneWidget);
-        expect(find.text(dockCapabilityWarning(hook)!), findsOneWidget);
+        expect(
+          find.text(_hookWarning(hook, ['channel_id', 'content'])),
+          findsOneWidget,
+        );
         await tapDock(tester, _approve);
         expect(world.installs, ['a']);
         expect(world.bodies.single['approved_host_capabilities'], [hook]);
         expect(find.textContaining('Give back its access'), findsNothing);
       });
+
+      eachDockUpdateSize(
+        'that stands as it did is carried without asking ($hook)',
+        (tester, size) async {
+          final world = DockUpdateWorld([
+            DockUpdateMod(
+              'a',
+              asks: [hook],
+              approvedBefore: [hook],
+              heldHooks: _hookJson(hook, ['channel_id']),
+              offeredHooks: _hookJson(hook, ['channel_id']),
+            ),
+          ]);
+          await openDockUpdateWorld(tester, world, size);
+
+          await tapDock(tester, 'Update all');
+
+          expect(find.text('Update Mod a?'), findsNothing);
+          expect(world.installs, ['a']);
+          expect(world.bodies.single['approved_host_capabilities'], isNull);
+          expect(world.installed['a']!['approved_host_capabilities'], [hook]);
+          expect(find.textContaining('Give back its access'), findsNothing);
+        },
+      );
     }
 
     eachDockUpdateSize('is shown when the step asks for something else', (
@@ -250,11 +441,13 @@ void main() {
       size,
     ) async {
       final world = DockUpdateWorld([
-        const DockUpdateMod(
+        DockUpdateMod(
           'a',
           asks: ['interceptors', 'kv.store'],
           approvedBefore: ['interceptors'],
           dropsOnCarry: ['interceptors'],
+          heldHooks: _hookJson('interceptors', ['channel_id']),
+          offeredHooks: _hookJson('interceptors', ['channel_id', 'content']),
         ),
       ]);
       await openDockUpdateWorld(tester, world, size);
@@ -263,7 +456,7 @@ void main() {
 
       expect(find.text(dockCapabilityWarning('kv.store')!), findsOneWidget);
       expect(
-        find.text(dockCapabilityWarning('interceptors')!),
+        find.text(_hookWarning('interceptors', ['channel_id', 'content'])),
         findsOneWidget,
         reason: 'a widened hook is not kept without a word',
       );

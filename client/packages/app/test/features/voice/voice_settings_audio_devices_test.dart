@@ -24,7 +24,7 @@ const _mic1 = AudioDevice(id: 'mic-1', label: 'Built-in microphone');
 const _mic2 = AudioDevice(id: 'mic-2', label: 'USB headset');
 const _speaker1 = AudioDevice(id: 'spk-1', label: 'Built-in speakers');
 
-Widget _pumpWith(FakeSession session) => wrap(
+Widget _pumpWith(FakeSettingsSession session) => wrap(
   const VoiceSettingsBody(),
   overrides: [
     sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
@@ -53,7 +53,7 @@ void main() {
   testWidgets('lists the real microphones and speakers this session offers', (
     tester,
   ) async {
-    final session = FakeSession(
+    final session = FakeSettingsSession(
       audioInputDeviceList: const [_mic1, _mic2],
       audioOutputDeviceList: const [_speaker1],
     );
@@ -78,7 +78,9 @@ void main() {
   testWidgets('choosing a microphone persists it and reaches the session', (
     tester,
   ) async {
-    final session = FakeSession(audioInputDeviceList: const [_mic1, _mic2]);
+    final session = FakeSettingsSession(
+      audioInputDeviceList: const [_mic1, _mic2],
+    );
     await tester.pumpWidget(_pumpWith(session));
     await tester.pumpAndSettle();
 
@@ -102,7 +104,7 @@ void main() {
     'a platform that cannot select an output shows a caption, never a '
     'picker that would do nothing',
     (tester) async {
-      final session = FakeSession(supportsAudioOutputSelection: false);
+      final session = FakeSettingsSession(supportsAudioOutputSelection: false);
       await tester.pumpWidget(_pumpWith(session));
       await tester.pumpAndSettle();
 
@@ -128,7 +130,7 @@ void main() {
       SharedPreferences.setMockInitialValues({
         'slimm.voice.audio_input_device_id': 'mic-gone',
       });
-      final session = FakeSession(audioInputDeviceList: const [_mic1]);
+      final session = FakeSettingsSession(audioInputDeviceList: const [_mic1]);
       await tester.pumpWidget(_pumpWith(session));
       await tester.pumpAndSettle();
 

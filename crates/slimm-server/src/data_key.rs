@@ -4,7 +4,8 @@
 //! A TOTP secret cannot be hashed, so it is encrypted instead; with the key beside it in the
 //! database that would buy nothing. The key comes from `SLIMM_DATA_KEY`, or from a file next to
 //! the database that is created on first start with mode 0600. A copy of the database alone, a
-//! Litestream replica included, therefore cannot read the secrets.
+//! Litestream replica included, therefore cannot read the secrets sealed with it.
+//! The identity seed is not one of them: it is stored raw and roots two MAC keys, see `identity`.
 
 use std::path::{Path, PathBuf};
 

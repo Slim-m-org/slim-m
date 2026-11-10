@@ -89,6 +89,55 @@ void main() {
       expect(shape.toJson()['x'], 0.4);
       expect(shape.toJson()['text'], 'look');
     });
+
+    test('equal shapes say the same, so a repeat frame can be skipped', () {
+      OverlayStroke stroke({List<double>? points, double alpha = 1}) =>
+          OverlayStroke(
+            points: points ?? [0.1, 0.2, 0.3, 0.4],
+            color: const Color(0xFFE86A5C),
+            alpha: alpha,
+          );
+      expect(stroke(), stroke());
+      expect(stroke().hashCode, stroke().hashCode);
+      expect(stroke(), isNot(stroke(alpha: 0.5)));
+      expect(stroke(), isNot(stroke(points: [0.1, 0.2, 0.3, 0.5])));
+
+      const ellipse = OverlayEllipse(
+        x0: 0.1,
+        y0: 0.2,
+        x1: 0.3,
+        y1: 0.4,
+        color: Color(0xFF5B8FD6),
+        alpha: 1,
+      );
+      const wider = OverlayEllipse(
+        x0: 0.1,
+        y0: 0.2,
+        x1: 0.5,
+        y1: 0.4,
+        color: Color(0xFF5B8FD6),
+        alpha: 1,
+      );
+      expect(ellipse, isNot(wider));
+      expect(ellipse.hashCode, isNot(wider.hashCode));
+
+      const note = OverlayNote(
+        x: 0.4,
+        y: 0.5,
+        text: 'look',
+        color: Color(0xFFE8B04B),
+        alpha: 1,
+      );
+      const edited = OverlayNote(
+        x: 0.4,
+        y: 0.5,
+        text: 'look here',
+        color: Color(0xFFE8B04B),
+        alpha: 1,
+      );
+      expect(note, isNot(edited));
+      expect(stroke(), isNot(note));
+    });
   });
 
   group('call panel', () {
@@ -96,9 +145,10 @@ void main() {
       monitor: 1,
       corner: OverlayCorner.bottomRight,
       rows: [
-        OverlayPanelRow(name: 'nick (you)'),
-        OverlayPanelRow(name: 'web', speaking: true),
-        OverlayPanelRow(name: 'quiet', muted: true, deafened: true),
+        OverlayPanelRow(id: 'me', name: 'nick (you)'),
+        OverlayPanelRow(id: 'web', name: 'web', speaking: true),
+        OverlayPanelRow(
+            id: 'quiet', name: 'quiet', muted: true, deafened: true),
       ],
       more: 2,
       surface: Color(0xE01F2226),
@@ -116,6 +166,7 @@ void main() {
       expect(json['more'], 2);
       expect(json['accent'], 0xFF58B4D8);
       expect((json['rows']! as List)[1], {
+        'id': 'web',
         'name': 'web',
         'speaking': true,
         'muted': false,
@@ -129,9 +180,10 @@ void main() {
         monitor: 1,
         corner: OverlayCorner.bottomRight,
         rows: [
-          OverlayPanelRow(name: 'nick (you)'),
-          OverlayPanelRow(name: 'web', speaking: true),
-          OverlayPanelRow(name: 'quiet', muted: true, deafened: true),
+          OverlayPanelRow(id: 'me', name: 'nick (you)'),
+          OverlayPanelRow(id: 'web', name: 'web', speaking: true),
+          OverlayPanelRow(
+              id: 'quiet', name: 'quiet', muted: true, deafened: true),
         ],
         more: 2,
         surface: Color(0xE01F2226),
@@ -151,7 +203,7 @@ void main() {
         corner: panel.corner,
         rows: [
           panel.rows[0],
-          const OverlayPanelRow(name: 'web'),
+          const OverlayPanelRow(id: 'web', name: 'web'),
           panel.rows[2],
         ],
         more: panel.more,
@@ -163,6 +215,41 @@ void main() {
         danger: panel.danger,
       );
       expect(louder, isNot(panel));
+    });
+
+    test('sends picture bytes only on the row that carries them', () {
+      final withPicture = OverlayPanelRow(
+        id: 'web',
+        name: 'web',
+        avatarKey: '7',
+        avatar: Uint8List.fromList([1, 2, 3]),
+      );
+      expect(withPicture.toJson()['avatar'], [1, 2, 3]);
+      expect(withPicture.withoutAvatarBytes().toJson().containsKey('avatar'),
+          isFalse);
+    });
+
+    test('names a picture by its key, not its bytes', () {
+      final first = OverlayPanelRow(
+        id: 'web',
+        name: 'web',
+        avatarKey: '7',
+        avatar: Uint8List.fromList([1]),
+      );
+      final sent = first.withoutAvatarBytes();
+      expect(sent, first);
+      expect(sent.hashCode, first.hashCode);
+      expect(
+        const OverlayPanelRow(id: 'web', name: 'web', avatarKey: '8'),
+        isNot(first),
+      );
+    });
+
+    test('withRows keeps everything but the rows', () {
+      final fewer = panel.withRows([panel.rows.first]);
+      expect(fewer.rows.length, 1);
+      expect((fewer.monitor, fewer.corner, fewer.more), (1, panel.corner, 2));
+      expect(fewer.accent, panel.accent);
     });
   });
 

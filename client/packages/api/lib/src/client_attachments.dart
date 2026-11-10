@@ -78,6 +78,7 @@ extension SlimmApiAttachments on SlimmApi {
     Duration? sendDeadline,
     bool isRetry = false,
   }) async {
+    await awaitTrust();
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
     final request = http.StreamedRequest(method, requestUri(path, query))
@@ -169,6 +170,7 @@ extension SlimmApiAttachments on SlimmApi {
     Map<String, String>? query, {
     bool isRetry = false,
   }) async {
+    await awaitTrust();
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
     final uri = requestUri(path, query);

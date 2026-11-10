@@ -214,7 +214,7 @@ class DockHostAccessCard extends StatelessWidget {
   final bool localNetworkApproved;
   final ValueChanged<bool>? onLocalNetworkChanged;
 
-  /// Capabilities a new build needs approved again.
+  /// Capabilities this version needs approved again.
   final List<String> reapprove;
   final bool enabled;
 
@@ -227,7 +227,7 @@ class DockHostAccessCard extends StatelessWidget {
       children: [
         if (reapprove.isNotEmpty)
           SettingsInfoLine(
-            'A new build needs ${_labels(reapprove)} approved again.',
+            'This version needs ${_labels(reapprove)} approved again.',
           ),
         for (final capability in grantable) ...[
           SettingsToggleRow(

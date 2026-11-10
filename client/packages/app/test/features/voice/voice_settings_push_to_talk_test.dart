@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart'
 import 'package:slimm_app/src/features/voice/widgets/voice_shortcuts_section.dart';
 import 'package:slimm_app/src/features/voice/widgets/push_to_talk_key_row.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show AppAction;
 
 import 'voice_settings_screen_harness.dart';
 
@@ -189,7 +190,11 @@ void main() {
 
       final keyCap = find.bySemanticsLabel(RegExp('Push-to-talk key: V'));
       expect(keyCap, findsOneWidget);
-      expect(find.text('Change'), findsNWidgets(1 + remappableActions.length));
+      // The overlay key is offered only where the overlay can be hosted, which a test desktop cannot.
+      final offered = remappableActions.where(
+        (a) => a != AppAction.toggleCallOverlay,
+      );
+      expect(find.text('Change'), findsNWidgets(1 + offered.length));
 
       semantics.dispose();
     },

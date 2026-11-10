@@ -3,7 +3,7 @@
 //! push - today, the unread-mention badge `store::message_mentions`
 //! persists.
 //!
-//! [`push::recipients::resolved_mentions`] already turns `@name`, `@[Role]`,
+//! `push::recipients::resolved_mentions` already turns `@name`, `@[Role]`,
 //! `@everyone` and `@here` into a set of account ids, gated the same way a
 //! push wake already is (`MENTION_EVERYONE`, a role's `mentionable` flag).
 //! That function's own candidate pool is push-registered accounts, the right

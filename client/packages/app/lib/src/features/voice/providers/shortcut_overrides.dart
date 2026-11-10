@@ -22,6 +22,7 @@ const remappableActions = [
   AppAction.toggleCameraCall,
   AppAction.toggleShareCall,
   AppAction.leaveCall,
+  AppAction.toggleCallOverlay,
 ];
 
 /// Hold-to-talk key until the person picks another.

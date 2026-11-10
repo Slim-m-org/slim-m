@@ -166,7 +166,13 @@ class CanvasImagePaste {
     } on ImageTooLargeException {
       if (!_stopped) onError('That image is too large.');
       return null;
-    } catch (_) {
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'The pasted image would not decode; the user was told',
+        error,
+        stack,
+      );
       if (!_stopped) onError('That image could not be read.');
       return null;
     }

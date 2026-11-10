@@ -24,20 +24,6 @@ final _png = Uint8List.fromList(
   ),
 );
 
-/// Waits for [ready] rather than for a fixed number of event-loop turns.
-///
-/// `pumpEventQueue` drains microtasks; decoding a PNG is engine work that is
-/// not one, so a fixed drain finishes it on an idle machine and does not on a
-/// loaded CI runner. This is the same shape CLAUDE.md already records for
-/// `toImage`, and it is what made this file flake once rather than fail.
-Future<void> _settleUntil(bool Function() ready) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 10));
-  while (!ready() && DateTime.now().isBefore(deadline)) {
-    await pumpEventQueue();
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 const _tokens = api.TokenPair(
   userId: 'me',
   accessToken: 'access',
@@ -112,7 +98,7 @@ void main() {
     addTearDown(hydrator.dispose);
 
     hydrator.hydrate(_imageObject('a'));
-    await _settleUntil(
+    await pollUntil(
       () =>
           fetches == 1 &&
           document.paintOrder.isNotEmpty &&
@@ -272,15 +258,15 @@ void main() {
     addTearDown(hydrator.dispose);
 
     hydrator.hydrate(_imageObject('a', attachment: 'sha-a'));
-    // A decode is engine work `pumpEventQueue` cannot wait out; see `_settleUntil`.
-    await _settleUntil(() => document.hasImageBitmap('a'));
+    // A decode is engine work a fixed drain of the event queue cannot wait out.
+    await pollUntil(() => document.hasImageBitmap('a'));
 
     // The view moves to b, so a is now the one off screen.
     document
       ..setCamera(const Camera(x: 4900, y: 0))
       ..refresh();
     hydrator.hydrate(_imageObject('b', attachment: 'sha-b'));
-    await _settleUntil(
+    await pollUntil(
       () => document.hasImageBitmap('b') && !document.hasImageBitmap('a'),
     );
 
@@ -295,7 +281,7 @@ void main() {
       ..setCamera(const Camera())
       ..refresh();
     hydrator.hydrateVisible();
-    await _settleUntil(() => document.hasImageBitmap('a'));
+    await pollUntil(() => document.hasImageBitmap('a'));
 
     expect(document.hasImageBitmap('a'), isTrue);
     expect(

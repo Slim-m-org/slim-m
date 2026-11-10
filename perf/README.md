@@ -65,10 +65,10 @@ cargo bench -p slimm-server --no-run
 `.github/workflows/perf.yml` treats compiling and running the benchmarks as
 two separate, differently-priced steps:
 
-- On every pull request touching `crates/**` or `perf/**`, CI only compiles
-  the benches (`cargo bench --no-run`).
-  This catches a benchmark that no longer builds without paying for a full
-  measurement run on every push.
+- On every pull request touching `crates/**` or `perf/**`, CI only type-checks
+  the benches (`cargo check --benches`, no codegen).
+  This catches a benchmark that no longer builds without paying for a release
+  build or a full measurement run on every push.
 - On a published GitHub release, CI runs the benchmarks for real and
   uploads the `target/criterion` output as a workflow artifact.
 
@@ -160,7 +160,7 @@ stated again next to them.
 
 Each run also measures headless Chrome against a bare `about:blank` tab
 under the identical flags and reports the app's cost over that baseline,
-the same control the Space analytics section of `CLAUDE.md` used for a
+the same control `docs/decisions/0008-space-analytics.md` used for a
 server measurement: Chrome's own multi-process overhead (a zygote, a GPU
 process, several renderer helpers) turned out to dwarf the app's own cost
 on this box, and reporting only the raw total would have buried the number

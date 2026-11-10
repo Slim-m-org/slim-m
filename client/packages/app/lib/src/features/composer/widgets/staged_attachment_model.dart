@@ -79,29 +79,59 @@ sealed class StagedAttachment {
   Uint8List? get bytes => body.bytes;
 }
 
+/// What an upload has moved so far, which is what changes on every chunk.
+typedef UploadProgress = ({int sent, bool reconnecting});
+
 /// Picked, and the upload has not yet resolved either way. [sent] is how many
 /// of the body's bytes have been handed to the network so far.
+///
+/// Progress lives in [progress] rather than in a replaced instance, so a
+/// chunk repaints the one tile that draws it and not everything listening to
+/// the staging.
 class UploadingAttachment extends StagedAttachment {
-  const UploadingAttachment({
+  UploadingAttachment({
     required super.localId,
     required super.filename,
     required super.body,
-    this.sent = 0,
+    int sent = 0,
     this.meter,
-    this.reconnecting = false,
-  });
+    bool reconnecting = false,
+  }) : _progress = ValueNotifier((sent: sent, reconnecting: reconnecting));
 
-  final int sent;
+  final ValueNotifier<UploadProgress> _progress;
+
+  ValueListenable<UploadProgress> get progress => _progress;
+
+  int get sent => _progress.value.sent;
 
   /// The connection dropped and the upload is retrying from where it got to.
-  final bool reconnecting;
+  bool get reconnecting => _progress.value.reconnecting;
 
   /// Speed and time left; null where nothing measures it.
   final TransferMeter? meter;
 
   /// 0 to 1, for a progress bar.
-  double get fraction =>
+  double get fraction => fractionOf(sent);
+
+  double fractionOf(int sent) =>
       body.length == 0 ? 0 : (sent / body.length).clamp(0.0, 1.0);
+
+  bool _released = false;
+
+  /// A no-op once [release]d: a cancelled upload can still report a last chunk.
+  void report({int? sent, bool? reconnecting}) {
+    if (_released) return;
+    _progress.value = (
+      sent: sent ?? this.sent,
+      reconnecting: reconnecting ?? this.reconnecting,
+    );
+  }
+
+  /// Ends [progress]; the tile showing it detaches on its own.
+  void release() {
+    _released = true;
+    _progress.dispose();
+  }
 }
 
 /// What an upload reports back while it runs. Callable as the progress
@@ -146,13 +176,6 @@ class FailedAttachment extends StagedAttachment {
   final String message;
 }
 
-/// A small, deliberately client-only guess at whether [filename] is worth a
-/// thumbnail.
-///
-/// The server sniffs the real content type after upload (see `media.rs`);
-/// this only decides what is worth *trying* to draw before that answer
-/// exists, and `StagedAttachmentTile`'s `errorBuilder` is what a wrong guess
-/// falls back to.
 /// [looksLikeImage]'s twin for video, for offering a spoiler before upload.
 bool looksLikeVideo(String filename) {
   final dot = filename.lastIndexOf('.');
@@ -161,6 +184,13 @@ bool looksLikeVideo(String filename) {
   return videoExtensions.contains(filename.substring(dot).toLowerCase());
 }
 
+/// A small, deliberately client-only guess at whether [filename] is worth a
+/// thumbnail.
+///
+/// The server sniffs the real content type after upload (see `media.rs`);
+/// this only decides what is worth *trying* to draw before that answer
+/// exists, and `StagedAttachmentTile`'s `errorBuilder` is what a wrong guess
+/// falls back to.
 bool looksLikeImage(String filename) {
   final dot = filename.lastIndexOf('.');
   if (dot == -1) return false;

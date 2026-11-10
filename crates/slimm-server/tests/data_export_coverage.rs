@@ -81,6 +81,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ("invite_redemptions", "user_id", Fate::Excluded(DERIVED)),
     ("invites", "created_by", Fate::Excluded(STAFF_RECORD)),
     (
+        "link_handoffs",
+        "user_id",
+        Fate::Excluded("a short-lived sign-in handshake, a credential"),
+    ),
+    (
         "link_states",
         "user_id",
         Fate::Excluded("a short-lived sign-in handshake, a credential"),

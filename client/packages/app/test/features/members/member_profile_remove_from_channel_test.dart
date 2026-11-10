@@ -56,7 +56,8 @@ data.Channel _channel(String kind) => data.Channel(
   slowModeSeconds: 0,
 );
 
-({ProviderContainer container, List<http.Request> writes}) _wire({
+({ProviderContainer container, List<http.Request> writes, List<int> rolesReads})
+_wire({
   required int channelPermissions,
   String kind = 'text',
   api.Me? selfProfile,
@@ -65,13 +66,17 @@ data.Channel _channel(String kind) => data.Channel(
   api.UserProfile member = _other,
 }) {
   final writes = <http.Request>[];
+  final rolesReads = <int>[];
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: tokens)),
       myPermissionsProvider.overrideWithValue(0),
       membersProvider.overrideWith((ref) async => [member]),
-      rolesProvider.overrideWith((ref) async => roles),
+      rolesProvider.overrideWith((ref) async {
+        rolesReads.add(rolesReads.length);
+        return roles;
+      }),
       channelByIdProvider.overrideWith(
         (ref, id) => Stream.value(_channel(kind)),
       ),
@@ -119,7 +124,7 @@ data.Channel _channel(String kind) => data.Channel(
     ],
   );
   addTearDown(container.dispose);
-  return (container: container, writes: writes);
+  return (container: container, writes: writes, rolesReads: rolesReads);
 }
 
 Future<void> _open(
@@ -141,8 +146,10 @@ Future<void> _open(
       ),
     ),
   );
-  await tester.pump();
-  await tester.pump();
+  // Channel, then permissions, then roles: each waits on the one before.
+  for (var i = 0; i < 4; i++) {
+    await tester.pump();
+  }
 }
 
 void main() {
@@ -152,6 +159,24 @@ void main() {
     final wired = _wire(channelPermissions: Perm.viewChannel);
     await _open(tester, wired.container);
     expect(find.text(label), findsNothing);
+  });
+
+  testWidgets('a viewer without MANAGE_ROLES never asks for the roles', (
+    tester,
+  ) async {
+    final wired = _wire(channelPermissions: Perm.viewChannel);
+    await _open(tester, wired.container);
+    expect(find.text(label), findsNothing);
+    expect(wired.rolesReads, isEmpty, reason: 'GET /roles would be a 403');
+  });
+
+  testWidgets('a viewer with MANAGE_ROLES asks for the roles once', (
+    tester,
+  ) async {
+    final wired = _wire(channelPermissions: Perm.manageRoles);
+    await _open(tester, wired.container);
+    expect(find.text(label), findsOneWidget);
+    expect(wired.rolesReads, hasLength(1));
   });
 
   testWidgets('hidden for a member who holds administrator', (tester) async {

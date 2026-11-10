@@ -51,11 +51,11 @@ def build(scratch_dir, seed):
     the image path, not a near-limit one, since the default per-upload cap
     (`default_attachment_max_bytes` in `crates/slimm-server/src/config.rs`)
     is 1 GiB.
-    Nothing here is a file the server would refuse: see
-    `scripts/seed-data.py`'s module doc for the real allowed set, sniffed
-    from bytes rather than filename or declared type. Everything but the
-    mp4 is stdlib-only and so always present; the mp4 is skipped with a
-    printed reason, never a failure, when ffmpeg is not installed.
+    Nothing here is a file the server would refuse: the allowed set is
+    `ALLOWED_TYPES` in `crates/slimm-server/src/media/content_type.rs`,
+    sniffed from bytes rather than filename or declared type. Everything
+    but the mp4 is stdlib-only and so always present; the mp4 is skipped
+    with a printed reason, never a failure, when ffmpeg is not installed.
 
     `seed` makes the noise image and the wav tone reproducible under
     `--seed`, the same as every other generated fixture and message.

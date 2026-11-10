@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/close_screen.dart';
@@ -129,7 +130,13 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
     try {
       final saved = await ref.read(themeFileSaverProvider)(name, bytes);
       if (saved && mounted) _say(notice: 'Exported $name.');
-    } on Object {
+    } on Object catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.platform,
+        'save the theme file',
+        error,
+        stack,
+      );
       _say(error: 'Could not save the file.');
     }
   }

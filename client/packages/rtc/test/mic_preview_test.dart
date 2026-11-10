@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 class _Source implements MicPreviewSource {
   final events = <String>[];
@@ -43,21 +44,13 @@ MicPreview _preview(
       openTimeout: openTimeout,
     );
 
-Future<void> _until(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 3));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting');
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 void main() {
   test('reads the level and voice state once the capture is open', () async {
     final preview = _preview(_Source());
     addTearDown(preview.dispose);
 
     await preview.start(null);
-    await _until(() => preview.current.status == MicPreviewStatus.live);
+    await pollUntil(() => preview.current.status == MicPreviewStatus.live);
 
     expect(preview.current.levelDb, -30.0);
     expect(preview.current.voice, isTrue);
@@ -117,7 +110,7 @@ void main() {
     addTearDown(preview.dispose);
 
     await preview.start(null);
-    await _until(
+    await pollUntil(
       () => preview.current.status == MicPreviewStatus.unavailable,
     );
 
@@ -146,7 +139,7 @@ void main() {
     addTearDown(preview.dispose);
 
     unawaited(preview.start(null));
-    await _until(() => source.events.contains('open:default'));
+    await pollUntil(() => source.events.contains('open:default'));
     await preview.stop();
     source.openHangs = false;
     await preview.start('mic-2');

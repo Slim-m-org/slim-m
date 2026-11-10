@@ -22,7 +22,7 @@ Finder get _toggle =>
     find.byWidgetPredicate((w) => w is AppToggle && w.semanticLabel == _label);
 
 Future<List<Override>> _overrides(
-  FakeSession session,
+  FakeSettingsSession session,
   List<bool> applied, {
   required bool supported,
 }) async => [
@@ -58,7 +58,7 @@ void main() {
     tester,
   ) async {
     final applied = <bool>[];
-    final session = FakeSession(supportsAudioOutputSelection: false);
+    final session = FakeSettingsSession(supportsAudioOutputSelection: false);
     await _open(tester, await _overrides(session, applied, supported: true));
     expect(tester.widget<AppToggle>(_toggle).value, isTrue);
     expect(find.text('Off plays calls through the earpiece.'), findsOneWidget);
@@ -75,7 +75,7 @@ void main() {
   testWidgets('a platform with an output picker keeps the picker', (
     tester,
   ) async {
-    final session = FakeSession();
+    final session = FakeSettingsSession();
     await _open(tester, await _overrides(session, [], supported: true));
 
     expect(_toggle, findsNothing);
@@ -83,7 +83,7 @@ void main() {
   });
 
   testWidgets('a platform that cannot switch shows no toggle', (tester) async {
-    final session = FakeSession(supportsAudioOutputSelection: false);
+    final session = FakeSettingsSession(supportsAudioOutputSelection: false);
     await _open(tester, await _overrides(session, [], supported: false));
 
     expect(_toggle, findsNothing);
@@ -104,7 +104,11 @@ void main() {
           if (saved != null) _key: saved,
         });
         final container = ProviderContainer(
-          overrides: await _overrides(FakeSession(), applied, supported: true),
+          overrides: await _overrides(
+            FakeSettingsSession(),
+            applied,
+            supported: true,
+          ),
         );
         addTearDown(container.dispose);
 

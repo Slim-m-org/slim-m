@@ -2,7 +2,7 @@
 /// A settings row is a few words, and its description is one short sentence.
 ///
 /// The rule lives in `docs/design/wording.md`. This reads `lib/` through
-/// `support/code_only.dart`, so a comment or a string that merely contains
+/// `codeOnly` (`slimm_test_support`), so a comment or a string that merely contains
 /// `description:` never counts, and fails on any description literal or
 /// toggle/select row label over the limits. Exceptions go in
 /// `settings_copy_allow.txt`, one `path|start of the text` per line.
@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 const maxLabelWords = 5;
 const maxDescriptionWords = 12;

@@ -38,12 +38,10 @@ List<_Waiting> _waiting(
 ) {
   final waiting = <_Waiting>[];
   for (final channel in channels) {
-    final indicator = unreadIndicatorFor(
+    final indicator = unreadIndicatorForChannel(
+      channel,
       channelOverride: overrides.effectiveFor(channel),
       isDm: channel.dmParticipantId != null || channel.isGroupDm,
-      unread: channel.cursor > channel.lastReadSeq,
-      mentioned: channel.mentionedSeq > channel.lastReadSeq,
-      manuallyUnread: channel.manuallyUnread ?? false,
     );
     if (!indicator.unread && !indicator.mentioned) continue;
     waiting.add((channel: channel, mentioned: indicator.mentioned));

@@ -14,6 +14,8 @@ import '../../support/dock_update_world.dart';
 
 const _approve = 'Approve and update';
 const _host = 'api.example.com';
+const _privateNetworkOff =
+    "Private network access turns off. Turn it back on from the module's page.";
 
 DockUpdateMod _withdrawn({
   List<String> asks = const ['kv.store'],
@@ -51,6 +53,7 @@ void main() {
       await tapDock(tester, 'Update all');
       expect(find.text('Update Mod a?'), findsOneWidget);
       expect(find.text(dockLocalNetworkWarning), findsNothing);
+      expect(find.text(_privateNetworkOff), findsOneWidget);
 
       await tapDock(tester, _approve);
 
@@ -76,10 +79,70 @@ void main() {
       await openDockUpdateWorld(tester, world, size);
       await tapDock(tester, 'Update all');
       expect(find.text('Update Mod a?'), findsOneWidget);
+      expect(find.text(_privateNetworkOff), findsNothing);
 
       await tapDock(tester, _approve);
 
       expect(world.bodies.single['approve_local_network'], isTrue);
+    });
+
+    eachDockUpdateSize('is not mentioned when it was never approved', (
+      tester,
+      size,
+    ) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod(
+          'a',
+          asks: ['net.fetch'],
+          approvedBefore: ['net.fetch'],
+          newBuild: true,
+          hosts: [_host],
+          local: true,
+        ),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+
+      await tapDock(tester, 'Update all');
+
+      expect(find.text('Update Mod a?'), findsOneWidget);
+      expect(find.text(_privateNetworkOff), findsNothing);
+    });
+
+    eachDockUpdateSize('is not mentioned when the update no longer asks', (
+      tester,
+      size,
+    ) async {
+      final world = DockUpdateWorld([
+        const DockUpdateMod(
+          'a',
+          asks: ['net.fetch'],
+          approvedBefore: ['net.fetch'],
+          newBuild: true,
+          hosts: [_host],
+          localBefore: true,
+        ),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+
+      await tapDock(tester, 'Update all');
+
+      expect(find.text('Update Mod a?'), findsOneWidget);
+      expect(find.text(_privateNetworkOff), findsNothing);
+    });
+
+    eachDockUpdateSize('is mentioned again when the update took net.fetch', (
+      tester,
+      size,
+    ) async {
+      final world = DockUpdateWorld([
+        _withdrawn(asks: ['net.fetch'], localBefore: true),
+      ]);
+      await openDockUpdateWorld(tester, world, size);
+
+      await tapDock(tester, 'Update all');
+
+      expect(find.text('Mod a is updated. Give back its access?'), findsOne);
+      expect(find.text(_privateNetworkOff), findsOneWidget);
     });
 
     eachDockUpdateSize('is not given back with access the server withdrew', (

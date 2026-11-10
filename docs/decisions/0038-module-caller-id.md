@@ -47,6 +47,8 @@ The request a module receives gains one additive field: `caller: { "id": "<hex>"
 
 - The id is keyed by a secret derived from the server identity, so it changes if that identity is ever regenerated.
   Nothing regenerates it today, and a client that pinned the old fingerprint would refuse the deployment long before a module noticed.
+- The identity seed is stored raw in the database, not sealed with the data key, so a copy of the database alone can recompute every caller id.
+  The threat this record guards against is a module author, who never holds a database copy.
 - Deleting and recreating an account gives a new user id and so a new caller id.
 - Existing modules are unaffected.
 

@@ -43,7 +43,7 @@ void main() {
     tester,
   ) async {
     var asked = 0;
-    final session = FakeSession()
+    final session = FakeSettingsSession()
       ..callStats = CallStatsSampler(
         targets: () {
           asked++;
@@ -59,7 +59,7 @@ void main() {
   });
 
   testWidgets('in a call it shows the sampled numbers', (tester) async {
-    final session = FakeSession()
+    final session = FakeSettingsSession()
       ..callStats = CallStatsSampler(
         targets: () => [
           CallStatsTarget(
@@ -107,7 +107,7 @@ void main() {
   testWidgets('the log toggle flips the sampler while in a call', (
     tester,
   ) async {
-    final session = FakeSession()
+    final session = FakeSettingsSession()
       ..callStats = CallStatsSampler(targets: () => const []);
     await tester.pumpWidget(callStatsScreenFor(session));
     await tester.pumpAndSettle();

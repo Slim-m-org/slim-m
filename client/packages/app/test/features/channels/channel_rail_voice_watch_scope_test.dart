@@ -21,7 +21,7 @@
 /// reason: this is a scoping property of which widget owns a `ref.watch`,
 /// not a rendered outcome a pixel-level assertion could see.
 ///
-/// Both files are read through `support/code_only.dart` before either
+/// Both files are read through `codeOnly` (`slimm_test_support`) before either
 /// `contains` check runs: the "must appear" half is the vulnerable one,
 /// and reproduced directly - removing the real `ref.watch(...)` call and
 /// leaving `// used to be ref.watch(voiceControllerProvider) before a
@@ -33,7 +33,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 void main() {
   test(

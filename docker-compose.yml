@@ -2,14 +2,19 @@
 #
 # Production self-host example for slim-m: a small friend-group deployment.
 #
-# Three services:
+# Two services always run:
 #   server     the slim-m home server (this repo's binary), embedded
 #              SQLite on a named volume, reachable only through Caddy.
 #   caddy      the only thing bound to 443. Terminates TLS automatically
 #              (Let's Encrypt) for the API domain.
+#
+# Four more are opt-in, each behind a compose profile named in
+# COMPOSE_PROFILES (see deploy/.env.example and deploy/README.md):
 #   litestream continuously streams the SQLite file to S3-compatible
-#              storage. Disabled by default (see deploy/.env.example);
-#              enable it once you have a real bucket.
+#              storage; enable it once you have a real bucket.
+#   listener   the call-audio listener.
+#   backup     a nightly verified backup of the database, media and modules.
+#   web        the web client, routed from your own proxy.
 #
 # Text chat is the whole of this file, and that is a complete deployment. The
 # server treats a missing SFU as a normal configuration rather than an error

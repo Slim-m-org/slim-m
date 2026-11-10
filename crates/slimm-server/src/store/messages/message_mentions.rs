@@ -57,12 +57,10 @@ impl Store {
         .await?)
     }
 
-    /// Which of `message_ids` mention `viewer`, for [`MessageDto::mentions_me`].
+    /// Which of `message_ids` mention `viewer`, for `MessageDto::mentions_me`.
     /// The batched sibling of [`Self::is_mentioned`], read by
     /// `http::message_enrich::with_reactions` alongside reactions,
     /// attachments and threads rather than once per row.
-    ///
-    /// [`MessageDto::mentions_me`]: crate::http::messages::MessageDto
     pub async fn mentioned_messages_for(
         &self,
         viewer: UserId,

@@ -45,7 +45,9 @@ Future<void> _open(
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(
             ref,
-            session: FakeSession(audioOutputDeviceList: const [_longSpeaker]),
+            session: FakeSettingsSession(
+              audioOutputDeviceList: const [_longSpeaker],
+            ),
           ),
         ),
         soundOutputRouterProvider.overrideWithValue(

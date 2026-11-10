@@ -2,38 +2,13 @@
 /// Paging a channel's history backwards, and knowing whether the top of it
 /// has actually been reached.
 ///
-/// Two things depended on this and neither had it. The transcript rendered
-/// `ChannelStartHeader` from the channel's name alone, so a channel with more
-/// history than the loaded window announced the start of the conversation
-/// while sitting directly above messages nobody had fetched. And scrolling to
-/// the top loaded nothing at all: `/sync` and the channel screen's own
-/// hydration both stop at 50, and `MessageStore.watchChannel` shows the newest
-/// 200 rows, so everything older than that was unreachable in the client.
+/// [ChannelHistory.atStart] is set only by the server running out of older
+/// messages, never inferred from a row's `seq` (soft deletes make it gappy) or
+/// from an unfilled window.
 ///
-/// [ChannelHistory.atStart] is the answer to both, and it is only ever set by
-/// the server running out of older messages - never inferred from a row's
-/// `seq`, which soft deletes make gappy, and never from the window being
-/// unfilled, which says nothing about what was never asked for.
-///
-/// [window] is also the whole reason the scrollbar the transcript's
-/// `ListView` draws never represents the channel's full history: its extent
-/// is the loaded window's, which grows in pages rather than being known up
-/// front. Faking a total by estimating unfetched history would answer with a
-/// number that changes on every page and cannot be trusted; loading
-/// everything up front to make the number real is exactly what paging exists
-/// to avoid. The honest reading is a position-within-what-is-loaded
-/// indicator, the same trade-off other paginated chat clients make, not a
-/// proportion-of-everything gauge - see `message_transcript.dart`'s own note
-/// on `_topSlot` for the one place that answer used to lie by omission
-/// instead, which is now fixed.
-///
-/// Do not read that as covering a thumb that jitters, which is a different
-/// thing and was a real bug rather than this trade-off showing through. The
-/// extent stepping up by a page is one discrete move at the top of the list;
-/// the thumb sliding backwards several times a second while somebody scrolls
-/// steadily was `ListView`'s own extent estimate re-averaging the handful of
-/// rows on screen every frame, and is fixed in
-/// `widgets/message_transcript_extent.dart`.
+/// [window] grows in pages, so the transcript's scrollbar shows a position
+/// within what is loaded, never a proportion of the whole history. Thumb jitter
+/// is a separate matter, handled in `widgets/message_transcript_extent.dart`.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

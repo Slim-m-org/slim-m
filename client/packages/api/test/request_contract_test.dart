@@ -13,6 +13,7 @@ library;
 
 import 'dart:io';
 
+import 'package:slimm_test_support/source_gates.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
@@ -37,7 +38,7 @@ const ToJsonOwners _toJsonOwners = {
 };
 
 void main() {
-  final root = _repoRoot();
+  final root = findRepoRoot();
   final spec =
       loadYaml(File('${root.path}/schema/openapi.yaml').readAsStringSync())
           as YamlMap;
@@ -193,12 +194,3 @@ String _normalize(String path) => path
     .split('/')
     .map((s) => s.startsWith('{') && s.endsWith('}') ? '{}' : s)
     .join('/');
-
-Directory _repoRoot() {
-  var dir = Directory.current.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    dir = dir.parent;
-  }
-  fail('could not find schema/openapi.yaml above ${Directory.current.path}');
-}

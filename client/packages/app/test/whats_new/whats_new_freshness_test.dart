@@ -25,6 +25,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/whats_new/whats_new_content.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// How many minor releases the newest entry may sit behind the shipped
 /// version before this fails.
@@ -105,7 +106,7 @@ _Version _parse(String version) {
 /// pubspec the platform reads it from.
 _Version _shippedVersion() {
   final pubspec = File(
-    '${_findRepoRoot(Directory.current).path}/client/packages/app/pubspec.yaml',
+    '${findRepoRoot().path}/client/packages/app/pubspec.yaml',
   );
   if (!pubspec.existsSync()) fail('no pubspec at ${pubspec.path}');
   for (final line in pubspec.readAsLinesSync()) {
@@ -113,21 +114,4 @@ _Version _shippedVersion() {
     return _parse(line.substring('version:'.length).split('#').first.trim());
   }
   fail('no "version:" line in ${pubspec.path}');
-}
-
-/// Walks upward from [start] looking for schema/openapi.yaml, the same
-/// repo-root anchor `message_inline_mention_charset_test.dart` already uses,
-/// so this does not depend on where the test was invoked from.
-Directory _findRepoRoot(Directory start) {
-  var dir = start.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    final parent = dir.parent;
-    if (parent.path == dir.path) break;
-    dir = parent;
-  }
-  fail(
-    'could not find schema/openapi.yaml walking up from ${start.path}; is '
-    'this test running from somewhere inside the slim-m repo?',
-  );
 }

@@ -75,8 +75,8 @@ class SceneImageCache extends ChangeNotifier {
 
   /// The decoded images for [scene], requesting any that are missing.
   ///
-  /// Returns a fresh map so the painter can compare identity to decide whether
-  /// to repaint, and so nothing it holds can change under it mid-paint.
+  /// Returns a fresh map so nothing the painter holds can change under it
+  /// mid-paint; the painter compares it by content to decide whether to repaint.
   Map<int, ui.Image> snapshot(ModuleScene scene) {
     final wanted = <int, ui.Image>{};
     _wanted = {

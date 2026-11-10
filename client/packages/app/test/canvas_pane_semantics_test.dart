@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas pane's own header title, dumped against the real semantics
-/// tree rather than reasoned about, per this project's own established
-/// technique (see CLAUDE.md's AppBar-title and resize-bar findings, both
-/// only found this way).
+/// tree rather than reasoned about, the only way this kind of merge has
+/// been found here.
 ///
 /// `CanvasPane` wraps its whole body in one `Focus(autofocus: true)` for its
 /// keyboard shortcuts. A bare `Text('Canvas')` sitting anywhere under a

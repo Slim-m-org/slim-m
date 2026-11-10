@@ -56,7 +56,7 @@ pub struct TotpSignIn {
 
 /// Why completing a challenge failed. Every variant except
 /// [`Self::Locked`] answers the client identically; see
-/// [`crate::http::totp`] for why the lock is the one exception.
+/// `crate::http::totp` for why the lock is the one exception.
 #[derive(Debug)]
 pub enum ChallengeError {
     /// Unknown, expired, already spent, or its account's factor has since

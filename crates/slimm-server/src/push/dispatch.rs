@@ -21,9 +21,13 @@ pub(super) struct Triage<'a> {
     pub(super) dead: Vec<&'a SealedMessage>,
     /// How many results the relay refused as `forbidden`.
     pub(super) forbidden: usize,
+    /// How many results the relay refused for good as `rejected`.
+    pub(super) rejected: usize,
+    /// How many results the relay could not deliver right now and answered `retry`.
+    pub(super) retry: usize,
     /// How many results carried a status this server does not recognize.
     pub(super) unrecognized: usize,
-    /// Messages the relay answered `error` for.
+    /// Messages a relay that predates `rejected` and `retry` answered `error` for.
     pub(super) refused: Vec<&'a SealedMessage>,
 }
 
@@ -40,6 +44,8 @@ impl<'a> Triage<'a> {
                 }
                 Some(RelayStatus::Unregistered) => triage.dead.push(message),
                 Some(RelayStatus::Forbidden) => triage.forbidden += 1,
+                Some(RelayStatus::Rejected) => triage.rejected += 1,
+                Some(RelayStatus::Retry) => triage.retry += 1,
                 Some(RelayStatus::Error) => triage.refused.push(message),
                 Some(RelayStatus::NotAttempted) => {}
                 None => triage.unrecognized += 1,
@@ -72,7 +78,8 @@ fn with_legacy_kind(message: &SealedMessage) -> SealedMessage {
 /// not recognize. Returns the users the relay delivered to, or `None` when it was unreachable.
 ///
 /// A relay that predates a kind answers `error` for it, so those are sent again under the kind
-/// it knows, and for a while after every new kind in a batch was refused they go out that way.
+/// it knows, and for a while after the older kind got through where every new one was refused
+/// they go out that way. A relay that knows `rejected` and `retry` never answers `error`.
 pub(super) async fn send_and_prune(
     enabled: &Enabled,
     store: &Store,
@@ -86,19 +93,27 @@ pub(super) async fn send_and_prune(
             .map(|(d, _)| d);
     }
     let (mut delivered, refused) = send_once(enabled, store, messages, what).await?;
-    let retry: Vec<_> = refused
+    let resend: Vec<_> = refused
         .iter()
         .filter(|m| legacy_kind(m.kind).is_some())
         .map(|m| with_legacy_kind(m))
         .collect();
-    if retry.is_empty() {
+    if resend.is_empty() {
         return Some(delivered);
     }
     let new_kinds = messages
         .iter()
         .filter(|m| legacy_kind(m.kind).is_some())
         .count();
-    if retry.len() == new_kinds {
+    let older_kind_got_through = match send_once(enabled, store, &resend, what).await {
+        Some((again, _)) => {
+            let any = !again.is_empty();
+            delivered.extend(again);
+            any
+        }
+        None => false,
+    };
+    if older_kind_got_through && resend.len() == new_kinds {
         enabled
             .legacy_kinds_until
             .store(now_ms() + LEGACY_KINDS_FOR_MS, Ordering::Relaxed);
@@ -106,9 +121,6 @@ pub(super) async fn send_and_prune(
             what,
             "push: the relay refused its newer kinds; sending the older ones for now"
         );
-    }
-    if let Some((again, _)) = send_once(enabled, store, &retry, what).await {
-        delivered.extend(again);
     }
     Some(delivered)
 }
@@ -145,6 +157,14 @@ async fn send_once<'a>(
             count = triage.forbidden,
             what,
             "push: relay refused devices as forbidden; this server's key is not allowed to deliver to them"
+        );
+    }
+    if triage.rejected > 0 || triage.retry > 0 {
+        tracing::warn!(
+            rejected = triage.rejected,
+            retry = triage.retry,
+            what,
+            "push: relay could not deliver some devices"
         );
     }
     if triage.unrecognized > 0 {
@@ -208,6 +228,8 @@ mod tests {
             sealed("c"),
             sealed("d"),
             sealed("e"),
+            sealed("f"),
+            sealed("g"),
         ];
         let results = [
             result("a", "delivered"),
@@ -215,6 +237,8 @@ mod tests {
             result("c", "brand_new_status"),
             result("d", "error"),
             result("e", "forbidden"),
+            result("f", "rejected"),
+            result("g", "retry"),
             result("not-in-this-batch", "delivered"),
         ];
         let triage = Triage::of(&messages, &results);
@@ -223,5 +247,9 @@ mod tests {
         assert_eq!(triage.dead[0].token, "b");
         assert_eq!(triage.unrecognized, 1);
         assert_eq!(triage.forbidden, 1);
+        assert_eq!(triage.rejected, 1);
+        assert_eq!(triage.retry, 1);
+        assert_eq!(triage.refused.len(), 1);
+        assert_eq!(triage.refused[0].token, "d");
     }
 }

@@ -18,40 +18,37 @@ import 'features/voice/voice_controller_harness.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 
-class _Voice extends VoiceController {
-  _Voice(super.ref) : super(session: FakeSession()) {
-    state = const VoiceState(
-      channelId: 'c1',
-      state: VoiceSessionState.connected,
-      participants: [
-        VoiceParticipant(
-          identity: 'me',
-          name: 'Nick',
-          isSpeaking: false,
-          isMuted: false,
-          isLocal: true,
-          isScreenSharing: false,
-        ),
-        VoiceParticipant(
-          identity: 'user-ada',
-          name: 'Ada',
-          isSpeaking: true,
-          isMuted: false,
-          isLocal: false,
-          isScreenSharing: false,
-        ),
-        VoiceParticipant(
-          identity: 'user-bo',
-          name: 'Bo',
-          isSpeaking: false,
-          isMuted: true,
-          isLocal: false,
-          isScreenSharing: false,
-        ),
-      ],
-    );
-  }
-}
+/// The call every capture here is taken in.
+const _call = VoiceState(
+  channelId: 'c1',
+  state: VoiceSessionState.connected,
+  participants: [
+    VoiceParticipant(
+      identity: 'me',
+      name: 'Nick',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: true,
+      isScreenSharing: false,
+    ),
+    VoiceParticipant(
+      identity: 'user-ada',
+      name: 'Ada',
+      isSpeaking: true,
+      isMuted: false,
+      isLocal: false,
+      isScreenSharing: false,
+    ),
+    VoiceParticipant(
+      identity: 'user-bo',
+      name: 'Bo',
+      isSpeaking: false,
+      isMuted: true,
+      isLocal: false,
+      isScreenSharing: false,
+    ),
+  ],
+);
 
 Future<void> _capture(
   WidgetTester tester,
@@ -64,7 +61,11 @@ Future<void> _capture(
   addTearDown(tester.view.reset);
   final fixture = CanvasPaneFixture();
   final container = fixture.container(
-    extraOverrides: [voiceControllerProvider.overrideWith(_Voice.new)],
+    extraOverrides: [
+      voiceControllerProvider.overrideWith(
+        (ref) => FixedVoiceController(ref, _call),
+      ),
+    ],
   );
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);

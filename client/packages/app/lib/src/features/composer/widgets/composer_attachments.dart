@@ -19,11 +19,11 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/server_info.dart';
 import '../../../widgets/attachment_format.dart';
 import '../../../widgets/transfer_meter.dart';
 import 'staged_attachment_model.dart';
 import '../providers/composer_actions.dart';
-import '../../settings/providers/settings_actions.dart';
 
 export 'staged_attachment_model.dart';
 
@@ -155,13 +155,22 @@ class AttachmentStagingController extends ChangeNotifier {
 
   /// [stage] for any [AttachmentBody], including a streamed one.
   Future<void> stageBody(AttachmentBody body, String filename) async {
-    final localId = 'staged-${_nextLocalId++}';
-    _items.add(
-      UploadingAttachment(localId: localId, filename: filename, body: body),
-    );
+    final item = _uploading('staged-${_nextLocalId++}', filename, body);
+    _items.add(item);
     notifyListeners();
-    unawaited(_runUpload(localId, body, filename));
+    unawaited(_runUpload(item));
   }
+
+  UploadingAttachment _uploading(
+    String localId,
+    String filename,
+    AttachmentBody body,
+  ) => UploadingAttachment(
+    localId: localId,
+    filename: filename,
+    body: body,
+    meter: TransferMeter(_clock),
+  );
 
   /// Restages a failed upload's own bytes, rather than asking the caller
   /// for a fresh pick: a browser or file-system picker cannot be replayed
@@ -170,13 +179,10 @@ class AttachmentStagingController extends ChangeNotifier {
     final index = _items.indexWhere((a) => a.localId == localId);
     final current = index == -1 ? null : _items[index];
     if (current is! FailedAttachment) return;
-    _items[index] = UploadingAttachment(
-      localId: localId,
-      filename: current.filename,
-      body: current.body,
-    );
+    final item = _uploading(localId, current.filename, current.body);
+    _items[index] = item;
     notifyListeners();
-    unawaited(_runUpload(localId, current.body, current.filename));
+    unawaited(_runUpload(item));
   }
 
   /// Hands the uploaded ids to [send], taking them out of the staging in the
@@ -215,19 +221,21 @@ class AttachmentStagingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _cancelIfUploading(StagedAttachment a) {
-    if (a is UploadingAttachment) a.body.cancel.cancel();
+  void _stopIfUploading(StagedAttachment a) {
+    if (a is! UploadingAttachment) return;
+    a.body.cancel.cancel();
+    a.release();
   }
 
   /// For an explicit remove, never teardown: a failed file's kept session goes.
   void _drop(StagedAttachment a) {
-    _cancelIfUploading(a);
+    _stopIfUploading(a);
     if (a is FailedAttachment) onAbandon?.call(_resumeKey(a.localId));
   }
 
   @override
   void dispose() {
-    _items.forEach(_cancelIfUploading);
+    _items.forEach(_stopIfUploading);
     super.dispose();
   }
 
@@ -238,26 +246,8 @@ class AttachmentStagingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _runUpload(
-    String localId,
-    AttachmentBody body,
-    String filename,
-  ) async {
-    final meter = TransferMeter(_clock);
-    var sent = 0;
-    var reconnecting = false;
-    void show() => _replace(
-      localId,
-      UploadingAttachment(
-        localId: localId,
-        filename: filename,
-        body: body,
-        sent: sent,
-        meter: meter,
-        reconnecting: reconnecting,
-      ),
-      onlyWhileUploading: true,
-    );
+  Future<void> _runUpload(UploadingAttachment item) async {
+    final UploadingAttachment(:localId, :filename, :body, :meter) = item;
     try {
       final attachment = await upload(
         body,
@@ -265,15 +255,14 @@ class AttachmentStagingController extends ChangeNotifier {
         UploadReport(
           resumeKey: _resumeKey(localId),
           onProgress: (bytes) {
-            sent = bytes;
-            meter.record(bytes);
-            show();
+            meter?.record(bytes);
+            // Not a staging notification: only the tile draws the progress.
+            item.report(sent: bytes);
           },
           onRetrying: (retrying) {
             // The old link's speed says nothing about the one after a reconnect.
-            if (retrying) meter.reset();
-            reconnecting = retrying;
-            show();
+            if (retrying) meter?.reset();
+            item.report(reconnecting: retrying);
           },
         ),
       );
@@ -307,14 +296,11 @@ class AttachmentStagingController extends ChangeNotifier {
   }
 
   /// A no-op if [localId] was removed while its upload was still in flight.
-  void _replace(
-    String localId,
-    StagedAttachment next, {
-    bool onlyWhileUploading = false,
-  }) {
+  void _replace(String localId, StagedAttachment next) {
     final index = _items.indexWhere((a) => a.localId == localId);
     if (index == -1) return;
-    if (onlyWhileUploading && _items[index] is! UploadingAttachment) return;
+    final finished = _items[index];
+    if (finished is UploadingAttachment) finished.release();
     _items[index] = next;
     notifyListeners();
   }
@@ -365,43 +351,39 @@ final attachmentStagingProvider =
       return controller;
     });
 
+/// The server's `/version` from the cache the rest of the app shares, or null
+/// when it cannot be learned quickly, so a flaky link never holds a pick up.
+///
+/// The subscription keeps the provider alive across the wait; a failed fetch
+/// is dropped so the next file asks again rather than reusing the error.
+Future<api.Version?> _serverVersion(Ref ref, String whatFailed) async {
+  final hold = ref.listen(serverInfoProvider, (_, _) {});
+  try {
+    return await ref
+        .read(serverInfoProvider.future)
+        .timeout(const Duration(seconds: 3));
+  } on Object catch (error, stack) {
+    api.reportFailure(api.LogTag.media, whatFailed, error, stack);
+    if (error is! TimeoutException) ref.invalidate(serverInfoProvider);
+    return null;
+  } finally {
+    hold.close();
+  }
+}
+
 /// What the server advertises, asked only for a file big enough to need it,
 /// and null when it cannot be learned quickly so the plain upload is used.
 Future<List<String>?> _serverCapabilities(Ref ref, int length) async {
   if (length <= api.kUploadSessionThreshold) return null;
-  try {
-    final version = await ref
-        .read(settingsActionsProvider)
-        .version()
-        .timeout(const Duration(seconds: 3));
-    return version.capabilities;
-  } on Object catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.media,
-      "read the server's upload limits",
-      error,
-      stack,
-    );
-    return null;
-  }
+  final version = await _serverVersion(ref, "read the server's upload limits");
+  return version?.capabilities;
 }
 
-/// The server's per-file ceiling from `/version`, or null when it cannot be
-/// learned quickly, so a flaky link never holds a pick up.
+/// The server's per-file ceiling, or null when it cannot be learned quickly.
 Future<int?> _attachmentLimit(Ref ref) async {
-  try {
-    final version = await ref
-        .read(settingsActionsProvider)
-        .version()
-        .timeout(const Duration(seconds: 3));
-    return version.maxAttachmentBytes;
-  } on Object catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.media,
-      "read the server's attachment size limit",
-      error,
-      stack,
-    );
-    return null;
-  }
+  final version = await _serverVersion(
+    ref,
+    "read the server's attachment size limit",
+  );
+  return version?.maxAttachmentBytes;
 }

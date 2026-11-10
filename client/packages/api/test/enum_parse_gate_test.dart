@@ -23,6 +23,7 @@ library;
 
 import 'dart:io';
 
+import 'package:slimm_test_support/source_gates.dart';
 import 'package:test/test.dart';
 
 /// Matches `Foo.values.byName(...)`, not the unrelated `byName` identifier
@@ -34,7 +35,7 @@ final RegExp _byNameCall = RegExp(r'\.values\.byName\(');
 final RegExp _throwingDefault = RegExp(r'(?:\b_\s*=>|\bdefault\s*:)\s*throw\b');
 
 void main() {
-  final repoRoot = _findRepoRoot(Directory.current);
+  final repoRoot = findRepoRoot();
   final libDir = Directory('${repoRoot.path}/client/packages/api/lib');
 
   test('no source under packages/api/lib parses an enum with values.byName',
@@ -98,23 +99,6 @@ void main() {
 
     expect(_scan(tmp), isEmpty);
   });
-}
-
-/// Walks upward from [start] looking for schema/openapi.yaml, the same
-/// repo-root anchor `schema_coverage_test.dart` uses, so this test does not
-/// depend on which directory `dart test` or `flutter test` was invoked from.
-Directory _findRepoRoot(Directory start) {
-  var dir = start.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    final parent = dir.parent;
-    if (parent.path == dir.path) break;
-    dir = parent;
-  }
-  fail(
-    'could not find schema/openapi.yaml walking up from ${start.path}; is '
-    'this test running from somewhere inside the slim-m repo?',
-  );
 }
 
 /// Returns one `path:line: content` string per `values.byName` call found

@@ -37,8 +37,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../support/video_quality_recorder.dart';
 import '../../support/fake_api.dart';
+import '../../support/dead_voice_session.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -47,7 +47,7 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
+class _ConnectableSession extends DeadVoiceSession {
   var joinCount = 0;
 
   final _states = StreamController<VoiceSessionState>.broadcast();
@@ -59,9 +59,6 @@ class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
 
   @override
   Stream<VoiceSessionState> get states => _states.stream;
-
-  @override
-  List<VoiceParticipant> get participants => const [];
 
   @override
   Stream<List<VoiceParticipant>> get participantChanges => _participants.stream;
@@ -89,142 +86,16 @@ class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
   bool get supportsParticipantVolume => true;
 
   @override
-  double screenVolumeFor(String identity) => 1.0;
-
-  @override
-  Future<void> setScreenVolumeFor(String identity, double volume) async {}
-
-  @override
-  bool isScreenAudioMuted(String identity) => false;
-
-  @override
-  Future<void> setScreenAudioMuted(String identity, bool muted) async {}
-
-  @override
-  bool hasScreenAudio(String identity) => false;
-
-  @override
-  Object? volumeFailureFor(String identity, {bool screen = false}) => null;
-
-  @override
   bool get supportsScreenShareAudio => true;
 
   @override
-  double volumeFor(String identity) => 1.0;
-
-  @override
-  Future<void> setVolumeFor(String identity, double volume) async {}
-
-  @override
-  bool deafened = false;
-
-  @override
-  Object? get lastError => null;
-
-  @override
-  VoiceDisconnect? get lastDisconnect => null;
-
-  @override
-  bool get screenShareNeedsSource => false;
-
-  @override
   bool get screenShareSourcePickerUseful => true;
-
-  @override
-  Stream<String> get screenShareSourceLost => const Stream.empty();
-
-  @override
-  VoidCallback holdEnlargedVideo(String tileKey) => () {};
-
-  @override
-  Future<List<ScreenShareSource>> screenShareSources() async => const [];
-
-  @override
-  bool isLocallyMuted(String identity) => false;
-
-  @override
-  Future<void> setLocallyMuted(String identity, bool muted) async {}
 
   @override
   Widget screenShareViewFor(String identity) => const SizedBox.shrink();
 
   @override
   Widget cameraViewFor(String identity) => const SizedBox.shrink();
-
-  @override
-  void setVideoInterest(Set<String>? tileKeys) {}
-
-  @override
-  void setVideoBlocked(Set<String> tileKeys) {}
-
-  @override
-  bool get supportsInputGate => false;
-
-  @override
-  Stream<InputGateReading> get inputGateReadings => const Stream.empty();
-
-  @override
-  void setInputGate({required bool enabled, required double thresholdDb}) {}
-
-  @override
-  Stream<double> get autoInputThresholds => const Stream.empty();
-
-  @override
-  Stream<double> get localAudioLevels => const Stream.empty();
-
-  @override
-  double get inputThresholdDb => -50;
-
-  @override
-  void setLevelDisplayed(bool displayed) {}
-
-  @override
-  void setAutoInputThreshold(bool enabled) {}
-
-  @override
-  void setSpeakingSensitivity(double sensitivity) {}
-
-  @override
-  bool get canFlipCamera => false;
-
-  @override
-  bool get cameraNeedsSelection => false;
-
-  @override
-  Future<List<CameraDevice>> cameraDevices() async => const [];
-
-  @override
-  Future<bool> flipCamera() async => false;
-
-  @override
-  Future<bool> selectCameraDevice(CameraDevice device) async => false;
-
-  @override
-  bool get supportsAudioInputSelection => false;
-
-  @override
-  bool get supportsAudioOutputSelection => false;
-
-  @override
-  Stream<void> get audioDeviceChanges => const Stream.empty();
-
-  @override
-  Future<List<AudioDevice>> audioInputDevices() async => const [];
-
-  @override
-  Future<List<AudioDevice>> audioOutputDevices() async => const [];
-
-  @override
-  Future<bool> selectAudioInputDevice(AudioDevice? device) async => false;
-
-  @override
-  Future<bool> selectAudioOutputDevice(AudioDevice? device) async => false;
-
-  @override
-  Future<bool> setMicrophoneEnabled(bool enabled) async => true;
-
-  @override
-  Future<bool> setCameraEnabled(bool enabled) async => true;
 
   @override
   Future<ScreenShareOutcome> setScreenShareEnabled(
@@ -234,9 +105,6 @@ class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
     bool includeAudio = false,
     int? maxHeight,
   }) async => ScreenShareOutcome.started;
-
-  @override
-  Future<bool> setDeafened(bool value) async => true;
 
   @override
   Future<void> dispose() async {

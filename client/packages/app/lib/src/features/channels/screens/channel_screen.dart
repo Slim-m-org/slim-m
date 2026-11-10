@@ -45,7 +45,6 @@ import 'channel_transcript_scroll.dart';
 
 export '../../../ids.dart' show newMessageId;
 
-/// One channel's messages.
 /// The usernames a mention can be matched against, read from the member
 /// roster [members].
 ///
@@ -101,6 +100,7 @@ final _roleMemo = _SetMemo(
       list.expand((m) => m.roles).map((name) => name.toLowerCase()).toSet(),
 );
 
+/// One channel's messages.
 class ChannelScreen extends ConsumerStatefulWidget {
   const ChannelScreen({
     required this.channelId,

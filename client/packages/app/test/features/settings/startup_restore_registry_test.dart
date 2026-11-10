@@ -12,13 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/providers/startup_restores.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// Restored by `restoreSplashFloor`, which needs the floor it answers.
 const _restoredSeparately = {'SplashDurationController'};
-
-String _withoutComments(String source) => source
-    .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
-    .replaceAll(RegExp(r'//.*'), '');
 
 Set<String> _restoringControllers() {
   final found = <String>{};
@@ -30,7 +27,7 @@ Set<String> _restoringControllers() {
     if (file is! File || !file.path.endsWith('.dart')) continue;
     if (!file.path.contains('/providers/')) continue;
     if (file.path.endsWith('preference_controller.dart')) continue;
-    final parts = _withoutComments(
+    final parts = codeOnly(
       file.readAsStringSync(),
     ).split(RegExp(r'(?=\bclass\s+\w+)'));
     for (final part in parts.skip(1)) {

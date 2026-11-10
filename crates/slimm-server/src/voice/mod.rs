@@ -155,6 +155,19 @@ struct Enabled {
 }
 
 impl VoiceService {
+    /// The one place the ephemeral trackers are listed, so no constructor can differ from another.
+    fn with_inner(inner: Option<std::sync::Arc<Enabled>>) -> Self {
+        Self {
+            inner,
+            heartbeats: CallHeartbeats::new(),
+            rings: CallRings::new(),
+            live_state: RoomLiveState::new(),
+            roster_cache: roster::RosterCache::default(),
+            watch_viewing: watch_viewing::WatchViewing::default(),
+            notice_windows: NoticeWindows::default(),
+        }
+    }
+
     /// Builds a service from config. Disabled unless the URL, key, and secret
     /// are all present, and logs which of the two it is once at startup.
     pub fn new(config: &Config) -> anyhow::Result<Self> {
@@ -180,48 +193,24 @@ impl VoiceService {
                 None
             }
         };
-        Ok(Self {
-            inner,
-            heartbeats: CallHeartbeats::new(),
-            rings: CallRings::new(),
-            live_state: RoomLiveState::new(),
-            roster_cache: roster::RosterCache::default(),
-            watch_viewing: watch_viewing::WatchViewing::default(),
-            notice_windows: NoticeWindows::default(),
-        })
+        Ok(Self::with_inner(inner))
     }
 
     /// A service with no SFU behind it, for tests and text-only deployments.
     pub fn disabled() -> Self {
-        Self {
-            inner: None,
-            heartbeats: CallHeartbeats::new(),
-            rings: CallRings::new(),
-            live_state: RoomLiveState::new(),
-            roster_cache: roster::RosterCache::default(),
-            watch_viewing: watch_viewing::WatchViewing::default(),
-            notice_windows: NoticeWindows::default(),
-        }
+        Self::with_inner(None)
     }
 
     /// A service wired to an explicit key and secret, for tests that need to
     /// inspect a real signed token without standing up an SFU.
     pub fn for_test(url: &str, api_key: &str, api_secret: &str) -> Self {
-        Self {
-            inner: Some(std::sync::Arc::new(Enabled {
-                url: url.to_owned(),
-                api_key: api_key.to_owned(),
-                api_secret: api_secret.to_owned(),
-                http: reqwest::Client::new(),
-                service_url: http_url_for(url).expect("test url"),
-            })),
-            heartbeats: CallHeartbeats::new(),
-            rings: CallRings::new(),
-            live_state: RoomLiveState::new(),
-            roster_cache: roster::RosterCache::default(),
-            watch_viewing: watch_viewing::WatchViewing::default(),
-            notice_windows: NoticeWindows::default(),
-        }
+        Self::with_inner(Some(std::sync::Arc::new(Enabled {
+            url: url.to_owned(),
+            api_key: api_key.to_owned(),
+            api_secret: api_secret.to_owned(),
+            http: room_service_client(),
+            service_url: http_url_for(url).expect("test url"),
+        })))
     }
 
     /// The per-recipient limit on voice activity notices.

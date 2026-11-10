@@ -43,7 +43,7 @@ Future<void> _pump(
       const VoiceSettingsBody(),
       overrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => VoiceController(ref, session: FakeSession()),
+          (ref) => VoiceController(ref, session: FakeSettingsSession()),
         ),
         screenOverlaySupportedProvider.overrideWithValue(supported),
         screenOverlaySupportProvider.overrideWith(
@@ -64,6 +64,16 @@ void main() {
     await _pump(tester);
     expect(tester.widget<AppToggle>(_toggle).value, isFalse);
     expect(_position, findsNothing);
+  });
+
+  testWidgets('the setting names the key that toggles it', (tester) async {
+    await _pump(tester);
+    expect(
+      find.text(
+        'Lists who is in the call over your other windows (Ctrl+Shift+O).',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('turning it on persists and offers the four corners', (

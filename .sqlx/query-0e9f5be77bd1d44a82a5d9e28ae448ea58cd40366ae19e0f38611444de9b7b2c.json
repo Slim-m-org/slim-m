@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.id AS \"id!: MessageId\", m.created_at AS \"created_at!: i64\"\n           FROM channels c\n           LEFT JOIN messages pm ON pm.id = c.parent_message_id\n           LEFT JOIN channel_retention cr ON cr.channel_id = COALESCE(pm.channel_id, c.id)\n           CROSS JOIN messages m ON m.channel_id = c.id AND m.deleted_at IS NULL\n           WHERE cr.channel_id IS NULL AND m.created_at < ?1\n           LIMIT ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: MessageId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0e9f5be77bd1d44a82a5d9e28ae448ea58cd40366ae19e0f38611444de9b7b2c"
+}

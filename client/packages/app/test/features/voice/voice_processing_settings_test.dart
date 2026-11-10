@@ -16,8 +16,11 @@ import 'voice_settings_screen_harness.dart';
 Finder _toggle(String label) =>
     find.byWidgetPredicate((w) => w is AppToggle && w.semanticLabel == label);
 
-Future<FakeSession> _pump(WidgetTester tester, {bool gate = true}) async {
-  final session = FakeSession(supportsInputGate: gate);
+Future<FakeSettingsSession> _pump(
+  WidgetTester tester, {
+  bool gate = true,
+}) async {
+  final session = FakeSettingsSession(supportsInputGate: gate);
   addTearDown(session.dispose);
   await tester.pumpWidget(
     wrap(

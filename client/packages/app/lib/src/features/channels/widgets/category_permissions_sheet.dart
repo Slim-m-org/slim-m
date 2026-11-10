@@ -16,12 +16,11 @@ Future<void> showCategoryPermissionsSheet(
   context,
   maxWidth: 960,
   builder: (context) =>
-      CategoryPermissionsSheet(categoryId: categoryId, name: categoryName),
+      _CategoryPermissionsSheet(categoryId: categoryId, name: categoryName),
 );
 
-class CategoryPermissionsSheet extends StatelessWidget {
-  const CategoryPermissionsSheet({
-    super.key,
+class _CategoryPermissionsSheet extends StatelessWidget {
+  const _CategoryPermissionsSheet({
     required this.categoryId,
     required this.name,
   });

@@ -35,7 +35,7 @@ import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../widgets/bot_call_controls.dart';
 import '../widgets/call_stage_layout.dart';
-import '../../modules/widgets/dock_height_reporter.dart';
+import '../../../widgets/dock_height_reporter.dart';
 import '../../members/widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
@@ -68,9 +68,8 @@ bool _busyElsewhere(VoiceFlags voice, String channelId) =>
         voice.joining);
 
 /// [voice]'s recap, but only when it belongs to [channelId]: `VoiceController`
-/// is one instance for every channel, and CLAUDE.md already recorded this
-/// exact leak shape once for an in-call error message shown in the wrong
-/// channel's preview.
+/// is one instance for every channel, and an in-call error message has
+/// already leaked this exact way into the wrong channel's preview.
 CallRecap? recapForChannel(VoiceFlags voice, String channelId) =>
     voice.recap?.channelId == channelId ? voice.recap : null;
 

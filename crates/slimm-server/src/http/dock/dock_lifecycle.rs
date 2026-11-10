@@ -10,8 +10,10 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::require_manage_server;
 use super::super::extract::{Authed, Json, Query, enforce};
+use super::capabilities::held_hooks;
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
+use crate::module_runtime::valid_file_id;
 use crate::ratelimit::Class;
 use crate::store::{DeleteAccountError, InstalledModule};
 
@@ -32,22 +34,29 @@ pub(in crate::http) async fn uninstall(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state.store.installed_module(&id).await?;
-    if !state.store.uninstall_module(&id).await? {
-        return Err(ApiError::NotFound("module not installed"));
-    }
-    if query.delete_data {
-        state
-            .dock
-            .module_data(state.store.modules_dir())
-            .delete_data(&id)
-            .await
-            .map_err(|_| ApiError::Internal)?;
-    }
+    let uninstalled = state.store.uninstall_module(&id).await?;
     state.dock.slot_cache().invalidate_module(&id);
-    if let Some(module) = module {
+    if uninstalled && let Some(module) = module {
         retire_principal(&state, &module).await;
     }
+    // After the retirement, so a failed delete leaves a retry that only has files to remove.
+    let mut found = uninstalled;
+    if query.delete_data && (uninstalled || valid_file_id(&id)) {
+        found |= delete_module_data(&state, &id).await?;
+    }
+    if !found {
+        return Err(ApiError::NotFound("module not installed"));
+    }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Removes a module's data files; `true` when there were any.
+async fn delete_module_data(state: &AppState, id: &str) -> Result<bool, ApiError> {
+    let files = state.dock.module_data(state.store.modules_dir());
+    files.delete_data(id).await.map_err(|err| {
+        tracing::warn!(%err, module = id, "could not delete a module's data");
+        ApiError::Internal
+    })
 }
 
 /// A scheduled module's principal and its channel overwrite go with the module,
@@ -123,8 +132,11 @@ async fn apply_enabled(
         .await?
         .ok_or(ApiError::NotFound("module not installed"))?;
     let health = state.store.module_health().await?.remove(id);
+    let hooks = held_hooks(state, id).await?;
     Ok(Json(
-        InstalledModuleDto::from(installed).with_health(health.unwrap_or_default()),
+        InstalledModuleDto::from(installed)
+            .with_health(health.unwrap_or_default())
+            .with_hooks(&hooks),
     ))
 }
 
@@ -139,6 +151,7 @@ pub(in crate::http) async fn list_installed(
     let mut stats = state.store.module_run_stats().await?;
     let usage = state.store.module_storage_usage().await?;
     let mut health = state.store.module_health().await?;
+    let mut hooks = state.store.module_hook_decls().await?;
     Ok(Json(
         modules
             .into_iter()
@@ -147,10 +160,12 @@ pub(in crate::http) async fn list_installed(
                 let usage = usage.get(&m.id).copied().unwrap_or_default();
                 let health = health.remove(&m.id).unwrap_or_default();
                 let depth = state.dock.queue_depths().get(&m.id);
+                let hooks = hooks.remove(&m.id).unwrap_or_default();
                 InstalledModuleDto::from(m)
                     .with_activity(stats, usage)
                     .with_health(health)
                     .with_queue_depth(depth)
+                    .with_hooks(&hooks)
             })
             .collect(),
     ))

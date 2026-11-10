@@ -39,8 +39,8 @@ class CallRecap {
 
   /// Which channel this recap belongs to. `VoiceController` is one instance
   /// for the whole app, so a screen must check this against its own channel
-  /// before rendering anything - the same shape CLAUDE.md already recorded
-  /// once for an in-call error message leaking across channels.
+  /// before rendering anything - the same shape as an in-call error message
+  /// once leaking across channels.
   final String channelId;
 
   final DateTime startedAt;

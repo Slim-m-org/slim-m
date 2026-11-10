@@ -322,8 +322,10 @@ async fn spawn_fake_dock_registry() -> String {
             "permissions": [
                 {"key": "run", "name": "Execute code blocks", "description": "run a snippet"}
             ],
-            "capabilities": ["command.register", "message.post", "net.fetch", "schedule", "events", "data.store"],
-            "addon_api": 1,
+            "capabilities": ["command.register", "message.post", "net.fetch", "schedule", "events", "data.store", "interceptors", "permission.hook"],
+            "addon_api": 3,
+            "interceptors": [{"hook": "message.pre_send", "phase": "annotate", "reads": ["content"]}],
+            "permission_hooks": [{"action": "message.send"}],
             "subscriptions": [{"event": "member.joined"}],
             "data": {"max_mb": 8, "tables": [{"name": "xp", "columns": [{"name": "user_id", "type": "text", "unique": true}]}]},
             "settings": [

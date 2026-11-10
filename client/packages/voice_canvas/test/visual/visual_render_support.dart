@@ -9,24 +9,13 @@
 ///
 /// **Every PNG this writes is rasterised in software** (`flutter test` has
 /// no GPU), which can paint a thin diagonal stroke as broken or dotted at
-/// a low effective pixel width even when the geometry is correct - see
-/// `dpi_probe_test.dart`'s own finding on `zoom_stress_0.25x.png` before
-/// reading that one as a real gap in the ink.
+/// a low effective pixel width even when the geometry is correct; see
+/// `docs/DEVELOPING.md` before reading `zoom_stress_0.25x.png` as a real gap.
 ///
-/// ~~The same rasteriser does not blur or alpha-blend a `BoxShadow` either,
-/// so a soft translucent shadow paints as flat opaque black with a hard edge
-/// in every PNG written here and by the app package's own snapshot tests.~~
-/// Wrong about "written here," corrected 2026-08-11 by actually rendering
-/// `elevation_note_light.png` and looking: the shadow on the elevated note
-/// blurs correctly, a real gradient several dozen pixels wide, not a hard
-/// edge. The real cause was never the rasteriser - it is `flutter_test`'s
-/// own `AutomatedTestWidgetsFlutterBinding`, which sets `debugDisableShadows
-/// = true` in its constructor for golden-file determinism, and this file's
-/// own `main()` never calls `testWidgets`, so that binding is never built
-/// and the flag never flips. The app package's own snapshot tests do call
-/// `testWidgets`, so that half of the old claim held; see `support/real_
-/// shadows.dart` there for the fix, now closing it at the source rather
-/// than merely documenting around it.
+/// A soft shadow still blurs here, because this file never builds the
+/// `AutomatedTestWidgetsFlutterBinding` that sets `debugDisableShadows`. The
+/// app package's snapshot tests do, and `support/real_shadows.dart` there
+/// turns it back off.
 library;
 
 import 'dart:io';

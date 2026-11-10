@@ -209,7 +209,10 @@ rtc/test/screen_share_audio_test.dart
 rtc/test/screen_share_ceiling_test.dart
 rtc/test/screen_share_control_test.dart
 rtc/test/video_subscription_culler_test.dart
+rtc/test/voice_listener_audio_test.dart
 rtc/test/voice_roster_snapshot_test.dart
+rtc/test/voice_roster_test.dart
+rtc/test/voice_session_facade_test.dart
 rtc/test/voice_session_leave_race_test.dart
 rtc/test/voice_session_screen_share_teardown_test.dart
 rtc/test/voice_session_test.dart

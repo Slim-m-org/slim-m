@@ -12,10 +12,10 @@ real signal cannot.
 
 A job's meta file (written by ui-capture.sh) also carries how many images it
 wrote this run. A job whose log shows at least one passing, visible test but
-recorded zero images is the "silently missing file" case CLAUDE.md keeps
-finding elsewhere in this project: a test that reports success while writing
-nothing. That is flagged as a failure here, not just a warning, because a
-green test and an absent picture is exactly the gap this tool exists to catch.
+recorded zero images is the "silently missing file" case this project keeps
+finding: a test that reports success while writing nothing. That is flagged
+as a failure here, not just a warning, because a green test and an absent
+picture is exactly the gap this tool exists to catch.
 
 HTML rendering lives in `ui_capture_html.py`; this file only builds the
 manifest that page reads.

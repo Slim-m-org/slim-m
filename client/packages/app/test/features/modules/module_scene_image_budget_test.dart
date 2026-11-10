@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_images.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../../support/synthetic_png.dart';
 
@@ -48,12 +49,11 @@ class _ViewLoop {
       tester.runAsync(() async {
         cache.snapshot(scene);
         final total = scene.ops.whereType<ImageOp>().length;
-        final deadline = DateTime.now().add(const Duration(seconds: 30));
-        while (ready < total &&
-            decodes < decodeBudget &&
-            DateTime.now().isBefore(deadline)) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        await pollUntil(
+          () => ready >= total || decodes >= decodeBudget,
+          timeout: const Duration(seconds: 30),
+          reason: 'neither every image nor the decode budget was reached',
+        );
       });
 }
 
@@ -125,10 +125,11 @@ void main() {
 
     await tester.runAsync(() async {
       cache.snapshot(scene);
-      final deadline = DateTime.now().add(const Duration(seconds: 30));
-      while (!cache.hasFailed(op.key) && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
+      await pollUntil(
+        () => cache.hasFailed(op.key),
+        timeout: const Duration(seconds: 30),
+        reason: 'the oversized image was never marked failed',
+      );
     });
 
     expect(cache.hasFailed(op.key), isTrue);

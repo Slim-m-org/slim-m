@@ -16,6 +16,7 @@ PROBES = {
     "websockets": lambda: importlib.util.find_spec("websockets") is not None,
     "numpy": lambda: importlib.util.find_spec("numpy") is not None,
     "rpmdev-vercmp": lambda: shutil.which("rpmdev-vercmp") is not None,
+    "g++": lambda: shutil.which("g++") is not None,
 }
 
 

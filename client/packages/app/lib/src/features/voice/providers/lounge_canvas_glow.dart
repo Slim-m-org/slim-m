@@ -41,7 +41,13 @@ final loungeCanvasGlowProvider = FutureProvider.autoDispose
           ),
           limit: 500,
         );
-      } on Object {
+      } on Object catch (error, stack) {
+        api.AppLog.swallowed(
+          api.LogTag.ui,
+          'Could not load the canvas for the lounge glow; drawn without it',
+          error,
+          stack,
+        );
         return null;
       }
       final document = CanvasDocument();

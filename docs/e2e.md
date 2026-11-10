@@ -109,6 +109,7 @@ prints it every time so it cannot quietly grow.
 | `lib/e2e_messaging.py`, `e2e_settings.py`, `e2e_admin.py`, `e2e_voice.py`, `e2e_voice_rejoin.py`, `e2e_markdown.py`, `e2e_reconcile.py`, `e2e_replies.py`, `e2e_threads.py`, `e2e_message_menu.py`, `e2e_composer.py`, `e2e_members.py`, `e2e_accounts.py`, `e2e_dm_call.py`, `e2e_canvas.py`, `e2e_canvas_shapes.py`, `e2e_media_slots.py`, `e2e_voice_noise.py`, `e2e_voice_volume.py`, `e2e_voice_devices.py`, `e2e_voice_deafen.py`, `e2e_voice_share.py`, `e2e_voice_multishare.py` | the scenarios |
 | `lib/e2e_audio.py`, `e2e_audio_js.py`, `e2e_audio_levels.py`, `e2e_browsers.py`, `e2e_voice_ui.py` | the voice probe, its maths, extra browsers, and the call-surface helpers (see Measured voice) |
 | `lib/e2e_sweep.py` | the API-level routes the scenarios do not reach |
+| `lib/e2e_client_contract.py` | the Dart api package's `live_server_test.dart` and `compression_interop_test.dart`, run against this stack with `SLIMM_TEST_SERVER_REQUIRED=1` |
 | `lib/e2e_seed.py`, `e2e_fixtures.py` | the accounts and the two PNGs a run uploads |
 
 Labels live in one module because they are a contract with the UI rather than

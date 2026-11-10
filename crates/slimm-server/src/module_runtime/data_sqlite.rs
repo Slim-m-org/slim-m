@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
@@ -73,12 +73,16 @@ struct Opened {
     pool: SqlitePool,
     schema: DataSchema,
     interrupt: Arc<Interrupt>,
+    /// One statement at a time, because they share the single connection and its one deadline.
+    statement_turn: Mutex<()>,
 }
 
 pub struct SqliteData {
     dir: PathBuf,
     handle: Handle,
     open: Mutex<HashMap<String, Arc<Opened>>>,
+    /// Held while a module's file is opened, migrated or deleted, so none of them sees another half done.
+    file_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 impl SqliteData {
@@ -87,6 +91,30 @@ impl SqliteData {
             dir,
             handle,
             open: Mutex::new(HashMap::new()),
+            file_locks: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn file_lock(&self, module_id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        let mut locks = self
+            .file_locks
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        Arc::clone(locks.entry(module_id.to_owned()).or_default())
+    }
+
+    fn cached(&self, module_id: &str) -> Option<Arc<Opened>> {
+        let open = self.open.lock().unwrap_or_else(PoisonError::into_inner);
+        open.get(module_id).cloned()
+    }
+
+    async fn close_cached(&self, module_id: &str) {
+        let stale = {
+            let mut open = self.open.lock().unwrap_or_else(PoisonError::into_inner);
+            open.remove(module_id)
+        };
+        if let Some(stale) = stale {
+            stale.pool.close().await;
         }
     }
 
@@ -100,16 +128,15 @@ impl SqliteData {
     /// Creates missing tables, columns and indexes so the module's file matches `schema`.
     pub async fn apply_schema(&self, module_id: &str, schema: &DataSchema) -> Result<(), String> {
         let path = self.path_for(module_id)?;
+        let lock = self.file_lock(module_id);
+        let _migrating = lock.lock().await;
         let old = stored_schema(&path).await?;
         if old.as_ref() == Some(schema) {
             return Ok(());
         }
         let ddl = plan(old.as_ref(), schema)?;
         create_file_private(&self.dir, &path).map_err(|_| "could not create the data file")?;
-        let stale = self.open.lock().unwrap().remove(module_id);
-        if let Some(stale) = stale {
-            stale.pool.close().await;
-        }
+        self.close_cached(module_id).await;
         run_ddl(&path, &ddl, schema).await.map_err(|err| {
             tracing::warn!(%err, module = module_id, "data schema migration failed");
             "could not migrate the module's data".to_owned()
@@ -140,23 +167,42 @@ impl SqliteData {
             .collect()
     }
 
-    /// Removes the module's file and its journal files; a missing file is fine.
-    pub async fn delete_data(&self, module_id: &str) -> Result<(), String> {
+    /// Removes the module's file and its journal files, and whether any existed; a missing file is fine.
+    pub async fn delete_data(&self, module_id: &str) -> Result<bool, String> {
         let path = self.path_for(module_id)?;
-        let opened = self.open.lock().unwrap().remove(module_id);
-        if let Some(opened) = opened {
-            opened.pool.close().await;
-        }
+        let lock = self.file_lock(module_id);
+        let _deleting = lock.lock().await;
+        self.close_cached(module_id).await;
+        let mut removed = false;
         for suffix in ["", "-wal", "-shm"] {
             let mut name = path.clone().into_os_string();
             name.push(suffix);
             match tokio::fs::remove_file(PathBuf::from(name)).await {
-                Ok(()) => {}
+                Ok(()) => removed = true,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
                 Err(_) => return Err("could not delete the module's data".to_owned()),
             }
         }
-        Ok(())
+        Ok(removed)
+    }
+
+    /// The module's open pool, opening it on first use. The open waits out a migration or delete
+    /// of the same file, so what it caches is the schema the file holds once they are done.
+    fn opened(&self, module_id: &str, path: &Path) -> Result<Arc<Opened>, DataError> {
+        if let Some(opened) = self.cached(module_id) {
+            return Ok(opened);
+        }
+        let lock = self.file_lock(module_id);
+        self.handle.block_on(async {
+            let _settled = lock.lock().await;
+            if let Some(opened) = self.cached(module_id) {
+                return Ok(opened);
+            }
+            let fresh = Arc::new(open_existing(path).await?.ok_or(DataError::NoSchema)?);
+            let mut open = self.open.lock().unwrap_or_else(PoisonError::into_inner);
+            open.insert(module_id.to_owned(), Arc::clone(&fresh));
+            Ok(fresh)
+        })
     }
 
     fn with_opened<T>(
@@ -165,30 +211,7 @@ impl SqliteData {
         run: impl FnOnce(&Opened) -> Result<T, DataError>,
     ) -> Result<T, DataError> {
         let path = self.path_for(module_id).map_err(|_| DataError::NoSchema)?;
-        let cached = self.open.lock().unwrap().get(module_id).cloned();
-        let opened = match cached {
-            Some(opened) => opened,
-            None => {
-                let fresh = Arc::new(
-                    self.handle
-                        .block_on(open_existing(&path))?
-                        .ok_or(DataError::NoSchema)?,
-                );
-                let mut open = self.open.lock().unwrap();
-                match open.get(module_id) {
-                    Some(raced) => {
-                        let raced = raced.clone();
-                        drop(open);
-                        self.handle.block_on(fresh.pool.close());
-                        raced
-                    }
-                    None => {
-                        open.insert(module_id.to_owned(), fresh.clone());
-                        fresh
-                    }
-                }
-            }
-        };
+        let opened = self.opened(module_id, &path)?;
         run(&opened)
     }
 }
@@ -205,6 +228,10 @@ impl DataBackend for SqliteData {
         budget: Duration,
     ) -> Result<Outcome, DataError> {
         self.with_opened(module_id, |o| {
+            let _turn = o
+                .statement_turn
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
             o.interrupt.set(budget);
             let outcome = self.handle.block_on(run(&o.pool, statement));
             o.interrupt.clear();
@@ -301,6 +328,7 @@ async fn open_existing(path: &Path) -> Result<Option<Opened>, DataError> {
         pool,
         schema,
         interrupt,
+        statement_turn: Mutex::new(()),
     }))
 }
 

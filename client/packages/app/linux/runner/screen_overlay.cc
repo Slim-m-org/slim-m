@@ -290,6 +290,7 @@ void Draw(std::vector<Shape> shapes) {
 
 void SetPanel(Panel panel) {
   g_panel = std::move(panel);
+  CacheAvatars(&g_panel);
   for (GtkWidget* window : g_windows) gtk_widget_queue_draw(window);
 }
 
@@ -315,6 +316,7 @@ int AppMonitor() {
 void Hide() {
   g_shapes.clear();
   g_panel = Panel();
+  ForgetAvatars();
   std::vector<GtkWidget*> open = g_windows;
   for (GtkWidget* window : open) gtk_widget_destroy(window);
   g_windows.clear();

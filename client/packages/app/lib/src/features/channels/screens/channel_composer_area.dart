@@ -27,7 +27,7 @@ import '../../composer/providers/composer_extent.dart';
 import '../../messages/providers/message_selection.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/widgets/call_keyboard_pill.dart';
-import '../../modules/widgets/dock_height_reporter.dart';
+import '../../../widgets/dock_height_reporter.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;

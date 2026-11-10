@@ -6,7 +6,8 @@
 // Serves the Dart side's `slimm/global_hotkeys` channel: `bind` installs a
 // low-level keyboard hook for the given keys and reports each press and
 // release back as an `event` call. The hook only observes keys, so every key
-// still reaches the focused app.
+// still reaches the focused app. The hook lives on a thread of its own and is
+// put back after an unlock or a resume; when it cannot be, `lost` is sent.
 void RegisterGlobalHotkeysChannel(flutter::BinaryMessenger* messenger);
 
 // Removes the hook; safe to call when none is installed.

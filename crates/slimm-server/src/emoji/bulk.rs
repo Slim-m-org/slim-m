@@ -80,7 +80,7 @@ pub enum BulkAddError {
 ///
 /// Validation - name, size, content type, and no two items sharing a
 /// normalised name - runs over the whole list before any bytes are written,
-/// the same rule [`crate::store::message_authors_in`] documents for bulk
+/// the same rule [`crate::store::Store::message_authors_in`] documents for bulk
 /// message deletion: an item this caller may not add must not leave an
 /// earlier item in the same call already stored while the call as a whole
 /// fails.

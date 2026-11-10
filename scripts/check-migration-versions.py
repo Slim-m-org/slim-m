@@ -21,8 +21,9 @@ own bytes, which makes two edits fatal after the fact:
    suite only ever builds fresh databases, where the renumbered file applies
    perfectly.
 
-Both are checked against `origin/main` rather than against a recorded list,
-so nothing here can go stale.
+Duplicates are read off the files on disk. An edit, rename or deletion is
+checked against `migrations.lock.json`, which only ever gains entries, and not
+against `origin/main`: see `published_migrations` for why that was not enough.
 """
 
 import json

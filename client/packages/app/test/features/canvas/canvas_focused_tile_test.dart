@@ -25,15 +25,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../voice/voice_controller_harness.dart';
 import 'canvas_pane_harness.dart';
 import '../../desktop/support/desktop_shell_fixture.dart';
-
-class _DrivenVoiceController extends VoiceController {
-  _DrivenVoiceController(super.ref, VoiceState initial)
-    : super(session: FakeSession()) {
-    state = initial;
-  }
-
-  void become(VoiceState next) => state = next;
-}
+import '../../support/fake_voice.dart';
 
 VoiceParticipant _ada({bool sharing = true}) => VoiceParticipant(
   identity: 'user-ada',
@@ -54,7 +46,7 @@ VoiceState _call({bool sharing = true}) => VoiceState(
 const _tileKey = 'screen:user-ada';
 const _expandLabel = 'Show this tile full screen';
 
-Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
+Future<({FakeVoiceController voice, ProviderContainer container})> _pump(
   WidgetTester tester, {
   bool fullscreenFirst = false,
   bool focusFirst = false,
@@ -63,12 +55,16 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   DesktopWindowShell? shell,
 }) async {
   final fixture = CanvasPaneFixture();
-  late _DrivenVoiceController voice;
+  late FakeVoiceController voice;
   final container = fixture.container(
     extraOverrides: [
       if (shell != null) desktopWindowShellProvider.overrideWithValue(shell),
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _DrivenVoiceController(ref, _call(sharing: sharing)),
+        (ref) => voice = FakeVoiceController(
+          ref,
+          initial: _call(sharing: sharing),
+          session: FakeSession(),
+        ),
       ),
     ],
   );
@@ -208,7 +204,7 @@ void main() {
     final (:voice, :container) = await _pump(tester);
     await _focusTheShare(tester);
 
-    voice.become(_call(sharing: false));
+    voice.replace(_call(sharing: false));
     await tester.pumpAndSettle();
 
     expect(container.read(canvasFocusedTileProvider), isNull);
@@ -222,7 +218,7 @@ void main() {
     await _focusTheShare(tester);
     expect(container.read(canvasFocusedTileProvider), isNotNull);
 
-    voice.become(_call(sharing: false));
+    voice.replace(_call(sharing: false));
     await tester.pumpAndSettle();
 
     expect(container.read(canvasFocusedTileProvider), isNull);
@@ -323,7 +319,7 @@ void main() {
     expect(port.fullScreen, isTrue);
     expect(container.read(fullscreenVideoActiveProvider), isTrue);
 
-    voice.become(_call(sharing: false));
+    voice.replace(_call(sharing: false));
     await tester.pumpAndSettle();
     expect(port.fullScreen, isFalse);
     expect(container.read(fullscreenVideoActiveProvider), isFalse);

@@ -2,10 +2,12 @@
 //! Linking a Discord account to a member, through Discord's OAuth code flow.
 //!
 //! `/me/links/discord/start` mints a one-time state and hands back Discord's
-//! authorize URL; the member's browser comes back to `/links/discord/callback`,
-//! which spends the state, trades the code for a token, reads who that is and
-//! stores the link. Only the `identify` scope is asked for, and the token is
-//! dropped once the username is read.
+//! authorize URL; the browser comes back to `/links/discord/callback`, which
+//! spends the state, trades the code for a token and reads who that is. It
+//! links nothing, because it cannot tell who approved: it holds the identity
+//! for the member's own app to finish (see `link_handoff`). Only the
+//! `identify` scope is asked for, and the token is dropped once the username
+//! is read.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,19 +16,21 @@ use axum::Router;
 use axum::extract::{Extension, Path, Query, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::response::{Html, IntoResponse, Response};
+use axum::response::Response;
 use axum::routing::{delete, get, post};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
+use super::link_handoff::{self, handoff_page};
 use super::linked_avatar;
 use super::messages::parse_uuid;
+use super::page_shell::{escape, respond, shell};
 use crate::config::Config;
 use crate::ids::UserId;
 use crate::ratelimit::Class;
-use crate::store::{AccountLinkError, LinkedAccount, now_ms};
+use crate::store::{LinkedAccount, PendingLink, now_ms};
 
 pub(super) const PROVIDER: &str = "discord";
 const DISCORD_API: &str = "https://discord.com/api";
@@ -149,16 +153,14 @@ impl DiscordLinks {
         Ok(user)
     }
 
-    /// The account's custom picture, or `None` for the default one or any
-    /// failure fetching it.
-    async fn fetch_avatar(&self, user: &DiscordUser) -> Option<Vec<u8>> {
-        let hash = user.avatar.as_deref()?;
-        if !linked_avatar::is_path_safe(&user.id, hash) {
+    /// The account's custom picture, or `None` for any failure fetching it.
+    pub(super) async fn fetch_avatar(&self, discord_id: &str, hash: &str) -> Option<Vec<u8>> {
+        if !linked_avatar::is_path_safe(discord_id, hash) {
             return None;
         }
         let url = format!(
-            "{}/avatars/{}/{hash}.png?size=128",
-            self.inner.cdn_base, user.id
+            "{}/avatars/{discord_id}/{hash}.png?size=128",
+            self.inner.cdn_base
         );
         linked_avatar::fetch(&self.inner.avatar_http, &url).await
     }
@@ -188,10 +190,11 @@ pub fn routes() -> Router<AppState> {
             "/users/{user_id}/links/discord/avatar",
             get(linked_avatar::get_discord_avatar),
         )
+        .merge(link_handoff::routes())
 }
 
 #[derive(Serialize)]
-struct LinkedAccountDto {
+pub(super) struct LinkedAccountDto {
     provider: String,
     username: String,
     display_name: Option<String>,
@@ -250,16 +253,11 @@ struct CallbackQuery {
     error: Option<String>,
 }
 
-/// What the browser tab shows. Fixed text only: nothing from the request
-/// is echoed into the page.
+/// What the browser tab shows when there is nothing to hand back. Fixed text
+/// only: nothing from the request is echoed into the page.
 fn page(status: StatusCode, message: &str) -> Response {
-    let body = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" \
-         content=\"width=device-width\"><title>slim-m</title></head><body style=\"\
-         font-family:system-ui,sans-serif;display:grid;place-items:center;height:90vh;\
-         margin:0\"><p>{message}</p></body></html>"
-    );
-    (status, Html(body)).into_response()
+    let inner = format!("<p>{}</p>", escape(message));
+    respond(status, shell("slim-m", &inner, ""))
 }
 
 async fn callback(
@@ -309,36 +307,27 @@ async fn callback(
             ));
         }
     };
-    let avatar = discord.fetch_avatar(&user).await;
-    let account = LinkedAccount {
-        provider: PROVIDER.to_owned(),
+    let pending = PendingLink {
+        user_id,
         external_id: user.id.chars().take(MAX_NAME_CHARS).collect(),
         username: user.username.chars().take(MAX_NAME_CHARS).collect(),
         display_name: user
             .global_name
             .map(|name| name.chars().take(MAX_NAME_CHARS).collect()),
-        linked_at: now_ms(),
-        avatar_updated_at: avatar.as_ref().map(|_| now_ms()),
+        avatar_hash: user
+            .avatar
+            .filter(|hash| linked_avatar::is_path_safe(&user.id, hash)),
     };
-    match state.store.save_linked_account(user_id, &account).await {
-        Ok(()) => {
-            store_avatar(&state, user_id, avatar).await;
-            Ok(page(
-                StatusCode::OK,
-                "Discord is linked. You can close this tab.",
-            ))
-        }
-        Err(AccountLinkError::TakenByAnotherMember) => Ok(page(
-            StatusCode::CONFLICT,
-            "That Discord account is already linked to someone else here.",
-        )),
-        Err(AccountLinkError::Internal(error)) => Err(error.into()),
-    }
+    let handoff = state
+        .store
+        .create_link_handoff(PROVIDER, &pending, now_ms() + STATE_LIFETIME_MS)
+        .await?;
+    Ok(respond(StatusCode::OK, handoff_page(&handoff)))
 }
 
 /// Writes the fetched picture, or removes an earlier link's when this one has
 /// none. A file that cannot be written leaves the link without a picture.
-async fn store_avatar(state: &AppState, user_id: UserId, avatar: Option<Vec<u8>>) {
+pub(super) async fn store_avatar(state: &AppState, user_id: UserId, avatar: Option<Vec<u8>>) {
     let owner = user_id.to_string();
     let written = match avatar {
         Some(bytes) => {

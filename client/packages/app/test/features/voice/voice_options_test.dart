@@ -44,7 +44,7 @@ void main() {
   testWidgets('choosing a speaker persists it and reaches the session', (
     tester,
   ) async {
-    final session = FakeSession(
+    final session = FakeSettingsSession(
       audioOutputDeviceList: const [_speaker1, _speaker2],
     );
     await tester.pumpWidget(

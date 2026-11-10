@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The picture copied from a linked Discord account: stored at link time,
-//! served by this server alone, and gone with the link or the account.
+//! The picture copied from a linked Discord account: stored when the link is
+//! finished, served by this server alone, and gone with the link or the account.
 
 use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
@@ -19,6 +19,7 @@ use tower::ServiceExt;
 mod support;
 
 use support::app::json_body;
+use support::discord_link::{complete, handoff_in, text_body};
 
 const REDIRECT: &str = "https://slim.example/links/discord/callback";
 const PASSWORD: &str = "correct-horse-battery";
@@ -153,6 +154,9 @@ impl World {
             .await
             .unwrap();
         assert_eq!(callback.status(), StatusCode::OK);
+        let handoff = handoff_in(&text_body(callback).await);
+        let finished = complete(&self.app, &self.ada_token, &handoff).await;
+        assert_eq!(finished.status(), StatusCode::OK);
     }
 
     fn avatar_uri(&self) -> String {
@@ -178,7 +182,7 @@ impl World {
 }
 
 #[tokio::test]
-async fn the_picture_is_stored_at_link_time_and_served_to_others() {
+async fn the_picture_is_stored_when_the_link_finishes_and_served_to_others() {
     let picture = support::images::small_png();
     let w = world(Picture::Served("image/png", picture.clone())).await;
     w.link().await;

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM link_handoffs WHERE expires_at <= ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "058c946b33765e8ab9f89389cf6bc699fbbbb5ed9953f681e1c425f8cefa4d7c"
+}

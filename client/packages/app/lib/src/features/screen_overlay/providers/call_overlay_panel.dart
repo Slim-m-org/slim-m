@@ -7,50 +7,68 @@ import 'package:slimm_design_system/design_system.dart' show AppTokens;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceParticipant;
 
+import 'call_overlay_avatar.dart' show OverlayAvatar;
+
 /// Rows shown before the rest collapse into "+N more".
 const callOverlayMaxRows = 8;
 
-/// The call as panel rows: you first, then everyone else in call order so a row does not jump when someone speaks.
-({List<OverlayPanelRow> rows, int more}) callOverlayRows(
-  List<VoiceParticipant> participants,
-) {
+/// The people the panel lists: you first, then everyone else in call order so a row does not jump when someone speaks.
+List<VoiceParticipant> callOverlayShown(List<VoiceParticipant> participants) {
   final ordered = [
     ...participants.where((p) => p.isLocal),
     ...participants.where((p) => !p.isLocal),
   ];
+  return ordered.take(callOverlayMaxRows).toList();
+}
+
+/// The call as panel rows, each with its baked picture from [avatars] (by user id) when there is one.
+({List<OverlayPanelRow> rows, int more}) callOverlayRows(
+  List<VoiceParticipant> participants, {
+  Map<String, OverlayAvatar> avatars = const {},
+}) {
   return (
     rows: [
-      for (final p in ordered.take(callOverlayMaxRows))
+      for (final p in callOverlayShown(participants))
         OverlayPanelRow(
+          id: p.identity,
           name: p.isLocal ? '${p.name} (you)' : p.name,
           speaking: p.isSpeaking && !p.isMuted && !p.isDeafened,
           muted: p.isMuted,
           deafened: p.isDeafened,
+          avatarKey: avatars[p.identity]?.key,
+          avatar: avatars[p.identity]?.png,
         ),
     ],
-    more: ordered.length > callOverlayMaxRows
-        ? ordered.length - callOverlayMaxRows
+    more: participants.length > callOverlayMaxRows
+        ? participants.length - callOverlayMaxRows
         : 0,
   );
 }
+
+/// How much of the dark surface shows through; faint enough to read the screen behind it.
+const callOverlaySurfaceAlpha = 0.6;
+
+/// Name text sits a little under full strength so the panel stays in the background.
+const callOverlayTextAlpha = 0.9;
 
 /// The panel for [participants], always in the dark tokens so it reads over any background.
 OverlayPanel callOverlayPanel(
   List<VoiceParticipant> participants, {
   required int monitor,
   required OverlayCorner corner,
+  Map<String, OverlayAvatar> avatars = const {},
 }) {
   const tokens = AppTokens.dark;
-  final (:rows, :more) = callOverlayRows(participants);
+  final (:rows, :more) = callOverlayRows(participants, avatars: avatars);
   return OverlayPanel(
     monitor: monitor,
     corner: corner,
     rows: rows,
     more: more,
-    surface: tokens.surfaceRaised.withValues(alpha: 0.88),
+    surface: tokens.surfaceRaised.withValues(alpha: callOverlaySurfaceAlpha),
     border: tokens.borderSubtle,
-    text: tokens.textPrimary,
-    textMuted: tokens.textSecondary,
+    text: tokens.textPrimary.withValues(alpha: callOverlayTextAlpha),
+    textMuted: tokens.textSecondary.withValues(alpha: callOverlayTextAlpha),
     accent: tokens.accent,
     danger: tokens.dangerText,
   );

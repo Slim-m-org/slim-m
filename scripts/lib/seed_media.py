@@ -222,8 +222,8 @@ def mp4_clip(path, seconds=2, width=320, height=240):
 
     This is the one generator here with an external dependency, and it is
     a system binary invoked through `subprocess`, never a Python package:
-    CLAUDE.md's stdlib-only rule for these scripts is about not adding a
-    pip step to CI, which a subprocess call does not do. Callers must check
+    The stdlib-only rule for these scripts is about not adding a pip step to
+    CI, which a subprocess call does not do. Callers must check
     `ffmpeg_available()` first and skip with a printed reason when it is
     absent, since a self-host running this script may not have ffmpeg
     installed and that must not fail the run.

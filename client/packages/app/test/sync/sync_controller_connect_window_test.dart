@@ -19,6 +19,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -119,16 +120,20 @@ class _Rig {
   SyncController get controller =>
       container.read(syncControllerProvider.notifier);
 
-  Future<void> untilLive() async {
-    for (var i = 0; i < 800; i++) {
-      if (container.read(syncControllerProvider) == SyncStatus.live) return;
-      await Future<void>.delayed(const Duration(milliseconds: 25));
-    }
-    fail('never went live');
-  }
+  Future<void> untilLive() => pollUntil(
+    () => container.read(syncControllerProvider) == SyncStatus.live,
+    timeout: const Duration(seconds: 20),
+    interval: const Duration(milliseconds: 25),
+    reason: 'never went live',
+  );
 
   Future<Set<int>> heldSeqs() async =>
       (await store.watchChannel('c1').first).map((m) => m.seq).toSet();
+
+  Future<void> untilHeld(int seq) => pollUntil(
+    () async => (await heldSeqs()).contains(seq),
+    reason: 'seq $seq was never held',
+  );
 }
 
 Future<_Rig> _rig() async {
@@ -167,7 +172,7 @@ void main() {
     await rig.untilLive();
 
     rig.server.commit(3);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await rig.untilHeld(3);
 
     expect(await rig.heldSeqs(), containsAll([1, 2, 3]));
   });
@@ -191,7 +196,7 @@ void main() {
       await rig.untilLive();
       rig.server.onTicket = null;
       rig.server.commit(3);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await rig.untilHeld(3);
 
       unawaited(rig.controller.start());
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -208,7 +213,7 @@ void main() {
     await rig.untilLive();
 
     rig.server.commit(3);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await rig.untilHeld(3);
 
     expect(await rig.heldSeqs(), containsAll([1, 2, 3]));
   });

@@ -250,13 +250,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     String password,
     String? code,
   ) async {
-    /// All three read before the request, and sync and push restarted
-    /// without consulting [mounted]: what they undo is app-global, so
-    /// navigating away from this screen while the delete is in flight must
-    /// not be what leaves sync stopped and push unregistered for the rest of
-    /// the process. Only the error text is this widget's, and only that needs
-    /// the guard. The call is deliberately not rejoined on failure: being in
-    /// one is an active choice, not state to restore behind somebody's back.
+    // Read before the request and restarted without [mounted]: what they undo is app-global, so leaving this screen mid-delete must not strand sync and push. A left call is not rejoined.
     final voice = ref.read(voiceControllerProvider.notifier);
     final sync = ref.read(syncControllerProvider.notifier);
     final push = ref.read(pushControllerProvider.notifier);
@@ -272,10 +266,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.auth, 'delete the account', e, stack);
 
-      /// Not on a 401: there the session is already gone, cleared by the
-      /// refresh path before this catch runs, so restarting would race the
-      /// sign-out into an exponential retry loop against a signed-out
-      /// session and register push with no session to bind it to.
+      // Not on a 401: the session is already gone, so restarting would race the sign-out into a retry loop and register push with nothing to bind it to.
       if (e is! api.UnauthorizedException) {
         unawaited(sync.start());
         unawaited(push.register());

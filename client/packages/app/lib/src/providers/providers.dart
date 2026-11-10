@@ -21,6 +21,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../backoff.dart';
 import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
+import '../features/auth/providers/server_identity_hold.dart';
 import 'background_key_store.dart';
 import 'preference_controller.dart';
 export 'effective_me.dart';
@@ -174,9 +175,7 @@ Future<void> restoreSession(
   }
   container.read(_restoreRetryProvider).cancel();
   try {
-    /// The iOS/Android keychain outlives app deletion; this flag does not, so
-    /// its absence means this is the first launch since an install. Checked
-    /// only after storage proved readable, so a locked phone never reads as one.
+    // The keychain outlives app deletion and this flag does not, so its absence is a first launch; checked only once storage proved readable.
     if (prefs.getBool(hasLaunchedBeforeKey) != true) {
       await keyStore.clear();
       // A second store on iOS; see [pushKeyStoreProvider].
@@ -270,11 +269,15 @@ final appInfoProvider = FutureProvider.autoDispose<PackageInfo>(
 );
 
 /// The API client for the current server.
+///
+/// Nothing that carries the session leaves it until the server's identity has
+/// been checked against its pin (decision 0036).
 final apiProvider = Provider<SlimmApi>((ref) {
   final api = SlimmApi(
     baseUrl: ref.watch(serverUrlProvider),
     // Read, not watched: the store follows sign-ins itself, and a rebuild would close in-flight requests.
     session: ref.read(sessionProvider),
+    trustGate: ref.read(serverIdentityGateProvider).forClient(),
   )..clientReport = (kind: deviceClientKind, version: null);
   // The version arrives asynchronously; until then a refresh reports the kind alone.
   unawaited(

@@ -91,7 +91,7 @@ How delivery behaves:
 - A module is not sent the messages its own bot wrote.
   When it is full the oldest event is dropped and the drop is counted.
 - A module gets one event at a time, in the order queued.
-  Events and schedules share a lane of 2 concurrent runs across all modules, separate from the 4 slots members' commands use.
+  Events and schedules share a lane of 2 concurrent runs across all modules, separate from the 4 slots members' commands use, of which one member may hold 2 at a time.
   Slot answers have their own lane of 2.
 - After 5 failed runs in a row (a trap, a timeout, running out of fuel, or `{ok:false}`) the module is disabled with a reason the admin sees.
   A success resets the count.

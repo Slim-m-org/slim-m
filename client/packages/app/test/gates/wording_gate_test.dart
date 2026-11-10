@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/action_labels.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 const _retired = {
   'New role',
@@ -20,20 +21,12 @@ const _retired = {
   'Add a webhook',
 };
 
-String _withoutComments(String source) => source
-    .split('\n')
-    .map((line) {
-      final at = line.indexOf('//');
-      return at < 0 ? line : line.substring(0, at);
-    })
-    .join('\n');
-
 void main() {
   test('no retired spelling is a string literal in lib', () {
     final offenders = <String>[];
     for (final file in Directory('lib').listSync(recursive: true)) {
       if (file is! File || !file.path.endsWith('.dart')) continue;
-      final code = _withoutComments(file.readAsStringSync());
+      final code = stripComments(file.readAsStringSync());
       for (final retired in _retired) {
         if (code.contains("'$retired'") || code.contains('"$retired"')) {
           offenders.add('${file.path}: $retired');

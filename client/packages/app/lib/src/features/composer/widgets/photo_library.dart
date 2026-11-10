@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'photo_library_none.dart'
     if (dart.library.io) 'photo_library_native.dart';
+import 'staged_attachment_model.dart';
 
 /// How much of the library the OS let the app read.
 enum PhotoAccess {
@@ -31,9 +32,6 @@ class RecentPhoto {
   final String id;
 }
 
-/// The original of a photo, ready to stage.
-typedef PhotoOriginal = ({Uint8List bytes, String name});
-
 abstract interface class PhotoLibrary {
   Future<PhotoAccess> requestAccess();
 
@@ -41,7 +39,8 @@ abstract interface class PhotoLibrary {
 
   Future<Uint8List?> thumbnail(String id, int pixels);
 
-  Future<PhotoOriginal?> original(String id);
+  /// The original, read only when staged so a large one streams.
+  Future<FileSource?> original(String id);
 
   /// Reopens the OS selection UI so a limited grant can be widened.
   Future<void> manageLimited();

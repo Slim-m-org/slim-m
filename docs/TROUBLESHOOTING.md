@@ -54,6 +54,8 @@ Check:
 - The shipped `docker-compose.yml` does not pass either variable to the server container, so on that stack push is off until you add them (for example in a `docker-compose.override.yml`).
 - The relay URL must be `https://`.
   A plain `http://` URL is accepted only for a loopback or private address, and any other value stops the server at startup with the variable named.
+- If you run your own relay, keep `RELAY_SEND_TIMEOUT_SECONDS` under 10, the time the server waits for a send; the default is 8.
+  A longer deadline makes the server give up on a slow provider before it sees which devices were reached.
 - The recipient's device must have registered with the server.
   A device that already has the channel open and focused is not pushed to either.
 - A member's notification schedule (decision [0033](decisions/0033-notification-schedule.md)), a per-channel setting (decision [0049](decisions/0049-per-channel-notification-behaviour.md)) and a message already read on another device (decision [0034](decisions/0034-read-state-across-devices.md)) all suppress a push on purpose.

@@ -37,7 +37,7 @@ void main() {
         tester.view.physicalSize = entry.value;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
-        final session = FakeSession(supportsInputGate: true);
+        final session = FakeSettingsSession(supportsInputGate: true);
         final container = ProviderContainer(
           overrides: [
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),

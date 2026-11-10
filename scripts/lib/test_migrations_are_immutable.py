@@ -1,20 +1,21 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """An applied migration's bytes may never change, checked against a lockfile.
 
-`check-migration-versions.py` already compares migrations to `origin/main`,
-which catches a pull request that edits one. It cannot catch a change that is
-already ON main, and it has no knowledge of what a deployed database actually
-recorded - and the deployed database is the only baseline that matters, since
-sqlx validates every applied migration by a sha384 over the file's bytes and
-refuses to start the process when one differs.
+`check-migration-versions.py` compares the migrations on disk to this
+lockfile. It used to compare them to `origin/main`, which catches a pull
+request that edits one but cannot catch a change that is already ON main, and
+has no knowledge of what a deployed database actually recorded - and the
+deployed database is the only baseline that matters, since sqlx validates
+every applied migration by a sha384 over the file's bytes and refuses to
+start the process when one differs.
 
 That gap took the live server down on 2026-08-30. The PolyForm relicense
 rewrote the SPDX comment at the top of all 54 migration files then on disk.
 Every checksum changed, the image built and deployed on its own, and the
 server bootlooped on `migration 1 was previously applied but has been
 modified`. The relicense was pushed straight to main with no pull request, so
-the existing gate never ran on it; and once it had merged, that gate compared
-main to itself and reported everything consistent.
+the main-comparing gate never ran on it; and once it had merged, that gate
+compared main to itself and reported everything consistent.
 
 A lockfile is immune to both. It records what each migration hashed to when
 it was introduced, so any later edit - by anyone, on any branch, merged or

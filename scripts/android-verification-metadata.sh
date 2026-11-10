@@ -40,5 +40,5 @@ flutter build apk --release --config-only
 cd android
 rm -f gradle/verification-metadata.xml
 ./gradlew --write-verification-metadata sha256 \
-  assembleRelease bundleRelease assembleDebug assembleProfile
+  assembleRelease bundleRelease assembleDebug assembleProfile :app:testDebugUnitTest
 echo "wrote $app/android/gradle/verification-metadata.xml"

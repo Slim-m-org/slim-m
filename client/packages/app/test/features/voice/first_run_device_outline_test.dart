@@ -39,7 +39,7 @@ void main() {
           const FirstRunVoiceStep(),
           overrides: [
             voiceControllerProvider.overrideWith(
-              (ref) => VoiceController(ref, session: FakeSession()),
+              (ref) => VoiceController(ref, session: FakeSettingsSession()),
             ),
             fakeMicPreview(FakeMicSource()),
           ],

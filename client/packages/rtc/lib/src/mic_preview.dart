@@ -4,6 +4,8 @@ library;
 
 import 'dart:async';
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import 'input_gate.dart' show kInputFloorDb;
 
 enum MicPreviewStatus {
@@ -87,7 +89,13 @@ class MicPreview {
       if (mine != _generation) return;
       try {
         await _openWithin(deviceId);
-      } on Object {
+      } on Object catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.voice,
+          'The microphone preview would not open; shown as unavailable',
+          error,
+          stack,
+        );
         if (mine == _generation) {
           _emit(const MicPreviewReading(MicPreviewStatus.unavailable));
         }
@@ -185,7 +193,13 @@ class MicPreview {
         levelDb: read.levelDb,
         voice: read.voice,
       ));
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'The microphone preview stopped reading; shown as unavailable',
+        error,
+        stack,
+      );
       if (mine != _generation) return;
       _stopTimer();
       _emit(const MicPreviewReading(MicPreviewStatus.unavailable));

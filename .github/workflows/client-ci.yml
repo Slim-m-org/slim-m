@@ -233,8 +233,12 @@ jobs:
             fi
             if [ -d "$dir/test" ]; then
               define=""
-              if { [ "$dir" = "packages/design_system" ] || [ "$dir" = "packages/voice_canvas" ]; } && [ -n "$(ls -A "$dir/test/goldens" 2>/dev/null)" ]; then
-                define="--dart-define=SLIMM_GOLDENS=true"
+              if [ "$dir" = "packages/design_system" ] || [ "$dir" = "packages/voice_canvas" ]; then
+                if [ -n "$(ls -A "$dir/test/goldens" 2>/dev/null)" ]; then
+                  define="--dart-define=SLIMM_GOLDENS=true"
+                else
+                  echo "::warning title=pixel goldens are off::$dir has no reference PNGs under test/goldens, so its pixel comparison does not run; see docs/ci-details.md (Goldens are not a separate job)"
+                fi
               fi
               echo "::group::flutter test - $dir"
               (cd "$dir" && flutter test $define) || status=$?

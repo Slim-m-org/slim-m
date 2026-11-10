@@ -6,6 +6,8 @@ library;
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import 'system_idle.dart';
 import 'system_idle_linux.dart';
 
@@ -14,7 +16,13 @@ SystemIdle? createSystemIdle() {
     if (Platform.isWindows) return _WindowsIdle();
     if (Platform.isMacOS) return _MacIdle();
     if (Platform.isLinux) return createLinuxSystemIdle();
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'Could not set up system idle detection; idle time stays unknown',
+      error,
+      stack,
+    );
     return null;
   }
   return null;

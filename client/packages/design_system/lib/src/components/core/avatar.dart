@@ -38,7 +38,8 @@ const List<Color> _avatarTints = [
   Color(0xFF4F5B66),
 ];
 
-Color _tintFor(String source) =>
+/// The disc colour a round avatar with no picture gets for [source], the same one wherever that person is drawn.
+Color avatarTintFor(String source) =>
     _avatarTints[stableIndexFor(source, _avatarTints.length)];
 
 /// Alphanumeric characters only, first two, uppercased. Not "first letter of
@@ -61,7 +62,7 @@ final RegExp _notLetterOrDigit = RegExp(r'[^\p{L}\p{N}]', unicode: true);
 
 /// Light ink for the fixed tints above; every themed text colour inverts and
 /// would go illegible on them in dark.
-const Color _avatarTintInk = Color(0xFFFFFFFF);
+const Color avatarTintInk = Color(0xFFFFFFFF);
 
 /// A person's (or bot's) picture, falling back to a tinted initials disc (or,
 /// for a square avatar, to [placeholder]) when [image] is null or fails to
@@ -268,7 +269,7 @@ class _Face extends StatelessWidget {
   /// initials may use.
   final bool withDot;
 
-  /// What [_tintFor] hashes: [AppAvatar.tintKey] resolved against the name.
+  /// What [avatarTintFor] hashes: [AppAvatar.tintKey] resolved against the name.
   final String tintSource;
   final Widget? placeholder;
 
@@ -286,7 +287,7 @@ class _Face extends StatelessWidget {
 
     final box = geometry.initialsBox(withDot: withDot);
     return AppShapedDisc(
-      color: _tintFor(tintSource),
+      color: avatarTintFor(tintSource),
       size: geometry.size,
       radius: geometry.size / 2,
       child: Center(
@@ -306,7 +307,7 @@ class _Face extends StatelessWidget {
                       fontSize: geometry.initialsFontSize,
                       height: 1,
                       fontWeight: AppWeights.medium,
-                      color: _avatarTintInk,
+                      color: avatarTintInk,
                     ),
                   ),
                 ),

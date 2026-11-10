@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Integration test against a real running slim-m server.
 ///
-/// Skipped unless `SLIMM_TEST_SERVER` is set, so CI and everyday `dart test`
-/// stay hermetic:
+/// Skipped unless `SLIMM_TEST_SERVER` is set, so everyday `dart test` stays
+/// hermetic:
 ///
 /// ```
 /// SLIMM_TEST_SERVER=http://10.0.0.100:8095 dart test test/live_server_test.dart
 /// ```
+///
+/// `SLIMM_TEST_INVITE` carries an invite code for a server that is closed to
+/// open registration, and `SLIMM_TEST_SERVER_REQUIRED=1` makes a missing server
+/// a failure. The e2e harness runs it that way, against its own stack
+/// (`scripts/lib/e2e_client_contract.py`).
 ///
 /// This is the test that proves the client and server actually agree. The unit
 /// tests assert what this client believes; only this one checks that belief
@@ -14,12 +19,13 @@
 @TestOn('vm')
 library;
 
-import 'dart:io';
 import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+
+import 'support/live_server.dart';
 
 /// A real v7: 48-bit big-endian millisecond prefix, version and variant bits
 /// set, the rest random. Time-ordered, which is what the server's storage
@@ -46,12 +52,9 @@ String _uuidV7() {
 final _rand = Random();
 
 void main() {
-  final serverUrl = Platform.environment['SLIMM_TEST_SERVER'];
-  if (serverUrl == null || serverUrl.isEmpty) {
-    // Nothing to talk to; the suite is a no-op rather than a failure.
-    return;
-  }
-  final base = Uri.parse(serverUrl);
+  final base = liveServer();
+  if (base == null) return;
+  final invite = liveInviteCode();
   final suffix = DateTime.now().microsecondsSinceEpoch.toString();
 
   late SlimmApi api;
@@ -66,6 +69,7 @@ void main() {
       displayName: 'Dart Client',
       password: 'hunter2hunter2',
       deviceName: 'integration',
+      inviteCode: invite,
     );
     bootstrap.close();
   });
@@ -125,18 +129,20 @@ void main() {
   test('read state and catch-up sync agree with what was sent', () async {
     final channel = (await api.listChannels()).first;
 
-    await api.sendMessage(
+    final sent = await api.sendMessage(
       channelId: channel.id,
       id: _uuidV7(),
       content: 'sync probe',
     );
 
+    // Your own message is never unread to you.
     final before = await api.readState(channel.id);
-    expect(before.unread, greaterThan(0));
+    expect(before.unread, 0);
+    expect(before.lastReadSeq, greaterThanOrEqualTo(sent.seq));
 
-    final after = await api.markRead(
-        channelId: channel.id, seq: before.unread + before.lastReadSeq);
-    expect(after.lastReadSeq, greaterThanOrEqualTo(before.lastReadSeq));
+    // The marker is monotonic: a lower seq never moves it back.
+    final after = await api.markRead(channelId: channel.id, seq: 1);
+    expect(after.lastReadSeq, before.lastReadSeq);
 
     final deltas =
         await api.sync([ScopeCursor(channelId: channel.id, afterSeq: 0)]);
@@ -212,6 +218,7 @@ void main() {
       throwaway,
       username: 'del$suffix',
       displayName: 'Delete Client',
+      inviteCode: invite,
     );
     api = throwaway;
     await api.deleteAccount(password: 'hunter2hunter2');
@@ -234,6 +241,7 @@ Future<void> _registerWithBackoff(
   SlimmApi api, {
   required String username,
   required String displayName,
+  String? inviteCode,
 }) async {
   for (var attempt = 0;; attempt++) {
     try {
@@ -242,6 +250,7 @@ Future<void> _registerWithBackoff(
         displayName: displayName,
         password: 'hunter2hunter2',
         deviceName: 'integration',
+        inviteCode: inviteCode,
       );
       return;
     } on RateLimitedException {

@@ -3,7 +3,7 @@
 //! user, changeable but never doubled.
 //!
 //! Creating a poll is creating a message, so [`Store::send_poll_message`]
-//! mirrors [`super::messages::Store::send_message`] closely: same idempotent-
+//! mirrors [`Store::send_message`] closely: same idempotent-
 //! by-id scoping, same per-channel `seq` allocation in the same transaction as
 //! the insert, just with the poll and its options inserted alongside. A poll
 //! never outlives or moves between messages, so it is keyed by `message_id`
@@ -155,7 +155,7 @@ impl From<anyhow::Error> for VoteError {
 
 impl Store {
     /// Sends a message carrying a poll. Idempotent by `id` within its
-    /// `(channel, author)` scope, exactly like [`super::messages::Store::send_message`].
+    /// `(channel, author)` scope, exactly like [`Store::send_message`].
     /// A fresh send inside `slow_mode_window_ms` of the author's last message here is
     /// refused under the write lock, as [`Store::send_message_with_slow_mode`] does.
     pub async fn send_poll_message(

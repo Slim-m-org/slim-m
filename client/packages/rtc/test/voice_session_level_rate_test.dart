@@ -3,6 +3,9 @@
 /// otherwise at the dead-mic watchdog rate.
 library;
 
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
@@ -74,59 +77,71 @@ class _CountingGate {
 
 const _tick = Duration(milliseconds: 2);
 
-Future<int> _pollsIn(_CountingGate gate, Duration window) async {
+/// Polls land on the fake clock, so the counts are exact and no machine load can skew a ratio.
+int _pollsIn(FakeAsync async, _CountingGate gate, Duration window) {
   final start = gate.polls;
-  await Future<void>.delayed(window);
+  async.elapse(window);
   return gate.polls - start;
 }
 
+({_CountingGate gate, VoiceSession session}) _joinedSession(FakeAsync async) {
+  final gate = _CountingGate();
+  final session = VoiceSession(
+    audioDevices: const NoAudioDevices(),
+    roomFactory: ConnectlessRoom.new,
+    micPort: _FakeMic(),
+    inputGate: InputGateMonitor(
+      interval: _tick,
+      invoke: gate.invoke,
+      supported: true,
+    ),
+  );
+  unawaited(session.join(url: 'wss://a.invalid', token: 't'));
+  async.flushMicrotasks();
+  return (gate: gate, session: session);
+}
+
+const _window = Duration(milliseconds: 400);
+const _settleAfterChange = Duration(milliseconds: 60);
+
 void main() {
-  late _CountingGate gate;
-  late VoiceSession session;
-
-  setUp(() async {
-    gate = _CountingGate();
-    session = VoiceSession(
-      audioDevices: const NoAudioDevices(),
-      roomFactory: ConnectlessRoom.new,
-      micPort: _FakeMic(),
-      inputGate: InputGateMonitor(
-        interval: _tick,
-        invoke: gate.invoke,
-        supported: true,
-      ),
-    );
-    await session.join(url: 'wss://a.invalid', token: 't');
+  test('a call with nothing displayed polls at a twentieth of the rate', () {
+    fakeAsync((async) {
+      final (:gate, :session) = _joinedSession(async);
+      final watching = _pollsIn(async, gate, _window);
+      session.setLevelDisplayed(true);
+      final displayed = _pollsIn(async, gate, _window);
+      expect(watching, lessThan(displayed ~/ 4));
+      expect(watching, greaterThan(0), reason: 'the watchdog still reads');
+      session.dispose();
+    });
   });
 
-  tearDown(() => session.dispose());
-
-  test('a call with nothing displayed polls at a twentieth of the rate',
-      () async {
-    final watching = await _pollsIn(gate, const Duration(milliseconds: 400));
-    session.setLevelDisplayed(true);
-    final displayed = await _pollsIn(gate, const Duration(milliseconds: 400));
-    expect(watching, lessThan(displayed ~/ 4));
-    expect(watching, greaterThan(0), reason: 'the watchdog still reads');
+  test('polling drops back when the meter goes away', () {
+    fakeAsync((async) {
+      final (:gate, :session) = _joinedSession(async);
+      session.setLevelDisplayed(true);
+      final displayed = _pollsIn(async, gate, _window);
+      session.setLevelDisplayed(false);
+      async.elapse(_settleAfterChange);
+      final after = _pollsIn(async, gate, _window);
+      expect(after, lessThan(displayed ~/ 4));
+      session.dispose();
+    });
   });
 
-  test('polling drops back when the meter goes away', () async {
-    session.setLevelDisplayed(true);
-    final displayed = await _pollsIn(gate, const Duration(milliseconds: 400));
-    session.setLevelDisplayed(false);
-    await Future<void>.delayed(const Duration(milliseconds: 60));
-    final after = await _pollsIn(gate, const Duration(milliseconds: 400));
-    expect(after, lessThan(displayed ~/ 4));
-  });
-
-  test('automatic sensitivity adapts at a fifth of the display rate', () async {
-    session.setLevelDisplayed(true);
-    final displayed = await _pollsIn(gate, const Duration(milliseconds: 400));
-    session.setLevelDisplayed(false);
-    session.setAutoInputThreshold(true);
-    await Future<void>.delayed(const Duration(milliseconds: 60));
-    final adapting = await _pollsIn(gate, const Duration(milliseconds: 400));
-    expect(adapting, lessThan(displayed ~/ 2));
-    expect(adapting, greaterThan(displayed ~/ 10));
+  test('automatic sensitivity adapts at a fifth of the display rate', () {
+    fakeAsync((async) {
+      final (:gate, :session) = _joinedSession(async);
+      session.setLevelDisplayed(true);
+      final displayed = _pollsIn(async, gate, _window);
+      session.setLevelDisplayed(false);
+      session.setAutoInputThreshold(true);
+      async.elapse(_settleAfterChange);
+      final adapting = _pollsIn(async, gate, _window);
+      expect(adapting, lessThan(displayed ~/ 2));
+      expect(adapting, greaterThan(displayed ~/ 10));
+      session.dispose();
+    });
   });
 }

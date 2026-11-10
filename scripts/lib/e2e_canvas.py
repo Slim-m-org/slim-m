@@ -184,11 +184,11 @@ def draw_stroke_and_see_it_live(a, b):
 def paste_image_and_hydrate(a, b, server, admin_api, channel_id, image_path):
     """`a` pastes a real image; `b` renders it, bytes fetched and all.
 
-    Placing the object is only half the claim in CLAUDE.md's own account of
-    the hydration bug: the object row can exist while a receiving client
-    still shows nothing but a box, because nothing ever asked the server for
-    the pixels. Checking `b`'s own `performance` resource log for a request
-    naming this exact attachment id is what tells those two apart.
+    Placing the object is only half the claim, as the hydration bug showed:
+    the object row can exist while a receiving client still shows nothing
+    but a box, because nothing ever asked the server for the pixels.
+    Checking `b`'s own `performance` resource log for a request naming this
+    exact attachment id is what tells those two apart.
     """
     a.paste_clipboard_image(image_path)
     wait_for_summary(a, "1 image")

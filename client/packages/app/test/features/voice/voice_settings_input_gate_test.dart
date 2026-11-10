@@ -24,8 +24,8 @@ import 'voice_settings_screen_harness.dart';
 
 Finder _meter() => find.byKey(inputLevelMeterKey);
 
-Future<FakeSession> _pump(WidgetTester tester) async {
-  final session = FakeSession(supportsInputGate: true);
+Future<FakeSettingsSession> _pump(WidgetTester tester) async {
+  final session = FakeSettingsSession(supportsInputGate: true);
   addTearDown(session.dispose);
   await tester.pumpWidget(
     wrap(

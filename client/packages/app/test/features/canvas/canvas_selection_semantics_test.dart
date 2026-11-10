@@ -29,7 +29,7 @@ void main() {
   testWidgets('nothing selected contributes no semantics node at all', (
     tester,
   ) async {
-    // Disposed manually, not via addTearDown: the pending-handle check runs before addTearDown callbacks fire (the same pending-timer trap CLAUDE.md already documents for a different check).
+    // Disposed manually, not via addTearDown: the pending-handle check runs before addTearDown callbacks fire.
     final handle = tester.ensureSemantics();
     final document = CanvasDocument();
     addTearDown(document.dispose);

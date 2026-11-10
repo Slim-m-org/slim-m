@@ -47,12 +47,12 @@ http.Client _client({required bool spaceStrong}) => MockClient((request) async {
   );
 });
 
-Future<FakeSession> _pump(
+Future<FakeSettingsSession> _pump(
   WidgetTester tester, {
   bool spaceStrong = false,
   bool strongestSupported = true,
 }) async {
-  final session = FakeSession(supportsInputGate: true);
+  final session = FakeSettingsSession(supportsInputGate: true);
   addTearDown(session.dispose);
   await tester.pumpWidget(
     wrap(
@@ -272,7 +272,7 @@ void main() {
   group('the inactive note', () {
     const note = "Strong isn't running on this mic.";
 
-    Future<FakeSession> join(
+    Future<FakeSettingsSession> join(
       WidgetTester tester, {
       NoiseSuppressionChoice choice = NoiseSuppressionChoice.strong,
       bool spaceStrong = false,
@@ -296,7 +296,7 @@ void main() {
 
     Future<void> poll(
       WidgetTester tester,
-      FakeSession session,
+      FakeSettingsSession session,
       int count, {
       required bool active,
       bool strongestActive = false,

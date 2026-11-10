@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The channel-cursor reads and the op-cursor write behind [MessageStore], a
+/// sibling library that takes the store so `message_store.dart` stays under its
+/// file budget.
 library;
 
 import 'dart:math' as math;
@@ -8,10 +11,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
 import 'message_store.dart';
 
-/// The channel-cursor reads and the op-cursor write behind [MessageStore],
-/// split out of `message_store.dart` to stay under the file budget. Private
-/// top-level functions, like `message_store_batch.dart`, so the public methods
-/// stay real methods on the type.
 Future<Channel?> channelRow(MessageStore store, String channelId) =>
     (store.db.select(store.db.channels)..where((c) => c.id.equals(channelId)))
         .getSingleOrNull();

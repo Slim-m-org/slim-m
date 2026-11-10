@@ -16,9 +16,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_inline.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 void main() {
-  final repoRoot = _findRepoRoot(Directory.current);
+  final repoRoot = findRepoRoot();
   final fixture = File(
     '${repoRoot.path}/crates/slimm-server/tests/fixtures/mention_charset_cases.json',
   );
@@ -84,22 +85,4 @@ Set<String> _mentionsIn(String content) {
 
   visit(parseInline(content));
   return names;
-}
-
-/// Walks upward from [start] looking for schema/openapi.yaml, the same
-/// repo-root anchor `client/packages/api/test/schema_coverage_test.dart`
-/// already uses, so this test does not depend on whether it was invoked from
-/// the repo root, from client/, or from client/packages/app.
-Directory _findRepoRoot(Directory start) {
-  var dir = start.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    final parent = dir.parent;
-    if (parent.path == dir.path) break;
-    dir = parent;
-  }
-  fail(
-    'could not find schema/openapi.yaml walking up from ${start.path}; is '
-    'this test running from somewhere inside the slim-m repo?',
-  );
 }

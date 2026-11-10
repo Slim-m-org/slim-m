@@ -8,12 +8,14 @@ on:
       - "crates/slimm-listener/**"
       - "docker/listener*"
       - "scripts/lib/make_fake_voice.py"
+      - ".github/actions/listener-build-deps/**"
       - ".github/workflows/listener-ci.yml"
   push:
     branches: [main]
     paths:
       - "crates/slimm-listener/**"
       - "docker/listener*"
+      - ".github/actions/listener-build-deps/**"
       - ".github/workflows/listener-ci.yml"
   merge_group:
 
@@ -37,17 +39,14 @@ jobs:
         working-directory: crates/slimm-listener
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository (key pinned by fingerprint), and cmake for whisper.cpp, glib for webrtc-sys
-        run: |
-          sudo bash "$GITHUB_WORKSPACE/docker/listener-llvm-key.sh" /usr/share/keyrings/llvm.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-21 cmake libclang-21-dev libglib2.0-dev
-          {
-            echo "CC=clang-21"
-            echo "CXX=clang++-21"
-            echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib"
-          } >> "$GITHUB_ENV"
+      - uses: ./.github/actions/listener-build-deps
+      # rustflags is empty because the action's -D warnings would replace the listener's .cargo/config.toml linker flag; clippy already denies warnings.
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          components: rustfmt, clippy
+          cache-workspaces: crates/slimm-listener
+          cache-shared-key: listener-ci-portable
+          rustflags: ""
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
@@ -58,17 +57,16 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: clang 21, which libwebrtc's build needs, from LLVM's signed apt repository (key pinned by fingerprint), and cmake for whisper.cpp, glib for webrtc-sys
-        run: |
-          sudo bash "$GITHUB_WORKSPACE/docker/listener-llvm-key.sh" /usr/share/keyrings/llvm.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-21 cmake libclang-21-dev libglib2.0-dev python3
-          {
-            echo "CC=clang-21"
-            echo "CXX=clang++-21"
-            echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib"
-          } >> "$GITHUB_ENV"
+      - uses: ./.github/actions/listener-build-deps
+        with:
+          extra-packages: python3
+      # The checks job already built these dependencies, so this job only restores that cache.
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          cache-workspaces: crates/slimm-listener
+          cache-shared-key: listener-ci-portable
+          cache-save-if: "false"
+          rustflags: ""
       - name: a development LiveKit server
         run: |
           docker run -d --name livekit --network host livekit/livekit-server:v1.13.11 --dev --bind 127.0.0.1
@@ -96,5 +94,5 @@ jobs:
           context: .
           file: docker/listener.Dockerfile
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=listener
+          cache-to: type=gha,mode=max,scope=listener

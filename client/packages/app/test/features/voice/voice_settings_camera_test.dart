@@ -27,7 +27,7 @@ void main() {
   testWidgets(
     'turning on camera-on-join persists it and reaches the next join',
     (tester) async {
-      final session = FakeSession();
+      final session = FakeSettingsSession();
       await tester.pumpWidget(
         wrap(
           const VoiceSettingsBody(),

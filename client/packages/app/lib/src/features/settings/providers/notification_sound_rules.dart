@@ -73,8 +73,9 @@ api.NotificationPreference? stricterPreference(
 }
 
 /// Above this many participants (self included), join/leave chimes stop -
-/// the owner's own decision, "roughly 8", recorded in CLAUDE.md and already
-/// echoed in the Sounds settings copy before anything played them.
+/// the owner's own decision, "roughly 8", recorded in
+/// `docs/decisions/0001-owner-decisions.md` and already echoed in the Sounds
+/// settings copy before anything played them.
 const soundsDisabledAboveParticipants = 8;
 
 /// One step of a voice roster diff: who newly joined or left since

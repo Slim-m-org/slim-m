@@ -77,7 +77,7 @@ impl DeviceCounts {
 }
 
 impl PresenceTracker {
-    /// The kinds of client [target] is connected from that a viewer may be
+    /// The kinds of client `target` is connected from that a viewer may be
     /// told: none whenever `status` (already resolved by [`super::status_for`])
     /// reads offline, so a hidden user leaks nothing through the same choke
     /// point their status and activity use.

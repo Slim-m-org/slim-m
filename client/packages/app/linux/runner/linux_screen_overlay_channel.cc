@@ -73,6 +73,14 @@ std::string Text(FlValue* value) {
   return fl_value_get_string(value);
 }
 
+std::vector<uint8_t> Bytes(FlValue* value) {
+  if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_UINT8_LIST) {
+    return {};
+  }
+  const uint8_t* data = fl_value_get_uint8_list(value);
+  return std::vector<uint8_t>(data, data + fl_value_get_length(value));
+}
+
 bool Flag(FlValue* value) {
   return value != nullptr && fl_value_get_type(value) == FL_VALUE_TYPE_BOOL &&
          fl_value_get_bool(value);
@@ -104,8 +112,9 @@ slimm_overlay::Panel PanelFrom(FlValue* map) {
   if (rows != nullptr && fl_value_get_type(rows) == FL_VALUE_TYPE_LIST) {
     for (size_t i = 0; i < fl_value_get_length(rows); i++) {
       FlValue* row = fl_value_get_list_value(rows, i);
-      panel.rows.push_back({Text(Field(row, "name")), Flag(Field(row, "speaking")),
-                            Flag(Field(row, "muted")), Flag(Field(row, "deafened"))});
+      panel.rows.push_back({Text(Field(row, "id")), Text(Field(row, "name")),
+                            Flag(Field(row, "speaking")), Flag(Field(row, "muted")),
+                            Flag(Field(row, "deafened")), Bytes(Field(row, "avatar"))});
     }
   }
   return panel;

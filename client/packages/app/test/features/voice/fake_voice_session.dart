@@ -7,13 +7,11 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../support/video_quality_recorder.dart';
+import '../../support/dead_voice_session.dart';
 
-/// A [VoiceSession] the test drives by hand.
-///
-/// Implemented rather than subclassed so that adding a method to the real
-/// session is a compile error here, not a silently untested path.
-class FakeSession with VideoQualityRecorder implements VoiceSession {
+/// A [VoiceSession] the test drives by hand: scripted outcomes and recorded
+/// calls over the inert defaults of [DeadVoiceSession].
+class FakeSession extends DeadVoiceSession {
   /// Every value the controller passed to [setLevelDisplayed].
   final levelDisplayedCalls = <bool>[];
 
@@ -53,18 +51,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   /// Every gain push, as (identity, screen channel, value), in order.
   final List<(String, bool, double)> volumePushes = [];
-
-  @override
-  bool isScreenAudioMuted(String identity) => false;
-
-  @override
-  Future<void> setScreenAudioMuted(String identity, bool muted) async {}
-
-  @override
-  bool hasScreenAudio(String identity) => false;
-
-  @override
-  Object? volumeFailureFor(String identity, {bool screen = false}) => null;
 
   @override
   final bool supportsScreenShareAudio;
@@ -210,16 +196,10 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   int _generation = 0;
 
   @override
-  bool deafened = false;
-
-  @override
   VoiceSessionState get state => _state;
 
   @override
   Stream<VoiceSessionState> get states => _states.stream;
-
-  @override
-  List<VoiceParticipant> get participants => const [];
 
   @override
   Stream<List<VoiceParticipant>> get participantChanges => _participants.stream;
@@ -305,18 +285,6 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   /// reached the session rather than only the controller's own copy.
   double? lastSpeakingSensitivity;
 
-  @override
-  bool get supportsInputGate => false;
-
-  @override
-  Stream<InputGateReading> get inputGateReadings => const Stream.empty();
-
-  @override
-  void setInputGate({required bool enabled, required double thresholdDb}) {}
-
-  @override
-  Stream<double> get autoInputThresholds => const Stream.empty();
-
   final _localLevels = StreamController<double>.broadcast();
 
   /// Reports your own mic level as the SFU would on a host with no input gate.
@@ -326,15 +294,9 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   Stream<double> get localAudioLevels => _localLevels.stream;
 
   @override
-  double get inputThresholdDb => -50;
-
-  @override
   void setLevelDisplayed(bool displayed) {
     levelDisplayedCalls.add(displayed);
   }
-
-  @override
-  void setAutoInputThreshold(bool enabled) {}
 
   @override
   void setSpeakingSensitivity(double sensitivity) =>

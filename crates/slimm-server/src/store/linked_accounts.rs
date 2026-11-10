@@ -1,9 +1,35 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Accounts members link from elsewhere (Discord), and the one-time states
-//! that tie an OAuth callback back to the member who started it.
+//! Accounts members link from elsewhere (Discord), the one-time states that
+//! tie an OAuth callback back to the member who started it, and the handoffs
+//! that let that member's own app finish the link.
+
+use rand_core::{OsRng, RngCore};
 
 use super::{Store, now_ms};
+use crate::auth::hash_secret;
 use crate::ids::UserId;
+
+/// Letters and digits people do not misread; a power of two long, so a masked byte picks one without bias.
+const HANDOFF_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const HANDOFF_LEN: usize = 25;
+
+/// A handoff code as stored and compared: pasted text may carry dashes, spaces or lower case.
+pub fn normalize_handoff(raw: &str) -> String {
+    raw.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|c| c.to_ascii_uppercase())
+        .collect()
+}
+
+/// A fresh 125-bit handoff code.
+fn generate_handoff() -> String {
+    let mut bytes = [0u8; HANDOFF_LEN];
+    OsRng.fill_bytes(&mut bytes);
+    bytes
+        .iter()
+        .map(|b| char::from(HANDOFF_ALPHABET[usize::from(b & 31)]))
+        .collect()
+}
 
 /// A linked account as shown on a profile.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +41,19 @@ pub struct LinkedAccount {
     pub linked_at: i64,
     /// When the server stored the account's picture; `None` when it has none.
     pub avatar_updated_at: Option<i64>,
+}
+
+/// An account the provider vouched for, held until the member who started the
+/// link finishes it from their own app.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingLink {
+    /// The member who started the link, and the only one who may finish it.
+    pub user_id: UserId,
+    pub external_id: String,
+    pub username: String,
+    pub display_name: Option<String>,
+    /// The provider's picture hash; the picture itself is fetched on completion.
+    pub avatar_hash: Option<String>,
 }
 
 /// Why a link was not saved.
@@ -78,6 +117,71 @@ impl Store {
         Ok(row
             .filter(|row| row.expires_at > now)
             .map(|row| row.user_id))
+    }
+
+    /// Holds `pending` under a fresh handoff code until `expires_at`, dropping
+    /// any handoffs that have already expired. Only the code's hash is kept.
+    pub async fn create_link_handoff(
+        &self,
+        provider: &str,
+        pending: &PendingLink,
+        expires_at: i64,
+    ) -> anyhow::Result<String> {
+        let code = generate_handoff();
+        let hash = hash_secret(&code);
+        let now = now_ms();
+        let mut tx = self.begin_write().await?;
+        sqlx::query!("DELETE FROM link_handoffs WHERE expires_at <= ?", now)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query!(
+            "INSERT INTO link_handoffs
+                 (handoff_hash, user_id, provider, external_id, username, display_name,
+                  avatar_hash, expires_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            hash,
+            pending.user_id,
+            provider,
+            pending.external_id,
+            pending.username,
+            pending.display_name,
+            pending.avatar_hash,
+            expires_at
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(code)
+    }
+
+    /// Spends a handoff, whoever presents it: the pending link, once, while it
+    /// is still valid. An unknown, replayed or expired code answers `None`.
+    pub async fn take_link_handoff(
+        &self,
+        code: &str,
+        provider: &str,
+    ) -> anyhow::Result<Option<PendingLink>> {
+        let hash = hash_secret(&normalize_handoff(code));
+        let row = sqlx::query!(
+            r#"DELETE FROM link_handoffs WHERE handoff_hash = ? AND provider = ?
+               RETURNING user_id AS "user_id!: UserId", external_id AS "external_id!",
+                         username AS "username!", display_name, avatar_hash,
+                         expires_at AS "expires_at!""#,
+            hash,
+            provider
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        let now = now_ms();
+        Ok(row
+            .filter(|row| row.expires_at > now)
+            .map(|row| PendingLink {
+                user_id: row.user_id,
+                external_id: row.external_id,
+                username: row.username,
+                display_name: row.display_name,
+                avatar_hash: row.avatar_hash,
+            }))
     }
 
     /// Links `account` to `user_id`, replacing any earlier link of the same

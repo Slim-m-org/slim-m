@@ -42,7 +42,7 @@ const FOREGROUND_FRESHNESS_MS: i64 = crate::viewing::FOREGROUND_FRESHNESS.as_mil
 /// least one of their devices took the push. Everything else releases it: a
 /// batch that failed at the transport level, a recipient whose devices all
 /// failed to seal (most likely a corrupt stored key), and the relay's
-/// forbidden, error and not_attempted statuses. Treating any of those as
+/// forbidden, rejected, retry, error and not_attempted statuses. Treating any of those as
 /// success would suppress that recipient's next genuine message, turning a
 /// dropped wake into a silently missing notification.
 ///

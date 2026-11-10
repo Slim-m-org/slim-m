@@ -140,13 +140,7 @@ void dispatchCanvasLiveEvent(
         )
         when channelId == paneChannelId:
 
-      /// An empty list never means "nothing was restored": the server only
-      /// publishes this frame when it restored at least one object, and
-      /// empties the list rather than exceed the frame bound a `remove`
-      /// already sets. Applying it would clear no tombstone while advancing
-      /// the cursor past the one op that could, so the objects stay
-      /// invisible on this client for good. The feed carries the full list,
-      /// so this defers to it instead.
+      // An empty list is the server shedding an oversized frame, not "nothing restored"; applying it would advance the cursor past the op that clears the tombstones, so defer to the feed.
       if (objectIds.isEmpty) {
         sync.deferToFeed();
         return;

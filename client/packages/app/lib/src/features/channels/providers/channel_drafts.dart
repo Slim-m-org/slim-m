@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Unsent composer text, held per channel for as long as the session lasts.
-///
-/// `ChannelScreen` reuses its own `State` across a channel switch in the
-/// common case (see `channel_read_marker.dart`'s doc comment), which is why a
-/// draft looked like it should already survive one and did not: nothing ever
-/// told the shared `TextEditingController` which channel its text belonged
-/// to, so switching channels either carried the words into the wrong one or,
-/// wherever `ConversationPane` happens to tear the screen down instead (a
-/// detour through voice, a DM call, or the canvas), lost them outright.
-///
-/// This is the fix: text is saved against the channel it was typed in and
-/// restored against whichever channel is open now, independent of whether
-/// the widget underneath survived.
+/// Unsent composer text, saved against the channel it was typed in and restored
+/// against whichever channel is open now, whether or not the widget survived.
 library;
 
 import 'dart:async';
@@ -23,28 +12,11 @@ import '../../../providers/providers.dart';
 
 /// Holds every channel's unsent composer text, in memory and on disk.
 ///
-/// The in-memory map is the whole read path: a composer opening a channel needs
-/// an answer in the same frame, not a future, so the map is authoritative once
-/// loaded and the database only ever catches up behind it.
-///
-/// It was in-memory only until a restart was shown to be the same event as a
-/// switch, from the person's side. On a phone the OS killing a backgrounded app
-/// is indistinguishable from a restart to whoever just lost what they typed, and
-/// unlike a switch it happens without anyone choosing it. The original scoping
-/// call - "the report was about switching channels, never about restarting the
-/// app" - was honest about its report and wrong about the loss.
-///
-/// The write is deliberately fire-and-forget. A draft is worth saving, and it is
-/// not worth making a keystroke wait on a disk to find out whether it was: a
-/// failed write costs the words a crash would have cost anyway, and blocking the
-/// composer would cost every keystroke.
-///
-/// A reply-in-progress is deliberately not held here, and that is a decision,
-/// not an oversight: `ChannelScreen` clears the reply target on a channel
-/// switch (see its own `didUpdateWidget` doc comment, "a reply is scoped to
-/// the conversation it was started in"). Staged attachments live beside this
-/// in `attachmentStagingProvider`, per channel for the session but never on
-/// disk, since the server sweeps an unsent upload after a day.
+/// The map is authoritative once loaded, because a composer opening a channel
+/// needs an answer in the same frame; the disk write is fire-and-forget so no
+/// keystroke waits on it. A reply target is deliberately not kept, since
+/// `ChannelScreen` clears it on a channel switch, and staged attachments never
+/// reach disk because the server sweeps an unsent upload after a day.
 class ChannelDraftsController {
   ChannelDraftsController(this._ref) {
     _account = _ref.read(sessionProvider).tokens?.userId;

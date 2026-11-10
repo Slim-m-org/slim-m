@@ -18,7 +18,7 @@
 /// exposes without instrumenting the widgets themselves. This is a scoping
 /// property of which slice a `ref.watch` owns, not a rendered outcome, so it
 /// is read from source the way that sibling test and `route_reachability_test`
-/// already do. The source is scrubbed through `support/code_only.dart` first,
+/// already do. The source is scrubbed through `codeOnly` (`slimm_test_support`) first,
 /// so a bare-watch left behind in a comment cannot pass the check: the
 /// "must be absent" half is the vulnerable one and is reproduced directly.
 library;
@@ -27,7 +27,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 void main() {
   String homeShellSource() {

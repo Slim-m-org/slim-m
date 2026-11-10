@@ -106,8 +106,8 @@ class VoiceSettingsState {
   /// alongside it. Defaults off: a stray notification chime becomes
   /// everyone's problem, where a share's video is at least something the
   /// sharer chose to show. The toggle offering this is shown only where
-  /// `VoiceController.supportsScreenShareAudio` is true, and
-  /// `VoiceController.setScreenShare` re-checks that same capability before
+  /// `VoiceScreenShare.supportsAudio` is true, and
+  /// `VoiceScreenShare.setScreenShare` re-checks that same capability before
   /// honouring this value.
   final bool screenShareIncludeAudio;
 
@@ -132,7 +132,7 @@ class VoiceSettingsState {
   final bool speakerPreferred;
 
   /// The persisted microphone choice; null is the system default. Applied
-  /// live through `VoiceControllerAudioDevicesMixin.selectAudioInputDevice`
+  /// live through `VoiceAudioDevices.selectAudioInputDevice`
   /// and, for a future join, through [VoiceSession]'s own room options.
   final String? audioInputDeviceId;
 

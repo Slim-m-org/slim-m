@@ -22,8 +22,10 @@ import 'voice_settings_screen_harness.dart';
 
 List<Override> _overrides(FakeMicSource source, {bool gate = false}) => [
   voiceControllerProvider.overrideWith(
-    (ref) =>
-        VoiceController(ref, session: FakeSession(supportsInputGate: gate)),
+    (ref) => VoiceController(
+      ref,
+      session: FakeSettingsSession(supportsInputGate: gate),
+    ),
   ),
   fakeMicPreview(source),
 ];

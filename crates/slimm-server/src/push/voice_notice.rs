@@ -3,8 +3,9 @@
 //! its owner asked to hear about (decision 0107).
 //!
 //! The audience, the time limit and every exclusion are settled before this runs; this only
-//! seals and sends. The relay is told the coarse `message` kind it already knows, since an
-//! unknown kind is refused, and the sealed envelope says what actually happened.
+//! seals and sends. The relay is told kind `voice`; an older relay that refuses it is retried as
+//! the coarse `message` kind through `dispatch::legacy_kind`, and the sealed envelope says what
+//! actually happened.
 
 use std::collections::HashSet;
 use std::sync::Arc;

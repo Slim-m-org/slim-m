@@ -10,7 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_photo_strip.dart';
 import 'package:slimm_app/src/features/composer/widgets/photo_library.dart';
+import 'package:slimm_app/src/features/composer/widgets/staged_attachment_model.dart';
 import 'package:slimm_design_system/design_system.dart';
+
+import 'composer_harness.dart' show MemoryFile;
 
 /// One-pixel PNGs, a different colour per photo so a tile's picture names its photo.
 final _pixels = <String, Uint8List>{
@@ -43,8 +46,8 @@ class _ShiftingLibrary implements PhotoLibrary {
   Future<Uint8List?> thumbnail(String id, int pixels) async => _pixels[id];
 
   @override
-  Future<PhotoOriginal?> original(String id) async =>
-      (bytes: _pixels[id]!, name: id);
+  Future<FileSource?> original(String id) async =>
+      MemoryFile(id, _pixels[id]!).source;
 
   @override
   Future<void> manageLimited() async => ids = afterManage;

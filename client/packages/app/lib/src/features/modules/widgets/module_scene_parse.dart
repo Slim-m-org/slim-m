@@ -18,6 +18,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'module_scene.dart';
@@ -47,55 +48,73 @@ ModuleScene? parseModuleScene(String raw) {
   }
   if (decoded is! Map || decoded[r'$slim'] != 'scene/1') return null;
 
-  final ops = _parseOps(decoded['ops']);
-
   final (width, height) = _boundedAspect(
     _double(decoded['width'], 100),
     _double(decoded['height'], 100),
   );
+  final ops = _parseOps(decoded['ops'], _extent(width, height));
   final scene = ModuleScene(
     width: width,
     height: height,
     ops: ops,
     background: _string(decoded['background']),
     state: _string(decoded['state']),
-    controls: _stringList(decoded['controls']),
+    controls: _stringList(
+      decoded['controls'],
+    ).take(ModuleScene.maxControls).toList(growable: false),
     status: _string(decoded['status']),
     live: decoded['live'] == true,
     isPrivate: decoded['private'] == true,
+    source: raw,
   );
-  return ModuleScene(
-    width: scene.width,
-    height: scene.height,
-    ops: scene.ops,
-    background: scene.background,
-    state: scene.state,
-    controls: scene.controls,
-    status: scene.status,
-    live: scene.live,
-    isPrivate: scene.isPrivate,
-    crop: sceneContentBounds(scene),
-  );
+  return scene.withCrop(sceneContentBounds(scene));
 }
 
-List<SceneOp> _parseOps(Object? opsRaw) {
+List<SceneOp> _parseOps(Object? opsRaw, double extent) {
   final ops = <SceneOp>[];
   if (opsRaw is! List) return ops;
   var images = 0;
+  var texts = 0;
   var animated = 0;
+  final fields = <String>{};
   for (final entry in opsRaw) {
     if (entry is! Map) continue;
-    final op = _parseOp(entry, allowSweep: animated < SceneSweep.maxPerScene);
+    final op = _parseOp(
+      entry,
+      allowSweep: animated < SceneSweep.maxPerScene,
+      extent: extent,
+    );
     if (op == null) continue;
     if (sweepOf(op) != null) animated++;
     // Counted here: _parseOp sees one op and cannot know how many preceded it.
     if (op is ImageOp && ++images > ImageOp.maxPerScene) continue;
+    if (op is TextOp && ++texts > TextOp.maxPerScene) continue;
+    // One field per name: the overlay keys its controller and focus node by it.
+    if (op is InputOp && !_admitsField(fields, op)) continue;
     ops.add(op);
   }
   return ops;
 }
 
-SceneOp? _parseOp(Map<Object?, Object?> op, {required bool allowSweep}) {
+bool _admitsField(Set<String> names, InputOp op) =>
+    names.length < InputOp.maxPerScene && names.add(op.submit);
+
+/// The canvas's longer side, which no text or field may be larger than.
+///
+/// Relative to the canvas rather than a fixed number because the painter
+/// scales scene units to the box: on a small canvas one unit is many pixels,
+/// so a fixed ceiling in units would still allow an enormous font. A canvas
+/// with no usable size counts as the 100 a missing `width` already means.
+double _extent(double width, double height) {
+  final longer = math.max(width, height);
+  return longer > 0 ? longer : 100;
+}
+
+SceneOp? _parseOp(
+  Map<Object?, Object?> op, {
+  required bool allowSweep,
+  required double extent,
+}) {
   final sweep = allowSweep ? SceneSweep.parse(op['sweep']) : null;
   switch (op['op']) {
     case 'cells':
@@ -169,7 +188,7 @@ SceneOp? _parseOp(Map<Object?, Object?> op, {required bool allowSweep}) {
         y: _double(op['y'], 0),
         text: text,
         fill: _string(op['fill']),
-        size: _double(op['size'], 12),
+        size: _textSize(op['size'], extent),
         align: _string(op['align']) ?? 'left',
         sweep: sweep,
       );
@@ -179,7 +198,7 @@ SceneOp? _parseOp(Map<Object?, Object?> op, {required bool allowSweep}) {
       return InputOp(
         x: _double(op['x'], 0),
         y: _double(op['y'], 0),
-        w: _double(op['w'], 0),
+        w: _double(op['w'], 0).clamp(0, extent).toDouble(),
         submit: submit,
         value: _string(op['value']) ?? '',
         placeholder: _string(op['placeholder']),
@@ -300,6 +319,13 @@ SceneGradient? _parseGradient(Object? raw) {
 /// else's code, so this is the same posture as every ceiling in the contract.
 double _double(Object? value, double fallback) =>
     value is num && value.isFinite ? value.toDouble() : fallback;
+
+/// A text op's size: unreadable or non-positive reads as absent, and the
+/// largest is the canvas, since text taller than the whole scene is not a label.
+double _textSize(Object? value, double extent) {
+  final size = _double(value, TextOp.defaultSize);
+  return (size > 0 ? size : TextOp.defaultSize).clamp(0, extent).toDouble();
+}
 
 /// One axis of a `cells` grid, clamped to [CellsOp.maxPerAxis].
 ///

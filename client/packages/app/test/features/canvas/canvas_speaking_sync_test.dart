@@ -11,16 +11,11 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../support/fake_voice.dart';
 import '../voice/voice_controller_harness.dart';
 
-class _Driven extends VoiceController {
-  _Driven(super.ref) : super(session: FakeSession()) {
-    state = const VoiceState(channelId: 'c1');
-  }
-
-  void become(List<VoiceParticipant> people) =>
-      state = VoiceState(channelId: 'c1', participants: people);
-}
+VoiceState _inCallWith(List<VoiceParticipant> people) =>
+    VoiceState(channelId: 'c1', participants: people);
 
 VoiceParticipant _p(String id, {bool speaking = false, bool local = false}) =>
     VoiceParticipant(
@@ -36,10 +31,16 @@ void main() {
   testWidgets('a speaker\'s cursor glows and stops when they do', (
     tester,
   ) async {
-    late _Driven voice;
+    late FakeVoiceController voice;
     final container = ProviderContainer(
       overrides: [
-        voiceControllerProvider.overrideWith((ref) => voice = _Driven(ref)),
+        voiceControllerProvider.overrideWith(
+          (ref) => voice = FakeVoiceController(
+            ref,
+            initial: _inCallWith(const []),
+            session: FakeSession(),
+          ),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -52,7 +53,9 @@ void main() {
       ),
     );
 
-    voice.become([_p('me', local: true), _p('amy', speaking: true), _p('bo')]);
+    voice.replace(
+      _inCallWith([_p('me', local: true), _p('amy', speaking: true), _p('bo')]),
+    );
     await tester.pump();
     expect(cursors.isSpeaking('amy'), isTrue);
     expect(cursors.isSpeaking('bo'), isFalse);
@@ -62,7 +65,9 @@ void main() {
       reason: 'your own cursor is not drawn',
     );
 
-    voice.become([_p('me', local: true), _p('amy'), _p('bo', speaking: true)]);
+    voice.replace(
+      _inCallWith([_p('me', local: true), _p('amy'), _p('bo', speaking: true)]),
+    );
     await tester.pump();
     expect(cursors.isSpeaking('amy'), isFalse);
     expect(cursors.isSpeaking('bo'), isTrue);

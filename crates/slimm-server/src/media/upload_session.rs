@@ -22,6 +22,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use super::durable::{self, Name};
 use super::to_hex;
 
 /// Largest single part. Comfortably under Cloudflare's 100 MB request cap.
@@ -309,18 +310,21 @@ impl Uploads {
     /// Moves a finished session's bytes to their content-hash path, or drops
     /// them when those bytes are already stored, then removes the session.
     pub async fn place(&self, id: Uuid, hex_id: &str) -> io::Result<()> {
-        self.place_at(id, self.attachments_dir.join(hex_id)).await
+        self.place_named(id, self.attachments_dir.join(hex_id), Name::Content)
+            .await
     }
 
-    /// [`place`](Self::place) to a path of the caller's choosing, for bytes
-    /// stored under another attachment's name (a kept original).
+    /// [`place`](Self::place) to a path of the caller's choosing, for bytes stored under
+    /// another attachment's name (a kept original), where a file already there stays.
     pub async fn place_at(&self, id: Uuid, final_path: PathBuf) -> io::Result<()> {
+        self.place_named(id, final_path, Name::Shared).await
+    }
+
+    async fn place_named(&self, id: Uuid, final_path: PathBuf, name: Name) -> io::Result<()> {
         self.lock_running().remove(&id);
         let dir = self.session_dir(id);
         blocking(move || {
-            if !final_path.exists() {
-                std::fs::rename(dir.join(DATA_FILE), &final_path)?;
-            }
+            durable::place(&dir.join(DATA_FILE), &final_path, name)?;
             remove_dir(&dir)
         })
         .await

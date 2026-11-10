@@ -49,7 +49,7 @@ class VoiceCallHeartbeat {
   /// enough that a `removed` drop is more likely this client's own stale
   /// entry than a moderator's decision. Read by [VoiceController] at the
   /// moment a drop arrives, since that is the only time the distinction
-  /// matters; see `voice_controller_rejoin.dart`.
+  /// matters; see `voice_rejoin.dart`.
   ///
   /// Two missed sends, not one: a single dropped request is exactly what
   /// `STALE_AFTER`'s own margin exists to survive, so flagging on the first

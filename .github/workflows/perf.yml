@@ -31,7 +31,7 @@ env:
   SQLX_OFFLINE: "true"
 
 jobs:
-  # Compile-only gate on every pull request, without a full measurement run per push.
+  # Type-checks the benches on every pull request: no codegen, so no fat-LTO release build per push.
   compile-gate:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
@@ -39,8 +39,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
-      - name: compile benches (no run)
-        run: cargo bench --locked -p slimm-server --no-run
+      - name: type-check benches
+        run: cargo check --locked -p slimm-server --benches
 
   # Measures each server release on its own commit and commits perf/baselines/<version>.json to main; see perf/README.md.
   baseline:

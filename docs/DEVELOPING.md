@@ -11,6 +11,7 @@ From a fresh clone to the server, the client and the end-to-end harness running,
 - Android builds need a Temurin 21 JDK; iOS builds need macOS and Xcode and are otherwise checked in CI.
 - The Android build verifies every Gradle dependency against `client/packages/app/android/gradle/verification-metadata.xml`.
   After a Flutter upgrade, a plugin bump or an edit under `android/`, run `scripts/android-verification-metadata.sh` and commit the regenerated file; `android-ci` fails on a pull request until it matches.
+- The Android app module has JVM unit tests under `client/packages/app/android/app/src/test`; run them with `./gradlew :app:testDebugUnitTest` from `client/packages/app/android` after a `flutter build apk --config-only`.
 
 ## Layout
 
@@ -88,6 +89,9 @@ Drift's generated code is committed; regenerate it rather than editing it:
 - `scripts/ui-snapshots.sh` renders the real shell at every shipped resolution into `client/packages/app/build/ui-snapshots`.
 - `scripts/ui-capture.sh` runs the per-surface snapshot harnesses; a new harness needs a `JOBS` line there.
 - Snapshot tests write PNGs only with `SLIMM_UI_SNAPSHOTS=1`; otherwise they just check the layout.
+- The canvas painter PNGs (`SLIMM_CANVAS_VISUAL=1`, `build/canvas-visual`) are rasterised in software, which dots a 1px diagonal stroke.
+  `zoom_stress_0.25x.png` shows it: the ink is exactly one device pixel wide there, and the same scene at a device pixel ratio of 4 is continuous.
+  It is a rasteriser artifact, not geometry, so do not clamp ink's minimum width to fix it.
 
 ## End to end
 
@@ -144,6 +148,7 @@ scripts/check-comment-cap.sh                 # plain comments are one line; no f
 python3 scripts/check-error-surface.py       # API failures use AppErrorState, never a SnackBar
 python3 scripts/check-migration-versions.py  # duplicate or edited migrations
 python3 scripts/check-media-query-scope.py   # scoped MediaQuery accessors only
+python3 scripts/check-part-files.py          # no new `part` files outside generated code
 python3 scripts/check-message-dto-boundary.py
 python3 scripts/check-ci-docs.py             # every workflow has a row in docs/ci.md
 (cd scripts/lib && python3 -m unittest discover -p 'test_*.py')   # the harness and workflow-shape gates

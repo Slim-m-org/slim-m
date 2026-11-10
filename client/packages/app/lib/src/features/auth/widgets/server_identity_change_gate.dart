@@ -4,8 +4,8 @@
 ///
 /// Trusting re-pins and carries on; cancelling ends the session, since staying
 /// signed in would keep sending the token to a server nobody vouched for.
-/// This only covers the screen: on a relaunch the recheck answers after sync has
-/// already connected, and sync keeps running behind the step until Cancel.
+/// The screen is only half of it: `ServerIdentityGate` holds every call that
+/// carries the session, and sync stands down, until the person chooses.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,7 +15,6 @@ import '../../../providers/providers.dart';
 import '../providers/server_identity_recheck.dart';
 import '../../../providers/sync_controller.dart';
 import 'server_identity_changed_step.dart';
-import 'server_identity_confirmation.dart';
 
 /// Renders [child] unless the server's key no longer matches its pin.
 class ServerIdentityChangeGate extends ConsumerWidget {
@@ -34,16 +33,12 @@ class ServerIdentityChangeGate extends ConsumerWidget {
       identity: presented,
       onDecision: (trusted) async {
         if (trusted) {
+          final change = ref.read(serverIdentityChangeProvider.notifier);
           if (presented == null) {
-            ref
-                .read(serverIdentityChangeProvider.notifier)
-                .acceptMissingIdentity();
-            return;
+            change.acceptMissingIdentity();
+          } else {
+            await change.trust(presented);
           }
-          await ref
-              .read(keyStoreProvider)
-              .put(identityHandleFor(server), presented.publicKey);
-          ref.invalidate(serverIdentityChangeProvider);
           return;
         }
         await ref.read(syncControllerProvider.notifier).stop();

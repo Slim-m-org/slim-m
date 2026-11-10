@@ -49,7 +49,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../voice/widgets/bot_call_controls.dart';
 import '../../voice/widgets/call_leave_button.dart';
-import '../../modules/screens/dock_solo_controls.dart';
+import '../../voice/screens/dock_solo_controls.dart';
 import '../../voice/widgets/voice_call_controls.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';

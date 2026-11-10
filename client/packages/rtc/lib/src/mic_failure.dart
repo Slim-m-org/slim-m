@@ -4,6 +4,7 @@
 library;
 
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'os_mic_block.dart';
 
@@ -60,7 +61,13 @@ Future<MicFailureReason> refineMicFailure(
   }
   try {
     return await probe() ? MicFailureReason.permissionDenied : reason;
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'The system microphone check failed; keeping the original reason',
+      error,
+      stack,
+    );
     return reason;
   }
 }

@@ -16,18 +16,8 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'canvas_pane_harness.dart';
+import '../../support/fake_voice.dart';
 import '../voice/voice_controller_harness.dart';
-
-/// A controller a test can move between states; `state` is only settable
-/// from inside a [VoiceController] subclass.
-class _DrivenVoiceController extends VoiceController {
-  _DrivenVoiceController(super.ref, VoiceState initial)
-    : super(session: FakeSession()) {
-    state = initial;
-  }
-
-  void become(VoiceState next) => state = next;
-}
 
 const _connected = VoiceState(
   channelId: 'c1',
@@ -35,16 +25,20 @@ const _connected = VoiceState(
 );
 
 void main() {
-  Future<(_DrivenVoiceController, ProviderContainer)> pump(
+  Future<(FakeVoiceController, ProviderContainer)> pump(
     WidgetTester tester, {
     bool fullscreen = false,
   }) async {
     final fixture = CanvasPaneFixture();
-    late _DrivenVoiceController controller;
+    late FakeVoiceController controller;
     final container = fixture.container(
       extraOverrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => controller = _DrivenVoiceController(ref, _connected),
+          (ref) => controller = FakeVoiceController(
+            ref,
+            initial: _connected,
+            session: FakeSession(),
+          ),
         ),
       ],
     );
@@ -63,7 +57,7 @@ void main() {
     final (controller, container) = await pump(tester, fullscreen: true);
     expect(container.read(canvasOpenProvider), 'c1');
 
-    controller.become(
+    controller.replace(
       VoiceState(justLeftChannelId: 'c1', justLeftAt: DateTime.now()),
     );
     await tester.pump();
@@ -77,14 +71,14 @@ void main() {
   ) async {
     final (controller, container) = await pump(tester);
 
-    controller.become(
+    controller.replace(
       const VoiceState(
         channelId: 'elsewhere',
         state: VoiceSessionState.connected,
       ),
     );
     await tester.pump();
-    controller.become(const VoiceState());
+    controller.replace(const VoiceState());
     await tester.pump();
 
     expect(container.read(canvasOpenProvider), 'c1');

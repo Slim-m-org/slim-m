@@ -227,14 +227,8 @@ async fn prepare_and_run(
     .map_err(|_| ApiError::Internal)?;
 
     let store = state.store.clone();
-    let lane = match request.kind {
-        RunKind::Command => RunLane::Member,
-        RunKind::Background => RunLane::Background,
-        RunKind::Slot => RunLane::Slot,
-        RunKind::Hook => RunLane::Hook,
-    };
     let (ran, fuel) = ModuleHost::run_metered_in(
-        lane,
+        lane_for(request),
         &module.artifact_sha256,
         (limits, request_json, surface),
         || async move {
@@ -255,6 +249,16 @@ async fn prepare_and_run(
         Err(err) => CommandOutcome::host_failure(describe(&err)),
     };
     Ok((outcome, fuel))
+}
+
+/// The pool of run slots a request draws from; a member's own commands are capped per member.
+fn lane_for(request: &RunRequest<'_>) -> RunLane {
+    match request.kind {
+        RunKind::Command => RunLane::MemberOf(request.caller),
+        RunKind::Background => RunLane::Background,
+        RunKind::Slot => RunLane::Slot,
+        RunKind::Hook => RunLane::Hook,
+    }
 }
 
 /// The module's own answer, or a host failure when it is not the ABI's shape.
@@ -279,4 +283,28 @@ fn interpret(bytes: &[u8]) -> CommandOutcome {
 /// a stack trace or an internal type path.
 fn describe(err: &RunError) -> String {
     err.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lane(kind: RunKind, caller: UserId) -> RunLane {
+        lane_for(&RunRequest {
+            caller,
+            command: "run",
+            input: "",
+            kind,
+            context: RunContext::default(),
+        })
+    }
+
+    #[test]
+    fn a_members_command_is_capped_to_that_member_and_other_runs_are_not() {
+        let member = UserId::generate();
+        assert_eq!(lane(RunKind::Command, member), RunLane::MemberOf(member));
+        assert_eq!(lane(RunKind::Background, member), RunLane::Background);
+        assert_eq!(lane(RunKind::Slot, member), RunLane::Slot);
+        assert_eq!(lane(RunKind::Hook, member), RunLane::Hook);
+    }
 }

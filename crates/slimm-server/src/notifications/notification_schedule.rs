@@ -66,13 +66,14 @@ impl DayWindow {
         }
     }
 
-    /// Whether this window, which started on the *previous* weekday, still
-    /// covers `minute` on the day after: only possible when it crosses
-    /// midnight, and only for minutes before `end_minute`.
+    /// An end of 23:59 reads as "until midnight", so it covers its own last minute.
     fn runs_to_midnight(&self, minute: u16) -> bool {
         self.end_minute == MINUTES_PER_DAY - 1 && minute == self.end_minute
     }
 
+    /// Whether this window, which started on the *previous* weekday, still
+    /// covers `minute` on the day after: only possible when it crosses
+    /// midnight, and only for minutes before `end_minute`.
     fn tail_into_next_day(&self, minute: u16) -> bool {
         self.start_minute > self.end_minute && minute < self.end_minute
     }

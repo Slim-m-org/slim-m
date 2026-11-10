@@ -26,6 +26,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_parts.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/day_stable_now.dart';
 import '../../support/fake_api.dart';
 import '../../support/fake_sync.dart';
 
@@ -69,7 +70,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      final now = DateTime.now().millisecondsSinceEpoch;
+      final now = await dayStableNowMs(tester);
 
       final db = SlimmDatabase(NativeDatabase.memory());
       addTearDown(db.close);

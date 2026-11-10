@@ -15,17 +15,8 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart
 import 'package:slimm_rtc/rtc.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
+import 'support/fake_voice.dart';
 import 'features/voice/voice_controller_harness.dart';
-
-class _MutableVoiceController extends VoiceController {
-  _MutableVoiceController(super.ref, VoiceState initial)
-    : super(session: FakeSession()) {
-    state = initial;
-  }
-
-  void setParticipants(List<VoiceParticipant> participants) =>
-      state = state.copyWith(participants: participants);
-}
 
 const _noor = VoiceParticipant(
   identity: 'user-noor',
@@ -41,13 +32,14 @@ void main() {
   testWidgets('a dragged tile\'s owner leaving the call does not crash the dock '
       'listening on the same overrides', (tester) async {
     final fixture = CanvasPaneFixture();
-    late _MutableVoiceController controller;
+    late FakeVoiceController controller;
     final container = fixture.container(
       extraOverrides: [
         voiceControllerProvider.overrideWith((ref) {
-          controller = _MutableVoiceController(
+          controller = FakeVoiceController(
             ref,
-            const VoiceState(
+            session: FakeSession(),
+            initial: const VoiceState(
               channelId: 'c1',
               state: VoiceSessionState.connected,
               participants: [_noor],
@@ -65,7 +57,7 @@ void main() {
     await tester.drag(find.byType(CanvasPresenceBubble), const Offset(50, 30));
     await tester.pump();
 
-    controller.setParticipants(const []);
+    controller.update((call) => call.copyWith(participants: const []));
     await tester.pump();
 
     expect(tester.takeException(), isNull);

@@ -15,7 +15,7 @@
 /// came back showing the resting scene with no menu in it at all.
 ///
 /// This is the exact harness whose own images misled five review passes
-/// over the floating call dock's shadow (see CLAUDE.md); `_writePng` now
+/// over the floating call dock's shadow; `_writePng` now
 /// captures through `support/real_shadows.dart`'s `withRealShadows`, which
 /// closes that at the source rather than only labelling it.
 library;

@@ -40,7 +40,7 @@ Future<Map<String, double>> loadParticipantVolumes(
   } on FormatException catch (error, stack) {
     AppLog.swallowed(
       LogTag.voice,
-      'Could not build the key for a saved participant volume',
+      'Could not read the saved participant volumes',
       error,
       stack,
     );
