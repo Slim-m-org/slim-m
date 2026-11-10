@@ -28,30 +28,13 @@ async fn new_pool(name: &str) -> (SqlitePool, support::TestDbGuard) {
     )
 }
 
-/// The raw-string body containing [anchor]; duplicated per test binary
-/// because integration tests cannot import each other's helpers.
-fn extract_raw_containing(source: &str, anchor: &str) -> String {
-    let pos = source
-        .find(anchor)
-        .unwrap_or_else(|| panic!("{anchor:?} no longer appears in the source"));
-    let start = source[..pos]
-        .rfind("r#\"")
-        .unwrap_or_else(|| panic!("no opening quote before {anchor:?}"))
-        + 3;
-    let end = source[pos..]
-        .find("\"#")
-        .unwrap_or_else(|| panic!("no closing quote after {anchor:?}"))
-        + pos;
-    source[start..end].to_owned()
-}
-
 #[tokio::test]
 async fn the_duplicate_thread_check_seeks_the_parent_index() {
     let (pool, _guard) = new_pool("slimm-thread-plan").await;
     let source =
         fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/store/threads.rs"))
             .expect("read threads.rs");
-    let sql = extract_raw_containing(&source, "WHERE parent_message_id = ?");
+    let sql = support::query_literal_containing(&source, "WHERE parent_message_id = ?");
 
     let explain = format!("EXPLAIN QUERY PLAN {sql}");
     let zero = vec![0u8; 16];

@@ -10,6 +10,7 @@ use std::time::Duration;
 use serde_json::Value;
 use std::sync::Arc;
 
+use slimm_server::call_audio::CallAudioView;
 use slimm_server::hub::{CanvasEvent, Event, MessageEvent, RoleChange, RoleLook};
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
@@ -188,6 +189,27 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: channel,
             ring_id: CallRingId(id(11)),
             outcome: CallRingOutcome::Declined,
+        },
+        Event::CallAudioChanged {
+            channel_id: channel,
+            state: Some(Box::new(CallAudioView {
+                module_id: "hearer".into(),
+                module_name: "Hearer".into(),
+                purpose: "Writes down what is said.".into(),
+                keeps: "The text, for 30 days.".into(),
+                status: "asking",
+                asked_by: alice.to_string(),
+                included: vec![alice.to_string()],
+                pending: vec![bob.to_string()],
+                expires_at_ms: 1_700_000_000_006,
+                full: false,
+            })),
+            ended: None,
+        },
+        Event::CallAudioChanged {
+            channel_id: channel,
+            state: None,
+            ended: Some("declined"),
         },
         Event::DmChanged {
             channel_id: channel,

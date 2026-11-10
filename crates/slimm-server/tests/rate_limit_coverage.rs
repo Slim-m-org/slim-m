@@ -30,6 +30,26 @@ use std::path::Path;
 
 mod support;
 
+/// Fewer than this many files under `src/http` means the walk stopped short.
+const MIN_HTTP_FILES: usize = 100;
+
+/// Every `.rs` file under `src/http`, nested route families included, as
+/// (path relative to `src/http`, comment- and string-scrubbed source).
+fn http_sources() -> Vec<(String, String)> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/http");
+    support::rust_files_under(&root)
+        .into_iter()
+        .map(|path| {
+            let rel = path.strip_prefix(&root).expect("under src/http");
+            let source = std::fs::read_to_string(&path).expect("read source");
+            (
+                rel.to_string_lossy().into_owned(),
+                support::code_only(&source),
+            )
+        })
+        .collect()
+}
+
 /// Handlers deliberately left uncharged, each with the reason it is safe.
 ///
 /// Empty on purpose: the sweep that built this gate found no authenticated
@@ -71,18 +91,10 @@ fn signature(body: &str) -> &str {
 
 #[test]
 fn every_authenticated_handler_charges_a_rate_limit_class() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/http");
     let exempt: BTreeSet<&str> = EXEMPT.iter().map(|(name, _)| *name).collect();
     let mut uncharged = Vec::new();
 
-    for entry in std::fs::read_dir(&dir).expect("read src/http") {
-        let path = entry.expect("dir entry").path();
-        if path.extension().is_none_or(|ext| ext != "rs") {
-            continue;
-        }
-        let file = path.file_name().unwrap().to_string_lossy().into_owned();
-        let scrubbed = support::code_only(&std::fs::read_to_string(&path).expect("read source"));
-
+    for (file, scrubbed) in http_sources() {
         for (name, body) in handlers(&scrubbed) {
             let sig = signature(&body);
             let takes_authed = sig.contains(": Authed,") || sig.contains(": Authed)");
@@ -117,17 +129,9 @@ fn every_authenticated_handler_charges_a_rate_limit_class() {
 /// calls `enforce(..., Class::Read)` while also authenticating the caller.
 #[test]
 fn no_authenticated_handler_charges_class_read() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/http");
     let mut offenders = Vec::new();
 
-    for entry in std::fs::read_dir(&dir).expect("read src/http") {
-        let path = entry.expect("dir entry").path();
-        if path.extension().is_none_or(|ext| ext != "rs") {
-            continue;
-        }
-        let file = path.file_name().unwrap().to_string_lossy().into_owned();
-        let scrubbed = support::code_only(&std::fs::read_to_string(&path).expect("read source"));
-
+    for (file, scrubbed) in http_sources() {
         for (name, body) in handlers(&scrubbed) {
             let sig = signature(&body);
             let takes_authed = sig.contains(": Authed,")
@@ -251,5 +255,25 @@ async fn charges_nothing(
     assert!(
         !body.contains("enforce("),
         "a comment naming enforce must not read as a charge"
+    );
+}
+
+/// Both gates above read through [`http_sources`]; a walk that skipped the
+/// route-family folders would leave them green over most of the handlers.
+#[test]
+fn the_gates_read_the_nested_route_families() {
+    let sources = http_sources();
+    assert!(
+        sources.len() >= MIN_HTTP_FILES,
+        "scanned {} files under src/http, expected at least {MIN_HTTP_FILES}",
+        sources.len()
+    );
+    let nested_authed = sources
+        .iter()
+        .filter(|(file, scrubbed)| file.contains('/') && scrubbed.contains(": Authed"))
+        .count();
+    assert!(
+        nested_authed > 0,
+        "no nested file taking Authed was scanned; the walk skips subdirectories"
     );
 }

@@ -5,6 +5,7 @@
 
 mod calls;
 mod lifecycle;
+mod live;
 mod membership;
 mod rig;
 #[path = "../support/mod.rs"]
