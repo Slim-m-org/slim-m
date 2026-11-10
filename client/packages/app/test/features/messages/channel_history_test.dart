@@ -359,6 +359,8 @@ void main() {
       channelHistoryProvider('c1').notifier,
     );
     notifier.syncOldest(channelWindowCeiling + 1);
+    // Opening already fetched the pages under the seeded rows, for their extras; only the loop's own requests are counted below.
+    final openedWith = harness.beforeCursors.length;
 
     // One page more than needed to reach the ceiling from the seeded 200.
     final pagesToCeiling =
@@ -381,7 +383,7 @@ void main() {
           'reached - only the ceiling stopped further paging',
     );
     expect(
-      harness.beforeCursors.length,
+      harness.beforeCursors.length - openedWith,
       pagesToCeiling,
       reason:
           'once the window is at the ceiling, further loadOlder calls must '

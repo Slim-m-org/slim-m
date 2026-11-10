@@ -22,9 +22,9 @@ import '../../../providers/app_lifecycle.dart';
 import '../../accounts/providers/account_slot.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_drafts.dart';
+import '../providers/channel_history.dart';
 import '../providers/channel_search_controller.dart';
 import '../../messages/providers/message_actions.dart';
-import '../../messages/providers/message_extras.dart';
 import '../../messages/providers/message_jump.dart';
 import '../providers/mounted_channels.dart';
 import '../../../providers/providers.dart';
@@ -236,27 +236,10 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     }
   }
 
-  Future<void> _hydrateExtras() async {
-    // Read before the first await: a channel closed mid-load has disposed its ref by the time the fetch returns.
-    final client = ref.read(apiProvider);
-    final storeFuture = ref.read(storeProvider.future);
-    try {
-      final recent = await client.listMessages(widget.channelId, limit: 50);
-      // Stored too: a thread older than /sync's window has no local rows, and showed blank until a new message arrived.
-      final store = await storeFuture;
-      await store.applyMessages(recent);
-      if (!mounted) return;
-      ref.read(messageExtrasProvider.notifier).applyMessages(recent);
-    } catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.ui,
-        'load recent channel messages',
-        error,
-        stack,
-      );
-      // Nothing useful to do; a live event or the next channel open corrects it.
-    }
-  }
+  /// Through the history controller, which outlives this screen: a channel
+  /// closed mid-load must still end with the rows it stored carrying their extras.
+  Future<void> _hydrateExtras() =>
+      ref.read(channelHistoryProvider(widget.channelId).notifier).hydrate();
 
   @override
   void dispose() {

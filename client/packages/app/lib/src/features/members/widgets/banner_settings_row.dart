@@ -135,25 +135,11 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // No Remove: picking a colour drops the image, and the image tile replaces it.
         IdentityRow(
           title: isSet ? 'Image' : 'Colour',
           caption: 'Banner',
-          trailing: [
-            if (isSet)
-              AppButton(
-                label: 'Remove',
-                variant: AppButtonVariant.ghost,
-                semanticLabel: 'Remove profile banner',
-                onPressed: enabled
-                    ? () => unawaited(
-                        _run(
-                          'remove the banner',
-                          () => ref.read(memberActionsProvider).deleteBanner(),
-                        ),
-                      )
-                    : null,
-              ),
-          ],
+          trailing: const [],
         ),
         LayoutBuilder(
           builder: (context, box) {

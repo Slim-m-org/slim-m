@@ -127,8 +127,8 @@ void main() {
     expect(ticking(), isFalse, reason: 'an unfocused window stops the gif');
   });
 
-  testWidgets('the Identity card offers Remove only with a banner, and it '
-      'deletes it', (tester) async {
+  testWidgets('the Identity card has no Remove: picking a colour drops the '
+      'image banner', (tester) async {
     var banner = 5;
     final calls = <String>[];
     final container = ProviderContainer(
@@ -157,14 +157,15 @@ void main() {
     await tester.pumpWidget(_scope(container, const AvatarSettingsSection()));
     await tester.pumpAndSettle();
     expect(find.text('Image'), findsOneWidget);
+    expect(find.bySemanticsLabel('Remove profile banner'), findsNothing);
 
-    await tester.tap(find.bySemanticsLabel('Remove profile banner'));
+    calls.clear();
+    await tester.tap(find.bySemanticsLabel('Profile colour: Blue'));
     await tester.pumpAndSettle();
 
-    expect(calls, contains('DELETE /me/banner'));
+    expect(calls.take(2), ['PATCH /me', 'DELETE /me/banner']);
     expect(find.text('Colour'), findsOneWidget);
     expect(find.text('Image'), findsNothing);
-    expect(find.bySemanticsLabel('Remove profile banner'), findsNothing);
   });
 
   testWidgets(

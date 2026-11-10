@@ -90,6 +90,14 @@ void main() {
     expect(detail, isNot(_fullScan));
   });
 
+  test('the window floor read stays inside one channel\'s index', () async {
+    await store.oldestSeqInWindow('c1', 200);
+
+    final detail = await planOfLast('MIN(seq)');
+    expect(detail, contains('messages_channel_seq'));
+    expect(detail, isNot(_fullScan));
+  });
+
   test('failedMessages uses the partial failed index', () async {
     await store.failedMessages();
 

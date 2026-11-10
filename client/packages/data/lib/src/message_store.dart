@@ -188,6 +188,11 @@ class MessageStore {
   Future<int?> transcriptDepthOf(String channelId, String messageId) =>
       transcriptDepth(db, channelId, messageId);
 
+  /// The oldest delivered `seq` among [channelId]'s newest [rows], or null where
+  /// none is held: what a window of that size reaches back to.
+  Future<int?> oldestSeqInWindow(String channelId, int rows) =>
+      transcriptOldestSeq(db, channelId, rows);
+
   /// The smallest `seq` among [channelId]'s already-delivered rows, or null
   /// where none are delivered yet. Read straight off the database rather than
   /// off whatever a screen currently has loaded, so a caller can page a
