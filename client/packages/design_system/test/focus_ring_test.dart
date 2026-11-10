@@ -78,6 +78,33 @@ void main() {
     expect((decoration.border! as Border).top.color, Colors.transparent);
   });
 
+  testWidgets('paints the ring in the focus colour once focused', (
+    tester,
+  ) async {
+    late ValueChanged<bool> reportFocus;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppFocusRing(
+            radius: 6,
+            builder: (context, onFocusChange) {
+              reportFocus = onFocusChange;
+              return const SizedBox(width: 40, height: 40);
+            },
+          ),
+        ),
+      ),
+    );
+    reportFocus(true);
+    await tester.pump();
+
+    expect(
+      find.byType(AppFocusRing),
+      paints..drrect(color: AppTokens.light.focusRing),
+    );
+  });
+
   group('presses', () {
     const ring = focusRingGap + focusRingWidth;
     const control = Size(100, 20);
