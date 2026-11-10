@@ -29,7 +29,7 @@ use super::{RemoveMemberError, Store, now_ms};
 use crate::ids::{SessionId, UserId};
 
 impl Store {
-    /// Removes every member in [user_ids], as one transaction.
+    /// Removes every member in `user_ids`, as one transaction.
     ///
     /// Returns the sessions revoked across the whole batch, for the caller to
     /// close those sockets. Ordering within the returned list is the order the
@@ -59,9 +59,9 @@ impl Store {
         Ok(revoked)
     }
 
-    /// Times out every member in [user_ids] until [until], as one transaction.
+    /// Times out every member in `user_ids` until `until`, as one transaction.
     ///
-    /// [until] is computed once by the caller rather than per target, so every
+    /// `until` is computed once by the caller rather than per target, so every
     /// member in one batch comes back at the same moment. Deriving it inside
     /// the loop would stagger a batch of thirty across however long the
     /// transaction took, which is a difference nobody asked for.

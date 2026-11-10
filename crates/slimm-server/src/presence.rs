@@ -256,7 +256,7 @@ impl PresenceTracker {
         }
     }
 
-    /// Authoritatively caches [user_id]'s visibility choice, if connected. The
+    /// Authoritatively caches `user_id`'s visibility choice, if connected. The
     /// visibility endpoint calls this the instant a user changes their choice,
     /// so it always overwrites. A no-op when not connected: nothing off a live
     /// connection needs it, and the entry is created and removed with the
@@ -267,7 +267,7 @@ impl PresenceTracker {
         }
     }
 
-    /// Fills in [user_id]'s cached visibility on connect, but only if nothing
+    /// Fills in `user_id`'s cached visibility on connect, but only if nothing
     /// is cached yet. A concurrent [`Self::set_visibility`] from the endpoint
     /// is the authoritative choice; a connect whose store read raced ahead of
     /// that write must never clobber it back to the stale value.
@@ -277,14 +277,14 @@ impl PresenceTracker {
         }
     }
 
-    /// [user_id]'s cached visibility, or `None` when it is not connected or
+    /// `user_id`'s cached visibility, or `None` when it is not connected or
     /// has not loaded yet - the caller then reads the durable value from the
     /// store, so a miss is exactly the old behaviour, never a wrong answer.
     pub fn visibility(&self, user_id: UserId) -> Option<Visibility> {
         lock(&self.state).get(&user_id).and_then(|e| e.visibility)
     }
 
-    /// Replaces [user_id]'s activity. Returns whether anything changed, so an
+    /// Replaces `user_id`'s activity. Returns whether anything changed, so an
     /// unchanged repeat is not re-announced; a user with no live socket has
     /// nowhere to hold it and reads as unchanged.
     pub fn set_activity(&self, user_id: UserId, activity: Option<Activity>) -> bool {
@@ -297,7 +297,7 @@ impl PresenceTracker {
         changed
     }
 
-    /// What a viewer may be told [target] is doing: nothing whenever `status`
+    /// What a viewer may be told `target` is doing: nothing whenever `status`
     /// (already resolved by [`status_for`]) reads offline, which is how a
     /// hidden user's activity stays hidden through the same choke point.
     pub fn activity_visible_at(&self, target: UserId, status: Status) -> Option<Activity> {

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE installed_modules\n             SET approved_host_capabilities = ?, source_repo = ?, network_hosts = ?,\n                 local_network_approved = ?, schedules = ?, manifest_json = ?\n             WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "1ff11403b5b3c2c8f7c1b60ea1253bf48467db2cc7912c30f774f89f52a8eebb"
+}

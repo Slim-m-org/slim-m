@@ -342,7 +342,7 @@ impl Store {
 
     /// Issues a fresh set of recovery codes, invalidating the previous set.
     ///
-    /// Gated on a current code by the caller ([`crate::http::totp`]), not here,
+    /// Gated on a current code by the caller (`crate::http::totp`), not here,
     /// so the one place that decides what counts as proof stays in the route.
     pub async fn regenerate_totp_recovery_codes(
         &self,

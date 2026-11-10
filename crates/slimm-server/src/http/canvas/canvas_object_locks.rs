@@ -13,6 +13,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
+use super::canvas_write::canvas_access;
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -41,7 +42,7 @@ async fn list(
     State(state): State<AppState>,
 ) -> Result<Json<LocksDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    canvas_permissions(&state, ctx.user_id, channel_id).await?;
+    canvas_access(&state, ctx.user_id, channel_id).await?;
     let (version, ids) = state.store.list_canvas_object_locks(channel_id).await?;
     Ok(Json(LocksDto {
         object_ids: ids.into_iter().map(|id| id.to_string()).collect(),
@@ -76,7 +77,7 @@ async fn set(
 ) -> Result<StatusCode, ApiError> {
     let channel_id = ChannelId(parse_uuid(channel_id)?);
     let object_id = CanvasObjectId(parse_uuid(object_id)?);
-    let permissions = canvas_permissions(state, actor, channel_id).await?;
+    let permissions = canvas_access(state, actor, channel_id).await?;
     if state.store.timed_out_until(actor).await?.is_some() {
         return Err(ApiError::Forbidden);
     }
@@ -105,19 +106,4 @@ async fn set(
             }));
     }
     Ok(StatusCode::NO_CONTENT)
-}
-
-async fn canvas_permissions(
-    state: &AppState,
-    user_id: UserId,
-    channel_id: ChannelId,
-) -> Result<Permissions, ApiError> {
-    let permissions = state
-        .store
-        .permissions_in_channel(user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
-    }
-    Ok(permissions)
 }

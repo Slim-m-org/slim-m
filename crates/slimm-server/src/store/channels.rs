@@ -8,15 +8,16 @@
 //! for a single channel.
 
 use self::channel_create::fetch_channel_by_id;
+use self::channel_row::ChannelRow;
 use super::{Channel, Store, now_ms};
 use crate::ids::ChannelId;
-use crate::notifications::NotificationPreference;
 
 pub(super) mod channel_create;
 pub(super) mod channel_notification_prefs;
 pub(super) mod channel_order;
 pub(super) mod channel_restricted;
 pub(super) mod channel_retention;
+pub(super) mod channel_row;
 pub(super) mod channel_settings;
 pub(crate) mod channel_slow_mode;
 
@@ -40,7 +41,8 @@ impl From<sqlx::Error> for DeleteChannelError {
 impl Store {
     /// Fetches a live channel by id, or `None` if it is missing or deleted.
     pub async fn channel(&self, id: ChannelId) -> anyhow::Result<Option<Channel>> {
-        let row = sqlx::query!(
+        let row = sqlx::query_as!(
+            ChannelRow,
             r#"SELECT id AS "id!: ChannelId", name AS "name!", kind AS "kind!", topic,
                       position AS "position!: i64",
                       parent_message_id AS "parent_message_id: crate::ids::MessageId",
@@ -59,27 +61,7 @@ impl Store {
         )
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(|r| Channel {
-            id: r.id,
-            name: r.name,
-            kind: r.kind,
-            topic: r.topic,
-            position: r.position,
-            parent_message_id: r.parent_message_id,
-            category_id: r.category_id,
-            created_at: r.created_at,
-            slow_mode_seconds: r.slow_mode_seconds,
-            join_muted: r.join_muted,
-            default_notification: NotificationPreference::parse(&r.default_notification)
-                .unwrap_or_default(),
-            room: super::ChannelRoom {
-                creates_rooms: r.creates_rooms,
-                user_limit: r.user_limit,
-                owner_id: r.room_owner_id,
-                lobby_id: r.room_lobby_id,
-                locked: r.room_locked,
-            },
-        }))
+        Ok(row.map(Channel::from))
     }
 
     /// Whether a channel can scope moderation to moderators of its own.
@@ -129,7 +111,7 @@ impl Store {
     /// `None` if the channel does not exist (or was deleted, racing this
     /// call). Callers are expected to reject the case where both are `None`
     /// before reaching here (there is nothing to update), the same
-    /// convention [`super::roles::update_role`] follows for its own two
+    /// convention [`Store::update_role`] follows for its own two
     /// optional fields; this still resolves it safely as a plain existence
     /// check rather than assuming it can't happen.
     /// A DM is a channel of kind `dm` in this same table, and it is deliberately

@@ -28,6 +28,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
+use super::canvas_write::canvas_access;
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 use crate::permissions::Permissions;
@@ -99,14 +100,7 @@ pub(in crate::http) async fn submit_op(
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let op_id = CanvasOpId(parse_uuid(&params.id)?);
 
-    // One per-channel evaluation, as the read and place routes both do.
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
-    }
+    let permissions = canvas_access(&state, ctx.user_id, channel_id).await?;
     let may_moderate = permissions.contains(Permissions::MANAGE_CANVAS);
 
     let request = parse_request(params)?;

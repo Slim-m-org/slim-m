@@ -226,6 +226,9 @@ impl From<ModuleRow> for InstalledModule {
 impl Store {
     /// Installs (or reinstalls, at a possibly new version) a module.
     ///
+    /// Test support: the shipped install is [`Self::install_module_from_dock`], which records the
+    /// dock's provenance in the same transaction.
+    ///
     /// Idempotent by `id`: an existing row's metadata is overwritten with
     /// the freshly fetched manifest's, and `enabled` is left untouched by
     /// the `ON CONFLICT` clause - a reinstall must never silently flip a
@@ -240,7 +243,7 @@ impl Store {
     /// The metadata and the verified artifact bytes commit as one atomic
     /// write. Recording the two as separate writes let a racing upgrade, or a crash
     /// between them, leave `installed_modules` and `module_artifacts`
-    /// describing different versions with no error anywhere. This method is the
+    /// describing different versions with no error anywhere. Writing them together is the
     /// fix for that half of the defect;
     /// `http::module_commands::execute_command`'s comparison of
     /// `installed_modules.artifact_sha256` against the stored artifact's own
@@ -280,39 +283,24 @@ impl Store {
         insert_module_metadata(&mut tx, &req).await?;
         store_module_artifact_tx(&mut tx, req.id, req.artifact_sha256, artifact).await?;
         let host_json = serde_json::to_string(provenance.host_capabilities)?;
-        sqlx::query!(
-            "UPDATE installed_modules SET approved_host_capabilities = ? WHERE id = ?",
-            host_json,
-            req.id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "UPDATE installed_modules SET source_repo = ? WHERE id = ?",
-            provenance.source_repo,
-            req.id
-        )
-        .execute(&mut *tx)
-        .await?;
         let hosts_json = serde_json::to_string(provenance.network_hosts)?;
         let schedules_json = serde_json::to_string(provenance.schedules)?;
         sqlx::query!(
             "UPDATE installed_modules
-             SET network_hosts = ?, local_network_approved = ?, schedules = ?
+             SET approved_host_capabilities = ?, source_repo = ?, network_hosts = ?,
+                 local_network_approved = ?, schedules = ?, manifest_json = ?
              WHERE id = ?",
+            host_json,
+            provenance.source_repo,
             hosts_json,
             provenance.local_network_approved,
             schedules_json,
+            provenance.manifest_json,
             req.id
         )
         .execute(&mut *tx)
         .await?;
         write_platform(&mut tx, req.id, provenance.platform).await?;
-        sqlx::query("UPDATE installed_modules SET manifest_json = ? WHERE id = ?")
-            .bind(provenance.manifest_json)
-            .bind(req.id)
-            .execute(&mut *tx)
-            .await?;
         tx.commit().await?;
         self.touch_modules();
         self.installed_module(req.id)

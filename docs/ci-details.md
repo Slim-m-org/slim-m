@@ -13,6 +13,13 @@ The server image copies that file in with the source, so `docker/server.Dockerfi
 Bumping Rust is one pull request that changes the pin, the Dockerfile tag and digest together.
 `Cargo.toml` still declares `rust-version = "1.94"`, but no job builds with that version, so the MSRV is declared and not checked.
 
+### Broken doc links
+
+`cargo doc --no-deps --workspace` runs with `-D rustdoc::broken_intra_doc_links`, so a doc comment that links to a renamed or moved item fails the build.
+Nothing else reads doc comments: clippy and the compiler skip intra-doc links, so a link to an enum variant that later moved into another enum rotted silently until someone clicked it.
+Only unresolvable links fail it; a public doc linking to a private item is a warning and is left alone.
+When a link has no public target worth naming, write the path as a plain code span instead of a link.
+
 ### The sqlx cache
 
 `cargo sqlx prepare --workspace --check -- --all-targets`, against a database created and migrated in the same step.

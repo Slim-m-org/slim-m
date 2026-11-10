@@ -12,7 +12,7 @@ use crate::store::{CanvasObject, MediaSlotKind};
 pub enum CanvasEvent {
     /// An object was placed on a channel's canvas.
     ///
-    /// Carries the whole row for the same reason [`MessageEvent::Created`]
+    /// Carries the whole row for the same reason [`super::MessageEvent::Created`]
     /// does: a brand new object has no prior state to reconcile against, and
     /// an id-only frame would cost every connected viewer one viewport read
     /// per stroke. It is bounded by the write route's props ceiling, which is
@@ -21,14 +21,14 @@ pub enum CanvasEvent {
     ///
     /// Published only for a fresh write. An idempotent replay answers from the
     /// stored row and publishes nothing, so a retry cannot fan a duplicate out.
-    /// `object` is `Arc`-wrapped for the same reason [`MessageEvent::Created`]'s are.
+    /// `object` is `Arc`-wrapped for the same reason [`super::MessageEvent::Created`]'s are.
     ObjectPlaced {
         channel_id: ChannelId,
         object: Arc<CanvasObject>,
     },
     /// Objects were removed from a channel's canvas.
     ///
-    /// Ids only, the shape [`MessageEvent::Deleted`] already uses: a removal
+    /// Ids only, the shape [`super::MessageEvent::Deleted`] already uses: a removal
     /// publishes an id rather than content, and the actor is deliberately
     /// absent so a moderation act does not name its moderator to the whole
     /// channel. Bounded at [`crate::store::MAX_REMOVE_IDS_PER_OP`], which is

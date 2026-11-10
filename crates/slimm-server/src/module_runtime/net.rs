@@ -159,7 +159,7 @@ pub fn parse(request: &[u8], hosts: &[String]) -> Result<FetchRequest, String> {
     parse_with_secrets(request, hosts, &NoSecrets)
 }
 
-/// [`parse`], substituting `{"secret"}` header values from `secrets`. The
+/// `parse`, substituting `{"secret"}` header values from `secrets`. The
 /// host gate runs first, so a secret is only ever read for an approved host.
 pub fn parse_with_secrets(
     request: &[u8],

@@ -153,7 +153,7 @@ pub struct SubmittedOp {
     /// The ids a fresh `remove`, `clear` or `restore` actually touched - a
     /// subset of what was named (or, for `clear`, of what the fence covered),
     /// since an id already in its target state is not touched again. Also
-    /// what [`Store::record_canvas_audit`] writes one row per, for `remove`,
+    /// what `record_canvas_audit` writes one row per, for `remove`,
     /// `clear` and `restore`. Empty for a replay, which never publishes and
     /// so never needs this.
     pub touched_ids: Vec<CanvasObjectId>,
@@ -190,7 +190,7 @@ pub enum SubmitOpError {
     /// not author, without `MANAGE_CANVAS`.
     NotAuthorized,
     /// A restore would push this channel's live object count past
-    /// [`MAX_OBJECTS_PER_CHANNEL`].
+    /// [`crate::store::MAX_OBJECTS_PER_CHANNEL`].
     ChannelFull,
     /// A `move`'s target bounds are not finite, have negative extent, exceed
     /// `MAX_OBJECT_EXTENT`, or fall outside the bounded world - the same

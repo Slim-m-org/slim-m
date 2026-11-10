@@ -21,7 +21,7 @@
 //! expose a dedicated endpoint for it; [`preview`] streams a thumbnail
 //! through this server for that token; [`select`] downloads the
 //! full-resolution image through this server too and stores it exactly the
-//! way [`super::attachments::upload`] stores a client-uploaded file, so the
+//! way `super::attachments::upload` stores a client-uploaded file, so the
 //! result is an ordinary, already-self-hosted attachment id a send may
 //! reference. Nothing downstream of a pick ever depends on the provider
 //! again.
@@ -77,7 +77,7 @@ const MAX_PREVIEW_BYTES: u64 = 5 * 1024 * 1024;
 
 /// An outer sanity bound on a full-resolution download, independent of the
 /// operator's own `SLIMM_ATTACHMENT_MAX_BYTES`: that ceiling is enforced
-/// afterward, in [`select`], the same way [`super::attachments::upload`]
+/// afterward, in [`select`], the same way `super::attachments::upload`
 /// enforces it against a client-supplied body. This one is a sanity bound on a
 /// provider the operator chose, not a hard memory ceiling: `Content-Length`
 /// over it is refused before anything is downloaded, but a provider that sends

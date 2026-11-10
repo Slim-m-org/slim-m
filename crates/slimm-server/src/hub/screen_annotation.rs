@@ -37,7 +37,7 @@ impl ScreenAnnotationKind {
     }
 }
 
-/// The body of [`CanvasEvent::ScreenAnnotation`].
+/// The body of [`crate::hub::CanvasEvent::ScreenAnnotation`].
 #[derive(Debug, Clone)]
 pub struct ScreenAnnotationEvent {
     pub channel_id: ChannelId,

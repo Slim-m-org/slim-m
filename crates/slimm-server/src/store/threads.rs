@@ -253,7 +253,7 @@ impl Store {
 
     /// Which of `message_ids` already has a live thread, and how many
     /// undeleted replies are in it - the batch lookup
-    /// [`super::super::http::message_enrich`] attaches to each message the
+    /// `http::message_enrich` attaches to each message the
     /// same way it attaches reactions and attachments, one query for the
     /// whole page rather than one per message. A client that was never
     /// online for the thread's creation (or a reply to it) still learns it

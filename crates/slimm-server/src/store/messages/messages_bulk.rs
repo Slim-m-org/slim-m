@@ -77,7 +77,7 @@ impl From<anyhow::Error> for BulkDeleteError {
 }
 
 impl Store {
-    /// The authors of [ids] that exist in [channel_id], for the caller to check
+    /// The authors of `ids` that exist in `channel_id`, for the caller to check
     /// before committing to anything.
     ///
     /// Separate from the delete itself so the permission pass can run on real
@@ -135,7 +135,7 @@ impl Store {
         Ok(found)
     }
 
-    /// Soft-deletes every id in [ids] that is still live, as one transaction.
+    /// Soft-deletes every id in `ids` that is still live, as one transaction.
     ///
     /// Returns only what it actually deleted: an id already gone is not an
     /// error and produces no op and no event, which is the single path's own

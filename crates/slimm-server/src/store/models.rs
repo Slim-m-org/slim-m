@@ -15,7 +15,7 @@ pub struct Channel {
     pub topic: Option<String>,
     /// Sort key among the deployment's live, non-DM channels: lower sorts
     /// first. Deployment-wide, not per-device - see
-    /// [`crate::store::channel_order::reorder_channels`]. Meaningless for a DM,
+    /// [`crate::store::Store::reorder_channels`]. Meaningless for a DM,
     /// which is never listed or reordered by it.
     pub position: i64,
     /// The message this channel is a thread of, or `None` for an ordinary
@@ -36,11 +36,11 @@ pub struct Channel {
     /// The minimum interval, in seconds, a non-`MANAGE_CHANNELS` member must
     /// wait between their own messages here. 0 means off. Never read for a DM
     /// or a thread, neither of which exposes a setter for it - see
-    /// [`crate::store::channel_slow_mode::Store::update_channel_slow_mode`].
+    /// [`crate::store::Store::update_channel_slow_mode`].
     pub slow_mode_seconds: i64,
     /// Voice-channel default that every client opens its mic off on join. A
     /// default, not a lock: SPEAK overwrites are what restrict speaking. See
-    /// [`crate::store::channel_settings::Store::update_channel_settings`].
+    /// [`crate::store::Store::update_channel_settings`].
     pub join_muted: bool,
     /// What members with no choice of their own for this channel get; see
     /// `docs/decisions/0049-notification-override-badge.md`.

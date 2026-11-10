@@ -44,7 +44,7 @@ impl VoiceService {
         Ok(())
     }
 
-    /// Publishes whether [`user_id`] has deafened themselves, as a participant
+    /// Publishes whether `user_id` has deafened themselves, as a participant
     /// attribute everyone in the room reads. Clients may not set their own
     /// attributes (the token withholds `canUpdateOwnMetadata`, which would also
     /// let them rename themselves), so the server sets this one on their behalf.

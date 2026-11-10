@@ -9,7 +9,7 @@ use crate::config::Config;
 
 impl Dock {
     /// An enabled Dock pointed at a local fake upstream, for a test that
-    /// drives the real router. [base_url] must end in `/`; its host becomes
+    /// drives the real router. `base_url` must end in `/`; its host becomes
     /// the allowlisted one, and the guard resolver allows private addresses
     /// so the loopback a fake upstream binds to is reachable.
     pub fn for_test(base_url: &str) -> Self {

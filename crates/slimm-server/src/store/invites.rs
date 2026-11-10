@@ -236,7 +236,7 @@ impl Store {
         .flatten())
     }
 
-    /// Invites, newest first. [`created_by`] scopes the answer to one
+    /// Invites, newest first. `created_by` scopes the answer to one
     /// account's own; `None` asks for every invite in the deployment.
     ///
     /// The filter exists because a code is a credential. An invite row carries
@@ -289,7 +289,7 @@ impl Store {
             .collect())
     }
 
-    /// Revokes an invite, optionally only if [`required_creator`] issued it.
+    /// Revokes an invite, optionally only if `required_creator` issued it.
     ///
     /// Answers whether a row changed, so a caller can tell "revoked" from
     /// "not yours, or already revoked, or never existed" - deliberately one

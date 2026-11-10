@@ -63,7 +63,7 @@ pub struct SavedMessage {
 }
 
 impl Store {
-    /// Saves [message_id] for [user_id]. Idempotent: saving something already
+    /// Saves `message_id` for `user_id`. Idempotent: saving something already
     /// saved leaves the original `saved_at` alone rather than moving it to
     /// the top, so a double-tap cannot silently reorder somebody's list.
     ///

@@ -15,8 +15,9 @@
 //! the way a channel overwrite narrows a role's base permission today rather
 //! than needing a second evaluator.
 
-/// What a message has to be, for this account, before it is worth a push.
 pub mod notification_schedule;
+
+/// What a message has to be, for this account, before it is worth a push.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NotificationPreference {
     /// Every message in a channel this account can see. The default, and

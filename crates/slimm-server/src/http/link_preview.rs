@@ -89,7 +89,7 @@ impl LinkPreviews {
     /// Starts on `SLIMM_LINK_PREVIEWS`, which is also the ceiling: an admin can
     /// turn previews off through [`Self::set_override`], never on past the operator. While off, every route here answers "not
     /// configured", exactly like GIF search with no provider set.
-    /// [image_key] signs image tokens; see `image_token` for why it is persisted.
+    /// `image_key` signs image tokens; see `image_token` for why it is persisted.
     pub fn new(config: &Config, image_key: [u8; 32]) -> Self {
         let inner = Arc::new(Enabled {
             client: build_client(false),

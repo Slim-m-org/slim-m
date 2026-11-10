@@ -23,9 +23,9 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
+use super::canvas_write::canvas_access;
 use crate::hub::{CanvasEvent, Event};
 use crate::ids::ChannelId;
-use crate::permissions::Permissions;
 use crate::store::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
@@ -92,13 +92,7 @@ async fn list(
     State(state): State<AppState>,
 ) -> Result<Json<SlotsDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
-    }
+    canvas_access(&state, ctx.user_id, channel_id).await?;
     let (version, slots) = state.store.list_canvas_media_slots(channel_id).await?;
     Ok(Json(SlotsDto {
         slots: slots.into_iter().map(CanvasMediaSlotDto::from).collect(),
@@ -136,13 +130,7 @@ async fn upsert(
     let kind =
         MediaSlotKind::parse(&kind).ok_or(ApiError::BadRequest("unknown media slot kind"))?;
 
-    let permissions = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
-        return Err(ApiError::Forbidden);
-    }
+    canvas_access(&state, ctx.user_id, channel_id).await?;
     if state.store.timed_out_until(ctx.user_id).await?.is_some() {
         return Err(ApiError::Forbidden);
     }

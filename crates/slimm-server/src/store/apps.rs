@@ -65,7 +65,7 @@ impl From<anyhow::Error> for CreateAppSurfaceError {
 
 impl Store {
     /// Sends a message that launches `launch`. Idempotent by `id` within its
-    /// `(channel, author)` scope, exactly like [`super::messages::Store::send_message`].
+    /// `(channel, author)` scope, exactly like [`Store::send_message`].
     /// A fresh send inside `slow_mode_window_ms` of the author's last message here is
     /// refused under the write lock, as [`Store::send_message_with_slow_mode`] does.
     pub async fn send_app_message(

@@ -42,28 +42,6 @@ impl Store {
         Ok(())
     }
 
-    /// `user_id`'s choice for `channel_id`, off when there is none.
-    pub async fn voice_notify_choice(
-        &self,
-        user_id: UserId,
-        channel_id: ChannelId,
-    ) -> anyhow::Result<VoiceNotifyChoice> {
-        let row = sqlx::query!(
-            r#"SELECT joins AS "joins!", streams AS "streams!: bool"
-               FROM voice_notify_prefs WHERE user_id = ? AND channel_id = ?"#,
-            user_id,
-            channel_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(
-            row.map_or_else(VoiceNotifyChoice::default, |r| VoiceNotifyChoice {
-                joins: JoinMode::parse(&r.joins).unwrap_or_default(),
-                streams: r.streams,
-            }),
-        )
-    }
-
     /// Every channel `user_id` has switched something on for.
     pub async fn list_voice_notify_choices(
         &self,

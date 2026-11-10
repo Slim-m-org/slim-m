@@ -69,8 +69,7 @@ pub fn rfc5987_encode(value: &str) -> String {
     out
 }
 
-/// Lowercase hex, matching the idiom already used for the token and identity
-/// fingerprint hashes elsewhere in this crate.
+/// Lowercase hex: the one encoder for content hashes, token hashes and the identity fingerprint.
 pub fn to_hex(bytes: &[u8]) -> String {
     use std::fmt::Write;
     let mut out = String::with_capacity(bytes.len() * 2);

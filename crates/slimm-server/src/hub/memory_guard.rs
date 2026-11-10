@@ -10,10 +10,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// See "Choosing the reserve" above.
+/// Why this reserve: docs/internals.md, "Choosing the reserve".
 pub const RESERVE_BYTES: u64 = 64 * 1024 * 1024;
 
-/// See "Caching" above.
+/// Why this TTL: docs/internals.md, "Caching".
 const CACHE_TTL: Duration = Duration::from_millis(250);
 
 const CGROUP_V2_ROOT: &str = "/sys/fs/cgroup";
