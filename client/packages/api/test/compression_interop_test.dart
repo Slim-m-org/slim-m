@@ -7,7 +7,8 @@
 /// cheap compared to finding it in the field.
 ///
 /// Runs against a real server when SLIMM_TEST_SERVER is set, and is a no-op
-/// otherwise so CI stays hermetic.
+/// otherwise; the e2e harness sets SLIMM_TEST_SERVER_REQUIRED so a missing
+/// server fails there (`scripts/lib/e2e_client_contract.py`).
 @TestOn('vm')
 library;
 
@@ -17,10 +18,11 @@ import 'dart:io';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
 
+import 'support/live_server.dart';
+
 void main() {
-  final serverUrl = Platform.environment['SLIMM_TEST_SERVER'];
-  if (serverUrl == null || serverUrl.isEmpty) return;
-  final base = Uri.parse(serverUrl);
+  final base = liveServer();
+  if (base == null) return;
 
   test('the server negotiates or declines compression consistently', () async {
     final wsUrl = base.replace(
