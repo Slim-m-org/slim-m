@@ -37,6 +37,7 @@ Future<void> _pump(
   required double pane,
   Message? author,
   api.UserProfile? profile,
+  double textScale = 1,
 }) async {
   tester.view.physicalSize = const Size(1280, 800);
   tester.view.devicePixelRatio = 1;
@@ -44,30 +45,36 @@ Future<void> _pump(
   late BatchProfilesController profiles;
   await tester.pumpWidget(
     harness(
-      Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(
-          width: pane,
-          child: MessageRow(
-            message: author ?? message(content: 'the disk is nearly full'),
-            grouped: false,
-            showNewDivider: false,
-            knownUsernames: const {},
-            actions: noActions,
-            editing: false,
-            extras: MessageExtras(
-              webhookUsername: profile?.isWebhook == true
-                  ? 'Alerts Service'
-                  : null,
-            ),
-            callbacks: MessageRowCallbacks(
-              onRetry: noop,
-              onDiscard: noop,
-              onPickReaction: (_) {},
-              onReactionTap: (_) {},
-              onVote: (_) {},
-              onSubmitEdit: (_) {},
-              onCancelEdit: noop,
+      MediaQuery(
+        data: MediaQueryData(
+          size: tester.view.physicalSize,
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: pane,
+            child: MessageRow(
+              message: author ?? message(content: 'the disk is nearly full'),
+              grouped: false,
+              showNewDivider: false,
+              knownUsernames: const {},
+              actions: noActions,
+              editing: false,
+              extras: MessageExtras(
+                webhookUsername: profile?.isWebhook == true
+                    ? 'Alerts Service'
+                    : null,
+              ),
+              callbacks: MessageRowCallbacks(
+                onRetry: noop,
+                onDiscard: noop,
+                onPickReaction: (_) {},
+                onReactionTap: (_) {},
+                onVote: (_) {},
+                onSubmitEdit: (_) {},
+                onCancelEdit: noop,
+              ),
             ),
           ),
         ),
@@ -112,6 +119,22 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('a webhook author line fits a 520dp pane at 2x text', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      pane: 520,
+      textScale: 2,
+      profile: _webhook,
+      author: message(
+        authorId: 'webhook-1',
+        authorDisplayName: 'Alerts Service',
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('a long name keeps a readable line in a 360dp pane', (
     tester,
