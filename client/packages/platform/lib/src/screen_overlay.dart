@@ -72,7 +72,8 @@ class OverlaySupport {
 }
 
 /// A thing the overlay paints. Coordinates are 0 to 1 across the monitor;
-/// [alpha] is already faded by the caller.
+/// [alpha] is already faded by the caller. Value equality is what lets the
+/// caller skip a frame that says what the last one did.
 sealed class OverlayShape {
   const OverlayShape({required this.color, required this.alpha});
 
@@ -104,6 +105,17 @@ class OverlayStroke extends OverlayShape {
         'color': color.toARGB32(),
         'alpha': alpha,
       };
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayStroke &&
+      other.color == color &&
+      other.alpha == alpha &&
+      other.width == width &&
+      listEquals(other.points, points);
+
+  @override
+  int get hashCode => Object.hash(color, alpha, width, Object.hashAll(points));
 }
 
 class OverlayEllipse extends OverlayShape {
@@ -128,6 +140,20 @@ class OverlayEllipse extends OverlayShape {
         'color': color.toARGB32(),
         'alpha': alpha,
       };
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayEllipse &&
+      other.color == color &&
+      other.alpha == alpha &&
+      other.width == width &&
+      other.x0 == x0 &&
+      other.y0 == y0 &&
+      other.x1 == x1 &&
+      other.y1 == y1;
+
+  @override
+  int get hashCode => Object.hash(color, alpha, width, x0, y0, x1, y1);
 }
 
 class OverlayNote extends OverlayShape {
@@ -152,6 +178,18 @@ class OverlayNote extends OverlayShape {
         'color': color.toARGB32(),
         'alpha': alpha,
       };
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayNote &&
+      other.color == color &&
+      other.alpha == alpha &&
+      other.x == x &&
+      other.y == y &&
+      other.text == text;
+
+  @override
+  int get hashCode => Object.hash(color, alpha, x, y, text);
 }
 
 /// Which corner of the monitor the call panel sits in.

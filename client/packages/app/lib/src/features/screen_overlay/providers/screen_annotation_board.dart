@@ -131,9 +131,15 @@ class ScreenAnnotationBoard {
     }
   }
 
+  /// Drops the marks that have faded by [now]; true when none are left.
+  bool pruneAt(DateTime now) {
+    _byId.removeWhere((_, mark) => mark.expiredAt(now));
+    return _byId.isEmpty;
+  }
+
   /// The marks still visible at [now], oldest first; the faded are dropped.
   List<ScreenAnnotation> liveAt(DateTime now) {
-    _byId.removeWhere((_, mark) => mark.expiredAt(now));
+    pruneAt(now);
     return _byId.values.toList(growable: false);
   }
 

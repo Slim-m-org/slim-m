@@ -184,6 +184,33 @@ void main() {
     },
   );
 
+  test('a mark held at full strength is painted once, not every frame', () {
+    fakeAsync((async) {
+      final rig = OverlayRig();
+      async.flushMicrotasks();
+      rig.annotate();
+      async.elapse(overlayFrameInterval * 2);
+      expect(rig.overlay.draws, hasLength(1));
+
+      async.elapse(annotationHold - overlayFrameInterval * 4);
+      expect(rig.overlay.draws, hasLength(1));
+    });
+  });
+
+  test('a mark that grows is painted again with its new points', () {
+    fakeAsync((async) {
+      final rig = OverlayRig();
+      async.flushMicrotasks();
+      rig.annotate(ended: false);
+      async.elapse(overlayFrameInterval * 2);
+      rig.annotate(points: const [0.6, 0.6], ended: false);
+      async.elapse(overlayFrameInterval * 2);
+      expect(rig.overlay.draws, hasLength(2));
+      final stroke = rig.overlay.draws.last.single as OverlayStroke;
+      expect(stroke.points, [0.1, 0.1, 0.5, 0.5, 0.6, 0.6]);
+    });
+  });
+
   test('a mark over somebody else\'s screen paints nothing', () {
     fakeAsync((async) {
       final rig = OverlayRig();
