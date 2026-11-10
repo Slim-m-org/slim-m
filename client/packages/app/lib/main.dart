@@ -267,7 +267,7 @@ Future<void> _runBootstrapSequence(
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
   container.listen(appBadgeSyncProvider, (_, _) {});
-  container.read(deepLinkControllerProvider);
+  DeepLinkListener.start(container);
   ShareIntake.start(container);
   await shell.registerListenersAndTray(container);
 }

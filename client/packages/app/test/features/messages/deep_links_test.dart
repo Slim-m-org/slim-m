@@ -109,7 +109,7 @@ void main() {
     });
   });
 
-  group('deepLinkControllerProvider', () {
+  group('the link listener', () {
     ({
       ProviderContainer container,
       StreamController<Uri> uris,
@@ -154,7 +154,7 @@ void main() {
       );
       addTearDown(container.dispose);
       addTearDown(uris.close);
-      container.read(deepLinkControllerProvider);
+      addTearDown(DeepLinkListener.start(container).dispose);
       // Forces the override to build, so `jump` is assigned before any test reads it.
       container.read(messageJumpProvider);
       return (container: container, uris: uris, jump: jump);

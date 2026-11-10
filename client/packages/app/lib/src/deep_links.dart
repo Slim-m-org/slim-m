@@ -121,48 +121,79 @@ Future<void> _openInvite(
   container.read(routerProvider).go(Routes.onboarding);
 }
 
-/// Listens for the app's whole lifetime; read once from bootstrap, next to
-/// the sync and push controllers.
-final deepLinkControllerProvider = Provider<void>((ref) {
-  final guard = SpotifyRouteGuard();
-  WidgetsBinding.instance.addObserver(guard);
-  ref.onDispose(() => WidgetsBinding.instance.removeObserver(guard));
-  final sub = ref.read(deepLinkUrisProvider).listen(
-    (uri) {
-      if (isSpotifyCallback(uri)) {
-        unawaited(handleSpotifyCallback(ref, uri));
-        return;
-      }
-      final host = ref.read(accountHostProvider);
-      if (host != null && _routeAcrossAccounts(host, uri)) return;
-      final signedIn = ref.read(sessionProvider).isSignedIn;
-      final message = messageFromDeepLink(
-        uri,
-        signedInTo: signedIn ? ref.read(serverUrlProvider) : null,
-      );
-      if (message != null) {
-        // No currentChannelId to skip the route with: a link from outside the app cannot know what is open.
-        jumpToMessage(
-          ref.read(routerProvider),
-          ref.read,
-          currentChannelId: null,
-          channelId: message.channelId,
-          messageId: message.messageId,
+/// Listens for tapped links for the whole life of the app.
+///
+/// Not a provider: a provider dies with its container, and the container
+/// bootstrap starts it from is retired when the launch-time account is removed.
+class DeepLinkListener {
+  DeepLinkListener._(this._host, this._home);
+
+  /// Reads the link stream and host once from [container], then outlives it.
+  factory DeepLinkListener.start(ProviderContainer container) {
+    final listener = DeepLinkListener._(
+      container.read(accountHostProvider),
+      container,
+    );
+    WidgetsBinding.instance.addObserver(listener._guard);
+    listener._sub = container
+        .read(deepLinkUrisProvider)
+        .listen(
+          listener._deliver,
+          onError: (Object error, StackTrace stack) => AppLog.warning(
+            LogTag.platform,
+            'The invite link listener failed',
+            error: error,
+            stack: stack,
+          ),
         );
-        return;
-      }
-      final invite = inviteFromDeepLink(uri, signedIn: signedIn);
-      if (invite == null) return;
-      ref.read(tappedInviteProvider.notifier).state = invite;
-      // The redirect keeps a signed-out user inside the join flow, so this can only land somewhere the invite is usable.
-      ref.read(routerProvider).go(Routes.onboarding);
-    },
-    onError: (Object error, StackTrace stack) => AppLog.warning(
-      LogTag.platform,
-      'The invite link listener failed',
-      error: error,
-      stack: stack,
-    ),
+    return listener;
+  }
+
+  final AccountHost? _host;
+
+  /// The account on screen when there is no host to ask.
+  final ProviderContainer _home;
+  final _guard = SpotifyRouteGuard();
+  late final StreamSubscription<Uri> _sub;
+
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(_guard);
+    unawaited(_sub.cancel());
+  }
+
+  void _deliver(Uri uri) {
+    final onScreen = _host?.active?.container ?? _home;
+    if (isSpotifyCallback(uri)) {
+      unawaited(handleSpotifyCallback(onScreen, uri));
+      return;
+    }
+    final host = _host;
+    if (host != null && _routeAcrossAccounts(host, uri)) return;
+    _followInSession(onScreen, uri);
+  }
+}
+
+/// Follows a link in one account's own session, when it names that session.
+void _followInSession(ProviderContainer container, Uri uri) {
+  final signedIn = container.read(sessionProvider).isSignedIn;
+  final message = messageFromDeepLink(
+    uri,
+    signedInTo: signedIn ? container.read(serverUrlProvider) : null,
   );
-  ref.onDispose(sub.cancel);
-});
+  if (message != null) {
+    // No currentChannelId to skip the route with: a link from outside the app cannot know what is open.
+    jumpToMessage(
+      container.read(routerProvider),
+      container.read,
+      currentChannelId: null,
+      channelId: message.channelId,
+      messageId: message.messageId,
+    );
+    return;
+  }
+  final invite = inviteFromDeepLink(uri, signedIn: signedIn);
+  if (invite == null) return;
+  container.read(tappedInviteProvider.notifier).state = invite;
+  // The redirect keeps a signed-out user inside the join flow, so this can only land somewhere the invite is usable.
+  container.read(routerProvider).go(Routes.onboarding);
+}

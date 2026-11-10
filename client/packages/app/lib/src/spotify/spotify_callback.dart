@@ -32,10 +32,10 @@ class SpotifyRouteGuard with WidgetsBindingObserver {
 /// Finishes the link, then makes sure the result is on screen: a redirect
 /// that arrives with Settings closed (a cold start) opens the Profile pane,
 /// where the Spotify row says what happened.
-Future<void> handleSpotifyCallback(Ref ref, Uri uri) async {
-  await ref.read(spotifyLinkerProvider).handleCallback(uri);
-  if (!ref.read(sessionProvider).isSignedIn) return;
-  final router = ref.read(routerProvider);
+Future<void> handleSpotifyCallback(ProviderContainer container, Uri uri) async {
+  await container.read(spotifyLinkerProvider).handleCallback(uri);
+  if (!container.read(sessionProvider).isSignedIn) return;
+  final router = container.read(routerProvider);
   final open = router.state.uri.path;
   if (open == Routes.personalSettings) return;
   await router.push(Routes.personalSettingsPane('profile'));
