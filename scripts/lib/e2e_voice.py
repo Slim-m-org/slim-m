@@ -24,6 +24,11 @@ import e2e_labels as L
 # The window's top-left corner: hovering there opens nothing.
 TOOLTIP_FREE_POINT = (1, 1)
 TOOLTIP_GONE_SECONDS = 0.4
+AUDIO_ELEMENTS_JS = (
+    "JSON.stringify([...document.querySelectorAll('audio')].map(e => ({"
+    "paused: e.paused, muted: e.muted, volume: e.volume, tracks: e.srcObject ? "
+    "e.srcObject.getAudioTracks().map(t => ({state: t.readyState, enabled: t.enabled, muted: t.muted}))"
+    " : null})))")
 
 def sfu_participants(room):
     """Ask the SFU itself who is connected, rather than trusting either UI."""
@@ -167,15 +172,28 @@ def sfu_state(room_id):
 
 
 def media_state(client):
-    """What one page says about the audio it sends and receives, for a failure message."""
+    """What one page says about the audio it sends and receives, for a failure message.
+
+    Installing the probe reloads the page and ends the call being explained, so a page without it reports its audio elements instead.
+    """
     import e2e_audio
 
-    probe = e2e_audio.AudioProbe(client)
     try:
+        if not client.ev("typeof window.__e2eAudio === 'object'"):
+            return {"probe": "not installed", "audio_elements": json.loads(client.ev(AUDIO_ELEMENTS_JS) or "[]")}
+        probe = e2e_audio.AudioProbe(client)
         return {"listening": probe.listening(), "senders": probe.senders(),
                 "received_bytes_in_3s": probe.received_over(3)}
     except Exception as err:  # a dead page must not hide the failure being explained
         return {"unreadable": str(err)}
+
+
+def explain_silence(a, b, room_id):
+    """Prints what the SFU and each page held when a speaking check timed out."""
+    if room_id:
+        print(f"    SFU at the failure: {sfu_state(room_id)}")
+    for client in (a, b):
+        print(f"    {client.name} at the failure: {json.dumps(media_state(client))}")
 
 
 def audio_actually_arrives(a, b, room_id=None):
@@ -211,10 +229,7 @@ def audio_actually_arrives(a, b, room_id=None):
         a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
         b.wait_for(f"Alice{L.SPEAKING}", timeout=45)
     except AssertionError:
-        if room_id:
-            print(f"    SFU at the failure: {sfu_state(room_id)}")
-        for client in (a, b):
-            print(f"    {client.name} at the failure: {json.dumps(media_state(client))}")
+        explain_silence(a, b, room_id)
         raise
     a.shot("audio-arrives")
     print("  each client hears the other: the speaking ring lit on both")
@@ -302,7 +317,7 @@ def mute_propagates(a, b, room_id):
     print("  and unmuting clears it, so the next call this client joins starts unmuted")
 
 
-def mute_actually_silences(a, b):
+def mute_actually_silences(a, b, room_id=None):
     """Muting stops the sound, not just the flag.
 
     `mute_propagates` asserts the SFU's own muted bit flips, which is the
@@ -321,15 +336,20 @@ def mute_actually_silences(a, b):
     Leaves the client unmuted, as `mute_propagates` does and for the reason
     its own doc gives: a mute left standing carries into the next call.
     """
-    a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
+    try:
+        a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
 
-    b.click(L.MUTE)
-    _wait_until_gone(a, f"Bob{L.SPEAKING}", timeout=30)
-    a.shot("peer-muted-and-silent")
-    print("  muting stops the sound, not just the flag")
+        b.click(L.MUTE)
+        _wait_until_gone(a, f"Bob{L.SPEAKING}", timeout=30)
+        a.shot("peer-muted-and-silent")
+        print("  muting stops the sound, not just the flag")
 
-    b.click(L.UNMUTE)
-    a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
+        b.click(L.UNMUTE)
+        a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
+    except AssertionError:
+        b.shot("muting-failed")
+        explain_silence(a, b, room_id)
+        raise
     print("  and unmuting brings it back, so the mute released the microphone")
 
 
