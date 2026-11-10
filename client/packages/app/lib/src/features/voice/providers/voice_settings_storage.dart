@@ -59,7 +59,7 @@ Future<bool> loadCameraOnJoinPreference(Ref ref) async {
 }
 
 /// The persisted voice-activity sensitivity, [loadCameraOnJoinPreference]'s
-/// own shape and for the same reason: [VoiceController.restoreVoiceActivitySensitivity]
+/// own shape and for the same reason: `VoiceInputSettings.restoreVoiceActivitySensitivity`
 /// has to reach the rtc package's session before any call is joined, not
 /// only once Voice Settings has been opened this session.
 Future<double> loadVoiceActivitySensitivity(Ref ref) async {
@@ -68,7 +68,7 @@ Future<double> loadVoiceActivitySensitivity(Ref ref) async {
 }
 
 /// The persisted input gate threshold in dBFS, for
-/// `VoiceControllerInputMixin.restoreInputThreshold` to apply before a call.
+/// `VoiceInputSettings.restoreInputThreshold` to apply before a call.
 Future<double> loadInputThreshold(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return prefs.getDouble(VoiceSettingKeys.inputThreshold) ??
@@ -83,7 +83,7 @@ Future<bool> loadInputThresholdAuto(Ref ref) async {
 }
 
 /// Whether the microphone's compressor and limiter run, for
-/// `VoiceControllerInputMixin.restoreEvenOutLoudSounds`. On unless turned off:
+/// `VoiceInputSettings.restoreEvenOutLoudSounds`. On unless turned off:
 /// it costs a fraction of a percent of one core and leaves normal speech alone.
 Future<bool> loadEvenOutLoudSounds(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
@@ -91,7 +91,7 @@ Future<bool> loadEvenOutLoudSounds(Ref ref) async {
 }
 
 /// The persisted watching and camera video quality, for
-/// `VoiceControllerInputMixin.restoreVideoQuality` to apply before a call.
+/// `VoiceInputSettings.restoreVideoQuality` to apply before a call.
 Future<(ReceiveVideoQuality, CameraQuality)> loadVideoQualityPreferences(
   Ref ref,
 ) async {
@@ -126,7 +126,7 @@ T enumByName<T extends Enum>(List<T> values, String? name, T fallback) =>
     values.where((v) => v.name == name).firstOrNull ?? fallback;
 
 /// The persisted push-to-talk toggle, [loadCameraOnJoinPreference]'s own
-/// shape: [VoiceController.restorePushToTalkPreference] needs it before the
+/// shape: `VoiceInputSettings.restorePushToTalkPreference` needs it before the
 /// first call so a push-to-talk join starts with the mic closed, not only
 /// once Voice Settings has been opened this session.
 Future<bool> loadPushToTalkEnabled(Ref ref) async {
@@ -135,7 +135,7 @@ Future<bool> loadPushToTalkEnabled(Ref ref) async {
 }
 
 /// The persisted microphone/speaker choice, [loadCameraOnJoinPreference]'s
-/// own shape: `VoiceControllerAudioDevicesMixin.restoreAudioDevicePreferences`
+/// own shape: `VoiceAudioDevices.restoreAudioDevicePreferences`
 /// needs both before the first join. Null means the system default, exactly
 /// as [VoiceSettingsState.audioInputDeviceId] does.
 Future<(String?, String?)> loadAudioDevicePreferences(Ref ref) async {

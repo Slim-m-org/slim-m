@@ -73,7 +73,7 @@ final strongestSupportedProvider = Provider<bool>(
 
 const _choiceKey = 'slimm.voice.noise_suppression';
 
-/// The persisted choice, for `VoiceControllerInputMixin.restoreNoiseSuppression`.
+/// The persisted choice, for `VoiceInputSettings.restoreNoiseSuppression`.
 Future<NoiseSuppressionChoice> loadNoiseSuppressionChoice(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return NoiseSuppressionChoice.parse(prefs.getString(_choiceKey));

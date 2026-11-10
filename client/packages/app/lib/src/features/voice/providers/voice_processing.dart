@@ -13,7 +13,7 @@ const _echoKey = 'slimm.voice.echo_cancellation';
 const _gainKey = 'slimm.voice.auto_gain';
 const _suppressionKey = 'slimm.voice.webrtc_noise_suppression';
 
-/// The persisted filters, for `VoiceControllerInputMixin.restoreVoiceProcessing`.
+/// The persisted filters, for `VoiceInputSettings.restoreVoiceProcessing`.
 Future<VoiceProcessing> loadVoiceProcessing(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
   return VoiceProcessing(

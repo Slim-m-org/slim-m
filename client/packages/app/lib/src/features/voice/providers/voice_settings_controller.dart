@@ -267,7 +267,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   /// Persists the microphone choice and applies it live, [setCameraOnJoin]'s
   /// own reasoning: a call may already be open this session, and the
   /// persisted copy alone only reaches a *future* launch's
-  /// `VoiceControllerAudioDevicesMixin.restoreAudioDevicePreferences`. Null
+  /// `VoiceAudioDevices.restoreAudioDevicePreferences`. Null
   /// clears back to the system default.
   Future<void> setAudioInputDevice(AudioDevice? device) async {
     state = state.copyWith(
@@ -319,7 +319,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
 
   /// Persists the toggle and applies it live, [setCameraOnJoin]'s reasoning:
   /// a call may already be open, so enabling must close its mic now rather
-  /// than only affecting the next launch's [VoiceController.restorePushToTalkPreference].
+  /// than only affecting the next launch's `VoiceInputSettings.restorePushToTalkPreference`.
   Future<void> setPushToTalkEnabled(bool enabled) async {
     AppLog.info(
       LogTag.voice,
@@ -343,7 +343,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   /// Persists the sensitivity and applies it live, [setCameraOnJoin]'s own
   /// reasoning: a call may already be open this session, and the persisted
   /// copy alone only reaches a *future* launch's
-  /// [VoiceController.restoreVoiceActivitySensitivity].
+  /// `VoiceInputSettings.restoreVoiceActivitySensitivity`.
   Future<void> setVoiceActivitySensitivity(double value) async {
     final clamped = value.clamp(0.0, 100.0);
     state = state.copyWith(voiceActivitySensitivity: clamped);

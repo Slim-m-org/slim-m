@@ -241,6 +241,3 @@ class _ComposerFieldState extends State<ComposerField> {
     );
   }
 }
-
-/// An inline failure, in the composer's own vertical rhythm. Dismissible only
-/// when [onDismiss] is given; the over-limit band below has nothing to

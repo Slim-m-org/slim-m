@@ -98,7 +98,7 @@ class CallControls extends ConsumerStatefulWidget {
 class _CallControlsState extends ConsumerState<CallControls> {
   /// Guards a fast double-tap from opening two source-selection sheets: the
   /// enumeration and its own sheet run entirely inside [_share], before
-  /// [VoiceController.setScreenShare] is ever called, so nothing further down
+  /// `VoiceScreenShare.setScreenShare` is ever called, so nothing further down
   /// the stack can catch a re-entrant tap.
   bool _shareRequestInFlight = false;
 

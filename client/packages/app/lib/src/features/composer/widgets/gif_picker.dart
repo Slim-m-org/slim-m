@@ -274,12 +274,12 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         error,
         stack,
       );
-      // Every tile is stale, not just this one; reload rather than report. See gifGridCeiling's neighbours.
+      // Every tile is stale, not just this one; reload rather than report.
       if (!mounted) return;
       setState(() => _selectingId = null);
       await _reload();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'load trending GIFs', e, stack);
+      api.reportFailure(api.LogTag.media, 'select a GIF', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('attach that gif', e);

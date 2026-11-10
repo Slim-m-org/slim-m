@@ -92,13 +92,6 @@ class _MemberLocalAudioSectionState extends State<MemberLocalAudioSection> {
   }
 }
 
-/// The slider half alone, on one row: a label, the slider, the percentage and
-/// a reset-to-normal button once it has moved off [kDefaultParticipantVolume]. Reusable on its own - a quick-actions menu's own "Volume..." row
-/// opens a small popover holding just this, since a bare slider inside the
-/// menu itself would fight that menu's own outside-tap-to-dismiss model.
-///
-/// Caller's job to gate this on [VoiceController.supportsParticipantVolume]
-/// first, the same "absent, never disabled" split every caller makes.
 /// How close to normal, as a fraction of it, a drag snaps to normal.
 const double _snapToNormal = 0.04;
 
@@ -108,6 +101,14 @@ const int _keyStepPercent = 5;
 /// Wide enough for "200%" in the mono face, so the number never wraps or shifts the slider.
 const double _valueWidth = 40;
 
+/// The slider half alone, on one row: a label, the slider, the percentage and
+/// a reset-to-normal button once it has moved off [kDefaultParticipantVolume].
+/// Reusable on its own - a quick-actions menu's "Volume..." row opens a small
+/// popover holding just this, since a bare slider inside the menu itself would
+/// fight that menu's outside-tap-to-dismiss model.
+///
+/// Caller's job to gate this on `VoiceParticipantVolumes.supportsParticipantVolume`
+/// first, the same "absent, never disabled" split every caller makes.
 class ParticipantVolumeControl extends StatefulWidget {
   const ParticipantVolumeControl({
     super.key,
