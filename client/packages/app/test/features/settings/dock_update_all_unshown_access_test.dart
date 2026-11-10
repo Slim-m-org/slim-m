@@ -7,8 +7,11 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/dock_host_access_card.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/dock_install_consent.dart';
 
+import '../../dock_manifest_fixture.dart';
 import '../../support/dock_update_world.dart';
 
 const _approve = 'Approve and update';
@@ -17,7 +20,30 @@ void _revokeHostAccess(DockUpdateWorld world, String id) {
   world.installed[id]!['approved_host_capabilities'] = <String>[];
 }
 
+api.InstalledDockModule _installed(String version) => api.InstalledDockModule(
+  id: 'm',
+  name: 'm',
+  version: version,
+  artifactSha256: List.filled(64, 'a').join(),
+  approvedCapabilities: const [],
+  extensionPoints: const [],
+  enabled: true,
+  installedAt: 0,
+);
+
 void main() {
+  test('only a hook asks again on a new version of the same build', () {
+    final manifest = api.DockManifest.fromJson(dockManifestJson('m', '2.0.0'));
+    final older = _installed('1.0.0');
+
+    for (final hook in ['interceptors', 'permission.hook']) {
+      expect(dockNeedsReapproval(hook, manifest, older), isTrue, reason: hook);
+      expect(dockNeedsReapproval(hook, manifest, _installed('2.0.0')), isFalse);
+    }
+    expect(dockNeedsReapproval('message.post', manifest, older), isFalse);
+    expect(dockNeedsReapproval('log.read', manifest, older), isFalse);
+  });
+
   group('the record a step acts on', () {
     eachDockUpdateSize('is read when that step starts', (tester, size) async {
       final world = DockUpdateWorld([

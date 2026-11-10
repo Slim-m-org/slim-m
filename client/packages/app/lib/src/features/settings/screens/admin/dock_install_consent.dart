@@ -34,8 +34,8 @@ List<String> newConsentCapabilities(
 
 /// Whether an update takes back an approved power the admin has not seen:
 /// every host power after a new build, new hosts for `net.fetch`, a changed
-/// schedule, a subscription added to `events`, or a wider `data.store`.
-/// Mirrors the server's carry rules in `http/dock/capabilities.rs`.
+/// schedule, a new `events` subscription, a wider `data.store`, or a hook at
+/// any new version. Mirrors the server's rules in `http/dock/capabilities.rs`.
 bool dockNeedsReapproval(
   String capability,
   api.DockManifest manifest,
@@ -44,10 +44,10 @@ bool dockNeedsReapproval(
   if (installed == null) return false;
   final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
   return switch (capability) {
-    'message.post' ||
-    'log.read' ||
+    'message.post' || 'log.read' => newBuild,
+    // The installed record carries no hooks to compare, so a new version asks again.
     'interceptors' ||
-    'permission.hook' => newBuild,
+    'permission.hook' => newBuild || installed.version != manifest.version,
     api.kNetFetchCapability =>
       newBuild ||
           !dockSameHosts(
