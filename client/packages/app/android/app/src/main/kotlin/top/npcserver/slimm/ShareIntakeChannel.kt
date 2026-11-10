@@ -35,6 +35,7 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
 
   fun attach(messenger: BinaryMessenger) {
     channel = MethodChannel(messenger, NAME).also { it.setMethodCallHandler(this) }
+    copier.execute { purgeOldBatches(null) }
   }
 
   /** Reads [intent] if it is a share and starts copying; [warm] tells Dart one arrived. */
@@ -104,7 +105,7 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
    * point at this app's private data.
    */
   private fun isUnsafeSource(uri: Uri): Boolean =
-    uri.scheme != "content" || uri.authority?.startsWith(context.packageName) == true
+    uri.scheme != "content" || ShareIntakeRules.namesOwnProvider(uri.authority, context.packageName)
 
   private fun copyOne(uri: Uri, dir: File): Map<String, Any?>? {
     return try {
@@ -131,22 +132,18 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
     context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
       if (it.moveToFirst()) name = it.getString(0)
     }
-    val base = sanitize(name ?: uri.lastPathSegment ?: "shared")
-    if (base.contains('.')) return base
+    val base = ShareIntakeRules.safeFileName(name ?: uri.lastPathSegment ?: "shared")
     val extension = mimeType?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
-    return if (extension == null) base else "$base.$extension"
+    val named = if (base.contains('.') || extension == null) base else "$base.$extension"
+    return ShareIntakeRules.capNameBytes(named)
   }
 
-  /** Keeps a sender-chosen name from escaping its folder or overrunning the file system's limit. */
-  private fun sanitize(raw: String): String {
-    val cleaned = raw.substringAfterLast('/').replace(Regex("[\\u0000-\\u001f\\\\]"), "_").trim()
-    val safe = if (cleaned.isEmpty() || cleaned == "." || cleaned == "..") "shared" else cleaned
-    return if (safe.length <= MAX_NAME) safe else safe.takeLast(MAX_NAME)
-  }
-
-  /** Earlier batches are only kept for staged files still waiting to send. */
-  private fun purgeOldBatches(current: File) {
-    val root = current.parentFile ?: return
+  /**
+   * Earlier batches are only kept for staged files still waiting to send.
+   * A launch clears them too, so they do not wait for another share.
+   */
+  private fun purgeOldBatches(current: File?) {
+    val root = File(context.cacheDir, INTAKE_DIR)
     val cutoff = System.currentTimeMillis() - KEEP_MILLIS
     root.listFiles()?.filter { it != current && it.lastModified() < cutoff }
       ?.forEach { it.deleteRecursively() }
@@ -155,7 +152,6 @@ class ShareIntakeChannel(private val context: Context) : MethodChannel.MethodCal
   companion object {
     const val NAME = "top.npcserver.slimm/share_intake"
     private const val INTAKE_DIR = "shared_intake"
-    private const val MAX_NAME = 120
     private const val KEEP_MILLIS = 24L * 60 * 60 * 1000
   }
 }
