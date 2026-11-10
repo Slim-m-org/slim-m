@@ -252,6 +252,192 @@ void main() {
     });
   });
 
+  group('pictures', () {
+    /// Every time a row carried picture bytes over the channel, by user id.
+    Map<String, List<List<int>>> carried(OverlayRig rig) {
+      final out = <String, List<List<int>>>{};
+      for (final panel in rig.overlay.panels) {
+        for (final row in panel!.rows) {
+          final bytes = row.avatar;
+          if (bytes != null) (out[row.id] ??= []).add(bytes.toList());
+        }
+      }
+      return out;
+    }
+
+    test('a picture is baked for each row and goes out with the panel', () {
+      fakeAsync((async) {
+        final rig = _rig();
+        async.flushMicrotasks();
+        expect(carried(rig), isEmpty);
+        rig.setAvatar('me', 1);
+        rig.setAvatar('web', 2);
+        _settle(async);
+        expect(carried(rig), {
+          'me': [
+            [1],
+          ],
+          'web': [
+            [2],
+          ],
+        });
+        expect(_lastPanel(rig).rows.map((r) => r.avatarKey), ['v1', 'v2']);
+      });
+    });
+
+    test('a picture crosses the channel once, not with every repaint', () {
+      fakeAsync((async) {
+        final rig = _rig();
+        async.flushMicrotasks();
+        rig.setAvatar('me', 1);
+        rig.setAvatar('web', 2);
+        _settle(async);
+        rig.voice.set(
+          _call([_person('me', local: true), _person('web', speaking: true)]),
+        );
+        _settle(async);
+        final panel = _lastPanel(rig);
+        expect(panel.rows[1].speaking, isTrue);
+        expect(panel.rows.map((r) => r.avatar), [null, null]);
+        expect(panel.rows.map((r) => r.avatarKey), ['v1', 'v2']);
+        expect(carried(rig).values.expand((sends) => sends), hasLength(2));
+      });
+    });
+
+    test('a changed picture is sent again, for that row only', () {
+      fakeAsync((async) {
+        final rig = _rig();
+        async.flushMicrotasks();
+        rig.setAvatar('me', 1);
+        rig.setAvatar('web', 2);
+        _settle(async);
+        rig.setAvatar('web', 3);
+        _settle(async);
+        expect(carried(rig), {
+          'me': [
+            [1],
+          ],
+          'web': [
+            [2],
+            [3],
+          ],
+        });
+      });
+    });
+
+    test(
+      'a person who joins late brings their picture, the others keep theirs',
+      () {
+        fakeAsync((async) {
+          final rig = _rig();
+          async.flushMicrotasks();
+          rig.setAvatar('me', 1);
+          rig.setAvatar('web', 2);
+          rig.setAvatar('late', 4);
+          _settle(async);
+          rig.voice.set(
+            _call([
+              _person('me', local: true),
+              _person('web'),
+              _person('late'),
+            ]),
+          );
+          _settle(async);
+          expect(carried(rig)['late'], [
+            [4],
+          ]);
+          expect(carried(rig)['me'], [
+            [1],
+          ]);
+          expect(_lastPanel(rig).rows.map((r) => r.avatarKey), [
+            'v1',
+            'v2',
+            'v4',
+          ]);
+        });
+      },
+    );
+
+    test(
+      'a new window holds none of them, so every picture goes out again',
+      () {
+        fakeAsync((async) {
+          final rig = _rig();
+          async.flushMicrotasks();
+          rig.setAvatar('me', 1);
+          rig.setAvatar('web', 2);
+          _settle(async);
+          rig.voice.set(const VoiceState());
+          _settle(async);
+          rig.voice.set(_call(_pair));
+          _settle(async);
+          expect(rig.overlay.shown.length, 2);
+          expect(carried(rig), {
+            'me': [
+              [1],
+              [1],
+            ],
+            'web': [
+              [2],
+              [2],
+            ],
+          });
+        });
+      },
+    );
+
+    test(
+      'the drawing overlay taking the window and handing it back resends them',
+      () {
+        fakeAsync((async) {
+          final rig = _rig(allow: true);
+          async.flushMicrotasks();
+          rig.setAvatar('me', 1);
+          _settle(async);
+          rig.voice.set(_call(_pair, sharing: true));
+          _settle(async);
+          rig.voice.set(_call(_pair));
+          _settle(async);
+          expect(carried(rig)['me'], [
+            [1],
+            [1],
+          ]);
+        });
+      },
+    );
+
+    test(
+      'closing the app with the panel up hides the window and drops the watches',
+      () {
+        fakeAsync((async) {
+          final rig = _rig();
+          async.flushMicrotasks();
+          rig.setAvatar('me', 1);
+          _settle(async);
+          rig.container.dispose();
+          async.flushMicrotasks();
+          expect(rig.overlay.hides, 1);
+        });
+      },
+    );
+
+    test('only the rows that are shown are followed', () {
+      fakeAsync((async) {
+        final rig = _rig(
+          people: [
+            _person('me', local: true),
+            for (var i = 0; i < 11; i++) _person('p$i'),
+          ],
+        );
+        async.flushMicrotasks();
+        rig.setAvatar('p9', 9);
+        _settle(async);
+        expect(_lastPanel(rig).rows.length, 8);
+        expect(carried(rig), isEmpty);
+      });
+    });
+  });
+
   test('a desktop that cannot host the overlay never opens it', () {
     fakeAsync((async) {
       final rig = _rig(supported: false);

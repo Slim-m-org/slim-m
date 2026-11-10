@@ -8,6 +8,12 @@
 
 namespace slimm_overlay {
 
+// Decodes the pictures a panel carries into the cache, keyed by user id, and drops the bytes.
+void CacheAvatars(Panel* panel);
+
+// Empties the picture cache, once the window it served is gone.
+void ForgetAvatars();
+
 // Paints the call panel into its corner of a w by h surface.
 void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h);
 

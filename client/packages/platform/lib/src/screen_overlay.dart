@@ -7,6 +7,7 @@
 /// what a frame contains (fade, gating, mapping) stays in Dart.
 library;
 
+import 'dart:typed_data' show Uint8List;
 import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart' show listEquals;
@@ -167,36 +168,61 @@ enum OverlayCorner {
 }
 
 /// One person in the call panel.
+///
+/// [avatar] is a round PNG the runner caches under [id]; the caller sends it
+/// once per picture and leaves it null afterwards. [avatarKey] names which
+/// picture that is, and is what equality compares instead of the bytes.
 class OverlayPanelRow {
   const OverlayPanelRow({
+    required this.id,
     required this.name,
     this.speaking = false,
     this.muted = false,
     this.deafened = false,
+    this.avatarKey,
+    this.avatar,
   });
 
+  final String id;
   final String name;
   final bool speaking;
   final bool muted;
   final bool deafened;
+  final String? avatarKey;
+  final Uint8List? avatar;
+
+  /// The same row without picture bytes, once the runner holds them.
+  OverlayPanelRow withoutAvatarBytes() => OverlayPanelRow(
+        id: id,
+        name: name,
+        speaking: speaking,
+        muted: muted,
+        deafened: deafened,
+        avatarKey: avatarKey,
+      );
 
   Map<String, Object?> toJson() => {
+        'id': id,
         'name': name,
         'speaking': speaking,
         'muted': muted,
         'deafened': deafened,
+        if (avatar != null) 'avatar': avatar,
       };
 
   @override
   bool operator ==(Object other) =>
       other is OverlayPanelRow &&
+      other.id == id &&
       other.name == name &&
       other.speaking == speaking &&
       other.muted == muted &&
-      other.deafened == deafened;
+      other.deafened == deafened &&
+      other.avatarKey == avatarKey;
 
   @override
-  int get hashCode => Object.hash(name, speaking, muted, deafened);
+  int get hashCode =>
+      Object.hash(id, name, speaking, muted, deafened, avatarKey);
 }
 
 /// The call panel the runner paints in one corner of one monitor. Value
@@ -223,6 +249,19 @@ class OverlayPanel {
   /// People past the rows shown.
   final int more;
   final Color surface, border, text, textMuted, accent, danger;
+
+  OverlayPanel withRows(List<OverlayPanelRow> rows) => OverlayPanel(
+        monitor: monitor,
+        corner: corner,
+        rows: rows,
+        more: more,
+        surface: surface,
+        border: border,
+        text: text,
+        textMuted: textMuted,
+        accent: accent,
+        danger: danger,
+      );
 
   Map<String, Object?> toJson() => {
         'monitor': monitor,
