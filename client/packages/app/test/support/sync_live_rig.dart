@@ -4,6 +4,8 @@
 /// interleave.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +14,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 import 'sync_harness.dart';
 
@@ -123,12 +126,17 @@ class SyncLiveRig {
     container.read(sessionProvider).set(syncRigTokens);
   }
 
-  Future<void> waitFor(bool Function() done, {int ms = 5000}) async {
-    for (var i = 0; i < ms ~/ 25; i++) {
-      if (done()) return;
-      await Future<void>.delayed(const Duration(milliseconds: 25));
-    }
-  }
+  /// Waits for [done], failing after [ms] so a hang is not mistaken for a later wrong value.
+  Future<void> waitFor(
+    FutureOr<bool> Function() done, {
+    int ms = 5000,
+    String reason = 'the awaited sync state never held',
+  }) => pollUntil(
+    done,
+    timeout: Duration(milliseconds: ms),
+    interval: const Duration(milliseconds: 25),
+    reason: reason,
+  );
 
   Future<Map<String, String>> contents() async => {
     for (final r in await db.select(db.messages).get()) r.id: r.content,

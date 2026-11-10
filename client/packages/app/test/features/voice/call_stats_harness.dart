@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Call stats screen over a controller driven by a [FakeSession].
+/// The Call stats screen over a controller driven by a [FakeSettingsSession].
 library;
 
 import 'package:flutter/material.dart';
@@ -13,7 +13,7 @@ import 'package:slimm_platform/testing.dart';
 
 import 'voice_settings_screen_harness.dart';
 
-List<Override> _overrides(FakeSession session) => [
+List<Override> _overrides(FakeSettingsSession session) => [
   sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
   apiProvider.overrideWith((ref) {
     final api = SlimmApi(
@@ -29,15 +29,16 @@ List<Override> _overrides(FakeSession session) => [
   ),
 ];
 
-Widget callStatsScreenFor(FakeSession session) => UncontrolledProviderScope(
-  container: ProviderContainer(
-    overrides: [
-      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ..._overrides(session),
-    ],
-  )..read(preferencesProvider),
-  child: MaterialApp(
-    theme: buildTheme(Brightness.light, AppTokens.light),
-    home: const CallStatsScreen(),
-  ),
-);
+Widget callStatsScreenFor(FakeSettingsSession session) =>
+    UncontrolledProviderScope(
+      container: ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          ..._overrides(session),
+        ],
+      )..read(preferencesProvider),
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: const CallStatsScreen(),
+      ),
+    );

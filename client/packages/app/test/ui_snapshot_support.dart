@@ -142,6 +142,20 @@ Future<void> teardownFixture(
   await db.close();
 }
 
+/// Runs [body], then [teardownFixture] even when [body] throws, so a failing
+/// assertion is not buried under the pending timers the skipped teardown leaves.
+Future<void> withFixtureTeardown(
+  WidgetTester tester,
+  ({ProviderContainer container, SlimmDatabase db}) fixture,
+  Future<void> Function() body,
+) async {
+  try {
+    await body();
+  } finally {
+    await teardownFixture(tester, fixture.container, fixture.db);
+  }
+}
+
 /// Builds the router at [route], pumps two frames to settle on-mount
 /// animations, writes the snapshot and asserts no overflow. Shared by every
 /// surface table across every `ui_snapshot_*_test.dart` file, so a surface
@@ -249,82 +263,84 @@ Future<void> renderSurfaceThemes(
   addTearDown(tester.view.reset);
 
   final fixture = await fixtureContainer(extraOverrides: overrides);
-  final router = fixtureRouter(route);
-  Widget build(String theme) {
-    final app = MaterialApp.router(
-      debugShowCheckedModeBanner: false,
-      theme: buildTheme(
-        snapshotThemes[theme]!.brightness,
-        snapshotThemes[theme]!.tokens,
-      ),
-      routerConfig: router,
-      // The same wrapper main.dart ships, so density matches the app.
-      builder: overlays.isEmpty
-          ? appChromeBuilder
-          : (context, child) => Stack(
-              children: [appChromeBuilder(context, child), ...overlays],
-            ),
-    );
-    return UncontrolledProviderScope(
-      container: fixture.container,
-      child: RepaintBoundary(
-        key: snapshotBoundary,
-        child: textScaler == null
-            ? app
-            : Builder(
-                builder: (context) => MediaQuery(
-                  data: MediaQuery.of(context).copyWith(textScaler: textScaler),
-                  child: app,
-                ),
+  await withFixtureTeardown(tester, fixture, () async {
+    final router = fixtureRouter(route);
+    Widget build(String theme) {
+      final app = MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(
+          snapshotThemes[theme]!.brightness,
+          snapshotThemes[theme]!.tokens,
+        ),
+        routerConfig: router,
+        // The same wrapper main.dart ships, so density matches the app.
+        builder: overlays.isEmpty
+            ? appChromeBuilder
+            : (context, child) => Stack(
+                children: [appChromeBuilder(context, child), ...overlays],
               ),
-      ),
-    );
-  }
+      );
+      return UncontrolledProviderScope(
+        container: fixture.container,
+        child: RepaintBoundary(
+          key: snapshotBoundary,
+          child: textScaler == null
+              ? app
+              : Builder(
+                  builder: (context) => MediaQuery(
+                    data: MediaQuery.of(
+                      context,
+                    ).copyWith(textScaler: textScaler),
+                    child: app,
+                  ),
+                ),
+        ),
+      );
+    }
 
-  await tester.pumpWidget(build(themes.first));
-  if (isModalFixtureRoute(route)) {
-    // Settle at the base first, then push: see isModalFixtureRoute's doc.
-    await tester.pump();
-    unawaited(router.push(route));
-  }
-  // Two pumps settle on-mount entrance animations (a ticker's first frame is its own t=0) without pumpAndSettle, which would hang on the states that show a perpetual spinner.
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 350));
-  if (settleJoinTransition) {
-    await tester.pump(const Duration(milliseconds: 350));
-  }
-  if (settleNestedResolve) {
-    await tester.pump();
-  }
-  // A fetch landing on the final frame above mounts its fade at t=0; one more timed frame lets it land - see this function's own doc.
-  await tester.pump(const Duration(milliseconds: 350));
-  if (afterSettle != null) {
-    await afterSettle(tester);
-    await tester.pump(const Duration(milliseconds: 350));
-  }
-  Object? firstException;
-  for (final theme in themes) {
-    if (theme != themes.first) {
-      await tester.pumpWidget(build(theme));
+    await tester.pumpWidget(build(themes.first));
+    if (isModalFixtureRoute(route)) {
+      // Settle at the base first, then push: see isModalFixtureRoute's doc.
       await tester.pump();
+      unawaited(router.push(route));
+    }
+    // Two pumps settle on-mount entrance animations (a ticker's first frame is its own t=0) without pumpAndSettle, which would hang on the states that show a perpetual spinner.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    if (settleJoinTransition) {
       await tester.pump(const Duration(milliseconds: 350));
     }
-    final snapshotName = snapshotNameFor(theme);
-    // Before writeSnapshot: its own extra pumps could mask what this looks for.
-    await expectSettled(
-      tester,
-      snapshotName,
-      knownTransient: knownTransient,
-      allowNoText: allowNoText,
-    );
+    if (settleNestedResolve) {
+      await tester.pump();
+    }
+    // A fetch landing on the final frame above mounts its fade at t=0; one more timed frame lets it land - see this function's own doc.
+    await tester.pump(const Duration(milliseconds: 350));
+    if (afterSettle != null) {
+      await afterSettle(tester);
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+    Object? firstException;
+    for (final theme in themes) {
+      if (theme != themes.first) {
+        await tester.pumpWidget(build(theme));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+      }
+      final snapshotName = snapshotNameFor(theme);
+      // Before writeSnapshot: its own extra pumps could mask what this looks for.
+      await expectSettled(
+        tester,
+        snapshotName,
+        knownTransient: knownTransient,
+        allowNoText: allowNoText,
+      );
 
-    await writeSnapshot(tester, snapshotName);
+      await writeSnapshot(tester, snapshotName);
 
-    // pumpWidget already rethrows an overflow, so reaching here is the assertion.
-    firstException ??= tester.takeException();
-  }
-  // Raised after every theme is captured, so one failing theme still writes the files its own test would.
-  expect(firstException, isNull);
-
-  await teardownFixture(tester, fixture.container, fixture.db);
+      // pumpWidget already rethrows an overflow, so reaching here is the assertion.
+      firstException ??= tester.takeException();
+    }
+    // Raised after every theme is captured, so one failing theme still writes the files its own test would.
+    expect(firstException, isNull);
+  });
 }

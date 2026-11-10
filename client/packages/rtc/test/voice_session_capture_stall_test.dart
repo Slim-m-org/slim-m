@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 import 'support/session_fakes.dart';
 
@@ -129,14 +130,6 @@ class _Rig {
       );
 }
 
-Future<void> _until(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting');
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 Future<void> _wait(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
 
 void main() {
@@ -147,7 +140,7 @@ void main() {
     await rig.join();
     rig.mic.ticking = false;
 
-    await _until(() => rig.mic.restarts == 1);
+    await pollUntil(() => rig.mic.restarts == 1);
     await _wait(200);
 
     expect(rig.mic.restarts, 1);
@@ -161,8 +154,8 @@ void main() {
     rig.mic.ticking = false;
     rig.mic.healsOnRestart = false;
 
-    await _until(() => rig.mic.restarts == 2);
-    await _until(() => rig.session.micStatus == MicStatus.unavailable);
+    await pollUntil(() => rig.mic.restarts == 2);
+    await pollUntil(() => rig.session.micStatus == MicStatus.unavailable);
 
     expect(rig.session.micFailure, MicFailureReason.stalled);
     expect(rig.mic.restarts, 2);

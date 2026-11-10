@@ -27,37 +27,39 @@ void main() {
           final handle = tester.ensureSemantics();
 
           final fixture = await fixtureContainer();
-          await tester.pumpWidget(
-            UncontrolledProviderScope(
-              container: fixture.container,
-              child: MaterialApp.router(
-                debugShowCheckedModeBanner: false,
-                theme: buildTheme(Brightness.dark, AppTokens.dark),
-                routerConfig: overlayRouter(overlay.value),
+          try {
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: fixture.container,
+                child: MaterialApp.router(
+                  debugShowCheckedModeBanner: false,
+                  theme: buildTheme(Brightness.dark, AppTokens.dark),
+                  routerConfig: overlayRouter(overlay.value),
+                ),
               ),
-            ),
-          );
-          await tester.pump();
-          await tester.tap(find.text(overlayOpenerLabel));
-          await tester.pump();
-          await tester.pump(const Duration(milliseconds: 350));
-          await tester.pump(const Duration(milliseconds: 350));
+            );
+            await tester.pump();
+            await tester.tap(find.text(overlayOpenerLabel));
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 350));
+            await tester.pump(const Duration(milliseconds: 350));
 
-          final problems = semanticsProblems(
-            tester,
-            ignoreTexts: const {overlayOpenerLabel},
-          );
-          expect(
-            problems,
-            isEmpty,
-            reason:
-                '${overlay.key} at ${viewport.key} paints widgets a screen '
-                'reader cannot reach:\n  ${problems.join('\n  ')}',
-          );
-          expect(tester.takeException(), isNull);
-
-          handle.dispose();
-          await teardownFixture(tester, fixture.container, fixture.db);
+            final problems = semanticsProblems(
+              tester,
+              ignoreTexts: const {overlayOpenerLabel},
+            );
+            expect(
+              problems,
+              isEmpty,
+              reason:
+                  '${overlay.key} at ${viewport.key} paints widgets a screen '
+                  'reader cannot reach:\n  ${problems.join('\n  ')}',
+            );
+            expect(tester.takeException(), isNull);
+          } finally {
+            handle.dispose();
+            await teardownFixture(tester, fixture.container, fixture.db);
+          }
         },
       );
     }

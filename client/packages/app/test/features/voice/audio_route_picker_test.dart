@@ -21,7 +21,7 @@ List<Override> _overrides() => [
   voiceControllerProvider.overrideWith(
     (ref) => VoiceController(
       ref,
-      session: FakeSession(
+      session: FakeSettingsSession(
         supportsAudioInputSelection: false,
         supportsAudioOutputSelection: false,
       ),

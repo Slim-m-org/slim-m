@@ -73,13 +73,14 @@ void main() {
         createdAt: 0,
       ),
     );
-    final deadline = DateTime.now().add(const Duration(seconds: 20));
-    while (DateTime.now().isBefore(deadline)) {
-      await pumpEventQueue();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      final slot = document.strokeIfAlive(document.paintOrder.single)!;
-      if (slot.image != null || slot.imageLoadFailed) break;
-    }
+    await pollUntil(
+      () {
+        final slot = document.strokeIfAlive(document.paintOrder.single)!;
+        return slot.image != null || slot.imageLoadFailed;
+      },
+      timeout: const Duration(seconds: 20),
+      reason: '${_side}x$_side never resolved',
+    );
     final slot = document.strokeIfAlive(document.paintOrder.single)!;
     expect(slot.image, isNull, reason: '${_side}x$_side was fully decoded');
     expect(slot.imageLoadFailed, isTrue);

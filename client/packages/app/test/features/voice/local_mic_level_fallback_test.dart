@@ -12,13 +12,13 @@ import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'voice_settings_screen_harness.dart';
 
 void main() {
-  late FakeSession session;
+  late FakeSettingsSession session;
   late ProviderContainer container;
   final levels = <double>[];
 
   setUp(() {
     levels.clear();
-    session = FakeSession();
+    session = FakeSettingsSession();
     container = ProviderContainer(
       overrides: [
         voiceControllerProvider.overrideWith(

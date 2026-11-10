@@ -277,6 +277,7 @@ Splitting them is real work with real regression risk and does not belong in the
 `scripts/check-test-patterns.py` stops the app tests gaining `find.byType` or `pumpAndSettle`.
 A type finder pins a widget's name and `pumpAndSettle` waits out an animation that never settles instead of failing on it, so neither is banned, but no file may hold more than the count listed for it in `scripts/test-pattern-allow.txt` (zero when unlisted).
 Prefer `expectSettled`, `waitUntil` (`test/support/async_wait.dart`) and the geometry helpers (`test/support/geometry.dart`).
+For model state outside a widget test, `pollUntil` (`slimm_test_support`) waits in real time and fails with a reason, instead of a guessed `Future.delayed` or a deadline loop that gives up silently.
 `python3 scripts/check-test-patterns.py --update` lowers the ceilings after a cleanup and never raises one.
 
 ### The comment cap

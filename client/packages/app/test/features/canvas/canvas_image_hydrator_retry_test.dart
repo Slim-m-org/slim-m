@@ -24,20 +24,6 @@ final _png = Uint8List.fromList(
   ),
 );
 
-/// Waits for [ready] rather than for a fixed number of event-loop turns.
-///
-/// `pumpEventQueue` drains microtasks; decoding a PNG is engine work that is
-/// not one, so a fixed drain finishes it on an idle machine and does not on a
-/// loaded CI runner. This is the same shape CLAUDE.md already records for
-/// `toImage`, and it is what made this file flake once rather than fail.
-Future<void> _settleUntil(bool Function() ready) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 10));
-  while (!ready() && DateTime.now().isBefore(deadline)) {
-    await pumpEventQueue();
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 const _tokens = api.TokenPair(
   userId: 'me',
   accessToken: 'access',
@@ -125,7 +111,7 @@ void main() {
           : _pngResponse(),
     );
     final slot = r.strokeIfAlive(r.paintOrder.single)!;
-    await _settleUntil(() => slot.image != null || slot.imageLoadFailed);
+    await pollUntil(() => slot.image != null || slot.imageLoadFailed);
 
     expect(slot.imageLoadFailed, isFalse, reason: 'a 429 is transient');
     expect(slot.image, isNotNull);
@@ -137,7 +123,7 @@ void main() {
       return _pngResponse();
     });
     final slot = r.strokeIfAlive(r.paintOrder.single)!;
-    await _settleUntil(() => slot.image != null || slot.imageLoadFailed);
+    await pollUntil(() => slot.image != null || slot.imageLoadFailed);
 
     expect(slot.imageLoadFailed, isFalse);
     expect(slot.image, isNotNull);
@@ -150,7 +136,7 @@ void main() {
       return http.Response(jsonEncode({'error': 'gone'}), 404);
     });
     final slot = r.strokeIfAlive(r.paintOrder.single)!;
-    await _settleUntil(() => slot.imageLoadFailed);
+    await pollUntil(() => slot.imageLoadFailed);
 
     expect(slot.imageLoadFailed, isTrue);
     expect(attempts, 1);
@@ -164,7 +150,7 @@ void main() {
         attempts = n;
         return http.Response('', 503);
       });
-      await _settleUntil(() => attempts >= imageFetchAttempts);
+      await pollUntil(() => attempts >= imageFetchAttempts);
       await pumpEventQueue();
       final slot = r.strokeIfAlive(r.paintOrder.single)!;
 
@@ -199,13 +185,13 @@ void main() {
     for (final (i, id) in ids.indexed) {
       hydrator.hydrate(_imageObject(id, attachment: 'sha-$i'));
     }
-    await _settleUntil(() => started >= maxConcurrentImageFetches);
+    await pollUntil(() => started >= maxConcurrentImageFetches);
     await pumpEventQueue();
 
     expect(started, maxConcurrentImageFetches);
     expect(maxInFlight, maxConcurrentImageFetches);
     gate.complete();
-    await _settleUntil(() => started >= 200 && inFlight == 0);
+    await pollUntil(() => started >= 200 && inFlight == 0);
     expect(started, 200);
     expect(maxInFlight, maxConcurrentImageFetches);
   });

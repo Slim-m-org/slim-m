@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_editing.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_edit_field.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../../channel_history_harness.dart';
 
@@ -77,13 +78,7 @@ Future<HistoryHarness> _pump(WidgetTester tester, _Edits edits) async {
 
 /// Polls real time for [condition]; a busy button never settles, so nothing here waits on settling.
 Future<void> _until(WidgetTester tester, bool Function() condition) async {
-  await tester.runAsync(() async {
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    while (!condition() && DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-    }
-  });
-  expect(condition(), isTrue);
+  await tester.runAsync(() => pollUntil(condition));
   await flush(tester);
 }
 

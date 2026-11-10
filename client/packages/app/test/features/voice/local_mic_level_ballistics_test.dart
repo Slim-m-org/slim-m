@@ -13,7 +13,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'voice_settings_screen_harness.dart';
 
 void main() {
-  late FakeSession session;
+  late FakeSettingsSession session;
   late ProviderContainer container;
   late DateTime now;
   final levels = <double>[];
@@ -21,7 +21,7 @@ void main() {
   setUp(() {
     now = DateTime(2026);
     levels.clear();
-    session = FakeSession(supportsInputGate: true);
+    session = FakeSettingsSession(supportsInputGate: true);
     container = ProviderContainer(
       overrides: [
         voiceControllerProvider.overrideWith(

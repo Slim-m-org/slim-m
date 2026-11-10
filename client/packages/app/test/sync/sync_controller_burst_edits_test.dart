@@ -43,6 +43,14 @@ Map<String, dynamic> _edit(int opSeq) => {
   'message': rigMessage('m${opSeq - 5}', opSeq - 5, 'm${opSeq - 5} edited'),
 };
 
+/// A spurious /sync would show up inside this window; waiting out the whole of it only ever hides one, never fails a test.
+const _noSyncSettle = Duration(milliseconds: 800);
+
+Future<void> _untilOpCursor(SyncLiveRig rig, int opSeq) => rig.waitFor(
+  () async => await rig.store.opCursorFor('c1') == opSeq,
+  reason: 'the op cursor never reached $opSeq',
+);
+
 class _FailingStore extends MessageStore {
   _FailingStore(super.db);
 
@@ -76,7 +84,8 @@ void main() {
 
       rig.server.pushEvent(_edit(6));
       rig.server.pushEvent(_edit(7));
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+      await _untilOpCursor(rig, 7);
+      await Future<void>.delayed(_noSyncSettle);
 
       expect(
         syncCalls() - before,
@@ -97,7 +106,8 @@ void main() {
     for (var op = 6; op <= 10; op++) {
       rig.server.pushEvent(_edit(op));
     }
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    await _untilOpCursor(rig, 10);
+    await Future<void>.delayed(_noSyncSettle);
 
     expect(syncCalls() - before, 0, reason: 'ops 6..10 are consecutive');
     expect(await rig.store.opCursorFor('c1'), 10);
@@ -110,6 +120,7 @@ void main() {
     rig.server.pushEvent(_edit(6));
     await Future<void>.delayed(const Duration(milliseconds: 300));
     rig.server.pushEvent(_edit(7));
+    await _untilOpCursor(rig, 7);
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     expect(syncCalls() - before, 0);
@@ -173,6 +184,10 @@ void main() {
           'message': rigMessage('m1', 1, 'edit $op'),
         });
       }
+      await rig.waitFor(
+        () => syncCalls > before,
+        reason: 'the gap never triggered a reconcile',
+      );
       await Future<void>.delayed(const Duration(milliseconds: 900));
 
       expect(syncCalls - before, inInclusiveRange(1, 2));
@@ -204,7 +219,10 @@ void main() {
       'message': rigMessage('m1', 1, 'edited'),
     });
     await rig.waitFor(() => syncCalls > connected);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await rig.waitFor(
+      () => rig.status.name == 'offline',
+      reason: 'the failed reconcile never dropped the connection',
+    );
 
     expect(rig.status.name, 'offline');
   });

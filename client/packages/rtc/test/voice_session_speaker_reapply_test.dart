@@ -9,6 +9,7 @@ import 'dart:io' show ProcessResult;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 
 import 'support/session_fakes.dart';
 
@@ -71,14 +72,6 @@ class _Devices implements AudioDevices {
   Stream<void> get onChange => const Stream.empty();
 }
 
-Future<void> _until(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!done()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting');
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
 void main() {
   test('the chosen speaker is applied again after every microphone open',
       () async {
@@ -104,12 +97,12 @@ void main() {
       token: 't',
       microphoneEnabled: true,
     );
-    await _until(() => applied.isNotEmpty);
+    await pollUntil(() => applied.isNotEmpty);
     final afterJoin = applied.length;
 
     mic.end();
-    await _until(() => mic.enables == 2);
-    await _until(() => applied.length > afterJoin);
+    await pollUntil(() => mic.enables == 2);
+    await pollUntil(() => applied.length > afterJoin);
 
     expect(applied.toSet(), {'spk-1'});
   });
@@ -145,7 +138,7 @@ void main() {
     moves.clear();
 
     starts.add("Event 'new' on sink-input #7");
-    await _until(() => moves.isNotEmpty);
+    await pollUntil(() => moves.isNotEmpty);
 
     expect(moves.first, ['move-sink-input', '7', 'sink_b']);
   });

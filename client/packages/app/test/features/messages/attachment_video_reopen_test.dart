@@ -15,6 +15,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/widgets/attachment_video_reopen.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_video_source_io.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _video = api.Attachment(
   id: 'v1',
@@ -55,13 +56,6 @@ api.TokenPair _tokens(String access) => api.TokenPair(
   refreshToken: 'r',
   accessExpiresAt: 0,
 );
-
-Future<void> waitFor(bool Function() done) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 10));
-  while (!done() && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-  }
-}
 
 void main() {
   setUpAll(MediaKit.ensureInitialized);
@@ -110,13 +104,19 @@ void main() {
       ),
       play: false,
     );
-    await waitFor(() => seen.contains('Bearer tokA'));
+    await pollUntil(
+      () => seen.contains('Bearer tokA'),
+      reason: 'requests seen: $seen',
+    );
     expect(seen, contains('Bearer tokA'));
 
     session.set(_tokens('tokB'));
     await player.play();
 
-    await waitFor(() => seen.contains('Bearer tokB'));
+    await pollUntil(
+      () => seen.contains('Bearer tokB'),
+      reason: 'requests seen: $seen',
+    );
     expect(seen, contains('Bearer tokB'), reason: 'requests seen: $seen');
   });
 
@@ -187,13 +187,19 @@ void main() {
         onProgress: (_) {},
       ),
     );
-    await waitFor(() => player.state.playing);
+    await pollUntil(
+      () => player.state.playing,
+      reason: 'playback never started',
+    );
 
     refuse = 'Bearer tokA';
     session.set(_tokens('tokB'));
     await player.seek(const Duration(seconds: 4));
 
-    await waitFor(() => seen.contains('Bearer tokB'));
+    await pollUntil(
+      () => seen.contains('Bearer tokB'),
+      reason: 'requests seen: $seen',
+    );
     expect(seen, contains('Bearer tokB'), reason: 'requests seen: $seen');
   });
 }

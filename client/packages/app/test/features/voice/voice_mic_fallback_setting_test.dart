@@ -26,7 +26,7 @@ void main() {
   testWidgets(
     'is on by default; turning it off persists and reaches the call',
     (tester) async {
-      final session = FakeSession();
+      final session = FakeSettingsSession();
       await tester.pumpWidget(
         wrap(
           const VoiceSettingsBody(),
@@ -61,7 +61,7 @@ void main() {
   testWidgets('the call names the microphone it switched to, until dismissed', (
     tester,
   ) async {
-    final session = FakeSession()..micFallbackNotice = 'Desk mic';
+    final session = FakeSettingsSession()..micFallbackNotice = 'Desk mic';
     await tester.pumpWidget(
       wrap(
         const MicFailureBanner(),
