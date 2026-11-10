@@ -14111,6 +14111,20 @@ components:
           description: The events it subscribes to.
           items:
             type: string
+        interceptors:
+          type: array
+          description: >
+            The message hooks it was installed with, so a client can tell when an update
+            widens one; absent when none.
+          items:
+            $ref: "#/components/schemas/DockHookDecl"
+        permission_hooks:
+          type: array
+          description: >
+            The permission checks it was installed with, so a client can tell when an update
+            widens one; absent when none.
+          items:
+            $ref: "#/components/schemas/DockHookDecl"
         settings:
           type: array
           description: The settings it declares for an admin to fill.

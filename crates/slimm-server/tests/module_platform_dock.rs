@@ -23,6 +23,7 @@ use support::app::json_body;
 use support::wasm_fixtures::sha256_hex;
 
 const NEW_CAPS: [&str; 3] = ["events", "data.store", "log.read"];
+const HOOK_CAPS: [&str; 2] = ["interceptors", "permission.hook"];
 
 fn artifact_for(version: &str) -> Vec<u8> {
     format!("build {version}").into_bytes()
@@ -179,7 +180,11 @@ async fn an_old_manifest_installs_and_answers_without_the_new_fields() {
     let old = json!({"capabilities": ["message.post"]});
     let s = setup("slimm-platform-old", manifest("1.0.0", &old)).await;
     let installed = s.install("1.0.0", None).await;
-    for field in ["addon_api", "subscriptions", "settings", "slots", "data"] {
+    let fields = ["addon_api", "subscriptions", "settings", "slots", "data"];
+    for field in fields
+        .into_iter()
+        .chain(["interceptors", "permission_hooks"])
+    {
         assert!(installed.get(field).is_none(), "{field} in {installed}");
     }
 }
@@ -217,4 +222,60 @@ async fn a_new_build_must_be_approved_again_for_each_new_capability() {
         assert_eq!(updated["approved_host_capabilities"], json!([]), "{cap}");
         *s.current.lock().unwrap() = manifest("1.0.0", &platform_manifest());
     }
+}
+
+fn hooks_manifest(reads: &[&str]) -> Value {
+    json!({
+        "addon_api": 3,
+        "capabilities": HOOK_CAPS,
+        "interceptors": [{"hook": "message.pre_send", "phase": "reject", "reads": reads}],
+        "permission_hooks": [{"action": "message.send"}],
+    })
+}
+
+#[tokio::test]
+async fn an_installed_row_carries_the_hooks_it_was_installed_with() {
+    let s = setup(
+        "slimm-platform-hook-rows",
+        manifest("1.0.0", &hooks_manifest(&["content"])),
+    )
+    .await;
+    let installed = s.install("1.0.0", Some(&HOOK_CAPS)).await;
+    let interceptors =
+        json!([{"hook": "message.pre_send", "phase": "reject", "reads": ["content"]}]);
+    let permission_hooks = json!([{"hook": "message.send", "reads": []}]);
+    assert_eq!(installed["interceptors"], interceptors);
+    assert_eq!(installed["permission_hooks"], permission_hooks);
+
+    let (_, listed) = s.send("GET", "/space/dock/installed", None).await;
+    assert_eq!(listed[0]["interceptors"], interceptors);
+    assert_eq!(listed[0]["permission_hooks"], permission_hooks);
+
+    let (_, enabled) = s.send("POST", "/space/dock/modules/xp/enable", None).await;
+    assert_eq!(enabled["interceptors"], interceptors);
+    assert_eq!(enabled["permission_hooks"], permission_hooks);
+}
+
+#[tokio::test]
+async fn a_hook_that_reads_more_is_asked_again_on_the_same_version() {
+    let s = setup(
+        "slimm-platform-hook-widen",
+        manifest("1.0.0", &hooks_manifest(&["channel_id"])),
+    )
+    .await;
+    s.install("1.0.0", Some(&HOOK_CAPS)).await;
+
+    let unchanged = s.install("1.0.0", None).await;
+    assert_eq!(unchanged["approved_host_capabilities"], json!(HOOK_CAPS));
+
+    *s.current.lock().unwrap() = manifest("1.0.0", &hooks_manifest(&["channel_id", "content"]));
+    let widened = s.install("1.0.0", None).await;
+    assert_eq!(widened["approved_host_capabilities"], json!([]));
+    let read = json!(["channel_id", "content"]);
+    assert_eq!(widened["interceptors"][0]["reads"], read);
+
+    s.install("1.0.0", Some(&HOOK_CAPS)).await;
+    *s.current.lock().unwrap() = manifest("1.0.0", &hooks_manifest(&["channel_id"]));
+    let narrowed = s.install("1.0.0", None).await;
+    assert_eq!(narrowed["approved_host_capabilities"], json!(HOOK_CAPS));
 }

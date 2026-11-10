@@ -10,6 +10,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::require_manage_server;
 use super::super::extract::{Authed, Json, Query, enforce};
+use super::capabilities::held_hooks;
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
 use crate::ratelimit::Class;
@@ -123,8 +124,11 @@ async fn apply_enabled(
         .await?
         .ok_or(ApiError::NotFound("module not installed"))?;
     let health = state.store.module_health().await?.remove(id);
+    let hooks = held_hooks(state, id).await?;
     Ok(Json(
-        InstalledModuleDto::from(installed).with_health(health.unwrap_or_default()),
+        InstalledModuleDto::from(installed)
+            .with_health(health.unwrap_or_default())
+            .with_hooks(&hooks),
     ))
 }
 
@@ -139,6 +143,7 @@ pub(in crate::http) async fn list_installed(
     let mut stats = state.store.module_run_stats().await?;
     let usage = state.store.module_storage_usage().await?;
     let mut health = state.store.module_health().await?;
+    let mut hooks = state.store.module_hook_decls().await?;
     Ok(Json(
         modules
             .into_iter()
@@ -147,10 +152,12 @@ pub(in crate::http) async fn list_installed(
                 let usage = usage.get(&m.id).copied().unwrap_or_default();
                 let health = health.remove(&m.id).unwrap_or_default();
                 let depth = state.dock.queue_depths().get(&m.id);
+                let hooks = hooks.remove(&m.id).unwrap_or_default();
                 InstalledModuleDto::from(m)
                     .with_activity(stats, usage)
                     .with_health(health)
                     .with_queue_depth(depth)
+                    .with_hooks(&hooks)
             })
             .collect(),
     ))

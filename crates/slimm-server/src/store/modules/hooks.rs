@@ -3,6 +3,7 @@
 //! it is stored, and deny-only permission checks. The manifest declares each
 //! hook; the admin owns its order and whether a failure refuses the action.
 
+use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 
 use sqlx::Row;
@@ -141,6 +142,15 @@ impl Store {
                 })
             })
             .collect())
+    }
+
+    /// The hooks each module declared at its last install, by module id.
+    pub async fn module_hook_decls(&self) -> anyhow::Result<HashMap<String, Vec<HookDecl>>> {
+        let mut by_module: HashMap<String, Vec<HookDecl>> = HashMap::new();
+        for hook in self.module_hooks().await? {
+            by_module.entry(hook.module_id).or_default().push(hook.decl);
+        }
+        Ok(by_module)
     }
 
     /// Applies the admin's change to one hook. `Ok(false)` when no such hook exists.

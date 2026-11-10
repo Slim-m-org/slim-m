@@ -7,7 +7,7 @@ use super::manifest::{NET_FETCH, call_audio};
 use crate::http::AppState;
 use crate::http::error::ApiError;
 use crate::http::module_host;
-use crate::store::ModuleSchedule;
+use crate::store::{HookDecl, ModuleSchedule};
 
 /// What an install that named no approvals keeps: the module's current host
 /// capabilities that the new manifest still declares, except the ones whose
@@ -70,16 +70,19 @@ async fn same_call_audio(state: &AppState, manifest: &Manifest) -> Result<bool, 
     Ok(had == manifest.call_audio)
 }
 
+/// The hooks `id` declared at its last install; empty for a module that has none.
+pub(super) async fn held_hooks(state: &AppState, id: &str) -> Result<Vec<HookDecl>, ApiError> {
+    Ok(state
+        .store
+        .module_hook_decls()
+        .await?
+        .remove(id)
+        .unwrap_or_default())
+}
+
 /// Whether the manifest's hooks stand where the approved ones did and read no more.
 async fn hooks_not_widened(state: &AppState, manifest: &Manifest) -> Result<bool, ApiError> {
-    let had: Vec<_> = state
-        .store
-        .module_hooks()
-        .await?
-        .into_iter()
-        .filter(|h| h.module_id == manifest.id)
-        .map(|h| h.decl)
-        .collect();
+    let had = held_hooks(state, &manifest.id).await?;
     Ok(manifest.platform.hooks.iter().all(|wanted| {
         had.iter().any(|old| {
             old.kind == wanted.kind

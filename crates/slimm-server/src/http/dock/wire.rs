@@ -8,8 +8,8 @@ use serde::Serialize;
 use super::manifest::{IndexEntry, Manifest, ManifestExtensionPoint};
 use crate::module_runtime::{MAX_ENTRIES, MAX_TOTAL_BYTES, RunLimits};
 use crate::store::{
-    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHealth, ModuleRunStat,
-    StorageUsage,
+    HookDecl, HookKind, InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec,
+    ModuleHealth, ModuleRunStat, StorageUsage,
 };
 
 #[derive(Serialize)]
@@ -155,7 +155,7 @@ pub(in crate::http) struct HookDto {
     reads: Vec<String>,
 }
 
-fn hook_dtos(hooks: &[crate::store::HookDecl], kind: crate::store::HookKind) -> Vec<HookDto> {
+fn hook_dtos(hooks: &[HookDecl], kind: HookKind) -> Vec<HookDto> {
     hooks
         .iter()
         .filter(|h| h.kind == kind)
@@ -256,8 +256,8 @@ impl From<Manifest> for ManifestDto {
                 settings: m.platform.settings_schema,
                 slots: m.platform.slots,
                 data: m.platform.data_schema,
-                interceptors: hook_dtos(&m.platform.hooks, crate::store::HookKind::Interceptor),
-                permission_hooks: hook_dtos(&m.platform.hooks, crate::store::HookKind::Permission),
+                interceptors: hook_dtos(&m.platform.hooks, HookKind::Interceptor),
+                permission_hooks: hook_dtos(&m.platform.hooks, HookKind::Permission),
             },
         }
     }
@@ -384,6 +384,13 @@ impl InstalledModuleDto {
         self.consecutive_failures = health.consecutive_failures;
         self.disabled_reason = health.disabled_reason;
         self.events_dropped = health.events_dropped;
+        self
+    }
+
+    /// Adds the hooks the module was installed with, which an update is compared against.
+    pub(in crate::http) fn with_hooks(mut self, hooks: &[HookDecl]) -> Self {
+        self.platform.interceptors = hook_dtos(hooks, HookKind::Interceptor);
+        self.platform.permission_hooks = hook_dtos(hooks, HookKind::Permission);
         self
     }
 

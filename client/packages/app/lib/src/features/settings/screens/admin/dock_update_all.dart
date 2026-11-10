@@ -212,10 +212,27 @@ Future<bool> _askAbout(
     (_, true) => 'This version needs approval again. It can:',
     _ => null,
   },
-  changes: dockConsentChanges(manifest, current),
+  changes: [
+    ...dockConsentChanges(manifest, current),
+    if (_dropsPrivateNetwork(manifest, current, ask)) _privateNetworkOffNote,
+  ],
   confirmLabel: updated ? 'Give access back' : 'Approve and update',
   cancelLabel: updated ? 'Leave it off' : 'Skip',
 );
+
+const _privateNetworkOffNote =
+    "Private network access turns off. Turn it back on from the module's page.";
+
+/// Whether asking about net.fetch again takes away a private-network yes [held] gave,
+/// which the offered manifest still asks for (decision 0067).
+bool _dropsPrivateNetwork(
+  api.DockManifest manifest,
+  api.InstalledDockModule? held,
+  DockUpdateAsk ask,
+) =>
+    (held?.localNetworkApproved ?? false) &&
+    (manifest.network?.local ?? false) &&
+    ask.capabilities.contains(api.kNetFetchCapability);
 
 /// Installs [item]'s offered version, then reads the module list again: the
 /// server may have committed even when the answer was an error.

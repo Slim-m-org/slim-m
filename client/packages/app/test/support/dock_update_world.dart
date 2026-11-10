@@ -45,6 +45,8 @@ class DockUpdateMod {
     this.localBefore = false,
     this.failAfterInstalls,
     this.dropsOnCarry = const [],
+    this.heldHooks = const {},
+    this.offeredHooks = const {},
   });
 
   final String id;
@@ -80,6 +82,11 @@ class DockUpdateMod {
   /// Access the server withdraws from an install that carries what was
   /// approved, which the client's own carry rules do not foresee.
   final List<String> dropsOnCarry;
+
+  /// The hooks the installed record holds and the offered manifest declares,
+  /// each under `interceptors` or `permission_hooks` as the wire names them.
+  final Map<String, List<Map<String, dynamic>>> heldHooks;
+  final Map<String, List<Map<String, dynamic>>> offeredHooks;
 
   String get name => 'Mod $id';
 }
@@ -121,6 +128,7 @@ class DockUpdateWorld {
         'enabled': true,
         'installed_at': 1000,
         if (m.community) 'source_repo': 'someone/mods',
+        ...m.heldHooks,
       };
     }
   }
@@ -163,6 +171,7 @@ class DockUpdateWorld {
       'approved_capabilities': m.asks,
       'approved_host_capabilities': approved,
       'local_network_approved': local,
+      ...m.offeredHooks,
     };
   }
 
@@ -202,7 +211,7 @@ class DockUpdateWorld {
               ? null
               : {'hosts': mod.hosts, 'local': mod.local},
           reviewDigest: 'digest-${mod.id}',
-          extras: {'name': mod.name},
+          extras: {'name': mod.name, ...mod.offeredHooks},
         ),
       );
     }
