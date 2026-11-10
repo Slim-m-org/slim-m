@@ -26,6 +26,8 @@ struct ParticipantState {
     /// Whether the SFU's roster put the entry here rather than a join webhook,
     /// so the join webhook for this sid, if it still arrives, is a real join.
     from_roster: bool,
+    /// When the SFU says the roster entry joined, in unix milliseconds.
+    joined_at_ms: Option<i64>,
     /// Sids of currently-published screen-share-sourced tracks. A screen
     /// share with audio publishes two tracks, so "is sharing" is "this set
     /// is non-empty", not "a track was published".
@@ -38,6 +40,7 @@ impl ParticipantState {
             sid: sid.to_owned(),
             announced,
             from_roster: false,
+            joined_at_ms: None,
             screen_share_tracks: HashSet::new(),
         }
     }
@@ -94,9 +97,14 @@ impl RoomLiveState {
     /// A webhook's own knowledge wins: someone already tracked, or whose leave
     /// was already published, is left alone, so a roster read that raced a
     /// webhook cannot bring them back.
-    pub fn seed(&self, channel_id: ChannelId, roster: impl IntoIterator<Item = (UserId, String)>) {
+    pub fn seed(
+        &self,
+        channel_id: ChannelId,
+        roster: impl IntoIterator<Item = (UserId, String, Option<i64>)>,
+    ) {
         let mut state = lock(&self.state);
-        for (user_id, sid) in roster.into_iter().filter(|(_, sid)| !sid.is_empty()) {
+        for (user_id, sid, joined_at_ms) in roster.into_iter().filter(|(_, sid, _)| !sid.is_empty())
+        {
             let key = (channel_id, user_id);
             if state.ended.get(&key) == Some(&sid) {
                 continue;
@@ -105,11 +113,13 @@ impl RoomLiveState {
                 Some(entry) if entry.sid == sid && !entry.announced => {
                     entry.announced = true;
                     entry.from_roster = true;
+                    entry.joined_at_ms = joined_at_ms;
                 }
                 Some(_) => {}
                 None => {
                     let mut entry = ParticipantState::new(&sid, true);
                     entry.from_roster = true;
+                    entry.joined_at_ms = joined_at_ms;
                     state.participants.insert(key, entry);
                 }
             }
@@ -191,11 +201,37 @@ impl RoomLiveState {
 
     /// Who a join webhook announced on `channel_id` and no leave has since removed.
     pub fn present(&self, channel_id: ChannelId) -> Vec<UserId> {
+        self.present_where(channel_id, |_| true)
+    }
+
+    /// Who was on `channel_id` before a session that joined at `joined_at_ms`.
+    ///
+    /// The first webhook after a restart finds its neighbours already read off the SFU, and one of
+    /// them may have joined a moment after it with a webhook still queued. A member the roster put
+    /// here whose own join has not arrived counts only if the SFU stamped them earlier; without a
+    /// stamp on both sides they count, as someone who was there all along.
+    pub fn present_before(&self, channel_id: ChannelId, joined_at_ms: Option<i64>) -> Vec<UserId> {
+        self.present_where(channel_id, |entry| {
+            let joined_later = matches!(
+                (entry.from_roster, entry.joined_at_ms, joined_at_ms),
+                (true, Some(theirs), Some(ours)) if theirs >= ours
+            );
+            !joined_later
+        })
+    }
+
+    fn present_where(
+        &self,
+        channel_id: ChannelId,
+        counts: impl Fn(&ParticipantState) -> bool,
+    ) -> Vec<UserId> {
         let state = lock(&self.state);
         let mut present: Vec<UserId> = state
             .participants
             .iter()
-            .filter(|((channel, _), entry)| *channel == channel_id && entry.announced)
+            .filter(|((channel, _), entry)| {
+                *channel == channel_id && entry.announced && counts(entry)
+            })
             .map(|((_, user), _)| *user)
             .collect();
         present.sort_by_key(ToString::to_string);
@@ -246,9 +282,12 @@ impl VoiceService {
             return;
         }
         match self.list_participants(channel_id).await {
-            Ok(listed) => self
-                .live_state
-                .seed(channel_id, listed.into_iter().map(|p| (p.user_id, p.sid))),
+            Ok(listed) => self.live_state.seed(
+                channel_id,
+                listed
+                    .into_iter()
+                    .map(|p| (p.user_id, p.sid, p.joined_at_ms)),
+            ),
             Err(err) => {
                 tracing::warn!(?err, %channel_id, "could not read a call's members from the SFU")
             }
@@ -257,234 +296,4 @@ impl VoiceService {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn uid() -> UserId {
-        UserId::generate()
-    }
-
-    fn cid() -> ChannelId {
-        ChannelId::generate()
-    }
-
-    #[test]
-    fn a_first_join_is_a_real_transition() {
-        let state = RoomLiveState::new();
-        assert!(state.mark_joined(cid(), uid(), "PA"));
-    }
-
-    #[test]
-    fn a_duplicate_join_webhook_does_not_republish() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        assert!(state.mark_joined(channel, user, "PA"));
-        assert!(!state.mark_joined(channel, user, "PA"));
-    }
-
-    #[test]
-    fn a_leave_from_a_session_joined_before_a_restart_still_publishes() {
-        let state = RoomLiveState::new();
-        assert!(state.mark_left(cid(), uid(), "PA"));
-    }
-
-    #[test]
-    fn a_duplicate_leave_of_an_unknown_session_publishes_once() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        assert!(state.mark_left(channel, user, "PA"));
-        assert!(!state.mark_left(channel, user, "PA"));
-    }
-
-    #[test]
-    fn a_rejoin_after_a_leave_publishes_its_own_leave() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        assert!(state.mark_left(channel, user, "PA"));
-        assert!(state.mark_joined(channel, user, "PA"));
-        assert!(state.mark_left(channel, user, "PA"));
-    }
-
-    #[test]
-    fn a_duplicate_leave_webhook_does_not_republish() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        assert!(state.mark_left(channel, user, "PA"));
-        assert!(!state.mark_left(channel, user, "PA"));
-    }
-
-    #[test]
-    fn the_first_screen_share_track_starts_sharing() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        assert!(state.track_published(channel, (user, "PA"), "track-video"));
-    }
-
-    #[test]
-    fn a_second_screen_share_track_is_not_a_fresh_start() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        assert!(state.track_published(channel, (user, "PA"), "track-video"));
-        assert!(!state.track_published(channel, (user, "PA"), "track-audio"));
-    }
-
-    #[test]
-    fn sharing_stops_only_once_every_screen_share_track_is_gone() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        state.track_published(channel, (user, "PA"), "track-video");
-        state.track_published(channel, (user, "PA"), "track-audio");
-
-        assert!(
-            !state.track_unpublished(channel, (user, "PA"), "track-video"),
-            "the audio track is still up"
-        );
-        assert!(
-            state.track_unpublished(channel, (user, "PA"), "track-audio"),
-            "that was the last screen-share track"
-        );
-    }
-
-    #[test]
-    fn unpublishing_a_track_for_someone_unknown_reports_no_transition() {
-        let state = RoomLiveState::new();
-        assert!(!state.track_unpublished(cid(), (uid(), "PA"), "track-video"));
-    }
-
-    #[test]
-    fn a_track_published_before_any_join_webhook_still_counts() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        assert!(state.track_published(channel, (user, "PA"), "track-video"));
-    }
-
-    #[test]
-    fn a_duplicate_unpublish_is_not_a_second_stop() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        state.track_published(channel, (user, "PA"), "track-video");
-        assert!(state.track_unpublished(channel, (user, "PA"), "track-video"));
-        assert!(!state.track_unpublished(channel, (user, "PA"), "track-video"));
-    }
-
-    #[test]
-    fn a_join_after_an_early_track_still_publishes() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        assert!(state.track_published(channel, (user, "PA"), "track-video"));
-        assert!(state.mark_joined(channel, user, "PA"));
-        assert!(!state.mark_joined(channel, user, "PA"));
-    }
-
-    #[test]
-    fn a_late_track_after_leaving_does_not_swallow_the_next_join() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        assert!(state.mark_left(channel, user, "PA"));
-        state.track_published(channel, (user, "PA"), "track-video");
-        assert!(
-            state.mark_joined(channel, user, "PB"),
-            "the rejoin was swallowed"
-        );
-    }
-
-    #[test]
-    fn a_late_leave_from_an_earlier_session_is_ignored() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        assert!(state.mark_joined(channel, user, "PB"));
-        assert!(!state.mark_left(channel, user, "PA"));
-        assert!(state.mark_left(channel, user, "PB"));
-    }
-
-    #[test]
-    fn a_finished_room_forgets_its_participants() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PA");
-        state.forget_room(channel);
-        assert!(state.mark_joined(channel, user, "PA"));
-    }
-
-    fn roster(users: &[(UserId, &str)]) -> Vec<(UserId, String)> {
-        users
-            .iter()
-            .map(|(u, sid)| (*u, (*sid).to_owned()))
-            .collect()
-    }
-
-    #[test]
-    fn a_seeded_member_is_present_and_their_own_join_still_publishes_once() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.seed(channel, roster(&[(user, "PA")]));
-        assert_eq!(state.present(channel), vec![user]);
-        assert!(state.mark_joined(channel, user, "PA"));
-        assert!(!state.mark_joined(channel, user, "PA"));
-    }
-
-    #[test]
-    fn a_seeded_member_leaving_publishes_the_leave() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.seed(channel, roster(&[(user, "PA")]));
-        assert!(state.mark_left(channel, user, "PA"));
-        assert!(state.present(channel).is_empty());
-    }
-
-    #[test]
-    fn seeding_never_brings_back_someone_whose_leave_was_already_published() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        assert!(state.mark_left(channel, user, "PA"));
-        state.seed(channel, roster(&[(user, "PA")]));
-        assert!(state.present(channel).is_empty());
-    }
-
-    #[test]
-    fn seeding_leaves_a_member_a_webhook_already_tracks_alone() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.mark_joined(channel, user, "PB");
-        state.seed(channel, roster(&[(user, "PA")]));
-        assert!(!state.mark_joined(channel, user, "PB"), "kept PB's entry");
-    }
-
-    #[test]
-    fn seeding_announces_a_member_a_track_webhook_only_hinted_at() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.track_published(channel, (user, "PA"), "track-video");
-        assert!(state.present(channel).is_empty());
-        state.seed(channel, roster(&[(user, "PA")]));
-        assert_eq!(state.present(channel), vec![user]);
-    }
-
-    #[test]
-    fn a_member_the_sfu_gave_no_session_id_is_not_seeded() {
-        let state = RoomLiveState::new();
-        let (channel, user) = (cid(), uid());
-        state.seed(channel, roster(&[(user, "")]));
-        assert!(state.present(channel).is_empty());
-        assert!(state.is_reconciled(channel));
-    }
-
-    #[test]
-    fn a_channel_is_reconciled_until_its_room_finishes() {
-        let state = RoomLiveState::new();
-        let channel = cid();
-        assert!(!state.is_reconciled(channel));
-        state.seed(channel, roster(&[]));
-        assert!(state.is_reconciled(channel));
-        state.forget_room(channel);
-        assert!(!state.is_reconciled(channel));
-    }
-}
+mod tests;

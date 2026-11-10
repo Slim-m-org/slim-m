@@ -99,13 +99,23 @@ impl World {
     }
 
     async fn join(&self, who: UserId) {
+        self.deliver(self.join_event(who, json!({}))).await;
+    }
+
+    /// A join the SFU stamped as happening at `joined_at_ms`.
+    async fn join_at(&self, who: UserId, joined_at_ms: i64) {
+        let stamp = json!({ "joinedAtMs": joined_at_ms.to_string() });
+        self.deliver(self.join_event(who, stamp)).await;
+    }
+
+    fn join_event(&self, who: UserId, extra: Value) -> Value {
         let room = slimm_server::voice::room_for_channel(self.channel);
-        self.deliver(json!({
-            "event": "participant_joined",
-            "room": { "name": room },
-            "participant": { "identity": who.to_string(), "sid": format!("PA_{who}") },
-        }))
-        .await;
+        let mut participant = json!({ "identity": who.to_string(), "sid": format!("PA_{who}") });
+        participant
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        json!({ "event": "participant_joined", "room": { "name": room }, "participant": participant })
     }
 
     async fn go_live(&self, who: UserId) {
@@ -396,4 +406,41 @@ async fn the_first_join_after_a_restart_into_an_empty_room_still_starts_the_call
 
     let frame = notice(&mut bob.ws, HEARS).await.expect("bob is told");
     assert_eq!(frame["activity"], "call_started");
+}
+
+const T: i64 = 1_790_000_000_000;
+
+#[tokio::test]
+async fn a_neighbour_who_joined_a_moment_later_does_not_stop_the_first_join_starting_the_call() {
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let world = World::on(&sfu_url).await;
+    let mut dave = world.member("dave", Some(FIRST)).await;
+    let alice = world.member("alice", None).await;
+    let bob = world.member("bob", None).await;
+    // Bob is on the SFU when alice's webhook is applied, but his own join webhook is still to come.
+    sfu.seat_joined(&[(alice.id, T), (bob.id, T + 500)]);
+
+    world.join_at(alice.id, T).await;
+    world.join_at(bob.id, T + 500).await;
+
+    let frame = notice(&mut dave.ws, HEARS).await.expect("dave is told");
+    assert_eq!(frame["activity"], "call_started");
+    assert_eq!(frame["actor_id"], alice.id.to_string());
+}
+
+#[tokio::test]
+async fn a_stamped_member_who_joined_earlier_still_makes_the_next_join_a_join() {
+    let sfu = RecordingRoomService::default();
+    let sfu_url = spawn_sfu(sfu.clone()).await;
+    let world = World::on(&sfu_url).await;
+    let mut dave = world.member("dave", Some(EVERY)).await;
+    let alice = world.member("alice", None).await;
+    let carol = world.member("carol", None).await;
+    sfu.seat_joined(&[(alice.id, T - 3_600_000), (carol.id, T)]);
+
+    world.join_at(carol.id, T).await;
+
+    let frame = notice(&mut dave.ws, HEARS).await.expect("dave is told");
+    assert_eq!(frame["activity"], "joined");
 }

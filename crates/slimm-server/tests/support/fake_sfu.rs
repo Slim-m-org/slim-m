@@ -31,6 +31,16 @@ impl RecordingRoomService {
             .map(|user| json!({ "identity": user.to_string(), "sid": format!("PA_{user}") }))
             .collect();
     }
+
+    /// Like [`Self::seat`], with the unix millisecond each user joined at.
+    pub fn seat_joined(&self, users: &[(UserId, i64)]) {
+        *self.roster.lock().unwrap() = users
+            .iter()
+            .map(|(user, at)| {
+                json!({ "identity": user.to_string(), "sid": format!("PA_{user}"), "joined_at_ms": at })
+            })
+            .collect();
+    }
 }
 
 async fn list_participants(State(recorder): State<RecordingRoomService>) -> Json<Value> {

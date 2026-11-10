@@ -185,7 +185,8 @@ fn apply(state: &AppState, event: WebhookEvent) -> Option<Presence> {
         "participant_joined" => {
             // Recorded even when not a new transition: a duplicate is harmless to the history, a missed join is not.
             record(state, channel_id, user_id, VoiceEventKind::Joined);
-            let present_before = live_state.present(channel_id);
+            let present_before =
+                live_state.present_before(channel_id, event.participant_joined_at_ms());
             if live_state.mark_joined(channel_id, user_id, sid) {
                 let activity = super::voice_notice::join_activity(&present_before, user_id);
                 super::voice_notice::announce(state, channel_id, user_id, activity);

@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 use crate::ids::ChannelId;
 
 use super::VoiceService;
+use super::roster::{joined_at_from, lenient_i64};
 use super::token::unix_secs;
 
 /// Why a webhook delivery was refused.
@@ -69,6 +70,18 @@ pub struct ParticipantInfo {
     /// Tells one session of a member from the next; see `RoomLiveState`.
     #[serde(default)]
     pub sid: String,
+    #[serde(default, alias = "joinedAtMs", deserialize_with = "lenient_i64")]
+    joined_at_ms: Option<i64>,
+    #[serde(default, alias = "joinedAt", deserialize_with = "lenient_i64")]
+    joined_at: Option<i64>,
+}
+
+impl WebhookEvent {
+    /// When the SFU says the event's participant joined, in unix milliseconds; `None` when it predates the field.
+    pub fn participant_joined_at_ms(&self) -> Option<i64> {
+        let participant = self.participant.as_ref()?;
+        joined_at_from(participant.joined_at_ms, participant.joined_at)
+    }
 }
 
 #[derive(Debug, Deserialize)]
