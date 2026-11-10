@@ -208,4 +208,45 @@ const List<WhatsNewEntry> whatsNewArchiveEntries9 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.127.0',
+    headline: 'Clearer replies, sharing from Android',
+    points: [
+      WhatsNewPoint(
+        'A reply shows what it answers on its own line above the name, '
+        'joined to the avatar, so it no longer looks like a stray message.',
+      ),
+      WhatsNewPoint(
+        'On Android, slim-m is in the share menu: photos, videos, files and '
+        'text land staged in the conversation you pick, ready to send.',
+      ),
+      WhatsNewPoint(
+        'Update all in Modules asks about any new access as it goes, instead '
+        'of stopping on it.',
+      ),
+      WhatsNewPoint(
+        'Create emoji opens as a dialog, and every file gets a name you can '
+        'change, including one that is already taken.',
+      ),
+      WhatsNewPoint(
+        'Channel search on a phone matches part of a word, jumps to the '
+        'message you tap, and looks like the command palette.',
+      ),
+      WhatsNewPoint('A Space setting can hide bots from the member list.'),
+      WhatsNewPoint(
+        'Modules with hooks ask again for that access on every new version.',
+        warn: true,
+      ),
+      WhatsNewPoint(
+        'Fixed: Photo library doing nothing while the keyboard was up, '
+        'animated emoji standing still in the emoji sheet, and the profile '
+        'colour banner spilling past the sheet on phones.',
+      ),
+      WhatsNewPoint(
+        'Plus a long list of smaller fixes: actions that finish when you '
+        'close their pane, a server added earlier no longer vanishing, and '
+        'incoming calls showing in every signed-in Space.',
+      ),
+    ],
+  ),
 ];
