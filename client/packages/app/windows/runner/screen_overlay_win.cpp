@@ -291,6 +291,7 @@ void Draw(std::vector<Shape> shapes) {
 
 void SetPanel(Panel panel) {
   g_panel = std::move(panel);
+  if (g_window != nullptr) CacheAvatars(&g_panel);
   Present();
 }
 
@@ -322,6 +323,7 @@ int AppMonitor() {
 void Hide() {
   g_shapes.clear();
   g_panel = Panel();
+  ForgetAvatars();
   if (g_window != nullptr) {
     HWND window = g_window;
     g_window = nullptr;

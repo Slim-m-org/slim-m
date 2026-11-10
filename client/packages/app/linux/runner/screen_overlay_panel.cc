@@ -6,22 +6,47 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <map>
 #include <string>
+#include <vector>
 
 namespace slimm_overlay {
 namespace {
 
 // Sizes follow the 4dp grid and the panel radius of docs/design/design-language.md.
 constexpr double kMargin = 16;
-constexpr double kPadX = 12;
-constexpr double kPadY = 8;
-constexpr double kRowHeight = 24;
+constexpr double kPadX = 8;
+constexpr double kPadY = 6;
+constexpr double kRowHeight = 28;
 constexpr double kRadius = 10;
-constexpr double kDotBox = 12;
-constexpr double kGap = 8;
+constexpr double kAvatar = 24;
+constexpr double kRing = 2;
+// The picture plus its ring, which is as tall as a row so the rings of two rows only touch.
+constexpr double kAvatarSlot = kAvatar + 2 * kRing;
+constexpr double kGap = 6;
+constexpr double kMarkGap = 8;
 constexpr double kGlyph = 14;
 constexpr double kMaxName = 180;
-constexpr double kFontPx = 12;
+constexpr double kFontPx = 11;
+
+// Pictures by user id, decoded from the PNG the app sends once per picture.
+std::map<std::string, cairo_surface_t*> g_avatars;
+
+struct PngSource {
+  const std::vector<uint8_t>* bytes;
+  size_t offset;
+};
+
+cairo_status_t ReadPng(void* closure, unsigned char* data, unsigned int length) {
+  PngSource* source = static_cast<PngSource*>(closure);
+  if (source->offset + length > source->bytes->size()) {
+    return CAIRO_STATUS_READ_ERROR;
+  }
+  memcpy(data, source->bytes->data() + source->offset, length);
+  source->offset += length;
+  return CAIRO_STATUS_SUCCESS;
+}
 
 void SetColor(cairo_t* cr, uint32_t argb, double alpha = 1) {
   cairo_set_source_rgba(cr, ((argb >> 16) & 0xFF) / 255.0,
@@ -71,22 +96,32 @@ void DrawText(cairo_t* cr, const std::string& text, double x, double cy,
   g_object_unref(layout);
 }
 
-// A lit dot with a soft ring while they talk, a dim dot otherwise.
-void DrawPresence(cairo_t* cr, const Panel& panel, bool speaking, double cx,
-                  double cy) {
+// Their picture as a circle, ringed in the accent colour while they talk.
+void DrawAvatar(cairo_t* cr, const Panel& panel, const PanelRow& row, double cx,
+                double cy) {
   cairo_new_path(cr);
-  if (speaking) {
-    SetColor(cr, panel.accent, 0.4);
-    cairo_set_line_width(cr, 2);
-    cairo_arc(cr, cx, cy, 5.5, 0, 2 * G_PI);
-    cairo_stroke(cr);
-    cairo_new_path(cr);
-    SetColor(cr, panel.accent);
-  } else {
+  auto found = g_avatars.find(row.id);
+  if (found == g_avatars.end()) {
     SetColor(cr, panel.text_muted, 0.4);
+    cairo_arc(cr, cx, cy, kAvatar / 2, 0, 2 * G_PI);
+    cairo_fill(cr);
+  } else {
+    cairo_surface_t* picture = found->second;
+    cairo_save(cr);
+    cairo_translate(cr, cx - kAvatar / 2, cy - kAvatar / 2);
+    cairo_scale(cr, kAvatar / cairo_image_surface_get_width(picture),
+                kAvatar / cairo_image_surface_get_height(picture));
+    cairo_set_source_surface(cr, picture, 0, 0);
+    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_BEST);
+    cairo_paint(cr);
+    cairo_restore(cr);
   }
-  cairo_arc(cr, cx, cy, 3.5, 0, 2 * G_PI);
-  cairo_fill(cr);
+  if (!row.speaking) return;
+  cairo_new_path(cr);
+  SetColor(cr, panel.accent);
+  cairo_set_line_width(cr, kRing);
+  cairo_arc(cr, cx, cy, kAvatar / 2 + kRing / 2, 0, 2 * G_PI);
+  cairo_stroke(cr);
 }
 
 // A microphone, or headphones when deafened, struck through.
@@ -118,6 +153,31 @@ void DrawMark(cairo_t* cr, const Panel& panel, bool deafened, double cx,
 
 }  // namespace
 
+void CacheAvatars(Panel* panel) {
+  for (PanelRow& row : panel->rows) {
+    if (row.avatar.empty()) continue;
+    PngSource source = {&row.avatar, 0};
+    cairo_surface_t* decoded =
+        cairo_image_surface_create_from_png_stream(ReadPng, &source);
+    row.avatar.clear();
+    auto held = g_avatars.find(row.id);
+    if (held != g_avatars.end()) {
+      cairo_surface_destroy(held->second);
+      g_avatars.erase(held);
+    }
+    if (cairo_surface_status(decoded) != CAIRO_STATUS_SUCCESS) {
+      cairo_surface_destroy(decoded);
+      continue;
+    }
+    g_avatars[row.id] = decoded;
+  }
+}
+
+void ForgetAvatars() {
+  for (auto& entry : g_avatars) cairo_surface_destroy(entry.second);
+  g_avatars.clear();
+}
+
 void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h) {
   if (!panel.present || panel.rows.empty()) return;
   bool any_mark = false;
@@ -128,8 +188,8 @@ void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h) {
   }
   std::string more = panel.more > 0 ? "+" + std::to_string(panel.more) + " more" : "";
   if (!more.empty()) name_width = std::fmax(name_width, TextWidth(cr, more, kMaxName));
-  double marks = any_mark ? kGap + kGlyph : 0;
-  double pw = 2 * kPadX + kDotBox + kGap + name_width + marks;
+  double marks = any_mark ? kMarkGap + kGlyph : 0;
+  double pw = 2 * kPadX + kAvatarSlot + kGap + name_width + marks;
   double lines = static_cast<double>(panel.rows.size()) + (more.empty() ? 0 : 1);
   double ph = 2 * kPadY + lines * kRowHeight;
   bool left = panel.corner == Panel::Corner::kTopLeft ||
@@ -148,15 +208,15 @@ void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h) {
 
   double cy = y + kPadY + kRowHeight / 2;
   for (const PanelRow& row : panel.rows) {
-    DrawPresence(cr, panel, row.speaking, x + kPadX + kDotBox / 2, cy);
-    DrawText(cr, row.name, x + kPadX + kDotBox + kGap, cy, kMaxName, panel.text);
+    DrawAvatar(cr, panel, row, x + kPadX + kAvatarSlot / 2, cy);
+    DrawText(cr, row.name, x + kPadX + kAvatarSlot + kGap, cy, kMaxName, panel.text);
     if (row.muted || row.deafened) {
       DrawMark(cr, panel, row.deafened, x + pw - kPadX - kGlyph / 2, cy);
     }
     cy += kRowHeight;
   }
   if (!more.empty()) {
-    DrawText(cr, more, x + kPadX + kDotBox + kGap, cy, kMaxName, panel.text_muted);
+    DrawText(cr, more, x + kPadX + kAvatarSlot + kGap, cy, kMaxName, panel.text_muted);
   }
 }
 

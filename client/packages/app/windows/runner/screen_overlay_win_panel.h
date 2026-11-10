@@ -14,6 +14,12 @@ using std::min;
 
 namespace slimm_overlay {
 
+// Decodes the pictures a panel carries into the cache, keyed by user id, and drops the bytes; GDI+ must be running.
+void CacheAvatars(Panel* panel);
+
+// Empties the picture cache, once the window it served is gone.
+void ForgetAvatars();
+
 // Paints the call panel into its corner of a width by height surface; [scale] is the window's DPI over 96.
 void DrawPanel(Gdiplus::Graphics& g, const Panel& panel, double width,
                double height, double scale);

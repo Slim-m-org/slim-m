@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_shortcuts_section.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -21,9 +22,16 @@ const _callActions = [
   AppAction.leaveCall,
 ];
 
-Future<ProviderContainer> _pump(WidgetTester tester) async {
+Future<ProviderContainer> _pump(
+  WidgetTester tester, {
+  bool overlayHosted = false,
+}) async {
   SharedPreferences.setMockInitialValues({});
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: [
+      screenOverlaySupportedProvider.overrideWithValue(overlayHosted),
+    ],
+  );
   addTearDown(container.dispose);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -81,6 +89,47 @@ void main() {
     expect(find.text('Ctrl+Shift+S'), findsOneWidget);
     expect(find.text('Ctrl+Shift+H'), findsOneWidget);
   });
+
+  test('the call overlay toggle is remappable and conflicts like the rest', () {
+    expect(remappableActions, contains(AppAction.toggleCallOverlay));
+    final overlay =
+        activatorFor(AppAction.toggleCallOverlay)! as SingleActivator;
+    expect(
+      shortcutConflict(
+        chord: overlay,
+        action: AppAction.leaveCall,
+        pushToTalkKey: LogicalKeyboardKey.keyV,
+      ),
+      'Toggle call overlay',
+    );
+    final share = activatorFor(AppAction.toggleShareCall)! as SingleActivator;
+    expect(
+      shortcutConflict(
+        chord: share,
+        action: AppAction.toggleCallOverlay,
+        pushToTalkKey: LogicalKeyboardKey.keyV,
+      ),
+      'Start or stop screen share',
+    );
+  });
+
+  testWidgets(
+    'Voice settings lists the overlay shortcut where it can be hosted',
+    (tester) async {
+      await _pump(tester, overlayHosted: true);
+      expect(find.text('Call overlay shortcut'), findsOneWidget);
+      expect(find.text('Ctrl+Shift+O'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Voice settings leaves the overlay shortcut out where it cannot',
+    (tester) async {
+      await _pump(tester);
+      expect(find.text('Call overlay shortcut'), findsNothing);
+      expect(find.text('Ctrl+Shift+O'), findsNothing);
+    },
+  );
 
   testWidgets('remapping Leave reaches the binding the shell listens on', (
     tester,

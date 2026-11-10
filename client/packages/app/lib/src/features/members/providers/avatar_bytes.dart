@@ -17,6 +17,7 @@ import 'package:slimm_api/api.dart';
 import '../../../providers/cache_for.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
+import 'avatar_version.dart';
 import 'profile_media_fetch.dart';
 
 /// [updatedAt] is the profile's `avatar_updated_at`; callers do not ask for a
@@ -50,4 +51,17 @@ final avatarBytesProvider = FutureProvider.autoDispose
       );
       if (bytes != null) unawaited(cache.write(diskKey, bytes));
       return bytes;
+    });
+
+/// A person's picture as it is now, with the version that names it, for a surface that is not a widget; both are null for someone with no avatar, and the bytes alone while the fetch is in flight.
+typedef CurrentAvatar = ({int? version, Uint8List? bytes});
+
+final currentAvatarProvider = Provider.autoDispose
+    .family<CurrentAvatar, String>((ref, userId) {
+      final version = ref.watch(avatarVersionProvider(userId));
+      if (version == null) return (version: null, bytes: null);
+      final bytes = ref
+          .watch(avatarBytesProvider((userId: userId, updatedAt: version)))
+          .valueOrNull;
+      return (version: version, bytes: bytes);
     });

@@ -30,10 +30,13 @@ struct Shape {
 };
 
 struct PanelRow {
+  std::string id;
   std::string name;
   bool speaking = false;
   bool muted = false;
   bool deafened = false;
+  // A round PNG for this id, sent once per picture; empty when the runner already holds it.
+  std::vector<uint8_t> avatar;
 };
 
 // The call panel: one row per person, in one corner of one monitor (an index into Supported's list).

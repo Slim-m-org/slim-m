@@ -3,10 +3,12 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/screen_overlay/providers/call_overlay_avatar.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
@@ -92,6 +94,9 @@ const rigMonitors = [
   OverlayMonitor(x: 1920, y: 0, width: 1280, height: 800, primary: false),
 ];
 
+/// The picture version each user id has in the rig; an id with none never finishes baking, like a slow download.
+final rigAvatarVersions = StateProvider<Map<String, int>>((ref) => const {});
+
 class OverlayRig {
   OverlayRig({
     bool allow = true,
@@ -111,6 +116,13 @@ class OverlayRig {
       overrides: [
         screenOverlayProvider.overrideWithValue(overlay),
         portalSharedMonitorProvider.overrideWithValue(() async => portal),
+        callOverlayAvatarProvider.overrideWith((ref, who) {
+          final version = ref.watch(rigAvatarVersions)[who.id];
+          if (version == null) return Completer<OverlayAvatar>().future;
+          return Future.value(
+            OverlayAvatar(key: 'v$version', png: Uint8List.fromList([version])),
+          );
+        }),
         screenOverlaySupportProvider.overrideWith(
           (ref) async => supported
               ? const OverlaySupport(supported: true, monitors: rigMonitors)
@@ -135,6 +147,12 @@ class OverlayRig {
   late final RigSync sync;
 
   bool get active => container.read(screenOverlayControllerProvider).active;
+
+  void setAvatar(String id, int version) =>
+      container.read(rigAvatarVersions.notifier).state = {
+        ...container.read(rigAvatarVersions),
+        id: version,
+      };
 
   void annotate({
     String target = 'me',

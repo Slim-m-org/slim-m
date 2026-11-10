@@ -84,6 +84,12 @@ std::string TextOf(const EncodableValue* value) {
   return s == nullptr ? std::string() : *s;
 }
 
+std::vector<uint8_t> BytesOf(const EncodableValue* value) {
+  if (value == nullptr) return {};
+  const auto* bytes = std::get_if<std::vector<uint8_t>>(value);
+  return bytes == nullptr ? std::vector<uint8_t>() : *bytes;
+}
+
 bool FlagOf(const EncodableValue* value) {
   if (value == nullptr) return false;
   const auto* b = std::get_if<bool>(value);
@@ -119,10 +125,12 @@ slimm_overlay::Panel PanelOf(const EncodableMap& map) {
     for (const auto& item : *list) {
       const auto* row = std::get_if<EncodableMap>(&item);
       if (row == nullptr) continue;
-      panel.rows.push_back({WideFromUtf8(TextOf(Field(*row, "name"))),
+      panel.rows.push_back({TextOf(Field(*row, "id")),
+                            WideFromUtf8(TextOf(Field(*row, "name"))),
                             FlagOf(Field(*row, "speaking")),
                             FlagOf(Field(*row, "muted")),
-                            FlagOf(Field(*row, "deafened"))});
+                            FlagOf(Field(*row, "deafened")),
+                            BytesOf(Field(*row, "avatar"))});
     }
   }
   return panel;

@@ -43,7 +43,7 @@ add_library(screen_overlay_win STATIC "screen_overlay_win.cpp" "screen_overlay_w
 target_compile_features(screen_overlay_win PUBLIC cxx_std_17)
 target_compile_definitions(screen_overlay_win PRIVATE "NOMINMAX" "UNICODE" "_UNICODE")
 target_include_directories(screen_overlay_win PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(screen_overlay_win PUBLIC "gdiplus" "user32" "gdi32")
+target_link_libraries(screen_overlay_win PUBLIC "gdiplus" "user32" "gdi32" "shlwapi")
 
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.

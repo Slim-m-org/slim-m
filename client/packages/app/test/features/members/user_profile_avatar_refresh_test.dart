@@ -55,7 +55,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        // The same watch UserAvatar's _avatarVersionProvider holds for the whole life of a mounted avatar.
+        // The same watch UserAvatar's avatarVersionProvider holds for the whole life of a mounted avatar.
         final seen = <int?>[];
         container.listen<int?>(
           userProfileProvider(

@@ -9,9 +9,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/app_lifecycle.dart';
 import '../providers/avatar_bytes.dart';
+import '../providers/avatar_version.dart';
 import '../providers/presence_devices.dart';
 import '../providers/presence_view.dart';
-import '../../../providers/providers.dart';
 import '../providers/user_profiles.dart';
 import '../../../widgets/image_decode.dart';
 
@@ -81,7 +81,7 @@ class UserAvatar extends ConsumerWidget {
         ? null
         : _known != null
         ? _known.$1
-        : ref.watch(_avatarVersionProvider(id));
+        : ref.watch(avatarVersionProvider(id));
     ImageProvider? picture = image;
     // A null version is the server's "no avatar", so asking would only 404.
     if (picture == null && id != null && version != null) {
@@ -124,18 +124,3 @@ class UserAvatar extends ConsumerWidget {
     );
   }
 }
-
-final _avatarVersionProvider = Provider.autoDispose.family<int?, String>((
-  ref,
-  userId,
-) {
-  final isSelf = ref.watch(sessionProvider).tokens?.userId == userId;
-  if (isSelf) {
-    return ref.watch(
-      meProvider.select((me) => me.valueOrNull?.avatarUpdatedAt),
-    );
-  }
-  return ref.watch(
-    userProfileProvider(userId).select((p) => p.valueOrNull?.avatarUpdatedAt),
-  );
-});

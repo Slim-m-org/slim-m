@@ -5,7 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_platform/platform.dart' show OverlayCorner;
+import 'package:slimm_platform/platform.dart' show AppAction, OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../screen_overlay/providers/screen_overlay_controller.dart'
@@ -16,6 +16,7 @@ import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../providers/camera_reach.dart';
+import 'call_leave_button.dart' show shortcutSuffix;
 import 'camera_on_join_section.dart';
 import 'overlay_screen_row.dart';
 import 'pause_video_section.dart';
@@ -138,7 +139,7 @@ class VideoQualitySection extends ConsumerWidget {
               SettingsToggleRow(
                 label: 'Show call overlay',
                 description:
-                    'Lists who is in the call over your other windows.',
+                    'Lists who is in the call over your other windows${shortcutSuffix(AppAction.toggleCallOverlay)}.',
                 value: settings.callOverlayEnabled,
                 semanticLabel: 'Show the call over my other windows',
                 onChanged: notifier.setCallOverlayEnabled,

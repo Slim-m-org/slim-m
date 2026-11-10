@@ -66,6 +66,16 @@ void main() {
     expect(_position, findsNothing);
   });
 
+  testWidgets('the setting names the key that toggles it', (tester) async {
+    await _pump(tester);
+    expect(
+      find.text(
+        'Lists who is in the call over your other windows (Ctrl+Shift+O).',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('turning it on persists and offers the four corners', (
     tester,
   ) async {

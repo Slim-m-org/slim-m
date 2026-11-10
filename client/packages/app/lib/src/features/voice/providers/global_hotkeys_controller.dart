@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../screen_overlay/providers/call_overlay_toggle.dart';
+import '../../screen_overlay/providers/screen_overlay_controller.dart';
 import 'push_to_talk_gate.dart';
 import 'shortcut_overrides.dart';
 import 'voice_controller.dart';
@@ -44,6 +46,11 @@ HotkeyChord get deafenChord => chordFor(
   const HotkeyChord(LogicalKeyboardKey.keyD, ctrl: true, shift: true),
 );
 
+HotkeyChord get callOverlayChord => chordFor(
+  AppAction.toggleCallOverlay,
+  const HotkeyChord(LogicalKeyboardKey.keyO, ctrl: true, shift: true),
+);
+
 final globalHotkeySourceProvider = Provider<GlobalHotkeySource?>((ref) {
   if (!isDesktopHost) return null;
   final source = createGlobalHotkeySource();
@@ -68,6 +75,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
       (_, _) => _sync(retryUnavailable: true),
     );
     _ref.listen(voiceControllerProvider, (_, _) => _sync());
+    _ref.listen(screenOverlaySupportedProvider, (_, _) => _sync());
     _ref.listen(
       shortcutOverridesProvider,
       (_, _) => _sync(retryUnavailable: true),
@@ -113,6 +121,12 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
           id: GlobalHotkeyId.toggleDeafen,
           description: 'Deafen or undeafen',
           chord: deafenChord,
+        ),
+      if (inCall && _ref.read(screenOverlaySupportedProvider))
+        GlobalHotkeyBinding(
+          id: GlobalHotkeyId.toggleCallOverlay,
+          description: 'Show or hide the call overlay',
+          chord: callOverlayChord,
         ),
     ];
   }
@@ -167,6 +181,10 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
         if (event.phase == GlobalHotkeyPhase.pressed) _toggleMute(gate);
       case GlobalHotkeyId.toggleDeafen:
         if (event.phase == GlobalHotkeyPhase.pressed) _toggleDeafen(gate);
+      case GlobalHotkeyId.toggleCallOverlay:
+        if (event.phase == GlobalHotkeyPhase.pressed) {
+          _ref.read(toggleCallOverlayProvider)();
+        }
       case null:
         return;
     }
