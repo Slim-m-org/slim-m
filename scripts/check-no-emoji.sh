@@ -4,13 +4,13 @@
 # Copyright and registered signs are pictographic by the Unicode tables but plain text here, so they are excused.
 set -uo pipefail
 
-root="${1:-client}"
+roots=("${@:-client}")
 export LC_ALL=C.UTF-8
 
 grep -rlP --binary-files=without-match \
   --include='*.dart' --include='*.yaml' --include='*.arb' \
   '(?![\x{A9}\x{AE}])\p{Extended_Pictographic}|[\x{1F1E6}-\x{1F1FF}\x{FE0F}\x{200D}]' \
-  "$root"
+  "${roots[@]}"
 status=$?
 
 case $status in

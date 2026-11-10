@@ -50,6 +50,15 @@ class CheckNoEmojiTest(unittest.TestCase):
             with self.subTest(suffix=suffix):
                 self.assertEqual(scan(EMOJI["alarm"], suffix).returncode, 1)
 
+    def test_every_path_argument_is_scanned_not_only_the_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            clean, dirty = Path(tmp) / "clean.dart", Path(tmp) / "dirty.dart"
+            clean.write_text("// plain\n", encoding="utf-8")
+            dirty.write_text(f"// {EMOJI['rocket']}\n", encoding="utf-8")
+            result = subprocess.run([str(SCRIPT), str(clean), str(dirty)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("dirty.dart", result.stdout)
+
     def test_a_scan_error_is_a_failure_not_a_pass(self):
         result = subprocess.run([str(SCRIPT), "/nonexistent-dir"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)

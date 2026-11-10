@@ -46,12 +46,22 @@ jobs:
           npm ci --ignore-scripts
           node check-parses.mjs
 
+      # Wheel-only so no sdist setup script runs; without them the tests that need these skip silently.
+      - name: python dependencies for the scripts/lib tests
+        run: "pip install --only-binary :all: numpy==2.4.6 websockets==15.0.1"
+
       # The same list a contributor runs locally, so the two cannot drift.
       # It includes the scripts/lib unittests, which e2e.yml runs too, but only
       # post-merge and advisory; this is the pull_request gate on them. Each
       # gate's rationale is in its own script header.
       - name: hygiene gates
+        env:
+          SLIMM_REQUIRE_TEST_DEPS: numpy,websockets
         run: bash scripts/gates.sh
+
+      # rpmdev-vercmp is Fedora-only, so the COPR Release ordering tests run in the image the COPR jobs use.
+      - name: COPR snapshot Release orders like rpm
+        run: bash scripts/check-rpm-ordering.sh
 
       # The shell was the one layer nothing checked: 22 workflows, ~84 inline
       # `run:` blocks and 14 scripts orchestrating every build and deploy, with

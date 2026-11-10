@@ -20,8 +20,14 @@ this suite on a bare runner with no pip install step.
 """
 
 import re
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from dart_source import strip_block_comments  # noqa: E402
+from test_client_perm_bits_match_server import strip_rust_comments  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SERVER_TYPING = REPO_ROOT / "crates/slimm-server/src/presence/typing.rs"
@@ -40,10 +46,18 @@ CLIENT_REFRESH = re.compile(
 )
 
 
+def server_code(text: str) -> str:
+    return strip_rust_comments(text)
+
+
+def client_code(text: str) -> str:
+    return strip_block_comments(text)
+
+
 class TypingTtlDriftTest(unittest.TestCase):
     def setUp(self):
-        self.server = SERVER_TYPING.read_text()
-        self.client = CLIENT_TYPING.read_text()
+        self.server = server_code(SERVER_TYPING.read_text())
+        self.client = client_code(CLIENT_TYPING.read_text())
 
     def _server_ttl(self) -> int:
         match = SERVER_TTL.search(self.server)
@@ -95,6 +109,26 @@ class TypingTtlDriftTest(unittest.TestCase):
         self.assertRegex(self.server, SERVER_TTL)
         self.assertRegex(self.client, CLIENT_MIRROR)
         self.assertRegex(self.client, CLIENT_REFRESH)
+
+
+class CommentedOutDeclarationsTest(unittest.TestCase):
+    """A stale value left in a comment must not be the one that is compared."""
+
+    def test_a_commented_out_server_ttl_is_not_read(self):
+        source = (
+            "// pub const DEFAULT_TTL: Duration = Duration::from_secs(10);\n"
+            "/// was `pub const DEFAULT_TTL: Duration = Duration::from_secs(8);`\n"
+            "pub const DEFAULT_TTL: Duration = Duration::from_secs(6);\n"
+        )
+        self.assertEqual(SERVER_TTL.search(server_code(source)).group(1), "6")
+
+    def test_a_commented_out_client_mirror_is_not_read(self):
+        source = (
+            "// const int _serverTypingTtlSeconds = 10;\n"
+            "/// Mirrors `const int _serverTypingTtlSeconds = 8;` on the server.\n"
+            "const int _serverTypingTtlSeconds = 6;\n"
+        )
+        self.assertEqual(CLIENT_MIRROR.search(client_code(source)).group(1), "6")
 
 
 if __name__ == "__main__":

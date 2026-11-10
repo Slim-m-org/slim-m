@@ -206,6 +206,11 @@ The three `SC2015` sites it did find (`[[ -n "$PID" ]] && kill "$PID" || true` i
 `scripts/lib/test_*.py` covers the harness's scenario logic (the read-state and sync assertions, the settings assertions) against stubs, with no server and no browser.
 `e2e.yml` runs the same discovery, but only on push to main and on path-matching PRs, and only as an advisory check; this is the unconditional `pull_request` gate on it, so a regression in the harness itself fails a PR rather than a nightly run nobody is watching.
 
+Three optional dependencies decide whether some of those tests run at all: `numpy` (the canvas alignment detector), `websockets` (the load-test listener pool) and `rpmdev-vercmp` (the only proof that the Python port of rpm's version compare behind the COPR snapshot Release equals real rpm).
+A test that needs one skips when it is missing, which is right on a laptop and invisible on a runner.
+The `hygiene` job installs the first two as pinned wheels and `scripts/check-rpm-ordering.sh` runs the COPR tests in the `fedora:44` image the COPR jobs use, because `rpmdev-vercmp` is not packaged for Ubuntu.
+Both name what they provide in `SLIMM_REQUIRE_TEST_DEPS`, and `test_required_test_dependencies_are_present.py` fails when a named dependency is absent, so a dropped install step turns red instead of skipping.
+
 ### iOS purpose strings
 
 App Store review rejects a binary whose linked SDKs reference a sensitive API without a purpose string, and it does it asynchronously.
@@ -243,7 +248,7 @@ the pre-trim CLAUDE.md's own contribution rule says "a CI gate checks the Rust o
 It warns at 300 and past 500, and fails only more than 60 lines past 500 (or past an allowlisted file's own ceiling), because 300 is the review budget rather than a limit and a file a few lines over 500 wants a split card, not a split in the middle of a feature (owner, 2026-10-13).
 When this was written 64 files were over 300 and 14 were over 500.
 
-The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.h`, `.gradle`.
+The check runs over hand-authored source only, from `git ls-files`, so nothing untracked or ignored is counted: `.rs`, `.dart`, `.py`, `.sh`, `.swift`, `.kt`, `.kts`, `.js`, `.mjs`, `.ts`, `.tsx`, `.go`, `.css`, `.sql`, `.yml`, `.yaml`, `.toml`, `.cc`, `.cpp`, `.h`, `.gradle`.
 Generated Dart (`.g.dart`, `.freezed.dart`, the protobuf suffixes), the committed `.sqlx/` cache, the vendored `node_modules/` and `schema/openapi.yaml` are excluded, because their size is nobody's decision here.
 The schema is the wire contract, already guarded by the router contract test and the additive-only breaking-change gate, and it had its own allowlist line that nearly every server PR edited, so any two of them conflicted.
 Markdown is excluded too, deliberately: the budget is a code-review budget, and prose is not reviewed by the line.
@@ -273,10 +278,13 @@ Prefer `expectSettled`, `waitUntil` (`test/support/async_wait.dart`) and the geo
 `scripts/check-comment-cap.sh` enforces the other half of the same `CLAUDE.md` rule: a plain `//` or `#` comment never exceeds one line.
 It ratchets rather than merely allows: a file may not gain a new run past its listed count, and the pre-existing ones are frozen at the count they were found at in `scripts/comment-cap-allow.txt`, the same shape as the file-size allowlist above.
 Doc comments (`///`, `//!`, `/**`) are exempt everywhere.
-Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks included) and TOML.
+Scope is Dart, Rust, Python, shell, YAML (inline workflow `run:` blocks included), TOML, and the native and web sources: Swift, Kotlin, C, C++, Objective-C, TypeScript and JavaScript.
+Generated files (`generated_plugin_registrant.*`, `GeneratedPluginRegistrant.swift`) and the vendored wayland-scanner output are skipped.
 Shell, YAML and TOML only have `#` comments, and a `#` block is also how such a file documents itself, so the leading block at the top of the file is a header and never counts as a run.
 That covers the shebang, the SPDX line, a description and the blank lines between them, up to the first line of real content.
 Any run after that point counts like it does in every other language, and `//` and `/* */` are not read as comments in these file types.
+Python reads `#` comments only too, with no header exemption.
+Every other language has no `#` comments, so a stacked Rust `#[attr]` or a C `#include` is never counted as a run.
 
 ## licenses
 
