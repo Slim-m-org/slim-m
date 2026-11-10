@@ -33,9 +33,6 @@ const _pdf = SharedFile(
   mimeType: 'application/pdf',
 );
 
-/// A [Ref] that outlives provider creation, like the one the intake controller holds.
-final _refProvider = Provider<Ref>((ref) => ref);
-
 class _FakeSource implements ShareSource {
   _FakeSource([this.waiting]);
 
@@ -144,7 +141,7 @@ void main() {
         h.host.runtimeFor(origin)!.container.read(pendingShareProvider);
 
     void deliver(IncomingShare share) =>
-        deliverShare(h.host.active!.container.read(_refProvider), share);
+        deliverShare(h.host, h.host.active!.container, share);
 
     const share = IncomingShare(text: 'hello');
 
@@ -211,7 +208,7 @@ void main() {
         );
         left = (await h.seed('https://second.example', user: 'b')).origin;
         await h.boot();
-        h.host.active!.container.read(shareIntakeControllerProvider);
+        addTearDown(ShareIntake.start(h.host.active!.container).dispose);
         await h.host.removeAccount(first.origin);
       });
       await tester.pump();
@@ -230,7 +227,7 @@ void main() {
     });
   });
 
-  group('the intake controller', () {
+  group('the intake', () {
     test('takes the launching share at startup and later arrivals', () async {
       final source = _FakeSource(const IncomingShare(text: 'cold'));
       final container = ProviderContainer(
@@ -238,7 +235,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      container.read(shareIntakeControllerProvider);
+      addTearDown(ShareIntake.start(container).dispose);
       await pumpEventQueueTimes();
       expect(container.read(pendingShareProvider)?.share.text, 'cold');
 
@@ -255,7 +252,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      container.read(shareIntakeControllerProvider);
+      addTearDown(ShareIntake.start(container).dispose);
       await pumpEventQueueTimes();
 
       expect(container.read(pendingShareProvider), isNull);

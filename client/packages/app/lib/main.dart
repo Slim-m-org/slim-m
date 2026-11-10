@@ -268,7 +268,7 @@ Future<void> _runBootstrapSequence(
   startAccountServices(container);
   container.listen(appBadgeSyncProvider, (_, _) {});
   container.read(deepLinkControllerProvider);
-  container.read(shareIntakeControllerProvider);
+  ShareIntake.start(container);
   await shell.registerListenersAndTray(container);
 }
 
