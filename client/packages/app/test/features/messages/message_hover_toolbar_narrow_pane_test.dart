@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 
 import 'message_hover_toolbar_support.dart';
 import 'message_row_harness.dart';
@@ -34,7 +33,7 @@ Future<void> _hoverInPane(WidgetTester tester, double pane) async {
     ),
   );
   final mouse = await hoverMouse(tester);
-  await hoverHover(tester, mouse, find.byType(MessageRow));
+  await hoverHover(tester, mouse, find.byKey(const ValueKey('m1')));
 }
 
 void main() {
