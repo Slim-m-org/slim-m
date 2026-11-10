@@ -4,6 +4,8 @@
 /// that is one cluster but seven code points would pass here and fail there.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 
 class CodePointLengthLimit extends TextInputFormatter {
@@ -20,12 +22,29 @@ class CodePointLengthLimit extends TextInputFormatter {
     if (runes.length <= max) return newValue;
     // A paste is cut to fit rather than refused whole, so the start of it still lands.
     final text = String.fromCharCodes(runes.take(max));
-    final caret = newValue.selection.baseOffset.clamp(0, text.length);
     return TextEditingValue(
       text: text,
-      selection: TextSelection.collapsed(offset: caret),
+      selection: _clampSelection(newValue.selection, text.length),
+      composing: _clampComposing(newValue.composing, text.length),
     );
   }
+}
+
+TextSelection _clampSelection(TextSelection selection, int length) =>
+    selection.copyWith(
+      baseOffset: math.min(selection.baseOffset, length),
+      extentOffset: math.min(selection.extentOffset, length),
+    );
+
+/// Keeps an IME composition that survives the cut, as Flutter's own limit does.
+TextRange _clampComposing(TextRange composing, int length) {
+  if (composing.isCollapsed || composing.start >= length) {
+    return TextRange.empty;
+  }
+  return TextRange(
+    start: composing.start,
+    end: math.min(composing.end, length),
+  );
 }
 
 /// How long a field's value is for its limit: trimmed, in code points, the

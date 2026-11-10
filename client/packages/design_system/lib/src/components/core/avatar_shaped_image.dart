@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// An image, or a flat disc, shaped as a rounded rect (a circle when the
-/// radius is half the size) by baking the shape into a bitmap at three times
-/// the painted pixels and drawing that bitmap scaled down.
+/// radius is half the size) by baking the shape into a bitmap at three pixels
+/// per logical pixel or the display's own density, whichever is higher, and
+/// drawing that bitmap scaled down.
 ///
 /// The Linux desktop renders with Impeller on OpenGL, which anti-aliases a
 /// clip or a shape fill only partly: measured on the owner's renderer, a
 /// 32px clipped circle had about 60 blended edge pixels, against about 110
 /// for this supersampled bake, close to a true anti-aliased edge. The bake is
-/// what makes an avatar a smooth circle on a 1x display.
+/// what makes an avatar a smooth circle on a 1x display. A denser display
+/// already has the pixels, so it does not bake more than its own density.
 library;
 
 import 'dart:math' as math;
@@ -15,14 +17,16 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
-/// How many times the painted pixels a shape is baked at.
-const int _supersample = 3;
+/// The fewest pixels per logical pixel a shape is baked at.
+const int _minBakeDensity = 3;
 
 /// Largest bake edge, so a huge avatar does not allocate a huge texture.
 const int _maxBake = 1024;
 
-int _bakeEdge(double size, double devicePixelRatio) =>
-    math.min(_maxBake, (size * devicePixelRatio * _supersample).ceil());
+int _bakeEdge(double size, double devicePixelRatio) => math.min(
+      _maxBake,
+      (size * math.max(devicePixelRatio, _minBakeDensity)).ceil(),
+    );
 
 /// [source] cropped to a centred square, shaped, at [edge] pixels.
 ui.Image _bake(ui.Image source, int edge, double radiusFraction) {

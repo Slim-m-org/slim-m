@@ -16,6 +16,9 @@ TextEditingValue _edit(String before, String after) =>
       ),
     );
 
+TextEditingValue _limit(TextEditingValue after) =>
+    CodePointLengthLimit(4).formatEditUpdate(const TextEditingValue(), after);
+
 void main() {
   test('text within the cap passes untouched', () {
     expect(_edit('abc', 'abcd').text, 'abcd');
@@ -33,6 +36,50 @@ void main() {
         '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}';
     expect(family.runes.length, 7);
     expect(_edit('', family).text.runes.length, 4);
+  });
+
+  test('a composition inside the cut survives it', () {
+    final cut = _limit(
+      const TextEditingValue(
+        text: 'abcdefgh',
+        selection: TextSelection.collapsed(offset: 3),
+        composing: TextRange(start: 1, end: 3),
+      ),
+    );
+    expect(cut.composing, const TextRange(start: 1, end: 3));
+  });
+
+  test('a composition crossing the cut is clamped to the new length', () {
+    final cut = _limit(
+      const TextEditingValue(
+        text: 'abcdefgh',
+        selection: TextSelection.collapsed(offset: 8),
+        composing: TextRange(start: 2, end: 8),
+      ),
+    );
+    expect(cut.composing, const TextRange(start: 2, end: 4));
+  });
+
+  test('a composition that starts past the cut is dropped', () {
+    final cut = _limit(
+      const TextEditingValue(
+        text: 'abcdefgh',
+        selection: TextSelection.collapsed(offset: 8),
+        composing: TextRange(start: 5, end: 8),
+      ),
+    );
+    expect(cut.composing, TextRange.empty);
+  });
+
+  test('a selection keeps its extent and direction, clamped to the cut', () {
+    final cut = _limit(
+      const TextEditingValue(
+        text: 'abcdefgh',
+        selection: TextSelection(baseOffset: 6, extentOffset: 1),
+      ),
+    );
+    expect(cut.selection.baseOffset, 4);
+    expect(cut.selection.extentOffset, 1);
   });
 
   testWidgets('AppInput refuses typing past maxLength', (tester) async {

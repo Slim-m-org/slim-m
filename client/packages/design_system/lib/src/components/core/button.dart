@@ -18,6 +18,7 @@ import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../../press_tracking.dart';
 import 'spinner.dart';
 import '../../touch_targets.dart';
 
@@ -155,12 +156,8 @@ class AppButton extends StatefulWidget {
   State<AppButton> createState() => _AppButtonState();
 }
 
-class _AppButtonState extends State<AppButton> {
+class _AppButtonState extends State<AppButton> with PressTracking {
   bool _focused = false;
-
-  /// The finger-down state a phone has no hover to stand in for; drawn as a
-  /// slight scale-down so the press is felt as well as ticked.
-  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -205,9 +202,9 @@ class _AppButtonState extends State<AppButton> {
 
   Widget _gestures(bool enabled, Widget button) {
     return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+      onTapDown: enabled ? (_) => setPressed(true) : null,
+      onTapUp: enabled ? (_) => setPressed(false) : null,
+      onTapCancel: enabled ? () => setPressed(false) : null,
       onTap: enabled
           ? () {
               AppHaptics.selection();
@@ -215,7 +212,7 @@ class _AppButtonState extends State<AppButton> {
             }
           : null,
       child: AnimatedScale(
-        scale: _pressed ? AppMotion.pressScale : 1,
+        scale: pressed ? AppMotion.pressScale : 1,
         duration: AppMotion.reduced(context, AppMotion.fast),
         curve: AppMotion.entrance,
         child: button,

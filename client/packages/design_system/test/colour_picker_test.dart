@@ -42,7 +42,7 @@ String get _hexText =>
         .text;
 
 void main() {
-  testWidgets('dragging the square changes the colour and the hex', (
+  testWidgets('dragging the square follows the pointer to where it ends', (
     tester,
   ) async {
     await _pump(tester);
@@ -50,9 +50,14 @@ void main() {
     final square = find.bySemanticsLabel('Saturation and brightness');
     final rect = tester.getRect(square);
     await tester.dragFrom(
-        rect.topLeft + const Offset(4, 4), const Offset(60, 40));
+      rect.topLeft + const Offset(4, 4),
+      const Offset(60, 40),
+    );
     await tester.pump();
     expect(_hexText, isNot(before));
+    final hsv = HSVColor.fromColor(colourFromHexText(_hexText)!);
+    expect(hsv.saturation, closeTo(64 / rect.width, 0.02));
+    expect(hsv.value, closeTo(1 - 44 / rect.height, 0.02));
   });
 
   testWidgets('the top-left corner is white and the bottom is black', (

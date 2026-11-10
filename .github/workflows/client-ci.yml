@@ -18,6 +18,8 @@ on:
       # to skip this workflow entirely and land that failure on main, which is
       # how bulkDeleteMessages (#675) broke the api package unnoticed.
       - "schema/openapi.yaml"
+      # theme_fixtures_match_server_test.dart compares the client's theme export to these files.
+      - "crates/slimm-server/tests/fixtures/space_themes/**"
       # The smoke job runs this script, so a change to it must trigger the job that exercises it.
       - "scripts/desktop-shell-smoke.sh"
       - "scripts/chrome-tests.sh"
@@ -41,6 +43,8 @@ on:
       # to skip this workflow entirely and land that failure on main, which is
       # how bulkDeleteMessages (#675) broke the api package unnoticed.
       - "schema/openapi.yaml"
+      # theme_fixtures_match_server_test.dart compares the client's theme export to these files.
+      - "crates/slimm-server/tests/fixtures/space_themes/**"
       # The smoke job runs this script, so a change to it must trigger the job that exercises it.
       - "scripts/desktop-shell-smoke.sh"
       - "scripts/chrome-tests.sh"
