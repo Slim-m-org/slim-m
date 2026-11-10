@@ -249,9 +249,7 @@ String? _rejection(ZipEntryData entry, String fileName, int plannedCount) {
   if (plannedCount >= maxPlannedEmojiCount) {
     return 'more than $maxPlannedEmojiCount images at once';
   }
-  final sizeReason = _sizeRefusal(entry.size);
-  if (sizeReason != null) return sizeReason;
-  return null;
+  return _sizeRefusal(entry.size);
 }
 
 String? _sizeRefusal(int size) {
