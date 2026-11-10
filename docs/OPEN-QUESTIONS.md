@@ -392,3 +392,19 @@ The `slimm://` form is still accepted wherever a link is pasted or tapped, and t
 A proxy that routes only some paths to the server (the live Traefik rule keeps `/app`, `/privacy` and `/support` elsewhere) needs nothing extra, because `/invite/` falls to the server.
 
 What it unblocks and is not built yet: a QR for tap-to-add, and https links to channels and messages.
+
+## 22. The Discord link callback cannot tell who approved it (2026-11-09)
+
+The 2026-11-08 audit (`x-security-13`) found that `GET /links/discord/callback` links whichever slim account minted the state, whoever's browser comes back with the code.
+A member can start a link on their own account and send the Discord authorize URL to someone else.
+If that person approves it, the member's account is linked to the other person's Discord identity, and the other person then gets "already linked to someone else here" when they link their own.
+
+The audit's remedy was a verifier returned by `start` plus an authenticated `complete` POST.
+That does not close it, because the member who started the link holds the verifier and completes it themselves.
+The approval has to be confirmed in the browser that returns from Discord, and that browser has no slim session to check.
+What would help is a confirm page at the callback that names the slim account being linked and asks for a POST before anything is saved.
+That is a wire and client change, so it is parked here rather than decided in a fix wave.
+
+*Question:* build the confirm page now, or hold until the "claim imported messages" feature, which is where a forged link turns into history theft and should need a stronger proof of ownership than an OAuth round trip?
+
+*What the run did instead:* left `crates/slimm-server/src/http/linked_accounts.rs` unchanged.
