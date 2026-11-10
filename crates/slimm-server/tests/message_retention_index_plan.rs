@@ -14,6 +14,7 @@
 use std::fs;
 use std::path::Path;
 
+use slimm_server::store::Store;
 use sqlx::{Row, SqlitePool};
 
 mod support;
@@ -109,20 +110,25 @@ fn assert_never_scans_messages(plan: &[String], what: &str) {
 }
 
 /// Pins the index a content pass reads messages through, since that index sets its cost; see `retention_candidates.rs`.
-fn assert_reads_messages_through(plan: &[String], what: &str, access: &str) {
+fn assert_reads_messages_through(plan: &[String], what: &str, accepted: &[&str]) {
     assert_never_scans_messages(plan, what);
-    let seek = format!("SEARCH m USING INDEX {access}");
     assert!(
-        plan.iter().any(|step| step == &seek),
-        "{what} no longer reads messages through {access}; the plan is {plan:?}"
+        accepted
+            .iter()
+            .any(|access| plan.contains(&format!("SEARCH m USING INDEX {access}"))),
+        "{what} no longer reads messages through one of {accepted:?}; the plan is {plan:?}"
     );
 }
 
 const CONTENT_SOURCE: &str = "src/store/messages/retention_candidates.rs";
 const NOW: i64 = 1_790_000_000_000;
 const DAY_MS: i64 = 86_400_000;
-const BY_CHANNEL: &str = "messages_channel_live (channel_id=?)";
-const BY_CREATED_AT: &str = "messages_live_created_at (created_at<?)";
+/// Either index serves a bare channel equality, so the planner may pick whichever is cheaper.
+const BY_CHANNEL: [&str; 2] = [
+    "messages_channel_live (channel_id=?)",
+    "messages_channel_created (channel_id=?)",
+];
+const BY_CHANNEL_WINDOW: [&str; 1] = ["messages_channel_created (channel_id=? AND created_at<?)"];
 
 #[tokio::test]
 async fn the_deleted_channel_pass_reads_messages_by_channel() {
@@ -130,26 +136,67 @@ async fn the_deleted_channel_pass_reads_messages_by_channel() {
     let source = read_source(CONTENT_SOURCE);
     let sql = extract_containing(&source, "WHERE c.deleted_at IS NOT NULL");
     let plan = plan_of(&pool, &sql, &[200]).await;
-    assert_reads_messages_through(&plan, "the deleted-channel pass", BY_CHANNEL);
+    assert_reads_messages_through(&plan, "the deleted-channel pass", &BY_CHANNEL);
 }
 
-/// That index has no `created_at`, so the window is checked per row of the channel: see the module doc.
+/// The range on `created_at` is what lets a channel with nothing past its window cost one probe.
 #[tokio::test]
-async fn the_channel_window_pass_reads_messages_by_channel() {
+async fn the_channel_window_pass_seeks_the_channel_and_created_at_index() {
     let (pool, _guard) = new_pool("retention-channel-plan").await;
     let source = read_source(CONTENT_SOURCE);
     let sql = extract_containing(&source, "WHERE cr.retention_days > 0");
     let plan = plan_of(&pool, &sql, &[NOW, DAY_MS, 200]).await;
-    assert_reads_messages_through(&plan, "the channel-window pass", BY_CHANNEL);
+    assert_reads_messages_through(&plan, "the channel-window pass", &BY_CHANNEL_WINDOW);
 }
 
+/// Driven from `channels`, so an exempt channel's old messages are never read only to be discarded.
 #[tokio::test]
-async fn the_space_window_pass_seeks_the_created_at_index() {
+async fn the_space_window_pass_seeks_the_channel_and_created_at_index() {
     let (pool, _guard) = new_pool("retention-space-plan").await;
     let source = read_source(CONTENT_SOURCE);
-    let sql = extract_containing(&source, "AND cr.channel_id IS NULL");
+    let sql = extract_containing(&source, "WHERE cr.channel_id IS NULL");
     let plan = plan_of(&pool, &sql, &[NOW - 30 * DAY_MS, 200]).await;
-    assert_reads_messages_through(&plan, "the space-window pass", BY_CREATED_AT);
+    assert_reads_messages_through(&plan, "the space-window pass", &BY_CHANNEL_WINDOW);
+}
+
+/// `PRAGMA optimize` runs on every connection close, so the plans must hold once statistics exist.
+#[tokio::test]
+async fn the_window_passes_keep_that_index_once_the_tables_are_analysed() {
+    let (pool, _guard) = new_pool("retention-analysed-plan").await;
+    let channel = Store::new(pool.clone())
+        .create_channel("seed", "text")
+        .await
+        .expect("create channel")
+        .id;
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 3000)
+         INSERT INTO messages (id, channel_id, seq, content, is_encrypted, created_at)
+         SELECT randomblob(16), ?2, i, '', 1, ?1 - i FROM n",
+    )
+    .bind(NOW)
+    .bind(channel)
+    .execute(&pool)
+    .await
+    .expect("seed messages");
+    sqlx::query("ANALYZE")
+        .execute(&pool)
+        .await
+        .expect("analyze");
+    let source = read_source(CONTENT_SOURCE);
+    let channel_sql = extract_containing(&source, "WHERE cr.retention_days > 0");
+    let space_sql = extract_containing(&source, "WHERE cr.channel_id IS NULL");
+    let channel_plan = plan_of(&pool, &channel_sql, &[NOW, DAY_MS, 200]).await;
+    let space_plan = plan_of(&pool, &space_sql, &[NOW - 30 * DAY_MS, 200]).await;
+    assert_reads_messages_through(
+        &channel_plan,
+        "the analysed channel-window pass",
+        &BY_CHANNEL_WINDOW,
+    );
+    assert_reads_messages_through(
+        &space_plan,
+        "the analysed space-window pass",
+        &BY_CHANNEL_WINDOW,
+    );
 }
 
 /// A plain `"..."` literal's body with its `\`-newline continuations folded, as the compiler reads it.
