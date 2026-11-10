@@ -7,8 +7,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-
-import '../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 final _readsSessionToken = RegExp(r'session\.tokens\??\.accessToken');
 final _asksGate = RegExp(r'\bawaitTrust\s*\(');

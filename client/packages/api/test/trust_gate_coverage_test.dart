@@ -6,9 +6,8 @@ library;
 
 import 'dart:io';
 
+import 'package:slimm_test_support/source_gates.dart';
 import 'package:test/test.dart';
-
-import 'support/code_only.dart';
 
 /// Defines or compares the tokens; nothing in these sends them.
 const _holders = {'models.dart', 'session_store.dart'};
