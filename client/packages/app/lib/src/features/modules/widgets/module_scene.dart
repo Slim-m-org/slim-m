@@ -431,7 +431,19 @@ class ModuleScene {
     this.live = false,
     this.isPrivate = false,
     this.crop,
+    this.source,
   });
+
+  /// The output string this scene was read from, when it was read from one.
+  ///
+  /// `state` is optional, so it cannot tell two frames apart on its own: a
+  /// module with nothing to remember sends new ops under the same, absent, state.
+  final String? source;
+
+  /// Whether [other] is the frame this one already is, which is what a rebuild
+  /// from above that changed nothing looks like.
+  bool isSameFrame(ModuleScene other) =>
+      state == other.state && source == other.source;
 
   /// Whether the module asked for this frame to be shown to this viewer only (decision 0099): the
   /// host neither stores nor broadcasts it, so it is held on screen until the viewer closes it.
@@ -452,6 +464,7 @@ class ModuleScene {
     live: live,
     isPrivate: isPrivate,
     crop: crop,
+    source: source,
   );
 
   /// Whether any op answers a right click or a long press.

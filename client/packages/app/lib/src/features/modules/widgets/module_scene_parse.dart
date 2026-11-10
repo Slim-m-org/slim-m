@@ -65,19 +65,9 @@ ModuleScene? parseModuleScene(String raw) {
     status: _string(decoded['status']),
     live: decoded['live'] == true,
     isPrivate: decoded['private'] == true,
+    source: raw,
   );
-  return ModuleScene(
-    width: scene.width,
-    height: scene.height,
-    ops: scene.ops,
-    background: scene.background,
-    state: scene.state,
-    controls: scene.controls,
-    status: scene.status,
-    live: scene.live,
-    isPrivate: scene.isPrivate,
-    crop: sceneContentBounds(scene),
-  );
+  return scene.withCrop(sceneContentBounds(scene));
 }
 
 List<SceneOp> _parseOps(Object? opsRaw, double extent) {

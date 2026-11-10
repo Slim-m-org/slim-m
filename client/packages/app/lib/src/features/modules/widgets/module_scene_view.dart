@@ -135,23 +135,24 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
   /// on a shared scene - resets this view and stops any animation. This
   /// widget's own work does not, even though on the shared path it arrives by
   /// exactly the same route: see [_ownStates].
+  ///
+  /// A frame is told apart by its [ModuleScene.source] as well as its state,
+  /// because a module with nothing to remember sends new ops with none.
   @override
   void didUpdateWidget(ModuleSceneView old) {
     super.didUpdateWidget(old);
-    if (old.initial.state == widget.initial.state) return;
+    final next = widget.initial;
+    if (old.initial.isSameFrame(next)) return;
     // A private board is this viewer's alone: another player's frame does not take it away.
     if (_scene.isPrivate) return;
-    if (_isOwnWork(widget.initial.state)) {
-      _ownStates.remember(widget.initial.state);
-      if (_scene.state != widget.initial.state) {
-        setState(() => _scene = keepCropStable(_scene, widget.initial));
-      }
-      return;
+    // A frame already on screen is no new run, however it got here.
+    final shown = _scene.isSameFrame(next);
+    if (!shown && !_isOwnWork(next.state)) {
+      _stop();
+      _queue.clear();
     }
-    _stop();
-    _queue.clear();
-    _ownStates.remember(widget.initial.state);
-    setState(() => _scene = keepCropStable(_scene, widget.initial));
+    _ownStates.remember(next.state);
+    if (!shown) setState(() => _scene = keepCropStable(_scene, next));
   }
 
   /// Whether a scene arriving from above is this view's own, rather than a
