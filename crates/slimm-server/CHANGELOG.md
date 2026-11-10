@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.110.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.109.0...server-v0.110.0) (2026-11-10)
+
+
+### Features
+
+* a Space setting that hides bots from the member list ([#2366](https://github.com/Slim-m-org/slim-m/issues/2366)) ([a360821](https://github.com/Slim-m-org/slim-m/commit/a360821ccf5ec32b1255aff789733eae93d890e2))
+
+
+### Bug Fixes
+
+* **client:** pop-out, share grid, full screen dock, file search, pane lag, mentions ([#2360](https://github.com/Slim-m-org/slim-m/issues/2360)) ([70584ef](https://github.com/Slim-m-org/slim-m/commit/70584ef6b978688b8645ee454f18767ceb117e7f))
+* Create emoji opens as a dialog and a taken name can be renamed ([#2373](https://github.com/Slim-m-org/slim-m/issues/2373)) ([5ed34b7](https://github.com/Slim-m-org/slim-m/commit/5ed34b7c1b0373fdf2eca44c8f5182e454b3d93c))
+* phone channel search matches partial words, jumps to its hits, and uses the palette's look ([#2369](https://github.com/Slim-m-org/slim-m/issues/2369)) ([2295e37](https://github.com/Slim-m-org/slim-m/commit/2295e37b9ac342ebf72602ec735698d2f2b74455))
+* the first wave of fixes from the 2026-11-08 audit ([#2362](https://github.com/Slim-m-org/slim-m/issues/2362)) ([f509c8e](https://github.com/Slim-m-org/slim-m/commit/f509c8ea0cd16d506a552c3a350e86dfe077fede))
+* wave 2a of the fixes from the 2026-11-08 audit ([#2370](https://github.com/Slim-m-org/slim-m/issues/2370)) ([9e69a7d](https://github.com/Slim-m-org/slim-m/commit/9e69a7d633785a328834a444e9bf2b9fc58aa9a2))
+
 ## [0.109.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.108.0...server-v0.109.0) (2026-11-06)
 
 
