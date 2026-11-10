@@ -44,7 +44,7 @@ import '../../canvas/screens/canvas_pane.dart';
 import '../widgets/call_audio_start.dart';
 import '../widgets/call_leave_button.dart';
 import '../../canvas/screens/canvas_dock_toggle.dart';
-import '../../modules/screens/dock_solo_controls.dart';
+import 'dock_solo_controls.dart';
 
 class VoiceCallDock extends StatefulWidget {
   const VoiceCallDock({

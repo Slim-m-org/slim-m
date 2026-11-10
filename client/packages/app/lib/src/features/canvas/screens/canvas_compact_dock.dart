@@ -19,7 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/floating_dock_card.dart';
 import '../../voice/widgets/bot_call_chips.dart';
 import '../../voice/widgets/call_leave_button.dart';
-import '../../modules/screens/dock_solo_controls.dart';
+import '../../voice/screens/dock_solo_controls.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_tools.dart';
