@@ -319,7 +319,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.bySemanticsLabel('Manage random'));
+      await clickHoverRevealed(tester, find.bySemanticsLabel('Manage random'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Channel settings'));
       await tester.pumpAndSettle();
