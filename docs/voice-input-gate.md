@@ -89,7 +89,8 @@ No event announces that setting, so a call rereads it when it starts and then ev
 It removes much more than rnnoise of typing, door slams, music and fans; see `docs/research/deepfilternet-evaluation.md` for the numbers, what it does not fix (barks, babble) and the cost.
 The fork builds it with cargo into a static library (`third_party/dfn`), so a desktop build needs a Rust toolchain; without cargo the build warns and Strongest runs as Strong.
 Windows ARM64 is built without it for the same reason: tract's assembly kernels were not checked there.
-The model is loaded only when Strongest is chosen, off the audio thread, and takes about 60 ms and 48 MB; it is let go when another choice is made and the next frame arrives.
+The model is loaded only when Strongest is chosen and freed when another choice is made, both on a worker thread, never the audio or platform thread.
+Loading takes about 50 to 60 ms and 48 MB, and rnnoise alone runs until the model is ready.
 
 DeepFilterNet turns down the first words after a quiet spell, so rnnoise keeps running beside it.
 Its speech probability still feeds the gate, one frame late to match DeepFilterNet's extra frame of delay.
