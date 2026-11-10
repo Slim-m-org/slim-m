@@ -61,3 +61,20 @@ Future<int?> transcriptDepth(
   ).getSingle();
   return row.read<int>('depth');
 }
+
+/// The `seq` of the oldest delivered row among [channelId]'s newest [rows], or
+/// null when it holds none: how far back a window of that size reaches.
+Future<int?> transcriptOldestSeq(
+  SlimmDatabase db,
+  String channelId,
+  int rows,
+) async {
+  final row = await db.customSelect(
+    'SELECT MIN(seq) AS oldest FROM ('
+    'SELECT seq FROM messages WHERE channel_id = ? AND seq > 0 '
+    'ORDER BY seq DESC LIMIT ?)',
+    variables: [Variable.withString(channelId), Variable.withInt(rows)],
+    readsFrom: {db.messages},
+  ).getSingle();
+  return row.readNullable<int>('oldest');
+}

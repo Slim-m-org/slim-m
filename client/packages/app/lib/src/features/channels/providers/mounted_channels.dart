@@ -43,6 +43,9 @@ class MountedChannels extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether at least one [ChannelScreen] is showing [channelId] right now.
+  bool isOpen(String channelId) => _counts.containsKey(channelId);
+
   /// Every channel id at least one [ChannelScreen] is showing right now.
   Set<String> get openChannelIds => _counts.keys.toSet();
 }

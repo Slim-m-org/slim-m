@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// [MessageStore.hasMessage], [MessageStore.transcriptDepthOf] and
-/// [MessageStore.oldestLocalSeq]: the direct-database reads a message jump
+/// [MessageStore.oldestLocalSeq] and [MessageStore.oldestSeqInWindow]: the
+/// direct-database reads a message jump
 /// pages history backwards with, with no transcript or channel screen
 /// involved.
 library;
@@ -111,5 +112,28 @@ void main() {
     expect(await store.transcriptDepthOf('chan-1', 'p1'), 1);
     expect(await store.transcriptDepthOf('chan-1', 'gone'), isNull);
     expect(await store.transcriptDepthOf('chan-2', 'm50'), isNull);
+  });
+
+  test('oldestSeqInWindow is where a window of that many rows ends', () async {
+    await store.applyMessages([
+      for (var seq = 10; seq <= 50; seq += 10) _message(id: 'm$seq', seq: seq),
+      _message(id: 'other', seq: 5, channelId: 'chan-2'),
+    ]);
+    await store.addPending(
+      id: 'p1',
+      channelId: 'chan-1',
+      authorId: 'user-1',
+      content: 'not sent yet',
+    );
+
+    expect(await store.oldestSeqInWindow('chan-1', 1), 50);
+    expect(await store.oldestSeqInWindow('chan-1', 3), 30);
+    expect(
+      await store.oldestSeqInWindow('chan-1', 200),
+      10,
+      reason: 'a window larger than the channel reaches its oldest row, '
+          'never the unsent row\'s zero',
+    );
+    expect(await store.oldestSeqInWindow('chan-3', 200), isNull);
   });
 }

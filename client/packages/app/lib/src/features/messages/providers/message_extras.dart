@@ -7,14 +7,19 @@
 /// fetched page ([applyMessages]) may clear reactions. [retain] drops whatever
 /// no open channel holds, in one write so a message on screen never loses its
 /// reactions mid-render, and [clear] empties it on sign-out.
+///
+/// [applyPage] also records which seqs a page covered, and [retain] and
+/// [clear] forget that with the extras it describes.
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/live_events.dart';
+import 'hydrated_ranges.dart';
 import 'poll_local_vote.dart';
 
 /// One message's reactions, attachments, poll, and thread reply summary,
@@ -138,6 +143,7 @@ class MessageExtrasController
 
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
+  final _hydrated = <String, HydratedRanges>{};
 
   MessageExtras extrasFor(String messageId) =>
       state[messageId] ?? MessageExtras.empty;
@@ -228,6 +234,27 @@ class MessageExtrasController
     }
     if (changed) state = next;
   }
+
+  /// [applyMessages] for a page fetched below [before] (the newest when null),
+  /// recording the seqs it covered: to its oldest row, or the start if short.
+  void applyPage(
+    String channelId,
+    List<api.Message> page, {
+    required int? before,
+    required int limit,
+  }) {
+    applyMessages(page);
+    final top = before == null ? HydratedRanges.newest : before - 1;
+    final oldest = page.length < limit
+        ? 0
+        : page.map((m) => m.seq).reduce(math.min);
+    final ranges = _hydrated.putIfAbsent(channelId, HydratedRanges.new);
+    ranges.add(math.min(oldest, top), top);
+  }
+
+  /// The highest seq at or above [floor] no page covered; see [HydratedRanges].
+  int? highestUnhydrated(String channelId, int floor) =>
+      (_hydrated[channelId] ?? HydratedRanges()).highestGap(floor);
 
   /// Whatever [message] carries, over whatever is already known. See the file
   /// doc comment for why this can only ever add information; the three
@@ -475,6 +502,7 @@ class MessageExtrasController
   /// Drops every cached entry. See the file doc comment for why sign-out is
   /// the one point this runs.
   void clear() {
+    _hydrated.clear();
     if (state.isEmpty) return;
     state = const {};
   }
@@ -483,7 +511,10 @@ class MessageExtrasController
   /// comment for why this, not a per-id prune, is the safe way to bound this
   /// map - only ever called from `providers/retention_sweep.dart`'s periodic
   /// sweep, with [reachable] already computed off the local store.
-  void retain(Set<String> reachable) {
+  void retain(Set<String> reachable, {required Set<String> openChannelIds}) {
+    _hydrated.removeWhere(
+      (channelId, _) => !openChannelIds.contains(channelId),
+    );
     if (state.keys.every(reachable.contains)) return;
     state = {
       for (final entry in state.entries)

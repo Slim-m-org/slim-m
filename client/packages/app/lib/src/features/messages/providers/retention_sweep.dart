@@ -75,7 +75,7 @@ Future<void> runRetentionSweep(
 }) async {
   await store.pruneToRetentionCeiling(ceiling);
   final reachable = await store.reachableMessageIds(openChannelIds);
-  extras.retain(reachable);
+  extras.retain(reachable, openChannelIds: openChannelIds);
 }
 
 /// Runs [runRetentionSweep] every [retentionSweepInterval] for as long as
