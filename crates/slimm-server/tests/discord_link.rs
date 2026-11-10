@@ -271,6 +271,7 @@ struct Pair {
     ada: slimm_server::ids::UserId,
     ada_token: String,
     bob_token: String,
+    /// Bind it when destructuring: `..` drops it at once, which deletes the database under the pool.
     _guard: support::TestDbGuard,
 }
 
@@ -304,6 +305,7 @@ async fn only_the_member_who_started_the_link_can_finish_it() {
         app,
         ada_token,
         bob_token,
+        _guard,
         ..
     } = two_members("slimm-discord-bound").await;
 
@@ -323,7 +325,12 @@ async fn only_the_member_who_started_the_link_can_finish_it() {
 
 #[tokio::test]
 async fn the_state_the_starter_holds_is_not_a_handoff() {
-    let Pair { app, ada_token, .. } = two_members("slimm-discord-state-key").await;
+    let Pair {
+        app,
+        ada_token,
+        _guard,
+        ..
+    } = two_members("slimm-discord-state-key").await;
 
     let state = start(&app, &ada_token).await;
     assert_eq!(callback(&app, &state).await, StatusCode::OK);
@@ -340,6 +347,7 @@ async fn a_wrong_expired_or_spent_handoff_is_refused() {
         store,
         ada,
         ada_token,
+        _guard,
         ..
     } = two_members("slimm-discord-handoff").await;
 
@@ -373,7 +381,12 @@ async fn a_wrong_expired_or_spent_handoff_is_refused() {
 
 #[tokio::test]
 async fn a_pasted_code_may_carry_dashes_spaces_and_lower_case() {
-    let Pair { app, ada_token, .. } = two_members("slimm-discord-paste").await;
+    let Pair {
+        app,
+        ada_token,
+        _guard,
+        ..
+    } = two_members("slimm-discord-paste").await;
     let handoff = approve(&app, &ada_token).await;
     let pasted = format!(
         " {}-{}-{}-{}-{} \n",
@@ -391,7 +404,12 @@ async fn a_pasted_code_may_carry_dashes_spaces_and_lower_case() {
 
 #[tokio::test]
 async fn finishing_a_link_needs_a_session() {
-    let Pair { app, ada_token, .. } = two_members("slimm-discord-anon").await;
+    let Pair {
+        app,
+        ada_token,
+        _guard,
+        ..
+    } = two_members("slimm-discord-anon").await;
     let handoff = approve(&app, &ada_token).await;
 
     let response = app
