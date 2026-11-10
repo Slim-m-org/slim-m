@@ -11,6 +11,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
@@ -25,6 +26,9 @@ pub const BUCKETS: [u32; 3] = [320, 640, 1280];
 
 /// Uploads waiting to be previewed ahead of any request; past this the rest are left to be derived on demand.
 const MAX_PREWARM_QUEUE: usize = 8;
+
+/// How long a preview waits for decode memory while holding the gate; a refused one is served as the original.
+const ADMIT_WAIT: Duration = Duration::from_secs(2);
 
 /// The bucket used when a caller does not name one.
 pub const DEFAULT_BUCKET: u32 = 640;
@@ -46,6 +50,7 @@ pub struct Previews {
     prewarming: Arc<AtomicUsize>,
     /// The process-wide memory budget compression draws on too.
     budget: MemoryBudget,
+    admit_wait: Duration,
 }
 
 impl Media {
@@ -76,6 +81,7 @@ impl Previews {
             gate: Arc::new(Semaphore::new(1)),
             prewarming: Arc::new(AtomicUsize::new(0)),
             budget,
+            admit_wait: ADMIT_WAIT,
         }
     }
 
@@ -83,8 +89,8 @@ impl Previews {
         self.budget = budget;
     }
 
-    /// Memory for decoding `original`, held until dropped. `Ok(None)` when the file will not be
-    /// decoded at all; `Err` when the budget has no room, so the original is the answer.
+    /// Memory for decoding `original`, held until dropped. `Ok(None)` when the file will not be decoded;
+    /// `Err` when no room opens soon, so the original is the answer. The wait is short: the caller holds the gate.
     async fn reserve(
         &self,
         original: &Path,
@@ -93,7 +99,11 @@ impl Previews {
         let Some(estimate) = decode_estimate(original, variant).await else {
             return Ok(None);
         };
-        self.budget.admit(estimate).await.map(Some).ok_or(())
+        self.budget
+            .admit_within(estimate, self.admit_wait)
+            .await
+            .map(Some)
+            .ok_or(())
     }
 
     fn path(&self, hex: &str, variant: Variant, bucket: u32) -> PathBuf {
@@ -328,6 +338,44 @@ mod tests {
                 .expect("the gate frees once the decode ends")
                 .unwrap();
         std::fs::remove_dir_all(&previews.dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_busy_budget_does_not_stall_the_requests_queued_on_the_gate() {
+        let media = Media::for_tests();
+        let hex = "cd".repeat(32);
+        media.write_attachment(&hex, big_jpeg()).await.unwrap();
+        let budget = MemoryBudget::new(32 << 20, Duration::from_secs(30));
+        let _compressing = budget.admit(32 << 20).await.unwrap();
+        let mut previews = Previews::new(media.previews().dir.clone(), budget);
+        previews.admit_wait = Duration::from_millis(50);
+
+        let requests: Vec<_> = (0..3)
+            .map(|bucket| {
+                let previews = previews.clone();
+                let original = media.attachment_file(&hex);
+                let hex = hex.clone();
+                tokio::spawn(async move {
+                    let derive = |_: &Path, _| Err(io::Error::other("decoded without room"));
+                    previews
+                        .resolve_with(&hex, &original, BUCKETS[bucket], Variant::Preview, derive)
+                        .await
+                })
+            })
+            .collect();
+
+        for request in requests {
+            let resolved = tokio::time::timeout(Duration::from_secs(5), request)
+                .await
+                .expect("a request is not held behind the budget's own wait")
+                .unwrap()
+                .unwrap();
+            assert!(matches!(resolved, Preview::Original));
+        }
+        assert!(
+            previews.files().await.unwrap().is_empty(),
+            "a refusal is not remembered as the answer"
+        );
     }
 
     #[test]

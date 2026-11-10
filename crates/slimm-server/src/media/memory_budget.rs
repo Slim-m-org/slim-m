@@ -50,12 +50,21 @@ impl MemoryBudget {
     /// Reserves `estimate` bytes until the permit drops. `None` when the job can
     /// never fit, or no room opened up in time: the caller stores the upload as sent.
     pub async fn admit(&self, estimate: u64) -> Option<OwnedSemaphorePermit> {
+        self.admit_within(estimate, self.wait).await
+    }
+
+    /// [`admit`](Self::admit) giving up after `wait` instead of the budget's own wait.
+    pub async fn admit_within(
+        &self,
+        estimate: u64,
+        wait: Duration,
+    ) -> Option<OwnedSemaphorePermit> {
         let units = usize::try_from(estimate.div_ceil(UNIT)).ok()?.max(1);
         if units > self.total_units {
             return None;
         }
         let units = u32::try_from(units).ok()?;
-        tokio::time::timeout(self.wait, self.semaphore.clone().acquire_many_owned(units))
+        tokio::time::timeout(wait, self.semaphore.clone().acquire_many_owned(units))
             .await
             .ok()?
             .ok()
@@ -85,6 +94,15 @@ mod tests {
         );
         drop(first);
         assert!(budget.admit(4 * MIB).await.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_shorter_wait_gives_up_before_the_budgets_own() {
+        let budget = MemoryBudget::new(10 * MIB, Duration::from_secs(60));
+        let _first = budget.admit(8 * MIB).await.unwrap();
+        let started = std::time::Instant::now();
+        assert!(budget.admit_within(4 * MIB, SHORT).await.is_none());
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 
     #[tokio::test]
