@@ -193,6 +193,43 @@ void main() {
     );
   });
 
+  group('when the launch-time account goes away', () {
+    testWidgets('a share that arrives later still reaches the account left', (
+      tester,
+    ) async {
+      final source = _FakeSource();
+      final h = AccountHarness(
+        extraOverrides: [shareSourceProvider.overrideWithValue(source)],
+      );
+      addTearDown(() => tester.runAsync(h.dispose));
+      late final String left;
+      await tester.runAsync(() async {
+        final first = await h.seed(
+          'https://first.example',
+          user: 'a',
+          active: true,
+        );
+        left = (await h.seed('https://second.example', user: 'b')).origin;
+        await h.boot();
+        h.host.active!.container.read(shareIntakeControllerProvider);
+        await h.host.removeAccount(first.origin);
+      });
+      await tester.pump();
+
+      await tester.runAsync(() async {
+        source.waiting = const IncomingShare(text: 'warm');
+        source.arrived.add(null);
+        await pumpEventQueueTimes();
+      });
+
+      final pending = h.host
+          .runtimeFor(left)!
+          .container
+          .read(pendingShareProvider);
+      expect(pending?.share.text, 'warm');
+    });
+  });
+
   group('the intake controller', () {
     test('takes the launching share at startup and later arrivals', () async {
       final source = _FakeSource(const IncomingShare(text: 'cold'));
