@@ -197,3 +197,35 @@ async fn a_session_that_outlived_a_restart_is_re_read_from_disk() {
     assert_eq!(done.hex_id, to_hex(&Sha256::digest(b"helloworld")));
     assert_eq!(done.sniff_prefix, b"helloworld");
 }
+
+async fn finished(d: &Dirs, content: &[u8]) -> (Uuid, FinishedUpload) {
+    let id = d.uploads.create(meta(content.len() as u64)).await.unwrap();
+    d.uploads.append(id, 0, body(&[content])).await.unwrap();
+    let done = d.uploads.finish(id).await.unwrap().expect("complete");
+    (id, done)
+}
+
+#[tokio::test]
+async fn placing_replaces_a_torn_copy_stored_at_the_content_name() {
+    let d = dirs();
+    let (id, done) = finished(&d, b"helloworld").await;
+    let stored = d.root.join("attachments").join(&done.hex_id);
+    std::fs::write(&stored, b"hel").unwrap();
+
+    d.uploads.place(id, &done.hex_id).await.unwrap();
+
+    assert_eq!(std::fs::read(&stored).unwrap(), b"helloworld");
+}
+
+#[tokio::test]
+async fn placing_at_a_shared_name_keeps_the_file_already_stored() {
+    let d = dirs();
+    let (id, _) = finished(&d, b"helloworld").await;
+    let kept = d.root.join("attachments").join("shared.orig");
+    std::fs::write(&kept, b"first original").unwrap();
+
+    d.uploads.place_at(id, kept.clone()).await.unwrap();
+
+    assert_eq!(std::fs::read(&kept).unwrap(), b"first original");
+    assert!(d.uploads.status(id).await.unwrap().is_none());
+}

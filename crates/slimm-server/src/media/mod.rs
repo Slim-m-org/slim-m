@@ -12,6 +12,8 @@
 //! Every write lands via a temp-file-then-rename in the same directory, so a
 //! concurrent read of a path being replaced (an avatar overwrite) never
 //! observes a partially written file: rename is atomic within one filesystem.
+//! The bytes are synced before the rename and the directory after it (see [`durable`]), so a
+//! power loss cannot leave a content-addressed name over an empty or short file.
 //! File is written before any database row is updated to point at it, so a
 //! crash between the two steps leaves an orphaned file (harmless, reclaimed
 //! by the sweep or simply wasted bytes) rather than a row that promises bytes
@@ -35,6 +37,7 @@ mod memory_budget;
 pub use memory_budget::MemoryBudget;
 mod admission;
 mod content_type;
+mod durable;
 mod exports;
 mod image_header;
 mod linked_avatar;
@@ -395,25 +398,11 @@ impl Media {
     }
 }
 
-/// Writes `bytes` to `path` via a same-directory temp file plus rename, so a
-/// concurrent reader of `path` never observes a partial write. The write and
-/// the rename run together on the blocking pool so the pair is one hop off the
-/// runtime rather than two, which is the same mechanism `tokio::fs` is built on.
+/// [`durable::write_atomic`] on the blocking pool, so a concurrent reader of `path` never observes a partial write.
 async fn write_atomic(path: PathBuf, bytes: Vec<u8>) -> io::Result<()> {
-    tokio::task::spawn_blocking(move || {
-        let dir = path
-            .parent()
-            .expect("attachment and avatar paths always have a parent directory");
-        let tmp_path = dir.join(format!(".tmp-{}", Uuid::now_v7()));
-        let placed =
-            std::fs::write(&tmp_path, &bytes).and_then(|()| std::fs::rename(&tmp_path, &path));
-        if placed.is_err() {
-            let _ = std::fs::remove_file(&tmp_path);
-        }
-        placed
-    })
-    .await
-    .unwrap_or_else(|e| Err(io::Error::other(e)))
+    tokio::task::spawn_blocking(move || durable::write_atomic(&path, &bytes))
+        .await
+        .unwrap_or_else(|e| Err(io::Error::other(e)))
 }
 
 async fn read(path: PathBuf) -> io::Result<Vec<u8>> {
