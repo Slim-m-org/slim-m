@@ -8,7 +8,7 @@ library;
 
 import 'dart:async';
 
-import 'package:slimm_api/api.dart' show LogLevel;
+import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 
 import 'audio_stats.dart';
 import 'voice_health.dart';
@@ -142,7 +142,13 @@ class AudioGlitchWatch {
       _previous[id] = now;
       final line = before == null ? null : concealmentLine(name, before, now);
       if (line != null) log(line, level: LogLevel.warning);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not read remote audio stats',
+        error,
+        stack,
+      );
       return;
     }
   }
@@ -159,7 +165,13 @@ class AudioGlitchWatch {
     try {
       final now = await source();
       if (now != null) health.observeLocal(localIdOf(), now);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not read local audio stats',
+        error,
+        stack,
+      );
       return;
     }
   }

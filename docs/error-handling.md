@@ -33,7 +33,8 @@ Real failures are errors, expected degradations are warnings or info, and only n
 
 ## What the gate enforces
 
-`client/packages/api/test/no_silent_catch_test.dart` fails on a catch clause or `catchError` handler with an empty body, and on `debugPrint` outside the logger.
+`client/packages/api/test/no_silent_catch_test.dart` fails on a catch clause or `catchError` handler with an empty body, on `debugPrint` outside the logger, and on a catch-all that drops its error.
+A catch-all is `catch (_)` or `on Object` / `on Exception` with no `catch`; its body must call `AppLog`, `reportFailure`, `reportFailureSentence` or `ignoreError`, or rethrow or throw.
 A deliberate swallow still has a body, and the reason string is the comment.
 
 ## The debug log screen

@@ -68,7 +68,8 @@ class StaleTokenReopener {
       await player.open(
         Media(media.uri, httpHeaders: media.httpHeaders, start: position),
       );
-    } catch (_) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.media, 'reopen the video', error, stack);
       onFailure();
     } finally {
       _reopening = false;

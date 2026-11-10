@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:dbus/dbus.dart';
 import 'package:flutter/services.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'system_idle.dart';
 
@@ -67,7 +68,13 @@ class LinuxSystemIdle implements SystemIdle {
   Future<Duration?> _safely(IdleProbe probe) async {
     try {
       return await probe();
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'An idle probe failed; trying the next one',
+        error,
+        stack,
+      );
       return null;
     }
   }

@@ -179,7 +179,13 @@ class AudioDeviceSwitching {
     if (inputId == null) return null;
     try {
       return resolveAudioDevice(await inputs(), inputId)?.id;
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Could not list microphones; keeping the chosen one',
+        error,
+        stack,
+      );
       return inputId;
     }
   }

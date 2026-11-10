@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:js_interop';
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:web/web.dart' as web;
 
 import 'cross_tab.dart';
@@ -32,7 +33,13 @@ class _BrowserTabs implements CrossTab {
   web.LockManager? get _locks {
     try {
       return web.window.navigator.locks;
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'Web Locks are unavailable in this browser context',
+        error,
+        stack,
+      );
       return null;
     }
   }
