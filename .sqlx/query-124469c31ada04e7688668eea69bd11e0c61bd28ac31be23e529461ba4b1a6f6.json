@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM link_handoffs WHERE handoff_hash = ? AND provider = ?\n               RETURNING user_id AS \"user_id!: UserId\", external_id AS \"external_id!\",\n                         username AS \"username!\", display_name, avatar_hash,\n                         expires_at AS \"expires_at!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "external_id!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "username!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "avatar_hash",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "expires_at!",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "124469c31ada04e7688668eea69bd11e0c61bd28ac31be23e529461ba4b1a6f6"
+}
