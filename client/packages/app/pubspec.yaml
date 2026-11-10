@@ -58,6 +58,8 @@ dependencies:
   # The TOTP enrolment QR (decision 0048); pure Dart, no platform channel. See docs/dependencies.md.
   qr_flutter: ^4.1.0
   shared_preferences: ^2.3.0
+  # The store AtomicPreferencesStore extends; already resolved via shared_preferences.
+  shared_preferences_platform_interface: ^2.4.0
   # Frameless/drag/resize/minimize-hide and off-screen-geometry validation;
   # see docs/decisions/0012-desktop-window-shell.md and docs/dependencies.md.
   screen_retriever: ^0.2.2
@@ -86,6 +88,9 @@ dev_dependencies:
     sdk: flutter
   # Only imported from test/, to fake the platform under the real BiometricAuthChannel.
   local_auth: ^3.0.1
+  # Only imported from test/, to run the stock Linux plugin the atomic store replaces.
+  path_provider_linux: ^2.2.0
+  shared_preferences_linux: ^2.4.0
 flutter:
   uses-material-design: true
   # A checked-in copy of the repo-root `assets/audio/notifications/` (see its
