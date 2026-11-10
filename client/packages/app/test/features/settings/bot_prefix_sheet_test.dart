@@ -16,6 +16,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/bot_menu.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
@@ -74,7 +75,8 @@ Future<void> _pump(
 }
 
 Future<void> _openSheet(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(AppButton, 'Prefix'));
+  await openBotMenu(tester);
+  await tester.tap(botMenuItem('Prefix'));
   await tester.pumpAndSettle();
 }
 
@@ -117,7 +119,11 @@ void main() {
     expect(patch?.url.path, '/bots/bot-helper/prefix');
     expect(jsonDecode(patch!.body), {'prefix': '?'});
     expect(find.text("Helper's prefix"), findsNothing);
-    expect(find.textContaining('Prefix ?.'), findsOneWidget);
+    await openBotMenu(tester);
+    expect(
+      find.descendant(of: botMenuItem('Prefix'), matching: find.text('?')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a clash the server refuses stays on the sheet as an error', (
@@ -157,7 +163,7 @@ void main() {
     expect(find.text("Helper's prefix"), findsNothing);
   });
 
-  testWidgets('a revoked bot offers no Prefix button', (tester) async {
+  testWidgets('a revoked bot offers no Prefix item', (tester) async {
     await _pump(tester, (request) {
       if (request.url.path == '/bots') {
         return _json([
@@ -167,7 +173,8 @@ void main() {
       return _json(<String, Object?>{});
     });
 
-    expect(find.widgetWithText(AppButton, 'Prefix'), findsNothing);
+    await openBotMenu(tester);
+    expect(botMenuItem('Prefix'), findsNothing);
   });
 
   testWidgets('the sheet fits a phone', (tester) async {

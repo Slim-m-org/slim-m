@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import '../../support/bot_menu.dart';
 import '../../support/fake_api.dart';
 
 const _newToken = 'slimbot_fresh0123456789';
@@ -107,7 +108,8 @@ void main() {
     tester,
   ) async {
     final posted = await _pump(tester);
-    await tester.tap(find.widgetWithText(AppButton, 'Re-issue token'));
+    await openBotMenu(tester);
+    await tester.tap(botMenuItem('Re-issue token'));
     await tester.pumpAndSettle();
 
     expect(find.text("Re-issue helper's token?"), findsOneWidget);
@@ -139,7 +141,8 @@ void main() {
       ),
     );
     final posted = await _pump(tester);
-    await tester.tap(find.widgetWithText(AppButton, 'Re-issue token'));
+    await openBotMenu(tester);
+    await tester.tap(botMenuItem('Re-issue token'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
     await tester.pumpAndSettle();
@@ -157,16 +160,19 @@ void main() {
 
   testWidgets('a revoked bot can be re-issued a token', (tester) async {
     await _pump(tester, tokenName: null);
-    expect(find.widgetWithText(AppButton, 'Re-issue token'), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'Revoke'), findsNothing);
-    expect(find.widgetWithText(AppButton, 'Permissions'), findsNothing);
+    await openBotMenu(tester);
+    expect(botMenuItem('Re-issue token'), findsOneWidget);
+    expect(botMenuItem('Revoke'), findsNothing);
+    expect(botMenuItem('Permissions'), findsNothing);
+    expect(botMenuItem('Prefix'), findsNothing);
   });
 
   testWidgets('a refused re-issue stays inline and shows no token', (
     tester,
   ) async {
     await _pump(tester, reissueStatus: 404);
-    await tester.tap(find.widgetWithText(AppButton, 'Re-issue token'));
+    await openBotMenu(tester);
+    await tester.tap(botMenuItem('Re-issue token'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
     await tester.pumpAndSettle();
@@ -179,10 +185,11 @@ void main() {
     tester,
   ) async {
     await _pump(tester, botCount: 8, size: const Size(390, 844));
-    final last = find.widgetWithText(AppButton, 'Re-issue token').last;
+    final last = find.byIcon(AppIcons.moreVertical).last;
     await tester.ensureVisible(last);
     await tester.pumpAndSettle();
-    await tester.tap(last);
+    await openBotMenu(tester, index: 7);
+    await tester.tap(botMenuItem('Re-issue token'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
     await tester.pumpAndSettle();
@@ -198,15 +205,17 @@ void main() {
     tester,
   ) async {
     await _pump(tester, botCount: 2);
-    await tester.tap(find.widgetWithText(AppButton, 'Re-issue token').first);
+    await openBotMenu(tester);
+    await tester.tap(botMenuItem('Re-issue token'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
     await tester.pumpAndSettle();
 
-    final buttons = tester.widgetList<AppButton>(
-      find.widgetWithText(AppButton, 'Re-issue token'),
+    await openBotMenu(tester, index: 1);
+    expect(
+      tester.widget<AppMenuItem>(botMenuItem('Re-issue token')).onTap,
+      isNull,
     );
-    expect(buttons.every((b) => b.onPressed == null), isTrue);
   });
 
   testWidgets('a second bot waits until the first token is dismissed', (

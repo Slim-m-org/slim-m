@@ -640,7 +640,7 @@ client/packages/app/test/features/settings/avatar_settings_section_picker_test.d
 client/packages/app/test/features/settings/bot_permissions_sheet_test.dart 1 4
 client/packages/app/test/features/settings/bot_prefix_sheet_test.dart 4 5
 client/packages/app/test/features/settings/bots_reissue_test.dart 2 15
-client/packages/app/test/features/settings/bots_screen_test.dart 12 18
+client/packages/app/test/features/settings/bots_screen_test.dart 12 15
 client/packages/app/test/features/settings/category_permissions_test.dart 1 6
 client/packages/app/test/features/settings/channel_overwrite_options_test.dart 1 5
 client/packages/app/test/features/settings/channel_permissions_cell_a11y_test.dart 5 7

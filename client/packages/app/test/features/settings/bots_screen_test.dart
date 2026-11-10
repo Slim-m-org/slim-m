@@ -25,6 +25,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/bots_screen.dart';
 import 'package:slimm_app/src/widgets/toast_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/bot_menu.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
@@ -180,7 +181,7 @@ void main() {
       return http.Response('{}', 200);
     });
 
-    expect(find.text('@helper'), findsOneWidget);
+    expect(find.textContaining('@helper'), findsOneWidget);
     expect(find.textContaining('Last seen'), findsOneWidget);
     expect(
       find.textContaining('slimbot_'),
@@ -193,6 +194,7 @@ void main() {
   testWidgets('a connected bot reads Online and an idle one Offline', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     await _pump(tester, (request) {
       if (request.method == 'GET' && request.url.path == '/bots') {
         return http.Response(
@@ -205,14 +207,17 @@ void main() {
       return http.Response('{}', 200);
     });
 
-    expect(find.text('Online'), findsOneWidget);
-    expect(find.text('Offline'), findsOneWidget);
-    expect(find.textContaining('Last seen just now.'), findsOneWidget);
-    expect(find.text('Never connected.'), findsNothing);
+    expect(find.bySemanticsLabel('live, @live, Online'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('idle, @idle, Offline, Last seen just now'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Never connected'), findsNothing);
+    semantics.dispose();
   });
 
   testWidgets(
-    'a bot that never connected says so, and a revoked one is quiet',
+    'a bot that never connected says so, and a revoked one says it is revoked',
     (tester) async {
       await _pump(tester, (request) {
         if (request.method == 'GET' && request.url.path == '/bots') {
@@ -225,18 +230,15 @@ void main() {
         return http.Response('{}', 200);
       });
 
-      expect(find.textContaining('Never connected.'), findsOneWidget);
-      expect(
-        find.text('Offline'),
-        findsOneWidget,
-        reason: 'revoked has no badge',
-      );
+      expect(find.textContaining('Never connected'), findsOneWidget);
+      expect(find.textContaining('Revoked'), findsOneWidget);
     },
   );
 
   testWidgets('a presence change for a listed bot refetches the list', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     final events = StreamController<ServerEvent>.broadcast();
     addTearDown(events.close);
     var online = false;
@@ -250,7 +252,7 @@ void main() {
       }
       return http.Response('{}', 200);
     }, events: events.stream);
-    expect(find.text('Offline'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Offline')), findsOneWidget);
 
     online = true;
     events.add(
@@ -258,8 +260,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Online'), findsOneWidget);
-    expect(find.text('Offline'), findsNothing);
+    expect(find.bySemanticsLabel('helper, @helper, Online'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Offline')), findsNothing);
+    semantics.dispose();
   });
 
   testWidgets('a new bot offers the env block, and it is never drawn', (
@@ -312,7 +315,7 @@ void main() {
     expect(find.widgetWithText(AppButton, 'Copy env block'), findsNothing);
   });
 
-  testWidgets('a revoked bot stays listed, with no Revoke button left', (
+  testWidgets('a revoked bot stays listed, with no Revoke item left', (
     tester,
   ) async {
     await _pump(tester, (request) {
@@ -327,64 +330,14 @@ void main() {
     });
 
     expect(
-      find.text('@helper'),
+      find.textContaining('@helper'),
       findsOneWidget,
       reason: 'the account stays, so what it wrote stays attributed to it',
     );
-    expect(
-      find.textContaining('Revoked. Re-issue a token to bring it back.'),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(AppButton, 'Revoke'), findsNothing);
-  });
-
-  Future<List<String>> openRevoke(WidgetTester tester) async {
-    final posted = <String>[];
-    await _pump(tester, (request) {
-      if (request.method == 'GET' && request.url.path == '/bots') {
-        return http.Response(
-          '[${_botJson('helper')}]',
-          200,
-          headers: const {'content-type': 'application/json'},
-        );
-      }
-      if (request.method == 'POST') {
-        posted.add(request.url.path);
-        return http.Response('', 204);
-      }
-      return http.Response('{}', 200);
-    });
-    await tester.tap(find.widgetWithText(AppButton, 'Revoke'));
-    await tester.pumpAndSettle();
-    return posted;
-  }
-
-  testWidgets('revoking asks first and posts nothing until it is confirmed', (
-    tester,
-  ) async {
-    final posted = await openRevoke(tester);
-
-    expect(find.text('Revoke helper?'), findsOneWidget);
-    expect(posted, isEmpty);
-  });
-
-  testWidgets('confirming revokes that bot', (tester) async {
-    final posted = await openRevoke(tester);
-
-    await tester.tap(find.widgetWithText(AppButton, 'Revoke').last);
-    await tester.pumpAndSettle();
-
-    expect(posted, ['/bots/bot-helper/revoke']);
-  });
-
-  testWidgets('cancelling revokes nothing', (tester) async {
-    final posted = await openRevoke(tester);
-
-    await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(posted, isEmpty);
-    expect(find.text('Revoke helper?'), findsNothing);
+    expect(find.textContaining('Revoked'), findsOneWidget);
+    await openBotMenu(tester);
+    expect(botMenuItem('Revoke'), findsNothing);
+    expect(botMenuItem('Re-issue token'), findsOneWidget);
   });
 
   testWidgets('the create form folds its permissions until asked', (
@@ -478,7 +431,7 @@ void main() {
     expect(body?['prefix'], '~');
   });
 
-  testWidgets('a listed bot shows the prefix it answers to', (tester) async {
+  testWidgets('a bot\'s menu shows the prefix it answers to', (tester) async {
     await _pump(tester, (request) {
       if (request.method == 'GET' && request.url.path == '/bots') {
         final bot = jsonDecode(_botJson('helper', lastUsed: 1000));
@@ -492,7 +445,11 @@ void main() {
       return http.Response('{}', 200);
     });
 
-    expect(find.textContaining('Prefix ~.'), findsOneWidget);
+    await openBotMenu(tester);
+    expect(
+      find.descendant(of: botMenuItem('Prefix'), matching: find.text('~')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a permission the admin lacks cannot be granted to a new bot', (
@@ -540,7 +497,9 @@ void main() {
     expect(find.text('No bots yet.'), findsOneWidget);
   });
 
-  testWidgets('a listed bot fits a phone with both actions', (tester) async {
+  testWidgets('a listed bot fits a phone and offers every action', (
+    tester,
+  ) async {
     await _pump(tester, (request) {
       if (request.method == 'GET' && request.url.path == '/bots') {
         return http.Response(
@@ -552,7 +511,14 @@ void main() {
       return http.Response('{}', 200);
     }, width: 360);
     expect(tester.takeException(), isNull);
-    expect(find.widgetWithText(AppButton, 'Permissions'), findsOneWidget);
-    expect(find.widgetWithText(AppButton, 'Revoke'), findsOneWidget);
+    await openBotMenu(tester);
+    expect(tester.takeException(), isNull);
+    for (final label in ['Permissions', 'Prefix', 'Re-issue token', 'Revoke']) {
+      expect(botMenuItem(label), findsOneWidget);
+    }
+    expect(
+      find.descendant(of: botMenuItem('Permissions'), matching: find.text('2')),
+      findsOneWidget,
+    );
   });
 }

@@ -17,25 +17,20 @@ import '../../../../permissions.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../routing/routes.dart';
-import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/labeled_field.dart';
 import '../../../members/widgets/bot_permission_toggles.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/bot_env_block.dart';
-import '../../widgets/bot_status_badge.dart';
 import '../../widgets/settings_disclosure.dart';
-import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'bot_member_list_section.dart';
-import 'bot_permissions_sheet.dart';
-import 'bot_prefix_sheet.dart';
+import 'bot_row.dart';
 export 'bot_permissions_sheet.dart' show showBotPermissionsSheet;
 export 'bot_prefix_sheet.dart' show showBotPrefixSheet;
 import '../../../../action_labels.dart';
-import '../../../../format.dart';
 
 class BotsScreen extends StatelessWidget {
   const BotsScreen({super.key});
@@ -272,7 +267,8 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                 )
               else
                 for (final bot in list)
-                  _BotRow(
+                  BotRow(
+                    key: ValueKey(bot.userId),
                     bot: bot,
                     // A pending reveal is the only copy of that token.
                     canReissue: _justCreated == null,
@@ -285,149 +281,3 @@ class _BotsPaneState extends ConsumerState<BotsPane>
     );
   }
 }
-
-class _BotRow extends ConsumerStatefulWidget {
-  const _BotRow({
-    required this.bot,
-    required this.onReissued,
-    required this.canReissue,
-  });
-
-  final api.Bot bot;
-  final bool canReissue;
-
-  /// Hands the new token up to the pane, which shows it once.
-  final ValueChanged<api.NewBot> onReissued;
-
-  @override
-  ConsumerState<_BotRow> createState() => _BotRowState();
-}
-
-class _BotRowState extends ConsumerState<_BotRow>
-    with GuardedActionState<_BotRow> {
-  bool _busy = false;
-
-  Future<void> _revoke() async {
-    final confirmed = await confirmDangerousAction(
-      context,
-      title: 'Revoke ${widget.bot.displayName}?',
-      message:
-          'Its token and every session it holds stop working now. '
-          'You can issue it a new token afterwards.',
-      confirmLabel: 'Revoke',
-    );
-    if (!confirmed || !mounted) return;
-
-    setState(() => _busy = true);
-    final ok = await guard(
-      whatFailed: 'revoke ${widget.bot.username}',
-      action: () => ref.read(apiProvider).revokeBot(widget.bot.userId),
-    );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok) ref.invalidate(botsProvider);
-  }
-
-  Future<void> _reissue() async {
-    final confirmed = await confirmDangerousAction(
-      context,
-      title: 'Re-issue ${widget.bot.displayName}\'s token?',
-      message:
-          'The old token stops working now. The bot needs the new one to '
-          'reconnect.',
-      confirmLabel: 'Re-issue',
-    );
-    if (!confirmed || !mounted) return;
-
-    setState(() => _busy = true);
-    api.NewBot? issued;
-    final ok = await guard(
-      whatFailed: 'issue ${widget.bot.username} a new token',
-      action: () async {
-        issued = await ref.read(apiProvider).reissueBotToken(widget.bot.userId);
-      },
-    );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (!ok) return;
-    ref.invalidate(botsProvider);
-    widget.onReissued(issued!);
-  }
-
-  Widget _actions(BuildContext context, api.Bot bot) {
-    return Wrap(
-      spacing: AppSpacing.s8,
-      runSpacing: AppSpacing.s8,
-      children: [
-        if (!bot.isRevoked)
-          AppButton(
-            label: 'Permissions',
-            variant: AppButtonVariant.secondary,
-            size: AppButtonSize.sm,
-            onPressed: () => showBotPermissionsSheet(context, bot),
-          ),
-        if (!bot.isRevoked)
-          AppButton(
-            label: 'Prefix',
-            variant: AppButtonVariant.secondary,
-            size: AppButtonSize.sm,
-            onPressed: () => showBotPrefixSheet(context, bot),
-          ),
-        AppButton(
-          label: 'Re-issue token',
-          variant: AppButtonVariant.secondary,
-          size: AppButtonSize.sm,
-          onPressed: _busy || !widget.canReissue ? null : _reissue,
-        ),
-        if (!bot.isRevoked)
-          AppButton(
-            label: 'Revoke',
-            variant: AppButtonVariant.danger,
-            size: AppButtonSize.sm,
-            onPressed: _busy ? null : _revoke,
-          ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bot = widget.bot;
-    final count = Perm.editable
-        .where((e) => bot.permissions.hasPermission(e.$1))
-        .length;
-
-    return SettingsDetailRow(
-      icon: AppIcons.botAction,
-      title: bot.displayName,
-      meta: '@${bot.username}',
-      badge: bot.isRevoked ? null : BotStatusBadge(online: bot.online),
-      detail: _detail(bot, count),
-      dimmed: bot.isRevoked,
-      stackTrailingWhenNarrow: true,
-      stackBelowWidth: 720,
-      trailing: _actions(context, bot),
-      error: actionError,
-      onErrorDismiss: clearActionError,
-    );
-  }
-}
-
-String _detail(api.Bot bot, int count) {
-  if (bot.isRevoked) return 'Revoked. Re-issue a token to bring it back.';
-  return [
-    if (bot.prefix case final prefix?) 'Prefix $prefix.',
-    if (!bot.online) _lastSeen(bot.tokenLastUsedAt),
-    _permissionsGranted(count),
-  ].join(' ');
-}
-
-String _permissionsGranted(int count) => switch (count) {
-  0 => 'No permissions granted yet',
-  1 => '1 permission granted',
-  _ => '$count permissions granted',
-};
-
-String _lastSeen(int? lastUsedMs) => lastUsedMs == null
-    ? 'Never connected.'
-    : 'Last seen ${formatRelativeAgeMs(lastUsedMs)}.';
