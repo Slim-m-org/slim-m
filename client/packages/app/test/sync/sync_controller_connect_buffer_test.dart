@@ -113,7 +113,10 @@ void main() {
     await rig.server.dropSockets();
     await Future<void>.delayed(const Duration(milliseconds: 100));
     syncs.release.complete();
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await rig.waitFor(
+      () => rig.status.name == 'offline',
+      reason: 'the dropped socket never failed the connect',
+    );
 
     expect(rig.status.name, 'offline');
     await rig.waitFor(() => rig.status.name == 'live', ms: 6000);
@@ -206,11 +209,13 @@ void main() {
     served = [for (var s = 2; s <= 4; s++) rigMessage('m$s', s, 'msg $s')];
 
     rig.server.pushEvent(_created(4));
-    await rig.waitFor(() => syncCalls > before);
+    await rig.waitFor(
+      () async => await rig.store.cursorFor('c1') == 4,
+      reason: 'the reconcile never applied the run',
+    );
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
     expect((await rig.contents()).keys, containsAll(['m1', 'm2', 'm3', 'm4']));
-    expect(await rig.store.cursorFor('c1'), 4);
     expect(syncCalls - before, 1);
   });
 
@@ -228,7 +233,10 @@ void main() {
     final before = syncCalls;
 
     rig.server.pushEvent(_created(2));
-    await rig.waitFor(() => rig.status.name == 'live');
+    await rig.waitFor(
+      () async => (await rig.contents()).containsKey('m2'),
+      reason: 'the frame was never applied',
+    );
     await Future<void>.delayed(const Duration(milliseconds: 200));
 
     expect((await rig.contents()).keys, containsAll(['m1', 'm2']));
