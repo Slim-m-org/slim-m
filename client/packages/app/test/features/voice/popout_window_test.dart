@@ -76,6 +76,18 @@ const _adaStopped = VoiceParticipant(
   isScreenSharing: false,
 );
 
+const _bo = VoiceParticipant(
+  identity: 'u-bo',
+  name: 'Bo',
+  isSpeaking: false,
+  isMuted: false,
+  isLocal: false,
+  isScreenSharing: true,
+);
+
+MiniPlayerFeed _screen(VoiceParticipant p) =>
+    (identity: p.identity, name: p.name, kind: FeedKind.screenShare);
+
 VoiceState _call(List<VoiceParticipant> who) => VoiceState(
   channelId: 'c-main',
   state: VoiceSessionState.connected,
@@ -91,12 +103,16 @@ class _Rig {
       container.read(voiceControllerProvider.notifier) as FixedVoiceController;
 }
 
-Future<_Rig> _pump(WidgetTester tester, {required bool supported}) async {
+Future<_Rig> _pump(
+  WidgetTester tester, {
+  required bool supported,
+  List<VoiceParticipant> who = const [_ada],
+}) async {
   final rig = _Rig();
   final fixture = await fixtureContainer(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => FixedVoiceController(ref, _call([_ada]), rig.session),
+        (ref) => FixedVoiceController(ref, _call(who), rig.session),
       ),
       popOutWindowFactoryProvider.overrideWithValue(
         supported
@@ -227,6 +243,24 @@ void main() {
     await tester.pump();
     expect(rig.windows.single.destroyed, isTrue);
     await teardownFixture(tester, rig.container, rig.db);
+  });
+
+  group('several pop-outs', () {
+    Future<_Rig> twoOut(WidgetTester tester) async {
+      final rig = await _pump(tester, supported: true, who: [_ada, _bo]);
+      rig.container.read(popOutFeedProvider.notifier).state = _screen(_ada);
+      await tester.pump();
+      rig.container.read(popOutFeedProvider.notifier).state = _screen(_bo);
+      await tester.pump();
+      return rig;
+    }
+
+    testWidgets('two feeds give two windows', (tester) async {
+      final rig = await twoOut(tester);
+      expect(rig.windows, hasLength(2));
+      expect(rig.windows.where((w) => w.destroyed), isEmpty);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
   });
 
   group('window content', () {
