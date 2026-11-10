@@ -27,6 +27,9 @@ const _webhook = api.UserProfile(
   isWebhook: true,
 );
 
+/// Wide enough for a name beside the badge and the time, as a header should be.
+const _readableHeader = 240.0;
+
 final _longName = List.filled(40, 'wandering').join(' ');
 
 Future<void> _pump(
@@ -109,6 +112,17 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('a long name keeps a readable line in a 360dp pane', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      pane: 360,
+      author: message(authorDisplayName: _longName),
+    );
+    expect(_header(tester).width, greaterThanOrEqualTo(_readableHeader));
+  });
 
   testWidgets('a long name stops short of the toolbar in a wide pane', (
     tester,

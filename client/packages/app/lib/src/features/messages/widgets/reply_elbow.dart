@@ -18,6 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'continuation_marker.dart' show ContinuationRail;
 import 'reply_quote.dart';
+import 'toolbar_clearance.dart';
 
 class ReplyElbow extends StatelessWidget {
   const ReplyElbow({
@@ -159,21 +160,17 @@ class _Strip extends StatelessWidget {
             ),
           ),
         ),
-        LayoutBuilder(
-          builder: (context, box) {
-            final room = box.maxWidth - left - clearance.horizontal;
-            final reserve = room >= ReplyElbow.minQuoteWidth
-                ? clearance
-                : EdgeInsets.zero;
-            return Padding(
-              padding: EdgeInsets.only(left: left) + reserve,
-              // The cap wraps the Align: a cap around the quote cuts its reach.
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
-                child: Align(alignment: Alignment.topLeft, child: quote),
-              ),
-            );
-          },
+        Padding(
+          padding: EdgeInsets.only(left: left),
+          child: ToolbarClearance(
+            clearance: clearance,
+            minWidth: ReplyElbow.minQuoteWidth,
+            // The cap wraps the Align: a cap around the quote cuts its reach.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
+              child: Align(alignment: Alignment.topLeft, child: quote),
+            ),
+          ),
         ),
       ],
     );
