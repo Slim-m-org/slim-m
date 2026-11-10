@@ -26,6 +26,26 @@ private final class RecordingProvider: CallReporting {
   }
 }
 
+/// Ring timers the test fires by hand, so no ring window waits on the main queue or the wall clock.
+private final class ManualRingClock {
+  private(set) var delays: [TimeInterval] = []
+  private var timers: [DispatchWorkItem] = []
+
+  func schedule(_ delay: TimeInterval, _ timer: DispatchWorkItem) {
+    delays.append(delay)
+    timers.append(timer)
+  }
+
+  /// What the ring window passing does: every timer nothing cancelled fires, once.
+  func letTheRingWindowPass() {
+    let due = timers
+    timers.removeAll()
+    for timer in due where !timer.isCancelled {
+      timer.perform()
+    }
+  }
+}
+
 /// The CallKit synchronous-report invariant.
 ///
 /// iOS terminates an app that takes a VoIP push and does not report a call
@@ -191,22 +211,17 @@ final class VoipCallHandlerTests: XCTestCase {
     return provider.reported[provider.reported.count - 1].uuid
   }
 
-  /// The timeout only bounds a hang: the hosted app can hold the main queue past 2 s while it boots.
-  private func letTheRingWindowPass() {
-    let passed = expectation(description: "the ring window passed")
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { passed.fulfill() }
-    wait(for: [passed], timeout: 10)
-  }
-
   func testAnUnansweredRingEndsAfterTheTimeout() {
     let provider = RecordingProvider()
-    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    let clock = ManualRingClock()
+    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
     let id = ring(handler, provider: provider)
-    letTheRingWindowPass()
+    clock.letTheRingWindowPass()
 
+    XCTAssertEqual(clock.delays, [VoipCallHandler.ringTimeout])
     XCTAssertEqual(provider.ended.map { $0.reason }, [.unanswered])
     XCTAssertEqual(seen, [.ringing(id), .ended(id)])
   }
@@ -214,13 +229,14 @@ final class VoipCallHandlerTests: XCTestCase {
   func testADeclinedRingNeverTimesOutLater() {
     // A stale end could otherwise decline a newer ring Dart is holding.
     let provider = RecordingProvider()
-    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    let clock = ManualRingClock()
+    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
     let id = ring(handler, provider: provider)
     handler.callEnded(id)
-    letTheRingWindowPass()
+    clock.letTheRingWindowPass()
 
     XCTAssertEqual(seen, [.ringing(id), .ended(id)])
     XCTAssertTrue(provider.ended.isEmpty)
@@ -228,13 +244,14 @@ final class VoipCallHandlerTests: XCTestCase {
 
   func testACallDartEndedNeverTimesOutLater() {
     let provider = RecordingProvider()
-    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    let clock = ManualRingClock()
+    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
     let id = ring(handler, provider: provider)
     handler.endCall(id)
-    letTheRingWindowPass()
+    clock.letTheRingWindowPass()
 
     XCTAssertEqual(seen, [.ringing(id)])
     XCTAssertEqual(provider.ended.map { $0.reason }, [.remoteEnded])
@@ -242,13 +259,14 @@ final class VoipCallHandlerTests: XCTestCase {
 
   func testAnAnsweredRingOutlivesTheTimeout() {
     let provider = RecordingProvider()
-    let handler = VoipCallHandler(provider: provider, ringTimeout: 0.05)
+    let clock = ManualRingClock()
+    let handler = VoipCallHandler(provider: provider, schedule: clock.schedule)
     var seen: [CallKitCallEvent] = []
     handler.onEvent = { seen.append($0) }
 
     let id = ring(handler, provider: provider)
     handler.callAnswered(id)
-    letTheRingWindowPass()
+    clock.letTheRingWindowPass()
 
     XCTAssertEqual(seen, [.ringing(id), .answered(id)])
     XCTAssertTrue(provider.ended.isEmpty)
