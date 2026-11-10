@@ -133,6 +133,25 @@ final class NotificationSoundTests: XCTestCase {
     XCTAssertEqual(content.body, "Pixel 9 signed in to your account.")
   }
 
+  func testAFreshSignInAlertStillNamesTheDevice() throws {
+    let plaintext = Array(
+      #"{"domain":"slim-m.push.v1","version":1,"kind":"security","event":"new_device_sign_in","sent_at":9999999999999,"signed_in_at":1,"device_name":"Pixel 9"}"#
+        .utf8)
+    let decoded = try XCTUnwrap(PushEnvelope.decode(plaintext))
+    let content = decoded.applied(to: UNMutableNotificationContent())
+    XCTAssertEqual(content.title, "New sign-in")
+  }
+
+  func testAReplayedSignInAlertLeavesThePlaceholderAlone() throws {
+    let plaintext = Array(
+      #"{"domain":"slim-m.push.v1","version":1,"kind":"security","event":"new_device_sign_in","sent_at":1,"signed_in_at":1,"device_name":"Pixel 9"}"#
+        .utf8)
+    let decoded = try XCTUnwrap(PushEnvelope.decode(plaintext))
+    let content = decoded.applied(to: UNMutableNotificationContent())
+    XCTAssertEqual(content.title, "", "a replay must not put a sign-in warning on the lock screen")
+    XCTAssertEqual(content.body, "")
+  }
+
   func testAVoiceNoticeNamesTheCallAndWhoStartedIt() throws {
     let plaintext = Array(
       #"{"domain":"slim-m.push.v1","version":1,"kind":"voice","channel_id":"c1","activity":"call_started","sent_at":9999999999999,"actor_name":"Ada","channel_name":"lounge"}"#

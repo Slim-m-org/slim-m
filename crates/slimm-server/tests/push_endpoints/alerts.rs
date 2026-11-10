@@ -136,6 +136,10 @@ async fn a_new_device_sign_in_alerts_the_accounts_other_devices() {
     assert_eq!(envelope["kind"], "security");
     assert_eq!(envelope["event"], "new_device_sign_in");
     assert!(
+        envelope["sent_at"].as_i64().is_some(),
+        "the lock screen refuses a replayed alert only if it can tell when it was sealed: {envelope}"
+    );
+    assert!(
         envelope.get("device_name").is_none(),
         "a device that did not ask for content is not told the name: {envelope}"
     );

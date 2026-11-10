@@ -24,6 +24,7 @@ struct SecurityEnvelope<'a> {
     version: u8,
     kind: PushKind,
     event: &'static str,
+    sent_at: i64,
     signed_in_at: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     device_name: Option<&'a str>,
@@ -53,6 +54,7 @@ pub(super) async fn deliver(enabled: Arc<Enabled>, store: Store, sign_in: NewDev
             version: ENVELOPE_VERSION,
             kind: PushKind::Security,
             event: "new_device_sign_in",
+            sent_at: now,
             signed_in_at: sign_in.signed_in_at,
             device_name,
         })

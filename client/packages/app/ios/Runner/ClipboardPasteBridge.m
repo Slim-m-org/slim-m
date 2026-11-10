@@ -82,10 +82,18 @@ static void (^sOnImage)(NSData *pngData);
     // iOS itself dispatched this `paste:` call, so this read of the
     // pasteboard's actual value - the kind that would otherwise raise the
     // consent prompt - is exempt: it happens inside that same dispatch,
-    // never as a later, separate read triggered from Dart.
-    NSData *pngData = UIImagePNGRepresentation(pasteboard.image);
-    if (pngData != nil && sOnImage != nil) {
-      sOnImage(pngData);
+    // never as a later, separate read triggered from Dart. Only the PNG
+    // encode of a full-resolution photo moves off the main thread.
+    UIImage *image = pasteboard.image;
+    if (image != nil && sOnImage != nil) {
+      void (^onImage)(NSData *) = sOnImage;
+      dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSData *pngData = UIImagePNGRepresentation(image);
+        if (pngData == nil) return;
+        dispatch_async(dispatch_get_main_queue(), ^{
+          onImage(pngData);
+        });
+      });
       return;
     }
   }

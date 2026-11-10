@@ -21,34 +21,45 @@ class SampleHandler: RPBroadcastSampleHandler {
   /// so it reaches the live handler through this instead.
   private static weak var current: SampleHandler?
 
+  /// How long to wait for the app to create its end of the socket before giving up.
+  private static let connectDeadline: TimeInterval = 10
+  private static let unavailableMessage = "Screen sharing is not available. Open slim-m and try again."
+
   private var clientConnection: SocketConnection?
   private var uploader: SampleUploader?
+  private var connectTimer: DispatchSourceTimer?
 
-  private var socketFilePath: String {
+  private var socketFilePath: String? {
     let container = FileManager.default.containerURL(
       forSecurityApplicationGroupIdentifier: BroadcastConstants.appGroupIdentifier)
-    return container?.appendingPathComponent(BroadcastConstants.socketFileName).path ?? ""
+    return container?.appendingPathComponent(BroadcastConstants.socketFileName).path
   }
 
   override init() {
     super.init()
     SampleHandler.current = self
 
-    if let connection = SocketConnection(filePath: socketFilePath) {
+    if let path = socketFilePath, let connection = SocketConnection(filePath: path) {
       clientConnection = connection
       setupConnection()
       uploader = SampleUploader(connection: connection)
     }
-    os_log(.debug, log: broadcastLogger, "broadcast socket at %{public}s", socketFilePath)
+    os_log(.debug, log: broadcastLogger, "broadcast socket at %{public}s", socketFilePath ?? "none")
   }
 
   override func broadcastStarted(withSetupInfo _: [String: NSObject]?) {
+    guard clientConnection != nil else {
+      finish(code: 10002, message: SampleHandler.unavailableMessage)
+      return
+    }
     DarwinNotificationCenter.shared.postNotification(.broadcastStarted)
     observeStopRequest()
     openConnection()
   }
 
   override func broadcastFinished() {
+    connectTimer?.cancel()
+    connectTimer = nil
     DarwinNotificationCenter.shared.removeObserver(
       Unmanaged.passUnretained(self).toOpaque(), for: .broadcastRequestStop)
     DarwinNotificationCenter.shared.postNotification(.broadcastStopped)
@@ -84,12 +95,16 @@ private extension SampleHandler {
   /// reports a named one. It reads as "Screen sharing stopped" rather than a
   /// crash, which is the least misleading option available.
   func finishRequestedByApp() {
-    let stopped = NSError(
+    finish(code: 10001, message: "Screen sharing stopped")
+  }
+
+  func finish(code: Int, message: String) {
+    let error = NSError(
       domain: RPRecordingErrorDomain,
-      code: 10001,
-      userInfo: [NSLocalizedDescriptionKey: "Screen sharing stopped"]
+      code: code,
+      userInfo: [NSLocalizedDescriptionKey: message]
     )
-    finishBroadcastWithError(stopped)
+    finishBroadcastWithError(error)
   }
 
   func setupConnection() {
@@ -108,11 +123,17 @@ private extension SampleHandler {
   func openConnection() {
     let queue = DispatchQueue(label: "top.npcserver.slimm.broadcast.connectTimer")
     let timer = DispatchSource.makeTimerSource(queue: queue)
+    let giveUpAt = DispatchTime.now() + SampleHandler.connectDeadline
     timer.schedule(deadline: .now(), repeating: .milliseconds(100), leeway: .milliseconds(500))
     timer.setEventHandler { [weak self] in
-      guard self?.clientConnection?.open() == true else { return }
-      timer.cancel()
+      if self?.clientConnection?.open() == true {
+        timer.cancel()
+      } else if DispatchTime.now() >= giveUpAt {
+        timer.cancel()
+        self?.finish(code: 10002, message: SampleHandler.unavailableMessage)
+      }
     }
+    connectTimer = timer
     timer.resume()
   }
 }

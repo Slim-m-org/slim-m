@@ -87,7 +87,7 @@ final class HoldMusicPlayer {
     try engine.start()
     observer = NotificationCenter.default.addObserver(
       forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
-    ) { [weak self] _ in self?.restartAfterRouteChange() }
+    ) { [weak self] _ in self?.restartPlayback() }
     schedule(from: 0)
     paused = false
     node.play()
@@ -113,7 +113,8 @@ final class HoldMusicPlayer {
 
   func resume() {
     paused = false
-    if file != nil { node.play() }
+    guard file != nil else { return }
+    if engine.isRunning { node.play() } else { restartPlayback() }
   }
 
   func setVolume(_ volume: Float) {
@@ -126,7 +127,7 @@ final class HoldMusicPlayer {
     let frame = AVAudioFramePosition(max(0, seconds) * file.processingFormat.sampleRate)
     node.stop()
     schedule(from: min(frame, max(file.length - 1, 0)))
-    if !paused { node.play() }
+    if !paused, engine.isRunning { node.play() }
   }
 
   var positionSeconds: Double {
@@ -158,14 +159,14 @@ final class HoldMusicPlayer {
     }
   }
 
-  /// A route change (Bluetooth connecting, say) stops the engine; carry on from the top of the file.
-  private func restartAfterRouteChange() {
+  /// A route change stops the engine; carry on from the top of the file, but never `play()` a stopped
+  /// engine, which raises an exception Swift cannot catch.
+  private func restartPlayback() {
     guard file != nil, !engine.isRunning else { return }
-    try? engine.start()
-    if !paused {
-      node.stop()
-      schedule(from: 0)
-      node.play()
-    }
+    do { try engine.start() } catch { return }
+    guard !paused else { return }
+    node.stop()
+    schedule(from: 0)
+    node.play()
   }
 }

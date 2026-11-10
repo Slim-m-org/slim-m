@@ -36,9 +36,11 @@ class SampleUploader {
   /// going out. A screen share that buffers is worse than one that skips.
   @discardableResult func send(sample buffer: CMSampleBuffer) -> Bool {
     guard isReady else { return false }
+    // A frame that cannot be encoded leaves the latch alone, since nothing would re-arm it.
+    guard let frame = prepare(sample: buffer) else { return false }
     isReady = false
 
-    dataToSend = prepare(sample: buffer)
+    dataToSend = frame
     byteIndex = 0
 
     serialQueue.async { [weak self] in

@@ -150,7 +150,7 @@ struct PushEnvelope: Decodable {
   ) -> UNMutableNotificationContent {
     attachRouting(to: content)
     if kind == Self.securityKind, event == Self.newDeviceSignInEvent,
-      let deviceName, !deviceName.isEmpty
+      let deviceName, !deviceName.isEmpty, !isStale(now: now)
     {
       // Matches the in-app banner's wording.
       content.title = "New sign-in"
