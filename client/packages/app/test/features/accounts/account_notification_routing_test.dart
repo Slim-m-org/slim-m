@@ -136,6 +136,50 @@ void main() {
       expect(h.host.adding, isTrue);
       expect(h.host.active!.container.read(tappedInviteProvider)?.code, 'abc');
     });
+
+    testWidgets('still arrives after the launch-time account is removed', (
+      tester,
+    ) async {
+      final tapped = StreamController<Uri>.broadcast();
+      final harness = AccountHarness(
+        extraOverrides: [deepLinkUrisProvider.overrideWithValue(tapped.stream)],
+      );
+      addTearDown(
+        () => tester.runAsync(() async {
+          await tapped.close();
+          await harness.dispose();
+        }),
+      );
+      await tester.runAsync(() async {
+        final first = await harness.seed(_a, user: 'ann', active: true);
+        await harness.seed(_b, user: 'bea');
+        await harness.boot();
+        harness.host
+            .runtimeFor(first.origin)!
+            .container
+            .read(deepLinkControllerProvider);
+        await harness.host.removeAccount(first.origin);
+      });
+      await tester.pump();
+
+      await tester.runAsync(() async {
+        tapped.add(
+          Uri.parse(
+            buildDeepInviteLink(
+              server: Uri.parse('https://third.example'),
+              code: 'abc',
+            ),
+          ),
+        );
+        await pumpEventQueueTimes();
+      });
+
+      expect(harness.host.adding, isTrue);
+      expect(
+        harness.host.active!.container.read(tappedInviteProvider)?.code,
+        'abc',
+      );
+    });
   });
 
   test('the payload round trips and rejects what it did not write', () {
