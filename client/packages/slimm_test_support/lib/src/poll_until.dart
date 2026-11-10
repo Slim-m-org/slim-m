@@ -4,14 +4,9 @@ library;
 
 import 'dart:async';
 
-/// Polls [condition], which may be async, in real time until it holds.
+/// Polls [condition] in real time until it holds, instead of sleeping a guessed delay.
 ///
-/// A guessed delay encodes how fast the machine was the day it was written; a
-/// poll costs nothing when the work is fast. Throws a [TimeoutException]
-/// carrying [reason] when [timeout] passes first, so a hang fails here and not
-/// at a later assertion about some unrelated value.
-///
-/// Inside `testWidgets` it only ticks under `tester.runAsync`, where time is real.
+/// Throws a [TimeoutException] with [reason] on timeout, so a hang fails here and not at a later assertion; under `testWidgets` it needs `tester.runAsync`.
 Future<void> pollUntil(
   FutureOr<bool> Function() condition, {
   Duration timeout = const Duration(seconds: 10),

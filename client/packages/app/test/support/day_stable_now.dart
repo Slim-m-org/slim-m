@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A wall-clock "now" that calendar-day assertions can seed data around without
-/// the run straddling local midnight.
+/// A wall-clock "now" for calendar-day assertions that never straddles local midnight.
 ///
-/// The app stamps a sent message with `DateTime.now()` itself, so a test cannot
-/// pin that instant. What it can do is refuse to start within seconds of a
-/// day boundary, which is the only window where "seeded just before now" and
-/// "sent now" land on different days.
+/// The app stamps a sent message with `DateTime.now()` itself, so a test cannot pin it; it can only refuse to start within seconds of a day boundary.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
