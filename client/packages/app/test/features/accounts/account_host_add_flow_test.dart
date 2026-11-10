@@ -15,6 +15,13 @@ import 'account_host_harness.dart';
 const _a = 'https://first.example';
 const _b = 'https://second.example';
 
+const _beaTokens = api.TokenPair(
+  userId: 'bea',
+  accessToken: 'x',
+  refreshToken: 'y',
+  accessExpiresAt: 0,
+);
+
 /// Reads fail for the chosen handles until [unreadable] is cleared.
 class _LockedKeys extends InMemoryKeyStore {
   final unreadable = <String>{};
@@ -78,16 +85,7 @@ void main() {
       await h.boot();
       await h.host.beginAdd();
       await chooseInAddFlow(_b);
-      h.host.active!.container
-          .read(sessionProvider)
-          .set(
-            const api.TokenPair(
-              userId: 'bea',
-              accessToken: 'x',
-              refreshToken: 'y',
-              accessExpiresAt: 0,
-            ),
-          );
+      h.host.active!.container.read(sessionProvider).set(_beaTokens);
       await pumpEventQueueTimes();
 
       await h.host.switchTo(_a);
@@ -96,6 +94,30 @@ void main() {
       expect(h.host.accounts, hasLength(2));
       expect((await h.store.load()).byOrigin(_b), isNotNull);
     });
+
+    test(
+      'keeps a server added earlier whose session has since ended',
+      () async {
+        h = AccountHarness();
+        await h.seed(_a, user: 'ann', active: true);
+        await h.boot();
+        await h.host.beginAdd();
+        await chooseInAddFlow(_b);
+        final session = h.host.active!.container.read(sessionProvider)
+          ..set(_beaTokens);
+        await pumpEventQueueTimes();
+        expect(h.host.adding, isFalse);
+
+        session.clear();
+        await pumpEventQueueTimes();
+        await h.host.switchTo(_a);
+        await pumpEventQueueTimes();
+
+        expect(h.host.accounts, hasLength(2));
+        expect(h.host.runtimeFor(_b), isNotNull);
+        expect((await h.store.load()).byOrigin(_b), isNotNull);
+      },
+    );
 
     test(
       'lands on a server already signed into without keeping a copy',

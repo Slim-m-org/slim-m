@@ -81,6 +81,9 @@ class AccountHost extends ChangeNotifier {
 
   bool get adding => _returnTo != null;
 
+  /// The runtime an open add flow is filling in, until it signs in or is left.
+  AccountRuntime? get _pendingAdd => _returnTo != null ? _active : null;
+
   /// Backing out of the add flow needs somewhere to land.
   bool get canCancelAdd => _returnTo != null;
 
@@ -214,6 +217,7 @@ class AccountHost extends ChangeNotifier {
     runtime.signedIn = session.isSignedIn;
     final changes = session.changes.listen((tokens) {
       runtime.signedIn = tokens != null;
+      if (tokens != null && runtime == _pendingAdd) _returnTo = null;
       _changed();
     });
     runtime._cancels.add(changes.cancel);
@@ -265,7 +269,7 @@ class AccountHost extends ChangeNotifier {
   Future<void> switchTo(String origin) async {
     final next = runtimeFor(origin);
     if (next == null) return;
-    final interrupted = _returnTo != null ? _active : null;
+    final interrupted = _pendingAdd;
     await _activate(next);
     _returnTo = null;
     if (interrupted != null && interrupted != next) {
