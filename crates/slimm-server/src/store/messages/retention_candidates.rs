@@ -7,6 +7,12 @@
 //! not retention was even on. Each query below can stop at its `LIMIT`, and
 //! `tests/message_retention_index_plan.rs` plans every one of them.
 //!
+//! Two reads remain that a `LIMIT` cannot cut short. `messages_channel_live`
+//! has no `created_at`, so every pass reads a channel with its own window in
+//! full. The Space pass post-filters channels with their own window, so it also
+//! walks the old messages of an exempt channel. An index on
+//! `messages(channel_id, created_at)` where `deleted_at IS NULL` would end both.
+//!
 //! `CROSS JOIN` is load-bearing in all three: it pins which table is the
 //! outer loop, which a database without `ANALYZE` statistics would otherwise
 //! be free to flip into a walk of every message.

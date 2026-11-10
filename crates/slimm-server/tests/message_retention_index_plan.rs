@@ -108,26 +108,39 @@ fn assert_never_scans_messages(plan: &[String], what: &str) {
     );
 }
 
+/// Pins the index a content pass reads messages through, since that index sets its cost; see `retention_candidates.rs`.
+fn assert_reads_messages_through(plan: &[String], what: &str, access: &str) {
+    assert_never_scans_messages(plan, what);
+    let seek = format!("SEARCH m USING INDEX {access}");
+    assert!(
+        plan.iter().any(|step| step == &seek),
+        "{what} no longer reads messages through {access}; the plan is {plan:?}"
+    );
+}
+
 const CONTENT_SOURCE: &str = "src/store/messages/retention_candidates.rs";
 const NOW: i64 = 1_790_000_000_000;
 const DAY_MS: i64 = 86_400_000;
+const BY_CHANNEL: &str = "messages_channel_live (channel_id=?)";
+const BY_CREATED_AT: &str = "messages_live_created_at (created_at<?)";
 
 #[tokio::test]
-async fn the_deleted_channel_pass_never_scans_messages() {
+async fn the_deleted_channel_pass_reads_messages_by_channel() {
     let (pool, _guard) = new_pool("retention-gone-plan").await;
     let source = read_source(CONTENT_SOURCE);
     let sql = extract_containing(&source, "WHERE c.deleted_at IS NOT NULL");
     let plan = plan_of(&pool, &sql, &[200]).await;
-    assert_never_scans_messages(&plan, "the deleted-channel pass");
+    assert_reads_messages_through(&plan, "the deleted-channel pass", BY_CHANNEL);
 }
 
+/// That index has no `created_at`, so the window is checked per row of the channel: see the module doc.
 #[tokio::test]
-async fn the_channel_window_pass_never_scans_messages() {
+async fn the_channel_window_pass_reads_messages_by_channel() {
     let (pool, _guard) = new_pool("retention-channel-plan").await;
     let source = read_source(CONTENT_SOURCE);
     let sql = extract_containing(&source, "WHERE cr.retention_days > 0");
     let plan = plan_of(&pool, &sql, &[NOW, DAY_MS, 200]).await;
-    assert_never_scans_messages(&plan, "the channel-window pass");
+    assert_reads_messages_through(&plan, "the channel-window pass", BY_CHANNEL);
 }
 
 #[tokio::test]
@@ -136,12 +149,7 @@ async fn the_space_window_pass_seeks_the_created_at_index() {
     let source = read_source(CONTENT_SOURCE);
     let sql = extract_containing(&source, "AND cr.channel_id IS NULL");
     let plan = plan_of(&pool, &sql, &[NOW - 30 * DAY_MS, 200]).await;
-    assert_never_scans_messages(&plan, "the space-window pass");
-    assert!(
-        plan.iter()
-            .any(|step| step.contains("messages_live_created_at (created_at<?)")),
-        "the space-window pass lost its created_at range; the plan is {plan:?}"
-    );
+    assert_reads_messages_through(&plan, "the space-window pass", BY_CREATED_AT);
 }
 
 /// A plain `"..."` literal's body with its `\`-newline continuations folded, as the compiler reads it.
