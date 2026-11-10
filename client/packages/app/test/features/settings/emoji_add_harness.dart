@@ -88,6 +88,12 @@ class EmojiHarness {
   Future<void> Function(http.Request)? holdBulk;
   int listFetches = 0;
 
+  /// Emoji another admin created after the dialog opened: the next list fetch has them.
+  final added = <api.CustomEmoji>[];
+
+  /// Awaited before the emoji list answers, so a test can keep the catalog unloaded.
+  Future<void>? catalogGate;
+
   Iterable<http.Request> get singles =>
       requests.where((r) => r.method == 'POST' && r.url.path == '/emoji');
   Iterable<http.Request> get bulks =>
@@ -105,7 +111,8 @@ class EmojiHarness {
       overrides: [
         customEmojiProvider.overrideWith((ref) async {
           listFetches++;
-          return existing;
+          await catalogGate;
+          return [...existing, ...added];
         }),
         emojiFilesPickerProvider.overrideWithValue(() async {
           if (pickerThrows) throw StateError('no portal');

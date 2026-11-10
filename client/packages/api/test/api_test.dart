@@ -195,6 +195,41 @@ void main() {
       );
     });
 
+    test('a 409 or 400 names the batch image it refuses', () async {
+      await expectMapped(
+        409,
+        '{"error":"image 3 (zorg): taken","item_index":2,"item_code":"name_taken"}',
+        isA<ConflictException>()
+            .having((e) => e.item?.index, 'index', 2)
+            .having((e) => e.item?.code, 'code', 'name_taken'),
+      );
+      await expectMapped(
+        400,
+        '{"error":"image 1 (a): bad","item_index":0,"item_code":"empty"}',
+        isA<BadRequestException>()
+            .having((e) => e.item?.index, 'index', 0)
+            .having((e) => e.item?.code, 'code', 'empty'),
+      );
+    });
+
+    test('an error body without both item fields names no image', () async {
+      await expectMapped(
+        409,
+        '{"error":"dup"}',
+        isA<ConflictException>().having((e) => e.item, 'item', isNull),
+      );
+      await expectMapped(
+        409,
+        '{"error":"dup","item_index":1}',
+        isA<ConflictException>().having((e) => e.item, 'item', isNull),
+      );
+      await expectMapped(
+        409,
+        '{"error":"dup","item_index":-1,"item_code":"name_taken"}',
+        isA<ConflictException>().having((e) => e.item, 'item', isNull),
+      );
+    });
+
     test('statuses become typed exceptions carrying the reason', () async {
       await expectMapped(400, '{"error":"bad"}', isA<BadRequestException>());
       await expectMapped(
