@@ -32,6 +32,19 @@ extension SlimmApiLinkedAccounts on SlimmApi {
     return (json as Map<String, dynamic>)['url'] as String;
   }
 
+  /// Finishes a Discord link with the handoff [code] the browser page showed.
+  /// Throws [NotFoundException] when the code is wrong, expired, used, or from
+  /// a link another member started, and [ConflictException] when that Discord
+  /// account is linked to someone else here.
+  Future<LinkedAccount> completeDiscordLink(String code) async {
+    final json = await send(
+      'POST',
+      '/me/links/discord/complete',
+      body: {'code': code},
+    );
+    return LinkedAccount.fromJson(json as Map<String, dynamic>);
+  }
+
   Future<void> unlinkDiscord() =>
       send('DELETE', '/me/links/discord', expectNoContent: true);
 

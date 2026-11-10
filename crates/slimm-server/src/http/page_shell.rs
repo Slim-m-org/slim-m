@@ -72,7 +72,7 @@ button.btn{width:100%;padding:12px 16px;border-radius:12px;border:1px solid var(
 background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer}\
 a.btn:focus-visible,button.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\
 .code{margin:12px 0;padding:12px 16px;border:1px solid var(--line);border-radius:12px;\
-font:600 18px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em;\
+font:600 15px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;\
 overflow-wrap:anywhere;user-select:all}\
 [hidden]{display:none!important}.foot{margin-top:20px}.foot a{color:var(--muted)}";
 

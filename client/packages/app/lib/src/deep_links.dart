@@ -22,9 +22,15 @@
 /// makes exactly this call for a link tapped inside the app; this is the same
 /// decision for one arriving from outside it.
 ///
-/// Windows note: receiving these needs the scheme in the registry, which is
-/// an installer concern the repo's packaging does not cover yet; pasting
-/// the link into the join dialog remains the Windows path.
+/// A *Discord link* hand-back (`discord-link?code=`) is neither: the browser
+/// page that finished Discord's approval opens it so the app can complete the
+/// link with its own session, and the server links only for the account that
+/// started it. See `discord_link_callback.dart`.
+///
+/// Windows note: the setup installer registers the scheme in the user's
+/// registry and the app forwards a link to a running copy. The zip install
+/// does not, so pasting an invite into the join dialog, or the Discord code
+/// into Settings, remains the way there.
 library;
 
 import 'dart:async';
@@ -38,6 +44,9 @@ export 'invite_pending.dart';
 import 'features/accounts/providers/account_host.dart';
 import 'features/accounts/providers/account.dart' show originOf;
 import 'features/accounts/providers/account_providers.dart';
+import 'callback_route_guard.dart';
+import 'discord_link_callback.dart';
+import 'features/settings/providers/discord_link_finish.dart';
 import 'invite_link.dart';
 import 'invite_pending.dart';
 import 'message_link.dart';
@@ -153,7 +162,7 @@ class DeepLinkListener {
 
   /// The account on screen when there is no host to ask.
   final ProviderContainer _home;
-  final _guard = SpotifyRouteGuard();
+  final _guard = CallbackRouteGuard();
   late final StreamSubscription<Uri> _sub;
 
   void dispose() {
@@ -167,10 +176,25 @@ class DeepLinkListener {
       unawaited(handleSpotifyCallback(onScreen, uri));
       return;
     }
+    if (isDiscordLinkDelivery(uri)) {
+      unawaited(_finishDiscordLink(onScreen, uri));
+      return;
+    }
     final host = _host;
     if (host != null && _routeAcrossAccounts(host, uri)) return;
     _followInSession(onScreen, uri);
   }
+}
+
+/// Completes a Discord link in the account on screen, with Settings showing the outcome.
+Future<void> _finishDiscordLink(ProviderContainer container, Uri uri) async {
+  final code = uri.queryParameters[discordLinkCodeQuery];
+  if (code == null || !container.read(sessionProvider).isSignedIn) return;
+  final router = container.read(routerProvider);
+  if (router.state.uri.path != Routes.personalSettings) {
+    unawaited(router.push<void>(Routes.personalSettingsPane('profile')));
+  }
+  await container.read(discordLinkFinisherProvider).completeDelivered(code);
 }
 
 /// Follows a link in one account's own session, when it names that session.

@@ -73,6 +73,9 @@ class SettingsActions {
 
   Future<String> startDiscordLink() => _api.startDiscordLink();
 
+  Future<LinkedAccount> completeDiscordLink(String code) =>
+      _api.completeDiscordLink(code);
+
   Future<void> unlinkDiscord() => _api.unlinkDiscord();
 
   Future<List<Device>> listDevices() => _api.listDevices();
