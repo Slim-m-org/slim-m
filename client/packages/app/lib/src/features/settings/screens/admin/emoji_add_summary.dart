@@ -11,12 +11,23 @@ import 'emoji_name.dart';
 
 /// One planned image and how its upload ended.
 class EmojiAddResult {
-  const EmojiAddResult({required this.upload, this.reason});
+  const EmojiAddResult({
+    required this.upload,
+    this.reason,
+    this.problem,
+    this.named = false,
+  });
 
   final PlannedEmojiUpload upload;
 
   /// Null when the image was created.
   final String? reason;
+
+  /// What the server said is wrong with this image's name, when it named the image.
+  final String? problem;
+
+  /// Its refusal sits on a row, so the summary leaves it out.
+  final bool named;
 
   bool get failed => reason != null;
 }

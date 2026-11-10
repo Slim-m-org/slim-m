@@ -8,6 +8,7 @@
 /// those refusals waits for an upload.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -18,6 +19,19 @@ import '../../../emoji/widgets/standard_emoji.dart';
 import 'emoji_bulk_plan.dart';
 import 'emoji_name.dart';
 
+const nameTakenProblem = 'Already taken.';
+const _standardEmojiProblem = 'That is a standard emoji.';
+const _unusableNameProblem = 'Use letters, numbers and underscores.';
+
+/// The row problem for a reason the server gave for refusing one image, or
+/// null for a reason that is not about its name.
+String? problemForRefusal(String code) => switch (code) {
+  'name_taken' => nameTakenProblem,
+  'builtin_name' => _standardEmojiProblem,
+  'unusable_name' => _unusableNameProblem,
+  _ => null,
+};
+
 /// One planned image whose name the admin may still change.
 class EmojiReviewItem {
   EmojiReviewItem(this.upload)
@@ -26,8 +40,24 @@ class EmojiReviewItem {
   final PlannedEmojiUpload upload;
   final TextEditingController name;
 
+  /// Identifies this item's row, so the list can be scrolled to it.
+  final rowKey = GlobalKey();
+
+  ({String name, String problem})? _refused;
+
   /// The name the server would store for what is typed now.
   String get normalized => normalizeEmojiName(name.text);
+
+  /// Remembers the server refusing [refusedName] with [problem]; it holds until the name is changed.
+  void refuse(String refusedName, String problem) =>
+      _refused = (name: refusedName, problem: problem);
+
+  String? get _refusal {
+    final refused = _refused;
+    return refused != null && refused.name == normalized
+        ? refused.problem
+        : null;
+  }
 
   PlannedEmojiUpload get edited => PlannedEmojiUpload(
     fileName: upload.fileName,
@@ -45,21 +75,44 @@ List<String?> reviewProblems(
   Set<String> existingNames,
 ) {
   final seen = <String>{};
-  return [
-    for (final item in items)
-      _problemWith(item.normalized, existingNames, seen),
-  ];
+  return [for (final item in items) _problemWith(item, existingNames, seen)];
 }
 
-String? _problemWith(String name, Set<String> existing, Set<String> seen) {
-  if (name.isEmpty) return 'Use letters, numbers and underscores.';
+String? _problemWith(
+  EmojiReviewItem item,
+  Set<String> existing,
+  Set<String> seen,
+) {
+  final name = item.normalized;
+  if (name.isEmpty) return _unusableNameProblem;
   if (name.length > maxEmojiNameLength) {
     return 'Too long, $maxEmojiNameLength characters at most.';
   }
-  if (existing.contains(name)) return 'Already taken.';
-  if (isStandardEmojiName(name)) return 'That is a standard emoji.';
+  if (existing.contains(name)) return nameTakenProblem;
+  if (isStandardEmojiName(name)) return _standardEmojiProblem;
   if (!seen.add(name)) return 'Another image has this name.';
-  return null;
+  return item._refusal;
+}
+
+/// Scrolls the list [scroll] drives until the row of [items]`[index]` is on
+/// screen, jumping near it first when the lazy list has not built that row yet.
+void revealReviewRow(
+  ScrollController scroll,
+  List<EmojiReviewItem> items,
+  int index,
+) {
+  final item = items[index];
+  void show() {
+    final row = item.rowKey.currentContext;
+    if (row != null) unawaited(Scrollable.ensureVisible(row));
+  }
+
+  if (item.rowKey.currentContext == null) {
+    scroll.jumpTo(index * _rowExtent);
+    WidgetsBinding.instance.addPostFrameCallback((_) => show());
+  } else {
+    show();
+  }
 }
 
 class EmojiReviewList extends StatelessWidget {
@@ -67,6 +120,7 @@ class EmojiReviewList extends StatelessWidget {
     super.key,
     required this.items,
     required this.problems,
+    required this.scroll,
     required this.enabled,
     required this.onChanged,
     required this.onRemove,
@@ -74,6 +128,7 @@ class EmojiReviewList extends StatelessWidget {
 
   final List<EmojiReviewItem> items;
   final List<String?> problems;
+  final ScrollController scroll;
   final bool enabled;
   final VoidCallback onChanged;
   final ValueChanged<int> onRemove;
@@ -83,10 +138,12 @@ class EmojiReviewList extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 320),
       child: ListView.builder(
+        key: const ValueKey('emoji-review-list'),
+        controller: scroll,
         shrinkWrap: true,
         itemCount: items.length,
         itemBuilder: (context, i) => _ReviewRow(
-          key: ObjectKey(items[i]),
+          key: items[i].rowKey,
           item: items[i],
           problem: problems[i],
           enabled: enabled,
@@ -157,6 +214,9 @@ Widget _besideTheField(Widget child) => SizedBox(
 
 /// The field's height plus the focus ring it reserves around itself.
 const double _fieldBoxHeight = AppSizes.controlLg + AppSpacing.s4;
+
+/// What a row without a problem takes in the list, to land near an unbuilt one.
+const double _rowExtent = _fieldBoxHeight + AppSpacing.s8;
 
 class _Thumb extends StatelessWidget {
   const _Thumb({required this.bytes});

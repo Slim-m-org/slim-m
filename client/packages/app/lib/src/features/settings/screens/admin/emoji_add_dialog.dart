@@ -28,6 +28,7 @@ import '../../../../api_failure.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../widgets/app_drop_zone.dart';
+import '../../../../widgets/confirm_dialog.dart';
 import '../../../composer/widgets/composer_clipboard_image.dart';
 import '../../../composer/widgets/composer_clipboard_paste.dart';
 import 'emoji_add_review.dart';
@@ -40,12 +41,14 @@ import 'emoji_name.dart';
 ///
 /// Desktop-vs-mobile rule 4, a short task with a submit: a centred dialog on a
 /// desktop and a bottom sheet on a phone, over the pane it was opened from.
+/// Staged files ask before they are dropped, so a phone cannot drag it away.
 Future<void> showEmojiAddDialog(
   BuildContext context, {
   List<EmojiPick> initial = const [],
 }) => showAppSheet<void>(
   context,
   semanticLabel: ActionLabels.createEmoji,
+  enableDrag: false,
   builder: (_) => EmojiAddDialog(initial: initial),
 );
 
@@ -60,6 +63,7 @@ class EmojiAddDialog extends ConsumerStatefulWidget {
 
 class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
   final _items = <EmojiReviewItem>[];
+  final _scroll = ScrollController();
   List<SkippedZipEntry> _skipped = const [];
   List<EmojiAddResult> _succeeded = const [];
   List<EmojiAddResult> _failed = const [];
@@ -87,6 +91,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     for (final item in _items) {
       item.dispose();
     }
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -185,19 +190,19 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     final results = batch.length == 1
         ? [await _uploadOne(batch.single)]
         : await _uploadChunks(batch);
-    if (results.any((r) => !r.failed)) {
-      container.invalidate(customEmojiProvider);
-    }
+    container.invalidate(customEmojiProvider);
     if (!mounted) return;
     setState(() {
       for (var i = items.length - 1; i >= 0; i--) {
+        final problem = results[i].problem;
+        if (problem != null) items[i].refuse(results[i].upload.name, problem);
         if (!results[i].failed) {
           _items.remove(items[i]);
           _discard(items[i]);
         }
       }
       _succeeded = [..._succeeded, ...results.where((r) => !r.failed)];
-      _failed = results.where((r) => r.failed).toList();
+      _failed = results.where((r) => r.failed && !r.named).toList();
       _running = false;
     });
   }
@@ -229,6 +234,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     final results = <EmojiAddResult>[];
     for (final chunk in chunkPlannedEmojiUploads(uploads)) {
       String? reason;
+      api.ItemRefusal? refused;
       try {
         await client.bulkUploadCustomEmoji([
           for (final u in chunk)
@@ -242,9 +248,21 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
           stack,
         );
         reason = describeApiFailure('add ${chunk.length} emoji', e);
+        refused = switch (e) {
+          api.ConflictException(:final item) => item,
+          api.BadRequestException(:final item) => item,
+          _ => null,
+        };
       }
+      final problem = refused == null ? null : problemForRefusal(refused.code);
       results.addAll([
-        for (final u in chunk) EmojiAddResult(upload: u, reason: reason),
+        for (var i = 0; i < chunk.length; i++)
+          EmojiAddResult(
+            upload: chunk[i],
+            reason: reason,
+            problem: refused?.index == i ? problem : null,
+            named: problem != null,
+          ),
       ]);
       if (mounted) setState(() => _current += chunk.length);
     }
@@ -269,10 +287,22 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
     if (mounted) setState(() => _running = false);
   }
 
+  Future<void> _confirmDiscard() async {
+    final discard = await confirmDangerousAction(
+      context,
+      title: 'Discard these emoji?',
+      message: 'The files and names you staged are not saved.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+    );
+    if (discard && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    ref.watch(customEmojiProvider);
+    final catalog = ref.watch(customEmojiProvider);
+    final checking = catalog.isLoading && !catalog.hasValue;
     final problems = reviewProblems(_items, _existing);
     final unfixed = problems.where((p) => p != null).length;
     final blocked = unfixed > 0;
@@ -281,121 +311,167 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
         (_succeeded.isNotEmpty || _failed.isNotEmpty || _skipped.isNotEmpty);
     final sameImage = _sameImage;
 
-    return AppDropZone(
-      enabled: !_running,
-      label: 'Drop to add emoji',
-      icon: AppIcons.image,
-      onDrop: (files) => unawaited(_drop(files)),
-      child: Focus(
-        autofocus: true,
-        onKeyEvent: _onKey,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: AppSpacing.s12,
-            children: [
-              AppSheetHeader(
-                ActionLabels.createEmoji,
-                caption: dropZoneSupported()
-                    ? 'Drop, paste or choose images or a zip, then check the names.'
-                    : 'Paste or choose images or a zip, then check the names.',
-                padding: EdgeInsets.zero,
-                trailing: AppIconButton(
-                  icon: AppIcons.dismiss,
-                  semanticLabel: 'Close',
-                  tooltip: 'Close',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
-              ),
-              Wrap(
-                spacing: AppSpacing.s8,
-                runSpacing: AppSpacing.s8,
-                children: [
-                  AppButton(
-                    label: 'Choose files',
-                    icon: AppIcons.add,
-                    size: AppButtonSize.sm,
-                    disabled: _running,
-                    onPressed: _choose,
+    return PopScope(
+      canPop: _items.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_confirmDiscard());
+      },
+      child: AppDropZone(
+        enabled: !_running,
+        label: 'Drop to add emoji',
+        icon: AppIcons.image,
+        onDrop: (files) => unawaited(_drop(files)),
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: _onKey,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: AppSpacing.s12,
+              children: [
+                AppSheetHeader(
+                  ActionLabels.createEmoji,
+                  caption: dropZoneSupported()
+                      ? 'Drop, paste or choose images or a zip, then check the names.'
+                      : 'Paste or choose images or a zip, then check the names.',
+                  padding: EdgeInsets.zero,
+                  trailing: AppIconButton(
+                    icon: AppIcons.dismiss,
+                    semanticLabel: 'Close',
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).maybePop(),
                   ),
-                  AppButton(
-                    label: 'Paste image',
-                    icon: AppIcons.image,
-                    size: AppButtonSize.sm,
-                    variant: AppButtonVariant.secondary,
-                    disabled: _running,
-                    onPressed: _pasteFromButton,
+                ),
+                Wrap(
+                  spacing: AppSpacing.s8,
+                  runSpacing: AppSpacing.s8,
+                  children: [
+                    AppButton(
+                      label: 'Choose files',
+                      icon: AppIcons.add,
+                      size: AppButtonSize.sm,
+                      disabled: _running,
+                      onPressed: _choose,
+                    ),
+                    AppButton(
+                      label: 'Paste image',
+                      icon: AppIcons.image,
+                      size: AppButtonSize.sm,
+                      variant: AppButtonVariant.secondary,
+                      disabled: _running,
+                      onPressed: _pasteFromButton,
+                    ),
+                  ],
+                ),
+                if (_refusal case final refusal?)
+                  AppErrorState(
+                    message: refusal,
+                    onDismiss: () => setState(() => _refusal = null),
+                  ),
+                if (sameImage != null)
+                  EmojiSameImageNotice(
+                    added: sameImage,
+                    existingName: sameImage.sameImageAs!,
+                    busy: _running,
+                    onUseExisting: () => _useExisting(sameImage),
+                    onKeep: () => setState(() => _sameImage = null),
+                  ),
+                if (_items.isNotEmpty)
+                  EmojiReviewList(
+                    items: _items,
+                    problems: problems,
+                    scroll: _scroll,
+                    enabled: !_running,
+                    onChanged: () => setState(() {}),
+                    onRemove: _remove,
+                  ),
+                if (_running) ...[
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      'Uploading $_current of $_total...',
+                      style: AppText.caption.copyWith(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
+                  LinearProgressIndicator(
+                    value: _total == 0 ? null : _current / _total,
                   ),
                 ],
-              ),
-              if (_refusal case final refusal?)
-                AppErrorState(
-                  message: refusal,
-                  onDismiss: () => setState(() => _refusal = null),
-                ),
-              if (sameImage != null)
-                EmojiSameImageNotice(
-                  added: sameImage,
-                  existingName: sameImage.sameImageAs!,
-                  busy: _running,
-                  onUseExisting: () => _useExisting(sameImage),
-                  onKeep: () => setState(() => _sameImage = null),
-                ),
-              if (_items.isNotEmpty)
-                EmojiReviewList(
-                  items: _items,
-                  problems: problems,
-                  enabled: !_running,
-                  onChanged: () => setState(() {}),
-                  onRemove: _remove,
-                ),
-              if (_running) ...[
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    'Uploading $_current of $_total...',
+                if (finished)
+                  EmojiAddSummary(
+                    succeeded: _succeeded,
+                    failed: _failed,
+                    skipped: _skipped,
+                  ),
+                if (blocked && !_running)
+                  _FixNamesLine(
+                    count: unfixed,
+                    onShow: () => revealReviewRow(
+                      _scroll,
+                      _items,
+                      problems.indexWhere((p) => p != null),
+                    ),
+                  ),
+                if (checking)
+                  Text(
+                    'Checking existing names...',
                     style: AppText.caption.copyWith(
                       color: tokens.textSecondary,
                     ),
                   ),
-                ),
-                LinearProgressIndicator(
-                  value: _total == 0 ? null : _current / _total,
-                ),
+                if (_items.isNotEmpty)
+                  AppButton(
+                    label: 'Create ${_items.length} emoji',
+                    icon: AppIcons.smile,
+                    variant: AppButtonVariant.primary,
+                    full: true,
+                    disabled: _running || blocked || checking,
+                    onPressed: _upload,
+                  ),
               ],
-              if (finished)
-                EmojiAddSummary(
-                  succeeded: _succeeded,
-                  failed: _failed,
-                  skipped: _skipped,
-                ),
-              if (blocked && !_running)
-                Text(
-                  unfixed == 1
-                      ? '1 name needs fixing.'
-                      : '$unfixed names need fixing.',
-                  style: AppText.caption.copyWith(color: tokens.dangerText),
-                ),
-              if (_items.isNotEmpty)
-                AppButton(
-                  label: 'Create ${_items.length} emoji',
-                  icon: AppIcons.smile,
-                  variant: AppButtonVariant.primary,
-                  full: true,
-                  disabled: _running || blocked,
-                  onPressed: _upload,
-                ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// How many names still stop the upload, and a way to the first of them.
+class _FixNamesLine extends StatelessWidget {
+  const _FixNamesLine({required this.count, required this.onShow});
+
+  final int count;
+  final VoidCallback onShow;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Row(
+      spacing: AppSpacing.s8,
+      children: [
+        Expanded(
+          child: Text(
+            count == 1 ? '1 name needs fixing.' : '$count names need fixing.',
+            style: AppText.caption.copyWith(color: tokens.dangerText),
+          ),
+        ),
+        AppButton(
+          label: 'Show first',
+          size: AppButtonSize.sm,
+          semanticLabel: 'Show the first name that needs fixing',
+          onPressed: onShow,
+        ),
+      ],
     );
   }
 }

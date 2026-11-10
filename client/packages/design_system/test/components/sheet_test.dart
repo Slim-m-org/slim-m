@@ -45,6 +45,7 @@ Future<void> _pumpOpener(
   Size window, {
   double maxWidth = kSheetMaxWidth,
   bool bare = false,
+  bool enableDrag = true,
   bool reduceMotion = false,
   Widget body = const Text('sheet body'),
 }) async {
@@ -69,6 +70,7 @@ Future<void> _pumpOpener(
                     context,
                     maxWidth: maxWidth,
                     bare: bare,
+                    enableDrag: enableDrag,
                     builder: (_) => body,
                   ),
                   child: const Text('open'),
@@ -90,12 +92,14 @@ Future<void> _open(
   Size window, {
   double maxWidth = kSheetMaxWidth,
   bool bare = false,
+  bool enableDrag = true,
 }) async {
   await _pumpOpener(
     tester,
     window,
     maxWidth: maxWidth,
     bare: bare,
+    enableDrag: enableDrag,
     // Greedy on purpose: content that asks for more width than the cap is
     // the only thing that proves the cap binds.
     body: const SizedBox(
@@ -108,6 +112,20 @@ Future<void> _open(
 }
 
 void main() {
+  testWidgets('a phone sheet drags away unless enableDrag is off', (
+    tester,
+  ) async {
+    await _open(tester, _phone);
+    await tester.fling(find.text('sheet body'), const Offset(0, 500), 2000);
+    await tester.pumpAndSettle();
+    expect(find.text('sheet body'), findsNothing);
+
+    await _open(tester, _phone, enableDrag: false);
+    await tester.fling(find.text('sheet body'), const Offset(0, 500), 2000);
+    await tester.pumpAndSettle();
+    expect(find.text('sheet body'), findsOneWidget);
+  });
+
   testWidgets('a phone gets a bottom sheet', (tester) async {
     await _open(tester, _phone);
 

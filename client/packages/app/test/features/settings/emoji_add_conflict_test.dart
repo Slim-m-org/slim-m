@@ -74,6 +74,11 @@ void main() {
       reason: 'and above the next row, not under another one',
     );
     expect(find.text('1 name needs fixing.'), findsOneWidget);
+    expect(
+      find.textContaining('could not be added'),
+      findsNothing,
+      reason: 'the row already says it, so the summary does not repeat it',
+    );
     expect(_disabled(tester, 'Create 3 emoji'), isTrue);
     expect(_field('aaa.png'), findsOneWidget);
     expect(_field('ccc.png'), findsOneWidget);

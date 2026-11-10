@@ -69,6 +69,11 @@ const double kSheetHandleExtent = AppSpacing.s12;
 /// and bottom only, never the keyboard inset. The dialog branch needs neither:
 /// a desktop window has no keyboard to cover it.
 ///
+/// [enableDrag] false takes away the phone sheet's drag-down: dragging pops the
+/// route outright and never asks a `PopScope`, so a sheet that asks before it
+/// closes cannot keep the drag. Its handle, scrim, Escape and system back still
+/// go through `maybePop`.
+///
 /// A phone sheet clips its content to its rounded top corners, so a picture
 /// that runs to the edge follows the curve instead of poking past it.
 /// [handleOverContent] is for content that starts with such a picture (a
@@ -91,6 +96,7 @@ Future<T?> showAppSheet<T>(
   bool scrolls = false,
   bool bare = false,
   bool handleOverContent = false,
+  bool enableDrag = true,
   String? semanticLabel,
 }) {
   // Focus moves into the sheet, so keys stop reaching the page behind it; the label names it for a screen reader.
@@ -114,6 +120,7 @@ Future<T?> showAppSheet<T>(
       // A nested navigator (the phone shell's) can end above the home indicator, leaving a strip of page under the sheet.
       useRootNavigator: true,
       isScrollControlled: true,
+      enableDrag: enableDrag,
       // Material's handle reserves a 48dp box above every sheet; this one is a slim bar.
       showDragHandle: false,
       // Material clips nothing by default, so full-width content ignores the rounded top corners.
