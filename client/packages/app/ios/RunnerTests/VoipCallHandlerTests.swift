@@ -191,10 +191,11 @@ final class VoipCallHandlerTests: XCTestCase {
     return provider.reported[provider.reported.count - 1].uuid
   }
 
+  /// The timeout only bounds a hang: the hosted app can hold the main queue past 2 s while it boots.
   private func letTheRingWindowPass() {
     let passed = expectation(description: "the ring window passed")
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { passed.fulfill() }
-    wait(for: [passed], timeout: 2)
+    wait(for: [passed], timeout: 10)
   }
 
   func testAnUnansweredRingEndsAfterTheTimeout() {

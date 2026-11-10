@@ -297,15 +297,11 @@ jobs:
     name: logic tests under dart2js (chrome ${{ matrix.leg }})
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    # Two legs: one job took 20.6 minutes at the median (p90 21.1, max 21.8, 38 runs), the critical path of the workflow.
+    # Two legs, each with half the files: one job took 20.6 minutes at the median (p90 21.1, max 21.8, 38 runs), the critical path of the workflow.
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - leg: 1
-            shard: "--total-shards=2 --shard-index=0"
-          - leg: 2
-            shard: "--total-shards=2 --shard-index=1"
+        leg: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -322,7 +318,7 @@ jobs:
 
       - name: flutter test --platform chrome
         env:
-          CHROME_SHARD: ${{ matrix.shard }}
+          CHROME_LEG: ${{ matrix.leg }}/2
         run: scripts/chrome-tests.sh
 
   # A native desktop plugin's own CMake is invisible to analyze, test and the
