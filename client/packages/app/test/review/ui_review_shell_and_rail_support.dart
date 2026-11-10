@@ -182,12 +182,7 @@ Future<void> _captureOnce(
       await tester.pumpWidget(build(theme));
       await settleFrames(tester);
     }
-    final name = reviewName(
-      spec.surface,
-      state: spec.state,
-      viewport: window.slug,
-      theme: theme,
-    );
+    final name = reviewName(spec.surface, spec.state, window.slug, theme);
     await expectSettled(tester, name, allowNoText: spec.allowNoText);
     await writeSnapshot(tester, name);
     firstException ??= tester.takeException();

@@ -27,6 +27,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../support/fake_sync.dart';
 import '../support/mid_flight_capture.dart';
 import '../ui_snapshot_support.dart';
+import 'review_support.dart' as review;
 import 'ui_review_messages_api.dart';
 
 export 'ui_review_messages_api.dart' show reviewApi, reviewReactor;
@@ -37,20 +38,12 @@ const reviewViewports = {'phone': Size(390, 844), 'desktop': Size(1280, 800)};
 
 const reviewThemes = ['dark', 'light'];
 
-final _namePart = RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$');
-
 String reviewPngName(
   String surface,
   String? state,
   String viewport,
   String theme,
-) {
-  for (final part in [surface, ?state]) {
-    if (!_namePart.hasMatch(part)) fail('"$part" is not a kebab-case name');
-  }
-  final middle = state == null ? '' : '--$state';
-  return '$surface$middle--$viewport-$theme';
-}
+) => review.reviewName(surface, state, viewport, theme);
 
 const _day = 1753600000000;
 

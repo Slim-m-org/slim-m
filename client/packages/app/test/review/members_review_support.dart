@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Mounts the real shell at a review window, drives one overlay or state over it, and captures both themes from that one mount.
 ///
-/// Stands in for `review_support.dart` until batch review-harness-and-auth lands; the names match so the swap is an import.
 library;
 
 import 'dart:async';
@@ -23,6 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../support/mid_flight_capture.dart';
 import '../ui_snapshot_support.dart';
+import 'review_support.dart' as review;
 
 /// The two windows a review captures at; desktop is never narrower, or the app switches to its touch layout.
 enum ReviewViewport {
@@ -35,13 +35,13 @@ enum ReviewViewport {
   final Size size;
 }
 
-/// The only place a review PNG's name is built: `<surface>[--<state>]--<viewport>-<theme>`.
+/// [review.reviewName] with the viewport as a [ReviewViewport].
 String reviewName(
   String surface, {
   String? state,
   required ReviewViewport viewport,
   required String theme,
-}) => '$surface${state == null ? '' : '--$state'}--${viewport.slug}-$theme';
+}) => review.reviewName(surface, state, viewport.slug, theme);
 
 /// A JSON reply, as the server sends one.
 http.Response reviewJson(Object? body, [int status = 200]) => http.Response(

@@ -11,49 +11,70 @@
 # unless a longer registered name, like `channel-settings`, claims it.
 
 # Onboarding and sign-in
-route|/join|auth|onboarding, invite-dialog, manual-server-dialog, invite-landing, invite-required-notice
-route|/sign-in|auth|sign-in, submit, tofu, identity-chip
-route|/share|auth|pending: ShareToScreen opens from the OS share sheet with a share waiting, which no fixture sets up yet
+route|/join|auth|onboarding, invite-dialog, manual-server-dialog, invite-landing, invite-required-notice, auth-onboarding, dialog-onboarding-invite, dialog-onboarding-manual-server
+route|/sign-in|auth|sign-in, submit, tofu, identity-chip, auth-sign-in, auth-sign-in-register, auth-server-fingerprint-step, auth-server-identity-changed, sheet-totp-code, sheet-reset-password
+route|/share|auth|route-share-to
+surface|app-gates|auth|app-client-too-old, app-first-run-flow, app-not-found, overlay-app-lock
 
 # Channels, conversations and the shell
-route|/channels|shell|no-channel-selected, space-menu, space-header-icon, rail-in-call, rail-compact, favorites
-route|/channels/:channelId|shell|channel, voice, voice-rail, dm, dm-call, group-dm, background, status-banners, database-reset-notice, probe-notices-stacked, safety-notice
-route|/channels/:channelId/m/:messageId|shell|pending: the jump-to-message view with its highlighted row has no picture
+route|/channels|shell|no-channel-selected, space-menu, space-header-icon, rail-in-call, rail-compact, favorites, shell-home-pane, shell-rail-docked, shell-channel-list-phone, drawer-rail-phone
+route|/channels/:channelId|shell|channel, voice, voice-rail, dm, dm-call, group-dm, background, status-banners, database-reset-notice, probe-notices-stacked, safety-notice, channel-text-wide, channel-text-phone, channel-dm, state-conversation-unavailable, msg-selection-mode, overlay-file-drop
+route|/channels/:channelId/m/:messageId|shell|route-message-deep-link
 route|/thread/:channelId|shell|thread
-surface|channel-rail|shell|rail-avatars, rail-blank-space-menu, rail-declutter, rail-failure, rail-footer, rail-header, channels-category-menu, channels-create, channels-rename-category, channels-select-row, channels-voice-row-menu, row-menu-notifications
+surface|channel-rail|shell|rail-avatars, rail-blank-space-menu, rail-declutter, rail-failure, rail-footer, rail-header, channels-category-menu, channels-create, channels-rename-category, channels-select-row, channels-voice-row-menu, row-menu-notifications, banner-rail-connection, menu-category-header, menu-channel-row, menu-dm-row, menu-presence, menu-rail-background, menu-space-header, sheet-category-name, sheet-category-permissions, sheet-create-channel, sheet-status-editor, sheet-voice-room-settings
 surface|messages|messages|message-context-menu, message-toolbar, reactions, failed-row, staged-attachments, attachment-states, fullscreen-viewer, fullscreen-controls, image-menu, edit-keys, edit-mode, menu-own, menu-other, activity-card, activity-row, photo-panel, pinned-messages-sheet, saved-messages-sheet
-surface|composer|messages|composer-actions-sheet, composer-code, poll-composer-sheet, emoji-picker-sheet, command-palette
-surface|members|members|member-popover, member-profile, member-roster-roles, member-row-badges, member-drawer-badges, member-selection, member-picker-sheet, module_slots, confirm-eject-from-call, confirm-remove-from-space, report-dialog, report-card
-surface|dialogs|overlays|confirm, create-channel-sheet, create-role-sheet, role-picker-sheet, join-gate, space-emoji-sheet, whats-new-sheet
+surface|message-rows|messages|msg-row-text, msg-cards, msg-attachments, msg-swipe-to-reply, message-poll
+surface|message-overlays|messages|overlay-fullscreen-image, overlay-fullscreen-attachment-video, overlay-module-scene-fullscreen, menu-image-actions, popover-reaction-users
+surface|message-sheets|messages|sheet-bot-form, sheet-bot-select, sheet-edit-history, sheet-forward-message
+surface|composer|messages|composer-actions-sheet, composer-code, poll-composer-sheet, emoji-picker-sheet, command-palette, composer-bar, composer-autocomplete, sheet-composer-actions, sheet-poll-composer, popover-composer-picker, popover-emoji-reaction-picker, sheet-code-insert-picker, sheet-searchable-choice, dialog-colour-picker
+surface|members|members|member-popover, member-profile, member-roster-roles, member-row-badges, member-drawer-badges, member-selection, member-picker-sheet, module_slots, confirm-eject-from-call, confirm-remove-from-space, report-dialog, report-card, members-roster-docked, sheet-member-picker, sheet-member-moderation-bulk, sheet-rename-member, sheet-invite-friend
+surface|moderation|members|dialog-report, overlay-moderation-error, sheet-reset-code, sheet-clear-totp
+surface|rules-gate|members|banner-rules-gate, sheet-rules-gate
+surface|dialogs|overlays|confirm, create-channel-sheet, create-role-sheet, role-picker-sheet, join-gate, space-emoji-sheet, whats-new-sheet, sheet-confirm-destructive, sheet-reauth
 surface|phone-insets|shell|inset
+surface|shell-variants|shell|shell-cross-cutting-variants
+surface|search|shell|search-channel-bar-wide, search-channel-compact, search-palette-wide, search-palette-compact
+surface|conversation-sheets|shell|sheet-channel-topic, sheet-inbox, sheet-pinned-messages, sheet-saved-messages, sheet-threads
 
 # Voice calls
-surface|call-screen|voice|voice-in-call, voice-idle, voice-rejoin, voice-switch-prompt, who-is-here, call-alone, call-two, iphone-call, call-stage-banners, call-mic-menu, call-share-menu, call-dock, share-strip, share-stopped, local-share, remote-share, camera-source, screen-source, hold-music, bot-call-controls, bot-message-menu
+surface|call-screen|voice|voice-in-call, voice-idle, voice-rejoin, voice-switch-prompt, who-is-here, call-alone, call-two, iphone-call, call-stage-banners, call-mic-menu, call-share-menu, call-dock, share-strip, share-stopped, local-share, remote-share, camera-source, screen-source, hold-music, bot-call-controls, bot-message-menu, voice-call-stage, voice-dm-call-pane, voice-lobby-redirect, voice-strip-indicator, voice-text-pane, voice-watch-party, banner-voice-notice, toast-hang-up-recap
 surface|call-audio|voice|call-audio, ios-audio-output, ios-badges-off
+surface|call-menus|voice|menu-call-participant, voice-menu-camera-options, voice-menu-share-tile, voice-menu-stream-quality, sheet-call-device-choice, sheet-bot-controls
+surface|call-overlays|voice|overlay-incoming-call, overlay-fullscreen-video
 
 # Canvas
-surface|canvas|canvas|canvas
+surface|canvas|canvas|canvas, canvas-pane-wide, canvas-pane-phone, canvas-activity-log, banner-canvas, prompt-canvas-summon
+surface|canvas-menus|canvas|menu-canvas-object, menu-canvas-overflow, menu-canvas-presence-tile, menu-canvas-tool-options, overlay-canvas-tool-wheel
+surface|canvas-sheets|canvas|sheet-canvas-chat, sheet-canvas-clear, sheet-canvas-note
 
 # Dock modules
 surface|dock|modules|dock-file, dock-music, dock-settings, dock-sources, dock-module
+surface|app-launcher|modules|sheet-app-launcher, sheet-module-about
+
+# App chrome and desktop windows
+surface|startup|chrome|app-startup-splash
+surface|title-bar|chrome|desktop-title-bar
+surface|app-banners|chrome|banner-update-available, banner-download-failure, banner-self-update-failure, banner-first-run-tray-notice
+surface|app-overlays|chrome|overlay-toast, overlay-account-call-pill
+surface|windows|chrome|window-popout, dialog-windows-adopt-confirm
 
 # Personal settings
-route|/settings|settings|settings, settings-menu, density
-route|/settings/themes|settings|settings-themes, theme-swatch, theme-appearance, theme-channel, theme-call
+route|/settings|settings|settings, settings-menu, density, settings-personal-nav
+route|/settings/themes|settings|settings-themes, theme-swatch, theme-appearance, theme-channel, theme-call, menu-theme-actions
 route|/settings/themes/edit|settings|settings-theme-editor
 route|/settings/debug-log|settings|debug-log, settings-debuglog
-settings|profile|settings|settings-pane-profile, profile-banner, avatar-crop-sheet
-settings|account-devices|settings|settings-pane-account-devices, sr-account-totp
+settings|profile|settings|settings-pane-profile, profile-banner, avatar-crop-sheet, sheet-avatar-crop, sheet-avatar-photo-menu, sheet-edit-display-name
+settings|account-devices|settings|settings-pane-account-devices, sr-account-totp, sheet-change-password, sheet-totp-enrol
 settings|about|settings|settings-pane-about, settings-about, whats-new, release-notes, update-chip, web-update-pill
-settings|appearance|settings|settings-pane-appearance
-settings|notifications|settings|settings-pane-notifications, notify-voice, push-disabled-notice
+settings|appearance|settings|settings-pane-appearance, menu-background-picture
+settings|notifications|settings|settings-pane-notifications, notify-voice, push-disabled-notice, dialog-time-picker
 settings|desktop|settings|settings-pane-desktop
 settings|voice|settings|settings-pane-voice, input-gate, noise-strongest
 settings|performance|settings|settings-pane-performance
 settings|blocked|settings|settings-pane-blocked, sr-blocked
 settings|report-status|settings|settings-pane-report-status, sr-reports
-settings|troubleshooting|settings|settings-trouble
-route|/settings/call-stats|settings|pending: the call stats screen has no picture
+settings|troubleshooting|settings|settings-trouble, settings-personal-troubleshooting
+route|/settings/call-stats|settings|settings-call-stats
 
 # Space settings and administration
 route|/settings/space|space|space-settings
@@ -67,31 +88,31 @@ route|/settings/webhooks|space|addons-webhooks
 route|/settings/export|space|space-pane-export
 route|/settings/account-recovery|space|admin-account-recovery
 route|/settings/removed-members|space|admin-removed-members
-route|/settings/permissions|space|admin-overwrites, space-config-overwrites, space-pane-channel-permissions
-route|/settings/channel|space|channel-settings
+route|/settings/permissions|space|admin-overwrites, space-config-overwrites, space-pane-channel-permissions, sheet-channel-permissions-picker
+route|/settings/channel|space|channel-settings, settings-channel
 route|/settings/emoji|space|admin-emoji, space-config-emoji, subpage-emoji-add
 route|/settings/analytics|space|admin-analytics, space-ops-analytics
 route|/settings/performance|space|admin-performance
 route|/settings/space-voice|space|space-pane-voice-and-screen-share
-route|/settings/storage|space|space-ops-storage, space-pane-storage
+route|/settings/storage|space|space-ops-storage, space-pane-storage, settings-space-storage
 route|/settings/audit-log|space|space-pane-audit-log
 route|/settings/server-metrics|space|space-ops-server-metrics
 route|/settings/dock|space|admin-dock, addons-dock
 route|/settings/dock/:moduleId|space|admin-dock-module, addons-module
 space|reports|space|space-pane-reports
 space|removed-members|space|space-pane-removed-members
-space|invites|space|space-pane-invites
-space|customize|space|space-pane-customize
-space|export|space|space-pane-export
+space|invites|space|space-pane-invites, sheet-invite-role-grant
+space|customize|space|space-pane-customize, settings-space-customize
+space|export|space|space-pane-export, settings-space-export
 space|account-recovery|space|space-pane-account-recovery
-space|roles|space|space-pane-roles
-space|emoji|space|space-pane-emoji
-space|space-voice|space|space-pane-voice-and-screen-share
+space|roles|space|space-pane-roles, sheet-create-role
+space|emoji|space|space-pane-emoji, dialog-emoji-add
+space|space-voice|space|space-pane-voice-and-screen-share, settings-space-voice
 space|retention|space|space-pane-retention-and-limits, space-ops-retention
 space|analytics|space|space-pane-analytics
-space|audit-log|space|space-pane-audit-log
-space|server-metrics|space|space-pane-server-metrics
-space|dock|space|space-pane-modules
-space|bots|space|space-pane-bots
-space|webhooks|space|space-pane-webhooks
+space|audit-log|space|space-pane-audit-log, settings-space-audit-log
+space|server-metrics|space|space-pane-server-metrics, settings-space-server-metrics
+space|dock|space|space-pane-modules, menu-dock-overflow, sheet-dock-install-access
+space|bots|space|space-pane-bots, sheet-bot-edit
+space|webhooks|space|space-pane-webhooks, sheet-webhook-rename
 surface|admin-setup|space|admin_setup

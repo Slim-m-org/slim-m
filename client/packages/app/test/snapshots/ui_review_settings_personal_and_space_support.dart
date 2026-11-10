@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../support/mid_flight_capture.dart';
+import '../review/review_support.dart' as review;
 import '../ui_snapshot_support.dart';
 
 const reviewViewports = <String, Size>{
@@ -28,20 +29,13 @@ const reviewViewports = <String, Size>{
 
 const reviewThemes = ['dark', 'light'];
 
-final _part = RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$');
-
 /// `<surface>[--<state>]--<viewport>-<theme>`, every part a kebab-case slug.
 String reviewName(
   String surface,
   String viewport,
   String theme, {
   String? state,
-}) {
-  for (final part in [surface, ?state]) {
-    if (!_part.hasMatch(part)) throw ArgumentError('bad name part: $part');
-  }
-  return '$surface${state == null ? '' : '--$state'}--$viewport-$theme';
-}
+}) => review.reviewName(surface, state, viewport, theme);
 
 typedef ReviewAfter = Future<void> Function(WidgetTester tester);
 

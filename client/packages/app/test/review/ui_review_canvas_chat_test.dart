@@ -111,12 +111,7 @@ Future<void> _chatOverCanvas(
   for (var i = 0; i < 3; i++) {
     await tester.pump(const Duration(milliseconds: 350));
   }
-  final name = reviewName(
-    'sheet-canvas-chat',
-    state: state,
-    viewport: viewport,
-    theme: theme,
-  );
+  final name = reviewName('sheet-canvas-chat', state, viewport, theme);
   await expectSettled(tester, name);
   await writeSnapshot(tester, name);
   expect(tester.takeException(), isNull);

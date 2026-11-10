@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../support/mid_flight_capture.dart';
 import '../ui_snapshot_support.dart';
+import 'review_support.dart' as review;
 import 'ui_review_conversation_and_search_server.dart';
 
 export 'ui_review_conversation_and_search_server.dart';
@@ -37,19 +38,13 @@ enum ReviewViewport {
 const bothViewports = ReviewViewport.values;
 const bothThemes = ['dark', 'light'];
 
-final _namePart = RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$');
-
-/// `<surface>[--<state>]--<viewport>-<theme>`, the one place a review PNG is named.
+/// [review.reviewName] with the viewport as a [ReviewViewport].
 String reviewName(
   String surface,
   String? state,
   ReviewViewport viewport,
   String theme,
-) {
-  assert(_namePart.hasMatch(surface), surface);
-  assert(state == null || _namePart.hasMatch(state), state);
-  return '$surface${state == null ? '' : '--$state'}--${viewport.slug}-$theme';
-}
+) => review.reviewName(surface, state, viewport.slug, theme);
 
 /// What an `act` step can reach: the tester, the app's container and the frame size.
 class ReviewRig {

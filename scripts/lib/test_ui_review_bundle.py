@@ -275,7 +275,7 @@ class ScriptTest(unittest.TestCase):
     def test_every_snapshot_suite_on_disk_is_selected(self):
         on_disk = {
             str(p.relative_to(APP))
-            for pattern in ("test/ui_snapshot*test.dart", "test/ui_overlay_snapshot*test.dart",
+            for pattern in ("test/ui_snapshot*test.dart", "test/ui_overlay_snapshot*test.dart", "test/review/ui_review_*test.dart",
                             "test/snapshots/ui_*snapshot*test.dart", "test/snapshots/ui_review_*test.dart")
             for p in APP.glob(pattern)
         }
@@ -286,6 +286,9 @@ class ScriptTest(unittest.TestCase):
         listed = self.listed()
         self.assertIn("test/ui_snapshot_test.dart", listed)
         self.assertIn("test/snapshots/ui_overlay_snapshot_test.dart", listed)
+
+    def test_a_flag_takes_its_value_after_an_equals_sign(self):
+        self.assertEqual(self.listed("--concurrency=8", "--out=/nowhere"), self.listed("--concurrency", "8"))
 
     def test_a_filter_keeps_only_matching_suites(self):
         listed = self.listed("settings", "voice_rail")

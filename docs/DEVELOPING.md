@@ -103,7 +103,7 @@ scripts/ui-review.sh --list              # which suites would run
 scripts/ui-review.sh --out ~/review-1    # somewhere other than ~/.slimm-scratch/ui-review/bundle
 ```
 
-It runs `test/ui_snapshot_*`, `test/ui_overlay_snapshot_*`, `test/snapshots/ui_snapshot_*`, `test/snapshots/ui_overlay_snapshot_*` and `test/snapshots/ui_review_*`, so a new suite needs no registration.
+It runs `test/ui_snapshot_*`, `test/ui_overlay_snapshot_*`, `test/snapshots/ui_snapshot_*`, `test/snapshots/ui_overlay_snapshot_*`, `test/snapshots/ui_review_*` and `test/review/ui_review_*`, so a new suite needs no registration.
 A full run starts from an empty `build/ui-snapshots`; a filtered run leaves the other suites' pictures where the last run put them.
 A failing suite does not stop the bundle, but the script still exits non-zero.
 

@@ -18,7 +18,7 @@ VIEWPORT_TOKENS = (
     "phone-portrait", "phone-landscape", "tablet-portrait", "desktop-narrow",
     "laptop-1280", "full-hd", "compact-599", "compact-600", "expanded-999",
     "expanded-1000", "onboarding-899", "onboarding-900", "stepper-467",
-    "stepper-468", "settings-799", "settings-800", "phone", "tablet", "desktop",
+    "stepper-468", "settings-799", "settings-800", "review-desktop", "phone", "tablet", "desktop",
     "mobile",
 )
 THEME_TOKENS = ("dark", "light", "soft", "forest", "halloween")

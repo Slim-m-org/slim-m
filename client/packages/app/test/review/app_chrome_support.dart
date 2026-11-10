@@ -24,14 +24,13 @@ import '../desktop/support/desktop_shell_fixture.dart';
 import '../desktop/support/fake_desktop_window_port.dart';
 import '../support/mid_flight_capture.dart';
 import '../ui_snapshot_support.dart';
+import 'review_support.dart' as review;
 
 const reviewPhone = Size(390, 844);
 const reviewDesktop = Size(1280, 800);
 
 /// The two review viewports and the size each one's window must be.
 const reviewViewports = {'phone': reviewPhone, 'desktop': reviewDesktop};
-
-final _part = RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$');
 
 /// `<surface>[--<state>]--<viewport>-<theme>`, the name the gallery parses.
 String chromeName(
@@ -40,17 +39,10 @@ String chromeName(
   required String viewport,
   required String theme,
 }) {
-  for (final part in [surface, ?state]) {
-    if (!_part.hasMatch(part)) {
-      throw ArgumentError.value(part, 'part', 'not a kebab-case name part');
-    }
+  if (!review.reviewThemes.contains(theme)) {
+    throw ArgumentError.value(theme, 'theme', 'must be dark or light');
   }
-  if (!reviewViewports.containsKey(viewport) ||
-      !const ['dark', 'light'].contains(theme)) {
-    throw ArgumentError('viewport $viewport, theme $theme');
-  }
-  final head = [surface, ?state].join('--');
-  return '$head--$viewport-$theme';
+  return review.reviewName(surface, state, viewport, theme);
 }
 
 /// What a step that runs after the first settle can reach.

@@ -6,8 +6,8 @@
 # Each suite writes <name>.png and <name>.json (test, window size, theme) to
 # client/packages/app/build/ui-snapshots; scripts/lib/ui_review_bundle.py then
 # turns those into small WebP images and a manifest.json. A new suite needs
-# nothing here: name it ui_snapshot_*_test.dart, ui_overlay_snapshot_*_test.dart
-# or snapshots/ui_review_*_test.dart and it is picked up.
+# nothing here: name it ui_snapshot_*_test.dart, ui_overlay_snapshot_*_test.dart,
+# snapshots/ui_review_*_test.dart or review/ui_review_*_test.dart and it is picked up.
 #
 # Usage: scripts/ui-review.sh [--concurrency N] [--out DIR] [--list] [filter...] [-- flutter test args]
 #   filter   keep only suites whose path contains one of these words (a filtered
@@ -26,7 +26,9 @@ flutter_args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --concurrency) concurrency="${2:?--concurrency needs a number}"; shift 2 ;;
+    --concurrency=*) concurrency="${1#*=}"; shift ;;
     --out) out="${2:?--out needs a directory}"; shift 2 ;;
+    --out=*) out="${1#*=}"; shift ;;
     --list) list_only=1; shift ;;
     --) shift; flutter_args=("$@"); break ;;
     -*) echo "ui-review: unknown flag $1" >&2; exit 2 ;;
@@ -41,6 +43,7 @@ candidates=(
   test/ui_snapshot_test.dart test/ui_snapshot_*_test.dart test/ui_overlay_snapshot_*_test.dart
   test/snapshots/ui_snapshot_*_test.dart test/snapshots/ui_overlay_snapshot_test.dart
   test/snapshots/ui_overlay_snapshot_*_test.dart test/snapshots/ui_review_*_test.dart
+  test/review/ui_review_*_test.dart
 )
 suites=()
 for suite in "${candidates[@]}"; do

@@ -35,8 +35,6 @@ const reviewCanvasViewports = <String, Size>{
   'desktop': Size(1280, 800),
 };
 
-const reviewThemes = ['dark', 'light'];
-
 class CanvasReviewRig {
   CanvasReviewRig._(
     this.tester,
@@ -177,12 +175,7 @@ class CanvasReviewRig {
       if (theme != next) await setTheme(next);
       await paintPhoto();
       await tester.pump(const Duration(milliseconds: 100));
-      final name = reviewName(
-        surface,
-        state: state,
-        viewport: viewport,
-        theme: next,
-      );
+      final name = reviewName(surface, state, viewport, next);
       await expectSettled(tester, name, allowNoText: true);
       await writeSnapshot(tester, name);
       expect(tester.takeException(), isNull);
