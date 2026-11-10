@@ -273,7 +273,7 @@ client/packages/app/linux/runner/linux_tray_probe_channel.h 1
 client/packages/app/linux/runner/linux_window_mapped_channel.h 1
 client/packages/app/linux/runner/my_application.cc 5
 client/packages/app/macos/RunnerTests/RunnerTests.swift 1
-client/packages/app/windows/runner/clipboard_image_channel.cpp 3
+client/packages/app/windows/runner/clipboard_image_channel.cpp 2
 client/packages/app/windows/runner/clipboard_image_channel.h 1
 client/packages/app/windows/runner/flutter_window.cpp 2
 client/packages/app/windows/runner/global_hotkeys_channel.cpp 1

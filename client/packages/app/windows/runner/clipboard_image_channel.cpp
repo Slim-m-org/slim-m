@@ -14,9 +14,41 @@
 #include <utility>
 #include <vector>
 
+#include "bounded_retry.h"
+
 namespace {
 
 using Microsoft::WRL::ComPtr;
+
+/// A clipboard manager, Win+V history or an RDP session can hold the clipboard
+/// for a few milliseconds right after a copy.
+constexpr int kOpenAttempts = 7;
+constexpr DWORD kOpenRetryMs = 15;
+constexpr char kBusyMessage[] =
+    "The clipboard is in use by another app. Try again.";
+
+enum class CopyResult { kCopied, kBusy, kFailed };
+
+bool OpenClipboardPatiently(HWND owner) {
+  return slimm::RetryWithWaits(
+      kOpenAttempts, [owner] { return OpenClipboard(owner) != FALSE; },
+      [] { Sleep(kOpenRetryMs); });
+}
+
+void Reply(flutter::MethodResult<flutter::EncodableValue>& result,
+           CopyResult copy, const char* failed_message) {
+  switch (copy) {
+    case CopyResult::kCopied:
+      result.Success();
+      return;
+    case CopyResult::kBusy:
+      result.Error("clipboard_busy", kBusyMessage);
+      return;
+    case CopyResult::kFailed:
+      result.Error("write_failed", failed_message);
+      return;
+  }
+}
 
 struct Bitmap {
   UINT width = 0;
@@ -97,15 +129,16 @@ HGLOBAL MakeDib(const Bitmap& bitmap) {
   return AllocCopy(blob.data(), blob.size());
 }
 
-bool WriteClipboard(HWND owner, const std::vector<uint8_t>& png) {
+CopyResult WriteClipboard(HWND owner, const std::vector<uint8_t>& png) {
   Bitmap bitmap;
-  if (!DecodePng(png, &bitmap)) return false;
+  if (!DecodePng(png, &bitmap)) return CopyResult::kFailed;
   HGLOBAL dib = MakeDib(bitmap);
   HGLOBAL png_copy = AllocCopy(png.data(), png.size());
-  if (dib == nullptr || png_copy == nullptr || !OpenClipboard(owner)) {
+  const bool allocated = dib != nullptr && png_copy != nullptr;
+  if (!allocated || !OpenClipboardPatiently(owner)) {
     if (dib != nullptr) GlobalFree(dib);
     if (png_copy != nullptr) GlobalFree(png_copy);
-    return false;
+    return allocated ? CopyResult::kBusy : CopyResult::kFailed;
   }
   EmptyClipboard();
   // The clipboard owns each handle once SetClipboardData accepts it.
@@ -116,15 +149,15 @@ bool WriteClipboard(HWND owner, const std::vector<uint8_t>& png) {
     GlobalFree(png_copy);
   }
   CloseClipboard();
-  return ok;
+  return ok ? CopyResult::kCopied : CopyResult::kFailed;
 }
 
 // A CF_HDROP file list, what Explorer's Copy puts down, so a paste elsewhere
 // receives the file itself.
-bool WriteClipboardFile(HWND owner, const std::string& utf8_path) {
+CopyResult WriteClipboardFile(HWND owner, const std::string& utf8_path) {
   const int wide_len = MultiByteToWideChar(CP_UTF8, 0, utf8_path.c_str(), -1,
                                            nullptr, 0);
-  if (wide_len <= 1) return false;
+  if (wide_len <= 1) return CopyResult::kFailed;
   std::wstring path(static_cast<size_t>(wide_len), L'\0');
   MultiByteToWideChar(CP_UTF8, 0, utf8_path.c_str(), -1, path.data(),
                       wide_len);
@@ -140,10 +173,11 @@ bool WriteClipboardFile(HWND owner, const std::string& utf8_path) {
   HGLOBAL drop = AllocCopy(blob.data(), blob.size());
   const DWORD effect = DROPEFFECT_COPY;
   HGLOBAL effect_copy = AllocCopy(&effect, sizeof(effect));
-  if (drop == nullptr || effect_copy == nullptr || !OpenClipboard(owner)) {
+  const bool allocated = drop != nullptr && effect_copy != nullptr;
+  if (!allocated || !OpenClipboardPatiently(owner)) {
     if (drop != nullptr) GlobalFree(drop);
     if (effect_copy != nullptr) GlobalFree(effect_copy);
-    return false;
+    return allocated ? CopyResult::kBusy : CopyResult::kFailed;
   }
   EmptyClipboard();
   bool ok = SetClipboardData(CF_HDROP, drop) != nullptr;
@@ -155,7 +189,7 @@ bool WriteClipboardFile(HWND owner, const std::string& utf8_path) {
     GlobalFree(effect_copy);
   }
   CloseClipboard();
-  return ok;
+  return ok ? CopyResult::kCopied : CopyResult::kFailed;
 }
 
 bool HasClipboardImage() {
@@ -224,11 +258,11 @@ std::vector<uint8_t> DibToBmp(const std::vector<uint8_t>& dib) {
   return bmp;
 }
 
-// The clipboard image as PNG when an app offered one, else as a .bmp; empty
-// when the clipboard holds no image or could not be opened.
-std::vector<uint8_t> ReadClipboardImage(HWND owner) {
+/// Fills `image` with a PNG when an app offered one, else a .bmp, and leaves it
+/// empty when there is none. False when the clipboard stayed busy.
+bool ReadClipboardImage(HWND owner, std::vector<uint8_t>* image) {
+  if (!OpenClipboardPatiently(owner)) return false;
   std::vector<uint8_t> bytes;
-  if (!OpenClipboard(owner)) return bytes;
   const UINT png_format = RegisterClipboardFormatW(L"PNG");
   if (png_format != 0 && IsClipboardFormatAvailable(png_format)) {
     bytes = CopyGlobal(GetClipboardData(png_format));
@@ -240,7 +274,8 @@ std::vector<uint8_t> ReadClipboardImage(HWND owner) {
     bytes = DibToBmp(CopyGlobal(GetClipboardData(CF_DIB)));
   }
   CloseClipboard();
-  return bytes;
+  *image = std::move(bytes);
+  return true;
 }
 
 }  // namespace
@@ -261,8 +296,10 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
           return;
         }
         if (call.method_name() == "readImage") {
-          std::vector<uint8_t> image = ReadClipboardImage(owner);
-          if (image.empty()) {
+          std::vector<uint8_t> image;
+          if (!ReadClipboardImage(owner, &image)) {
+            result->Error("clipboard_busy", kBusyMessage);
+          } else if (image.empty()) {
             result->Success();
           } else {
             result->Success(flutter::EncodableValue(std::move(image)));
@@ -274,11 +311,12 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
               call.arguments() == nullptr
                   ? nullptr
                   : std::get_if<std::string>(call.arguments());
-          if (path == nullptr || !WriteClipboardFile(owner, *path)) {
+          if (path == nullptr) {
             result->Error("write_failed", "The file could not be copied.");
             return;
           }
-          result->Success();
+          Reply(*result, WriteClipboardFile(owner, *path),
+                "The file could not be copied.");
           return;
         }
         if (call.method_name() != "writeImage") {
@@ -289,10 +327,11 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
             call.arguments() == nullptr
                 ? nullptr
                 : std::get_if<std::vector<uint8_t>>(call.arguments());
-        if (png == nullptr || !WriteClipboard(owner, *png)) {
+        if (png == nullptr) {
           result->Error("write_failed", "The image could not be copied.");
           return;
         }
-        result->Success();
+        Reply(*result, WriteClipboard(owner, *png),
+              "The image could not be copied.");
       });
 }

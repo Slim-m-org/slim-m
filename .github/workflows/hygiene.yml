@@ -56,7 +56,7 @@ jobs:
       # gate's rationale is in its own script header.
       - name: hygiene gates
         env:
-          SLIMM_REQUIRE_TEST_DEPS: numpy,websockets
+          SLIMM_REQUIRE_TEST_DEPS: numpy,websockets,g++
         run: bash scripts/gates.sh
 
       # rpmdev-vercmp is Fedora-only, so the COPR Release ordering tests run in the image the COPR jobs use.
