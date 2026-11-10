@@ -46,6 +46,7 @@ run_gate "data.dart exports Message as a plain DTO" python3 scripts/check-messag
 run_gate "no migration collides or changes under a deployed database" python3 scripts/check-migration-versions.py
 run_gate "find.byType and pumpAndSettle counts only go down" python3 scripts/check-test-patterns.py
 run_gate "no unscoped MediaQuery.of(context) outside the allowlist" python3 scripts/check-media-query-scope.py
+run_gate "no new part files in hand-written Dart" python3 scripts/check-part-files.py
 run_gate "every workflow is in the docs/ci.md table" python3 scripts/check-ci-docs.py
 
 if [ "${#failed[@]}" -gt 0 ]; then

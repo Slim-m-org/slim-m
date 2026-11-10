@@ -60,6 +60,7 @@ Client changes:
 - [ ] A user-visible change adds an entry to `client/packages/app/lib/src/whats_new/whats_new_content.dart`; `whats_new_freshness_test.dart` fails after a few releases without one.
 - [ ] Errors from the API are shown with the persistent `AppErrorState`, never a SnackBar (`scripts/check-error-surface.py`).
 - [ ] `MediaQuery` is read through the scoped accessors (`scripts/check-media-query-scope.py`).
+- [ ] A big Dart file is split by extracting a class into its own library, never with a `part` file (`scripts/check-part-files.py`).
 - [ ] `Message` stays a plain DTO at the `data` boundary (`scripts/check-message-dto-boundary.py`).
 - [ ] UI follows [docs/design/design-language.md](docs/design/design-language.md), and a surface that differs between desktop and mobile follows [docs/design/desktop-vs-mobile.md](docs/design/desktop-vs-mobile.md), with the rule number in the PR.
 - [ ] Removing or renaming a settings control updates `scripts/lib/e2e_labels.py`, because the e2e harness drives the app by those names.

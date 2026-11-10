@@ -144,6 +144,7 @@ scripts/check-comment-cap.sh                 # plain comments are one line; no f
 python3 scripts/check-error-surface.py       # API failures use AppErrorState, never a SnackBar
 python3 scripts/check-migration-versions.py  # duplicate or edited migrations
 python3 scripts/check-media-query-scope.py   # scoped MediaQuery accessors only
+python3 scripts/check-part-files.py          # no new `part` files outside generated code
 python3 scripts/check-message-dto-boundary.py
 python3 scripts/check-ci-docs.py             # every workflow has a row in docs/ci.md
 (cd scripts/lib && python3 -m unittest discover -p 'test_*.py')   # the harness and workflow-shape gates
