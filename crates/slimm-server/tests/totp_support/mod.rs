@@ -198,13 +198,4 @@ pub async fn verify(app: &Router, challenge: &str, code: &str) -> axum::response
         .unwrap()
 }
 
-pub fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64
-}
-
-/// Milliseconds in one counter step, for the tests that need a code from
-/// outside the accepted window.
-pub const STEP_MS: i64 = 30 * 1000;
+pub use crate::support::totp_clock::{STEP_MS, now_ms};

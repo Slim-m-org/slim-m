@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
@@ -23,6 +23,8 @@ use uuid::Uuid;
 
 #[path = "../support/mod.rs"]
 mod support;
+
+use support::ws::read_frame_skipping_presence;
 
 mod answers;
 mod bot_ui;
@@ -236,28 +238,15 @@ async fn connect(w: &World, addr: std::net::SocketAddr, token: &str) -> Client {
     ))
     .await
     .unwrap();
-    let ack = read_frame(&mut ws).await;
+    let ack = read_frame_skipping_presence(&mut ws).await;
     assert_eq!(ack["type"], "hello");
     ws
 }
 
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                if frame["type"] != "presence.changed" {
-                    return frame;
-                }
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
-}
-
 async fn frame_of_kind(ws: &mut Client, kind: &str) -> Option<Value> {
-    while let Ok(frame) = tokio::time::timeout(Duration::from_millis(400), read_frame(ws)).await {
+    while let Ok(frame) =
+        tokio::time::timeout(Duration::from_millis(400), read_frame_skipping_presence(ws)).await
+    {
         if frame["type"] == kind {
             return Some(frame);
         }

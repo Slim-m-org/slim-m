@@ -285,9 +285,12 @@ async fn a_revocation_before_the_hello_still_closes_the_socket() {
         .session_id;
 
     let addr = serve(state.clone()).await;
+    let subscribers = state.hub.durable_subscribers();
     let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    // The server task subscribes as soon as the upgrade lands; give it that.
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    support::wait::wait_until("the socket to subscribe to the hub", || {
+        state.hub.durable_subscribers() > subscribers
+    })
+    .await;
     state
         .hub
         .publish(slimm_server::hub::Event::SessionRevoked(session));

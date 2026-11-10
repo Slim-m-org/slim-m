@@ -5,25 +5,19 @@
 
 use axum::Router;
 use axum::http::StatusCode;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::http::{self};
 use slimm_server::ids::{MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
 
-use support::ws::{serve, user_access_ticket};
+use support::ws::{connect, read_frame_of_type, serve, user_access_ticket};
 
 use support::app::{json_body, register_token_id as register, request};
-
-type WsClient =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 fn app(store: Store) -> Router {
     http::router(support::app::state(store.clone()))
@@ -413,41 +407,6 @@ async fn poll_creation_is_rate_limited() {
 }
 
 // --- Fan-out privacy, over a real WebSocket ---
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> WsClient {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-async fn read_frame(ws: &mut WsClient) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => return serde_json::from_str(text.as_str()).unwrap(),
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
-}
-
-/// Reads frames until one with the given `type`, skipping anything else (this
-/// connection's own presence-changed frame among them). Bounded so a genuine
-/// regression fails the test instead of hanging it.
-async fn read_frame_of_type(ws: &mut WsClient, frame_type: &str) -> Value {
-    for _ in 0..10 {
-        let frame = read_frame(ws).await;
-        if frame["type"] == frame_type {
-            return frame;
-        }
-    }
-    panic!("did not see a `{frame_type}` frame within 10 frames");
-}
 
 /// The `poll.voted` fan-out event must carry only channel, message, and each
 /// option's public tally, exactly mirroring `ReactionsChanged`'s own

@@ -10,21 +10,18 @@
 use std::time::Duration;
 
 use axum::http::StatusCode;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
 use support::livekit_webhook::webhook_request;
 
-use support::ws::{Client, serve};
+use support::ws::{Client, connect, read_frame_of_type, serve, wait_for_frame};
 
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
@@ -59,45 +56,6 @@ async fn user_ticket_from_access(store: &Store, access_token: &str) -> String {
     let ctx = store.authenticate(access_token).await.unwrap().unwrap();
     let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
     ticket
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = wait_for(&mut ws, "hello", Duration::from_secs(2))
-        .await
-        .expect("hello ack");
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-async fn wait_for(ws: &mut Client, kind: &str, timeout: Duration) -> Option<Value> {
-    tokio::time::timeout(timeout, async {
-        loop {
-            match ws.next().await {
-                Some(Ok(WsMessage::Text(text))) => {
-                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                    if frame["type"] == kind {
-                        return frame;
-                    }
-                }
-                Some(Ok(_)) => continue,
-                other => panic!("expected a text frame, got {other:?}"),
-            }
-        }
-    })
-    .await
-    .ok()
-}
-
-async fn read_frame_of_type(ws: &mut Client, kind: &str) -> Value {
-    wait_for(ws, kind, Duration::from_secs(2))
-        .await
-        .unwrap_or_else(|| panic!("timed out waiting for a `{kind}` frame"))
 }
 
 async fn deliver(app: axum::Router, body: Value) -> StatusCode {
@@ -185,7 +143,7 @@ async fn a_screen_share_start_and_stop_are_delivered() {
     )
     .await;
     assert!(
-        wait_for(
+        wait_for_frame(
             &mut bob_ws,
             "voice.screen_share_changed",
             Duration::from_millis(300)
@@ -202,7 +160,7 @@ async fn a_screen_share_start_and_stop_are_delivered() {
     )
     .await;
     assert!(
-        wait_for(
+        wait_for_frame(
             &mut bob_ws,
             "voice.screen_share_changed",
             Duration::from_millis(300)
@@ -235,7 +193,7 @@ async fn a_non_screen_share_track_publishes_nothing() {
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
     assert!(
-        wait_for(
+        wait_for_frame(
             &mut bob_ws,
             "voice.screen_share_changed",
             Duration::from_millis(300)
@@ -263,7 +221,7 @@ async fn a_duplicate_unpublish_does_not_republish_a_stop() {
 
     deliver(app, stop).await;
     assert!(
-        wait_for(
+        wait_for_frame(
             &mut bob_ws,
             "voice.screen_share_changed",
             Duration::from_millis(300)
@@ -301,7 +259,7 @@ async fn a_late_track_after_leaving_does_not_swallow_the_rejoin() {
     )
     .await;
     assert!(
-        wait_for(
+        wait_for_frame(
             &mut bob_ws,
             "voice.participant_joined",
             Duration::from_secs(2)

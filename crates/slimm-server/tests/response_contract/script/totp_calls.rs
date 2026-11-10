@@ -17,12 +17,10 @@
 use serde_json::json;
 use slimm_server::totp;
 
+use crate::support::totp_clock::{STEP_MS, now_ms, wait_for_mid_step};
 use crate::world::{Contract, Payload};
 
 use super::{signup, text};
-
-/// Milliseconds in one counter step.
-const STEP_MS: i64 = 30 * 1000;
 
 pub(crate) async fn totp_calls(c: &mut Contract, root: &str, invite: &str) {
     wait_for_mid_step().await;
@@ -137,15 +135,6 @@ pub(crate) async fn totp_calls(c: &mut Contract, root: &str, invite: &str) {
     .await;
 }
 
-/// Sleeps until the clock is well inside a step, so codes made for one step are not read by the server in the next.
-async fn wait_for_mid_step() {
-    let into_step = now_ms().rem_euclid(STEP_MS);
-    if !(5_000..=15_000).contains(&into_step) {
-        let wait = (STEP_MS - into_step + 5_000).rem_euclid(STEP_MS);
-        tokio::time::sleep(std::time::Duration::from_millis(wait as u64)).await;
-    }
-}
-
 fn code(secret: &str, offset_ms: i64) -> String {
     totp::code_at(secret, now_ms() + offset_ms).expect("a valid secret")
 }
@@ -157,11 +146,4 @@ fn recovery_codes(response: &serde_json::Value) -> Vec<String> {
         .iter()
         .map(|value| value.as_str().expect("a code string").to_owned())
         .collect()
-}
-
-fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64
 }

@@ -33,7 +33,8 @@ Checks, as CI runs them (the repo builds with the committed `.sqlx/` cache):
 ```bash
 SQLX_OFFLINE=true cargo fmt --all --check
 SQLX_OFFLINE=true cargo clippy --all-targets --all-features -- -D warnings
-SQLX_OFFLINE=true cargo test --all
+SQLX_OFFLINE=true cargo nextest run --workspace   # what CI runs; one process per test
+SQLX_OFFLINE=true cargo test --workspace --doc        # nextest skips doctests
 
 # one test file, then one case in it
 SQLX_OFFLINE=true cargo test --test channels

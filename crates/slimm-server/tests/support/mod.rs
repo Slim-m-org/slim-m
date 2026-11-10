@@ -31,6 +31,14 @@ pub mod room_service;
 #[allow(dead_code)]
 pub mod wait;
 
+/// A LiveKit room service that records the calls it receives.
+#[allow(dead_code)]
+pub mod fake_sfu;
+
+/// The step clock the TOTP suites mint codes against.
+#[allow(dead_code)]
+pub mod totp_clock;
+
 /// Route and schema extraction shared by `tests/openapi_contract.rs` and
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;
