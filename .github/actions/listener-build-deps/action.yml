@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# What the call-audio listener's cargo jobs need on a runner: clang 21 for libwebrtc, cmake for whisper.cpp, glib for webrtc-sys.
+
+name: listener build deps
+description: Install clang 21 from LLVM's signed apt repository (key pinned by fingerprint), cmake and glib, and point the C toolchain at clang 21.
+
+inputs:
+  extra-packages:
+    description: Space-separated apt packages to install beyond the build's own.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        EXTRA_PACKAGES: ${{ inputs.extra-packages }}
+      run: |
+        sudo bash "$GITHUB_WORKSPACE/docker/listener-llvm-key.sh" /usr/share/keyrings/llvm.gpg
+        echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        read -ra extra <<<"$EXTRA_PACKAGES"
+        sudo apt-get install -y --no-install-recommends clang-21 cmake libclang-21-dev libglib2.0-dev "${extra[@]}"
+        {
+          echo "CC=clang-21"
+          echo "CXX=clang++-21"
+          echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib"
+        } >> "$GITHUB_ENV"
