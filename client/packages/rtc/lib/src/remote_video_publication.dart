@@ -13,7 +13,7 @@
 /// `lk.ScreenShareCaptureOptions` with no room anywhere near it.
 ///
 /// The other half, walking a real `lk.Room` into these records, stays in
-/// `voice_session_video.dart` and stays untested for exactly that reason:
+/// `VoiceVideoReceive` and stays untested for exactly that reason:
 /// what it decides - which `lk.TrackSource` becomes which tile kind, that a
 /// screen share is never confused with a camera, that audio never reaches a
 /// culler at all - is entirely this function's decision, not the walk's.

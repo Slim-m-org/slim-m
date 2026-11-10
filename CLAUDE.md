@@ -68,6 +68,7 @@ Client (`client/packages/`), layered bottom-up:
 - `api` (wire types and transport, no Flutter) -> `data` (drift local store and sync) -> feature packages (`design_system`, `platform`, `rtc`, `voice_canvas`) -> `app` (screens, routing, providers).
 - `app` uses riverpod for state and go_router for routing. `app/lib/src/features/<feature>/{widgets,providers,screens}` holds each feature (auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings, voice); the top-level `widgets/`, `providers/` and `screens/` are the shared layer (shell, sync, push, app lock, generic UI), next to `routing/`, `desktop/` and the other platform folders. A new file goes in its feature; it goes in the shared layer only when two or more features use it. A widget never imports a screen and a provider never imports a widget; `app/test/gates/layer_direction_gate_test.dart` enforces it, with a shrink-only list of the known exceptions.
 - `data` commits drift's generated `database.g.dart`; regenerate it rather than hand-editing.
+- `rtc`: `VoiceSession` only forwards its public members. `voice_session_core.dart` builds each collaborator (the `voice_*` classes, each with a narrow host of closures) and `voice_call_flow.dart` owns join, leave and teardown. A new call feature is a class with a host, never a mixin or `part` of `VoiceSession`.
 
 ## Critical rules
 
