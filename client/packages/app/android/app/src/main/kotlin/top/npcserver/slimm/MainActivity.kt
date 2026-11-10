@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 package top.npcserver.slimm
 
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
@@ -18,6 +19,7 @@ import io.flutter.plugin.common.MethodChannel
  */
 class MainActivity : FlutterFragmentActivity() {
     private val pictureInPicture = PictureInPictureBridge(this)
+    private val shareIntake by lazy { ShareIntakeChannel(applicationContext) }
 
     /**
      * Locks phones to portrait and leaves tablets alone.
@@ -49,11 +51,21 @@ class MainActivity : FlutterFragmentActivity() {
         } else {
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
+        // A recreated activity keeps its launch intent; only the first creation is a new share.
+        if (savedInstanceState == null) shareIntake.onIntent(intent, warm = false)
+    }
+
+    /** A share sent while slim-m is already running arrives here instead of onCreate. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        shareIntake.onIntent(intent, warm = true)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         ClipboardImageChannel(applicationContext).attach(flutterEngine.dartExecutor.binaryMessenger)
+        shareIntake.attach(flutterEngine.dartExecutor.binaryMessenger)
         pictureInPicture.attach(flutterEngine.dartExecutor.binaryMessenger)
         ApkInstallChannel(this).attach(flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_LOCK_WINDOW_CHANNEL)

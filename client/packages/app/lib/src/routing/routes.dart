@@ -30,6 +30,9 @@ abstract final class Routes {
   static const onboarding = '/join';
   static const signIn = '/sign-in';
   static const channels = '/channels';
+
+  /// Where a share from the OS sheet picks its conversation; see `ShareToScreen`.
+  static const share = '/share';
   static const personalSettings = '/settings';
 
   /// [personalSettings] opened on one pane; see [settingsPaneQuery].

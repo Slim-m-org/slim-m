@@ -4,7 +4,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/deep_links.dart';
 import 'package:slimm_app/src/invite_link.dart';
@@ -13,11 +15,23 @@ import 'package:slimm_app/src/features/accounts/providers/notification_target.da
 import 'package:slimm_app/src/push/providers/notification_tap_router.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/router.dart';
+import 'package:slimm_app/src/routing/routes.dart';
+import 'package:slimm_app/src/spotify/spotify_link.dart';
+import 'package:slimm_app/src/spotify/spotify_link_status.dart';
 
 import 'account_host_harness.dart';
 
 const _a = 'https://first.example';
 const _b = 'https://second.example';
+
+/// Stand-ins for the screens a Spotify redirect lands on, without the shell.
+GoRouter _lightRouter() => GoRouter(
+  initialLocation: Routes.channels,
+  routes: [
+    GoRoute(path: Routes.channels, builder: (_, _) => const SizedBox()),
+    GoRoute(path: Routes.personalSettings, builder: (_, _) => const SizedBox()),
+  ],
+);
 
 String _location(AccountHarness h, String origin) => h.host
     .runtimeFor(origin)!
@@ -96,7 +110,9 @@ void main() {
       await h.seed(_a, user: 'ann', active: true);
       await h.seed(_b, user: 'bea');
       await h.boot();
-      h.host.accounts.first.container.read(deepLinkControllerProvider);
+      addTearDown(
+        DeepLinkListener.start(h.host.accounts.first.container).dispose,
+      );
     }
 
     tearDown(() async {
@@ -135,6 +151,81 @@ void main() {
 
       expect(h.host.adding, isTrue);
       expect(h.host.active!.container.read(tappedInviteProvider)?.code, 'abc');
+    });
+
+    group('after the launch-time account is removed', () {
+      late StreamController<Uri> tapped;
+      late AccountHarness harness;
+
+      Future<void> bootWithoutFirst(WidgetTester tester) async {
+        tapped = StreamController<Uri>.broadcast();
+        harness = AccountHarness(
+          extraOverrides: [
+            deepLinkUrisProvider.overrideWithValue(tapped.stream),
+            routerProvider.overrideWith((ref) => _lightRouter()),
+          ],
+        );
+        addTearDown(
+          () => tester.runAsync(() async {
+            await tapped.close();
+            await harness.dispose();
+          }),
+        );
+        await tester.runAsync(() async {
+          final first = await harness.seed(_a, user: 'ann', active: true);
+          await harness.seed(_b, user: 'bea');
+          await harness.boot();
+          addTearDown(
+            DeepLinkListener.start(
+              harness.host.runtimeFor(first.origin)!.container,
+            ).dispose,
+          );
+          await harness.host.removeAccount(first.origin);
+        });
+        await tester.pump();
+      }
+
+      Future<void> tap(WidgetTester tester, String link) =>
+          tester.runAsync(() async {
+            tapped.add(Uri.parse(link));
+            await pumpEventQueueTimes();
+          });
+
+      testWidgets('an invite still opens the add flow', (tester) async {
+        await bootWithoutFirst(tester);
+
+        await tap(
+          tester,
+          buildDeepInviteLink(
+            server: Uri.parse('https://third.example'),
+            code: 'abc',
+          ),
+        );
+
+        expect(harness.host.adding, isTrue);
+        expect(
+          harness.host.active!.container.read(tappedInviteProvider)?.code,
+          'abc',
+        );
+      });
+
+      testWidgets('a Spotify redirect is handled by the account on screen', (
+        tester,
+      ) async {
+        await bootWithoutFirst(tester);
+        final onScreen = harness.host.active!.container;
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: onScreen.read(routerProvider)),
+        );
+        expect(
+          onScreen.read(spotifyLinkStatusProvider),
+          isA<SpotifyUnlinked>(),
+        );
+
+        await tap(tester, 'slimm://spotify-callback?code=c&state=s');
+
+        expect(onScreen.read(spotifyLinkStatusProvider), isA<SpotifyFailed>());
+      });
     });
   });
 

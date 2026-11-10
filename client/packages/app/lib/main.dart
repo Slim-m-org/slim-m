@@ -23,6 +23,7 @@ import 'src/features/settings/providers/resolved_theme.dart';
 import 'src/features/settings/providers/stored_theme.dart';
 import 'src/features/settings/providers/theme_store.dart';
 import 'src/deep_links.dart';
+import 'src/features/share/providers/share_intake.dart';
 import 'src/features/accounts/providers/account_host.dart';
 import 'src/features/accounts/providers/account_host_factory.dart';
 import 'src/features/accounts/widgets/account_call_pill.dart';
@@ -266,7 +267,8 @@ Future<void> _runBootstrapSequence(
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
   container.listen(appBadgeSyncProvider, (_, _) {});
-  container.read(deepLinkControllerProvider);
+  DeepLinkListener.start(container);
+  ShareIntake.start(container);
   await shell.registerListenersAndTray(container);
 }
 

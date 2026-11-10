@@ -198,6 +198,18 @@ Its own `pubspec.yaml` declares plugin implementations for macOS, Linux, Windows
 Nothing here needs a `dart.library.*` conditional import: the package is a properly federated plugin (a real web implementation registered through the normal plugin registrant, not a `dart:io` shortcut), so `flutter build web --release` links it the same way it already links `file_picker`.
 `app_drop_zone.dart` still gates the target on `kIsWeb` plus a desktop `defaultTargetPlatform`, never `Platform.isX`: a platform check here is about input capability, matching `docs/design/desktop-vs-mobile.md`'s own rule that a platform check is for capability, never for shape - OS drag-and-drop is meaningless on a touch screen regardless of which OS is under it.
 
+### No plugin for the Android share target
+
+slim-m is a destination in Android's share sheet (`ACTION_SEND` and `ACTION_SEND_MULTIPLE`), through `ShareIntakeChannel.kt` and `features/share/providers/share_source.dart`, a hand-written channel in the same shape as `ClipboardImageChannel.kt`.
+
+Two plugins were checked rather than assumed.
+`receive_sharing_intent` (kasem.dev, verified, 1.9.0) and `share_handler` (shoutsocial.com, verified, 0.0.25, last published about 15 months before this was written) both cover Android and iOS and nothing else.
+Neither earns its place: the work here is Android only (an iOS share extension is a separate target with an app group, and is out of scope), so each would compile native code into builds where it does nothing, and a new Gradle dependency means new entries in `android/gradle/verification-metadata.xml` and a new thing for the Kotlin built-in migration to trip on.
+What the feature needs is also small and wants control a plugin hides: copy each shared `content://` file into the app cache before answering, because the grant ends with the intent, and refuse `file://` URIs and the app's own provider, which a sender could use to name this app's private data.
+
+Both plugins' setup notes also ask for `android:launchMode="singleTask"`, and that is the one manifest change that matters.
+With the Flutter template's `singleTop` and an empty `taskAffinity`, a share from the system chooser started a second task with a second `MainActivity`, which is a second Flutter engine running the whole app beside the first, so the share launches `singleTask` and arrives in `onNewIntent` of the running one.
+
 ### `media_kit`, `media_kit_video` and `media_kit_libs_video`, for inline video playback
 
 A `video/*` attachment used to render as an inert filename chip on every platform.

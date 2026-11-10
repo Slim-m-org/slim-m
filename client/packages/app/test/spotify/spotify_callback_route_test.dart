@@ -80,7 +80,7 @@ Future<(ProviderContainer, StreamController<Uri>, SlimmDatabase)> _pump(
       .read(chosenServerProvider.notifier)
       .restore(Uri.parse('https://chat.example'));
   container.read(sessionProvider).set(_tokens);
-  container.read(deepLinkControllerProvider);
+  addTearDown(DeepLinkListener.start(container).dispose);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,

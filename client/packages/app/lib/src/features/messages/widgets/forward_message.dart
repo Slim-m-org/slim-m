@@ -39,12 +39,9 @@ import '../providers/forward_targets.dart';
 import '../providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
-import '../../channels/widgets/channel_kind_icon.dart';
-import '../../channels/widgets/group_avatar_stack.dart';
-import '../../members/widgets/user_avatar.dart';
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/sheet_item_list.dart';
 import '../providers/message_api_actions.dart';
+import 'destination_picker.dart';
 
 /// Opens the destination picker, then sends the forward. The picker itself
 /// runs the send and stays open on a failure (see [_ForwardTargetSheet]),
@@ -187,12 +184,10 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final ForwardTargetsQuery query = (
       excludeChannelId: widget.excludeChannelId,
       hasAttachments: widget.attachmentIds.isNotEmpty,
     );
-    final targets = ref.watch(forwardTargetsProvider(query));
 
     return SafeArea(
       child: Column(
@@ -213,14 +208,8 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
           const SizedBox(height: AppSpacing.s8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
-            child: AppInput(
+            child: DestinationSearchField(
               controller: _searchController,
-              placeholder: 'Search channels and DMs',
-              icon: Icon(
-                AppIcons.search,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
               onChanged: (value) => setState(() => _query = value),
               semanticLabel: 'Search where to forward this',
             ),
@@ -240,87 +229,17 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
             constraints: BoxConstraints(
               maxHeight: MediaQuery.sizeOf(context).height * 0.5,
             ),
-            child: AppAsyncView(
-              value: AppAsyncState(
-                data: targets.valueOrNull,
-                error: targets.error,
-              ),
+            child: DestinationList(
+              query: query,
+              search: _query,
+              busyChannelId: _sendingToChannelId,
+              onPick: (target) => unawaited(_send(target)),
               errorMessage: 'Could not load where you can forward this.',
-              onRetry: () => ref.invalidate(forwardTargetsProvider(query)),
               emptyMessage: 'Nowhere to forward this to yet.',
-              isEmpty: (list) => list.isEmpty,
-              data: (context, list) => _buildResults(context, tokens, list),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildResults(
-    BuildContext context,
-    AppTokens tokens,
-    List<ForwardTarget> list,
-  ) {
-    final query = _query.trim().toLowerCase();
-    final filtered = query.isEmpty
-        ? list
-        : [
-            for (final target in list)
-              if (target.matches(query)) target,
-          ];
-    if (filtered.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s16),
-          child: Text(
-            'No matches.',
-            style: TextStyle(color: tokens.textSecondary),
-          ),
-        ),
-      );
-    }
-    return SheetItemList(
-      itemCount: filtered.length,
-      itemBuilder: (context, i) => _targetRow(filtered[i], tokens),
-    );
-  }
-
-  Widget _targetRow(ForwardTarget target, AppTokens tokens) {
-    final sendingHere = _sendingToChannelId == target.channelId;
-    final busy = _sendingToChannelId != null;
-    return AppListRow(
-      leading: _leadingFor(target, tokens),
-      label: target.label,
-      trailing: sendingHere ? const AppSpinner(size: AppSpinnerSize.sm) : null,
-      onTap: busy ? null : () => unawaited(_send(target)),
-    );
-  }
-
-  Widget _leadingFor(ForwardTarget target, AppTokens tokens) {
-    final groupMemberIds = target.groupMemberIds;
-    if (groupMemberIds != null) {
-      return GroupAvatarStack(
-        memberIds: groupMemberIds,
-        size: AppAvatarSize.s24,
-      );
-    }
-    // A DM is a person; one generic glyph made them all look alike.
-    final userId = target.userId;
-    if (target.isDm && userId != null) {
-      return UserAvatar.known(
-        userId: userId,
-        avatarUpdatedAt: target.avatarUpdatedAt,
-        name: target.label,
-        size: AppAvatarSize.s24,
-      );
-    }
-    if (target.isDm) return const Icon(AppIcons.account);
-    return ChannelKindIcon(
-      isVoice: target.isVoice,
-      restricted: target.restricted,
-      color: tokens.textSecondary,
-      size: AppSizes.icon20,
     );
   }
 }

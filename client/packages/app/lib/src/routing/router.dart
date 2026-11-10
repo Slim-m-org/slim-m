@@ -43,6 +43,8 @@ import '../features/settings/screens/admin/audit_log_screen.dart';
 import '../features/settings/screens/admin/export_screen.dart';
 import '../features/settings/screens/admin/storage_screen.dart';
 import '../features/settings/screens/admin/webhooks_screen.dart';
+import '../features/share/providers/incoming_share.dart';
+import '../features/share/screens/share_to_screen.dart';
 import '../features/channels/screens/channel_settings_screen.dart';
 import '../screens/home_shell.dart';
 import '../features/messages/screens/message_deep_link.dart';
@@ -96,13 +98,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
     // Rebuilds the redirect whenever the session changes, which is what makes
     // sign-out and revocation take effect immediately.
-    refreshListenable: _SessionListenable(ref),
+    refreshListenable: _RedirectListenable(ref),
     redirect: (context, state) =>
         (session.isSignedIn ? null : claimWebInvite(ref, state.uri)) ??
         _redirect(
           signedIn: session.isSignedIn,
           location: state.matchedLocation,
           signedOutHome: signedOutHome(),
+          sharePending: ref.read(pendingShareProvider) != null,
         ),
     errorBuilder: (context, state) => const NotFoundScreen(),
     routes: [
@@ -128,6 +131,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           const SignInScreen(),
           key: const ValueKey('sign-in'),
         ),
+      ),
+      GoRoute(
+        path: Routes.share,
+        pageBuilder: (context, state) =>
+            modalPage(context, const ShareToScreen()),
       ),
       GoRoute(path: Routes.personalSettings, pageBuilder: personalSettingsPage),
       GoRoute(path: Routes.spaceSettings, pageBuilder: spaceSettingsPage),
@@ -298,11 +306,15 @@ String? _redirect({
   required bool signedIn,
   required String location,
   required String signedOutHome,
+  required bool sharePending,
 }) {
   final onJoinFlow = location == Routes.signIn || location == Routes.onboarding;
   // Anywhere in the join flow is left alone, so a signed-out user can walk
   // back to onboarding to pick a different server or redeem an invite.
   if (!signedIn) return onJoinFlow ? null : signedOutHome;
+  // A share from the OS sheet outranks wherever the person was, and signing in resumes it.
+  if (sharePending) return location == Routes.share ? null : Routes.share;
+  if (location == Routes.share) return Routes.channels;
   if (onJoinFlow) return Routes.channels;
   return null;
 }
@@ -354,14 +366,20 @@ Page<void> _messagePage(BuildContext context, GoRouterState state) {
   );
 }
 
-/// Bridges the session stream to a Listenable, which is what GoRouter's
-/// refresh hook takes.
-class _SessionListenable extends ChangeNotifier {
-  _SessionListenable(Ref ref) {
+/// Bridges what the redirect depends on to a Listenable, which is what
+/// GoRouter's refresh hook takes: the session, and a share arriving.
+///
+/// A share being cleared does not refresh: the caller navigates on right
+/// after, and a refresh in between would race that navigation.
+class _RedirectListenable extends ChangeNotifier {
+  _RedirectListenable(Ref ref) {
     _subscription = ref.read(sessionProvider).changes.listen((_) {
       notifyListeners();
     });
     ref.onDispose(() => _subscription.cancel());
+    ref.listen<PendingShare?>(pendingShareProvider, (_, next) {
+      if (next != null) notifyListeners();
+    });
   }
 
   late final StreamSubscription<TokenPair?> _subscription;
