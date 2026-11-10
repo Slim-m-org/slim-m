@@ -956,6 +956,12 @@ amd64 only because nothing consumes an arm64 image from this path: the owner's l
 Moving `latest` here is continuous deployment in the plain sense of the term: Watchtower on the live instance polls that tag, so a server merge reaches production within one build with nobody deploying it by hand, and a bad merge reaches it exactly as fast.
 That is the trade the owner asked for explicitly, not a gap: fast iteration on the one host that matters to him, at the cost of no gate between a merge and production.
 
+The image is two `build-push-action` steps on one builder.
+The first builds only the Dockerfile's `deps` stage, the dependency tree compiled from manifests and empty sources, and exports it to the Actions cache, so a push that leaves `Cargo.lock` and the manifest alone restores it and uploads nothing.
+Each image has its own cache scope (`server-deps`, `listener`, and the web image's per-arch ones), because builds that share the default scope each replace the manifest the last one wrote.
+The second builds the whole image from the layers the first left in the builder and exports nothing: with `mode=max` it used to upload the compiled `target` directory of every push, about two minutes for layers the next run could not reuse.
+`release.yml` and `publish-paths.yml` build with no export, so a release never ships a stale layer.
+
 What it does not trade away is the direction `latest` moves.
 Re-running an older run's failed `server-image` job rebuilds that run's own commit, and without a check it pushed `main` and `latest` back onto it.
 A database that had already applied a later migration then refused to start the older server, the same incident `release-latest-allowed.sh` guards on the release path.

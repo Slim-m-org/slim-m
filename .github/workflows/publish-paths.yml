@@ -57,6 +57,8 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           build-args: SLIMM_BUILD_ID=${{ github.sha }}
           push: false
+          # Reads the dependency stage main-builds exported and writes nothing, so a recipe edit on a pull request does not recompile the tree.
+          cache-from: type=gha,scope=server-deps
 
   # publish: false skips the login, the push, the manifest merge and the signature.
   web-image:

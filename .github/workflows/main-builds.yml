@@ -1,26 +1,14 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 name: main-builds
 
-# Continuous, path-scoped deployment on every merge to main. Separate from
-# release.yml on purpose: that workflow's structure is built entirely around
-# release-please outputs and tag refs, and mixing an untagged fast path into
-# it would make both harder to reason about. See docs/ci.md.
+# Continuous, path-scoped deployment on every merge to main, separate from release.yml, which is built around release-please outputs and tag refs. See docs/ci.md.
 #
-# What this buys, within minutes of a merge and with nobody touching
-# anything: a client merge reaches TestFlight and lands a snapshot build in
-# the same Fedora COPR project `dnf upgrade` already tracks on the owner's
-# desktop, with no second release-PR merge, no personal access token and no
-# version bump; a server merge rebuilds and pushes `latest`, the rolling tag
-# the owner's live instance polls for its own auto-update. That last part is
-# continuous deployment in the plain sense of the phrase: a bad merge to
-# `crates/**` reaches the running production instance on its own, and that
-# is a deliberate trade being made here, not a gap nobody noticed.
+# With nobody touching anything, a client merge reaches TestFlight and the Fedora COPR snapshot the owner's desktop tracks, and a server merge pushes `latest`, the tag the live instance polls.
+# That last part is continuous deployment in the plain sense: a bad merge to `crates/**` reaches production on its own, a deliberate trade and not a gap.
 #
 # One workflow, one `on.push.paths` trigger wide enough for both halves, narrowed per job by a `dorny/paths-filter` job.
 #
-# Every job below reads secrets directly rather than declaring `environment: release` or `environment: testflight`.
-# Both exist with no protection rules today, and every secret these jobs use is repository-scoped, so naming either would change nothing a job can read right now.
-# If a reviewer gate is ever added to either for real releases, a continuous build must not inherit it: nobody approves a merge by hand here.
+# Every job below reads secrets directly rather than declaring `environment: release` or `environment: testflight`: both have no protection rules today, and a continuous build must never inherit a reviewer gate added later.
 # See docs/ci.md for the rest of the reasoning.
 
 on:
@@ -492,11 +480,21 @@ jobs:
           allowed="$(bash scripts/main-latest-allowed.sh "$IMAGE" "$GITHUB_SHA")"
           echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
 
-      # sbom and provenance because this is the image Watchtower actually
-      # pulls: release.yml's own build carries both plus a cosign signature,
-      # and until now the artifact that reaches production carried none of it.
-      # Cache here and not in release.yml, where a stale layer would reach a
-      # signed artifact rather than a rebuildable continuous one.
+      # Only the dependency stage is exported: mode=max on the whole image uploaded every push's compiled target directory, which no later run reuses.
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: docker/server.Dockerfile
+          target: deps
+          platforms: linux/amd64
+          outputs: type=cacheonly
+          sbom: false
+          provenance: false
+          cache-from: type=gha,scope=server-deps
+          cache-to: type=gha,mode=max,scope=server-deps
+
+      # sbom and provenance because Watchtower pulls this image, and release.yml's build carries both plus a signature.
+      # Cache here and not in release.yml, where a stale layer would reach a signed artifact.
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
@@ -510,8 +508,7 @@ jobs:
           push: true
           sbom: true
           provenance: mode=max
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=server-deps
 
   # The optional call-audio listener as ghcr.io/<owner>/slim-m-listener (decision 0105); nothing deploys it on its own.
   listener-image:
@@ -541,8 +538,8 @@ jobs:
             ${{ env.IMAGE }}:sha-${{ github.sha }}
             ${{ env.IMAGE }}:latest
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=listener
+          cache-to: type=gha,mode=max,scope=listener
 
   # The web client as ghcr.io/<owner>/slim-m-web, which Watchtower follows on the live host; see web-image.yml.
   web-image:

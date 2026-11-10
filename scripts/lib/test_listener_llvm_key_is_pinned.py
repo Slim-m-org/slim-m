@@ -93,16 +93,19 @@ class ListenerLlvmKeyIsPinnedTest(unittest.TestCase):
 
 class EveryLlvmKeyFetchIsPinnedTest(unittest.TestCase):
     def test_no_dockerfile_or_workflow_fetches_the_key_on_its_own(self) -> None:
-        sources = [*REPO.glob("docker/*.Dockerfile"), *REPO.glob(".github/workflows/*.yml")]
+        sources = [*REPO.glob("docker/*.Dockerfile"), *REPO.glob(".github/workflows/*.yml"), *REPO.glob(".github/actions/*/action.yml")]
         loose = [p.name for p in sources if "llvm-snapshot.gpg.key" in p.read_text()]
         self.assertEqual(loose, [])
 
     def test_the_listener_image_and_both_ci_jobs_use_the_script(self) -> None:
         self.assertIn("listener-llvm-key", strip_comments((REPO / "docker/listener.Dockerfile").read_text()))
+        action = strip_comments((REPO / ".github/actions/listener-build-deps/action.yml").read_text())
+        # The jobs run from crates/slimm-listener, so only a workspace-rooted path reaches the script.
+        self.assertEqual(action.count('bash "$GITHUB_WORKSPACE/docker/listener-llvm-key.sh"'), 1)
+        self.assertEqual(action.count("docker/listener-llvm-key.sh"), 1)
         ci = strip_comments((REPO / ".github/workflows/listener-ci.yml").read_text())
-        # Both jobs run from crates/slimm-listener, so only a workspace-rooted path reaches the script.
-        self.assertEqual(ci.count('bash "$GITHUB_WORKSPACE/docker/listener-llvm-key.sh"'), 2)
-        self.assertEqual(ci.count("docker/listener-llvm-key.sh"), 2)
+        self.assertEqual(ci.count("uses: ./.github/actions/listener-build-deps"), 2)
+        self.assertEqual(ci.count("docker/listener-llvm-key.sh"), 0)
 
 
 if __name__ == "__main__":

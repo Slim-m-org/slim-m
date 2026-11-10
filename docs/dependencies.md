@@ -114,6 +114,37 @@ The image's builder stage gains `make`, which `tikv-jemalloc-sys` needs to build
 The brief treats binary size as a budget for a self-host binary, and `server-ci` enforces it at 22 MiB.
 It was 20 MiB until v123 (2026-11-03), which reached 21,020,600 bytes with no new heavy dependency: about 450 KB of its own theme store, call audio, uplink test, canvas batch and module display code on top of 20,568,760 on main.
 
+### Dependencies built for speed
+
+Size-optimised code runs the CPU-bound dependencies slower, so `[profile.release.package]` builds a few of them at `opt-level = 3`: `zune-jpeg`, `zune-core` and `image` (JPEG decode and the preview resize), `sha2` (attachment hashing) and `wasmi`, `wasmi_core` and `wasmi_ir` (the module interpreter).
+They cost 260,768 bytes, 21,441,904 to 21,702,672 on the glibc build `server-ci` gates, which leaves 1,366,000 bytes under the budget.
+
+Measured 2026-11-10 with a throwaway benchmark that called the server's own entry points on one thread: `media::compress` on a synthetic 12 MP JPEG, an `image` decode and 800 px resize, a 30 million iteration wasmi loop, SHA-256 over 128 MiB, `Auth::hash_password` and 100,000 sqlx point reads.
+Each build ran seven times, three rounds interleaved against the baseline; the box was shared, so absolute times moved about 25% between rounds, but every ratio below held.
+
+| path | opt-level z | opt-level 3 |
+|---|---|---|
+| 12 MP JPEG compress | 495 ms | 225 ms |
+| 12 MP JPEG preview (decode and resize) | 645 ms | 115 ms |
+| SHA-256, 128 MiB | 220 ms | 50 ms |
+| wasmi, 30 million loop iterations | 270 ms | 180 ms |
+
+The compressed photo and the PNG came out the same size either way.
+
+Measured and left at `z`, with the binary's growth when the crate is built at `opt-level = 3` on its own:
+
+| crates | what changed | size |
+|---|---|---|
+| `argon2`, `blake2` | argon2id at 12.7 ms against 12.9 ms, inside the noise | -4,416 |
+| `jpeg-encoder`, `fast_image_resize` | no change once `zune-jpeg` was fast: the JPEG decode was the cost | +2,752, +16,512 |
+| `jpeg-decoder` | no change, built with the two above | not sized alone |
+| `png`, `fdeflate`, `miniz_oxide`, `image-webp`, `oxipng`, `libdeflater`, `libdeflate-sys` | PNG compress 6% faster | +87,520 together |
+| `libsqlite3-sys` | no change on 100,000 point reads and an aggregate | +1,031,680 |
+| `tikv-jemalloc-sys` | allocator speed was not measured | +211,328 |
+
+Every crate tried, built at `opt-level = 3` at once, reached 23,064,240 bytes: 4,432 under the budget.
+Re-measure before adding a crate to the list, since each release moves the headroom.
+
 ## Dev dependencies
 
 `tower`'s `ServiceExt::oneshot` drives the HTTP round-trip tests in-process without binding a socket.
