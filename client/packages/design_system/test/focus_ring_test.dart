@@ -77,4 +77,106 @@ void main() {
     final decoration = _outerContainer(tester).decoration! as BoxDecoration;
     expect((decoration.border! as Border).top.color, Colors.transparent);
   });
+
+  testWidgets('paints the ring in the focus colour once focused', (
+    tester,
+  ) async {
+    late ValueChanged<bool> reportFocus;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: AppFocusRing(
+            radius: 6,
+            builder: (context, onFocusChange) {
+              reportFocus = onFocusChange;
+              return const SizedBox(width: 40, height: 40);
+            },
+          ),
+        ),
+      ),
+    );
+    reportFocus(true);
+    await tester.pump();
+
+    expect(
+      find.byType(AppFocusRing),
+      paints..drrect(color: AppTokens.light.focusRing),
+    );
+  });
+
+  group('presses', () {
+    const ring = focusRingGap + focusRingWidth;
+    const control = Size(100, 20);
+    final belowControl = Offset(ring + 10, control.height + ring + 1);
+
+    Future<void> pumpRing(
+      WidgetTester tester, {
+      required VoidCallback onControl,
+      VoidCallback? onBehind,
+      bool touchReach = false,
+    }) async {
+      final inner = AppFocusRing(
+        radius: 6,
+        builder: (context, onFocusChange) => InkWell(
+          onTap: onControl,
+          onFocusChange: onFocusChange,
+          child: SizedBox.fromSize(size: control),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: Stack(
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onBehind,
+                  child: const SizedBox.expand(),
+                ),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: touchReach
+                      ? AppTouchHitArea(
+                          touch: true,
+                          alignment: Alignment.topLeft,
+                          child: inner,
+                        )
+                      : inner,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('on the control still reach it', (tester) async {
+      var taps = 0;
+      await pumpRing(tester, onControl: () => taps++);
+      await tester.tapAt(const Offset(ring + 10, ring + 10));
+      expect(taps, 1);
+    });
+
+    testWidgets('in the ring\'s margin fall through to what is behind', (
+      tester,
+    ) async {
+      var taps = 0;
+      var behind = 0;
+      await pumpRing(tester, onControl: () => taps++, onBehind: () => behind++);
+      await tester.tapAt(belowControl);
+      expect(taps, 0);
+      expect(behind, 1);
+    });
+
+    testWidgets(
+        'in the ring\'s margin land on a control reached by a touch '
+        'area', (tester) async {
+      var taps = 0;
+      await pumpRing(tester, onControl: () => taps++, touchReach: true);
+      await tester.tapAt(belowControl);
+      expect(taps, 1);
+    });
+  });
 }

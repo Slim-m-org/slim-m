@@ -42,6 +42,29 @@ void main() {
     expect(find.text('Message unavailable'), findsNothing);
   });
 
+  testWidgets('a resolved parent is drawn with a 16dp avatar, an unresolved '
+      'one with the reply glyph', (tester) async {
+    await tester.pumpWidget(
+      harness(
+        ReplyQuote(
+          resolved: message(id: 'parent'),
+          onTap: () {},
+        ),
+      ),
+    );
+    expect(find.byKey(ReplyQuote.avatarKey), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(ReplyQuote.avatarKey)),
+      const Size(16, 16),
+    );
+
+    await tester.pumpWidget(
+      harness(const ReplyQuote(resolved: null, onTap: _noop)),
+    );
+    expect(find.byKey(ReplyQuote.avatarKey), findsNothing);
+    expect(find.byIcon(AppIcons.reply), findsOneWidget);
+  });
+
   testWidgets('an unresolved parent names neither an author nor any content', (
     tester,
   ) async {

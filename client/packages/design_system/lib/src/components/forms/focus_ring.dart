@@ -49,7 +49,7 @@ class _AppFocusRingState extends State<AppFocusRing> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Container(
       padding: const EdgeInsets.all(focusRingGap),
-      decoration: BoxDecoration(
+      decoration: _RingDecoration(
         borderRadius: BorderRadius.circular(widget.radius + focusRingGap),
         border: Border.all(
           color: _focused ? tokens.focusRing : Colors.transparent,
@@ -59,6 +59,15 @@ class _AppFocusRingState extends State<AppFocusRing> {
       child: widget.builder(context, _onFocusChange),
     );
   }
+}
+
+/// The ring's border, which takes no presses so its margin never goes dead.
+class _RingDecoration extends BoxDecoration {
+  const _RingDecoration({super.border, super.borderRadius});
+
+  @override
+  bool hitTest(Size size, Offset position, {TextDirection? textDirection}) =>
+      false;
 }
 
 /// Focus state for a control that draws its own ring inside its own edge.

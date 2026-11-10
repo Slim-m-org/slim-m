@@ -18,7 +18,8 @@ const messageGroupWindow = Duration(minutes: 1);
 
 /// A continuation of the same author's previous message inside
 /// [messageGroupWindow] drops its avatar and header. A webhook posting under a
-/// different username starts a new group so its label shows.
+/// different username starts a new group so its label shows, and so does a
+/// reply, whose context line joins to its own avatar.
 bool isGrouped(
   Message message,
   Message? previous, {
@@ -26,6 +27,7 @@ bool isGrouped(
   String? previousWebhookUsername,
 }) =>
     previous != null &&
+    message.replyToId == null &&
     previous.authorId == message.authorId &&
     webhookUsername?.trim() == previousWebhookUsername?.trim() &&
     (message.createdAt - previous.createdAt).abs() <

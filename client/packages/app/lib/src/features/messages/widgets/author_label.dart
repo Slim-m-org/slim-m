@@ -125,6 +125,7 @@ class AuthorNameLine extends StatelessWidget {
     this.style,
     this.secondary,
     this.secondaryStyle,
+    this.secondaryLeading,
   });
 
   final String name;
@@ -135,6 +136,9 @@ class AuthorNameLine extends StatelessWidget {
   /// its own; null when a surface has nothing to say after the name.
   final String? secondary;
   final TextStyle? secondaryStyle;
+
+  /// A fixed-size mark drawn just before [secondary], such as a thumbnail.
+  final Widget? secondaryLeading;
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +157,10 @@ class AuthorNameLine extends StatelessWidget {
         ...authorBadges(profile),
         if (secondary != null) ...[
           const SizedBox(width: AppSpacing.s8),
+          if (secondaryLeading != null) ...[
+            secondaryLeading!,
+            const SizedBox(width: AppSpacing.s4),
+          ],
           Flexible(
             flex: 2,
             child: Text(

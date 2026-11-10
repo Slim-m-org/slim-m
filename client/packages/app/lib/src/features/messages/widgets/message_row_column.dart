@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The column a message row lays out beside its avatar: header, reply quote,
-/// body or edit field, the extras a message can carry, reactions, the thread
-/// chip and the failed-send row.
+/// The column a message row lays out beside its avatar: header, body or edit
+/// field, the extras a message can carry, reactions, the thread chip and the
+/// failed-send row.
 ///
 /// Split out of `message_row.dart`, which owns the row's fill, hover toolbar
 /// and menu, once that file reached the review budget's hard ceiling.
@@ -15,7 +15,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/author_is_bot.dart';
 import '../providers/message_editing.dart' show messageEditProgressProvider;
 import '../providers/message_extras.dart' show MessageExtras;
-import '../../../providers/providers.dart' show sessionProvider;
 import '../../modules/widgets/app_surface_view.dart';
 import 'attachment_gallery.dart';
 import '../../members/widgets/bot_ui_failure.dart';
@@ -37,18 +36,10 @@ import 'poll_vote_failure_line.dart';
 import 'message_text.dart';
 import '../../composer/widgets/poll_view.dart';
 import 'reactions_row.dart';
-import 'reply_quote.dart';
-
-final _selfId = Provider<String?>(
-  (ref) => ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
-);
+import 'toolbar_clearance.dart';
 
 /// The least width a grouped body keeps once the toolbar's reserve is taken off its right.
 const double _minBodyWidth = 280;
-
-final double _toolbarReserve = MessageHoverToolbar.clearance(
-  compact: false,
-).right;
 
 class MessageRowColumn extends ConsumerWidget {
   const MessageRowColumn({
@@ -63,8 +54,6 @@ class MessageRowColumn extends ConsumerWidget {
     required this.customEmoji,
     required this.callbacks,
     required this.extras,
-    this.replyTo,
-    this.replyParentAdjacent = false,
     this.viewerIsCaller = false,
     this.hoverTime,
   });
@@ -79,20 +68,10 @@ class MessageRowColumn extends ConsumerWidget {
   final Map<String, String> customEmoji;
   final MessageRowCallbacks callbacks;
   final MessageExtras extras;
-  final Message? replyTo;
-
-  /// True when the quoted parent is the row directly above this one.
-  final bool replyParentAdjacent;
   final bool viewerIsCaller;
 
   /// A continuation's sent time, set after the body's last word.
   final Widget? hoverTime;
-
-  /// The command a bot is answering is already the line above it.
-  static bool _isCommand(Message? parent) {
-    final text = parent?.content.trimLeft() ?? '';
-    return text.startsWith('!') || text.startsWith('/');
-  }
 
   bool get _unsent => message.pending || message.failed;
 
@@ -103,7 +82,7 @@ class MessageRowColumn extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ..._header(ref, isBot),
+        ..._header(),
         ..._body(ref, edited),
         ..._cards(edited),
         ..._footer(),
@@ -147,36 +126,20 @@ class MessageRowColumn extends ConsumerWidget {
     );
   }
 
-  bool _showsReplyQuote(bool isBot) =>
-      message.replyToId != null &&
-      !(isBot && replyParentAdjacent && _isCommand(replyTo));
-
-  bool _pinged(WidgetRef ref) =>
-      extras.mentionsMe &&
-      replyTo?.authorId != null &&
-      replyTo?.authorId == ref.watch(_selfId);
-
-  List<Widget> _header(WidgetRef ref, bool isBot) => [
+  List<Widget> _header() => [
     if (!grouped)
-      Padding(
+      MessageRowHeader(
+        key: MessageRowHeader.headerKey,
+        message: message,
+        webhookUsername: extras.webhookUsername,
+        editing: editing,
         // Compact has no hover to reserve for, and no room to spare.
-        padding: MessageHoverToolbar.clearance(compact: compact),
-        child: MessageRowHeader(
-          message: message,
-          webhookUsername: extras.webhookUsername,
-          editing: editing,
-        ),
+        nameReserve: MessageHoverToolbar.clearance(compact: compact).right,
       )
     else if (editing)
       const Padding(
         padding: EdgeInsets.only(bottom: AppSpacing.s4),
         child: AppBadge(variant: AppBadgeVariant.role, label: 'Editing'),
-      ),
-    if (_showsReplyQuote(isBot))
-      ReplyQuote(
-        resolved: replyTo,
-        onTap: callbacks.onReplyTap ?? () {},
-        pinged: _pinged(ref),
       ),
   ];
 
@@ -189,22 +152,21 @@ class MessageRowColumn extends ConsumerWidget {
       )
     // An attachment-only message has no body; an empty one still adds a blank line above the image. A forward's own note is often empty too.
     else if (message.content.isNotEmpty)
-      LayoutBuilder(
+      ToolbarClearance(
         // A headerless row's first line is what the toolbar would sit on, unless that leaves the text a sliver.
-        builder: (context, box) => Padding(
-          padding: grouped && box.maxWidth - _toolbarReserve >= _minBodyWidth
-              ? MessageHoverToolbar.clearance(compact: compact)
-              : EdgeInsets.zero,
-          child: MessageBody(
-            content: message.content,
-            messageId: message.id,
-            knownUsernames: knownUsernames,
-            knownRoleNames: knownRoleNames,
-            customEmoji: customEmoji,
-            dim: message.pending,
-            announceSending: message.pending,
-            trailing: edited,
-          ),
+        clearance: grouped
+            ? MessageHoverToolbar.clearance(compact: compact)
+            : EdgeInsets.zero,
+        minWidth: _minBodyWidth,
+        child: MessageBody(
+          content: message.content,
+          messageId: message.id,
+          knownUsernames: knownUsernames,
+          knownRoleNames: knownRoleNames,
+          customEmoji: customEmoji,
+          dim: message.pending,
+          announceSending: message.pending,
+          trailing: edited,
         ),
       ),
     if (!editing &&
