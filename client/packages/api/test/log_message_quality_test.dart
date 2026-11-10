@@ -11,7 +11,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 final _call = RegExp(
   r"(?:AppLog\.(?:debug|info|warning|error|swallowed)|reportFailure|ignoreError)"
@@ -85,7 +85,7 @@ void main() {
   });
 
   test('every log message in the client reads as a plain sentence', () {
-    final root = _repoRoot();
+    final root = findRepoRoot();
     final hits = <String>[];
     for (final package
         in Directory('${root.path}/client/packages').listSync()) {
@@ -100,13 +100,4 @@ void main() {
     }
     expect(hits, isEmpty, reason: 'say what happened; docs/error-handling.md');
   });
-}
-
-Directory _repoRoot() {
-  var dir = Directory.current.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    dir = dir.parent;
-  }
-  fail('could not find the repo root from ${Directory.current.path}');
 }

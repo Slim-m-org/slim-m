@@ -9,13 +9,11 @@ import 'dart:io';
 
 import 'package:emojis/emoji.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 void main() {
   test('the shared fixture lists exactly what the picker offers', () {
-    var repoRoot = Directory.current;
-    while (!File('${repoRoot.path}/schema/openapi.yaml').existsSync()) {
-      repoRoot = repoRoot.parent;
-    }
+    final repoRoot = findRepoRoot();
     final fixture =
         jsonDecode(
               File(

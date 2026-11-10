@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 final _emptyCatch = RegExp(r'\bcatch\s*\([^)]*\)\s*\{\s*\}');
 final _emptyOn = RegExp(r'\}\s*on\s+[\w.<>?]+\s*\{\s*\}');
@@ -32,7 +32,7 @@ const _debugPrintAllowed = {
 };
 
 void main() {
-  final root = _repoRoot();
+  final root = findRepoRoot();
   final files = [
     for (final package in Directory('${root.path}/client/packages').listSync())
       if (package is Directory && Directory('${package.path}/lib').existsSync())
@@ -108,13 +108,4 @@ void main() {
     }
     expect(hits, isEmpty);
   });
-}
-
-Directory _repoRoot() {
-  var dir = Directory.current.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    dir = dir.parent;
-  }
-  fail('could not find the repo root from ${Directory.current.path}');
 }

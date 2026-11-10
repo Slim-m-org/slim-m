@@ -9,7 +9,7 @@ library;
 
 import 'dart:io';
 
-import 'code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 const _statusDotHomes = {
   'design_system/lib/src/components/core/status_dot.dart',

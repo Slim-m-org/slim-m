@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/startup_screen.dart';
 
-import '../support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 import 'support/fake_desktop_window_port.dart';
 
 void main() {

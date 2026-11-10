@@ -24,7 +24,7 @@
 ///   scanner cannot handle fails the test instead of silently disappearing
 ///   from the comparison.
 ///
-/// Each file is run through `support/code_only.dart`'s `stripComments`
+/// Each file is run through `stripComments` from `slimm_test_support`
 /// before either regex ever sees it - blanking comments but, unlike that
 /// file's own `codeOnly`, leaving string content alone, since the path
 /// literal itself is what this file needs back out. Reproduced directly
@@ -38,7 +38,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-import 'support/code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// Routes reachable through something other than `_send`, so their absence
 /// from the scanned call set is not drift. Each key is `METHOD /normalized/path`.
@@ -153,7 +153,7 @@ const _httpMethods = {
 };
 
 void main() {
-  final repoRoot = _findRepoRoot(Directory.current);
+  final repoRoot = findRepoRoot();
   final schemaFile = File('${repoRoot.path}/schema/openapi.yaml');
   final clientSrcDir = Directory(
     '${repoRoot.path}/client/packages/api/lib/src',
@@ -208,24 +208,6 @@ void main() {
 }
 
 // --- Locating the repo ---
-
-/// Walks upward from [start] looking for schema/openapi.yaml, so the test
-/// does not depend on whether it was invoked from the repo root, from
-/// client/, or from client/packages/api (all three are realistic: `dart
-/// test`, `flutter test`, and CI each tend to run from a different one).
-Directory _findRepoRoot(Directory start) {
-  var dir = start.absolute;
-  for (var i = 0; i < 10; i++) {
-    if (File('${dir.path}/schema/openapi.yaml').existsSync()) return dir;
-    final parent = dir.parent;
-    if (parent.path == dir.path) break;
-    dir = parent;
-  }
-  fail(
-    'could not find schema/openapi.yaml walking up from ${start.path}; is '
-    'this test running from somewhere inside the slim-m repo?',
-  );
-}
 
 // --- Schema-side extraction ---
 

@@ -1,6 +1,6 @@
 # slimm_test_support
 
-Shared test fakes for the client packages.
+Shared test fakes and source-gate helpers for the client packages.
 It is a dev dependency only; nothing under `lib/` of a shipped package imports it.
 
 It is a package of its own, not a `test/support/` folder, because the `api` package tests and the `app` package tests both need it and `api` cannot depend on `app`.
@@ -15,6 +15,17 @@ The part that needs Riverpod and the app's providers stays in `client/packages/a
 - `testApi(handler)` builds a `SlimmApi` on an `http` `MockClient` handler with signed-in credentials, for tests that want to stub one route by hand.
 - `fakeTokens`, `fakeSession()` and `fakeBaseUrl` are the canned credentials and address.
 - `jsonHttpResponse(body, [status])` is a JSON `http.Response`.
+
+## Source-reading gates
+
+`package:slimm_test_support/source_gates.dart` is what a test that reads source text needs, without the fake server.
+
+- `codeOnly(source)` blanks comments and string contents to spaces, so a regex or brace count only sees code.
+- `stripComments(source)` blanks comments only, for a gate that needs a string's own text.
+- Both keep every index and line break, and lex like `scripts/lib/dart_source.py`: raw strings, triple quotes and `${...}` are understood.
+- `findRepoRoot()` walks up to the directory that holds `schema/openapi.yaml`.
+
+A gate that scrubs its own text with a regex or a `//` split gets it wrong on `https://` and `r'\'`; use these instead.
 
 ## In the app package
 

@@ -8,7 +8,7 @@ library;
 
 import 'dart:io';
 
-import 'code_only.dart';
+import 'package:slimm_test_support/source_gates.dart';
 
 /// What one call site sends. A null key set means the keys could not be read
 /// from source (a spread, a loop, an unresolvable helper).
