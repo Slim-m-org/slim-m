@@ -1,30 +1,12 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """The native launch screens must not drift from the dark surface token.
 
-`#17191C` (`AppTokens.dark.surfaceBase`, in
-`client/packages/design_system/lib/src/app_tokens.dart`) is hand-copied into
-two native files with no mechanical link back to it:
-`client/packages/app/android/app/src/main/res/values/colors.xml` as a plain
-hex string, and `client/packages/app/ios/Runner/Base.lproj/LaunchScreen.storyboard`
-as an sRGB float triple. Both exist so the native launch screen hands off to
-the Flutter app without a flash of the wrong colour while the engine spins
-up; a future retune of that token that does not also touch these two files
-would silently reintroduce exactly that flash, on whichever platform was
-missed, with nothing in the test suite able to see it since neither file is
-Dart and neither is read by anything else in this repository.
-
-The iOS half needs a tolerance because a storyboard's colour is stored as an
-8-bit channel value divided by 255, not as a hex byte: `0.09019607843137255`
-is `23/255`. Round-tripping a value produced that way back through
-`round(x * 255)` recovers the original byte exactly for every one of the 256
-possible channel values (checked directly, not assumed), so the one-step
-tolerance here is not compensating for that; it exists for a hand-typed
-decimal that only approximates the true quotient, such as a truncated
-`0.090196`. A one-step slip on this file alone would not be caught by the
-iOS assertion, but a real drift here means the shared token changed while
-this file did not, and `colors.xml`'s check compares full hex strings with
-no tolerance at all - so the same drift, of any size including a single
-channel step, always fails that assertion first.
+`AppTokens.dark.surfaceBase` is hand-copied into Android's `colors.xml` (a hex
+string) and iOS's `LaunchScreen.storyboard` (an sRGB float triple), so the
+native launch screen hands off to Flutter without a colour flash. Neither file
+is Dart, so nothing else notices a retune that skips them. Why the iOS half
+has a one-step tolerance and the Android half has none is in docs/ci-details.md,
+"The native launch screens follow the dark surface token".
 """
 
 import re
@@ -45,7 +27,7 @@ IOS_STORYBOARD = (
     / "client/packages/app/ios/Runner/Base.lproj/LaunchScreen.storyboard"
 )
 
-# The channel round-trip tolerance in byte steps (0-255); see the module doc.
+# The channel round-trip tolerance in byte steps (0-255); why is in docs/ci-details.md.
 IOS_CHANNEL_TOLERANCE = 1
 
 
