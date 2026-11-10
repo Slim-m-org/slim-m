@@ -14,7 +14,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart'
@@ -44,7 +44,6 @@ import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
-import 'speaking_hold.dart';
 import 'start_bitrate_room.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
@@ -63,6 +62,7 @@ import 'voice_mic_readiness.dart';
 import 'voice_audio_devices.dart';
 import 'voice_health_watch.dart';
 import 'voice_session_camera.dart';
+import 'voice_roster.dart';
 import 'voice_stall_wiring.dart';
 import 'voice_stats_wiring.dart';
 import 'voice_video_receive.dart';
@@ -101,11 +101,7 @@ class VoiceSession {
     JoinTimings? joinTimings,
     ShareAudioIsolation? shareAudioIsolation,
     Duration cameraJoinTimeout = kJoinCameraTimeout,
-  })  : _joinTimings = joinTimings ?? JoinTimings(),
-        _cameraSwitching = CameraSwitching(
-          cameraDevices ?? const HardwareCameraDevices(),
-        ),
-        _cameraJoin = CameraJoin(timeout: cameraJoinTimeout) {
+  }) : _joinTimings = joinTimings ?? JoinTimings() {
     _roomFactory = roomFactory ?? _buildRoom;
     _listener.audio.log = audioLog;
     // An injected room has no native capture behind it to gate.
@@ -217,7 +213,20 @@ class VoiceSession {
       sampler: _stats.sampler,
       culler: _video.culler,
     );
-    _camera = VoiceCamera(_share.host, _cameraSwitching, _video.density);
+    _camera = VoiceCamera(
+      _share.host,
+      _video.density,
+      devices: cameraDevices,
+      joinTimeout: cameraJoinTimeout,
+    );
+    _roster = VoiceRoster(
+      VoiceRosterHost(
+        refresh: _refreshParticipants,
+        reconnecting: () => health.reconnect.restarting.value,
+        localVoice: () => gate.fast ? gate.voice : null,
+        deafened: () => _listener.deafened,
+      ),
+    );
     health.reconnect
       ..log = _diag
       ..restarting.addListener(_onReconnectingChanged);
@@ -341,7 +350,7 @@ class VoiceSession {
   Stream<InputGateReading> get inputGateReadings => _gate.readings;
 
   /// Your microphone's level as the SFU last reported it, for hosts with no input gate.
-  Stream<double> get localAudioLevels => _inputGate.localLevels;
+  Stream<double> get localAudioLevels => _roster.localLevels;
 
   /// Sets the native gate; [enabled] false keeps metering but stops silencing.
   void setInputGate({required bool enabled, required double thresholdDb}) =>
@@ -437,9 +446,8 @@ class VoiceSession {
   Future<bool> setDeafened(bool deafened) => _listener.setDeafened(deafened);
 
   final JoinTimings _joinTimings;
-  final CameraSwitching _cameraSwitching;
-  final CameraJoin _cameraJoin;
   late final VoiceCamera _camera;
+  late final VoiceRoster _roster;
   late final VoiceScreenShare _share;
   late final VoiceVideoReceive _video;
   late final VoiceStallWiring _stall;
@@ -455,30 +463,17 @@ class VoiceSession {
   void Function()? _stopArrivalWatch;
 
   final _stateController = StreamController<VoiceSessionState>.broadcast();
-  final _participantsController =
-      StreamController<List<VoiceParticipant>>.broadcast();
 
   VoiceSessionState _state = VoiceSessionState.idle;
-  List<VoiceParticipant> _participants = const [];
   Object? _lastError;
   VoiceDisconnect? _lastDisconnect;
   bool _disposed = false;
 
-  /// See [setSpeakingSensitivity]; 1.0 is the behaviour before the setting.
-  double _speakingSensitivity = 1.0;
-
-  CameraQuality _cameraQuality = CameraQuality.balanced;
-
-  /// See [SpeakingHold]; the timer drops a held ring when its time is up.
-  final SpeakingHold _speakingHold = SpeakingHold();
-  Timer? _speakingHoldTimer;
-
   VoiceSessionState get state => _state;
   Stream<VoiceSessionState> get states => _stateController.stream;
 
-  List<VoiceParticipant> get participants => _participants;
-  Stream<List<VoiceParticipant>> get participantChanges =>
-      _participantsController.stream;
+  List<VoiceParticipant> get participants => _roster.participants;
+  Stream<List<VoiceParticipant>> get participantChanges => _roster.changes;
 
   /// Whether this host can add a real audio track to a screen share; see
   /// [rtc_share_audio.supportsScreenShareAudio] for the per-platform trace.
@@ -489,10 +484,8 @@ class VoiceSession {
   /// [passesActivationThreshold] for what this can and cannot do.
   ///
   /// Safe before a room exists, and live mid-call: it re-evaluates the roster.
-  void setSpeakingSensitivity(double sensitivity) {
-    _speakingSensitivity = sensitivity.clamp(0.0, 1.0);
-    _refreshParticipants();
-  }
+  void setSpeakingSensitivity(double sensitivity) =>
+      _roster.setSensitivity(sensitivity);
 
   /// Caps the sharpness of the remote video you watch; live mid-call, and
   /// kept for the next join.
@@ -506,7 +499,7 @@ class VoiceSession {
   /// How sharp your camera publishes. Read when the camera turns on, and a
   /// different one than it was published at republishes; the app cycles a live
   /// camera to apply a change.
-  void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
+  void setCameraQuality(CameraQuality quality) => _camera.quality = quality;
 
   /// Why the last attempt failed, when [state] is [VoiceSessionState.failed].
   Object? get lastError => _lastError;
@@ -519,7 +512,7 @@ class VoiceSession {
   bool _droppedWhileSharing = false;
 
   /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
-  Stream<CameraJoinOpen> get cameraJoinOpens => _cameraJoin.events;
+  Stream<CameraJoinOpen> get cameraJoinOpens => _camera.joinOpens;
 
   /// The in-flight join, so a second call serializes behind it; see [join].
   Future<void>? _joining;
@@ -563,7 +556,7 @@ class VoiceSession {
     final generation = ++_generation;
     await _teardown();
     if (generation != _generation) return;
-    _setRoster(const []);
+    _roster.set(const []);
     _listener.resetForNewCall();
     // Gain deliberately survives: somebody you turned down stays turned down.
     _lastDisconnect = null;
@@ -591,7 +584,7 @@ class VoiceSession {
       _micRecovery.setEnabled(enabled);
 
   /// Enables or disables the local camera live, mid-call.
-  Future<bool> setCameraEnabled(bool enabled) => _trySetCamera(enabled);
+  Future<bool> setCameraEnabled(bool enabled) => _camera.trySetEnabled(enabled);
 
   /// Starts or stops sharing a screen, bounded by [quality] and the space-wide [maxHeight] ceiling.
   /// Reports what happened rather than what was asked for; on iOS those differ, see [ScreenShareOutcome].
@@ -643,11 +636,11 @@ class VoiceSession {
   void setVideoBlocked(Set<String> tileKeys) => _video.setBlocked(tileKeys);
 
   /// Whether flipping needs no chosen device; see [CameraSwitching.canFlip].
-  bool get canFlipCamera => _cameraSwitching.canFlip;
+  bool get canFlipCamera => _camera.switching.canFlip;
 
   /// Whether picking a camera needs one named first; see
   /// [CameraSwitching.needsSelection].
-  bool get cameraNeedsSelection => _cameraSwitching.needsSelection;
+  bool get cameraNeedsSelection => _camera.switching.needsSelection;
 
   /// The cameras this desktop (or browser) offers, for the picker. Calling
   /// this is what makes a later [selectCameraDevice] able to find anything,
@@ -665,7 +658,17 @@ class VoiceSession {
   Future<T> _reported<T>(String action, T fallback, Future<T> Function() run) =>
       runReported(action, fallback, run, (error) => _lastError = error);
 
-  void _refreshParticipants() => _rebuildRoster();
+  void _refreshParticipants() {
+    _inputGate.applyRate();
+    final room = _room;
+    if (room == null || _disposed) return;
+    // Reapplied on every refresh, not only on toggle, so deafening reaches a participant or track that appears afterward too.
+    unawaited(_listener.apply(room));
+    // Ahead of the unchanged-roster early return: a subscription can change with no visible roster change at all.
+    _video.applyInterest();
+    unawaited(_video.applyQuality(room));
+    _roster.update(room);
+  }
 
   Future<void> dispose() async {
     if (_disposed) return;
@@ -678,13 +681,12 @@ class VoiceSession {
     _joinTimings.finish();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
-    _cameraSwitching.dispose();
-    await _cameraJoin.dispose();
+    await _camera.dispose();
     await _inputGate.dispose();
     await _micRecovery.dispose();
     await _gate.dispose();
     await _stateController.close();
-    await _participantsController.close();
+    await _roster.dispose();
   }
 }
 

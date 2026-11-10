@@ -67,7 +67,18 @@ extension VoiceSessionJoinWork on VoiceSession {
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
       // A slow webcam must not hold "connected" back; see CameraJoin.
-      if (cameraEnabled) unawaited(_openCameraAfterJoin(room, generation));
+      if (cameraEnabled) {
+        unawaited(
+          _camera.openAfterJoin(
+            room,
+            current: () =>
+                !_disposed &&
+                identical(_room, room) &&
+                generation == _generation,
+            held: () => !_disposed && identical(_room, room),
+          ),
+        );
+      }
       if (micFailed) _micRecovery.retryAfterJoin();
       if (!microphoneEnabled) await _readiness.primeMuted();
     } catch (e, stack) {

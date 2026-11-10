@@ -12,7 +12,6 @@ import 'input_gate.dart';
 import 'mic_port.dart';
 import 'noise_floor_estimator.dart';
 import 'strong_noise_suppression.dart';
-import 'voice_models.dart';
 
 /// Smaller moves are not worth a native call or a slider repaint.
 const double _kAutoThresholdStepDb = 0.5;
@@ -73,22 +72,6 @@ class VoiceInputGate {
 
   Future<void> dispose() async {
     await _captureReadings.cancel();
-    await _localLevels.close();
-  }
-
-  final _localLevels = StreamController<double>.broadcast();
-  double _lastLocalLevel = 0;
-
-  /// Your microphone's level as the SFU last reported it, for hosts with no input gate.
-  /// Kept off the roster because a level change there rebuilds the whole call.
-  Stream<double> get localLevels => _localLevels.stream;
-
-  /// Feeds [localLevels] from the freshly built [roster].
-  void reportLocalLevel(List<VoiceParticipant> roster) {
-    final level = roster.where((p) => p.isLocal).firstOrNull?.audioLevel ?? 0;
-    if (level == _lastLocalLevel) return;
-    _lastLocalLevel = level;
-    if (!_localLevels.isClosed) _localLevels.add(level);
   }
 
   /// [enabled] false keeps metering and detecting voice; it only stops

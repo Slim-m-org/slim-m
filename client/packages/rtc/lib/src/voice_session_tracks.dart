@@ -104,11 +104,11 @@ extension VoiceSessionTracks on VoiceSession {
     }
     // Read from the last roster, before the empty one below erases it.
     _droppedWhileSharing =
-        _participants.any((p) => p.isLocal && p.isScreenSharing);
+        _roster.participants.any((p) => p.isLocal && p.isScreenSharing);
     _listener.audio.cancelRetry();
     await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
-    _setRoster(const []);
+    _roster.set(const []);
     // Ends any open blip through the health summary, with the state already failed.
     _setState(VoiceSessionState.failed);
     await _share.control.dispose();
@@ -129,13 +129,12 @@ extension VoiceSessionTracks on VoiceSession {
   Future<void> _teardown() async {
     _listener.audio.cancelRetry();
     _listener.audio.trackReplaced(everyone);
-    _speakingHoldTimer?.cancel();
-    _speakingHoldTimer = null;
+    _roster.cancelHold();
     // Synchronously, and before anything else; see this method's own doc.
     final room = _room;
     _room = null;
     health.reconnect.ended('left the call');
-    _cameraJoin.cancel();
+    _camera.cancelJoin();
     _stall.stop();
     _stats.release();
     _micRecovery.stopWatch();
@@ -148,7 +147,7 @@ extension VoiceSessionTracks on VoiceSession {
     _cancelEvents = null;
     if (cancelEvents != null) await _step(cancelEvents);
     // Not every call-ending path resets it; this one covers all of them.
-    _cameraSwitching.resetFacing();
+    _camera.switching.resetFacing();
     _share.watch.stop();
     // Awaited before the room disconnects below: the SFU has no bearing on iOS.
     await _step(_share.control.stopActiveBroadcast);
@@ -156,97 +155,6 @@ extension VoiceSessionTracks on VoiceSession {
     if (room != null) {
       await _step(room.disconnect);
       await _step(room.dispose);
-    }
-  }
-
-  /// Publishes (or stops) a camera track. Failure is swallowed exactly as
-  /// [VoiceMicRecovery.setEnabled]'s is: a camera pre-toggle a device cannot honour
-  /// (permission denied, no hardware) must not fail the join, since a call
-  /// with no camera track is still a call.
-  Future<bool> _trySetCamera(bool enabled) async {
-    final room = _room;
-    if (room == null) return false;
-    final result = await _setCamera(room, enabled);
-    if (result.error != null) _lastError = result.error;
-    return result.ok;
-  }
-
-  Future<CameraToggleResult> _setCamera(lk.Room room, bool enabled) async {
-    final result = await _cameraSwitching.setEnabled(
-      room.localParticipant,
-      enabled,
-      options: cameraCaptureOptionsFor(
-        room.roomOptions.defaultCameraCaptureOptions,
-        _cameraQuality,
-      ),
-    );
-    // Off only mutes, and the next enable reopens the capture front-facing: reset now.
-    if (!enabled && result.ok) _cameraSwitching.resetFacing();
-    _refreshParticipants();
-    return result;
-  }
-
-  /// Opens the camera a join asked for once the call is connected; a leave or newer join discards its outcome.
-  Future<void> _openCameraAfterJoin(lk.Room room, int generation) =>
-      _cameraJoin.open(
-        enable: () => _setCamera(room, true),
-        current: () =>
-            !_disposed && identical(_room, room) && generation == _generation,
-        noteFailure: (error) => _lastError = error,
-        abandon: () async {
-          if (_disposed || !identical(_room, room)) return;
-          await _setCamera(room, false);
-        },
-      );
-
-  /// Moved here from the main class body for its 500-line hard ceiling:
-  /// private plumbing, so an extension costs it nothing an
-  /// `implements VoiceSession` fake would notice.
-  void _rebuildRoster() {
-    _inputGate.applyRate();
-    final room = _room;
-    if (room == null || _disposed) return;
-
-    // Reapplied on every refresh, not only on toggle, so deafening reaches a participant or track that appears afterward too.
-    unawaited(_listener.apply(room));
-    // Ahead of the unchanged-roster early return below: a subscription can change with no visible roster change at all.
-    _video.applyInterest();
-    unawaited(
-      _video.applyQuality(room),
-    );
-
-    // Only a full restart empties the SDK's remote list; the roster waits for the live room rather than showing the call as empty.
-    if (health.reconnect.restarting.value) {
-      _inputGate.reportLocalLevel(const []);
-      return;
-    }
-
-    final (next, recheck) = _speakingHold.apply(
-      snapshotParticipants(
-        room,
-        speakingSensitivity: _speakingSensitivity,
-        localVoice: _gate.fast ? _gate.voice : null,
-        localDeafened: _listener.audio.deafened,
-      ),
-      skipLocal: _gate.fast,
-    );
-    _speakingHoldTimer?.cancel();
-    _speakingHoldTimer =
-        recheck == null ? null : Timer(recheck, _rebuildRoster);
-    // Only emit on a real change: the events stream is chatty, and rebuilding the roster every time is how that janks.
-    if (listEquals(next, _participants)) {
-      _inputGate.reportLocalLevel(next);
-      return;
-    }
-    _setRoster(List.unmodifiable(next));
-  }
-
-  /// The one place the roster changes, so your level is reported with it and never outlives the people it came from.
-  void _setRoster(List<VoiceParticipant> next) {
-    _participants = next;
-    _inputGate.reportLocalLevel(next);
-    if (!_participantsController.isClosed) {
-      _participantsController.add(next);
     }
   }
 
