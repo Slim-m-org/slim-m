@@ -378,9 +378,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       (event) {
         if (generation != _generation) return;
 
-        /// Broadcast first and unconditionally: a listener that only cares
-        /// about, say, ReactionsChanged must not depend on this switch ever
-        /// learning about that event type.
+        // Broadcast first and unconditionally, so no listener depends on this switch knowing its event type.
         _liveEvents.add(event);
         frames.add(event);
       },
@@ -392,9 +390,10 @@ class SyncController extends StateNotifier<SyncStatus> {
 
   /// Applies one live event the way [_attach]'s listener would, without
   /// needing a real socket. For tests only.
-  @visibleForTesting
+  ///
   /// [generation] defaults to the live one; a test passes a stale value to
   /// stand in for a sign-out or reconnect that landed mid-event.
+  @visibleForTesting
   Future<void> applyServerEventForTest(
     ServerEvent event, {
     int? generation,

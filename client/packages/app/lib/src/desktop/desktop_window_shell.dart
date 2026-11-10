@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Ties every other file in this directory into the calls `main.dart` makes:
-/// put the window into small splash mode before it is ever shown, wire up
-/// close-to-tray, geometry persistence and the tray icon once the app has a
-/// [ProviderContainer] to read the running call's state from, then hand off
-/// from the splash to the real, fully-sized window once bootstrap finishes.
+/// splash window, close-to-tray, geometry persistence, the tray icon and the
+/// handoff from the splash to the full-size window.
 ///
-/// A no-op on every platform but Linux, macOS and Windows: `main.dart` calls
-/// every method here unconditionally, and each returns immediately off
-/// [currentDesktopPlatform] being null rather than making every call site
-/// guard itself.
-///
-/// See the superseding section of `docs/decisions/0012-desktop-window-shell.md`
-/// for why the splash is a real small window rather than the full-size first
-/// frame that record originally described.
+/// Every method is a no-op off Linux, macOS and Windows, so `main.dart` calls
+/// them unconditionally. See the superseding section of
+/// `docs/decisions/0012-desktop-window-shell.md` for why the splash is a real
+/// small window.
 library;
 
 import 'dart:async';
@@ -63,38 +57,21 @@ class DesktopWindowShell {
        _active = active,
        _framelessApplied = frameless;
 
-  /// Shared across [applyInitialGeometry] and [registerListenersAndTray]:
-  /// the native listener must be registered exactly once, which is what
-  /// [WindowManagerDesktopWindowPort.ensureInitialized]'s own idempotence
-  /// guards, and both steps need the one real window either way. Also the one
-  /// port [TitleBar] drags, minimizes and maximizes through.
+  /// Shared by every step here, and the one port [TitleBar] drags, minimizes
+  /// and maximizes through; the native listener must be registered only once.
   final DesktopWindowPort port;
 
-  /// How long [registerListenersAndTray] waits on the native window/tray
-  /// calls before giving up and letting startup proceed regardless - a
-  /// hang here (a D-Bus call with nothing answering it, say) would
-  /// otherwise never resolve, which is the same silent-forever startup
-  /// screen a thrown exception used to cause before this file caught one.
+  /// How long a native window or tray call may take before startup proceeds
+  /// regardless, so a hung call never leaves the startup screen up forever.
   static const _setupTimeout = Duration(seconds: 5);
 
-  /// The splash's fixed size - room for the 64px brand mark, the wordmark
-  /// and a status line, no more - and deliberately unrelated to
-  /// [WindowGeometry]: the splash is always this size, regardless of what
-  /// the real window's own saved geometry turns out to be. See the startup
-  /// screen (`startup_screen.dart`) and decision 0012's superseding section.
+  /// The splash's fixed size, unrelated to the saved [WindowGeometry].
   ///
-  /// On Linux this value must also match the hardcoded
-  /// `gtk_window_set_default_size` in `linux/runner/my_application.cc`: the
-  /// GTK/Impeller embedder only completes a resize once a rendered frame at
-  /// the new size exists, so [applyInitialGeometry]'s own `setSize` call
-  /// below cannot shrink the window before `runApp` - the window must be
-  /// born at this size instead. `splash_native_default_size_test.dart`
-  /// checks the two stay in sync. macOS and Windows have no such embedder
-  /// constraint and are expected to size correctly from `setSize` alone.
-  ///
-  /// The value itself lives as [kSplashWindowSize] in `window_geometry.dart`
-  /// rather than here, so that file's own read-time corruption guard can use
-  /// it with no import cycle: this file already imports that one.
+  /// On Linux it must match `gtk_window_set_default_size` in
+  /// `linux/runner/my_application.cc`, because the embedder cannot shrink the
+  /// window before `runApp`; `splash_native_default_size_test.dart` checks it.
+  /// The value lives as [kSplashWindowSize] in `window_geometry.dart` to avoid
+  /// an import cycle.
   static const splashWindowSize = kSplashWindowSize;
 
   /// The Wayland rule: a compositor that cannot place a window has no position to save.
@@ -133,63 +110,35 @@ class DesktopWindowShell {
   bool _active;
   bool _framelessApplied;
 
-  /// The windowed size [_applyFinalGeometry] asked for, so
-  /// [revealAfterHandoff] knows what the view is supposed to settle at.
-  /// Null when the run state is maximized or fullscreen, where the final
-  /// size is the compositor's to decide and there is nothing to compare.
+  /// The windowed size [_applyFinalGeometry] asked for; null when maximized or
+  /// fullscreen, where the compositor decides.
   WindowSize? _handoffTargetSize;
 
   /// True when the final run state is maximized or fullscreen, where the size
   /// is the compositor's but the view must still leave the splash's own.
   bool _handoffFillsDisplay = false;
 
-  /// True once [registerListenersAndTray] has actually run against a real
-  /// desktop platform - never true in an ordinary widget test, since
-  /// nothing in a `flutter test` run ever calls it. [DesktopChrome] reads
-  /// this, not [isDesktopHost], specifically so a test run on this
-  /// project's own Linux dev box or CI runner - which really is Linux, as
-  /// far as `dart:io`'s `Platform` can tell - does not silently wrap every
-  /// existing widget test's tree in a `Column` it never had before.
+  /// True once [registerListenersAndTray] has run against a real desktop
+  /// platform. [DesktopChrome] reads this rather than [isDesktopHost] so a
+  /// widget test on a Linux box is not wrapped in chrome it never had.
   bool get active => _active;
 
-  /// True only once the native frame has actually been hidden - on Linux and
-  /// Windows, set by [lockSplashChrome], right after the splash's own first frame is
-  /// confirmed rasterized, so the splash reads as frameless for all but that
-  /// first instant. Stays true (or false, on a failure) for the rest of the
-  /// run: nothing resets it back at handoff, since the splash and the ready
-  /// app share the one real window and its one frame state throughout.
+  /// True once the native frame has been hidden by [lockSplashChrome]; it stays
+  /// as it is for the run, since the splash and the app share one window.
   bool get frameless => _framelessApplied;
 
-  /// The close button drawn inside [TitleBar] has no native close event of
-  /// its own to reach [DesktopWindowController.requestClose] through, so it
-  /// calls this instead - a no-op if the shell was never started. [frameless]
-  /// no longer guarantees this is non-null the way it once did: it is now set
-  /// during [lockSplashChrome], before [registerListenersAndTray] ever
-  /// creates the controller, so a native/tray failure in between can leave
-  /// the window frameless with a close button that does nothing. `Ctrl+Q`
-  /// (`desktop_quit_shortcut.dart`) is the deliberate, unconditional
-  /// fallback for exactly that gap, registered independently of both.
+  /// What the close button inside [TitleBar] calls, a no-op if the shell was
+  /// never started. [frameless] can be true before the controller exists, so
+  /// `Ctrl+Q` (`desktop_quit_shortcut.dart`) is the fallback for that gap.
   Future<void> requestClose() =>
       _controller?.requestClose() ?? Future<void>.value();
 
   /// Puts the window into small splash mode before it is ever shown, so
-  /// there is nothing to visibly jump once it appears - `main.dart` calls
-  /// this before `runApp`, ahead of the startup screen's own first frame.
-  /// The real, saved geometry is not read here at all: it is applied later,
-  /// by [prepareHandoff], once bootstrap actually finishes.
+  /// nothing visibly jumps; the saved geometry waits for [prepareHandoff].
   ///
-  /// Only size and centering happen here - see [lockSplashChrome] for why
-  /// resizing-off and the Linux title bar deliberately do not.
-  ///
-  /// Bounded by [_setupTimeout] and never throws, for the same reason
-  /// [registerListenersAndTray] is not allowed to: this runs before `runApp`,
-  /// so a native window or display call that hangs (a portal or compositor
-  /// not answering at the instant of launch) would otherwise block the first
-  /// frame forever - a silent-forever startup screen strictly worse than the
-  /// one that method already guards, since not even an empty window paints.
-  /// On a timeout or error the window simply opens at its native default. No
-  /// [ProviderContainer] exists this early, so the breadcrumb goes to
-  /// [AppLog], which buffers until the app installs its sink.
+  /// Bounded by [_setupTimeout] and never throws: a hung window call here
+  /// would block the first frame, so on a timeout the window opens at its
+  /// native default and the breadcrumb goes to [AppLog].
   Future<void> applyInitialGeometry() async {
     if (currentDesktopPlatform() == null) return;
     try {
@@ -210,22 +159,13 @@ class DesktopWindowShell {
     await port.center();
   }
 
-  /// Locks the splash's chrome once the window is actually visible:
-  /// resizing off everywhere, and on Linux and Windows the native title bar hidden in
-  /// favor of the frameless bar `DesktopChrome` draws once the app is
-  /// ready. `main.dart` calls this once, right after the first frame is
-  /// confirmed rasterized (`WidgetsBinding.waitUntilFirstFrameRasterized`).
+  /// Locks the splash's chrome once the window is visible: resizing off, and
+  /// on Linux and Windows the native title bar hidden for `DesktopChrome`'s
+  /// frameless one.
   ///
-  /// Deliberately not folded into [applyInitialGeometry], despite both
-  /// running once and early: an Xvfb+fluxbox reproduction of this exact
-  /// sequence showed the window mapping at the native 1280x720 default
-  /// instead of [splashWindowSize] whenever `setResizable`/`hideTitleBar`
-  /// ran before the window was ever shown - GTK's own resize-before-map
-  /// requests are documented as unreliable, and here they raced the still
-  /// -pending splash resize and won. Waiting for the real first frame,
-  /// after which the window is already realized at the intended size, is
-  /// the same ordering the original (pre-splash) title-bar hide already
-  /// relied on safely.
+  /// Not folded into [applyInitialGeometry]: resize-before-map requests are
+  /// unreliable under GTK and raced the splash resize, so this waits for the
+  /// first rasterized frame.
   Future<void> lockSplashChrome() async {
     if (currentDesktopPlatform() == null) return;
     try {
@@ -251,21 +191,14 @@ class DesktopWindowShell {
     }
   }
 
-  /// Hides the window, then applies the real saved-or-default geometry (size,
-  /// position where the platform has one, and maximized/fullscreen run
-  /// state) while nothing is on screen to see it change - the traded-off
-  /// stand-in for what a genuine second top-level window would give for
-  /// free (one window gone, the other already there). Pair with
-  /// [revealAfterHandoff], called only after the real UI has actually
-  /// painted, so `show()` never uncovers a stale splash frame or an empty
-  /// one. `main.dart` calls this once bootstrap resolves, before flipping
-  /// `appReadyProvider`.
+  /// Hides the window, then applies the real saved-or-default geometry while
+  /// nothing is on screen to see it change. Pair with [revealAfterHandoff],
+  /// called once the real UI has painted.
   ///
-  /// Bounded and swallowed the same way [applyInitialGeometry] is: a hang or
-  /// throw here must not strand the app hidden with nothing to reveal it.
-  /// Persistence stays off until [revealAfterHandoff] has settled the view. [splashFloor] is
-  /// how long the splash must have been on screen once mapped. [fadeOut] is
-  /// how long the splash content dissolves before its window hides.
+  /// Bounded and swallowed like [applyInitialGeometry], so a hang here cannot
+  /// strand the app hidden. Persistence stays off until the reveal settles.
+  /// [splashFloor] is how long the splash must have been on screen once mapped,
+  /// and [fadeOut] how long its content dissolves before the window hides.
   Future<void> prepareHandoff(
     ProviderContainer container, {
     Duration splashFloor = Duration.zero,
@@ -305,41 +238,14 @@ class DesktopWindowShell {
     );
   }
 
-  /// Shows the window again after [prepareHandoff] applied the real geometry
-  /// and `appReadyProvider` flipped, then waits, best-effort, for the
-  /// swapped-in real UI to actually paint ([SchedulerBinding.endOfFrame]).
-  /// `main.dart` calls this right after flipping `appReadyProvider` true.
+  /// Shows the window again after [prepareHandoff], then waits, best-effort,
+  /// for the real UI to paint ([SchedulerBinding.endOfFrame]).
   ///
-  /// The wait runs *after* `show()`, not before, despite this method's own
-  /// name suggesting the reveal should come last: a hidden top-level window
-  /// never receives a compositor frame callback on this embedder at all, so
-  /// waiting on a frame while still hidden cannot time out early or late -
-  /// it can only ever time out, on any host, because there is no frame to
-  /// wait for. Confirmed by instrumenting a real launch on the reporter's
-  /// own KDE Wayland session: the wait failed after the full
-  /// [_setupTimeout] every time while the window stayed hidden, then
-  /// resolved within a single frame the instant [port.show] ran. Waiting
-  /// first and revealing second, the order this replaces, could only ever
-  /// spend that timeout for nothing before doing the exact same `show()`
-  /// its own timeout fallback already did - see decision 0012's 2026-08-28
-  /// addendum for the measurement.
-  ///
-  /// This still does not promise a literally flash-free transition: the one
-  /// frame `show()` exposes is whatever Flutter last painted before
-  /// [prepareHandoff] hid the window - the splash, at the splash's small
-  /// bounds - for at most one vsync tick until the already-pending
-  /// `appReadyProvider` frame lands. That exposure is not new: the previous
-  /// ordering's own timeout fallback showed the window in exactly the same
-  /// state, on every launch on this platform, since the wait it ran first
-  /// could never succeed. [prepareHandoff] having already applied the real
-  /// geometry before either ordering calls `show()` is what keeps that
-  /// exposure to "stale content, right-sized window" rather than a visible
-  /// resize as well.
-  ///
-  /// The post-`show()` wait is bounded by [_setupTimeout] purely so a host
-  /// that stalls for a genuinely different reason gets logged rather than
-  /// hanging this method forever; nothing downstream awaits this method's
-  /// completion, so the bound protects a log line, not a caller.
+  /// The wait runs after `show()` because a hidden window never receives a
+  /// compositor frame callback on this embedder, so waiting first only burns
+  /// [_setupTimeout] (decision 0012's 2026-08-28 addendum has the measurement).
+  /// One stale splash frame may show for a vsync tick, but at the right size.
+  /// The bound only keeps a stalled host from hanging this method.
   Future<void> revealAfterHandoff() async {
     if (currentDesktopPlatform() == null) return;
     await _reveal();
@@ -403,18 +309,12 @@ class DesktopWindowShell {
     }
   }
 
-  /// Wires geometry persistence, close-to-tray/minimise, and the tray icon
-  /// itself - everything that needs [container] to reach a running call's
-  /// state, so it runs after the container exists rather than before
-  /// `runApp` the way [applyInitialGeometry] does.
+  /// Wires geometry persistence, close-to-tray/minimise and the tray icon, all
+  /// of which need [container] for the running call's state.
   ///
-  /// Never throws and never hangs past [_setupTimeout]: `main.dart` awaits
-  /// this before flipping the app ready, and a startup screen with no
-  /// timeout and no error state of its own must not be the thing a failure
-  /// here leaves the user staring at forever. A failure - thrown or timed
-  /// out - is logged and swallowed, matching [restoreSession]'s own
-  /// precedent; the app reaches a usable window with no tray, no custom
-  /// title bar and no geometry persistence rather than no window at all.
+  /// Never throws and never hangs past [_setupTimeout], because `main.dart`
+  /// awaits it before flipping the app ready; a failure is logged and the app
+  /// opens with no tray, no custom title bar and no geometry persistence.
   Future<void> registerListenersAndTray(ProviderContainer container) async {
     final platform = currentDesktopPlatform();
     if (platform == null) return;

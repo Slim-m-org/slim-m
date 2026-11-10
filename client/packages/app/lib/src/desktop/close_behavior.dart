@@ -6,9 +6,8 @@ library;
 
 import 'package:slimm_platform/platform.dart';
 
-/// The three desktop targets. macOS and Windows have no runner scaffolded
-/// yet (`docs/os_backlog/`), so their branches below are the seam this
-/// record asks for, not exercised by anything real in this build.
+/// The three desktop targets; only Linux needs a runtime probe to pick its
+/// close rule.
 enum DesktopPlatform { linux, macOS, windows }
 
 /// Null off desktop entirely (mobile, web) - callers gate the whole desktop

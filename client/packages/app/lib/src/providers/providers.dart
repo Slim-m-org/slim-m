@@ -174,9 +174,7 @@ Future<void> restoreSession(
   }
   container.read(_restoreRetryProvider).cancel();
   try {
-    /// The iOS/Android keychain outlives app deletion; this flag does not, so
-    /// its absence means this is the first launch since an install. Checked
-    /// only after storage proved readable, so a locked phone never reads as one.
+    // The keychain outlives app deletion and this flag does not, so its absence is a first launch; checked only once storage proved readable.
     if (prefs.getBool(hasLaunchedBeforeKey) != true) {
       await keyStore.clear();
       // A second store on iOS; see [pushKeyStoreProvider].

@@ -145,8 +145,7 @@ class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final recent = ref.watch(recentEmojiProvider);
 
-    /// A deployment with none, one still loading, and one whose list could
-    /// not be fetched are all the same picker: the one there has always been.
+    // No custom emoji, still loading and a failed fetch all show the same picker.
     final custom =
         ref.watch(customEmojiProvider).valueOrNull ?? const <CustomEmoji>[];
     final searching = _query.trim().isNotEmpty;
