@@ -46,7 +46,7 @@ struct SearchParams {
     /// [`crate::store::MessageSearchFilters::before_id`].
     before_id: Option<String>,
     limit: Option<i64>,
-    /// `from:username`, compared exactly - see
+    /// `from:username`, compared case-insensitively - see
     /// [`crate::store::MessageSearchFilters::author_username`].
     from: Option<String>,
     /// `in:channel-name`, a distinct channel to search instead of the one

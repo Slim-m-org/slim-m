@@ -5770,7 +5770,7 @@ paths:
         - name: from
           in: query
           description: >
-            Only messages authored by this exact username (`from:username`).
+            Only messages authored by this username, ignoring case (`from:username`).
             A username matching no live account answers with no results,
             never an error - the same oracle-safety rule `in` states above,
             applied to an account instead of a channel.
@@ -5882,7 +5882,7 @@ paths:
         - name: from
           in: query
           description: >
-            Only messages authored by this exact username (`from:username`).
+            Only messages authored by this username, ignoring case (`from:username`).
             A username matching no live account answers with no results,
             never an error.
           schema:

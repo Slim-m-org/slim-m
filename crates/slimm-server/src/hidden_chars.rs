@@ -32,6 +32,15 @@ pub(crate) fn is_hidden_char(c: char) -> bool {
         )
 }
 
+/// A variation selector draws nothing alone. Kept out of [`is_hidden_char`]
+/// because names legitimately use them; a label of only these reads as blank.
+pub(crate) fn is_variation_selector(c: char) -> bool {
+    matches!(c,
+        '\u{180B}'..='\u{180D}'
+        | '\u{FE00}'..='\u{FE0F}'
+        | '\u{E0100}'..='\u{E01EF}')
+}
+
 const ZWJ: char = '\u{200D}';
 const TAG_FLAG_BASE: char = '\u{1F3F4}';
 const TAG_END: char = '\u{E007F}';
@@ -89,7 +98,26 @@ pub(crate) fn hides_text_outside_emoji(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{hides_text_outside_emoji, is_hidden_char};
+    use super::{hides_text_outside_emoji, is_hidden_char, is_variation_selector};
+
+    #[test]
+    fn variation_selectors_are_modifiers_not_hidden_characters() {
+        for selector in [
+            '\u{180B}',
+            '\u{180D}',
+            '\u{FE00}',
+            '\u{FE0E}',
+            '\u{FE0F}',
+            '\u{E0100}',
+            '\u{E01EF}',
+        ] {
+            assert!(is_variation_selector(selector), "{selector:?}");
+            assert!(!is_hidden_char(selector), "{selector:?}");
+        }
+        for other in ['a', '\u{180E}', '\u{FE10}', '\u{E01F0}', '\u{2764}'] {
+            assert!(!is_variation_selector(other), "{other:?}");
+        }
+    }
 
     #[test]
     fn hidden_characters_are_told_apart_from_ordinary_text() {

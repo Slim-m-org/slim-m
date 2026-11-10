@@ -153,15 +153,21 @@ impl Store {
         let name = name.unwrap_or("");
         let now = now_ms();
         let mut tx = self.begin_write().await?;
-        sqlx::query!(
+        let inserted = sqlx::query!(
             "INSERT INTO channels (id, name, kind, created_at) VALUES (?, ?, 'dm', ?)",
             channel_id,
             name,
             now
         )
         .execute(&mut *tx)
-        .await
-        .map_err(|_| GroupDmError::IdTaken)?;
+        .await;
+        match inserted {
+            Ok(_) => {}
+            Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
+                return Err(GroupDmError::IdTaken);
+            }
+            Err(e) => return Err(e.into()),
+        }
         sqlx::query!(
             "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)
              VALUES (?, 'message', 1), (?, 'canvas', 1)",

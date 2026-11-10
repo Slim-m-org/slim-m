@@ -75,7 +75,7 @@ async fn no_query_and_no_filter_is_a_bad_request() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
-/// `from:username` narrows to one author's own messages, exactly.
+/// `from:username` narrows to one author's own messages.
 #[tokio::test]
 async fn from_filters_to_one_authors_messages() {
     let (store, _guard) = new_store().await;
@@ -111,6 +111,49 @@ async fn from_filters_to_one_authors_messages() {
     let results = results.as_array().unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0]["content"], "watching the sunrise too");
+}
+
+/// Usernames are unique ignoring case, so `from:` finds the author however it is typed.
+#[tokio::test]
+async fn from_matches_the_username_whatever_its_case() {
+    let (store, _guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES),
+            true,
+        )
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let app = app(store.clone());
+    let alice = register(&store, "Alice").await;
+    let bob = register(&store, "bob").await;
+    let channel_id = channel.id.to_string();
+
+    send(&app, &channel_id, &alice, "watching the sunrise").await;
+    send(&app, &channel_id, &bob, "watching the sunrise too").await;
+
+    for typed in ["alice", "Alice", "ALICE"] {
+        let results = json_body(
+            app.clone()
+                .oneshot(request(
+                    "GET",
+                    &format!("/channels/{channel_id}/messages/search?q=watching&from={typed}"),
+                    Some(&bob),
+                    None,
+                ))
+                .await
+                .unwrap(),
+        )
+        .await;
+        let results = results.as_array().unwrap();
+        assert_eq!(results.len(), 1, "from={typed}");
+        assert_eq!(
+            results[0]["content"], "watching the sunrise",
+            "from={typed}"
+        );
+    }
 }
 
 /// A `from:` naming nobody answers empty, the same as any other search that

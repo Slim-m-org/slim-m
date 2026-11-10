@@ -28,8 +28,8 @@ impl Store {
         allow: Permissions,
         deny: Permissions,
     ) -> anyhow::Result<()> {
-        set_overwrite(&self.pool, channel_id, "role", role_id.0, allow, deny).await?;
-        crate::store::category_overwrites::mark_unsynced(&self.pool, channel_id).await
+        self.set_overwrite_and_unsync(channel_id, "role", role_id.0, allow, deny)
+            .await
     }
 
     /// Sets (or replaces) a channel overwrite for a single member.
@@ -40,8 +40,25 @@ impl Store {
         allow: Permissions,
         deny: Permissions,
     ) -> anyhow::Result<()> {
-        set_overwrite(&self.pool, channel_id, "member", user_id.0, allow, deny).await?;
-        crate::store::category_overwrites::mark_unsynced(&self.pool, channel_id).await
+        self.set_overwrite_and_unsync(channel_id, "member", user_id.0, allow, deny)
+            .await
+    }
+
+    /// One transaction, so a category edit cannot land between the write and
+    /// the un-sync and wipe the overwrite just set.
+    async fn set_overwrite_and_unsync(
+        &self,
+        channel_id: ChannelId,
+        target_type: &str,
+        target_id: Uuid,
+        allow: Permissions,
+        deny: Permissions,
+    ) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
+        set_overwrite(&mut *tx, channel_id, target_type, target_id, allow, deny).await?;
+        crate::store::category_overwrites::mark_unsynced(&mut *tx, channel_id).await?;
+        tx.commit().await?;
+        Ok(())
     }
 
     /// The overwrite currently set for one target in one channel, if any.

@@ -294,3 +294,67 @@ async fn deleting_a_message_whose_image_is_also_an_emoji_still_works() {
         "the emoji must still resolve to its bytes"
     );
 }
+
+/// Bob's old, never-sent upload of bytes Alice's message also holds is a staged
+/// upload again once he re-uploads them, so Alice deleting her message must not
+/// free the bytes out from under his coming send.
+#[tokio::test]
+async fn a_reupload_of_bytes_another_member_holds_protects_the_stage_from_their_delete() {
+    use slimm_server::ids::MessageId;
+
+    let (pool, _guard) = pool().await;
+    let store = Store::new(pool.clone());
+
+    let shared = [0x44u8; 32];
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let alice = store
+        .create_account("alice", "Alice", "hash")
+        .await
+        .unwrap()
+        .id;
+    let bob = store.create_account("bob", "Bob", "hash").await.unwrap().id;
+    store
+        .store_attachment(&shared, 8, "image/png", "shared.png", Some(alice))
+        .await
+        .unwrap();
+    let message = MessageId::generate();
+    store
+        .send_message(NewMessage {
+            channel_id: channel.id,
+            author_id: alice,
+            id: message,
+            content: "look at this",
+            attachment_ids: &[shared.to_vec()],
+            spoiler_ids: &[],
+            reply_to_id: None,
+            forward: None,
+        })
+        .await
+        .unwrap();
+
+    store
+        .store_attachment(&shared, 8, "image/png", "shared.png", Some(bob))
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE attachment_uploaders SET uploaded_at = uploaded_at - ? WHERE uploaded_by = ?",
+    )
+    .bind(3 * DAY_MS)
+    .bind(bob)
+    .execute(&pool)
+    .await
+    .unwrap();
+    store
+        .store_attachment(&shared, 8, "image/png", "shared.png", Some(bob))
+        .await
+        .unwrap();
+
+    let deletion = store.delete_message(message, alice).await.unwrap();
+
+    assert!(
+        deletion.freed_attachments.is_empty(),
+        "bob staged these bytes again: {:?}",
+        deletion.freed_attachments
+    );
+    assert_eq!(attachment_count(&pool).await, 1);
+}
