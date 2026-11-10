@@ -8,6 +8,7 @@ library;
 
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -29,7 +30,8 @@ class ModuleScenePainter extends CustomPainter {
   /// The decoded images available this frame, keyed by [ImageOp.key]. An image
   /// still decoding is simply absent, and its op draws nothing until a later
   /// frame has it - which is what lets an image take its place in the op order
-  /// instead of being layered over the canvas.
+  /// instead of being layered over the canvas. Compared by content, since each
+  /// view build hands in a fresh map.
   final Map<int, ui.Image> images;
 
   /// Seconds into the scene's `sweep` motion, or null to draw the end state.
@@ -147,6 +149,7 @@ class ModuleScenePainter extends CustomPainter {
   void _paintCells(Canvas canvas, CellsOp op, double sx, double sy) {
     if (op.cols <= 0 || op.rows <= 0 || op.palette.isEmpty) return;
     final grid = cellsGridRect(op, scene, sx, sy);
+    if (grid.width <= 0 || grid.height <= 0) return;
     final cellW = grid.width / op.cols;
     final cellH = grid.height / op.rows;
     final inset = op.gap * (cellW < cellH ? cellW : cellH) / 2;
@@ -180,12 +183,16 @@ class ModuleScenePainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    final dx = switch (op.align) {
-      'center' => op.x * sx - painter.width / 2,
-      'right' => op.x * sx - painter.width,
-      _ => op.x * sx,
-    };
-    painter.paint(canvas, Offset(dx, op.y * sy - painter.height / 2));
+    try {
+      final dx = switch (op.align) {
+        'center' => op.x * sx - painter.width / 2,
+        'right' => op.x * sx - painter.width,
+        _ => op.x * sx,
+      };
+      painter.paint(canvas, Offset(dx, op.y * sy - painter.height / 2));
+    } finally {
+      painter.dispose();
+    }
   }
 
   /// A two-stop linear gradient across [bounds].
@@ -232,7 +239,7 @@ class ModuleScenePainter extends CustomPainter {
   bool shouldRepaint(ModuleScenePainter old) =>
       !identical(old.scene, scene) ||
       old.tokens != tokens ||
-      !identical(old.images, images) ||
+      !mapEquals(old.images, images) ||
       old.time != time;
 }
 
@@ -363,6 +370,7 @@ String? _cellsTapAction(
   String action,
 ) {
   final grid = cellsGridRect(op, scene, sx, sy);
+  if (grid.width <= 0 || grid.height <= 0) return null;
   final col = ((local.dx - grid.left) / (grid.width / op.cols)).floor();
   final row = ((local.dy - grid.top) / (grid.height / op.rows)).floor();
   if (col < 0 || col >= op.cols || row < 0 || row >= op.rows) return null;

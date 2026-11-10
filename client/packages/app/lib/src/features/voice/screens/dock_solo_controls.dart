@@ -13,13 +13,13 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../audio/hold_music_player.dart' show holdMusicAvailableProvider;
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
-import '../../voice/providers/call_solo.dart';
-import '../../voice/providers/camera_switch.dart';
-import '../../voice/providers/hold_music_actions.dart';
-import '../../voice/providers/voice_controller.dart';
-import '../../voice/providers/voice_flags.dart';
-import '../../voice/screens/hold_music_dock_toggle.dart';
-import '../../voice/widgets/voice_call_controls.dart';
+import '../providers/call_solo.dart';
+import '../providers/camera_switch.dart';
+import '../providers/hold_music_actions.dart';
+import '../providers/voice_controller.dart';
+import '../providers/voice_flags.dart';
+import 'hold_music_dock_toggle.dart';
+import '../widgets/voice_call_controls.dart';
 
 /// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
 bool soloMusicInDock(BuildContext context, WidgetRef ref) {

@@ -325,6 +325,8 @@ A module opts in simply by choosing to emit one, and any output that is not a va
 - `background` is an optional fill for the whole scene.
 - `status` is an optional one-line caption shown under the scene.
 - `ops` is the list of drawing primitives, painted in order (first is bottom).
+  Anything past a ceiling is dropped, and the rest of the scene still draws.
+  A scene may carry at most 1024 `text` ops, 8 `input` ops and 16 `controls`.
 
 ### Colours
 
@@ -348,6 +350,9 @@ Prefer tokens; a module that hard-codes hex will look wrong in one theme or the 
 | `image` | `x`, `y`, `w`, `h`, `b64` (a base64 raster image), `tap` |
 
 `rect` and `circle` also take a `grad` instead of a flat `fill`; see below.
+
+A `text` `size` is in scene units and is held to the scene's longer side, since text taller than the whole scene is not a label.
+A `size` that is missing, zero or negative draws at 12.
 
 `cells` is the workhorse for boards, heatmaps, and automata: a grid of palette indices drawn in one op.
 By default it fills the whole scene.
@@ -422,12 +427,14 @@ A gradient wins over `fill` when both are set. A gradient missing either stop is
 
 A submission arrives as the action `"guess:otter"` - the same colon-separated shape a tapped cell already uses - with the text trimmed.
 
-Four things to know:
+Six things to know:
 
 - **You declare where and how wide; slim decides how tall.** A module cannot describe a control that looks native at an arbitrary height, and a field that does not match the rest of the app is worse than one you could not place to the pixel.
 - **You own the value.** Whatever `value` you send back in the next scene is what the field shows, so you can correct, clear or reformat what somebody typed. The one exception is a field they currently have focused: a scene arriving mid-typing leaves it alone rather than overwriting under their cursor.
 - **`submit` is required** and must be non-empty, because nothing could report a submission otherwise. An op without one is skipped.
 - **`max` is clamped** to 512 characters. The text rides back to you on every submission, so a module cannot ask for an unbounded one.
+- **`w` is held between zero and the scene's longer side**, and a scene carries at most eight fields.
+- **Each field needs its own `submit`.** A later field that reuses a name is skipped, because slim keeps one text controller per name.
 
 An `input` op carries no `tap`. A tap in its area goes to the field, never to the scene underneath it.
 
