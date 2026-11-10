@@ -186,8 +186,13 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     try {
       ref.invalidate(rolesProvider);
       await ref.read(rolesProvider.future);
-    } on Object {
-      // The pane shows its own load error; this only waits for an answer.
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'The roles refetch after a reorder failed; the pane shows it',
+        error,
+        stack,
+      );
     }
   }
 

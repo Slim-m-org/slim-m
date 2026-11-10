@@ -157,8 +157,13 @@ class _NotificationScheduleSectionState
   Future<void> _awaitSaved() async {
     try {
       await ref.read(notificationScheduleProvider.future);
-    } on Object {
-      // The section shows its own load error; this only waits for an answer.
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'The schedule refetch after a save failed; the section shows it',
+        error,
+        stack,
+      );
     }
   }
 

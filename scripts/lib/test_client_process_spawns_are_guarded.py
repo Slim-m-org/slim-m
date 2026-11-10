@@ -31,8 +31,8 @@ GUARDED = {
         "ShareAudioGraph is supported on linux only and spawns pw-cli, pw-dump and pw-link only when supported",
     "client/packages/rtc/lib/src/pulse_audio_io.dart":
         "PulseAudio spawns pactl on linux only; every method returns empty elsewhere",
-    "client/packages/platform/lib/src/kwin_keep_above.dart":
-        "kwinAboveFullScreen runs kreadconfig6/kwriteconfig6 only from the linux pop-out window",
+    "client/packages/platform/lib/src/kwin_window_rule.dart":
+        "kwinAboveFullScreen and kwinRemoveAboveFullScreen run kreadconfig6/kwriteconfig6 only for the linux pop-out window",
     "client/packages/platform/lib/src/persistent_key_store.dart":
         "FileKeyStore is the linux backend; every other host uses SecureKeyStore",
 }
