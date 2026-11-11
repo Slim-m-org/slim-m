@@ -70,13 +70,12 @@ List<ControlOptionEntry> shareMenuEntries(
         onChanged: (value) =>
             unawaited(notifier.setScreenShareAllowAnnotations(value)),
       ),
-      if (controller.video.screenShareNeedsSource)
-        ControlSwitch(
-          label: 'Show my cursor',
-          value: settings.screenShareShowCursor,
-          onChanged: (value) =>
-              unawaited(notifier.setScreenShareShowCursor(value)),
-        ),
+      ControlSwitch(
+        label: 'Show my cursor',
+        value: settings.screenShareShowCursor,
+        onChanged: (value) =>
+            unawaited(notifier.setScreenShareShowCursor(value)),
+      ),
     ],
     [
       if (sharing)
