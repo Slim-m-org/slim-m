@@ -43,8 +43,10 @@ Offset fromNormalised(Offset normalised, Rect content) => Offset(
 
 /// The monitors a share may cover, as indexes into [monitors].
 ///
-/// [screenNumber] is the capturer's own 1-based "Screen N", trusted only where
-/// the platform lists real monitors in order. [portalOrigin] is where the
+/// [sourceId] and [screenNumber] are the capturer's own id and 1-based "Screen N",
+/// trusted only on Windows. The id is the display device index and the number
+/// the capture position, which the runner reports per monitor because libwebrtc's
+/// DXGI order differs from the order monitors are enumerated in. [portalOrigin] is where the
 /// Linux portal says the picked monitor sits, which KDE reports and GNOME does
 /// not. Otherwise every monitor whose shape matches the captured size is a
 /// candidate, and every monitor is one when the size is unknown: guessing one
@@ -58,6 +60,7 @@ List<int> preferChosenScreen(List<int> candidates, int? chosen) =>
 
 List<int> pickSharedMonitors(
   List<OverlayMonitor> monitors, {
+  String? sourceId,
   int? screenNumber,
   Size? capturedSize,
   ({int x, int y})? portalOrigin,
@@ -69,11 +72,8 @@ List<int> pickSharedMonitors(
     );
     if (at >= 0) return [at];
   }
-  if (screenNumber != null &&
-      screenNumber >= 1 &&
-      screenNumber <= monitors.length) {
-    return [screenNumber - 1];
-  }
+  final named = _monitorNamedByCapturer(monitors, sourceId, screenNumber);
+  if (named != null) return [named];
   final all = [for (var i = 0; i < monitors.length; i++) i];
   if (capturedSize == null || capturedSize.isEmpty) return all;
   final want = capturedSize.width / capturedSize.height;
@@ -83,6 +83,24 @@ List<int> pickSharedMonitors(
     for (final i in all)
       if (gaps[i] <= best + 0.01) i,
   ];
+}
+
+int? _monitorNamedByCapturer(
+  List<OverlayMonitor> monitors,
+  String? sourceId,
+  int? screenNumber,
+) {
+  final id = sourceId == null ? null : int.tryParse(sourceId);
+  final byId = monitors.indexWhere((m) => id != null && m.deviceIndex == id);
+  if (byId >= 0) return byId;
+  if (screenNumber == null || screenNumber < 1) return null;
+  if (monitors.any((m) => m.capturePosition != null)) {
+    final at = monitors.indexWhere(
+      (m) => m.capturePosition == screenNumber - 1,
+    );
+    return at >= 0 ? at : null;
+  }
+  return screenNumber <= monitors.length ? screenNumber - 1 : null;
 }
 
 /// The shape every monitor in [covered] shares, or null when they differ and the shared one is unknown.

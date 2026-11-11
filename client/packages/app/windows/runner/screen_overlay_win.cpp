@@ -1,5 +1,6 @@
 #include "screen_overlay_win.h"
 
+#include "screen_overlay_win_capture.h"
 #include "screen_overlay_win_panel.h"
 
 #include <windows.h>
@@ -20,23 +21,31 @@ namespace {
 constexpr DWORD kExcludeFromCapture = 0x00000011;
 constexpr DWORD kMinBuildForExclude = 19041;
 constexpr wchar_t kClassName[] = L"SlimmScreenOverlayWindow";
+// The share picker hides windows with this title (ownOverlayWindowTitle in the rtc package).
+constexpr wchar_t kWindowTitle[] = L"slim-m screen overlay";
 constexpr double kNoteRadius = 6;
 constexpr double kNotePad = 8;
 constexpr double kNoteMaxWidth = 260;
 
-HWND g_window = nullptr;
-int g_width = 0;
-int g_height = 0;
+// One click-through window over one monitor, with its own surface: the drawing overlay and the call panel are separate so each can sit on its own monitor.
+struct Layer {
+  HWND window = nullptr;
+  int monitor = 0;
+  int width = 0;
+  int height = 0;
+  // One premultiplied surface for the window's life: a fresh full-monitor bitmap and copy per frame stalled the first marks.
+  HDC surface_dc = nullptr;
+  HBITMAP surface = nullptr;
+  HGDIOBJ surface_previous = nullptr;
+  void* surface_bits = nullptr;
+};
+
+Layer g_draw;
+Layer g_panel_layer;
 ULONG_PTR g_gdiplus_token = 0;
 bool g_class_registered = false;
 std::vector<Shape> g_shapes;
 Panel g_panel;
-int g_monitor = 0;
-// One premultiplied surface for the window's life: a fresh full-monitor bitmap and copy per frame stalled the first marks.
-HDC g_surface_dc = nullptr;
-HBITMAP g_surface = nullptr;
-HGDIOBJ g_surface_previous = nullptr;
-void* g_surface_bits = nullptr;
 
 bool BuildSupportsExclude() {
   using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
@@ -54,10 +63,11 @@ bool BuildSupportsExclude() {
 
 BOOL CALLBACK CollectMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM data) {
   auto* out = reinterpret_cast<std::vector<Monitor>*>(data);
-  MONITORINFO info = {};
+  MONITORINFOEXW info = {};
   info.cbSize = sizeof(info);
-  if (!GetMonitorInfoW(monitor, &info)) return TRUE;
+  if (!GetMonitorInfoW(monitor, reinterpret_cast<MONITORINFO*>(&info))) return TRUE;
   Monitor m;
+  m.device = info.szDevice;
   m.x = info.rcMonitor.left;
   m.y = info.rcMonitor.top;
   m.width = info.rcMonitor.right - info.rcMonitor.left;
@@ -143,72 +153,76 @@ void DrawNote(Gdiplus::Graphics& g, const Shape& s, double w, double h) {
   g.DrawString(s.text.c_str(), -1, &font, at, nullptr, &ink);
 }
 
-void ReleaseSurface() {
-  if (g_surface_dc != nullptr) {
-    SelectObject(g_surface_dc, g_surface_previous);
-    DeleteDC(g_surface_dc);
+void ReleaseSurface(Layer& layer) {
+  if (layer.surface_dc != nullptr) {
+    SelectObject(layer.surface_dc, layer.surface_previous);
+    DeleteDC(layer.surface_dc);
   }
-  if (g_surface != nullptr) DeleteObject(g_surface);
-  g_surface_dc = nullptr;
-  g_surface = nullptr;
-  g_surface_previous = nullptr;
-  g_surface_bits = nullptr;
+  if (layer.surface != nullptr) DeleteObject(layer.surface);
+  layer.surface_dc = nullptr;
+  layer.surface = nullptr;
+  layer.surface_previous = nullptr;
+  layer.surface_bits = nullptr;
 }
 
-bool EnsureSurface() {
-  if (g_surface != nullptr) return true;
+bool EnsureSurface(Layer& layer) {
+  if (layer.surface != nullptr) return true;
   BITMAPINFO info = {};
   info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-  info.bmiHeader.biWidth = g_width;
-  info.bmiHeader.biHeight = -g_height;
+  info.bmiHeader.biWidth = layer.width;
+  info.bmiHeader.biHeight = -layer.height;
   info.bmiHeader.biPlanes = 1;
   info.bmiHeader.biBitCount = 32;
   info.bmiHeader.biCompression = BI_RGB;
   HDC screen = GetDC(nullptr);
-  g_surface = CreateDIBSection(screen, &info, DIB_RGB_COLORS, &g_surface_bits,
-                               nullptr, 0);
-  if (g_surface != nullptr) g_surface_dc = CreateCompatibleDC(screen);
+  layer.surface = CreateDIBSection(screen, &info, DIB_RGB_COLORS,
+                                   &layer.surface_bits, nullptr, 0);
+  if (layer.surface != nullptr) layer.surface_dc = CreateCompatibleDC(screen);
   ReleaseDC(nullptr, screen);
-  if (g_surface == nullptr || g_surface_dc == nullptr) {
-    ReleaseSurface();
+  if (layer.surface == nullptr || layer.surface_dc == nullptr) {
+    ReleaseSurface(layer);
     return false;
   }
-  g_surface_previous = SelectObject(g_surface_dc, g_surface);
+  layer.surface_previous = SelectObject(layer.surface_dc, layer.surface);
   return true;
 }
 
-// Renders the shapes straight into the window's surface and hands it to the layered window.
-void Present() {
-  if (g_window == nullptr || g_width <= 0 || g_height <= 0) return;
-  if (!EnsureSurface()) return;
+enum class Content { kShapes, kPanel };
+
+// Renders the layer's content straight into its surface and hands it to the layered window.
+void Present(Layer& layer, Content content) {
+  if (layer.window == nullptr || layer.width <= 0 || layer.height <= 0) return;
+  if (!EnsureSurface(layer)) return;
   {
-    Gdiplus::Bitmap bitmap(g_width, g_height, g_width * 4, PixelFormat32bppPARGB,
-                           static_cast<BYTE*>(g_surface_bits));
+    Gdiplus::Bitmap bitmap(layer.width, layer.height, layer.width * 4,
+                           PixelFormat32bppPARGB,
+                           static_cast<BYTE*>(layer.surface_bits));
     Gdiplus::Graphics g(&bitmap);
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     g.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
     g.SetCompositingMode(Gdiplus::CompositingModeSourceCopy);
     g.Clear(Gdiplus::Color(0, 0, 0, 0));
     g.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
-    for (const Shape& s : g_shapes) {
-      switch (s.kind) {
-        case Shape::Kind::kStroke: DrawStroke(g, s, g_width, g_height); break;
-        case Shape::Kind::kEllipse: DrawEllipse(g, s, g_width, g_height); break;
-        case Shape::Kind::kNote: DrawNote(g, s, g_width, g_height); break;
+    if (content == Content::kShapes) {
+      for (const Shape& s : g_shapes) {
+        switch (s.kind) {
+          case Shape::Kind::kStroke: DrawStroke(g, s, layer.width, layer.height); break;
+          case Shape::Kind::kEllipse: DrawEllipse(g, s, layer.width, layer.height); break;
+          case Shape::Kind::kNote: DrawNote(g, s, layer.width, layer.height); break;
+        }
       }
-    }
-    if (g_panel.present && g_panel.monitor == g_monitor) {
-      double scale = static_cast<double>(GetDpiForWindow(g_window)) / 96.0;
-      DrawPanel(g, g_panel, g_width, g_height, scale > 0 ? scale : 1.0);
+    } else if (g_panel.present) {
+      double scale = static_cast<double>(GetDpiForWindow(layer.window)) / 96.0;
+      DrawPanel(g, g_panel, layer.width, layer.height, scale > 0 ? scale : 1.0);
     }
   }
   GdiFlush();
   HDC screen = GetDC(nullptr);
   POINT origin = {0, 0};
-  SIZE size = {g_width, g_height};
+  SIZE size = {layer.width, layer.height};
   BLENDFUNCTION blend = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
-  UpdateLayeredWindow(g_window, screen, nullptr, &size, g_surface_dc, &origin,
-                      0, &blend, ULW_ALPHA);
+  UpdateLayeredWindow(layer.window, screen, nullptr, &size, layer.surface_dc,
+                      &origin, 0, &blend, ULW_ALPHA);
   ReleaseDC(nullptr, screen);
 }
 
@@ -219,7 +233,8 @@ LRESULT CALLBACK OverlayProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
     case WM_MOUSEACTIVATE:
       return MA_NOACTIVATE;
     case WM_DESTROY:
-      if (hwnd == g_window) g_window = nullptr;
+      if (hwnd == g_draw.window) g_draw.window = nullptr;
+      if (hwnd == g_panel_layer.window) g_panel_layer.window = nullptr;
       return 0;
     default:
       return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -244,55 +259,97 @@ bool EnsureGdiplus() {
   return Gdiplus::GdiplusStartup(&g_gdiplus_token, &input, nullptr) == Gdiplus::Ok;
 }
 
+// Opens a click-through window over [monitor] and hides it from capture; refused means it would show up in the share, so it is not shown at all.
+bool OpenLayer(Layer& layer, const Monitor& m, size_t index) {
+  if (!BuildSupportsExclude() || !EnsureClass() || !EnsureGdiplus()) return false;
+  HWND window = CreateWindowExW(
+      WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE |
+          WS_EX_TOOLWINDOW,
+      kClassName, kWindowTitle, WS_POPUP, m.x, m.y, m.width, m.height,
+      nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+  if (window == nullptr) return false;
+  if (!SetWindowDisplayAffinity(window, kExcludeFromCapture)) {
+    DestroyWindow(window);
+    return false;
+  }
+  layer.window = window;
+  layer.monitor = static_cast<int>(index);
+  layer.width = m.width;
+  layer.height = m.height;
+  return true;
+}
+
+void RevealLayer(Layer& layer, Content content) {
+  Present(layer, content);
+  ShowWindow(layer.window, SW_SHOWNOACTIVATE);
+  SetWindowPos(layer.window, HWND_TOPMOST, 0, 0, 0, 0,
+               SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
+void CloseLayer(Layer& layer) {
+  if (layer.window != nullptr) {
+    HWND window = layer.window;
+    layer.window = nullptr;
+    DestroyWindow(window);
+  }
+  ReleaseSurface(layer);
+}
+
+size_t MonitorIndex(const std::vector<Monitor>& monitors, int requested) {
+  return requested >= 0 && static_cast<size_t>(requested) < monitors.size()
+             ? static_cast<size_t>(requested)
+             : 0;
+}
+
 }  // namespace
 
 bool Supported(std::vector<Monitor>* monitors) {
   if (!BuildSupportsExclude()) return false;
   *monitors = Monitors();
+  AssignCaptureOrder(monitors);
   return !monitors->empty();
 }
 
 bool Show(int monitor_index) {
   Hide();
-  if (!BuildSupportsExclude() || !EnsureClass() || !EnsureGdiplus()) return false;
   std::vector<Monitor> monitors = Monitors();
   if (monitors.empty()) return false;
-  size_t index = monitor_index >= 0 && static_cast<size_t>(monitor_index) < monitors.size()
-                     ? static_cast<size_t>(monitor_index)
-                     : 0;
-  const Monitor& m = monitors[index];
-  HWND window = CreateWindowExW(
-      WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE |
-          WS_EX_TOOLWINDOW,
-      kClassName, L"slim-m screen overlay", WS_POPUP, m.x, m.y, m.width, m.height,
-      nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-  if (window == nullptr) return false;
-  // Refused means the overlay would show up in the share, so it is not shown at all.
-  if (!SetWindowDisplayAffinity(window, kExcludeFromCapture)) {
-    DestroyWindow(window);
-    return false;
-  }
-  g_window = window;
-  g_monitor = static_cast<int>(index);
-  g_width = m.width;
-  g_height = m.height;
+  size_t index = MonitorIndex(monitors, monitor_index);
+  if (!OpenLayer(g_draw, monitors[index], index)) return false;
   g_shapes.clear();
-  Present();
-  ShowWindow(window, SW_SHOWNOACTIVATE);
-  SetWindowPos(window, HWND_TOPMOST, 0, 0, 0, 0,
-               SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+  RevealLayer(g_draw, Content::kShapes);
   return true;
 }
 
 void Draw(std::vector<Shape> shapes) {
   g_shapes = std::move(shapes);
-  Present();
+  Present(g_draw, Content::kShapes);
 }
 
 void SetPanel(Panel panel) {
+  if (!panel.present) {
+    g_panel = Panel();
+    ForgetAvatars();
+    CloseLayer(g_panel_layer);
+    return;
+  }
+  if (g_panel_layer.window != nullptr && g_panel_layer.monitor != panel.monitor) {
+    CloseLayer(g_panel_layer);
+  }
+  if (g_panel_layer.window == nullptr) {
+    std::vector<Monitor> monitors = Monitors();
+    if (monitors.empty()) return;
+    size_t index = MonitorIndex(monitors, panel.monitor);
+    if (!OpenLayer(g_panel_layer, monitors[index], index)) return;
+    g_panel_layer.monitor = panel.monitor;
+    g_panel = std::move(panel);
+    CacheAvatars(&g_panel);
+    RevealLayer(g_panel_layer, Content::kPanel);
+    return;
+  }
   g_panel = std::move(panel);
-  if (g_window != nullptr) CacheAvatars(&g_panel);
-  Present();
+  CacheAvatars(&g_panel);
+  Present(g_panel_layer, Content::kPanel);
 }
 
 BOOL CALLBACK FindAppWindow(HWND window, LPARAM data) {
@@ -322,14 +379,7 @@ int AppMonitor() {
 
 void Hide() {
   g_shapes.clear();
-  g_panel = Panel();
-  ForgetAvatars();
-  if (g_window != nullptr) {
-    HWND window = g_window;
-    g_window = nullptr;
-    DestroyWindow(window);
-  }
-  ReleaseSurface();
+  CloseLayer(g_draw);
 }
 
 }  // namespace slimm_overlay

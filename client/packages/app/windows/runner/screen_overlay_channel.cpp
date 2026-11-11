@@ -147,6 +147,8 @@ EncodableValue SupportReply() {
     entry[EncodableValue("width")] = EncodableValue(m.width);
     entry[EncodableValue("height")] = EncodableValue(m.height);
     entry[EncodableValue("primary")] = EncodableValue(m.primary);
+    entry[EncodableValue("deviceIndex")] = EncodableValue(m.device_index);
+    entry[EncodableValue("capturePosition")] = EncodableValue(m.capture_position);
     list.push_back(EncodableValue(entry));
   }
   EncodableMap reply;

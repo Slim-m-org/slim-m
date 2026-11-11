@@ -139,8 +139,9 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
 
 - Its own setting, "Call overlay", off by default, with a corner choice (top left by default) shown once it is on.
   Like the drawing overlay it is absent, never disabled, where the desktop cannot host it.
-- It shows whenever you are in a call and hides while you share a whole screen.
+- It shows whenever you are in a call and, on Linux, hides while you share a whole screen.
   Linux cannot keep a window out of the capture, and the owner does not want the panel in his stream.
+  Windows excludes the panel from capture, so it stays up during a share.
   A window share leaves it up, since the share does not include it.
 - One row per person: you first, then the call's own order so rows do not jump, at most 8 rows and then "+N more".
   Each row has a 24px round avatar, the name, and a struck-through microphone or headphones when muted or deafened.
@@ -157,8 +158,9 @@ Owner, 2026-11-04: "validate the overlay setup, maybe it would be nice to do lik
 - The protocol gains `panel` (rows, corner, monitor index, colours; null clears it) and `appMonitor` (the index of the monitor the app window is on, or -1).
   Dart decides the rows and the colours; the runner only draws, and it repaints only when `panel` is called.
   Dart sends `panel` only when the panel differs from the last one it sent, so a speaking flicker that changes no row costs nothing, and the runner has no timer.
-- The window belongs to one owner at a time.
+- On Linux the window belongs to one owner at a time.
   The drawing overlay needs a whole-screen share and the panel needs there to be none, so they are never wanted together; the controller hands the window from one to the other.
+- On Windows the panel has its own window, so it stays on its chosen monitor while the drawing overlay covers the shared one.
 - Monitor: the one the app window is on when the runner can tell (GDK `monitor_at_window` on Linux, `MonitorFromWindow` on Windows), otherwise the primary.
   It is chosen when the panel opens and does not follow the window to another monitor mid-call.
 - Overlay screen (2026-11-06): with two or more screens the setting offers Automatic (the rule above) or a named screen.
