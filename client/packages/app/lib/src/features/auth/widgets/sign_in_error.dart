@@ -14,16 +14,9 @@ import '../../../api_failure.dart';
 /// Which field a failure lands on, per error grammar 03: an error belongs to
 /// the thing that failed, with that thing's content preserved.
 /// [SignInErrorField.form] is the fallback for failures no one field owns.
-enum SignInErrorField { server, username, displayName, password, form }
-
-/// The longest display name the server accepts, in characters.
-const displayNameMaxLength = InputLimits.name;
-
-/// What to tell someone whose display name is past the server's limit, or null.
-String? displayNameError(String text) =>
-    text.trim().runes.length > displayNameMaxLength
-    ? 'Display name must be $displayNameMaxLength characters or fewer.'
-    : null;
+/// [SignInErrorField.credentials] marks both username and password, with the
+/// message under the password, because a wrong pair does not say which half.
+enum SignInErrorField { server, username, password, credentials, form }
 
 /// What to say when something other than the server failed, such as the key store.
 const unexpectedSignInError = (
@@ -37,7 +30,7 @@ const unexpectedSignInError = (
 /// fix their password or wait a minute.
 (SignInErrorField, String) signInErrorFor(ApiException e) => switch (e) {
   UnauthorizedException() => (
-    SignInErrorField.password,
+    SignInErrorField.credentials,
     'Wrong username or password.',
   ),
   ConflictException() => (
@@ -46,7 +39,7 @@ const unexpectedSignInError = (
   ),
   BadRequestException(:final message) => (
     _badRequestField(message),
-    sentenceCase(message.replaceFirst('display_name', 'display name')),
+    sentenceCase(message),
   ),
   RateLimitedException() => (
     SignInErrorField.form,
@@ -83,7 +76,6 @@ const unexpectedSignInError = (
 SignInErrorField _badRequestField(String message) =>
     switch (message.trimLeft().split(' ').first.toLowerCase()) {
       'username' => SignInErrorField.username,
-      'display_name' => SignInErrorField.displayName,
       'password' => SignInErrorField.password,
       _ => SignInErrorField.form,
     };

@@ -25,6 +25,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../support/mid_flight_capture.dart';
+import '../support/async_wait.dart';
 import '../support/mock_app_version.dart';
 import '../support/onboarding_error_strings.dart';
 import '../ui_snapshot_support.dart';
@@ -52,7 +53,12 @@ const _identityA = {
 
 String _handleFor(String server) => 'server_identity:$server';
 
-const _validVersion = {'name': 'slim-m', 'version': '0.10.0', 'protocol': 1};
+const _validVersion = {
+  'name': 'slim-m',
+  'version': '0.10.0',
+  'protocol': 1,
+  'capabilities': ['report', 'block'],
+};
 
 /// [versionBody] answers every `/version` probe. [authResponder] answers
 /// `/auth/login` and `/auth/register`; a null one leaves both at the fake
@@ -136,16 +142,29 @@ http.Response _jsonResponse(Map<String, Object?> body, int status) =>
       headers: const {'content-type': 'application/json'},
     );
 
+/// Creates an account far enough to reach the acknowledge modal.
+Future<void> _openWarnings(WidgetTester tester) async {
+  final toggle = find.text('Create an account instead');
+  if (toggle.evaluate().isNotEmpty) await tester.tap(toggle);
+  await pumpFrames(tester, frames: 30);
+  Finder input(String label) =>
+      find.byWidgetPredicate((w) => w is AppInput && w.semanticLabel == label);
+  await tester.enterText(input('Username'), 'alice');
+  await tester.enterText(input('Password'), 'hunter2hunter2');
+  await tester.tap(find.widgetWithText(AppButton, 'Create account'));
+  await pumpFrames(tester, frames: 30);
+}
+
 void main() {
   setUpAll(loadRealFonts);
   setUpAll(mockAppVersion);
 
   group('probe notices', () {
-    testWidgets('creating an account shows the extra display-name field '
-        'and the identity stepper', (tester) async {
+    testWidgets('creating an account shows the identity '
+        'stepper and no display-name field', (tester) async {
       await _pumpSignIn(tester, pendingInvite: true);
       expect(find.text('Create an account'), findsOneWidget);
-      expect(find.text('Display name'), findsOneWidget);
+      expect(find.text('Display name'), findsNothing);
       await _finish(tester, 'sign-in-mode-create-account-desktop');
     });
 
@@ -215,8 +234,9 @@ void main() {
           'protocol': 1,
         },
       );
+      await _openWarnings(tester);
       expect(find.textContaining('too old to say'), findsOneWidget);
-      await _finish(tester, 'safety-notice-unknown-desktop');
+      await _finish(tester, 'safety-warning-unknown-desktop');
     });
 
     testWidgets('neither report nor block offered', (tester) async {
@@ -229,8 +249,9 @@ void main() {
           'capabilities': <String>[],
         },
       );
+      await _openWarnings(tester);
       expect(find.textContaining('no way to report'), findsOneWidget);
-      await _finish(tester, 'safety-notice-missing-both-desktop');
+      await _finish(tester, 'safety-warning-missing-both-desktop');
     });
 
     testWidgets('report absent, block present', (tester) async {
@@ -243,7 +264,8 @@ void main() {
           'capabilities': ['block'],
         },
       );
-      await _finish(tester, 'safety-notice-missing-report-desktop');
+      await _openWarnings(tester);
+      await _finish(tester, 'safety-warning-missing-report-desktop');
     });
 
     testWidgets('block absent, report present', (tester) async {
@@ -256,7 +278,8 @@ void main() {
           'capabilities': ['report'],
         },
       );
-      await _finish(tester, 'safety-notice-missing-block-desktop');
+      await _openWarnings(tester);
+      await _finish(tester, 'safety-warning-missing-block-desktop');
     });
 
     testWidgets('invite required, shown only while creating an account', (
@@ -310,6 +333,8 @@ void main() {
         },
       );
       await _finish(tester, 'probe-notices-stacked-desktop');
+      await _openWarnings(tester);
+      await _finish(tester, 'probe-warnings-stacked-desktop');
     });
   });
 
@@ -328,6 +353,13 @@ void main() {
       );
       await submitSignIn(tester);
       expect(find.text('Wrong username or password.'), findsOneWidget);
+      AppInput field(String label) => tester.widget<AppInput>(
+        find.byWidgetPredicate(
+          (w) => w is AppInput && w.semanticLabel == label,
+        ),
+      );
+      expect(field('Username').invalid, isTrue);
+      expect(field('Password').errorText, 'Wrong username or password.');
       await _finish(tester, 'submit-wrong-credentials-desktop');
     });
 
@@ -338,7 +370,7 @@ void main() {
         authResponder: (r) => _jsonResponse({'error': 'taken'}, 409),
       );
       await tester.enterText(find.byType(TextField).at(1), 'alice');
-      await tester.enterText(find.byType(TextField).at(3), 'hunter2');
+      await tester.enterText(find.byType(TextField).at(2), 'hunter2hunter2');
       await tester.tap(find.widgetWithText(AppButton, 'Create account'));
       await tester.pumpAndSettle();
       expect(find.text('That username is already taken.'), findsOneWidget);

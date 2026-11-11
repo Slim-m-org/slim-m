@@ -25,7 +25,7 @@ extension SlimmApiAuth on SlimmApi {
   /// leaves both the username and the code untouched.
   Future<TokenPair> register({
     required String username,
-    required String displayName,
+    String? displayName,
     required String password,
     required String deviceName,
     String? inviteCode,
@@ -39,7 +39,7 @@ extension SlimmApiAuth on SlimmApi {
       authenticated: false,
       body: {
         'username': username,
-        'display_name': displayName,
+        if (displayName != null) 'display_name': displayName,
         'password': password,
         'device_name': deviceName,
         if (inviteCode != null) 'invite_code': inviteCode,
