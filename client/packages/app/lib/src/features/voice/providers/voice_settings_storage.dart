@@ -41,6 +41,7 @@ abstract final class VoiceSettingKeys {
   static const callOverlayScreen = 'slimm.voice.call_overlay_screen';
   static const audioInputDeviceId = 'slimm.voice.audio_input_device_id';
   static const audioOutputDeviceId = 'slimm.voice.audio_output_device_id';
+  static const cameraDeviceId = 'slimm.voice.camera_device_id';
 }
 
 const holdMusicEnabledKey = 'slimm.voice.hold_music_enabled';
@@ -144,6 +145,12 @@ Future<(String?, String?)> loadAudioDevicePreferences(Ref ref) async {
     prefs.getString(VoiceSettingKeys.audioInputDeviceId),
     prefs.getString(VoiceSettingKeys.audioOutputDeviceId),
   );
+}
+
+/// The webcam id saved by the last camera pick, null when none was made.
+Future<String?> loadCameraDeviceId(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getString(VoiceSettingKeys.cameraDeviceId);
 }
 
 /// The saved microphone id from [prefs], null for the system default.

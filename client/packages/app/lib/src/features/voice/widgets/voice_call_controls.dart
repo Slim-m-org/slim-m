@@ -504,6 +504,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// [_share]'s own fork between "the OS decides" and "list, then choose".
   Future<void> _switchCamera(BuildContext context) async {
     final controller = widget.controller;
+    final settings = ref.read(voiceSettingsControllerProvider.notifier);
     setState(() => _cameraSwitchInFlight = true);
     try {
       if (controller.video.canFlipCamera) {
@@ -516,12 +517,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
       if (!context.mounted) return;
       // A single-entry list has nothing to choose between, mirroring _share.
       if (devices.length == 1) {
-        await controller.video.selectCameraDevice(devices.first);
+        await pickCameraDevice(controller.video, settings, devices.first);
         return;
       }
       final chosen = await showCameraDeviceSheet(context, devices);
       if (chosen == null) return;
-      await controller.video.selectCameraDevice(chosen);
+      await pickCameraDevice(controller.video, settings, chosen);
     } finally {
       if (mounted) setState(() => _cameraSwitchInFlight = false);
     }

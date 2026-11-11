@@ -41,6 +41,7 @@ class VoiceSettingsState {
     this.speakerPreferred = true,
     this.audioInputDeviceId,
     this.audioOutputDeviceId,
+    this.cameraDeviceId,
   });
 
   final bool joinLeaveSoundsEnabled;
@@ -139,6 +140,9 @@ class VoiceSettingsState {
   /// [audioInputDeviceId]'s own counterpart for the speaker.
   final String? audioOutputDeviceId;
 
+  /// The webcam last picked on a desktop; null follows the system default.
+  final String? cameraDeviceId;
+
   VoiceSettingsState copyWith({
     bool? joinLeaveSoundsEnabled,
     bool? callRingSoundEnabled,
@@ -168,6 +172,7 @@ class VoiceSettingsState {
     bool clearAudioInputDeviceId = false,
     String? audioOutputDeviceId,
     bool clearAudioOutputDeviceId = false,
+    String? cameraDeviceId,
   }) => VoiceSettingsState(
     joinLeaveSoundsEnabled:
         joinLeaveSoundsEnabled ?? this.joinLeaveSoundsEnabled,
@@ -206,5 +211,6 @@ class VoiceSettingsState {
     audioOutputDeviceId: clearAudioOutputDeviceId
         ? null
         : (audioOutputDeviceId ?? this.audioOutputDeviceId),
+    cameraDeviceId: cameraDeviceId ?? this.cameraDeviceId,
   );
 }

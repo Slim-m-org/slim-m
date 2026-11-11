@@ -33,7 +33,8 @@ import 'voice_join_muted.dart';
 import 'voice_participant_volumes.dart';
 import 'voice_rejoin.dart';
 import 'voice_screen_share.dart';
-import 'voice_settings_controller.dart' show loadCameraOnJoinPreference;
+import 'voice_settings_controller.dart'
+    show loadCameraDeviceId, loadCameraOnJoinPreference;
 import 'voice_reconnect_display.dart';
 import 'voice_session_sync.dart';
 import 'voice_share_resume.dart';
@@ -322,6 +323,8 @@ class VoiceController extends StateNotifier<VoiceState> {
     final generation = _callGeneration;
     final want = !state.cameraEnabled;
     state = state.copyWith(cameraPending: true);
+    if (want) await _reuseSavedCamera();
+    if (generation != _callGeneration) return;
     final (got, cause) = await setCameraWithin(_session, want);
     if (generation != _callGeneration) return;
     if (cause != null) {
@@ -333,6 +336,20 @@ class VoiceController extends StateNotifier<VoiceState> {
       error: got ? null : cameraFailureMessage(want, cause),
       clearError: got,
     );
+  }
+
+  /// Opens the webcam picked in an earlier call, if it is still plugged in.
+  Future<void> _reuseSavedCamera() async {
+    if (!video.cameraNeedsSelection) return;
+    final id = await loadCameraDeviceId(_ref);
+    if (id == null) return;
+    final devices = await video.cameraDevices();
+    for (final device in devices) {
+      if (device.id == id) {
+        await video.selectCameraDevice(device);
+        return;
+      }
+    }
   }
 
   /// The camera a join asked for opens after connected: pending while it does, and a persistent error when it cannot.

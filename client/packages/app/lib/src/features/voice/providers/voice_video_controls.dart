@@ -85,14 +85,10 @@ class VoiceVideoControls {
     return ok;
   }
 
-  /// The camera last picked this call, for the menu's check mark; null until one is.
-  String? chosenCameraId;
-
   /// Switches the published camera to [device], desktop's picker equivalent
   /// of [flipCamera].
   Future<bool> selectCameraDevice(CameraDevice device) async {
     final ok = await _session.selectCameraDevice(device);
-    if (ok) chosenCameraId = device.id;
     _access.state = _current.copyWith(
       error: ok ? null : 'Could not switch to that camera.',
       clearError: ok,

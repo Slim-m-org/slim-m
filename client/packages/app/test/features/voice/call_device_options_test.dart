@@ -136,6 +136,26 @@ void main() {
       expect(session.cameraSwitchCalls, ['select:cam-2']);
     });
 
+    testWidgets('a camera pick is remembered for the next call', (
+      tester,
+    ) async {
+      final session = InertSession()
+        ..cameraNeedsSelection = true
+        ..cameraDeviceList = const [_builtIn, _usbCam];
+      final container = await _pump(tester, session);
+      await _open(tester, find.byTooltip('Camera options'));
+      await tester.tap(find.text('USB camera'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        container.read(voiceSettingsControllerProvider).cameraDeviceId,
+        'cam-2',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('slimm.voice.camera_device_id'), 'cam-2');
+    });
+
     testWidgets('offers a flip where the platform flips', (tester) async {
       final session = InertSession()..canFlipCamera = true;
       await _pump(tester, session);
