@@ -23,7 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../providers/voice_controller.dart';
+import '../providers/voice_elsewhere.dart';
 import '../providers/voice_flags.dart';
 import '../../../routing/routes.dart';
 
@@ -42,7 +42,11 @@ void openVoiceChannel(
     channelId: channelId,
     alreadySelected: alreadySelected,
   )) {
-    container.read(voiceControllerProvider.notifier).join(channelId);
+    final last = container.read(voiceRejoinRequestProvider);
+    container.read(voiceRejoinRequestProvider.notifier).state = (
+      channelId: channelId,
+      n: (last?.n ?? 0) + 1,
+    );
   }
 }
 

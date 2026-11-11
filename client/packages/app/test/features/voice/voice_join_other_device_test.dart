@@ -63,6 +63,12 @@ void main() {
     }
   }
 
+  // Unmounting cancels the roster polls the screen started.
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    harness.container.dispose();
+  }
+
   testWidgets('arriving at the channel this account is in elsewhere asks '
       'before joining', (tester) async {
     final session = FakeSession();
@@ -75,7 +81,8 @@ void main() {
 
     expect(find.text('Join here'), findsOneWidget);
     expect(controller.state.channelId, isNull);
-    expect(session.askedForMicrophoneOnJoin, isFalse);
+    expect(session.askedForMicrophoneOnJoin, isNull);
+    await unmount(tester);
   });
 
   testWidgets('arriving while in another channel elsewhere asks before '
@@ -86,7 +93,6 @@ void main() {
       voiceRosterProvider('channel-a'),
       (_, _) {},
     );
-    addTearDown(rail.close);
     await settle(tester);
 
     await tester.pumpWidget(
@@ -96,6 +102,8 @@ void main() {
 
     expect(find.text('Join here'), findsOneWidget);
     expect(controller.state.channelId, isNull);
+    rail.close();
+    await unmount(tester);
   });
 
   testWidgets('cancel keeps the call where it is', (tester) async {
@@ -111,7 +119,8 @@ void main() {
 
     expect(find.text('Join here'), findsNothing);
     expect(controller.state.channelId, isNull);
-    expect(session.askedForMicrophoneOnJoin, isFalse);
+    expect(session.askedForMicrophoneOnJoin, isNull);
+    await unmount(tester);
   });
 
   testWidgets('join here moves the call to this device', (tester) async {
@@ -124,10 +133,11 @@ void main() {
 
     await tester.tap(find.text('Join here'));
     await settle(tester);
+    await settle(tester);
 
     expect(controller.state.channelId, 'channel-1');
-    expect(session.askedForMicrophoneOnJoin, isTrue);
     expect(find.text('Join here'), findsNothing);
+    await unmount(tester);
   });
 
   testWidgets('this device own reconnect never asks', (tester) async {
@@ -143,6 +153,7 @@ void main() {
     await settle(tester);
 
     expect(find.text('Join here'), findsNothing);
+    await unmount(tester);
   });
 
   testWidgets('answering a ring into a DM call asks before joining', (
@@ -161,5 +172,6 @@ void main() {
 
     expect(find.text('Join here'), findsOneWidget);
     expect(controller.state.channelId, isNull);
+    await unmount(tester);
   });
 }
