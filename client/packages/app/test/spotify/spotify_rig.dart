@@ -52,7 +52,6 @@ class SpotifyRig {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         nowPlayingSourceProvider.overrideWithValue(null),
-        gameSourceProvider.overrideWithValue(null),
         spotifyClientIdProvider.overrideWithValue(clientId),
         spotifyLinkTimeoutProvider.overrideWithValue(linkTimeout),
         deepLinkUrisProvider.overrideWithValue(links.stream),

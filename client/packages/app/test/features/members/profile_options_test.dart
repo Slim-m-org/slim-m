@@ -48,11 +48,6 @@ class _FakeLinker implements SpotifyLinker {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeGames implements GameSource {
-  @override
-  Stream<RunningGame?> watch() => const Stream.empty();
-}
-
 Future<List<Map<String, dynamic>>> _pump(
   WidgetTester tester,
   Widget pane, {
@@ -185,7 +180,6 @@ void main() {
       const ActivitySharingSection(),
       overrides: [
         nowPlayingSourceProvider.overrideWithValue(_FakeNowPlaying()),
-        gameSourceProvider.overrideWithValue(_FakeGames()),
         spotifyClientIdProvider.overrideWithValue('client'),
         spotifyLinkerProvider.overrideWith((ref) => linker),
       ],
@@ -194,7 +188,6 @@ void main() {
 
     for (final entry in {
       "Show what I'm listening to": shareListeningKey,
-      'Show my current game': shareGameKey,
     }.entries) {
       final toggle = find.byWidgetPredicate(
         (w) => w is AppToggle && w.semanticLabel == entry.key,

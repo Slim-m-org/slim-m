@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Linking a Discord account to a member, through Discord's OAuth code flow.
+//! The list routes and the handoff are shared with Steam (`steam_link`).
 //!
 //! `/me/links/discord/start` mints a one-time state and hands back Discord's
 //! authorize URL; the browser comes back to `/links/discord/callback`, which
@@ -32,12 +33,13 @@ use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::{LinkedAccount, PendingLink, now_ms};
 
-pub(super) const PROVIDER: &str = "discord";
+pub(super) const DISCORD: &str = "discord";
+pub(super) const STEAM: &str = "steam";
 const DISCORD_API: &str = "https://discord.com/api";
 const DISCORD_CDN: &str = "https://cdn.discordapp.com";
-const STATE_LIFETIME_MS: i64 = 10 * 60 * 1000;
+pub(super) const STATE_LIFETIME_MS: i64 = 10 * 60 * 1000;
 const DISCORD_TIMEOUT: Duration = Duration::from_secs(10);
-const MAX_NAME_CHARS: usize = 64;
+pub(super) const MAX_NAME_CHARS: usize = 64;
 
 /// The configured Discord application, or nothing when linking is off.
 /// Handed to the router as an `Extension` so the many test `AppState`s need
@@ -191,6 +193,7 @@ pub fn routes() -> Router<AppState> {
             get(linked_avatar::get_discord_avatar),
         )
         .merge(link_handoff::routes())
+        .merge(super::steam_link::routes())
 }
 
 #[derive(Serialize)]
@@ -200,6 +203,7 @@ pub(super) struct LinkedAccountDto {
     display_name: Option<String>,
     linked_at: i64,
     avatar_updated_at: Option<i64>,
+    share_activity: bool,
 }
 
 impl From<LinkedAccount> for LinkedAccountDto {
@@ -210,6 +214,7 @@ impl From<LinkedAccount> for LinkedAccountDto {
             display_name: account.display_name,
             linked_at: account.linked_at,
             avatar_updated_at: account.avatar_updated_at,
+            share_activity: account.share_activity,
         }
     }
 }
@@ -236,7 +241,7 @@ async fn start(
         .store
         .create_link_state(
             ctx.user_id,
-            PROVIDER,
+            DISCORD,
             &link_state,
             now_ms() + STATE_LIFETIME_MS,
         )
@@ -255,7 +260,7 @@ struct CallbackQuery {
 
 /// What the browser tab shows when there is nothing to hand back. Fixed text
 /// only: nothing from the request is echoed into the page.
-fn page(status: StatusCode, message: &str) -> Response {
+pub(super) fn page(status: StatusCode, message: &str) -> Response {
     let inner = format!("<p>{}</p>", escape(message));
     respond(status, shell("slim-m", &inner, ""))
 }
@@ -279,7 +284,7 @@ async fn callback(
             "This link is not valid. Start again from slim-m.",
         ));
     };
-    let Some(user_id) = state.store.take_link_state(&link_state, PROVIDER).await? else {
+    let Some(user_id) = state.store.take_link_state(&link_state, DISCORD).await? else {
         return Ok(page(
             StatusCode::BAD_REQUEST,
             "This link has expired or was already used. Start again from slim-m.",
@@ -320,9 +325,12 @@ async fn callback(
     };
     let handoff = state
         .store
-        .create_link_handoff(PROVIDER, &pending, now_ms() + STATE_LIFETIME_MS)
+        .create_link_handoff(DISCORD, &pending, now_ms() + STATE_LIFETIME_MS)
         .await?;
-    Ok(respond(StatusCode::OK, handoff_page(&handoff)))
+    Ok(respond(
+        StatusCode::OK,
+        handoff_page(DISCORD, "Discord", &handoff),
+    ))
 }
 
 /// Writes the fetched picture, or removes an earlier link's when this one has
@@ -333,14 +341,14 @@ pub(super) async fn store_avatar(state: &AppState, user_id: UserId, avatar: Opti
         Some(bytes) => {
             state
                 .media
-                .write_linked_avatar(PROVIDER, &owner, bytes)
+                .write_linked_avatar(DISCORD, &owner, bytes)
                 .await
         }
-        None => state.media.delete_linked_avatar(PROVIDER, &owner).await,
+        None => state.media.delete_linked_avatar(DISCORD, &owner).await,
     };
     if let Err(error) = written {
         tracing::warn!(%error, "discord link: could not store the picture");
-        if let Err(error) = state.store.clear_linked_avatar(user_id, PROVIDER).await {
+        if let Err(error) = state.store.clear_linked_avatar(user_id, DISCORD).await {
             tracing::warn!(%error, "discord link: could not clear the picture marker");
         }
     }
@@ -350,7 +358,7 @@ pub(super) async fn store_avatar(state: &AppState, user_id: UserId, avatar: Opti
 pub(super) async fn purge_avatar_files(state: &AppState, user_id: UserId) {
     if let Err(error) = state
         .media
-        .delete_linked_avatar(PROVIDER, &user_id.to_string())
+        .delete_linked_avatar(DISCORD, &user_id.to_string())
         .await
     {
         tracing::warn!(%error, "failed to delete a linked account's picture file");
@@ -363,7 +371,7 @@ async fn unlink(
     Authed(ctx): Authed,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    state.store.unlink_account(ctx.user_id, PROVIDER).await?;
+    state.store.unlink_account(ctx.user_id, DISCORD).await?;
     purge_avatar_files(&state, ctx.user_id).await;
     Ok(StatusCode::NO_CONTENT)
 }

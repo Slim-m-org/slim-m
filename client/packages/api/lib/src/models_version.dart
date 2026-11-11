@@ -32,6 +32,7 @@ class Version {
     this.iconUpdatedAt,
     this.linkPreviewsEnabled,
     this.discordLinkEnabled,
+    this.steamLinkEnabled,
     this.screenShareMaxHeight,
     this.strongNoiseSuppression = false,
     this.membersCanInvite = false,
@@ -95,6 +96,9 @@ class Version {
   /// Whether members can link a Discord account here; null on older servers,
   /// read as false.
   final bool? discordLinkEnabled;
+
+  /// Whether members can link Steam here; null on older servers, read as false.
+  final bool? steamLinkEnabled;
 
   /// The tallest resolution a screen share may publish at. Null on servers
   /// older than this field, which a client must treat as no ceiling: this
@@ -193,6 +197,7 @@ class Version {
         iconUpdatedAt: json['icon_updated_at'] as int?,
         linkPreviewsEnabled: json['link_previews_enabled'] as bool?,
         discordLinkEnabled: json['discord_link_enabled'] as bool?,
+        steamLinkEnabled: json['steam_link_enabled'] as bool?,
         screenShareMaxHeight: json['screen_share_max_height'] as int?,
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,

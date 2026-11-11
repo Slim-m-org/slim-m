@@ -297,6 +297,30 @@ impl PresenceTracker {
         changed
     }
 
+    /// What the user is doing right now, before any viewer-side hiding. For
+    /// the server's own Steam poller, never for a response to a viewer.
+    pub fn activity(&self, user_id: UserId) -> Option<Activity> {
+        lock(&self.state)
+            .get(&user_id)
+            .and_then(|e| e.activity.clone())
+    }
+
+    /// Applies what a client sent. A Steam activity the server set stays: a
+    /// player's game outranks a track, and only the poller ends it. Returns
+    /// whether anything changed.
+    pub fn set_client_activity(&self, user_id: UserId, activity: Option<Activity>) -> bool {
+        let mut state = lock(&self.state);
+        let Some(entry) = state.get_mut(&user_id) else {
+            return false;
+        };
+        if entry.activity.as_ref().is_some_and(Activity::is_steam) {
+            return false;
+        }
+        let changed = entry.activity != activity;
+        entry.activity = activity;
+        changed
+    }
+
     /// What a viewer may be told `target` is doing: nothing whenever `status`
     /// (already resolved by [`status_for`]) reads offline, which is how a
     /// hidden user's activity stays hidden through the same choke point.

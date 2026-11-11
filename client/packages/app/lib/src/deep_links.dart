@@ -47,6 +47,7 @@ import 'features/accounts/providers/account_providers.dart';
 import 'callback_route_guard.dart';
 import 'discord_link_callback.dart';
 import 'features/settings/providers/discord_link_finish.dart';
+import 'features/settings/providers/steam_link_finish.dart';
 import 'invite_link.dart';
 import 'invite_pending.dart';
 import 'message_link.dart';
@@ -180,6 +181,10 @@ class DeepLinkListener {
       unawaited(_finishDiscordLink(onScreen, uri));
       return;
     }
+    if (isSteamLinkDelivery(uri)) {
+      unawaited(_finishSteamLink(onScreen, uri));
+      return;
+    }
     final host = _host;
     if (host != null && _routeAcrossAccounts(host, uri)) return;
     _followInSession(onScreen, uri);
@@ -195,6 +200,17 @@ Future<void> _finishDiscordLink(ProviderContainer container, Uri uri) async {
     unawaited(router.push<void>(Routes.personalSettingsPane('profile')));
   }
   await container.read(discordLinkFinisherProvider).completeDelivered(code);
+}
+
+/// Completes a Steam link in the account on screen, like [_finishDiscordLink].
+Future<void> _finishSteamLink(ProviderContainer container, Uri uri) async {
+  final code = uri.queryParameters[discordLinkCodeQuery];
+  if (code == null || !container.read(sessionProvider).isSignedIn) return;
+  final router = container.read(routerProvider);
+  if (router.state.uri.path != Routes.personalSettings) {
+    unawaited(router.push<void>(Routes.personalSettingsPane('profile')));
+  }
+  await container.read(steamLinkFinisherProvider).completeDelivered(code);
 }
 
 /// Follows a link in one account's own session, when it names that session.

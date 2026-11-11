@@ -386,7 +386,6 @@ client/packages/app/test/features/emoji/reaction_custom_emoji_test.dart 9 7
 client/packages/app/test/features/first_run/first_run_flow_test.dart 3 0
 client/packages/app/test/features/first_run/first_run_welcome_test.dart 4 0
 client/packages/app/test/features/first_run/no_channel_selected_test.dart 3 0
-client/packages/app/test/features/members/activity_game_test.dart 0 2
 client/packages/app/test/features/members/avatar_crop_sheet_test.dart 0 1
 client/packages/app/test/features/members/avatar_no_fetch_test.dart 0 1
 client/packages/app/test/features/members/avatar_photo_menu_test.dart 5 7

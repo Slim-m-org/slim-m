@@ -93,9 +93,5 @@ void main() {
 
       expect(activity?.source, isNull);
     });
-
-    test('a game with nothing visible in its name shares nothing', () {
-      expect(activityFromGame(const RunningGame('​')), isNull);
-    });
   });
 }

@@ -76,14 +76,14 @@ pub(super) async fn get_discord_avatar(
     let user_id = UserId(parse_uuid(&user_id)?);
     if !state
         .store
-        .has_linked_avatar(user_id, super::linked_accounts::PROVIDER)
+        .has_linked_avatar(user_id, super::linked_accounts::DISCORD)
         .await?
     {
         return Err(ApiError::NotFound("no linked picture"));
     }
     let bytes = state
         .media
-        .read_linked_avatar(super::linked_accounts::PROVIDER, &user_id.to_string())
+        .read_linked_avatar(super::linked_accounts::DISCORD, &user_id.to_string())
         .await
         .map_err(|err| {
             tracing::error!(error = %err, "failed to read a stored linked picture");

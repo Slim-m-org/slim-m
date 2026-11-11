@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The sheet that finishes a Discord link with the code the browser page
-/// shows, for when its "Open slim-m" button does not reach the app.
+/// The sheet that finishes a Discord or Steam link with the code the browser
+/// page shows, for when its "Open slim-m" button does not reach the app.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,15 +9,27 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/labeled_field.dart';
 import '../providers/discord_link_finish.dart';
+import '../providers/steam_link_finish.dart';
 
 const _maxPasteChars = 128;
 
 /// Opens the code prompt.
 Future<void> showDiscordLinkCodeSheet(BuildContext context) =>
-    showAppSheet<void>(context, builder: (_) => const _DiscordLinkCodeSheet());
+    showAppSheet<void>(
+      context,
+      builder: (_) => const _DiscordLinkCodeSheet(service: 'Discord'),
+    );
+
+/// Opens the code prompt for a Steam link.
+Future<void> showSteamLinkCodeSheet(BuildContext context) => showAppSheet<void>(
+  context,
+  builder: (_) => const _DiscordLinkCodeSheet(service: 'Steam'),
+);
 
 class _DiscordLinkCodeSheet extends ConsumerStatefulWidget {
-  const _DiscordLinkCodeSheet();
+  const _DiscordLinkCodeSheet({required this.service});
+
+  final String service;
 
   @override
   ConsumerState<_DiscordLinkCodeSheet> createState() =>
@@ -36,12 +48,14 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
   }
 
   Future<void> _submit() async {
-    final finisher = ref.read(discordLinkFinisherProvider);
+    final complete = widget.service == 'Steam'
+        ? ref.read(steamLinkFinisherProvider).complete
+        : ref.read(discordLinkFinisherProvider).complete;
     setState(() {
       _busy = true;
       _error = null;
     });
-    final failure = await finisher.complete(_code.text);
+    final failure = await complete(_code.text);
     if (!mounted) return;
     if (failure == null) {
       Navigator.of(context).pop();
@@ -57,7 +71,7 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      key: const ValueKey('discord-link-code-sheet'),
+      key: ValueKey('${widget.service.toLowerCase()}-link-code-sheet'),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
@@ -72,7 +86,7 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
             children: [
               Expanded(
                 child: Text(
-                  'Finish linking Discord',
+                  'Finish linking ${widget.service}',
                   style: AppText.heading.copyWith(
                     color: tokens.textPrimary,
                     fontWeight: AppWeights.semi,
@@ -90,15 +104,15 @@ class _DiscordLinkCodeSheetState extends ConsumerState<_DiscordLinkCodeSheet> {
           const SizedBox(height: AppSpacing.s8),
           LabeledField(
             label: 'Link code',
-            helper: 'Shown on the page Discord sent you back to.',
+            helper: 'Shown on the page ${widget.service} sent you back to.',
             child: AppInput(
-              key: const ValueKey('discord-link-code-field'),
+              key: ValueKey('${widget.service.toLowerCase()}-link-code-field'),
               controller: _code,
               maxLength: _maxPasteChars,
               autofocus: true,
               autocorrect: false,
               mono: true,
-              semanticLabel: 'Discord link code',
+              semanticLabel: '${widget.service} link code',
               onSubmitted: (_) => _busy ? null : _submit(),
             ),
           ),
