@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.128.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.127.0...client-v0.128.0) (2026-11-11)
+
+
+### Features
+
+* audit wave 2b, Discord linking in the app, the call overlay redesign and 21 fix batches ([#2389](https://github.com/Slim-m-org/slim-m/issues/2389)) ([f9c39f0](https://github.com/Slim-m-org/slim-m/commit/f9c39f0d5a4fb3df4c2eccd5138eac4ee0787e9a))
+* everything outstanding for 0.128.0 - fit-to-box call stage, one call menu pattern, transcripts, steam, google play ([#2394](https://github.com/Slim-m-org/slim-m/issues/2394)) ([fe81163](https://github.com/Slim-m-org/slim-m/commit/fe81163fa18b38012eeed0d900f73c84dc316e04))
+
+
+### Bug Fixes
+
+* **client:** category headers in the desktop rail sit one row apart, not 44 px ([#2385](https://github.com/Slim-m-org/slim-m/issues/2385)) ([fbb1b5e](https://github.com/Slim-m-org/slim-m/commit/fbb1b5ed16f752ca6fca349efadee38dfedf045c))
+* **client:** channel names in the rail use the full width until you hover a row ([#2380](https://github.com/Slim-m-org/slim-m/issues/2380)) ([a764921](https://github.com/Slim-m-org/slim-m/commit/a76492198b5803b9017e8d36c902b6b949982851))
+* **client:** customize shows a live landing preview with the banner, instead of a separate page ([#2383](https://github.com/Slim-m-org/slim-m/issues/2383)) ([44d7183](https://github.com/Slim-m-org/slim-m/commit/44d71838e69b2f8ceafbd5abf4ead7fc1d66abd2))
+* **client:** old messages show their attachments, reactions and polls after a jump or a restart ([#2388](https://github.com/Slim-m-org/slim-m/issues/2388)) ([d78add7](https://github.com/Slim-m-org/slim-m/commit/d78add7733111514221c1f464b9da1c21d4f49b7))
+* **client:** one line per bot in Settings &gt; Bots, with every action in one menu ([#2384](https://github.com/Slim-m-org/slim-m/issues/2384)) ([b8696de](https://github.com/Slim-m-org/slim-m/commit/b8696de96936d13b9f9445b0356cd1f161af1618))
+* **client:** the profile banner row drops its Remove button ([#2386](https://github.com/Slim-m-org/slim-m/issues/2386)) ([dcca8a2](https://github.com/Slim-m-org/slim-m/commit/dcca8a26e853e1134866a1363ac07d014095119d))
+
 ## [0.127.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.126.1...client-v0.127.0) (2026-11-10)
 
 
