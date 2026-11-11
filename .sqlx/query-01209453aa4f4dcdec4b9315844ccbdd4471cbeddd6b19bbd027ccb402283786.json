@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT d.id AS \"id!\", d.user_id AS \"user_id: UserId\", u.username, u.display_name,\n                      d.note, d.app_version, d.platform, d.size_bytes, d.created_at, d.log\n               FROM debug_logs d JOIN users u ON u.id = d.user_id WHERE d.id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "username",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "note",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "app_version",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "platform",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "size_bytes",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "log",
+        "ordinal": 9,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "01209453aa4f4dcdec4b9315844ccbdd4471cbeddd6b19bbd027ccb402283786"
+}

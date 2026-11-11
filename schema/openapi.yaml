@@ -9727,6 +9727,117 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /debug-logs:
+    post:
+      operationId: submitDebugLog
+      tags: [system]
+      summary: Send a client debug log to the admins.
+      description: >
+        Any member may send one. The client scrubs the text first; the server
+        keeps what it is given. `log` may be at most 1 MiB and `note` 500
+        characters. Each member keeps their newest 10 logs, and every log is
+        deleted after 30 days. Rate limited per account like an upload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitDebugLogRequest"
+      responses:
+        "201":
+          description: The log was stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmittedDebugLog"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    get:
+      operationId: listDebugLogs
+      tags: [space]
+      summary: List submitted debug logs, newest first.
+      description: >
+        Gated on MANAGE_SERVER. Entries carry who sent them, the note, version,
+        platform and size, never the log text; read one with `getDebugLog`.
+        `limit` defaults to 50 and is clamped to 1..200; `before` is the id of
+        the oldest entry already seen.
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A page of submitted logs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DebugLogEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /debug-logs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      operationId: getDebugLog
+      tags: [space]
+      summary: Read one submitted debug log with its text.
+      description: Gated on MANAGE_SERVER.
+      responses:
+        "200":
+          description: The entry and its log text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebugLog"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteDebugLog
+      tags: [space]
+      summary: Delete one submitted debug log.
+      description: Gated on MANAGE_SERVER.
+      responses:
+        "204":
+          description: The log was deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/alerts:
     get:
       operationId: listAdminAlerts
@@ -13315,6 +13426,70 @@ components:
         muted:
           type: boolean
           description: The caller asked not to be pushed or shown these live.
+    SubmitDebugLogRequest:
+      type: object
+      required: [log, app_version, platform]
+      properties:
+        log:
+          type: string
+          description: The scrubbed debug log text, at most 1 MiB.
+        note:
+          type: string
+          description: What the sender wants the admins to know, at most 500 characters.
+        app_version:
+          type: string
+          description: The client's version, at most 64 characters.
+        platform:
+          type: string
+          description: The client's platform, at most 64 characters.
+    SubmittedDebugLog:
+      type: object
+      required: [id, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        created_at:
+          type: integer
+          format: int64
+          description: Epoch milliseconds.
+    DebugLogEntry:
+      type: object
+      required:
+        [id, user_id, username, display_name, note, app_version, platform, size_bytes, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type: string
+        note:
+          type: string
+        app_version:
+          type: string
+        platform:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+          description: Length of the log text in bytes.
+        created_at:
+          type: integer
+          format: int64
+          description: Epoch milliseconds.
+    DebugLog:
+      allOf:
+        - $ref: "#/components/schemas/DebugLogEntry"
+        - type: object
+          required: [log]
+          properties:
+            log:
+              type: string
     SetAdminAlertsMutedRequest:
       type: object
       required: [muted]

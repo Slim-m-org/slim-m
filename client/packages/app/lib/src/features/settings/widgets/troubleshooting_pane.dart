@@ -22,6 +22,7 @@ import 'call_diagnostics_row.dart';
 import 'call_health_row.dart';
 import 'connection_test_row.dart';
 import 'debug_log_page.dart';
+import 'debug_log_send_sheet.dart';
 import '../../voice/widgets/media_capability_section.dart';
 import 'notification_troubleshooting_card.dart';
 import 'settings_detail_row.dart';
@@ -55,6 +56,7 @@ class TroubleshootingPane extends ConsumerWidget {
                   CallHealthRow(),
                   CallDiagnosticsRow(),
                   _DebugLogRow(),
+                  _SendDebugLogRow(),
                   CallStatsRow(),
                   RunSetupAgainRow(),
                   RunAdminSetupRow(),
@@ -88,6 +90,22 @@ class _DebugLogRow extends ConsumerWidget {
           unawaited(context.push(Routes.debugLog));
         }
       },
+    );
+  }
+}
+
+class _SendDebugLogRow extends ConsumerWidget {
+  const _SendDebugLogRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final empty = ref.watch(debugLogProvider).isEmpty;
+    return AppListRow(
+      leading: const SettingsIconTile(AppIcons.send),
+      label: 'Send debug log',
+      subtitle: empty ? 'Nothing to send yet.' : 'Share it with the admins.',
+      trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
+      onTap: empty ? null : () => unawaited(showDebugLogSendSheet(context)),
     );
   }
 }
@@ -165,6 +183,15 @@ class TroubleshootingHeading extends ConsumerWidget {
             onPressed: empty
                 ? null
                 : () => unawaited(copyDebugLog(context, ref)),
+          ),
+          AppIconButton(
+            icon: AppIcons.send,
+            semanticLabel: 'Send to admins',
+            tooltip: 'Send to admins',
+            iconSize: AppSizes.icon16,
+            onPressed: empty
+                ? null
+                : () => unawaited(showDebugLogSendSheet(context)),
           ),
           AppIconButton(
             icon: AppIcons.delete,

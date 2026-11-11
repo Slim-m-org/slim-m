@@ -45,6 +45,7 @@ const EXEMPT_PREFIXES: &[&str] = &[
     "/channels/{channel_id}/voice",
     "/channels/{channel_id}/unread",
     "/channels/{channelId}/",
+    "/debug-logs",
     "/devices",
     "/diagnostics/",
     "/dms",

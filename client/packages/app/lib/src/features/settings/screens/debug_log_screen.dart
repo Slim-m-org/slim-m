@@ -16,6 +16,7 @@ import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_filter.dart';
 import '../../../routing/routes.dart';
 import '../widgets/debug_log_page.dart';
+import '../widgets/debug_log_send_sheet.dart';
 import 'settings_screen_scaffold.dart';
 
 class DebugLogScreen extends ConsumerWidget {
@@ -36,6 +37,13 @@ class DebugLogScreen extends ConsumerWidget {
               ? 'Copy shown'
               : 'Copy all',
           onPressed: empty ? null : () => unawaited(copyDebugLog(context, ref)),
+        ),
+        IconButton(
+          icon: const Icon(AppIcons.send),
+          tooltip: 'Send to admins',
+          onPressed: empty
+              ? null
+              : () => unawaited(showDebugLogSendSheet(context)),
         ),
         IconButton(
           icon: const Icon(AppIcons.delete),

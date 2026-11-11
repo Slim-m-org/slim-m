@@ -48,6 +48,7 @@ use channels::{
     channel_slow_mode, channel_validation,
 };
 mod code_runs;
+mod debug_logs;
 mod device_client_info;
 mod dms;
 pub mod dock;
@@ -286,6 +287,7 @@ pub fn router(state: AppState) -> Router {
     let app = Router::new()
         .route("/version", get(version::version))
         .merge(admin_audit::routes())
+        .merge(debug_logs::routes())
         .merge(analytics::routes())
         .merge(attachment_limit::routes())
         .merge(media_compression::routes())

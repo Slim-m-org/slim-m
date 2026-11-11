@@ -40,6 +40,7 @@ export 'src/client.dart'
         SlimmApiAdmin,
         SlimmApiSpaceSetup,
         SlimmApiAdminAudit,
+        SlimmApiDebugLogs,
         SlimmApiAttachments,
         SlimmApiUploadSessions,
         kUploadSessionThreshold,

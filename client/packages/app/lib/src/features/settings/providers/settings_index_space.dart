@@ -254,6 +254,13 @@ const spaceSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry(
+    'debug-logs',
+    'Debug logs',
+    description: 'Logs members sent to the admins.',
+    keywords: ['diagnostics', 'bug report', 'support', 'logs'],
+    conditional: true,
+  ),
+  SettingsEntry(
     _metricsPage,
     'This server',
     description: 'Estimates from load tests, a range and not a promise.',
