@@ -11,6 +11,7 @@ import 'package:slimm_rtc/rtc.dart' show supportsStrongestNoiseSuppression;
 
 import '../../../providers/providers.dart';
 import 'voice_controller.dart';
+
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 enum NoiseSuppressionChoice {
@@ -54,6 +55,12 @@ String noiseSuppressionName(NoiseSuppressionChoice choice) => switch (choice) {
   NoiseSuppressionChoice.strongest => 'Strongest',
 };
 
+/// A choice's name on a segment, where Space default has room for one word.
+String noiseSegmentLabel(NoiseSuppressionChoice choice) =>
+    choice == NoiseSuppressionChoice.spaceDefault
+    ? 'Default'
+    : noiseSuppressionName(choice);
+
 /// [noiseSuppressionName], with Space default saying what the Space currently uses.
 String noiseSuppressionLabel(
   NoiseSuppressionChoice choice, {
@@ -71,12 +78,12 @@ final strongestSupportedProvider = Provider<bool>(
   (ref) => supportsStrongestNoiseSuppression,
 );
 
-const _choiceKey = 'slimm.voice.noise_suppression';
+const noiseSuppressionKey = 'slimm.voice.noise_suppression';
 
 /// The persisted choice, for `VoiceInputSettings.restoreNoiseSuppression`.
 Future<NoiseSuppressionChoice> loadNoiseSuppressionChoice(Ref ref) async {
   final prefs = await ref.read(preferencesProvider.future);
-  return NoiseSuppressionChoice.parse(prefs.getString(_choiceKey));
+  return NoiseSuppressionChoice.parse(prefs.getString(noiseSuppressionKey));
 }
 
 /// Whether the Space defaults to strong suppression, or null when the server
@@ -112,7 +119,7 @@ class NoiseSuppressionController extends StateNotifier<NoiseSuppressionChoice> {
   Future<void> set(NoiseSuppressionChoice choice) async {
     state = choice;
     final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.setString(_choiceKey, choice.wire);
+    await prefs.setString(noiseSuppressionKey, choice.wire);
     _ref
         .read(voiceControllerProvider.notifier)
         .input

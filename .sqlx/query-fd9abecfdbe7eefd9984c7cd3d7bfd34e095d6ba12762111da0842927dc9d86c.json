@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO debug_logs (user_id, note, app_version, platform, log, size_bytes, created_at)\n               VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id AS \"id!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "fd9abecfdbe7eefd9984c7cd3d7bfd34e095d6ba12762111da0842927dc9d86c"
+}

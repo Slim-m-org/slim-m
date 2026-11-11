@@ -3,9 +3,7 @@
 /// focusing one share, and stopping then resuming watching.
 library;
 
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
@@ -17,7 +15,6 @@ import 'package:slimm_app/src/features/voice/widgets/voice_call_controls.dart'
     show CallControls;
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
-import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -86,29 +83,16 @@ Future<_Call> _connected(
 Future<void> _leave(_Call call) =>
     call.harness.container.read(voiceControllerProvider.notifier).leave();
 
-Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
+Finder _tile(String id) => find.byKey(ValueKey('share:$id'));
 
 Key _stage(String id) => ValueKey('share-stage-$id');
 
+double _area(WidgetTester tester, Finder f) {
+  final r = tester.getRect(f);
+  return r.width * r.height;
+}
+
 void main() {
-  test('the grid picks the columns that give each share the most room', () {
-    int cols(Size pane, int n) => shareGridFit(pane, n).columns;
-    // The owner's report: two shares in a tall wide pane got a third each.
-    expect(cols(const Size(1460, 760), 2), 2);
-    expect(shareGridFit(const Size(1460, 760), 2).tileWidth, 724);
-    expect(cols(const Size(358, 1100), 2), 1);
-    expect(cols(const Size(1400, 900), 4), 2);
-    expect(cols(const Size(1800, 400), 3), 3);
-    expect(cols(const Size(355, double.infinity), 4), 1);
-  });
-
-  test('a short pane shrinks the tiles to fit its height', () {
-    final fit = shareGridFit(const Size(1400, 300), 2);
-    expect(fit.columns, 2);
-    final tileHeight = fit.tileWidth / (16 / 9) + shareGridCaptionHeight;
-    expect(tileHeight, lessThanOrEqualTo(300));
-  });
-
   testWidgets('opening the chat beside a share relays the call out once', (
     tester,
   ) async {
@@ -171,146 +155,105 @@ void main() {
     await _leave(call);
   });
 
-  testWidgets('your own share fills the stage like a remote one', (
+  testWidgets('your own share is a calm tile with a Stop sharing button', (
     tester,
   ) async {
     final call = await _connected(tester, [
       _p('me', local: true),
       _p('a', sharing: false),
     ], _wide);
-    final mine = tester.getSize(find.byKey(const Key('fake-share-view-me')));
-    expect(mine.width, greaterThan(640));
+    expect(find.byKey(const Key('fake-share-view-me')), findsNothing);
     expect(find.text('You are sharing your screen'), findsOneWidget);
-
-    call.session.emitParticipants([
-      _p('me', local: true, sharing: false),
-      _p('a'),
-    ]);
-    await tester.pump(const Duration(seconds: 1));
-    expect(tester.getSize(find.byKey(const Key('fake-share-view-a'))), mine);
+    final stop = tester.getRect(find.text('Stop sharing'));
+    expect(tester.getRect(_tile('me')).contains(stop.center), isTrue);
     await _leave(call);
   });
 
-  testWidgets('one share keeps the single stage with no grid', (tester) async {
+  testWidgets('one share keeps the single stage with no strip', (tester) async {
     final call = await _connected(tester, [
       _p('a'),
       _p('b', sharing: false),
     ], _wide);
     expect(find.byType(ScreenShareStage), findsOneWidget);
-    expect(_tile('a'), findsNothing);
     expect(find.byTooltip('Focus this share'), findsNothing);
     await _leave(call);
   });
 
-  for (final (name, size, cols) in [
-    ('wide', _wide, 2),
-    ('ultrawide', _ultrawide, 3),
-    ('medium', _medium, 2),
-    ('phone', _phone, 1),
+  for (final (name, size) in [
+    ('wide', _wide),
+    ('ultrawide', _ultrawide),
+    ('medium', _medium),
+    ('phone', _phone),
+    ('small phone', const Size(360, 640)),
   ]) {
-    testWidgets('three shares at $name width lay out in $cols column(s)', (
+    testWidgets('six shares at $name width show six tiles that keep 16:9', (
       tester,
     ) async {
-      final call = await _connected(tester, [_p('a'), _p('b'), _p('c')], size);
-      expect(find.byType(ScreenShareStage), findsNWidgets(3));
-      final tops = {
-        for (final id in ['a', 'b', 'c']) tester.getTopLeft(_tile(id)).dy,
-      };
-      expect(tops.length, (3 / cols).ceil());
-      for (final id in ['a', 'b', 'c']) {
-        final box = tester.getSize(
-          find
-              .descendant(of: _tile(id), matching: find.byType(AspectRatio))
-              .first,
-        );
-        expect(box.width / box.height, closeTo(16 / 9, 0.02));
+      final call = await _connected(tester, [
+        for (final id in ['a', 'b', 'c', 'd', 'e', 'f']) _p(id),
+      ], size);
+      expect(find.byType(ScreenShareStage), findsNWidgets(6));
+      final screen = Offset.zero & size;
+      final rects = [
+        for (final id in ['a', 'b', 'c', 'd', 'e', 'f'])
+          tester.getRect(_tile(id)),
+      ];
+      for (final r in rects) {
+        expect(screen.contains(r.topLeft), isTrue, reason: '$r');
+        expect(screen.contains(r.bottomRight), isTrue, reason: '$r');
+        expect(r.width / r.height, closeTo(16 / 9, 0.02));
       }
-      expect(tester.takeException(), isNull);
-      await _leave(call);
-    });
-
-    testWidgets('two shares at $name width show both without overflow', (
-      tester,
-    ) async {
-      final call = await _connected(tester, [_p('a'), _p('b')], size);
-      expect(_tile('a'), findsOneWidget);
-      expect(_tile('b'), findsOneWidget);
+      for (var i = 0; i < rects.length; i++) {
+        for (var j = i + 1; j < rects.length; j++) {
+          final inter = rects[i].intersect(rects[j]);
+          expect(inter.width > 0.5 && inter.height > 0.5, isFalse);
+        }
+      }
       expect(tester.takeException(), isNull);
       await _leave(call);
     });
   }
 
-  testWidgets('focus enlarges one share and thumbnails the other', (
+  testWidgets('the pinned share is the largest tile', (tester) async {
+    final call = await _connected(tester, [
+      for (final id in ['a', 'b', 'c']) _p(id),
+    ], _wide);
+    for (final id in ['b', 'c']) {
+      expect(
+        _area(tester, _tile('a')),
+        greaterThanOrEqualTo(_area(tester, _tile(id))),
+      );
+    }
+    await _leave(call);
+  });
+
+  testWidgets('tapping a smaller share pins it', (tester) async {
+    final call = await _connected(tester, [
+      for (final id in ['a', 'b', 'c']) _p(id),
+    ], _wide);
+    expect(_area(tester, _tile('c')), lessThan(_area(tester, _tile('a'))));
+    await tester.tapAt(tester.getCenter(_tile('c')));
+    await tester.pumpAndSettle();
+    expect(
+      _area(tester, _tile('c')),
+      greaterThanOrEqualTo(_area(tester, _tile('a'))),
+    );
+    await _leave(call);
+  });
+
+  testWidgets('the share menu pins one and the pin keeps its video mounted', (
     tester,
   ) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await rightClickMenu(tester, find.byType(ScreenShareStage).last);
+    await rightClickMenu(tester, find.byKey(_stage('b')));
     await tester.tap(find.text("Focus b's screen"));
     await tester.pumpAndSettle();
-
-    expect(find.byType(ScreenShareStage), findsOneWidget);
-    expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
-    expect(find.byKey(const ValueKey('share-thumb-b')), findsNothing);
-    expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
-
-    await rightClickMenu(tester, find.byType(ScreenShareStage));
-    await tester.tap(find.text('Show all shares'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ScreenShareStage), findsNWidgets(2));
-    await _leave(call);
-  });
-
-  testWidgets('tapping a thumbnail moves focus to it', (tester) async {
-    final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await rightClickMenu(tester, find.byType(ScreenShareStage).first);
-    await tester.tap(find.text("Focus a's screen"));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('share-thumb-b')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
-    expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
-    await _leave(call);
-  });
-
-  testWidgets('refocusing starts the next share at fit', (tester) async {
-    final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await rightClickMenu(tester, find.byKey(_stage('a')));
-    await tester.tap(find.text("Focus a's screen"));
-    await tester.pump(const Duration(milliseconds: 600));
-    final pointer = TestPointer(1, PointerDeviceKind.mouse);
-    await tester.sendEventToBinding(
-      pointer.hover(tester.getCenter(find.byKey(_stage('a')))),
+    expect(
+      _area(tester, _tile('b')),
+      greaterThanOrEqualTo(_area(tester, _tile('a'))),
     );
-    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
-    await tester.pump();
-    expect(find.byKey(const Key('share-zoom-level')), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('share-thumb-b')));
-    await tester.pump(const Duration(milliseconds: 600));
     expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
-    expect(find.byKey(const Key('share-zoom-level')), findsNothing);
-    await _leave(call);
-  });
-
-  testWidgets('a thumbnail takes focus from the keyboard with Enter', (
-    tester,
-  ) async {
-    final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await rightClickMenu(tester, find.byType(ScreenShareStage).first);
-    await tester.tap(find.text("Focus a's screen"));
-    await tester.pumpAndSettle();
-    var tabs = 0;
-    while (tabs++ < 40 &&
-        FocusManager.instance.primaryFocus?.context
-                ?.findAncestorWidgetOfExactType<ShareThumbnail>() ==
-            null) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-    }
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
-    expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
+    expect(find.byKey(const Key('fake-share-view-a')), findsOneWidget);
     await _leave(call);
   });
 

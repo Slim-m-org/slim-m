@@ -152,7 +152,9 @@ async fn set_activity(
     Json(activity): Json<Activity>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::PresenceActivity)?;
-    activity.validate().map_err(ApiError::BadRequest)?;
+    activity
+        .validate_from_client()
+        .map_err(ApiError::BadRequest)?;
     announce_if_changed(&state, ctx.user_id, Some(activity));
     Ok(StatusCode::NO_CONTENT)
 }
@@ -171,7 +173,7 @@ async fn clear_activity(
 /// Fans out through [`Event::PresenceChanged`], so each viewer's frame is
 /// resolved by the same rule as their status and a hidden user stays silent.
 fn announce_if_changed(state: &AppState, user_id: UserId, activity: Option<Activity>) {
-    if state.hub.presence().set_activity(user_id, activity) {
+    if state.hub.presence().set_client_activity(user_id, activity) {
         state.hub.publish(Event::presence_changed(user_id));
     }
 }

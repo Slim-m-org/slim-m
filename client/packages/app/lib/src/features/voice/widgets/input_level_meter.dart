@@ -32,6 +32,7 @@ class InputLevelMeter extends StatelessWidget {
     required this.onChanged,
     this.levelDb,
     this.auto = false,
+    this.compact = false,
     this.semanticLabel = 'Input sensitivity',
   });
 
@@ -48,12 +49,16 @@ class InputLevelMeter extends StatelessWidget {
   final bool auto;
   final String semanticLabel;
 
+  /// Only the bar and its line, for a menu that names it with the row above.
+  final bool compact;
+
   static const _barHeight = 14.0;
   static const _hitHeight = 32.0;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    if (compact) return _bar(context, tokens);
     final line = '${thresholdDb.round()} dB';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

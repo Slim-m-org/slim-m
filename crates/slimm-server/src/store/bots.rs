@@ -33,6 +33,9 @@ use crate::ids::{DeviceId, RoleId, SessionId, UserId};
 use crate::permissions::Permissions;
 
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
+use super::roles::role_bots::{
+    assign_to_bot, delete_managed_role, ensure_bots_role, insert_managed_role,
+};
 use super::sessions::{SessionContext, revoke_session_rows};
 use super::{Store, now_ms};
 
@@ -125,7 +128,6 @@ impl Store {
         let user_id = UserId::generate();
         let device_id = DeviceId::generate();
         let session_id = SessionId::generate();
-        let role_id = RoleId::generate();
         let token = format!("{BOT_TOKEN_PREFIX}{}", generate_secret());
         let token_hash = hash_secret(&token);
         let now = now_ms();
@@ -183,33 +185,25 @@ impl Store {
         .await?;
 
         let permission_bits = permissions.bits();
-        sqlx::query!(
-            "INSERT INTO roles (id, name, permissions, is_everyone, created_at, managed_bot_id)
-             VALUES (?, ?, ?, 0, ?, ?)",
-            role_id,
-            display_name,
-            permission_bits,
-            now,
-            user_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!(
-            "INSERT INTO member_roles (user_id, role_id) VALUES (?, ?)",
-            user_id,
-            role_id
-        )
-        .execute(&mut *tx)
-        .await?;
+        let bots_role = ensure_bots_role(&mut tx, now).await?;
+        assign_to_bot(&mut tx, user_id, bots_role).await?;
+        let role_id = if permissions == Permissions::NONE {
+            None
+        } else {
+            Some(insert_managed_role(&mut tx, user_id, display_name, permissions, now).await?)
+        };
         record_moderation_audit(
             &mut tx,
             ModerationAudit {
                 actor_id: created_by,
                 subject_id: user_id,
                 action: ModerationAction::BotCreate,
-                reason: Some(&format!(
-                    "role {role_id} created with permissions {permission_bits}"
-                )),
+                reason: Some(&match role_id {
+                    Some(role_id) => {
+                        format!("role {role_id} created with permissions {permission_bits}")
+                    }
+                    None => "no permissions granted".to_owned(),
+                }),
                 until: None,
                 created_at: now,
             },
@@ -226,7 +220,7 @@ impl Store {
                 created_at: now,
                 token_name: Some(display_name.to_owned()),
                 token_last_used_at: None,
-                role_id: Some(role_id),
+                role_id,
                 permissions,
                 prefix: prefix.map(str::to_owned),
             },
@@ -337,9 +331,10 @@ impl Store {
         }))
     }
 
-    /// Changes what a bot's managed role grants; `permissions` is already
-    /// validated by `http::bots`. A revoked bot keeps its managed role (ADR 0028),
-    /// so this still succeeds for one; `NoSuchBot` means no managed role exists.
+    /// Changes what a bot's managed role grants; `permissions` is already validated by
+    /// `http::bots`. Non-zero bits create the role if the bot has none, and zero deletes it
+    /// (the bot keeps the shared Bots role). A revoked bot still counts (ADR 0028);
+    /// `NoSuchBot` means no bot record exists.
     pub async fn update_bot_permissions(
         &self,
         bot_user_id: UserId,
@@ -347,33 +342,63 @@ impl Store {
         permissions: Permissions,
     ) -> Result<Bot, UpdateBotPermissionsError> {
         let mut tx = self.begin_write().await?;
-        let role_id = sqlx::query_scalar!(
+        let bot = sqlx::query!(
+            r#"SELECT u.display_name FROM users u
+               WHERE u.id = ? AND u.is_bot = 1 AND u.deleted_at IS NULL
+                 AND EXISTS (SELECT 1 FROM bot_tokens t WHERE t.bot_user_id = u.id)"#,
+            bot_user_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(bot) = bot else {
+            return Err(UpdateBotPermissionsError::NoSuchBot);
+        };
+        let existing = sqlx::query_scalar!(
             r#"SELECT id AS "id!: RoleId" FROM roles WHERE managed_bot_id = ?"#,
             bot_user_id
         )
         .fetch_optional(&mut *tx)
         .await?;
-        let Some(role_id) = role_id else {
-            return Err(UpdateBotPermissionsError::NoSuchBot);
-        };
 
         let bits = permissions.bits();
-        sqlx::query!(
-            "UPDATE roles SET permissions = ? WHERE id = ?",
-            bits,
-            role_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
         let now = now_ms();
+        let (role_id, reason) = match (existing, permissions == Permissions::NONE) {
+            (Some(role_id), false) => {
+                sqlx::query!(
+                    "UPDATE roles SET permissions = ? WHERE id = ?",
+                    bits,
+                    role_id
+                )
+                .execute(&mut *tx)
+                .await?;
+                (
+                    Some(role_id),
+                    format!("role {role_id} permissions now {bits}"),
+                )
+            }
+            (Some(role_id), true) => {
+                delete_managed_role(&mut tx, role_id).await?;
+                (None, format!("role {role_id} removed, permissions now 0"))
+            }
+            (None, false) => {
+                let role_id =
+                    insert_managed_role(&mut tx, bot_user_id, &bot.display_name, permissions, now)
+                        .await?;
+                (
+                    Some(role_id),
+                    format!("role {role_id} created with permissions {bits}"),
+                )
+            }
+            (None, true) => (None, "permissions still 0".to_owned()),
+        };
+
         record_moderation_audit(
             &mut tx,
             ModerationAudit {
                 actor_id,
                 subject_id: bot_user_id,
                 action: ModerationAction::BotPermissionGrant,
-                reason: Some(&format!("role {role_id} permissions now {bits}")),
+                reason: Some(&reason),
                 until: None,
                 created_at: now,
             },
@@ -398,7 +423,7 @@ impl Store {
             created_at: bot.created_at,
             token_name: bot.token_name,
             token_last_used_at: bot.last_used_at,
-            role_id: Some(role_id),
+            role_id,
             permissions,
             prefix: bot.bot_prefix,
         })

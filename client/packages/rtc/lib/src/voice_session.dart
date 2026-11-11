@@ -402,6 +402,9 @@ class VoiceSession {
   /// Flips the published camera between front and back, mobile only.
   Future<bool> flipCamera() => _core.camera.flip();
 
+  /// Seeds the webcam from an earlier call; see [VoiceCamera.preferredDeviceId].
+  void setPreferredCameraId(String? id) => _core.camera.preferredDeviceId = id;
+
   /// Switches the published camera to [device], desktop's answer to
   /// [flipCamera] where more than one webcam can exist.
   Future<bool> selectCameraDevice(CameraDevice device) =>

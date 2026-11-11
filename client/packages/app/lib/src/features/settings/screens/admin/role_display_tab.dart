@@ -198,7 +198,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
           const SizedBox(height: AppSpacing.s12),
           AppErrorState(message: error, onDismiss: clearActionError),
         ],
-        if (!role.isEveryone)
+        if (!role.isEveryone && !role.isBotsRole)
           SettingsSectionCard(
             title: 'Danger zone',
             children: [

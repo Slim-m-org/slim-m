@@ -8,10 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/local_screen_share_banner.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../ui_snapshot_support.dart' show loadRealFonts;
 import 'voice_controller_harness.dart';
 
 Widget _harness(Widget child, ProviderContainer container) =>
@@ -24,6 +26,8 @@ Widget _harness(Widget child, ProviderContainer container) =>
     );
 
 void main() {
+  setUpAll(loadRealFonts);
+
   final harness = VoiceHarness();
   tearDown(harness.dispose);
 
@@ -79,15 +83,45 @@ void main() {
 
         expect(controller.state.awaitingBroadcast, isTrue);
         expect(find.text('You are sharing your screen.'), findsNothing);
-        expect(
-          find.textContaining('Waiting for you to start the broadcast'),
-          findsOneWidget,
-        );
+        expect(find.text('Start the broadcast to share.'), findsOneWidget);
 
         // Clears the pending-broadcast deadline and heartbeat timers.
         await controller.leave();
       },
     );
+
+    testWidgets('the pending banner cancels the request itself, on one line', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final session = FakeSession(
+        screenShareOutcome: ScreenShareOutcome.pendingBroadcast,
+      );
+      final controller = harness.controllerWith(session, voiceApi());
+      await controller.join('channel-1');
+      session.emitState(VoiceSessionState.connected);
+      await tester.pumpWidget(
+        _harness(const VoiceScreen(channelId: 'channel-1'), harness.container),
+      );
+      await tester.pump();
+      await controller.share.setScreenShare(true);
+      await tester.pump();
+
+      final copy = find.text('Start the broadcast to share.');
+      expect(tester.getSize(copy).height, lessThan(20));
+      final cancel = find.byKey(LocalScreenSharePendingBanner.cancelKey);
+      expect(tester.getRect(cancel).right, lessThanOrEqualTo(360));
+
+      session.screenShareOutcome = ScreenShareOutcome.stopped;
+      await tester.tap(cancel);
+      await tester.pump();
+
+      expect(controller.state.awaitingBroadcast, isFalse);
+      expect(copy, findsNothing);
+      await controller.leave();
+    });
 
     testWidgets('stays quiet with no share at all', (tester) async {
       final session = FakeSession();
@@ -173,7 +207,9 @@ void main() {
         // The stage's own caption already says you are sharing; the
         // banner would only repeat it.
         expect(find.text('You are sharing your screen.'), findsNothing);
-        expect(find.byKey(const Key('fake-share-view-me')), findsOneWidget);
+        // Your own screen is never mirrored back; a tile with a Stop button stands in.
+        expect(find.byKey(const Key('fake-share-view-me')), findsNothing);
+        expect(find.text('Stop sharing'), findsOneWidget);
         expect(find.text('You are sharing your screen'), findsOneWidget);
         await controller.leave();
       },

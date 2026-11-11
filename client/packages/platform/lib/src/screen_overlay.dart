@@ -20,6 +20,8 @@ class OverlayMonitor {
     required this.width,
     required this.height,
     required this.primary,
+    this.deviceIndex,
+    this.capturePosition,
   });
 
   final int x;
@@ -27,6 +29,12 @@ class OverlayMonitor {
   final int width;
   final int height;
   final bool primary;
+
+  /// Windows: the display device index libwebrtc uses as this screen's source id.
+  final int? deviceIndex;
+
+  /// Windows: this screen's 0-based place in libwebrtc's "Screen N" order.
+  final int? capturePosition;
 
   double get aspect => height == 0 ? 1 : width / height;
 
@@ -42,9 +50,13 @@ class OverlayMonitor {
       width: w,
       height: h,
       primary: reply['primary'] == true,
+      deviceIndex: _nonNegative(reply['deviceIndex']),
+      capturePosition: _nonNegative(reply['capturePosition']),
     );
   }
 }
+
+int? _nonNegative(Object? value) => value is int && value >= 0 ? value : null;
 
 /// Whether this desktop can show the overlay, and over which monitors.
 class OverlaySupport {

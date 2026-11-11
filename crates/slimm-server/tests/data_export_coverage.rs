@@ -48,6 +48,16 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ("bot_tokens", "created_by", Fate::Excluded(BOT_CONFIG)),
     ("bot_ui_entries", "bot_user_id", Fate::Excluded(BOT_CONFIG)),
     ("call_records", "caller_id", Fate::Excluded(DERIVED)),
+    (
+        "call_transcript_lines",
+        "speaker_id",
+        Fate::Exported("transcript_lines.jsonl"),
+    ),
+    (
+        "call_transcripts",
+        "started_by",
+        Fate::Excluded("who asked for a transcript is a fact about the call, which others share"),
+    ),
     ("canvas_audit_log", "actor_id", Fate::Excluded(CANVAS)),
     ("canvas_media_slots", "user_id", Fate::Excluded(CANVAS)),
     ("canvas_object_locks", "locked_by", Fate::Excluded(CANVAS)),
@@ -66,6 +76,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "data_exports",
         "user_id",
         Fate::Excluded("the export jobs themselves, not content"),
+    ),
+    (
+        "debug_logs",
+        "user_id",
+        Fate::Excluded("a diagnostic log sent to the admins and swept after 30 days, not content"),
     ),
     ("devices", "user_id", Fate::Excluded(CREDENTIAL)),
     ("dm_channels", "user_a", Fate::Excluded(SOMEONE_ELSE)),

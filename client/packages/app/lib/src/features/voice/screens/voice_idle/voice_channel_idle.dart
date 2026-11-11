@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A voice channel while you are not in its call (design 13, decision
-/// 0066): a join bar, then the last call's record - who was in when, what
-/// happened - and the calls before it. Each part stands alone, so a channel
+/// 0066): a join bar, then the latest call's record - who was in when, what
+/// happened, so far if it is still going - and the calls before it. Each part stands alone, so a channel
 /// with no history still gets its join bar.
 library;
 
@@ -13,14 +13,17 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../../format.dart';
 import '../../../channels/providers/channel_by_id_provider.dart';
 import '../../../settings/providers/display_preferences.dart';
+import '../../providers/call_transcript.dart' show transcriptFocusProvider;
 import '../../providers/voice_call_history.dart';
 import '../../../../routing/breakpoints.dart';
 import '../../providers/call_recap.dart';
 import '../../widgets/call_recap_card.dart';
+import '../voice_text_pane.dart' show voiceChatPaneVisibleProvider;
 import 'call_history_rows.dart';
 import 'call_moments_view.dart';
 import 'call_timeline_model.dart';
 import 'call_timeline_view.dart';
+import 'call_transcript_section.dart';
 import 'voice_join_bar.dart';
 
 class VoiceChannelIdle extends ConsumerWidget {
@@ -53,14 +56,31 @@ class VoiceChannelIdle extends ConsumerWidget {
   ];
 
   static api.VoiceCall? _selectedCall(
-    List<api.VoiceCall> finished,
+    List<api.VoiceCall> calls,
     int? selectedAt,
   ) {
-    if (finished.isEmpty) return null;
-    return finished.firstWhere(
+    if (calls.isEmpty) return null;
+    return calls.firstWhere(
       (c) => c.startedAt == selectedAt,
-      orElse: () => finished.first,
+      orElse: () => calls.first,
     );
+  }
+
+  /// The call a search hit for this channel asked to see.
+  api.VoiceCall? _focusedCall(WidgetRef ref, List<api.VoiceCall> calls) {
+    final focus = ref.watch(transcriptFocusProvider);
+    if (focus == null || focus.channelId != channelId) return null;
+    return calls.where((c) => c.transcriptId == focus.transcriptId).firstOrNull;
+  }
+
+  /// Keeps the call selected once the focus is spent, and shows this pane
+  /// rather than the chat the arrival opened.
+  void _adoptFocus(WidgetRef ref, api.VoiceCall call) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(selectedVoiceCallProvider(channelId).notifier).state =
+          call.startedAt;
+      ref.read(voiceChatPaneVisibleProvider.notifier).state = false;
+    });
   }
 
   @override
@@ -68,9 +88,13 @@ class VoiceChannelIdle extends ConsumerWidget {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
     final now = (clock ?? () => DateTime.now().millisecondsSinceEpoch)();
     final history = ref.watch(voiceCallHistoryProvider(channelId));
-    final finished = _finishedCalls(history.valueOrNull?.calls);
+    // Newest first, so a call still going (someone stayed after you left) leads.
+    final calls = history.valueOrNull?.calls ?? const <api.VoiceCall>[];
+    final finished = _finishedCalls(calls);
     final selectedAt = ref.watch(selectedVoiceCallProvider(channelId));
-    final shown = _selectedCall(finished, selectedAt);
+    final focused = _focusedCall(ref, calls);
+    final shown = focused ?? _selectedCall(calls, selectedAt);
+    if (focused != null) _adoptFocus(ref, focused);
     final ended = recap;
     final sections = <Widget>[
       if (ended != null && ended.isWorthShowing)
@@ -91,7 +115,7 @@ class VoiceChannelIdle extends ConsumerWidget {
           call: shown,
           now: now,
           compact: compact,
-          latest: identical(shown, finished.first),
+          latest: identical(shown, calls.first),
         ),
         _Moments(
           call: shown,
@@ -100,11 +124,17 @@ class VoiceChannelIdle extends ConsumerWidget {
           canvasObjectCount: history.valueOrNull?.canvasObjectCount ?? 0,
           onOpenCanvas: onOpenCanvas,
         ),
+        if (shown.transcriptId case final transcriptId?)
+          CallTranscriptSection(
+            key: ValueKey('transcript-$transcriptId'),
+            channelId: channelId,
+            transcriptId: transcriptId,
+          ),
       ],
-      if (finished.length > 1)
+      if (calls.length > 1)
         _Earlier(
           channelId: channelId,
-          calls: finished,
+          calls: calls,
           selectedAt: shown?.startedAt,
           retentionDays: history.valueOrNull?.retentionDays ?? 30,
           now: now,
@@ -208,15 +238,20 @@ class _LastCall extends ConsumerWidget {
     String clock(int at) =>
         formatClock(DateTime.fromMillisecondsSinceEpoch(at), use24Hour: use24);
     final day = callDayLabel(call.startedAt, now: now);
+    final end = model.ongoing ? 'now' : clock(model.endedAt);
     final detail = compact
         ? '$day · ${formatSpanShort(model.lengthMs)}'
-        : '$day · ${clock(model.startedAt)}–${clock(model.endedAt)} · '
+        : '$day · ${clock(model.startedAt)}–$end · '
               '${formatSpan(model.lengthMs)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionHeader(
-          title: latest ? 'Last call' : 'Call',
+          title: model.ongoing
+              ? 'This call'
+              : latest
+              ? 'Last call'
+              : 'Call',
           detail: detail,
           trailing: compact ? null : const CallTimelineLegend(),
         ),
@@ -291,9 +326,7 @@ class _Earlier extends ConsumerWidget {
       children: [
         _SectionHeader(
           title: 'Earlier in #$name',
-          detail: compact
-              ? null
-              : 'kept $retentionDays days · nothing is recorded',
+          detail: compact ? null : 'kept $retentionDays days',
         ),
         CallHistoryRows(
           compact: compact,

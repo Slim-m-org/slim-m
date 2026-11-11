@@ -5,10 +5,14 @@
 /// its own provider so the card's parent does not rebuild on a track change.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../external_link.dart';
+import '../../settings/providers/linked_accounts.dart';
 import '../providers/presence_activity.dart';
 import 'activity_card.dart';
 
@@ -28,7 +32,27 @@ class MemberProfileActivity extends ConsumerWidget {
         AppSpacing.s16,
         AppSpacing.s12,
       ),
-      child: ActivityCard(activity: activity, boxed: true),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ActivityCard(activity: activity, boxed: true),
+          if (activity.steamAppId != null) ...[
+            const SizedBox(height: AppSpacing.s8),
+            AppButton(
+              label: 'Play',
+              icon: AppIcons.play,
+              size: AppButtonSize.sm,
+              semanticLabel: 'Play ${activity.title} on Steam',
+              onPressed: () => unawaited(
+                openSteamGame(
+                  activity.steamAppId!,
+                  launcher: ref.read(externalUrlLauncherProvider),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -41,6 +41,7 @@ import '../features/settings/screens/admin/role_detail_screen.dart';
 import '../features/settings/screens/admin/roles_screen.dart';
 import '../features/settings/screens/admin/server_metrics_screen.dart';
 import '../features/settings/screens/admin/audit_log_screen.dart';
+import '../features/settings/screens/admin/debug_logs_screen.dart';
 import '../features/settings/screens/admin/export_screen.dart';
 import '../features/settings/screens/admin/storage_screen.dart';
 import '../features/settings/screens/admin/webhooks_screen.dart';
@@ -102,7 +103,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: _RedirectListenable(ref),
     redirect: (context, state) =>
         (session.isSignedIn
-            ? claimWebDiscordLink(ref, state.uri)
+            ? (claimWebDiscordLink(ref, state.uri) ??
+                  claimWebSteamLink(ref, state.uri))
             : claimWebInvite(ref, state.uri)) ??
         _redirect(
           signedIn: session.isSignedIn,
@@ -238,6 +240,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminAuditLog,
         pageBuilder: (context, state) =>
             modalPage(context, const AuditLogScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminDebugLogs,
+        pageBuilder: (context, state) =>
+            modalPage(context, const DebugLogsScreen()),
       ),
       GoRoute(
         path: Routes.adminServerMetrics,

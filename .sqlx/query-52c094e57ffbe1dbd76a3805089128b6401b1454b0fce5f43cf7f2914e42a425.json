@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO call_transcript_lines (transcript_id, seq, speaker_id, at, text)\n               VALUES (?1, COALESCE((SELECT MAX(seq) FROM call_transcript_lines\n                                      WHERE transcript_id = ?1), 0) + 1, ?2, ?3, ?4)\n               RETURNING seq AS \"seq!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "seq!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "52c094e57ffbe1dbd76a3805089128b6401b1454b0fce5f43cf7f2914e42a425"
+}

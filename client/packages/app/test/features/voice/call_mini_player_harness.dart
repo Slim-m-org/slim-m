@@ -69,9 +69,11 @@ Future<MiniCtx> pumpMini(
   required VoiceState voice,
   Size size = phoneSize,
   Brightness brightness = Brightness.dark,
+  List<Override> extraOverrides = const [],
 }) async {
   final fixture = await fixtureContainer(
     extraOverrides: [
+      ...extraOverrides,
       voiceControllerProvider.overrideWith(
         (ref) => FixedVoiceController(ref, voice),
       ),

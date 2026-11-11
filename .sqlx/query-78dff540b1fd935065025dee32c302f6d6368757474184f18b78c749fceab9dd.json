@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE linked_accounts SET share_activity = ? WHERE user_id = ? AND provider = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "78dff540b1fd935065025dee32c302f6d6368757474184f18b78c749fceab9dd"
+}

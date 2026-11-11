@@ -40,6 +40,7 @@ export 'src/client.dart'
         SlimmApiAdmin,
         SlimmApiSpaceSetup,
         SlimmApiAdminAudit,
+        SlimmApiDebugLogs,
         SlimmApiAttachments,
         SlimmApiUploadSessions,
         kUploadSessionThreshold,
@@ -85,6 +86,7 @@ export 'src/client.dart'
         SlimmApiUsers,
         SlimmApiVoice,
         SlimmApiVoiceCalls,
+        SlimmApiCallTranscripts,
         SlimmApiVoiceRooms,
         SlimmApiWatchSession,
         SlimmApiWebhooks;
@@ -159,6 +161,7 @@ export 'src/events.dart'
         TypingStopped,
         VoiceActivityChanged,
         VoiceCallAudioChanged,
+        CallTranscriptChanged,
         VoiceActivity,
         VoiceMoved,
         VoiceNotice,

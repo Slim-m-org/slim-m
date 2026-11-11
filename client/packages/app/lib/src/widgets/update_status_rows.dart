@@ -30,10 +30,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../desktop/self_update/play_install.dart';
 import '../desktop/startup_screen.dart';
 import '../desktop/update_check.dart';
 import '../desktop/update_watch.dart';
 import '../providers/providers.dart';
+
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 class UpdateStatusRows extends ConsumerStatefulWidget {
@@ -41,6 +43,7 @@ class UpdateStatusRows extends ConsumerStatefulWidget {
     super.key,
     this.check = checkForClientUpdate,
     this.shouldRun = updateWatchShouldRun,
+    this.fromPlay = installedFromPlay,
   });
 
   /// Injected the way [UpdateWatcher] takes its own: the real one reaches the
@@ -49,6 +52,9 @@ class UpdateStatusRows extends ConsumerStatefulWidget {
 
   /// Whether this build ever checks at all; see the library doc.
   final bool Function() shouldRun;
+
+  /// Whether this copy came from Google Play, which updates it itself.
+  final bool Function(PackageInfo) fromPlay;
 
   @override
   ConsumerState<UpdateStatusRows> createState() => _UpdateStatusRowsState();
@@ -131,12 +137,16 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final update = widget.shouldRun()
-        ? ref.watch(inSessionUpdateProvider)
-        : null;
     final info = ref.watch(appInfoProvider);
+    final fromPlay =
+        widget.shouldRun() &&
+        info.valueOrNull != null &&
+        widget.fromPlay(info.requireValue);
+    final checks = widget.shouldRun() && !fromPlay;
+    final update = checks ? ref.watch(inSessionUpdateProvider) : null;
     final installed = info.valueOrNull?.version;
     final status = [
+      if (fromPlay) 'Updates come from Google Play.',
       if (update != null && installed != null)
         '${update.version} is available. You have $installed. '
             '${updateActionHint(update.format)}',
@@ -144,7 +154,7 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
     ];
 
     final identity = _identity(tokens, info, status);
-    final button = widget.shouldRun()
+    final button = checks
         ? AppButton(
             label: _checking ? 'Checking…' : 'Check for updates',
             onPressed: _checking ? null : () => unawaited(_checkNow()),

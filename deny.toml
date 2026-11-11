@@ -64,6 +64,8 @@ allow = ["MPL-2.0"]
 ignore = [
   # 2026-10-26: unmaintained, not a vulnerability; pulled by lopdf for font handling, revisit when lopdf can be upgraded past the cipher pin.
   "RUSTSEC-2026-0192",
+  # 2026-11-11: bundled SQLite before 3.54 via sqlx 0.8 (libsqlite3-sys 0.30); only reachable by opening a db and -wal pair someone else wrote, and the server opens only its own. Fixed by the sqlx 0.9 upgrade (Planka card).
+  "RUSTSEC-2026-0459",
 ]
 
 [bans]

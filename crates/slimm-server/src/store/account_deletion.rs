@@ -178,6 +178,19 @@ impl Store {
         sqlx::query!("DELETE FROM voice_call_events WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        // What someone said on a call is theirs; the rest of each transcript stays readable.
+        sqlx::query!(
+            "DELETE FROM call_transcript_lines WHERE speaker_id = ?",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE call_transcripts SET started_by = NULL WHERE started_by = ?",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
         sqlx::query!("DELETE FROM voice_sessions WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
@@ -255,6 +268,10 @@ impl Store {
         .await?;
         // Their archives go with the rows; the export sweep removes the files.
         sqlx::query("DELETE FROM data_exports WHERE user_id = ?")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM debug_logs WHERE user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)
             .await?;

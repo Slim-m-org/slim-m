@@ -109,20 +109,12 @@ void main() {
       expect(find.text(passwordRule), findsNothing);
     });
 
-    testWidgets('display name is not asked for at all', (tester) async {
-      await _pumpSignIn(tester);
-
-      expect(find.text('Display name'), findsNothing);
-      expect(find.text(displayNameHelper), findsNothing);
-    });
-
     testWidgets('the screen carries no helper text on any field', (
       tester,
     ) async {
       await _pumpSignIn(tester);
 
       expect(find.textContaining('characters'), findsNothing);
-      expect(find.textContaining('Defaults to'), findsNothing);
     });
   });
 
@@ -166,13 +158,11 @@ void main() {
       expect(find.text('At least 8 characters.'), findsOneWidget);
     });
 
-    testWidgets('display name says what it is and what it defaults to', (
-      tester,
-    ) async {
+    testWidgets('display name is not asked for at all', (tester) async {
       await _pumpSignIn(tester);
       await toCreateAccount(tester);
 
-      expect(find.text(displayNameHelper), findsOneWidget);
+      expect(find.text('Display name'), findsNothing);
     });
 
     testWidgets('going back to sign in takes the rules away again', (
@@ -188,69 +178,19 @@ void main() {
     });
   });
 
-  group('the Trouble signing in link', () {
+  group('the Forgot password link', () {
     testWidgets('shows while signing in', (tester) async {
       await _pumpSignIn(tester);
 
-      expect(find.text('Trouble signing in?'), findsOneWidget);
+      expect(find.text('Forgot password?'), findsOneWidget);
     });
 
     testWidgets('is absent on the create-account form', (tester) async {
       await _pumpSignIn(tester);
       await toCreateAccount(tester);
 
-      expect(find.text('Trouble signing in?'), findsNothing);
+      expect(find.text('Forgot password?'), findsNothing);
     });
-  });
-
-  group('an over-long display name', () {
-    final tooLong = 'd' * (displayNameMaxLength + 1);
-
-    Future<List<String>> submitWith(WidgetTester tester, String name) async {
-      final requested = await _pumpSignIn(tester);
-      await toCreateAccount(tester);
-      await tester.enterText(_input('Username'), 'dana');
-      await tester.enterText(_input('Display name'), name);
-      await tester.enterText(_input('Password'), 'long enough pw');
-      await tester.tap(find.text('Create account').last);
-      await tester.pumpAndSettle();
-      return requested;
-    }
-
-    testWidgets('is refused beside its own field before anything is sent', (
-      tester,
-    ) async {
-      final requested = await submitWith(tester, tooLong);
-
-      expect(requested, isNot(contains('/auth/register')));
-      final error = find.text('Display name must be 64 characters or fewer.');
-      expect(error, findsOneWidget);
-      final fieldTop = tester.getTopLeft(_input('Display name')).dy;
-      final passwordTop = tester.getTopLeft(_input('Password')).dy;
-      final errorTop = tester.getTopLeft(error).dy;
-      expect(errorTop, greaterThan(fieldTop));
-      expect(errorTop, lessThan(passwordTop));
-      expect(
-        tester.widget<AppInput>(_input('Display name')).controller!.text,
-        tooLong,
-        reason: 'the typed value is kept',
-      );
-    });
-
-    test('exactly at the limit, counted in characters, is accepted', () {
-      expect(displayNameError('d' * displayNameMaxLength), isNull);
-      expect(displayNameError('\u{1F600}' * displayNameMaxLength), isNull);
-      expect(displayNameError('  ${'d' * displayNameMaxLength}  '), isNull);
-      expect(displayNameError(tooLong), isNotNull);
-    });
-  });
-
-  test('a server display_name rejection lands on the field in plain words', () {
-    final (field, message) = signInErrorFor(
-      const BadRequestException('display_name must be 1 to 64 characters'),
-    );
-    expect(field, SignInErrorField.displayName);
-    expect(message, 'Display name must be 1 to 64 characters.');
   });
 
   test(
@@ -315,6 +255,74 @@ void main() {
       ).$2,
       'Password must be 8 to 1024 characters.',
       reason: 'error grammar 03: keep the content of the thing that failed',
+    );
+  });
+
+  group('the password hint and its error never show together', () {
+    Future<void> pumpFields(
+      WidgetTester tester, {
+      required String? passwordError,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: SignInCredentialFields(
+            username: TextEditingController(),
+            password: TextEditingController(),
+            creatingAccount: true,
+            busy: false,
+            errorFor: (field) =>
+                field == SignInErrorField.password ? passwordError : null,
+            onSubmit: () {},
+            onRecoverAccount: () {},
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('no error: the hint shows', (tester) async {
+      await pumpFields(tester, passwordError: null);
+
+      expect(find.text(passwordRule), findsOneWidget);
+    });
+
+    testWidgets('an error replaces the hint', (tester) async {
+      await pumpFields(tester, passwordError: 'Password is too short.');
+
+      expect(find.text('Password is too short.'), findsOneWidget);
+      expect(find.text(passwordRule), findsNothing);
+    });
+  });
+
+  testWidgets('a username marked invalid draws its error border with no text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: SignInCredentialFields(
+            username: TextEditingController(),
+            password: TextEditingController(),
+            creatingAccount: false,
+            usernameInvalid: true,
+            busy: false,
+            errorFor: (_) => null,
+            onSubmit: () {},
+            onRecoverAccount: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.widget<AppInput>(_input('Username')).invalid, isTrue);
+    expect(tester.widget<AppInput>(_input('Password')).invalid, isFalse);
+  });
+
+  test('a wrong username or password marks both fields', () {
+    expect(
+      signInErrorFor(const UnauthorizedException('bad credentials')).$1,
+      SignInErrorField.credentials,
     );
   });
 }

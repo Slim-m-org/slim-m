@@ -16,6 +16,7 @@ Future<({bool proceed, String? id, ScreenShareSource? source})> pickShareSource(
   BuildContext context,
   VoiceController controller, {
   required String? lastSourceId,
+  Rect? anchorRect,
 }) async {
   if (!controller.video.screenShareNeedsSource) {
     return (proceed: true, id: null, source: null);
@@ -32,6 +33,7 @@ Future<({bool proceed, String? id, ScreenShareSource? source})> pickShareSource(
     context,
     sources,
     selectedId: lastSourceId,
+    anchorRect: anchorRect,
   );
   return (proceed: chosen != null, id: chosen?.id, source: chosen);
 }

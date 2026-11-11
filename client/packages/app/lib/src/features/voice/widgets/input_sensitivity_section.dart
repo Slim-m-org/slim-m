@@ -6,9 +6,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+
 import 'input_level_meter.dart';
 import 'mic_preview_hold.dart';
 import 'mic_trouble_notice.dart';
+
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/mic_preview.dart';
@@ -18,7 +20,10 @@ import '../providers/voice_settings_controller.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 
 class InputSensitivityMeter extends ConsumerWidget {
-  const InputSensitivityMeter({super.key});
+  const InputSensitivityMeter({super.key, this.compact = false});
+
+  /// Just the bar, with no card padding, for the call menu's microphone row.
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,8 +50,18 @@ class InputSensitivityMeter extends ConsumerWidget {
       _ => InputLevelStatus.notSent,
     };
     return MicPreviewHold(
+      tapPadding: compact
+          ? const EdgeInsets.only(top: AppSpacing.s8)
+          : const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s16,
+            ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
+        padding: compact
+            ? EdgeInsets.zero
+            : const EdgeInsets.all(AppSpacing.s16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -56,6 +71,7 @@ class InputSensitivityMeter extends ConsumerWidget {
               levelDb: level,
               status: status,
               auto: auto,
+              compact: compact,
               onChanged: auto
                   ? null
                   : (db) => ref

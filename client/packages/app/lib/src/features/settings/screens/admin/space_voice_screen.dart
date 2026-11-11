@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../../../action_labels.dart';
 import '../../../../routing/routes.dart';
 import '../settings_screen_scaffold.dart';
+import 'call_transcripts_section.dart';
 import 'noise_suppression_default_section.dart';
 import 'screen_share_cap_section.dart';
 import 'uplink_test_section.dart';
@@ -35,6 +36,7 @@ class SpaceVoicePane extends StatelessWidget {
     children: [
       ScreenShareCapSection(),
       NoiseSuppressionDefaultSection(),
+      CallTranscriptsSection(),
       UplinkTestSection(),
     ],
   );

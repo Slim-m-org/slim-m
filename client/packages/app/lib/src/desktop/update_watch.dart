@@ -17,11 +17,14 @@ library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../providers/providers.dart';
 import 'desktop_window_shell.dart';
+import 'self_update/play_install.dart';
 import 'update_check.dart';
+
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// GitHub allows 60 unauthenticated requests per hour per source IP. Once
@@ -67,12 +70,14 @@ class UpdateWatcher {
     CheckForClientUpdate check = checkForClientUpdate,
     InstallFormat? format,
     bool Function() shouldRun = updateWatchShouldRun,
+    bool Function(PackageInfo) fromPlay = installedFromPlay,
     this.startDelay = updateWatchStartDelay,
     Stream<void>? secondLaunches,
     DateTime Function() now = DateTime.now,
   }) : _check = check,
        _format = format,
        _shouldRun = shouldRun,
+       _fromPlay = fromPlay,
        _secondLaunches =
            secondLaunches ??
            _ref.read(desktopWindowShellProvider).secondLaunches,
@@ -83,6 +88,7 @@ class UpdateWatcher {
   final CheckForClientUpdate _check;
   final InstallFormat? _format;
   final bool Function() _shouldRun;
+  final bool Function(PackageInfo) _fromPlay;
   final Duration? startDelay;
   final Stream<void> _secondLaunches;
   final DateTime Function() _now;
@@ -116,6 +122,7 @@ class UpdateWatcher {
     _lastCheck = _now();
     try {
       final info = await _ref.read(appInfoProvider.future);
+      if (_fromPlay(info)) return;
       final update = await _check(
         currentVersion: info.version,
         format: _format,

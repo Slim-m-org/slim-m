@@ -106,6 +106,8 @@ class OverlayRig {
     VoiceState? initial,
     ScreenShareSource? source,
     PortalMonitor? portal,
+    bool windows = false,
+    List<OverlayMonitor> monitors = rigMonitors,
   }) {
     SharedPreferences.setMockInitialValues({
       'slimm.voice.screen_share_allow_annotations': allow,
@@ -116,6 +118,7 @@ class OverlayRig {
       overrides: [
         screenOverlayProvider.overrideWithValue(overlay),
         portalSharedMonitorProvider.overrideWithValue(() async => portal),
+        overlayHostIsWindowsProvider.overrideWithValue(windows),
         callOverlayAvatarProvider.overrideWith((ref, who) {
           final version = ref.watch(rigAvatarVersions)[who.id];
           if (version == null) return Completer<OverlayAvatar>().future;
@@ -125,7 +128,7 @@ class OverlayRig {
         }),
         screenOverlaySupportProvider.overrideWith(
           (ref) async => supported
-              ? const OverlaySupport(supported: true, monitors: rigMonitors)
+              ? OverlaySupport(supported: true, monitors: monitors)
               : const OverlaySupport.unsupported(),
         ),
         voiceControllerProvider.overrideWith(

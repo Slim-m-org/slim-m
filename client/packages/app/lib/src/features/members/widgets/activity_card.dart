@@ -4,7 +4,8 @@
 ///
 /// The profile card and the Settings preview draw the same thing, so what a
 /// person previews is what others read. The cover is fetched by this client
-/// from Spotify's CDN only; [isAllowedArtUrl] is checked again here.
+/// from Spotify's or Steam's CDN only; [api.PresenceActivity.artUrl] checks the
+/// host again here.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/presence_activity.dart';
+import 'activity_elapsed.dart';
 import 'activity_progress.dart';
 
 /// How a cover address becomes pixels. Overridden in tests so no network is
@@ -75,6 +77,10 @@ class ActivityCard extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
+        if (activity.startedAt != null &&
+            activity.kind == api.ActivityKind.playing &&
+            subtitle == null)
+          ActivityElapsed(startedAt: activity.startedAt!),
         if (boxed && activity.progress != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),

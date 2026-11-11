@@ -93,7 +93,6 @@ def sign_in(client, server, username, password):
     client.click("Connect to a Space")
     client.type_into("Server address", server)
     client.click("Continue")
-    client.click("It matches")
     client.type_into("Username", username)
     client.type_into("Password", password)
     client.click("Sign in", settle=1)

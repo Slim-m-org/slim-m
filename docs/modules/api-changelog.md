@@ -3,6 +3,12 @@
 Every change to a contract a module depends on is listed here, newest first.
 The policy behind the levels is decision [0100](../decisions/0100-module-safety-contracts.md).
 
+## Level 5 additions (no level bump, nothing to declare)
+
+- `call.audio.started` gains `names`, an object of user id to display name (the username when there is none) for everyone in `included`.
+- `call.audio.participant` gains `name`, the same for `user_id`; it is absent when the member cannot be read.
+- Only people already in the consented set are named. A module must keep working without either field, as an older server sends neither.
+
 ## Level 5
 
 - Adds six events in the `event/1` envelope, each needing a `subscriptions` entry and `"addon_api": 5`: `message.edited`, `voice.participant.joined`, `voice.participant.left`, `voice.screen_share.changed`, `member.roles.changed` and `poll.voted` (decision [0109](../decisions/0109-more-module-events.md)).

@@ -92,6 +92,7 @@ class VoiceScreenShare {
       case ScreenShareOutcome.stopped:
         _access.state = _current.copyWith(
           screenSharing: false,
+          awaitingBroadcast: false,
           shareAudio: ShareAudio.none,
           clearError: true,
         );

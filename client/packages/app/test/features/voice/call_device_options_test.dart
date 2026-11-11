@@ -19,7 +19,7 @@ import 'package:slimm_app/src/providers/providers.dart' show apiProvider;
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_device_options.dart';
-import 'package:slimm_app/src/widgets/control_options_menu.dart';
+import 'package:slimm_app/src/widgets/control_menu_entries.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_call_controls_harness.dart';
@@ -130,10 +130,34 @@ void main() {
       await _pump(tester, session);
       await _open(tester, find.byTooltip('Camera options'));
 
-      expect(find.text('SWITCH CAMERA'), findsOneWidget);
+      expect(find.text('Camera'), findsOneWidget);
+      await tester.tap(find.text('Camera'));
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('USB camera'));
       await tester.pump();
       expect(session.cameraSwitchCalls, ['select:cam-2']);
+    });
+
+    testWidgets('a camera pick is remembered for the next call', (
+      tester,
+    ) async {
+      final session = InertSession()
+        ..cameraNeedsSelection = true
+        ..cameraDeviceList = const [_builtIn, _usbCam];
+      final container = await _pump(tester, session);
+      await _open(tester, find.byTooltip('Camera options'));
+      await tester.tap(find.text('Camera'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('USB camera'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        container.read(voiceSettingsControllerProvider).cameraDeviceId,
+        'cam-2',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('slimm.voice.camera_device_id'), 'cam-2');
     });
 
     testWidgets('offers a flip where the platform flips', (tester) async {
@@ -158,7 +182,7 @@ void main() {
 
       expect(find.text('720p'), findsOneWidget);
       expect(find.text('Flip camera'), findsNothing);
-      expect(find.text('SWITCH CAMERA'), findsNothing);
+      expect(find.text('Camera'), findsNothing);
     });
 
     testWidgets('opens by long press on a phone, with no caret', (
@@ -181,7 +205,9 @@ void main() {
       final container = await _pump(tester, session);
       await _open(tester, find.byTooltip('Microphone options'));
 
-      expect(find.text('SPEAKER'), findsOneWidget);
+      expect(find.text('Speaker'), findsOneWidget);
+      await tester.tap(find.text('Speaker'));
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Desk speakers'));
       await tester.pump();
       expect(session.lastSelectedAudioOutput?.id, 'spk-1');
@@ -197,7 +223,7 @@ void main() {
       await _pump(tester, InertSession());
       await _open(tester, find.byTooltip('Microphone options'));
 
-      expect(find.text('SPEAKER'), findsNothing);
+      expect(find.text('Speaker'), findsNothing);
       expect(find.text('Voice settings'), findsOneWidget);
     });
   });
@@ -217,29 +243,57 @@ void main() {
     await tester.pump();
     await _open(tester, find.byTooltip('Microphone options'));
 
-    expect(find.text('Space default (Strong)'), findsOneWidget);
+    expect(find.text('Default: Strong'), findsOneWidget);
   });
 
-  test(
-    'a camera menu with nothing to switch is the resolutions and mirror',
-    () {
-      final entries = cameraMenuEntries(
-        quality: CameraQuality.balanced,
-        mirror: true,
-        devices: const [],
-        canFlip: false,
-        actions: CameraMenuActions(
-          onQuality: (_) {},
-          onMirror: (_) {},
-          onDevice: (_) {},
-          onFlip: () {},
-        ),
-      );
-      final labels = [
-        for (final entry in entries)
-          if (entry is ControlOption) entry.label,
-      ];
-      expect(labels, ['360p', '720p', '1080p', 'Mirror my view']);
-    },
-  );
+  test('a camera menu with nothing to switch is quality and mirror', () {
+    final entries = cameraMenuEntries(
+      quality: CameraQuality.balanced,
+      mirror: true,
+      devices: const [],
+      canFlip: false,
+      actions: CameraMenuActions(
+        onQuality: (_) {},
+        onMirror: (_) {},
+        onDevice: (_) {},
+        onFlip: () {},
+      ),
+    );
+    expect(entries.whereType<ControlSubmenu>(), isEmpty);
+    final quality = entries.whereType<ControlSegmented>().single;
+    expect(
+      [for (final o in quality.options) o.label],
+      ['360p', '720p', '1080p'],
+    );
+    expect(quality.selectedIndex, 1);
+    expect(entries.whereType<ControlSwitch>().single.label, 'Mirror my view');
+  });
+
+  test('the camera menu marks the camera picked this call', () {
+    final entries = cameraMenuEntries(
+      quality: CameraQuality.balanced,
+      mirror: false,
+      devices: const [
+        CameraDevice(id: 'a', label: 'Front'),
+        CameraDevice(id: 'b', label: 'Desk'),
+      ],
+      canFlip: false,
+      chosenDeviceId: 'b',
+      actions: CameraMenuActions(
+        onQuality: (_) {},
+        onMirror: (_) {},
+        onDevice: (_) {},
+        onFlip: () {},
+      ),
+    );
+    final row = entries.whereType<ControlSubmenu>().single;
+    expect(row.value, 'Desk');
+    expect(
+      [
+        for (final option in row.options)
+          if (option.selected) option.label,
+      ],
+      ['Desk'],
+    );
+  });
 }

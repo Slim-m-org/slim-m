@@ -87,13 +87,13 @@ On first run it asks which space to join. Give it your `SLIMM_API_DOMAIN`, as an
 https://chat.example.com
 ```
 
-It will show a **security check** with eight groups of letters and numbers - the server's fingerprint. Compare it against the line your own server logged at startup:
+The app pins your server's key silently the first time it connects. If the key ever changes, it stops with a warning and shows five words. Your server logs the same five words at startup:
 
 ```bash
 docker compose logs server | grep "server identity"
 ```
 
-They should match. This is the one moment where you can confirm it cheaply, and it is the same check you will ask your friends to do.
+If a client ever warns, compare its words against that line before trusting it.
 
 Then create your account. That first registration claims the deployment and makes you its administrator.
 
@@ -105,7 +105,7 @@ In the app, go to **Settings → Invites** and create one.
 Send them the invite link, which carries both the server address and the code, so they do not have to type either.
 
 They install a client the same way, open the link, and land on the join screen with both fields filled in.
-They will see the same fingerprint check you did - tell them what your fingerprint is through some other channel, so the check is worth something.
+If their app ever warns that the server changed, they will be asked to check five words with you, so keep your server's five words somewhere you can read them out.
 
 If you would rather let anyone with the address sign up, there is a **Who can join** pane in settings. Only do that if you are comfortable with strangers registering.
 
@@ -400,10 +400,11 @@ It answers Prometheus text exposition format with:
 - `slimm_livekit_configured` - whether this deployment has an SFU configured at all.
 - `slimm_livekit_reachable` - whether the configured SFU answered the server's own last reachability probe. Present only when `slimm_livekit_configured` is `1`; a text-only deployment has nothing to be unreachable, so this line is absent rather than a misleading `0`. This is the same class of gap the `livekit` `HEALTHCHECK` above closes, from the server's point of view rather than Docker's - useful when the server and the SFU are not on the same host, or the SFU is not something this compose file runs at all.
 
-## Your server's identity code, and the question a joiner will ask you
+## Your server's five words
 
-The first time someone connects to an address this app has never seen, the client shows them eight groups of hex and asks them to confirm it with whoever runs the server.
-That is you, and the code they are reading is yours.
+A client pins your server's key the first time it connects and says nothing.
+If the key it sees later differs, the client stops and shows five words to check with whoever runs the server.
+That is you, and the words it shows are the ones your server computes from its own key.
 
 Your copy is in the server's own log, printed once at every start:
 
@@ -411,7 +412,7 @@ Your copy is in the server's own log, printed once at every start:
 docker compose logs server | grep "server identity"
 ```
 
-The line reads `server identity; a joining client shows this code, so confirm it matches fingerprint=dead beef cafe babe feed face 1337 d00d` - the same eight groups in the same order the joiner sees, unquoted.
+The line reads `server identity; a client whose pinned key changed shows these words, so read them out fingerprint=glide hover engage snow drip` - the same five words in the same order the client shows, unquoted.
 Grep for `server identity` rather than for `fingerprint`: the field name and its `=` are separated by terminal colour codes, so a grep for `fingerprint=` matches nothing even though the line is right there.
 Read it back to them over something neither of you is worried about: in person, or a call you placed.
 Not the connection they are asking about, and not a message that arrived through it - an attacker sitting in the middle of that connection can rewrite both halves of the conversation.

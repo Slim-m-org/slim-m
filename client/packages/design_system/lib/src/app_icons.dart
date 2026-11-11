@@ -240,6 +240,9 @@ abstract final class AppIcons {
   /// the other.
   static const IconData pen = LucideIcons.pencil300;
   static const IconData eraser = LucideIcons.eraser300;
+
+  /// The share option that keeps your mouse pointer in (or out of) a screen share.
+  static const IconData sharedCursor = LucideIcons.mousePointer2300;
   static const IconData undo = LucideIcons.undo2300;
   static const IconData redo = LucideIcons.redo2300;
 

@@ -32,7 +32,12 @@ Future<ProviderContainer> _register(
 }) async {
   final client = MockClient((request) async {
     final body = switch (request.url.path) {
-      '/version' => {'name': 'slim-m', 'version': '0.10.0', 'protocol': 1},
+      '/version' => {
+        'name': 'slim-m',
+        'version': '0.10.0',
+        'protocol': 1,
+        'capabilities': ['report', 'block'],
+      },
       '/auth/register' when status == 200 => _tokens.toJson(),
       _ => {'error': 'taken'},
     };

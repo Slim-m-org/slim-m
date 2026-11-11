@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM debug_logs WHERE created_at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f9c876f75969f5b00ba29f74c4e57aa1a07712fd9fe03dec4a6a1a0beb0d3f2a"
+}

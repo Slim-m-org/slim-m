@@ -3,7 +3,7 @@ use super::*;
 
 fn subject() -> Subject {
     Subject {
-        module_id: "transcript".into(),
+        consumer: Consumer::Module("transcript".into()),
         module_name: "Transcript".into(),
         purpose: "writes it down".into(),
         keeps: "the text".into(),
@@ -275,4 +275,50 @@ fn refusals_start_a_cooldown_and_outside_endings_do_not() {
     ] {
         assert!(!r.is_refusal());
     }
+}
+
+fn always(present: &[UserId], now: i64) -> (Session, Vec<Effect>) {
+    Session::always(
+        (Uuid::now_v7(), ChannelId::generate(), subject()),
+        present,
+        now,
+    )
+    .expect("fits")
+}
+
+#[test]
+fn an_always_session_is_on_at_once_with_everyone_included_and_nobody_asked() {
+    let p = people(2);
+    let (s, effects) = always(&p, 7);
+    assert_eq!(effects, vec![Effect::Start]);
+    assert_eq!(s.status, Status::On);
+    assert!(s.pending().is_empty());
+    assert_eq!(s.include().len(), 2);
+    assert!(s.is_automatic());
+}
+
+#[test]
+fn an_always_session_includes_each_joiner_and_ends_when_the_last_one_leaves() {
+    let p = people(2);
+    let (mut s, _) = always(&p[..1], 0);
+    let effects = s.join(p[1]);
+    assert_eq!(
+        effects,
+        vec![
+            Effect::Participant {
+                user_id: p[1],
+                included: true
+            },
+            Effect::Include
+        ]
+    );
+    assert_eq!(s.include().len(), 2);
+    assert!(!s.leave(p[0], 5).is_empty());
+    assert!(matches!(
+        s.leave(p[1], 6).as_slice(),
+        [Effect::Ended {
+            reason: EndReason::CallEnded,
+            ..
+        }]
+    ));
 }

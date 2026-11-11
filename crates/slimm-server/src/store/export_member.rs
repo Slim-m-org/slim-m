@@ -133,6 +133,18 @@ const CALL_EVENTS: &str = concat!(
     " ORDER BY e.at"
 );
 
+// What the member said on calls, with the call's channel and the line's time.
+const TRANSCRIPT_LINES: &str = concat!(
+    "SELECT t.id AS transcript_id, t.channel_id, l.seq, l.at, l.text
+     FROM call_transcript_lines l
+     JOIN call_transcripts t ON t.id = l.transcript_id
+     JOIN channels c ON c.id = t.channel_id ",
+    parent_joins!(),
+    " WHERE l.speaker_id = ?1 AND ",
+    live_channel!(),
+    " ORDER BY l.at, l.id"
+);
+
 // Files the member uploaded and still has on a live message of their own.
 const ATTACHMENTS: &str = concat!(
     "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
@@ -216,6 +228,10 @@ impl Store {
 
     pub fn export_member_call_events(&self, user: UserId) -> RowStream {
         self.stream_rows(CALL_EVENTS, user.0)
+    }
+
+    pub fn export_member_transcript_lines(&self, user: UserId) -> RowStream {
+        self.stream_rows(TRANSCRIPT_LINES, user.0)
     }
 
     pub fn export_member_attachments(&self, user: UserId) -> RowStream {

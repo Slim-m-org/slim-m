@@ -33,6 +33,8 @@ extension SlimmApiSpace on SlimmApi {
       :welcomeEnabled,
       :welcomeChannelId,
       :welcomeMessage,
+      :callTranscription,
+      :callTranscriptRetentionDays,
     ) = update;
     assert(
       name != null ||
@@ -46,7 +48,9 @@ extension SlimmApiSpace on SlimmApi {
           moduleProfileSections != null ||
           welcomeEnabled != null ||
           welcomeChannelId != null ||
-          welcomeMessage != null,
+          welcomeMessage != null ||
+          callTranscription != null ||
+          callTranscriptRetentionDays != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await send(
@@ -69,6 +73,12 @@ extension SlimmApiSpace on SlimmApi {
         if (welcomeEnabled != null) 'welcome_enabled': welcomeEnabled,
         if (welcomeChannelId != null) 'welcome_channel_id': welcomeChannelId,
         if (welcomeMessage != null) 'welcome_message': welcomeMessage,
+        if (callTranscription != null)
+          'call_transcription': callTranscription.wire,
+        if (callTranscriptRetentionDays != null)
+          'call_transcript_retention_days': callTranscriptRetentionDays == 0
+              ? null
+              : callTranscriptRetentionDays,
       },
     );
     return SpaceSettings.fromJson(json as Map<String, dynamic>);

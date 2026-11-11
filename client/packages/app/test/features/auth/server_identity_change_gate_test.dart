@@ -113,7 +113,10 @@ void main() {
     await _pump(tester, keyStore: store, presentedKey: _keyB);
 
     expect(find.text('the app'), findsNothing);
-    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(
+      find.text("This isn't the server you joined before"),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a matching pin, or none yet, leaves the app alone', (
@@ -135,21 +138,19 @@ void main() {
     await store.put(_handle, _keyA);
     await _pump(tester, keyStore: store, presentedKey: _keyB);
 
-    await tester.tap(find.byType(CheckboxListTile));
-    await tester.pump();
-    await tester.tap(find.text('Trust the new identity'));
+    await tester.tap(find.text('Trust the new server'));
     await tester.pumpAndSettle();
 
     expect(await store.read(_handle), _keyB);
     expect(find.text('the app'), findsOneWidget);
   });
 
-  testWidgets('cancelling signs the session out', (tester) async {
+  testWidgets('going back signs the session out', (tester) async {
     final store = InMemoryKeyStore();
     await store.put(_handle, _keyA);
     final container = await _pump(tester, keyStore: store, presentedKey: _keyB);
 
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.text('Go back'));
     await tester.pumpAndSettle();
 
     expect(container.read(sessionProvider).isSignedIn, isFalse);
@@ -162,14 +163,20 @@ void main() {
     final store = InMemoryKeyStore();
     await store.put(_handle, _keyA);
     final container = await _pump(tester, keyStore: store, presentedKey: _keyB);
-    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(
+      find.text("This isn't the server you joined before"),
+      findsOneWidget,
+    );
 
     probeFails = true;
     (container.read(syncControllerProvider.notifier) as NoopSyncController)
         .report(SyncStatus.live);
     await tester.pumpAndSettle();
 
-    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(
+      find.text("This isn't the server you joined before"),
+      findsOneWidget,
+    );
     expect(find.text('the app'), findsNothing);
   });
 
@@ -181,8 +188,11 @@ void main() {
     await _pump(tester, keyStore: store, presentedKey: null);
 
     expect(find.text('the app'), findsNothing);
-    expect(find.text("This server's identity changed"), findsOneWidget);
-    expect(find.text('Continue without an identity'), findsOneWidget);
+    expect(
+      find.text("This isn't the server you joined before"),
+      findsOneWidget,
+    );
+    expect(find.text('Trust the new server'), findsOneWidget);
   });
 
   testWidgets('no pin and no identity leaves the app alone', (tester) async {
@@ -197,9 +207,7 @@ void main() {
     await store.put(_handle, _keyA);
     await _pump(tester, keyStore: store, presentedKey: null);
 
-    await tester.tap(find.byType(CheckboxListTile));
-    await tester.pump();
-    await tester.tap(find.text('Continue without an identity'));
+    await tester.tap(find.text('Trust the new server'));
     await tester.pumpAndSettle();
 
     expect(await store.read(_handle), _keyA);

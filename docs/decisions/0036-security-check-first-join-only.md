@@ -1,6 +1,6 @@
 # 0036 - The security check shows on first join only
 
-Status: accepted
+Status: superseded in part by 0112 (the first-connect screen is gone; a changed key still stops)
 Date: 2026-09-28
 
 ## The ask

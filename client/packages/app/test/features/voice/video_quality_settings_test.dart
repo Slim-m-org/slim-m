@@ -46,7 +46,7 @@ void main() {
     expect(find.text('CAMERA QUALITY'), findsNothing);
     await tester.tap(find.text('1440p'));
     await tester.pumpAndSettle();
-    await _openMenu(tester);
+    expect(find.text('60 fps'), findsOneWidget, reason: 'a pick keeps it open');
     await tester.tap(find.text('60 fps'));
     await tester.pumpAndSettle();
 
@@ -78,7 +78,7 @@ void main() {
 
     expect(find.byType(BottomSheet), findsOneWidget);
     for (final heading in ['Resolution', 'Frame rate']) {
-      final box = tester.getRect(find.text(heading.toUpperCase()));
+      final box = tester.getRect(find.text(heading));
       expect(box.left, greaterThanOrEqualTo(0), reason: heading);
       expect(box.right, lessThanOrEqualTo(390), reason: heading);
     }

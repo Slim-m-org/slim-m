@@ -46,6 +46,12 @@ async fn started_segments_and_stopped_arrive_with_the_documented_fields() {
     assert_eq!(events[0]["data"]["session_id"], session);
     assert_eq!(events[0]["data"]["channel_id"], rig.channel.to_string());
     assert_eq!(events[0]["data"]["included"].as_array().unwrap().len(), 2);
+    let names = events[0]["data"]["names"].as_object().unwrap();
+    assert_eq!(names.len(), 2);
+    for person in &rig.people {
+        let user = rig.store.user_profiles(&[person.id]).await.unwrap();
+        assert_eq!(names[&person.id.to_string()], user[0].display_name.as_str());
+    }
     assert!(
         events[0]["id"]
             .as_str()
@@ -105,6 +111,9 @@ async fn a_participant_event_names_who_entered_or_left_the_include_set() {
         .unwrap()
         .access_token;
     let c = support::call_audio_world::Person { id: c.id, token };
+    let first_name = rig.store.user_profiles(&[rig.people[0].id]).await.unwrap()[0]
+        .display_name
+        .clone();
     rig.join(&c).await;
     rig.answer(&c, true).await;
     rig.leave(&rig.people[0]).await;
@@ -116,14 +125,15 @@ async fn a_participant_event_names_who_entered_or_left_the_include_set() {
             (
                 e["data"]["user_id"].as_str().unwrap().to_owned(),
                 e["data"]["included"].as_bool().unwrap(),
+                e["data"]["name"].as_str().map(str::to_owned),
             )
         })
         .collect();
     assert_eq!(
         changes,
         [
-            (c.id.to_string(), true),
-            (rig.people[0].id.to_string(), false)
+            (c.id.to_string(), true, Some("C".to_owned())),
+            (rig.people[0].id.to_string(), false, Some(first_name))
         ]
     );
 }

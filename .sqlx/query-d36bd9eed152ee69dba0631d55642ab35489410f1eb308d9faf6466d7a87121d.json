@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: RoleId\" FROM roles WHERE is_bots_role = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: RoleId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d36bd9eed152ee69dba0631d55642ab35489410f1eb308d9faf6466d7a87121d"
+}

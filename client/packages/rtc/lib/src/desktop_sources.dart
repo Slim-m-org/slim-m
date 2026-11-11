@@ -40,6 +40,9 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'screen_share.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+/// The title of the app's own screen overlay and call panel windows, as the Windows runner names them.
+const ownOverlayWindowTitle = 'slim-m screen overlay';
+
 /// The seam. The default implementation talks to libwebrtc's desktop
 /// capturer; a test supplies its own.
 abstract class DesktopSources {
@@ -106,7 +109,7 @@ class WebrtcDesktopSources implements DesktopSources {
     }
   }
 
-  /// Windows are listed too except on Linux ([ScreenShareSource]); screens first, untitled windows left out.
+  /// Windows are listed too except on Linux ([ScreenShareSource]); screens first, untitled windows and the app's own overlay left out.
   /// On Wayland the plugin must hold back libwebrtc's portal session for this list, or the first share shows the chooser twice (`scripts/linux-portal-probe/run.sh`).
   @override
   Future<List<ScreenShareSource>> list() async {
@@ -121,7 +124,8 @@ class WebrtcDesktopSources implements DesktopSources {
     final windows = <ScreenShareSource>[];
     for (final source in sources) {
       if (source.type == webrtc.SourceType.Window) {
-        if (source.name.trim().isEmpty) continue;
+        final title = source.name.trim();
+        if (title.isEmpty || title == ownOverlayWindowTitle) continue;
         windows.add(
           ScreenShareSource(id: source.id, name: source.name, isWindow: true),
         );

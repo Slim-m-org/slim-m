@@ -2,7 +2,7 @@
 /// An account a member linked from elsewhere (`LinkedAccount` in the schema).
 library;
 
-/// Who a member is on another service. Only Discord exists today.
+/// Who a member is on another service. Discord and Steam.
 class LinkedAccount {
   const LinkedAccount({
     required this.provider,
@@ -10,6 +10,7 @@ class LinkedAccount {
     required this.linkedAt,
     this.displayName,
     this.avatarUpdatedAt,
+    this.shareActivity = false,
   });
 
   factory LinkedAccount.fromJson(Map<String, dynamic> json) => LinkedAccount(
@@ -18,6 +19,7 @@ class LinkedAccount {
         displayName: json['display_name'] as String?,
         linkedAt: json['linked_at'] as int,
         avatarUpdatedAt: json['avatar_updated_at'] as int?,
+        shareActivity: json['share_activity'] as bool? ?? false,
       );
 
   final String provider;
@@ -28,7 +30,13 @@ class LinkedAccount {
   /// Null when the server stored no picture; also the cache key for one.
   final int? avatarUpdatedAt;
 
+  /// Whether the member shows the game they play (Steam only).
+  final bool shareActivity;
+
+  bool get isSteam => provider == LinkedAccount.steam;
+
   bool get isDiscord => provider == LinkedAccount.discord;
 
   static const discord = 'discord';
+  static const steam = 'steam';
 }

@@ -22,7 +22,8 @@ const EVERYONE_DEFAULTS: Permissions = Permissions::VIEW_CHANNEL
     .union(Permissions::ATTACH_FILES)
     .union(Permissions::CONNECT)
     .union(Permissions::SPEAK)
-    .union(Permissions::USE_CANVAS);
+    .union(Permissions::USE_CANVAS)
+    .union(Permissions::VIEW_TRANSCRIPTS);
 
 /// The outcome of a bootstrap attempt.
 #[derive(Debug, PartialEq, Eq)]

@@ -28,6 +28,7 @@ import '../../../routing/routes.dart';
 import 'admin/account_recovery_screen.dart';
 import 'admin/analytics_screen.dart';
 import 'admin/audit_log_screen.dart';
+import 'admin/debug_logs_screen.dart';
 import 'admin/bots_screen.dart';
 import 'admin/channel_permissions_screen.dart';
 import '../widgets/admin/channel_permissions_heading.dart';
@@ -284,6 +285,15 @@ SettingsPaneGroup _insightGroup(_SpaceAccess access) {
           compactRoute: Routes.adminAuditLog,
           scrollable: false,
           builder: (_) => const AuditLogPane(),
+        ),
+      if (access.canManageServer)
+        SettingsPane(
+          id: 'debug-logs',
+          label: 'Debug logs',
+          icon: AppIcons.debugLog,
+          compactRoute: Routes.adminDebugLogs,
+          scrollable: false,
+          builder: (_) => const DebugLogsPane(),
         ),
     ],
   );

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM call_transcripts WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "178fba9acf4afbdec07826657dfd8f5f8dbf23a9b930986b7cbd190b6508f3e9"
+}

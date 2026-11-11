@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The other half of pinning a server's identity: a later connection whose
-/// key does not match what was pinned before. Trust-on-first-use exists to
-/// make exactly this visible, so nothing here may read like the routine
-/// first-connect confirmation it is not.
+/// A later connection whose key does not match what was pinned before. First
+/// connects pin silently, so this is the one moment trust-on-first-use speaks,
+/// and it speaks bluntly.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import 'server_fingerprint_step.dart';
+import 'server_identity_fingerprint.dart';
 
 /// Shown when the address answers with a different key than the one already
-/// pinned for it. Requires an explicit acknowledgement before the one action
-/// that re-pins the new key even unlocks, so it cannot be tapped through the
-/// way the ordinary confirmation can. Pops `true` only if that action fires;
-/// `false` on cancel. A caller with no route to pop passes [onDecision].
-class ServerIdentityChangedStep extends StatefulWidget {
+/// pinned for it. Pops `true` only if the person trusts the new server, `false`
+/// on going back. A caller with no route to pop passes [onDecision].
+class ServerIdentityChangedStep extends StatelessWidget {
   const ServerIdentityChangedStep({
     super.key,
     required this.address,
@@ -30,23 +27,17 @@ class ServerIdentityChangedStep extends StatefulWidget {
   final api.ServerIdentity? identity;
   final void Function(bool trusted)? onDecision;
 
-  @override
-  State<ServerIdentityChangedStep> createState() =>
-      _ServerIdentityChangedStepState();
-}
-
-class _ServerIdentityChangedStepState extends State<ServerIdentityChangedStep> {
-  bool _acknowledged = false;
-
-  void _decide(bool trusted) {
-    if (widget.onDecision case final decide?) return decide(trusted);
+  void _decide(BuildContext context, bool trusted) {
+    if (onDecision case final decide?) return decide(trusted);
     Navigator.of(context).pop(trusted);
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final identity = widget.identity;
+    final words = identity == null
+        ? const <String>[]
+        : fingerprintWordsOf(identity!);
 
     return Scaffold(
       body: Center(
@@ -58,13 +49,17 @@ class _ServerIdentityChangedStepState extends State<ServerIdentityChangedStep> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'SECURITY CHECK',
-                  style: AppText.label.copyWith(color: tokens.textSecondary),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Icon(
+                    AppIcons.warning,
+                    size: AppSizes.icon24,
+                    color: tokens.dangerText,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.s8),
+                const SizedBox(height: AppSpacing.s12),
                 Text(
-                  "This server's identity changed",
+                  "This isn't the server you joined before",
                   style: AppText.heading.copyWith(
                     color: tokens.dangerText,
                     fontWeight: AppWeights.semi,
@@ -72,65 +67,81 @@ class _ServerIdentityChangedStepState extends State<ServerIdentityChangedStep> {
                 ),
                 const SizedBox(height: AppSpacing.s8),
                 Text(
-                  widget.address.toString(),
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.s24),
-                AppCallout(
-                  tone: AppCalloutTone.warn,
-                  child: Text(
-                    identity == null
-                        ? 'This server no longer presents an identity, but '
-                              'this app pinned one the last time it connected '
-                              'here. That can mean this connection no longer '
-                              'reaches the server that was trusted before. '
-                              'Ask whoever runs it before carrying on.'
-                        : 'The key this server presents does not match the '
-                              'one pinned the last time this app connected '
-                              'here. That can be an honest change, a re-key '
-                              'or a move to new hosting, or it can mean this '
-                              'connection no longer reaches the server that '
-                              'was trusted before. Confirm the code below '
-                              'with whoever runs it before trusting it again.',
+                  address.host,
+                  style: AppText.caption.copyWith(
+                    color: tokens.textSecondary,
+                    fontFamily: AppFonts.mono,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.s24),
-                if (identity != null) ...[
-                  FingerprintDisplay(identity: identity),
+                const SizedBox(height: AppSpacing.s16),
+                Text(
+                  words.isEmpty
+                      ? 'It no longer proves who it is. Someone may be '
+                            'standing between you and it.'
+                      : 'Someone may be standing between you and it. Ask the '
+                            'admin to read you its words.',
+                  style: AppText.body.copyWith(color: tokens.textSecondary),
+                ),
+                if (words.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.s24),
+                  _Words(words: words),
                 ],
-                CheckboxListTile(
-                  value: _acknowledged,
-                  onChanged: (v) => setState(() => _acknowledged = v ?? false),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: Text(
-                    identity == null
-                        ? 'I have checked with whoever runs this server.'
-                        : 'I have confirmed this new code with whoever runs '
-                              'this server.',
-                    style: AppText.caption.copyWith(color: tokens.textPrimary),
-                  ),
+                const SizedBox(height: AppSpacing.s32),
+                AppButton(
+                  label: 'Go back',
+                  variant: AppButtonVariant.primary,
+                  full: true,
+                  onPressed: () => _decide(context, false),
                 ),
                 const SizedBox(height: AppSpacing.s12),
                 AppButton(
-                  label: identity == null
-                      ? 'Continue without an identity'
-                      : 'Trust the new identity',
+                  label: 'Trust the new server',
                   variant: AppButtonVariant.danger,
                   full: true,
-                  disabled: !_acknowledged,
-                  onPressed: () => _decide(true),
-                ),
-                const SizedBox(height: AppSpacing.s12),
-                AppButton(
-                  label: 'Cancel',
-                  variant: AppButtonVariant.secondary,
-                  full: true,
-                  onPressed: () => _decide(false),
+                  onPressed: () => _decide(context, true),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The five words, one per line so each can be matched against what the admin
+/// says without losing the place.
+class _Words extends StatelessWidget {
+  const _Words({required this.words});
+
+  final List<String> words;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      label: 'New server words: ${words.join(' ')}',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+          decoration: BoxDecoration(
+            color: tokens.surfaceRaised,
+            border: Border.all(color: tokens.borderSubtle),
+            borderRadius: BorderRadius.circular(AppRadii.card),
+          ),
+          child: Column(
+            children: [
+              for (final word in words)
+                Text(
+                  word,
+                  textAlign: TextAlign.center,
+                  style: AppText.heading.copyWith(
+                    color: tokens.textPrimary,
+                    fontFamily: AppFonts.mono,
+                    height: 1.5,
+                  ),
+                ),
+            ],
           ),
         ),
       ),

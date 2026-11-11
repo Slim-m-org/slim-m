@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accounts from other services a member links: Discord, and Spotify with its
-/// now-playing switch.
+/// Accounts from other services a member links: Discord, Steam with its
+/// now-playing switch, and Spotify with its own.
 library;
 
 import 'dart:async';
@@ -23,6 +23,7 @@ import 'discord_link_code_sheet.dart';
 import 'settings_detail_row.dart';
 import 'settings_refresh_button.dart';
 import 'spotify_connection_rows.dart';
+import 'steam_connection_rows.dart';
 import 'settings_section_header.dart';
 import '../providers/settings_actions.dart';
 
@@ -94,10 +95,17 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
         ?.where((link) => link.isDiscord)
         .firstOrNull;
     final discordShown = !(unavailable && discord == null);
+    final steam = links.valueOrNull?.where((link) => link.isSteam).firstOrNull;
+    final steamShown =
+        steam != null ||
+        (ref.watch(serverInfoProvider).valueOrNull?.steamLinkEnabled == true &&
+            !ref.watch(steamLinkUnavailableProvider));
     final spotifyShown = ref.watch(
       spotifyClientIdProvider.select((id) => id.isNotEmpty),
     );
-    if (!discordShown && !spotifyShown) return const SizedBox.shrink();
+    if (!discordShown && !steamShown && !spotifyShown) {
+      return const SizedBox.shrink();
+    }
 
     return SettingsSectionCard(
       title: 'Connections',
@@ -108,6 +116,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
       ),
       children: [
         if (discordShown) ..._discordRows(links, discord),
+        if (steamShown) ...steamConnectionChildren(ref, steam),
         if (spotifyShown) ...spotifyConnectionChildren(ref),
       ],
     );

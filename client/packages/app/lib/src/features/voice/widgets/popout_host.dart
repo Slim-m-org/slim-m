@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Opens and closes the pop-out OS window as the requested feed comes and goes.
+/// Opens and closes one pop-out OS window per requested feed as each comes and goes.
 ///
-/// Closing the window clears the request and never touches the call: only the
-/// window's own leave button does that. A feed that stops, or a call that ends,
-/// closes the window behind it.
+/// Closing a window clears that feed's request and never touches the call or the
+/// other windows: only a window's own leave button ends the call. A feed that
+/// stops closes its window; a call that ends or an app lock closes them all.
 library;
 
 import 'dart:async';
@@ -30,64 +30,74 @@ class PopOutHost extends ConsumerStatefulWidget {
   ConsumerState<PopOutHost> createState() => _PopOutHostState();
 }
 
+class _OpenWindow {
+  _OpenWindow(this.feed, this.handle, this.releaseEnlarged);
+
+  final MiniPlayerFeed feed;
+  final PopOutWindowHandle handle;
+  final VoidCallback releaseEnlarged;
+
+  void dispose() {
+    releaseEnlarged();
+    handle.destroy();
+  }
+}
+
 class _PopOutHostState extends ConsumerState<PopOutHost> {
-  PopOutWindowHandle? _handle;
-  MiniPlayerFeed? _feed;
-  VoidCallback? _releaseEnlarged;
+  final _windows = <String, _OpenWindow>{};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _sync(ref.read(popOutLiveFeedProvider));
+      if (mounted) _sync(ref.read(popOutLiveFeedsProvider));
     });
   }
 
   @override
   void dispose() {
-    _releaseEnlarged?.call();
-    _handle?.destroy();
+    for (final window in _windows.values) {
+      window.dispose();
+    }
     super.dispose();
   }
 
-  void _close() => ref.read(popOutFeedProvider.notifier).state = null;
+  void _close(MiniPlayerFeed feed) =>
+      ref.read(popOutFeedsProvider.notifier).close(feed);
 
   /// A popped-out feed has its own window, so Data saver must not cap it.
-  void _holdSharp(MiniPlayerFeed? feed) {
-    _releaseEnlarged?.call();
-    _releaseEnlarged = feed == null
-        ? null
-        : ref
-              .read(voiceControllerProvider.notifier)
-              .video
-              .holdEnlargedVideo(pictureInPictureTileKey(feed));
+  VoidCallback _holdSharp(MiniPlayerFeed feed) => ref
+      .read(voiceControllerProvider.notifier)
+      .video
+      .holdEnlargedVideo(pictureInPictureTileKey(feed));
+
+  _OpenWindow? _open(MiniPlayerFeed feed) {
+    final factory = ref.read(popOutWindowFactoryProvider);
+    if (factory == null) return null;
+    final handle = factory(
+      title: popOutWindowTitle,
+      size: _windowSize,
+      decorated: false,
+      onCloseRequested: () => _close(feed),
+    );
+    _keepAbove(handle);
+    return _OpenWindow(feed, handle, _holdSharp(feed));
   }
 
-  void _sync(MiniPlayerFeed? next) {
-    _holdSharp(next);
-    if (next == null) {
-      ref.read(popOutFeedProvider.notifier).state = null;
-      if (_handle == null) return;
-      _handle!.destroy();
-      setState(() {
-        _handle = null;
-        _feed = null;
-      });
-      return;
+  void _sync(List<MiniPlayerFeed> live) {
+    final wanted = {
+      for (final feed in live) pictureInPictureTileKey(feed): feed,
+    };
+    for (final key in _windows.keys.toList()) {
+      if (!wanted.containsKey(key)) _windows.remove(key)!.dispose();
     }
-    if (_handle == null) {
-      final factory = ref.read(popOutWindowFactoryProvider);
-      if (factory == null) return;
-      final handle = factory(
-        title: popOutWindowTitle,
-        size: _windowSize,
-        decorated: false,
-        onCloseRequested: _close,
-      );
-      setState(() => _handle = handle);
-      _keepAbove(handle);
+    for (final MapEntry(:key, value: feed) in wanted.entries) {
+      if (_windows.containsKey(key)) continue;
+      final window = _open(feed);
+      if (window != null) _windows[key] = window;
     }
-    setState(() => _feed = next);
+    ref.read(popOutFeedsProvider.notifier).keepOnly(live);
+    setState(() {});
   }
 
   /// Asked once the window has drawn, since a window manager only finds a mapped window, and once more in case it was slow to map.
@@ -97,35 +107,47 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
       Duration(seconds: 1),
     ]) {
       Timer(wait, () {
-        if (mounted && identical(_handle, handle)) {
+        if (mounted &&
+            _windows.values.any((w) => identical(w.handle, handle))) {
           unawaited(handle.keepAbove());
         }
       });
     }
   }
 
+  Widget _view(String key, _OpenWindow window) {
+    final handle = window.handle;
+    return KeyedSubtree(
+      key: ValueKey(key),
+      child: handle.host(
+        VideoShapeScope(
+          onShape: handle.fitAspect,
+          child: PopOutWindowView(
+            feed: window.feed,
+            frame: handle.drawsOwnFrame
+                ? PopOutFrame(
+                    onMoveStart: handle.beginMove,
+                    onResizeStart: handle.beginResize,
+                    onClose: () => _close(window.feed),
+                  )
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    ref.listen(popOutLiveFeedProvider, (_, next) => _sync(next));
-    final handle = _handle;
-    final feed = _feed;
+    ref.listen(popOutLiveFeedsProvider, (_, next) => _sync(next));
     return ViewAnchor(
-      view: handle == null || feed == null
+      view: _windows.isEmpty
           ? null
-          : handle.host(
-              VideoShapeScope(
-                onShape: handle.fitAspect,
-                child: PopOutWindowView(
-                  feed: feed,
-                  frame: handle.drawsOwnFrame
-                      ? PopOutFrame(
-                          onMoveStart: handle.beginMove,
-                          onResizeStart: handle.beginResize,
-                          onClose: _close,
-                        )
-                      : null,
-                ),
-              ),
+          : ViewCollection(
+              views: [
+                for (final MapEntry(:key, value: window) in _windows.entries)
+                  _view(key, window),
+              ],
             ),
       child: widget.child,
     );

@@ -18,6 +18,7 @@ class Role {
     this.color,
     required this.createdAt,
     this.managedBotId,
+    this.isBotsRole = false,
     this.position = 0,
     this.memberCount = 0,
   });
@@ -63,6 +64,9 @@ class Role {
   /// Whether to show the "Bot" badge.
   bool get isManagedByBot => managedBotId != null;
 
+  /// Whether this is the shared role every bot holds; it cannot be deleted.
+  final bool isBotsRole;
+
   factory Role.fromJson(Map<String, dynamic> json) => Role(
         id: json['id'] as String,
         name: json['name'] as String,
@@ -73,6 +77,7 @@ class Role {
         color: json['color'] as int?,
         createdAt: json['created_at'] as int,
         managedBotId: json['managed_bot_id'] as String?,
+        isBotsRole: json['is_bots_role'] as bool? ?? false,
         position: json['position'] as int? ?? 0,
         memberCount: json['member_count'] as int? ?? 0,
       );

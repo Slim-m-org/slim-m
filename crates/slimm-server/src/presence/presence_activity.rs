@@ -26,13 +26,55 @@ pub const MAX_SOURCE_CHARS: usize = 32;
 const ART_PREFIX: &str = "https://i.scdn.co/image/";
 const ART_ID_LEN: usize = 40;
 
+/// The `source` only the server's Steam poller may set (decision 0115).
+pub const SOURCE_STEAM: &str = "steam";
+
+/// Steam's image CDNs all live under this registrable domain.
+const STEAM_CDN_SUFFIX: &str = ".steamstatic.com";
+
 /// True only for a Spotify cover URL of exactly the shape the CDN serves:
 /// no other host, port, userinfo, query or fragment can ride in (decision
 /// 0056), because every viewer's client will fetch it.
-pub fn is_allowed_art_url(url: &str) -> bool {
+pub fn is_spotify_art_url(url: &str) -> bool {
     url.strip_prefix(ART_PREFIX).is_some_and(|id| {
         id.len() == ART_ID_LEN && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
     })
+}
+
+/// True only for an https image path on a Steam CDN host: no port, userinfo,
+/// query or fragment, and a path of plain characters (decision 0115).
+pub fn is_steam_art_url(url: &str) -> bool {
+    if !url.starts_with("https://") || url.contains(['?', '#', '@', '\\', '%']) {
+        return false;
+    }
+    let Ok(parsed) = url::Url::parse(url) else {
+        return false;
+    };
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    let host_ok = host.len() > STEAM_CDN_SUFFIX.len()
+        && host.ends_with(STEAM_CDN_SUFFIX)
+        && host
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.' || b == b'-');
+    let path = parsed.path();
+    let path_ok = path.len() > 1
+        && path.len() <= 200
+        && !path.contains("..")
+        && path
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'_' | b'.' | b'-'));
+    host_ok
+        && path_ok
+        && parsed.port().is_none()
+        && parsed.username().is_empty()
+        && url == format!("https://{host}{path}")
+}
+
+/// Whether viewers' clients may fetch `url` as activity art.
+pub fn is_allowed_art_url(url: &str) -> bool {
+    is_spotify_art_url(url) || is_steam_art_url(url)
 }
 
 /// One activity as it goes over the wire.
@@ -64,12 +106,42 @@ pub struct Activity {
     /// Epoch milliseconds `position_ms` was sampled.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position_at: Option<i64>,
+    /// The Steam app being played, set only by the server's Steam poller so a
+    /// viewer's Play button can open `steam://run/<id>`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steam_app_id: Option<u32>,
 }
 
 /// Longest track the progress fields accept, in milliseconds (24 hours).
 pub const MAX_DURATION_MS: i64 = 86_400_000;
 
 impl Activity {
+    /// What a client may set: [`Self::validate`], plus nothing that claims to
+    /// be Steam, and only Spotify art. The server builds Steam activities
+    /// itself and never runs them through here.
+    pub fn validate_from_client(&self) -> Result<(), &'static str> {
+        let steam_source = self
+            .source
+            .as_deref()
+            .is_some_and(|s| s.trim().eq_ignore_ascii_case(SOURCE_STEAM));
+        if steam_source || self.steam_app_id.is_some() {
+            return Err("the steam activity source is set by the server only");
+        }
+        if self
+            .art_url
+            .as_deref()
+            .is_some_and(|u| !is_spotify_art_url(u))
+        {
+            return Err("activity art must be a Spotify cover");
+        }
+        self.validate()
+    }
+
+    /// Whether the Steam poller owns this activity.
+    pub fn is_steam(&self) -> bool {
+        self.source.as_deref() == Some(SOURCE_STEAM)
+    }
+
     /// Refuses an empty, over-long or hidden-character text rather than
     /// trimming it, so what viewers read is exactly what the sender sent.
     pub fn validate(&self) -> Result<(), &'static str> {
@@ -88,7 +160,9 @@ impl Activity {
         self.validate_source()?;
         self.validate_progress()?;
         match self.art_url.as_deref() {
-            Some(url) if !is_allowed_art_url(url) => Err("activity art must be a Spotify cover"),
+            Some(url) if !is_allowed_art_url(url) => {
+                Err("activity art must be a Spotify or Steam image")
+            }
             _ => Ok(()),
         }
     }
@@ -141,6 +215,7 @@ mod tests {
             duration_ms: None,
             position_ms: None,
             position_at: None,
+            steam_app_id: None,
         }
     }
 
@@ -206,6 +281,54 @@ mod tests {
         ] {
             assert!(!is_allowed_art_url(&url), "{url}");
         }
+    }
+
+    #[test]
+    fn steam_art_is_an_https_path_on_a_steam_cdn_host() {
+        let ok =
+            "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/730/header.jpg";
+        assert!(is_allowed_art_url(ok));
+        assert!(is_allowed_art_url(
+            "https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg"
+        ));
+        for url in [
+            "http://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg",
+            "https://steamstatic.com/steam/apps/730/header.jpg",
+            "https://evilsteamstatic.com/steam/apps/730/header.jpg",
+            "https://cdn.steamstatic.com.evil.example/steam/apps/730/header.jpg",
+            "https://u@cdn.steamstatic.com/steam/apps/730/header.jpg",
+            "https://cdn.steamstatic.com:444/steam/apps/730/header.jpg",
+            "https://cdn.steamstatic.com/steam/apps/730/header.jpg?t=1",
+            "https://cdn.steamstatic.com/steam/apps/730/header.jpg#f",
+            "https://cdn.steamstatic.com/steam/../x.jpg",
+            "https://cdn.steamstatic.com/",
+            "https://CDN.steamstatic.com/steam/apps/730/header.jpg",
+            "https://cdn.steamstatic.com\\@evil.example/x.jpg",
+        ] {
+            assert!(!is_allowed_art_url(url), "{url}");
+        }
+    }
+
+    #[test]
+    fn a_client_cannot_claim_steam_or_use_steam_art() {
+        let source = |s: &str| Activity {
+            source: Some(s.to_owned()),
+            ..sample("t")
+        };
+        assert!(source("Spotify").validate_from_client().is_ok());
+        assert!(source("steam").validate_from_client().is_err());
+        assert!(source(" Steam ").validate_from_client().is_err());
+        let app = Activity {
+            steam_app_id: Some(730),
+            ..sample("t")
+        };
+        assert!(app.validate_from_client().is_err());
+        let art = Activity {
+            art_url: Some("https://cdn.steamstatic.com/steam/apps/730/header.jpg".to_owned()),
+            ..sample("t")
+        };
+        assert!(art.validate().is_ok());
+        assert!(art.validate_from_client().is_err());
     }
 
     #[test]

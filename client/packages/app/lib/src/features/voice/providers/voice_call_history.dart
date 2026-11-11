@@ -22,7 +22,8 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
           api.VoiceActivityChanged(:final channelId) ||
           api.VoiceParticipantJoined(:final channelId) ||
           api.VoiceParticipantLeft(:final channelId) ||
-          api.VoiceScreenShareChanged(:final channelId) => channelId,
+          api.VoiceScreenShareChanged(:final channelId) ||
+          api.CallTranscriptChanged(:final channelId) => channelId,
           _ => null,
         };
         if (changed != channelId) return;

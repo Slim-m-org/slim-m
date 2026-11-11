@@ -38,6 +38,7 @@ mod refusals;
 mod space_banner;
 mod space_icon;
 mod space_themes;
+mod steam_link;
 mod threads;
 mod totp_calls;
 mod upload_sessions;
@@ -60,6 +61,7 @@ use push_invite_calls::{channel_retention_calls, invite_calls, push_calls};
 use space_banner::banner_calls;
 use space_icon::icon_calls;
 use space_themes::space_theme_calls;
+use steam_link::steam_link_calls;
 use threads::thread_calls;
 use upload_sessions::upload_session_calls;
 
@@ -331,7 +333,9 @@ pub async fn run(c: &mut Contract) {
     .await;
     c.bare("listAdminAuditLog", "GET", "/space/audit-log", root)
         .await;
+    debug_log_calls(c, root, bob_token).await;
     discord_link_calls(c, bob_token, &bob_id).await;
+    steam_link_calls(c, bob_token, &bob_id).await;
     c.bare("listMyLinkedAccounts", "GET", "/me/links", bob_token)
         .await;
     c.bare(
@@ -387,6 +391,55 @@ pub async fn run(c: &mut Contract) {
         root,
     )
     .await;
+    let transcript = slimm_server::ids::CallTranscriptId::generate();
+    c.state
+        .store
+        .begin_call_transcript(&slimm_server::store::NewTranscript {
+            id: transcript,
+            channel_id: call_audio_channel.id,
+            started_at: now - 5000,
+            mode: slimm_server::store::TranscriptionMode::Always,
+            started_by: None,
+        })
+        .await
+        .unwrap();
+    c.state
+        .store
+        .append_call_transcript_line(transcript, caller, now - 4000, "hello transcript")
+        .await
+        .unwrap();
+    c.get(
+        "getVoiceTranscript",
+        &format!("/voice/transcripts/{transcript}"),
+        root,
+    )
+    .await;
+    c.get(
+        "searchVoiceTranscripts",
+        "/search/transcripts?q=hello",
+        root,
+    )
+    .await;
+    c.get(
+        "getVoiceTranscriptionNotice",
+        "/voice/transcription-notice",
+        root,
+    )
+    .await;
+    c.bare(
+        "acknowledgeVoiceTranscriptionNotice",
+        "POST",
+        "/voice/transcription-notice/ack",
+        root,
+    )
+    .await;
+    c.bare(
+        "deleteVoiceTranscript",
+        "DELETE",
+        &format!("/voice/transcripts/{transcript}"),
+        root,
+    )
+    .await;
     c.json(
         "setVoiceNotification",
         "PUT",
@@ -428,4 +481,20 @@ pub async fn run(c: &mut Contract) {
     // Last: a refusal leaves no state behind.
     refusals::refusal_calls(c, bob_token, &admin_id, &code).await;
     farewell_calls(c, root, &bob_id, &code, &channel).await;
+}
+
+async fn debug_log_calls(c: &mut Contract, root: &str, bob_token: &str) {
+    let sent = c
+        .json(
+            "submitDebugLog",
+            "POST",
+            "/debug-logs",
+            bob_token,
+            json!({"log": "12:00:00  ERROR  [sync]  failed", "note": "settings reset", "app_version": "0.1.0", "platform": "linux"}),
+        )
+        .await;
+    let uri = format!("/debug-logs/{}", sent["id"]);
+    c.get("listDebugLogs", "/debug-logs", root).await;
+    c.get("getDebugLog", &uri, root).await;
+    c.bare("deleteDebugLog", "DELETE", &uri, root).await;
 }

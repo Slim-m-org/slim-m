@@ -26,7 +26,11 @@ class LiveQualityRestart {
     : _delay = delay {
     _ref.listen(
       voiceSettingsControllerProvider.select(
-        (s) => (s.screenShareQuality.id, s.screenShareIncludeAudio),
+        (s) => (
+          s.screenShareQuality.id,
+          s.screenShareIncludeAudio,
+          s.screenShareShowCursor,
+        ),
       ),
       (_, _) => _scheduleShare(),
     );

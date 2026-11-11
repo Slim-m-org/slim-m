@@ -171,3 +171,24 @@ Neither is granted anything by this change; granting bits on the live deployment
 
 - The **roles** bot needs `MANAGE_ROLES` granted to its own managed role, exactly like any other bit, through `PATCH /bots/{botId}/permissions`. Once held, it can grant a role to a member as long as the role's own bits are a subset of what it holds - a zero-permission `tester` role always qualifies.
 - The **modlog** bot needs `VIEW_MODERATION_HISTORY` granted the same way, which reaches `GET /reports/history` without also reaching `MANAGE_MESSAGES`'s message-deletion power.
+
+## Amended 2026-11-11: one shared Bots role, a managed role only when permissions are granted
+
+The owner asked: "can we create a single role for all bots on prod? do they really need their own role for each bot?".
+Prod had 27 bots and 20 per-bot managed roles, and 17 of those granted nothing, so the roles list was mostly noise.
+
+What changed:
+
+- **A shared Bots role.** `roles.is_bots_role` (a partial unique index keeps it a singleton, as `is_everyone` does) marks one ordinary role named "Bots" with no permissions, assigned to every bot at creation.
+  Admins edit it like any role, and granting it permissions grants them to all bots at once.
+  It cannot be deleted (`DELETE /roles/{id}` answers 409), so it is never missing.
+  It is created by migration `0184` when the deployment already has bots, and otherwise by the first bot created.
+  The role DTO carries `is_bots_role`, additively.
+- **The managed role is optional.** `POST /bots` with permissions 0 creates no managed role, and `Bot.role_id` is null.
+  `PATCH /bots/{botId}/permissions` creates the managed role when the bot has none and the new bits are non-zero, and deletes it, with its assignment and overwrites, when set to 0.
+  The escalation guard and the audit trail are unchanged, and a bot without a managed role is guarded as holding 0 bits.
+- **A bot is identified by its record, not by its role.** A bot is a live `users.is_bot` row with a `bot_tokens` row; a module principal has none and still is not a bot (`Store::is_bot_account`).
+- **Migration.** `0184` assigns the Bots role to every existing bot with a token record, and deletes managed roles whose permissions are 0.
+  Managed roles that grant something are kept.
+
+The earlier "managed role" sections above still hold for a bot that has one.

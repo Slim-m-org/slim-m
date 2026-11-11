@@ -71,6 +71,7 @@ class _ShareZoomInputState extends State<ShareZoomInput> {
   final _focus = FocusNode(debugLabel: 'share zoom');
   final Map<int, Offset> _touches = {};
   double? _pinchGap;
+  Offset? _pinchMid;
   Size _size = Size.zero;
   bool _keyboardFocused = false;
 
@@ -119,7 +120,10 @@ class _ShareZoomInputState extends State<ShareZoomInput> {
     if (event.kind != PointerDeviceKind.touch) return;
     _touches[event.pointer] = event.localPosition;
     _pinchGap = _touches.length == 2 ? _gap() : null;
+    _pinchMid = _touches.length == 2 ? _mid() : null;
   }
+
+  Offset _mid() => (_touches.values.first + _touches.values.last) / 2;
 
   double _gap() => (_touches.values.first - _touches.values.last).distance;
 
@@ -134,17 +138,24 @@ class _ShareZoomInputState extends State<ShareZoomInput> {
       return;
     }
     final now = _gap();
-    final mid = (_touches.values.first + _touches.values.last) / 2;
-    _zoom.zoomAt(
-      now / before,
-      Offset(mid.dx / _size.width, mid.dy / _size.height),
-    );
+    final mid = _mid();
+    final focal = Offset(mid.dx / _size.width, mid.dy / _size.height);
+    _zoom.zoomAt(now / before, focal);
+    // Two fingers sliding together drag the picture, as a pinch does everywhere else.
+    final lastMid = _pinchMid;
+    if (lastMid != null) {
+      _zoom.panBy(
+        focal - Offset(lastMid.dx / _size.width, lastMid.dy / _size.height),
+      );
+    }
     _pinchGap = now;
+    _pinchMid = mid;
   }
 
   void _up(PointerEvent event) {
     _touches.remove(event.pointer);
     _pinchGap = null;
+    _pinchMid = null;
   }
 
   void _pan(DragUpdateDetails details) {

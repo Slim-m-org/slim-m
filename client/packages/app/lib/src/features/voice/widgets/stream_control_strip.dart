@@ -17,6 +17,9 @@ import 'stream_control_pill.dart';
 /// Width of the strip below which the volume slider stays in the tile menu only.
 const double kStreamStripVolumeMinWidth = 400;
 
+/// Width of the strip below which the quality chip is left out so the buttons fit.
+const double kStreamStripQualityMinWidth = 200;
+
 class StreamControlStrip extends StatelessWidget {
   const StreamControlStrip({
     super.key,
@@ -63,7 +66,8 @@ class StreamControlStrip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ?quality,
+                if (constraints.maxWidth >= kStreamStripQualityMinWidth)
+                  ?quality,
                 if (onFullscreen != null)
                   AppIconButton(
                     icon: AppIcons.expand,

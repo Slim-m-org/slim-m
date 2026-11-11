@@ -86,6 +86,12 @@ const voiceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Show my cursor',
+    description: 'Viewers see your mouse pointer in the share.',
+    keywords: ['mouse', 'pointer', 'cursor', 'hide', 'screen share', 'game'],
+  ),
+  SettingsEntry(
+    'voice',
     'Viewers draw on my screen',
     description: 'Their marks show on the screen you share for a few seconds.',
     keywords: ['annotate', 'draw', 'marks', 'screen share'],

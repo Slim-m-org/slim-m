@@ -379,7 +379,8 @@ jobs:
           version: ${{ needs.release-please.outputs.client_version }}
 
   # Upload-signed apk and appbundle. Inert without its three secrets, and it
-  # verifies the signer is the upload key, never debug. See docs/ci.md.
+  # verifies the signer is the upload key, never debug. The appbundle goes to
+  # Play internal testing when PLAY_SERVICE_ACCOUNT_JSON is set. See docs/ci.md.
   android-client:
     needs: [release-please, verify-client-ci]
     if: needs.verify-client-ci.result == 'success'
@@ -392,6 +393,7 @@ jobs:
       ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
       ANDROID_KEY_PROPERTIES: ${{ secrets.ANDROID_KEY_PROPERTIES }}
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - name: check secrets
         id: gate

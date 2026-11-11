@@ -100,15 +100,9 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'profile',
-    'Show my current game',
-    description: 'Your running Steam game, or one on the list below.',
-    keywords: ['game', 'steam', 'playing'],
-  ),
-  SettingsEntry(
-    'profile',
     'Connections',
     description: 'Accounts shown on your profile.',
-    keywords: ['discord', 'link', 'linked accounts'],
+    keywords: ['discord', 'steam', 'link', 'linked accounts'],
     gatedKeywords: ['spotify'],
     keywordGate: SettingsGate.spotifyConfigured,
     conditional: true,
@@ -117,6 +111,19 @@ const personalSettingsIndex = <SettingsEntry>[
     'profile',
     'Discord',
     keywords: ['connections', 'link', 'unlink'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'profile',
+    'Steam',
+    keywords: ['connections', 'link', 'unlink', 'game', 'playing'],
+    conditional: true,
+  ),
+  SettingsEntry(
+    'profile',
+    "Share what I'm playing",
+    description: 'Shows your Steam game to people who see your status.',
+    keywords: ['game', 'steam', 'playing', 'activity', 'status'],
     conditional: true,
   ),
   SettingsEntry(

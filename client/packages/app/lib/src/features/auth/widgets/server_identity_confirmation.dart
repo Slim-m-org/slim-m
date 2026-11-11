@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The orchestration behind confirming a server's identity: probing
 /// `/version`, comparing against whatever this app already pinned for that
-/// address, and deciding which of the two identity screens (if either) a
-/// human needs to see before a connection may proceed.
+/// address, and deciding whether a human needs to see the changed-key warning
+/// before a connection may proceed.
 ///
 /// Shared by every entry point that commits to a server address - sign-in,
 /// the invite dialog, the manual dialog, and the official-server button -
@@ -18,7 +18,6 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/providers.dart';
 import '../../../routing/page_transitions.dart';
-import 'server_fingerprint_step.dart';
 import 'server_identity_changed_step.dart';
 
 /// The handle a server's pinned public key is stored under, one per address:
@@ -27,9 +26,8 @@ import 'server_identity_changed_step.dart';
 String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 
 /// Probes the chosen address's identity and pins it, trust-on-first-use
-/// style: silent when it matches what is already pinned, an explicit step
-/// the first time there is nothing to compare against, and a hard stop that
-/// needs deliberate acknowledgement if it ever changes.
+/// style: the first key seen is pinned silently, a match is silent, and a
+/// changed key is a hard stop with a full-screen warning.
 ///
 /// Returns whether it is safe to continue with [server]. An unreachable one is
 /// treated as unknown rather than blocked: sign-in surfaces a real connection
@@ -38,20 +36,12 @@ String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 /// for it; once a key is pinned, leaving the identity out is a change, and goes
 /// through the same warning as a different key.
 ///
-/// [silentFirstConnect] skips the fingerprint screen on a first connect and
-/// pins whatever answered without asking - only correct for an address
-/// nobody typed, such as the compiled-in official server, where there is no
-/// out-of-band admin to compare the code with. A key that later changes is
-/// never silent, with or without this flag: that is the one case
-/// trust-on-first-use exists to make visible.
-///
 /// [requireSlimServer] makes an address that answers without a slim-m
 /// `/version` throw [api.NotASlimServerException] instead of counting as unknown.
 Future<bool> confirmServerIdentity(
   BuildContext context,
   WidgetRef ref,
   Uri server, {
-  bool silentFirstConnect = false,
   bool requireSlimServer = false,
 }) async {
   final client = ref.read(probeApiProvider)(server);
@@ -82,26 +72,18 @@ Future<bool> confirmServerIdentity(
   if (pinned != null && pinned == identity?.publicKey) return true;
   if (!context.mounted) return false;
 
-  if (pinned == null && silentFirstConnect) {
+  if (pinned == null) {
     await keyStore.put(handle, identity!.publicKey);
     return true;
   }
 
-  final trusted = pinned == null
-      ? await Navigator.of(context).push<bool>(
-          fadeThroughRoute<bool>(
-            context,
-            (context) =>
-                ServerFingerprintStep(address: server, identity: identity!),
-          ),
-        )
-      : await Navigator.of(context).push<bool>(
-          fadeThroughRoute<bool>(
-            context,
-            (context) =>
-                ServerIdentityChangedStep(address: server, identity: identity),
-          ),
-        );
+  final trusted = await Navigator.of(context).push<bool>(
+    fadeThroughRoute<bool>(
+      context,
+      (context) =>
+          ServerIdentityChangedStep(address: server, identity: identity),
+    ),
+  );
 
   if (trusted != true) return false;
   // Nothing to pin when the server reported nothing; the old key stays pinned.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Which feed is popped out into its own OS window, and whether it can be.
+/// Which feeds are popped out, each into its own OS window, and whether it can be.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,9 +21,34 @@ final popOutSupportedProvider = Provider<bool>(
   (ref) => ref.watch(popOutWindowFactoryProvider) != null,
 );
 
-/// What the user asked to pop out; it may have ended since, see
-/// [popOutLiveFeedProvider].
-final popOutFeedProvider = StateProvider<MiniPlayerFeed?>((ref) => null);
+/// What the user asked to pop out, one entry per feed; any may have ended
+/// since, see [popOutLiveFeedsProvider].
+class PopOutFeeds extends Notifier<List<MiniPlayerFeed>> {
+  @override
+  List<MiniPlayerFeed> build() => const [];
+
+  /// Asks for [feed]'s window; a feed already out keeps the one it has.
+  void open(MiniPlayerFeed feed) {
+    if (state.any((f) => _sameFeed(f, feed))) return;
+    state = [...state, feed];
+  }
+
+  void close(MiniPlayerFeed feed) => state = [
+    for (final f in state)
+      if (!_sameFeed(f, feed)) f,
+  ];
+
+  void keepOnly(List<MiniPlayerFeed> feeds) {
+    if (feeds.length != state.length) state = feeds;
+  }
+}
+
+bool _sameFeed(MiniPlayerFeed a, MiniPlayerFeed b) =>
+    a.identity == b.identity && a.kind == b.kind;
+
+final popOutFeedsProvider = NotifierProvider<PopOutFeeds, List<MiniPlayerFeed>>(
+  PopOutFeeds.new,
+);
 
 bool _isLive(MiniPlayerFeed feed, List<VoiceParticipant> participants) {
   for (final p in participants) {
@@ -36,20 +61,24 @@ bool _isLive(MiniPlayerFeed feed, List<VoiceParticipant> participants) {
   return false;
 }
 
-/// The requested feed while the call is connected and the feed is still being
-/// published and the app is unlocked; null otherwise, which closes the window.
+/// The requested feeds that are still being published while the call is
+/// connected and the app is unlocked; a feed missing here has its window closed.
 ///
-/// The window is a separate view outside the lock gate, so a lock must close it.
-final popOutLiveFeedProvider = Provider<MiniPlayerFeed?>((ref) {
-  final feed = ref.watch(popOutFeedProvider);
-  if (feed == null || ref.watch(appLockControllerProvider)) return null;
+/// The windows are separate views outside the lock gate, so a lock closes them all.
+final popOutLiveFeedsProvider = Provider<List<MiniPlayerFeed>>((ref) {
+  final feeds = ref.watch(popOutFeedsProvider);
+  if (feeds.isEmpty || ref.watch(appLockControllerProvider)) return const [];
   final connected = ref.watch(
     voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
   );
-  if (!connected) return null;
+  if (!connected) return const [];
   final stopped = ref.watch(shareWatchProvider.select((s) => s.stopped));
-  if (feed.kind == FeedKind.screenShare && stopped.contains(feed.identity)) {
-    return null;
-  }
-  return _isLive(feed, ref.watch(voiceParticipantsProvider)) ? feed : null;
+  final participants = ref.watch(voiceParticipantsProvider);
+  return [
+    for (final feed in feeds)
+      if (!(feed.kind == FeedKind.screenShare &&
+              stopped.contains(feed.identity)) &&
+          _isLive(feed, participants))
+        feed,
+  ];
 });

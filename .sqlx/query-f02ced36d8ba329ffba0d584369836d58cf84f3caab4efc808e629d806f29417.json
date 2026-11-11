@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM debug_logs WHERE user_id = ? AND id NOT IN (\n                 SELECT id FROM debug_logs WHERE user_id = ? ORDER BY id DESC LIMIT ?\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f02ced36d8ba329ffba0d584369836d58cf84f3caab4efc808e629d806f29417"
+}

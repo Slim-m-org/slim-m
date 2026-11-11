@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: RoleId\", name AS \"name!\",\n                      permissions AS \"permissions!: Permissions\",\n                      is_everyone AS \"is_everyone!: bool\",\n                      mentionable AS \"mentionable!: bool\", created_at AS \"created_at!\",\n                      managed_bot_id AS \"managed_bot_id: UserId\",\n                      is_bots_role AS \"is_bots_role!: bool\",\n                      position AS \"position!: i64\", hoist AS \"hoist!: bool\", color\n               FROM roles ORDER BY position DESC, created_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: RoleId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "permissions!: Permissions",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_everyone!: bool",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "mentionable!: bool",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "managed_bot_id: UserId",
+        "ordinal": 6,
+        "type_info": "Blob"
+      },
+      {
+        "name": "is_bots_role!: bool",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "hoist!: bool",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "color",
+        "ordinal": 10,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "13221d62d5dd04f5581092074e334e6caee8a8a1a92f84f9d2915a35c53ec30b"
+}

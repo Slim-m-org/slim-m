@@ -9,4 +9,3 @@ app/test/features/messages/message_extras_thread_test.dart	channel_history_harne
 app/test/features/members/presence_resolve_test.dart	call_header_fixture pulls in ui_snapshot_support (dart:io, drift native)
 app/test/desktop/startup_updates_test.dart	desktop only: the rpm and self-update paths run processes through dart:io
 app/test/gates/surface_registry_test.dart	support/surface_registry pulls in ui_snapshot_support (dart:io, drift native)
-platform/test/game_source_test.dart	tests game_source_io, which lists /proc through dart:io

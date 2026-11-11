@@ -29,6 +29,7 @@ import '../../channels/providers/last_text_channel.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../providers/voice_controller.dart';
+import '../providers/voice_elsewhere.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_roster.dart';
 import '../../../routing/breakpoints.dart';
@@ -38,6 +39,7 @@ import '../widgets/call_stage_layout.dart';
 import '../../../widgets/dock_height_reporter.dart';
 import '../../members/widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
+import '../widgets/transcription_notice.dart';
 import 'voice_call_dock.dart';
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import '../../canvas/widgets/canvas_open_button.dart'
@@ -112,6 +114,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// opened for its chat still joins.
   String? _autoJoinedFor;
 
+  /// The channel this account is in on another device, while its prompt waits.
+  String? _elsewhere;
+  VoidCallback? _confirmedJoin;
+  bool _checking = false;
+
   @override
   void initState() {
     super.initState();
@@ -149,9 +156,45 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     _autoJoinedFor = widget.channelId;
     final channelId = widget.channelId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) controller.join(channelId);
+      if (mounted) unawaited(_joinConfirmed(() => controller.join(channelId)));
     });
   }
+
+  /// Runs [join] now, after the one-time transcription notice, or after "Join here" when it would move a call open on another device.
+  Future<void> _joinConfirmed(Future<void> Function() join) async {
+    if (!widget.isDm && !await confirmTranscriptionNotice(context, ref)) return;
+    if (!mounted) return;
+    setState(() => _checking = true);
+    final elsewhere = await ref.read(voiceElsewhereCheckProvider)(
+      widget.channelId,
+    );
+    if (!mounted) return;
+    if (elsewhere == null) {
+      final joined = join();
+      setState(() => _checking = false);
+      await joined;
+      return;
+    }
+    setState(() {
+      _checking = false;
+      _elsewhere = elsewhere;
+      _confirmedJoin = () => unawaited(join());
+    });
+  }
+
+  void _joinHere() {
+    final join = _confirmedJoin;
+    setState(() {
+      _elsewhere = null;
+      _confirmedJoin = null;
+    });
+    join?.call();
+  }
+
+  void _cancelJoinHere() => setState(() {
+    _elsewhere = null;
+    _confirmedJoin = null;
+  });
 
   /// The switch prompt's own confirm action: marked as attempted the same
   /// way an automatic join is, so a failure lands on the rejoin screen
@@ -164,15 +207,23 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// The idle pane's join: always muted, marked as attempted like a rejoin.
   void _joinMuted(VoiceController controller) {
     _autoJoinedFor = widget.channelId;
-    unawaited(controller.joinMuted(widget.channelId));
+    unawaited(_joinConfirmed(() => controller.joinMuted(widget.channelId)));
   }
 
   /// A DM's first ring is spent once it was declined or timed out, so a rejoin
   /// calls again unless the other person is already in the room or a ring is out.
   void _rejoin(VoiceController controller) {
+    unawaited(_joinConfirmed(() => _rejoinNow(controller)));
+  }
+
+  Future<void> _rejoinNow(VoiceController controller) async {
     final channelId = widget.channelId;
-    unawaited(controller.join(channelId));
-    if (!widget.isDm) return;
+    final joined = controller.join(channelId);
+    if (widget.isDm) _ringAfterRejoin(channelId);
+    await joined;
+  }
+
+  void _ringAfterRejoin(String channelId) {
     final ringing =
         ref.read(dmCallRingControllerProvider).outgoing?.channelId == channelId;
     final roster = ref.read(voiceRosterProvider(channelId)).valueOrNull;
@@ -207,7 +258,8 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     required bool busyElsewhere,
     required bool attempted,
   }) {
-    if (connecting) return 'connecting';
+    if (_elsewhere != null) return 'elsewhere';
+    if (connecting || _checking) return 'connecting';
     if (busyElsewhere) return 'switch';
     return attempted ? 'left' : 'joining';
   }
@@ -231,6 +283,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           channelId: channelId,
           negotiating: connectingHere,
           onCancel: () => unawaited(controller.leave()),
+        ),
+        'elsewhere' => VoiceJoinHerePrompt(
+          elsewhereChannelId: _elsewhere!,
+          onJoin: _joinHere,
+          onCancel: _cancelJoinHere,
         ),
         'switch' => VoiceSwitchPrompt(onSwitch: () => _switchNow(controller)),
         _ when !widget.isDm => VoiceChannelIdle(
@@ -264,6 +321,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       }
     });
     ref.listen<VoiceFlags>(voiceFlagsProvider, _returnAfterHangUp);
+    ref.listen(voiceRejoinRequestProvider, (_, request) {
+      if (request?.channelId != widget.channelId) return;
+      final controller = ref.read(voiceControllerProvider.notifier);
+      unawaited(_joinConfirmed(() => controller.join(widget.channelId)));
+    });
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final voice = ref.watch(voiceFlagsProvider);
     final controller = ref.read(voiceControllerProvider.notifier);

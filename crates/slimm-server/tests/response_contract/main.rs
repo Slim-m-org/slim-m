@@ -66,6 +66,11 @@ const UNCOVERED: &[(&str, &str)] = &[
          tests/call_audio.rs drives every outcome of it against a fake listener.",
     ),
     (
+        "requestVoiceTranscript",
+        "needs a connected listener and the on_request mode; tests/call_transcripts.rs \
+         drives it against a fake listener.",
+    ),
+    (
         "stopVoiceCallAudio",
         "needs a running session, which needs a connected listener; it can only answer \
          404 here. tests/call_audio.rs covers its 204.",
@@ -100,6 +105,18 @@ const UNCOVERED: &[(&str, &str)] = &[
         "answers HTML to a browser, not JSON, and needs a state minted by \
          startDiscordLink plus a fake Discord to trade the code with, and it \
          links nothing itself; tests/discord_link.rs drives every outcome of it.",
+    ),
+    (
+        "startSteamLink",
+        "needs a configured Steam key and redirect, which this fixture's router has \
+         none of, so it can only answer 501 here. Its outcomes are covered by \
+         tests/steam_link.rs.",
+    ),
+    (
+        "steamLinkCallback",
+        "answers HTML to a browser, not JSON, and needs a state minted by \
+         startSteamLink plus Steam's OpenID check; tests/steam_link.rs drives it \
+         against a local fake of Steam.",
     ),
     (
         "getLinkedDiscordAvatar",

@@ -68,7 +68,7 @@ Widget _harness(Widget child, ProviderContainer container) =>
 
 void main() {
   testWidgets(
-    "tapping a remote participant's tile in the bottom filmstrip opens the "
+    "tapping a remote participant's tile in the people strip opens the "
     'member card anchored beside that tile, not the top of the window',
     (tester) async {
       const window = Size(1400, 900);
@@ -107,22 +107,22 @@ void main() {
       // Pre-warms the autoDispose future so the tap below finds a resolved profile rather than racing one.
       await harness.container.read(membersProvider.future);
 
-      final tapTarget = find.byKey(const ValueKey('film-user-bob'));
+      final tapTarget = find.ancestor(
+        of: find.text('Bob'),
+        matching: find.byWidgetPredicate((w) => w is CallParticipantTile),
+      );
       expect(
         tapTarget,
         findsOneWidget,
-        reason: 'Bob sits in the bottom filmstrip beside the shared stage',
+        reason: 'Bob sits in the people strip under the shared stage',
       );
-      // The real anchor showMemberProfile measures from, not the filmstrip's outer Center wrapper.
+      // The real anchor showMemberProfile measures from.
       final tileRect = tester.getRect(
         find.ancestor(
           of: find.text('Bob'),
           matching: find.byType(CallParticipantTile),
         ),
       );
-      // The filmstrip sits low in the window, matching the report's "tiles along the bottom" framing.
-      expect(tileRect.top, greaterThan(window.height / 2));
-
       await tester.tap(tapTarget);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
@@ -189,7 +189,7 @@ void main() {
       );
       final tileRect = tester.getRect(tile);
       final gesture = await tester.startGesture(
-        tester.getCenter(find.byKey(const ValueKey('film-user-bob'))),
+        tester.getCenter(tile),
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
       );

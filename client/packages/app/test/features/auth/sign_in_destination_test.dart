@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Sign-in says where it is about to connect, and asks for an out-of-band
-/// check only where one can be answered.
+/// Sign-in says where it is about to connect, and pins a first-seen key
+/// without asking.
 ///
 /// The identity chip used to live inside the branch that renders the address
 /// field, so the official-server path - the most common way in, and the one
 /// that deliberately hides that field - named no destination anywhere on the
-/// screen. And `_submit` confirmed identity without `silentFirstConnect`, so
-/// signing in to the compiled-in official address from a fresh install put up
-/// the fingerprint screen, which asks you to read a code to an operator that,
-/// for that address, is the same party that published the app.
+/// screen.
 library;
 
 import 'dart:convert';
@@ -188,11 +185,7 @@ void main() {
 
     await _signIn(tester);
 
-    expect(
-      find.text('Confirm this server'),
-      findsNothing,
-      reason: 'there is no separate operator to read this code to',
-    );
+    expect(find.text('Confirm this server'), findsNothing);
     expect(logins, 1, reason: 'the sign-in must go straight through');
     expect(
       await keyStore.read(identityHandleFor(Uri.parse(officialServer))),
@@ -201,11 +194,11 @@ void main() {
     );
   });
 
-  testWidgets('signing in to someone else\'s server still asks, and says how', (
+  testWidgets('signing in to someone else\'s server pins silently too', (
     tester,
   ) async {
     var logins = 0;
-    await _pump(
+    final keyStore = await _pump(
       tester,
       server: Uri.parse('https://chat.example'),
       client: _client(onLogin: () => logins++),
@@ -213,18 +206,11 @@ void main() {
 
     await _signIn(tester);
 
-    expect(find.text('Confirm this server'), findsOneWidget);
-    expect(logins, 0, reason: 'no credential before the code is confirmed');
+    expect(find.text('Confirm this server'), findsNothing);
+    expect(logins, 1);
     expect(
-      find.textContaining('chat.example'),
-      findsWidgets,
-      reason: 'the screen names whose server to ask',
+      await keyStore.read(identityHandleFor(Uri.parse('https://chat.example'))),
+      _identity['public_key'],
     );
-    expect(
-      find.textContaining('server log'),
-      findsOneWidget,
-      reason: 'where that operator finds their own copy of the code',
-    );
-    expect(find.text('Copy this code'), findsOneWidget);
   });
 }

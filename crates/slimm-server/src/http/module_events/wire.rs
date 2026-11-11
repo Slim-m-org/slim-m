@@ -2,6 +2,8 @@
 //! The module-facing event shapes of decision 0091. Purpose-built, so a field
 //! added to a websocket frame or a hub event never reaches a module by accident.
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 
 /// What a module reads as its run's input text.
@@ -93,12 +95,15 @@ pub(super) enum EventData {
         channel_id: String,
         started_at_ms: i64,
         included: Vec<String>,
+        names: BTreeMap<String, String>,
     },
     CallAudioParticipant {
         session_id: String,
         channel_id: String,
         user_id: String,
         included: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
     },
     CallAudioSegment {
         session_id: String,
@@ -237,6 +242,33 @@ mod tests {
                     added: true,
                 },
             ),
+            sent(
+                "call.audio.started",
+                &format!("call-audio:{R}:1"),
+                1_760_000_700_000,
+                EventData::CallAudioStarted {
+                    session_id: R.into(),
+                    channel_id: C.into(),
+                    started_at_ms: 1_760_000_700_000,
+                    included: vec![U1.into(), U2.into()],
+                    names: BTreeMap::from([
+                        (U1.to_owned(), "Una".to_owned()),
+                        (U2.to_owned(), "Bo".to_owned()),
+                    ]),
+                },
+            ),
+            sent(
+                "call.audio.participant",
+                &format!("call-audio:{R}:2"),
+                1_760_000_800_000,
+                EventData::CallAudioParticipant {
+                    session_id: R.into(),
+                    channel_id: C.into(),
+                    user_id: U2.into(),
+                    included: true,
+                    name: Some("Bo".into()),
+                },
+            ),
         ];
         for case in cases {
             let name = case["event"].as_str().unwrap().to_owned();
@@ -266,6 +298,37 @@ mod tests {
             serde_json::to_value(&event).unwrap()["data"],
             json!({"session_id":"s","channel_id":"c","segment_id":"call-audio:s:3",
                 "user_id":"u","start_ms":1,"end_ms":2,"text":"hi","language":"en"})
+        );
+    }
+
+    #[test]
+    fn a_started_event_names_each_included_person_and_a_participant_one() {
+        let started = EventData::CallAudioStarted {
+            session_id: "s".into(),
+            channel_id: "c".into(),
+            started_at_ms: 3,
+            included: vec!["u".into()],
+            names: BTreeMap::from([("u".to_owned(), "Una".to_owned())]),
+        };
+        assert_eq!(
+            serde_json::to_value(&started).unwrap(),
+            json!({"session_id":"s","channel_id":"c","started_at_ms":3,
+                "included":["u"],"names":{"u":"Una"}})
+        );
+        let participant = |name: Option<&str>| EventData::CallAudioParticipant {
+            session_id: "s".into(),
+            channel_id: "c".into(),
+            user_id: "u".into(),
+            included: true,
+            name: name.map(Into::into),
+        };
+        assert_eq!(
+            serde_json::to_value(participant(Some("Una"))).unwrap(),
+            json!({"session_id":"s","channel_id":"c","user_id":"u","included":true,"name":"Una"})
+        );
+        assert_eq!(
+            serde_json::to_value(participant(None)).unwrap(),
+            json!({"session_id":"s","channel_id":"c","user_id":"u","included":true})
         );
     }
 

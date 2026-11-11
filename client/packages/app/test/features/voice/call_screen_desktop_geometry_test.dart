@@ -61,7 +61,8 @@ void main() {
         final s = await pumpCallScreen(tester, size, share: share);
 
         final tiles = _rects(tester, find.byType(CallParticipantTile));
-        expect(tiles, hasLength(2));
+        // A sharer appears once, as their share (decision 0114).
+        expect(tiles, hasLength(share ? 1 : 2));
         final blockers = [
           ..._rects(tester, find.byType(FloatingDockCard)),
           ..._rects(tester, find.byType(ScreenShareStage)),

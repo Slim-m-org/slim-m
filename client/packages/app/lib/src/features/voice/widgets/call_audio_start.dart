@@ -20,7 +20,9 @@ import 'call_dock_button.dart';
 Widget? callAudioStartRow(WidgetRef ref, String? channelId) {
   if (channelId == null) return null;
   final model = ref.watch(callAudioProvider(channelId));
-  if (model.session != null || model.status.startable.isEmpty) return null;
+  final status = model.status;
+  if (model.session != null) return null;
+  if (status.startable.isEmpty && !status.transcribable) return null;
   return CallAudioStartControl(channelId: channelId);
 }
 
@@ -35,18 +37,21 @@ class CallAudioStartControl extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final model = ref.watch(callAudioProvider(channelId));
     final startable = model.status.startable;
+    final transcribable = model.status.transcribable;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         CallDockButton(
           key: buttonKey,
           icon: AppIcons.callAudio,
-          tooltip: startable.length == 1
-              ? 'Turn on ${startable.single.moduleName}'
-              : 'Let a module hear this call',
+          tooltip: switch ((transcribable, startable.length)) {
+            (true, 0) => 'Transcribe this call',
+            (false, 1) => 'Turn on ${startable.single.moduleName}',
+            _ => 'Let a module hear this call',
+          },
           active: false,
           pending: model.busy,
-          onPressed: () => _choose(context, ref, startable),
+          onPressed: () => _choose(context, ref, startable, transcribable),
         ),
         if (model.error case final message?)
           Padding(
@@ -61,23 +66,45 @@ class CallAudioStartControl extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<api.CallAudioModule> startable,
+    bool transcribable,
   ) async {
-    final picked = await showAppSheet<api.CallAudioModule>(
+    final picked = await showAppSheet<_Pick>(
       context,
       scrolls: true,
-      builder: (context) => _ConfirmSheet(modules: startable),
+      builder: (context) =>
+          _ConfirmSheet(modules: startable, transcribable: transcribable),
     );
-    if (picked == null) return;
-    await ref
-        .read(callAudioProvider(channelId).notifier)
-        .request(picked.moduleId);
+    final controller = ref.read(callAudioProvider(channelId).notifier);
+    switch (picked) {
+      case null:
+        return;
+      case _Transcript():
+        await controller.requestTranscript();
+      case _Module(:final module):
+        await controller.request(module.moduleId);
+    }
   }
 }
 
+sealed class _Pick {
+  const _Pick();
+}
+
+class _Transcript extends _Pick {
+  const _Transcript();
+}
+
+class _Module extends _Pick {
+  const _Module(this.module);
+
+  final api.CallAudioModule module;
+}
+
 class _ConfirmSheet extends StatelessWidget {
-  const _ConfirmSheet({required this.modules});
+  const _ConfirmSheet({required this.modules, required this.transcribable});
 
   final List<api.CallAudioModule> modules;
+  final bool transcribable;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +121,9 @@ class _ConfirmSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Let a module hear this call?',
+            modules.isEmpty
+                ? 'Transcribe this call?'
+                : 'Let this call be heard?',
             style: AppText.body.copyWith(
               color: tokens.textPrimary,
               fontWeight: AppWeights.semi,
@@ -105,6 +134,23 @@ class _ConfirmSheet extends StatelessWidget {
             'Everyone is asked first. It starts only if all say yes.',
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
+          if (transcribable) ...[
+            const SizedBox(height: AppSpacing.s16),
+            Text(
+              'The transcript is kept with the call, where people who can '
+              'read transcripts here can find it.',
+              style: AppText.body.copyWith(color: tokens.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.s12),
+            AppButton(
+              key: const ValueKey('call-audio-ask-transcript'),
+              label: 'Ask everyone to transcribe',
+              icon: AppIcons.callAudio,
+              variant: AppButtonVariant.primary,
+              full: true,
+              onPressed: () => Navigator.of(context).pop(const _Transcript()),
+            ),
+          ],
           for (final module in modules) ...[
             const SizedBox(height: AppSpacing.s16),
             Text(
@@ -131,7 +177,7 @@ class _ConfirmSheet extends StatelessWidget {
               icon: AppIcons.callAudio,
               variant: AppButtonVariant.primary,
               full: true,
-              onPressed: () => Navigator.of(context).pop(module),
+              onPressed: () => Navigator.of(context).pop(_Module(module)),
             ),
           ],
           const SizedBox(height: AppSpacing.s8),

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Finishing a Discord link from the app of the member who started it.
+//! Finishing a Discord or Steam link from the app of the member who started it.
 //! The callback's browser has no session, so it only holds the identity under a
 //! handoff code; the app links it with its own bearer, and only for the starter.
 
@@ -12,17 +12,20 @@ use serde::Deserialize;
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
-use super::linked_accounts::{DiscordLinks, LinkedAccountDto, PROVIDER, store_avatar};
+use super::linked_accounts::{DISCORD, DiscordLinks, LinkedAccountDto, STEAM, store_avatar};
 use super::page_shell::{WEB_PROBE, percent_encode, shell};
+use crate::ids::UserId;
 use crate::ratelimit::Class;
-use crate::store::{AccountLinkError, LinkedAccount, now_ms};
+use crate::store::{AccountLinkError, LinkedAccount, PendingLink, now_ms};
 
 /// A code that is wrong, expired, spent or another member's all read the same.
 const REFUSED: &str = "that link code is not valid, or it has expired";
 const MAX_CODE_CHARS: usize = 64;
 
 pub(super) fn routes() -> Router<AppState> {
-    Router::new().route("/me/links/discord/complete", post(complete))
+    Router::new()
+        .route("/me/links/discord/complete", post(complete_discord))
+        .route("/me/links/steam/complete", post(complete_steam))
 }
 
 #[derive(Deserialize)]
@@ -30,7 +33,7 @@ struct CompleteBody {
     code: String,
 }
 
-async fn complete(
+async fn complete_discord(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
@@ -38,35 +41,68 @@ async fn complete(
     Json(body): Json<CompleteBody>,
 ) -> Result<Json<LinkedAccountDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    if body.code.chars().count() > MAX_CODE_CHARS {
-        return Err(ApiError::NotFound(REFUSED));
-    }
-    let pending = state
-        .store
-        .take_link_handoff(&body.code, PROVIDER)
-        .await?
-        .filter(|pending| pending.user_id == ctx.user_id)
-        .ok_or(ApiError::NotFound(REFUSED))?;
+    let pending = take_pending(&state, ctx.user_id, DISCORD, &body.code).await?;
     let avatar = match (discord, pending.avatar_hash.as_deref()) {
         (Some(Extension(discord)), Some(hash)) => {
             discord.fetch_avatar(&pending.external_id, hash).await
         }
         _ => None,
     };
+    let account = account_from(DISCORD, pending, avatar.is_some());
+    save(&state, ctx.user_id, &account).await?;
+    store_avatar(&state, ctx.user_id, avatar).await;
+    Ok(Json(account.into()))
+}
+
+async fn complete_steam(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+    Json(body): Json<CompleteBody>,
+) -> Result<Json<LinkedAccountDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let pending = take_pending(&state, ctx.user_id, STEAM, &body.code).await?;
+    let account = account_from(STEAM, pending, false);
+    save(&state, ctx.user_id, &account).await?;
+    Ok(Json(account.into()))
+}
+
+async fn take_pending(
+    state: &AppState,
+    user_id: UserId,
+    provider: &str,
+    code: &str,
+) -> Result<PendingLink, ApiError> {
+    if code.chars().count() > MAX_CODE_CHARS {
+        return Err(ApiError::NotFound(REFUSED));
+    }
+    state
+        .store
+        .take_link_handoff(code, provider)
+        .await?
+        .filter(|pending| pending.user_id == user_id)
+        .ok_or(ApiError::NotFound(REFUSED))
+}
+
+fn account_from(provider: &str, pending: PendingLink, has_avatar: bool) -> LinkedAccount {
     let now = now_ms();
-    let account = LinkedAccount {
-        provider: PROVIDER.to_owned(),
+    LinkedAccount {
+        provider: provider.to_owned(),
         external_id: pending.external_id,
         username: pending.username,
         display_name: pending.display_name,
         linked_at: now,
-        avatar_updated_at: avatar.as_ref().map(|_| now),
-    };
-    match state.store.save_linked_account(ctx.user_id, &account).await {
-        Ok(()) => {
-            store_avatar(&state, ctx.user_id, avatar).await;
-            Ok(Json(account.into()))
-        }
+        avatar_updated_at: has_avatar.then_some(now),
+        share_activity: false,
+    }
+}
+
+async fn save(state: &AppState, user_id: UserId, account: &LinkedAccount) -> Result<(), ApiError> {
+    match state.store.save_linked_account(user_id, account).await {
+        Ok(()) => Ok(()),
+        Err(AccountLinkError::TakenByAnotherMember) if account.provider == STEAM => Err(
+            ApiError::Conflict("that Steam account is already linked to someone else here"),
+        ),
         Err(AccountLinkError::TakenByAnotherMember) => Err(ApiError::Conflict(
             "that Discord account is already linked to someone else here",
         )),
@@ -88,15 +124,16 @@ if(!b||!navigator.clipboard)return;b.hidden=false;b.onclick=function(){\
 navigator.clipboard.writeText(document.getElementById('code').textContent)\
 .then(function(){b.textContent='Copied'}).catch(function(){})}})()</script>";
 
-/// What the browser shows once Discord has approved: the way back into the app.
-pub(super) fn handoff_page(code: &str) -> String {
+/// What the browser shows once the provider has approved: the way back into
+/// the app. `provider` is the lowercase wire name, `label` the display one.
+pub(super) fn handoff_page(provider: &str, label: &str, code: &str) -> String {
     let code_param = percent_encode(code);
     let inner = format!(
         "<h1>Finish in slim-m</h1>\
-         <p class=\"muted\">Discord approved. Open slim-m on the account that started the link.</p>\
+         <p class=\"muted\">{label} approved. Open slim-m on the account that started the link.</p>\
          <div class=\"actions\">\
-         <a class=\"btn primary\" href=\"slimm://discord-link?code={code_param}\">Open slim-m</a>\
-         <a class=\"btn\" id=\"web\" hidden href=\"/app/link/discord?code={code_param}\">Open in browser</a>\
+         <a class=\"btn primary\" href=\"slimm://{provider}-link?code={code_param}\">Open slim-m</a>\
+         <a class=\"btn\" id=\"web\" hidden href=\"/app/link/{provider}?code={code_param}\">Open in browser</a>\
          </div>\
          <p class=\"muted foot\">Or paste this code in Settings, Connections.</p>\
          <p class=\"code\" id=\"code\">{grouped}</p>\
@@ -117,10 +154,17 @@ mod tests {
 
     #[test]
     fn the_page_carries_the_code_three_ways() {
-        let html = handoff_page("ABCDEFGHJKLMNPQRSTUVWXYZ2");
+        let html = handoff_page("discord", "Discord", "ABCDEFGHJKLMNPQRSTUVWXYZ2");
         assert!(html.contains("slimm://discord-link?code=ABCDEFGHJKLMNPQRSTUVWXYZ2"));
         assert!(html.contains("/app/link/discord?code=ABCDEFGHJKLMNPQRSTUVWXYZ2"));
         assert!(html.contains("ABCDE-FGHJK-LMNPQ-RSTUV-WXYZ2"));
+    }
+
+    #[test]
+    fn the_steam_page_points_at_the_steam_link() {
+        let html = handoff_page("steam", "Steam", "ABCDEFGHJKLMNPQRSTUVWXYZ2");
+        assert!(html.contains("slimm://steam-link?code="));
+        assert!(html.contains("Steam approved."));
     }
 
     #[test]

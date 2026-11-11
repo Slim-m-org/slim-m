@@ -33,7 +33,8 @@ import 'voice_join_muted.dart';
 import 'voice_participant_volumes.dart';
 import 'voice_rejoin.dart';
 import 'voice_screen_share.dart';
-import 'voice_settings_controller.dart' show loadCameraOnJoinPreference;
+import 'voice_settings_controller.dart'
+    show loadCameraDeviceId, loadCameraOnJoinPreference;
 import 'voice_reconnect_display.dart';
 import 'voice_session_sync.dart';
 import 'voice_share_resume.dart';
@@ -203,6 +204,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Seeds [setCameraPreference] from the saved setting, awaited once from bootstrap.
   Future<void> restoreCameraPreference() async {
     setCameraPreference(await loadCameraOnJoinPreference(_ref));
+    _session.setPreferredCameraId(await loadCameraDeviceId(_ref));
   }
 
   /// [join] with the mic off for this call, whatever the saved preference;

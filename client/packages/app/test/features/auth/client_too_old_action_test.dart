@@ -128,7 +128,7 @@ void main() {
     await _pump(tester, InstallFormat.tarball);
     await tester.tap(find.byType(AppButton));
     await tester.pump();
-    expect(find.byType(AppErrorState), findsOneWidget);
+    expect(find.text('Could not open the release page.'), findsOneWidget);
   });
 
   for (final (size, scale) in [
@@ -140,16 +140,21 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = scale;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _pump(tester, InstallFormat.rpm, rpm: _FailingDnf(), size: size);
-      await tester.tap(find.text('Update now'));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
       await tester.scrollUntilVisible(
         find.text('Update now'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.tap(find.text('Update now'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.text('Try again'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(
-        tester.getRect(find.text('Update now')).bottom,
+        tester.getRect(find.text('Try again')).bottom,
         lessThanOrEqualTo(size.height),
       );
     });

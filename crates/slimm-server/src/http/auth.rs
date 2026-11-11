@@ -50,7 +50,9 @@ pub fn routes() -> Router<AppState> {
 #[derive(Deserialize)]
 struct RegisterRequest {
     username: String,
-    display_name: String,
+    /// Absent or blank falls back to the username; the profile step sets one later.
+    #[serde(default)]
+    display_name: Option<String>,
     password: String,
     device_name: String,
     /// Required once the deployment has been claimed; ignored before that,
@@ -206,7 +208,10 @@ async fn register(
 ) -> Result<Json<TokenResponse>, ApiError> {
     validate_username(&req.username)?;
     validate_password(&req.password)?;
-    let display_name = req.display_name.trim();
+    let display_name = match req.display_name.as_deref().map(str::trim) {
+        Some(name) if !name.is_empty() => name,
+        _ => req.username.as_str(),
+    };
     validate_label(display_name, "display_name must be 1 to 64 characters")?;
     validate_label(&req.device_name, "device_name must be 1 to 64 characters")?;
     let (client_kind, client_version) =

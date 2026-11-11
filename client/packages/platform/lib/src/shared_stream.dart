@@ -5,7 +5,6 @@ library;
 
 import 'dart:async';
 
-import 'game_source.dart';
 import 'now_playing.dart';
 
 /// Opens [open] when the first listener arrives and cancels it when the last
@@ -67,14 +66,4 @@ class SharedNowPlayingSource implements NowPlayingSource {
 
   @override
   Stream<NowPlaying?> watch() => _shared.stream;
-}
-
-class SharedGameSource implements GameSource {
-  SharedGameSource(GameSource inner)
-      : _shared = SharedStream<RunningGame>(inner.watch);
-
-  final SharedStream<RunningGame> _shared;
-
-  @override
-  Stream<RunningGame?> watch() => _shared.stream;
 }

@@ -60,8 +60,8 @@ pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
 pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub use sweeps::{
     run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
-    sweep_stale_call_rings, sweep_stale_call_rings_at, sweep_stale_voice_calls,
-    sweep_stale_voice_calls_at,
+    run_transcript_retention_sweep_pass, sweep_stale_call_rings, sweep_stale_call_rings_at,
+    sweep_stale_voice_calls, sweep_stale_voice_calls_at,
 };
 pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 
@@ -73,12 +73,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 /// Prints this deployment's identity fingerprint where its operator can read
-/// it, in the same eight groups a joining client shows them.
+/// it, as the same five words a client shows when a pinned key changes.
 ///
-/// Trust-on-first-use asks a joiner to confirm that code with whoever runs the
-/// server. Until this log line existed that was an unanswerable request: the
-/// fingerprint was derived inside `/version` and shown only to clients, so the
-/// one person being asked to vouch for it had no copy to compare. It is public
+/// A client that sees the key change asks the person to check it with whoever
+/// runs the server, so the operator needs a copy to read aloud. It is public
 /// information by construction - every client that connects is handed it - so
 /// logging it discloses nothing. Generating the keypair on the first call is
 /// also why this runs here: the line doubles as the record of when a
@@ -86,8 +84,8 @@ use tokio::net::{TcpListener, TcpStream};
 async fn log_server_identity(store: &store::Store) -> anyhow::Result<()> {
     let identity = store.server_identity().await?;
     tracing::info!(
-        fingerprint = %identity.fingerprint_groups().join(" "),
-        "server identity; a joining client shows this code, so confirm it matches"
+        fingerprint = %identity.fingerprint_words().join(" "),
+        "server identity; a client whose pinned key changed shows these words, so read them out"
     );
     Ok(())
 }
@@ -166,6 +164,8 @@ pub async fn run() -> anyhow::Result<()> {
     sweeps::spawn_room_sweep(store.clone(), voice.clone(), hub.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
     sweeps::spawn_message_retention_sweep(store.clone(), media.clone(), hub.clone());
+    sweeps::spawn_transcript_retention_sweep(store.clone());
+    store.close_orphaned_call_transcripts().await?;
     let gifs = http::gifs::GifSearch::new(&config)?;
     let link_previews =
         http::link_preview::LinkPreviews::new(&config, store.link_preview_image_key().await?);
@@ -197,11 +197,18 @@ pub async fn run() -> anyhow::Result<()> {
     http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
+    let steam = http::steam_link::SteamLinks::new(&config)?;
+    if let Some(steam) = &steam {
+        http::steam_presence::spawn(state.clone(), steam.clone());
+    }
     let mut router = http::router(state).layer(axum::Extension(http::BackupStatusDir(
         config.backup_status_dir.clone(),
     )));
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));
+    }
+    if let Some(steam) = steam {
+        router = router.layer(axum::Extension(steam));
     }
     let app = cors.apply(router);
     let addr = config.listen_addr();

@@ -44,6 +44,9 @@ abstract final class Perm {
   /// Move someone from one voice call to another.
   static const int moveMembers = 1 << 19;
 
+  /// Read a call's transcript, including in search (decision 0113).
+  static const int viewTranscripts = 1 << 20;
+
   /// Every bit that has a name, in the fixed order the editor lists them.
   static const List<(int bit, String label)> editable = [
     (administrator, 'Administrator'),
@@ -66,6 +69,7 @@ abstract final class Perm {
     (runCode, 'Run code blocks'),
     (viewModerationHistory, 'View moderation history'),
     (moveMembers, 'Move members between calls'),
+    (viewTranscripts, 'View transcripts'),
   ];
 
   /// [groups] flattened, in the same order - the channel permissions grid's
@@ -141,6 +145,11 @@ abstract final class Perm {
         moveMembers,
         'Move members between calls',
         'Send someone to another voice channel.',
+      ),
+      PermSpec(
+        viewTranscripts,
+        'View transcripts',
+        'Read what was said in calls, and find it in search.',
       ),
     ]),
     PermGroup('Channels & invites', [

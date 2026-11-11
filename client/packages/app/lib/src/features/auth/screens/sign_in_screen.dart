@@ -30,6 +30,7 @@ import 'reset_password_sheet.dart';
 import 'sign_in_alternatives.dart';
 import '../widgets/sign_in_credential_fields.dart';
 import '../../settings/widgets/totp_sign_in_prompt.dart';
+import '../widgets/server_warnings_modal.dart';
 import '../widgets/sign_in_error.dart';
 import 'sign_in_invite_notice.dart';
 import 'sign_in_invite_redeem.dart';
@@ -76,7 +77,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   );
   final _username = TextEditingController();
   final _password = TextEditingController();
-  final _displayName = TextEditingController();
 
   bool _creatingAccount = false;
 
@@ -87,8 +87,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// The current failure and the field it belongs to; see [signInErrorFor].
   (SignInErrorField, String)? _error;
 
+  /// A wrong username/password pair lands on the password, as does its own error.
   String? _errorFor(SignInErrorField field) =>
-      _error?.$1 == field ? _error!.$2 : null;
+      _error?.$1 == field ||
+          (field == SignInErrorField.password &&
+              _error?.$1 == SignInErrorField.credentials)
+      ? _error!.$2
+      : null;
 
   /// What the server in the field said about itself, or null while nothing is
   /// known: the probe is pending, the host is unreachable, or it answered with
@@ -126,7 +131,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     _server.dispose();
     _username.dispose();
     _password.dispose();
-    _displayName.dispose();
     super.dispose();
   }
 
@@ -193,11 +197,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
-  bool _targetsOfficial() {
-    final target = probeTarget(_server.text);
-    return target != null && isOfficialServer(target);
-  }
-
   void _onServerEdited(String _) {
     // The old answer is about the old address the moment the field changes,
     // and the line naming the destination is read off the field itself.
@@ -252,14 +251,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// than to the field being typed) is what makes a returning sign-in - not
   /// only the manual onboarding dialog - a place TOFU's comparison runs.
   ///
-  /// A first connect to the compiled-in official address pins silently, for
-  /// the reason onboarding's own official button documents: there is no
-  /// separate operator to read a fingerprint to, so the question has no answer.
-  /// This door onto that address used to ask anyway. A key that later changes
-  /// is never silent either way, which is the case the check exists for.
+  /// A first connect pins silently; a key that later changes is the case the
+  /// check exists for.
   Future<void> _submit() async {
     final address = _submittableAddress();
     if (address == null) return;
+    if (_creatingAccount && !await _acknowledgedWarnings()) return;
+    if (!mounted) return;
 
     setState(() {
       _busy = true;
@@ -273,12 +271,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final push = ref.read(pushControllerProvider.notifier);
     try {
       final reduced = reduceServerAddress(address);
-      // Silent for the compiled-in address; see this method's own doc.
       if (!await confirmServerIdentity(
         context,
         ref,
         reduced,
-        silentFirstConnect: isOfficialServer(reduced),
         requireSlimServer: true,
       )) {
         return;
@@ -324,13 +320,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       setState(() => _error = (SignInErrorField.server, schemeError));
       return null;
     }
-    if (_creatingAccount && !_targetsOfficial()) {
-      if (displayNameError(_displayName.text) case final tooLong?) {
-        setState(() => _error = (SignInErrorField.displayName, tooLong));
-        return null;
-      }
-    }
     return address;
+  }
+
+  /// Joining is where server warnings matter; signing in never asks.
+  Future<bool> _acknowledgedWarnings() {
+    final warnings = serverWarningsFor(_probed);
+    if (warnings.isEmpty) return Future.value(true);
+    return confirmServerWarnings(context, warnings);
   }
 
   Future<bool> _register(
@@ -344,11 +341,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       identity,
       justRegistered: justRegistered,
       inviter: ref.read(firstRunInviterProvider.notifier),
-      credentials: (
-        username: _username.text.trim(),
-        displayName: _displayName.text.trim(),
-        password: _password.text,
-      ),
+      credentials: (username: _username.text.trim(), password: _password.text),
       invite: invite,
     );
     return true;
@@ -424,9 +417,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           if (_addressExpanded) ...[
             LabeledField(
               label: 'Server',
-              helper: "The Space you're joining - its server address.",
               child: AppInput(
                 controller: _server,
+                placeholder: 'your-server-address.com',
                 mono: true,
                 errorText: _errorFor(SignInErrorField.server),
                 keyboardType: TextInputType.url,
@@ -437,9 +430,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ),
             const SizedBox(height: AppSpacing.s8),
           ],
-          // First of the three: the other two are about convenience,
-          // this one is about whether you have any recourse here.
-          if (_probed case final version?) ServerSafetyNotice(version: version),
           if (_creatingAccount && _probed != null)
             InviteRequiredNotice(version: _probed!),
           if (_probed?.pushEnabled == false)
@@ -453,10 +443,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           const SizedBox(height: AppSpacing.s16),
           SignInCredentialFields(
             username: _username,
-            displayName: _displayName,
             password: _password,
             creatingAccount: _creatingAccount,
-            askDisplayName: !_targetsOfficial(),
+            usernameInvalid: _error?.$1 == SignInErrorField.credentials,
             busy: _busy,
             errorFor: _errorFor,
             onSubmit: _submit,

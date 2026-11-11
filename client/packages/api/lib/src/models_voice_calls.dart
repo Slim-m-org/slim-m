@@ -61,6 +61,7 @@ class VoiceCall {
     required this.endedAt,
     required this.events,
     required this.canvas,
+    this.transcriptId,
   });
 
   final int startedAt;
@@ -72,11 +73,16 @@ class VoiceCall {
   final List<VoiceCallEvent> events;
   final List<VoiceCallCanvasActivity> canvas;
 
+  /// The call's transcript (decision 0113), when one was kept and the reader
+  /// may see it.
+  final String? transcriptId;
+
   bool get ongoing => endedAt == null;
 
   factory VoiceCall.fromJson(Map<String, dynamic> json) => VoiceCall(
         startedAt: json['started_at'] as int,
         endedAt: json['ended_at'] as int?,
+        transcriptId: json['transcript_id'] as String?,
         events: [
           for (final raw in json['events'] as List<dynamic>)
             if (VoiceCallEventKind.parse(

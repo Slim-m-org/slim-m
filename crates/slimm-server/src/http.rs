@@ -48,6 +48,7 @@ use channels::{
     channel_slow_mode, channel_validation,
 };
 mod code_runs;
+mod debug_logs;
 mod device_client_info;
 mod dms;
 pub mod dock;
@@ -75,6 +76,9 @@ mod linked_avatar;
 mod manager_limited;
 mod member_permissions;
 mod members;
+pub mod steam_api;
+pub mod steam_link;
+pub mod steam_presence;
 use members::{member_nicknames, members_bulk, members_list};
 mod messages;
 use messages::{
@@ -159,7 +163,8 @@ mod version;
 mod viewable_message;
 mod voice;
 use voice::{
-    voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms, voice_webhook,
+    voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms,
+    voice_transcription, voice_transcripts, voice_webhook,
 };
 mod watch_session;
 mod webhooks;
@@ -286,6 +291,7 @@ pub fn router(state: AppState) -> Router {
     let app = Router::new()
         .route("/version", get(version::version))
         .merge(admin_audit::routes())
+        .merge(debug_logs::routes())
         .merge(analytics::routes())
         .merge(attachment_limit::routes())
         .merge(media_compression::routes())
@@ -365,6 +371,8 @@ pub fn router(state: AppState) -> Router {
         .merge(message_components::routes())
         .merge(voice::routes())
         .merge(voice_call_audio::routes())
+        .merge(voice_transcription::routes())
+        .merge(voice_transcripts::routes())
         .merge(voice_calls::routes())
         .merge(voice_ring::routes())
         .merge(voice_notify_prefs::routes())

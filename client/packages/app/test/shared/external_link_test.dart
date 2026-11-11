@@ -43,4 +43,28 @@ void main() {
       expect(await opened(raw), isEmpty);
     });
   }
+
+  group('openSteamGame', () {
+    Future<List<Uri>> run(int appId) async {
+      final calls = <Uri>[];
+      await openSteamGame(
+        appId,
+        launcher: (url, {mode = LaunchMode.platformDefault}) async {
+          expect(mode, LaunchMode.externalApplication);
+          calls.add(url);
+          return true;
+        },
+      );
+      return calls;
+    }
+
+    test('opens steam://run with the id', () async {
+      expect((await run(730)).single.toString(), 'steam://run/730');
+    });
+
+    test('a non-positive id launches nothing', () async {
+      expect(await run(0), isEmpty);
+      expect(await run(-5), isEmpty);
+    });
+  });
 }

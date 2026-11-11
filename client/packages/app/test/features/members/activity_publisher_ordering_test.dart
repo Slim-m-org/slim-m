@@ -51,7 +51,6 @@ class _Rig {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         nowPlayingSourceProvider.overrideWithValue(music),
-        gameSourceProvider.overrideWithValue(null),
         mockApiOverride(_answer),
       ],
     );

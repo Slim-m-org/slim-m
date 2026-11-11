@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM call_transcript_lines WHERE speaker_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "b09e9dadf3a5909366474f05e78cb120a70fc18c543762323096cec2e723c7cd"
+}

@@ -33,6 +33,7 @@ class VoiceSettingsState {
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.screenShareAllowAnnotations = false,
+    this.screenShareShowCursor = true,
     this.callOverlayEnabled = false,
     this.callOverlayCorner = OverlayCorner.topLeft,
     this.callOverlayScreen,
@@ -41,6 +42,7 @@ class VoiceSettingsState {
     this.speakerPreferred = true,
     this.audioInputDeviceId,
     this.audioOutputDeviceId,
+    this.cameraDeviceId,
   });
 
   final bool joinLeaveSoundsEnabled;
@@ -116,6 +118,9 @@ class VoiceSettingsState {
   /// overlay also needs a desktop that can host it.
   final bool screenShareAllowAnnotations;
 
+  /// Whether this machine's mouse cursor is drawn into a screen share; see [shareCursorVisible].
+  final bool screenShareShowCursor;
+
   /// Whether the people in your call are listed over your other windows, in [callOverlayCorner]; see decision 0096.
   final bool callOverlayEnabled;
   final OverlayCorner callOverlayCorner;
@@ -139,6 +144,9 @@ class VoiceSettingsState {
   /// [audioInputDeviceId]'s own counterpart for the speaker.
   final String? audioOutputDeviceId;
 
+  /// The webcam last picked on a desktop; null follows the system default.
+  final String? cameraDeviceId;
+
   VoiceSettingsState copyWith({
     bool? joinLeaveSoundsEnabled,
     bool? callRingSoundEnabled,
@@ -158,6 +166,7 @@ class VoiceSettingsState {
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? screenShareAllowAnnotations,
+    bool? screenShareShowCursor,
     bool? callOverlayEnabled,
     OverlayCorner? callOverlayCorner,
     String? Function()? callOverlayScreen,
@@ -168,6 +177,7 @@ class VoiceSettingsState {
     bool clearAudioInputDeviceId = false,
     String? audioOutputDeviceId,
     bool clearAudioOutputDeviceId = false,
+    String? cameraDeviceId,
   }) => VoiceSettingsState(
     joinLeaveSoundsEnabled:
         joinLeaveSoundsEnabled ?? this.joinLeaveSoundsEnabled,
@@ -191,6 +201,7 @@ class VoiceSettingsState {
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
     screenShareAllowAnnotations:
         screenShareAllowAnnotations ?? this.screenShareAllowAnnotations,
+    screenShareShowCursor: screenShareShowCursor ?? this.screenShareShowCursor,
     callOverlayEnabled: callOverlayEnabled ?? this.callOverlayEnabled,
     callOverlayCorner: callOverlayCorner ?? this.callOverlayCorner,
     callOverlayScreen: callOverlayScreen == null
@@ -206,5 +217,6 @@ class VoiceSettingsState {
     audioOutputDeviceId: clearAudioOutputDeviceId
         ? null
         : (audioOutputDeviceId ?? this.audioOutputDeviceId),
+    cameraDeviceId: cameraDeviceId ?? this.cameraDeviceId,
   );
 }

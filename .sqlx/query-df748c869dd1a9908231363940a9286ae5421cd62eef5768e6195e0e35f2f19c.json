@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT transcription_notice_ack_at AS \"v: i64\" FROM users WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "v: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "df748c869dd1a9908231363940a9286ae5421cd62eef5768e6195e0e35f2f19c"
+}

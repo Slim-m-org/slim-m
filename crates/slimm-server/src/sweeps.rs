@@ -99,6 +99,11 @@ pub async fn run_token_sweep_pass(store: &store::Store) {
         Ok(swept) => tracing::info!(swept, "swept expired TOTP challenge rows"),
         Err(err) => tracing::warn!(error = %err, "TOTP challenge sweep failed"),
     }
+    match store.sweep_debug_logs().await {
+        Ok(0) => {}
+        Ok(swept) => tracing::info!(swept, "swept expired debug logs"),
+        Err(err) => tracing::warn!(error = %err, "debug log sweep failed"),
+    }
     match store.sweep_dead_invites().await {
         Ok(0) => {}
         Ok(swept) => tracing::info!(swept, "swept spent, expired and revoked invites"),
@@ -232,6 +237,35 @@ pub(crate) fn spawn_message_retention_sweep(
         let hub = hub.clone();
         async move { run_message_retention_sweep_pass(&store, &media, &hub).await }
     });
+}
+
+/// Runs the call transcript retention sweep in the background; see [`spawn_sweep`].
+pub(crate) fn spawn_transcript_retention_sweep(store: store::Store) {
+    spawn_sweep(MESSAGE_RETENTION_SWEEP_INTERVAL, move || {
+        let store = store.clone();
+        async move {
+            run_transcript_retention_sweep_pass(&store).await;
+        }
+    });
+}
+
+/// One pass of the transcript retention sweep, callable without the timer.
+pub async fn run_transcript_retention_sweep_pass(store: &store::Store) -> u64 {
+    match store.sweep_call_transcripts(store::now_ms()).await {
+        Ok(removed) => {
+            if removed > 0 {
+                tracing::info!(
+                    removed,
+                    "deleted call transcripts past the retention window"
+                );
+            }
+            removed
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "call transcript retention sweep failed");
+            0
+        }
+    }
 }
 
 /// Backlog the sweep lets a subscriber carry before it pauses publishing.

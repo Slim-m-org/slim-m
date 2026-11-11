@@ -210,3 +210,9 @@ Discord and Steam's own friends list name whatever Steam game is running, not on
 - Steam's own runtimes and redistributables run as apps too (Proton, the Steam Linux Runtime, Steamworks redistributables) and are never reported.
 - The allowlist still covers games outside Steam, matched by process name as before.
 - Nothing else about the privacy model changes: it is still opt-in behind its own switch, still read fresh and thrown away, and the switch's description now says Steam games count.
+
+## Amendment 2026-11-11: the game comes from a linked Steam account
+
+Local game detection (the allowlist, process scanning and the Steam manifest reading above) is removed.
+A member links Steam, switches sharing on, and the server reads the game from Steam's Web API.
+See [0115](0115-steam-game-status.md).

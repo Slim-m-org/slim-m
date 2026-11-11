@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The one server this build knows about without being told.
 ///
-/// Compiled in rather than typed, so joining it can skip both the address
-/// prompt and the manual identity check that exist for a server only its own
-/// host can vouch for: there is no admin to read a fingerprint to, and the
-/// binary and the address are already the same trust decision.
+/// Compiled in rather than typed, so joining it can skip the address prompt:
+/// the binary and the address are already the same trust decision.
 library;
 
 /// The official instance. Someone with no invite and no server of their own

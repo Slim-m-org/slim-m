@@ -69,6 +69,7 @@ Deleted messages are never exported.
 | `blocks.jsonl` | `blocked_id`, `blocked_username`, `created_at`. |
 | `poll_votes.jsonl` | `message_id`, `channel_id`, `position`, `voted_at`. |
 | `call_events.jsonl` | `channel_id`, `at`, `kind` (`joined`, `left`, `share_started`, `share_stopped`). |
+| `transcript_lines.jsonl` | What the member said on transcribed calls: `transcript_id`, `channel_id`, `seq`, `at`, `text`. |
 | `profile/avatar`, `profile/banner` | The member's own images, when set. |
 
 Never in a member export: other people's messages (including the other side of a direct message), the text of saved messages somebody else wrote, deleted messages, anything in a deleted channel, credentials, sessions, devices, reports, canvas content and anything a moderator did.

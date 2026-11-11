@@ -32,6 +32,8 @@ pub(super) mod voice_notice;
 pub(super) mod voice_notify_prefs;
 pub(super) mod voice_ring;
 pub(super) mod voice_rooms;
+pub(super) mod voice_transcription;
+pub(super) mod voice_transcripts;
 pub(super) mod voice_webhook;
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.

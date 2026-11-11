@@ -99,6 +99,24 @@ bool isAllowedArtUrl(String url) {
   return id.length == _artIdLength && RegExp(r'^[0-9a-f]+$').hasMatch(id);
 }
 
+/// True only for an https image path on a Steam CDN host (decision 0115), the
+/// shape the server accepts; checked again before drawing.
+bool isAllowedSteamArtUrl(String url) {
+  if (!url.startsWith('https://') ||
+      url.contains('..') ||
+      RegExp(r'[?#@\\%]').hasMatch(url)) {
+    return false;
+  }
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.hasPort || uri.userInfo.isNotEmpty) return false;
+  final host = uri.host;
+  const suffix = '.steamstatic.com';
+  return host.length > suffix.length &&
+      host.endsWith(suffix) &&
+      RegExp(r'^[a-z0-9.-]+$').hasMatch(host) &&
+      RegExp(r'^/[A-Za-z0-9/_.-]+$').hasMatch(uri.path);
+}
+
 /// A track's position at a moment, from which a viewer extrapolates.
 class ActivityProgress {
   const ActivityProgress({
@@ -156,6 +174,7 @@ class PresenceActivity {
     this.source,
     String? artUrl,
     this.progress,
+    this.steamAppId,
   }) : _artUrl = artUrl;
 
   /// The most characters the server accepts in [title] or [subtitle].
@@ -179,10 +198,16 @@ class PresenceActivity {
   /// Where the track was when sampled, for a progress bar; null when unknown.
   final ActivityProgress? progress;
 
-  /// Spotify cover art; null for anything the server would refuse.
+  /// The Steam app being played, when the server read it from Steam; it
+  /// makes the Play button (`steam://run/<id>`). Never sent by this client.
+  final int? steamAppId;
+
+  /// Spotify cover or Steam header art; null for anything the server would
+  /// refuse.
   String? get artUrl {
     final url = _artUrl;
-    return url != null && isAllowedArtUrl(url) ? url : null;
+    if (url == null) return null;
+    return isAllowedArtUrl(url) || isAllowedSteamArtUrl(url) ? url : null;
   }
 
   /// Null when [json] is absent or unreadable.
@@ -196,6 +221,7 @@ class PresenceActivity {
     final source = json['source'];
     final artUrl = json['art_url'];
     final progress = ActivityProgress.tryFromJson(json);
+    final steamAppId = json['steam_app_id'];
     return PresenceActivity(
       kind: kind,
       title: title,
@@ -204,6 +230,7 @@ class PresenceActivity {
       source: source is String && source.isNotEmpty ? source : null,
       artUrl: artUrl is String ? artUrl : null,
       progress: progress,
+      steamAppId: steamAppId is int && steamAppId > 0 ? steamAppId : null,
     );
   }
 
@@ -228,11 +255,20 @@ class PresenceActivity {
       other.startedAt == startedAt &&
       other.source == source &&
       other.artUrl == artUrl &&
-      other.progress == progress;
+      other.progress == progress &&
+      other.steamAppId == steamAppId;
 
   @override
-  int get hashCode =>
-      Object.hash(kind, title, subtitle, startedAt, source, artUrl, progress);
+  int get hashCode => Object.hash(
+        kind,
+        title,
+        subtitle,
+        startedAt,
+        source,
+        artUrl,
+        progress,
+        steamAppId,
+      );
 }
 
 /// One user's presence, as told to the asking caller.

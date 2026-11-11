@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Trust on first use along the invite path: the security check shows the
-/// first time a device joins a server and never again while the pinned key
-/// matches. See decision 0036.
+/// Trust on first use along the invite path: the key is pinned silently the
+/// first time a device joins a server, and a later change stops with a warning.
+/// See decision 0036.
 library;
 
 import 'dart:convert';
@@ -122,28 +122,30 @@ void main() {
     );
 
     expect(find.text('Confirm this server'), findsNothing);
-    expect(find.text("This server's identity changed"), findsNothing);
+    expect(find.text("This isn't the server you joined before"), findsNothing);
     expect(chosen, Uri.parse(_server));
     expect(code, 'CODE123');
   });
 
-  testWidgets('storage that was cleared falls back to the first-join check', (
+  testWidgets('storage that was cleared pins the key again without a screen', (
     tester,
   ) async {
     Uri? chosen;
+    final keyStore = InMemoryKeyStore();
     await _startInvite(
       tester,
-      keyStore: InMemoryKeyStore(),
+      keyStore: keyStore,
       servedKey: _keyA,
       onChosen: (s, c) => chosen = s,
     );
 
-    expect(find.text('Confirm this server'), findsOneWidget);
-    expect(chosen, isNull);
+    expect(find.text('Confirm this server'), findsNothing);
+    expect(chosen, Uri.parse(_server));
+    expect(await keyStore.read(_handle), _keyA);
   });
 
   testWidgets('an invite join to a changed key shows the mismatch warning and '
-      'needs an explicit acknowledgement', (tester) async {
+      'needs an explicit choice', (tester) async {
     Uri? chosen;
     final keyStore = InMemoryKeyStore();
     await keyStore.put(_handle, _keyA);
@@ -155,16 +157,15 @@ void main() {
       onChosen: (s, c) => chosen = s,
     );
 
-    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(
+      find.text("This isn't the server you joined before"),
+      findsOneWidget,
+    );
     expect(find.text('Confirm this server'), findsNothing);
     expect(chosen, isNull);
     expect(await keyStore.read(_handle), _keyA);
 
-    await tester.ensureVisible(find.byType(Checkbox));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
-    await tester.tap(find.text('Trust the new identity'));
+    await tester.tap(find.text('Trust the new server'));
     await tester.pumpAndSettle();
 
     expect(chosen, Uri.parse(_server));
@@ -184,14 +185,13 @@ void main() {
       onChosen: (s, c) => chosen = s,
     );
 
-    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(
+      find.text("This isn't the server you joined before"),
+      findsOneWidget,
+    );
     expect(chosen, isNull);
 
-    await tester.ensureVisible(find.byType(Checkbox));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
-    await tester.tap(find.text('Continue without an identity'));
+    await tester.tap(find.text('Trust the new server'));
     await tester.pumpAndSettle();
 
     expect(chosen, Uri.parse(_server));
@@ -208,7 +208,7 @@ void main() {
       onChosen: (s, c) => chosen = s,
     );
 
-    expect(find.text("This server's identity changed"), findsNothing);
+    expect(find.text("This isn't the server you joined before"), findsNothing);
     expect(chosen, Uri.parse(_server));
   });
 }

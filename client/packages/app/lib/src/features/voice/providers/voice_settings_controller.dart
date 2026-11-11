@@ -97,6 +97,8 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
           prefs.getBool(VoiceSettingKeys.shareAudio) ?? false,
       screenShareAllowAnnotations:
           prefs.getBool(VoiceSettingKeys.shareAnnotations) ?? false,
+      screenShareShowCursor:
+          prefs.getBool(VoiceSettingKeys.shareCursor) ?? true,
       callOverlayEnabled: prefs.getBool(VoiceSettingKeys.callOverlay) ?? false,
       callOverlayCorner: enumByName(
         OverlayCorner.values,
@@ -114,7 +116,9 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       audioOutputDeviceId: prefs.getString(
         VoiceSettingKeys.audioOutputDeviceId,
       ),
+      cameraDeviceId: prefs.getString(VoiceSettingKeys.cameraDeviceId),
     );
+    shareCursorVisible.value = state.screenShareShowCursor;
   }
 
   Future<void> setJoinLeaveSoundsEnabled(bool enabled) async {
@@ -206,6 +210,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setBool(VoiceSettingKeys.shareAudio, enabled);
   }
 
+  Future<void> setScreenShareShowCursor(bool enabled) async {
+    state = state.copyWith(screenShareShowCursor: enabled);
+    shareCursorVisible.value = enabled;
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(VoiceSettingKeys.shareCursor, enabled);
+  }
+
   Future<void> setScreenShareAllowAnnotations(bool enabled) async {
     state = state.copyWith(screenShareAllowAnnotations: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
@@ -233,6 +244,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     } else {
       await prefs.setString(VoiceSettingKeys.callOverlayScreen, screen);
     }
+  }
+
+  Future<void> setCameraDeviceId(String id) async {
+    state = state.copyWith(cameraDeviceId: id);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(VoiceSettingKeys.cameraDeviceId, id);
   }
 
   Future<void> setMirrorSelfView(bool enabled) async {

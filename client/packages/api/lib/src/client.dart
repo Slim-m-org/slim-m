@@ -59,6 +59,7 @@ export 'client_presence.dart' show SlimmApiPresence;
 export 'client_push.dart' show SlimmApiPush;
 export 'client_roles.dart' show SlimmApiRoles;
 export 'client_admin_audit.dart' show SlimmApiAdminAudit;
+export 'client_debug_logs.dart' show SlimmApiDebugLogs;
 export 'client_space.dart' show SlimmApiSpace;
 export 'client_space_setup.dart'
     show SlimmApiSpaceSetup, SpaceCapacity, SpaceCapacityEstimate, SpaceSetup;
@@ -74,6 +75,7 @@ export 'client_upload_sessions.dart'
 export 'client_users.dart' show SlimmApiUsers;
 export 'client_voice.dart' show SlimmApiVoice;
 export 'client_voice_calls.dart' show SlimmApiVoiceCalls;
+export 'client_call_transcripts.dart' show SlimmApiCallTranscripts;
 export 'client_voice_rooms.dart' show SlimmApiVoiceRooms;
 export 'client_webhooks.dart' show NewWebhook, SlimmApiWebhooks, Webhook;
 

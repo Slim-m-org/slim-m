@@ -46,6 +46,7 @@ const PUBLIC: &[(&str, &str)] = &[
         "discordLinkCallback",
         "a browser redirect with signed state",
     ),
+    ("steamLinkCallback", "a browser redirect with signed state"),
     ("checkInvite", "a prospective member checks a code"),
     ("inviteLandingPage", "the shareable page for an invite"),
     ("getInviteBanner", "the landing page's banner"),

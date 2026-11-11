@@ -43,6 +43,8 @@ import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
+import 'src/storage/register_preferences_store_web.dart'
+    if (dart.library.io) 'src/storage/register_preferences_store_io.dart';
 import 'src/diagnostics/voice_harness.dart';
 import 'src/features/settings/providers/autostart_setting.dart';
 import 'src/features/settings/providers/display_density.dart';
@@ -102,6 +104,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before the first SharedPreferences read, which countLaunch makes.
+  registerPreferencesStore();
   // Before any audio stack opens: libpulse reads the role once per context.
   applyCallMediaRole();
   // livekit_client awaits this probe on every join; see the class doc.

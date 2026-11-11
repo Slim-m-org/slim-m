@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT call_transcript_retention_days AS \"v: i64\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "v: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "c58213ff58200302b34d825732a231e3e4ca7f60f9017b75d0b102e8e8ff5ae5"
+}

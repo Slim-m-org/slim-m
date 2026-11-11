@@ -271,6 +271,14 @@ pub(super) enum ServerFrame {
         #[serde(skip_serializing_if = "Option::is_none")]
         ended: Option<&'static str>,
     },
+    /// The server started or finished transcribing a call; see
+    /// [`crate::hub::Event::CallTranscriptChanged`].
+    #[serde(rename = "call.transcript_changed")]
+    VoiceCallTranscript {
+        channel_id: String,
+        transcript_id: String,
+        ended: bool,
+    },
     /// A DM call ring started; see [`crate::hub::Event::CallRinging`].
     #[serde(rename = "call.ringing")]
     CallRinging {

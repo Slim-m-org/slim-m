@@ -1,45 +1,67 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// The five words come from the key that will be pinned, and match the vector
+/// `identity.rs` asserts too.
 library;
 
 import 'dart:convert';
 
-import 'package:cryptography/dart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/auth/widgets/server_fingerprint_step.dart';
+import 'package:slimm_app/src/features/auth/widgets/server_identity_changed_step.dart';
+import 'package:slimm_app/src/features/auth/widgets/server_identity_fingerprint.dart';
+import 'package:slimm_app/src/features/auth/widgets/server_identity_words.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-List<String> _groupsFor(String publicKeyB64) {
-  final hex = const DartSha256()
-      .hashSync(base64.decode(publicKeyB64))
-      .bytes
-      .take(16)
-      .map((b) => b.toRadixString(16).padLeft(2, '0'))
-      .join();
-  return [for (var i = 0; i < 32; i += 4) hex.substring(i, i + 4)];
-}
+api.ServerIdentity _identity(List<int> key) => api.ServerIdentity(
+  publicKey: base64.encode(key),
+  fingerprint: '',
+  fingerprintGroups: const [],
+  colorStrip: const [0, 1, 2, 3],
+);
 
 void main() {
-  testWidgets('the shown groups come from the key that will be pinned', (
+  test('the wordlist is the 2048-word BIP39 list', () {
+    expect(bip39Words.length, 2048);
+    expect(bip39Words.first, 'abandon');
+    expect(bip39Words.last, 'zoo');
+  });
+
+  test('the words match the shared vector', () {
+    expect(fingerprintWordsOf(_identity(List<int>.generate(32, (i) => i))), [
+      'glide',
+      'hover',
+      'engage',
+      'snow',
+      'drip',
+    ]);
+    expect(fingerprintWordsOf(_identity(List<int>.filled(32, 7))), [
+      'entry',
+      'lock',
+      'toe',
+      'organ',
+      'polar',
+    ]);
+  });
+
+  test('a key that is not 32 bytes yields no words', () {
+    expect(fingerprintWordsOf(_identity(List<int>.filled(31, 7))), isEmpty);
+  });
+
+  testWidgets('the screen shows the words derived from the key', (
     tester,
   ) async {
-    final realKey = base64.encode(List<int>.filled(32, 1));
-    final attackerKey = base64.encode(List<int>.filled(32, 2));
-    // A hostile server pins its own key but sends the real server's groups.
-    final identity = api.ServerIdentity(
-      publicKey: attackerKey,
-      fingerprint: _groupsFor(realKey).join(),
-      fingerprintGroups: _groupsFor(realKey),
-      colorStrip: const [0, 1, 2, 3],
-    );
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: Scaffold(body: FingerprintDisplay(identity: identity)),
+        home: ServerIdentityChangedStep(
+          address: Uri.parse('https://chat.example'),
+          identity: _identity(List<int>.filled(32, 7)),
+        ),
       ),
     );
-    final g = _groupsFor(attackerKey);
-    expect(find.text(g.take(4).join('  ')), findsOneWidget);
+    for (final word in ['entry', 'lock', 'toe', 'organ', 'polar']) {
+      expect(find.text(word), findsOneWidget);
+    }
   });
 }
