@@ -16,7 +16,7 @@ Ask them for both before you start.
 | Other Linux | The `.flatpak` or the `.tar.gz` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | Windows | `slim-m-setup-<version>.exe`, or the `-windows-x64.zip`, from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | macOS | The `-macos.zip` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
-| Android | The `-android.apk` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
+| Android | Google Play internal testing, or the `-android.apk` from [Releases](https://github.com/Slim-m-org/slim-m/releases/latest) |
 | iPhone | Ask the space's owner for a TestFlight invite |
 
 ## The browser, which needs no install
@@ -96,9 +96,19 @@ You only have to do this once per download.
 
 ## Android
 
+There are two ways to install, and they do not mix.
+
+### Google Play internal testing
+
+Join the test at <https://play.google.com/apps/internaltest/4701690674033835342> and install slim-m from Play.
+Play delivers updates, and the app does not offer its own.
+Play re-signs the app, so a copy from Play cannot be updated with the apk below; uninstall one before switching to the other.
+
+### Sideload the apk
+
 Download `slim-m-client-android.apk` and open it.
 
-There is no Play Store listing, so this is a sideload and Android will warn you.
+Android will warn you, because this is a sideload.
 You will be asked to allow installs from whatever app you downloaded with (usually your browser), which means a trip into Settings the first time.
 
 Releases from 0.80.0 onward carry only the apk; older ones also list an `.aab`, which is a Play Store upload format and cannot be installed on a phone.
@@ -136,7 +146,8 @@ Per-user installs keep their own update path.
 
 | Windows, run from the unzipped folder | Not updated until you choose "Install for automatic updates" in Settings > About | Delete the folder |
 | macOS app in `~/Applications` | In the app, from a signed manifest; never run on a real Mac yet, so treat it as unconfirmed | Drag the app to the bin |
-| Android apk | Not updated by the app as far as the client tree shows; check the releases page | Uninstall as any app |
+| Android from Google Play | By Play | Uninstall as any app |
+| Android apk | In the app, from a signed manifest, with Android's installer confirming | Uninstall as any app |
 | iPhone | TestFlight | Delete the app |
 | Web client | Reload when the page offers it | Nothing installed |
 

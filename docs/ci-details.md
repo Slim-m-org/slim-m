@@ -832,6 +832,12 @@ The apksigner output is captured to a file and echoed before matching, because t
 
 Java is pinned to Temurin 21, the LTS the Android Gradle Plugin supports; local builds match.
 
+`PLAY_SERVICE_ACCOUNT_JSON` is optional.
+When it is set, the last step uploads the appbundle to the `internal` track of `top.npcserver.slimm` with status `completed`, through `r0adkll/upload-google-play` pinned by commit SHA.
+The release name is the client version, and no release notes are sent.
+When it is empty the step is skipped with a `::notice::`.
+The upload runs after the apk is attached to the release, so a Play failure fails the job visibly without costing the release its apk.
+
 Both the version and the tag are emitted by the resolve step: the tag names the release and the version feeds `--build-name`.
 Emitting only the tag left `--build-name=` empty on every run before that was fixed.
 
