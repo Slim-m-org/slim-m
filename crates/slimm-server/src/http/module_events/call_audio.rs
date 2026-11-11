@@ -4,6 +4,7 @@
 //! a segment by a later change to a frame. The module needs no subscription
 //! for them; delivery checks that `call.audio` is still approved instead.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::queue::Origin;
@@ -43,12 +44,16 @@ fn push(state: &AppState, module_id: &str, kind: &'static str, id: String, data:
     }
 }
 
-pub(crate) fn started(state: &AppState, outcome: &Outcome) {
+/// What a person is called to the module: their display name, else their username.
+pub(crate) type Names = BTreeMap<String, String>;
+
+pub(crate) fn started(state: &AppState, outcome: &Outcome, names: Names) {
     let data = EventData::CallAudioStarted {
         session_id: outcome.session_id.to_string(),
         channel_id: outcome.channel.to_string(),
         started_at_ms: outcome.started_at_ms.unwrap_or_else(now_ms),
         included: outcome.include.iter().map(ToString::to_string).collect(),
+        names,
     };
     push(state, &outcome.module_id, STARTED, outcome.ids.mint(), data);
 }
@@ -58,12 +63,14 @@ pub(crate) fn participant(
     outcome: &Outcome,
     user_id: crate::ids::UserId,
     included: bool,
+    name: Option<String>,
 ) {
     let data = EventData::CallAudioParticipant {
         session_id: outcome.session_id.to_string(),
         channel_id: outcome.channel.to_string(),
         user_id: user_id.to_string(),
         included,
+        name,
     };
     push(
         state,

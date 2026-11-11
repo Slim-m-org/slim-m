@@ -363,6 +363,7 @@ slim-addons: `modules/transcript` 0.1.0, below.
 
 Where the build differs from, or adds to, the design above.
 
+- `call.audio.started` carries `names` (user id to display name, for `included` only) and `call.audio.participant` carries `name`, so a module can label speakers without a member lookup; an additive field, no level bump (0100).
 - The `voice.call_audio` frame is carried by the hub's durable channel, not the ephemeral one.
   It has no `seq` and is never stored, but a missed `null` would leave a banner on for a session that ended, which the ephemeral channel's drop-on-lag would allow.
   A client also reads the route again after a reconnect.
