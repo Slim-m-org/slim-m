@@ -63,6 +63,13 @@ final voiceRosterStartProvider = StateProvider.family<DateTime?, String>(
   (ref, channelId) => null,
 );
 
+/// When each channel's roster last listed this account itself, which the
+/// per-channel roster hides; the join check reads it to spot a call open on
+/// another device.
+final voiceSelfSeenProvider = StateProvider<Map<String, DateTime>>(
+  (ref) => const {},
+);
+
 /// Who the server reports as connected to [channelId]'s voice room.
 ///
 /// A hidden participant is never in this list for any viewer but themselves;
@@ -118,6 +125,7 @@ final voiceRosterProvider = StreamProvider.autoDispose
         onCallStart: (start) =>
             ref.read(voiceRosterStartProvider(channelId).notifier).state =
                 start,
+        onSelf: (present) => _markSelf(ref, channelId, present),
       );
       unawaited(poller.tick());
 
@@ -146,6 +154,17 @@ final voiceRosterProvider = StreamProvider.autoDispose
       return controller.stream;
     });
 
+void _markSelf(Ref ref, String channelId, bool present) {
+  final notifier = ref.read(voiceSelfSeenProvider.notifier);
+  final seen = {...notifier.state};
+  if (present) {
+    seen[channelId] = DateTime.now();
+  } else {
+    seen.remove(channelId);
+  }
+  notifier.state = seen;
+}
+
 String? _eventChannelId(api.ServerEvent event) => switch (event) {
   api.VoiceActivityChanged(:final channelId) => channelId,
   api.VoiceParticipantJoined(:final channelId) => channelId,
@@ -162,6 +181,7 @@ class _RosterPoller {
     required this.isLive,
     required this.isVisible,
     required this.onCallStart,
+    required this.onSelf,
   });
 
   final api.SlimmApi _client;
@@ -170,6 +190,7 @@ class _RosterPoller {
   final bool Function() isLive;
   final bool Function() isVisible;
   final void Function(DateTime? start) onCallStart;
+  final void Function(bool present) onSelf;
   Timer? _timer;
   bool _stopped = false;
   int _consecutiveFailures = 0;
@@ -186,6 +207,7 @@ class _RosterPoller {
           ? roster
           : roster.where((p) => p.userId != selfId).toList(growable: false);
       if (_controller.isClosed) return;
+      if (selfId != null) onSelf(roster.any((p) => p.userId == selfId));
       final age = snapshot.callAge;
       onCallStart(
         age == null || roster.isEmpty ? null : DateTime.now().subtract(age),
