@@ -7688,8 +7688,9 @@ paths:
         webhook reported (decision 0066), newest first, with what was placed
         on the canvas during each. Kept for `retention_days`; nothing about
         audio or speaking is stored. Someone whose presence is hidden is left
-        out for every viewer but themselves. Needs `VIEW_CHANNEL`. `limit`
-        is 1 to 30, 10 by default.
+        out for every viewer but themselves. A finished call shorter than a
+        minute is left out; a call still going is always listed. Needs
+        `VIEW_CHANNEL`. `limit` is 1 to 30, 10 by default.
       parameters:
         - $ref: "#/components/parameters/ChannelId"
         - name: limit

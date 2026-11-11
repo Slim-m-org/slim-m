@@ -30,3 +30,11 @@ The webhook handler is synchronous and writes in spawned tasks, which can land o
 Stamping each event when it arrives and segmenting at read time makes write order irrelevant.
 At read time, anyone still counted in a call who is not in LiveKit's own participant list is treated as gone at the call's last event, which closes a call a restart left open.
 The hub's broadcast channels were not used for this either: they drop a subscriber that lags, which suits live fan-out and does not suit a record.
+
+## Amended 2026-11-10: calls in progress and drop-ins
+
+The owner reported that the pane showed nothing about a call unless you were the last to leave, and that the history filled with "0m" rows.
+The pane only showed finished calls, so anyone leaving a call that carried on saw the call before it.
+It now shows a call still going at the top, labelled "This call", running up to now; finished calls follow below as before.
+The "0m" rows were real: someone joined an empty channel and left within seconds.
+A finished call shorter than a minute is no longer listed; a call still going always is.

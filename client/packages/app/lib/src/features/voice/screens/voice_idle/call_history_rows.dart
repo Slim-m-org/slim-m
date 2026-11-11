@@ -123,7 +123,9 @@ class _HistoryRowState extends ConsumerState<_HistoryRow> {
                 if (!widget.compact) ...[
                   _Column(
                     sample: '00:00 PM–00:00 PM',
-                    text: '${clock(model.startedAt)}–${clock(model.endedAt)}',
+                    text:
+                        '${clock(model.startedAt)}–'
+                        '${model.ongoing ? 'now' : clock(model.endedAt)}',
                   ),
                   const SizedBox(width: AppSpacing.s12),
                 ],

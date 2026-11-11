@@ -17,6 +17,19 @@ pub struct Call {
     pub events: Vec<VoiceEvent>,
 }
 
+/// A finished call shorter than this was someone dropping into an empty
+/// channel and back out, which reads as a list of "0m" calls, not history.
+pub const MIN_LISTED_CALL_MS: i64 = 60_000;
+
+impl Call {
+    /// Whether the history lists this call: anything still going, or a
+    /// finished call that lasted at least [`MIN_LISTED_CALL_MS`].
+    pub fn is_listed(&self) -> bool {
+        self.ended_at
+            .is_none_or(|end| end - self.started_at >= MIN_LISTED_CALL_MS)
+    }
+}
+
 /// The calls in `events` (oldest first), newest call first. `present` is
 /// who LiveKit says is in the room now: a call still open at the end is
 /// ongoing only if one of them is still in it, and otherwise ended at its
@@ -115,6 +128,21 @@ mod tests {
         assert_eq!(calls.len(), 1);
         let kinds: Vec<_> = calls[0].events.iter().map(|e| e.kind).collect();
         assert_eq!(kinds, [Joined, ShareStarted, Left]);
+    }
+
+    #[test]
+    fn a_drop_in_under_a_minute_is_not_listed_but_a_call_in_progress_is() {
+        let minute = MIN_LISTED_CALL_MS;
+        let events = [
+            ev(0, 1, Joined),
+            ev(minute - 1, 1, Left),
+            ev(10 * minute, 1, Joined),
+            ev(11 * minute, 1, Left),
+            ev(20 * minute, 2, Joined),
+        ];
+        let calls = segment(&events, &HashSet::from([user(2)]));
+        let listed: Vec<_> = calls.iter().map(Call::is_listed).collect();
+        assert_eq!(listed, [true, true, false], "newest first");
     }
 
     #[test]

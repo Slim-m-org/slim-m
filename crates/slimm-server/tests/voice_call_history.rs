@@ -72,7 +72,32 @@ async fn world(prefix: &str) -> World {
     }
 }
 
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+}
+
+/// Long enough ago that the call it opens is past the history's drop-in cutoff.
+const MINUTES_AGO: i64 = 5 * 60 * 1000;
+
 impl World {
+    /// A join written straight to the history, [`MINUTES_AGO`] in the past.
+    async fn joined_earlier(&self, who: &str) {
+        let channel = ChannelId(self.channel.parse().unwrap());
+        let user = UserId(who.parse().unwrap());
+        self.store
+            .record_voice_event(
+                channel,
+                user,
+                VoiceEventKind::Joined,
+                now_ms() - MINUTES_AGO,
+            )
+            .await
+            .unwrap();
+    }
+
     async fn deliver(&self, event: &str, who: &str) {
         let body = json!({
             "event": event,
@@ -127,7 +152,7 @@ impl World {
 #[tokio::test]
 async fn joins_and_leaves_become_a_call_with_its_timeline() {
     let w = world("slimm-call-history-basic").await;
-    w.deliver("participant_joined", &w.owner.1).await;
+    w.joined_earlier(&w.owner.1).await;
     w.deliver("participant_joined", &w.kiki.1).await;
     w.deliver("participant_joined", &w.kiki.1).await;
     w.deliver("participant_left", &w.kiki.1).await;
@@ -155,8 +180,9 @@ async fn joins_and_leaves_become_a_call_with_its_timeline() {
 #[tokio::test]
 async fn a_call_left_open_by_a_missed_leave_reads_as_over() {
     let w = world("slimm-call-history-open").await;
-    w.deliver("participant_joined", &w.owner.1).await;
-    let body = w.calls_once(&w.owner.0, 1).await;
+    w.joined_earlier(&w.owner.1).await;
+    w.deliver("participant_joined", &w.kiki.1).await;
+    let body = w.calls_once(&w.owner.0, 2).await;
     assert!(
         body["calls"][0]["ended_at"].as_i64().is_some(),
         "nobody LiveKit reports is in it, so it is over: {body}"
@@ -171,10 +197,11 @@ async fn a_hidden_member_is_left_out_for_everyone_but_themselves() {
         .set_presence_visibility(kiki, slimm_server::presence::Visibility::Hidden)
         .await
         .unwrap();
-    w.deliver("participant_joined", &w.owner.1).await;
+    w.joined_earlier(&w.owner.1).await;
     w.deliver("participant_joined", &w.kiki.1).await;
-    let mine = w.calls_once(&w.kiki.0, 2).await;
-    let theirs = w.calls_once(&w.owner.0, 1).await;
+    w.deliver("participant_left", &w.owner.1).await;
+    let mine = w.calls_once(&w.kiki.0, 3).await;
+    let theirs = w.calls_once(&w.owner.0, 2).await;
     let ids = |body: &Value| -> Vec<String> {
         body["calls"][0]["events"]
             .as_array()
@@ -192,11 +219,7 @@ async fn reading_needs_the_channel_and_old_events_are_swept() {
     let w = world("slimm-call-history-access").await;
     let channel = ChannelId(w.channel.parse().unwrap());
     let owner = UserId(w.owner.1.parse().unwrap());
-    let long_ago = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64
-        - 40 * 24 * 60 * 60 * 1000;
+    let long_ago = now_ms() - 40 * 24 * 60 * 60 * 1000;
     w.store
         .record_voice_event(channel, owner, VoiceEventKind::Joined, long_ago)
         .await
@@ -228,9 +251,7 @@ async fn what_landed_on_the_canvas_during_a_call_is_part_of_it() {
     let w = world("slimm-call-history-canvas").await;
     let channel = ChannelId(w.channel.parse().unwrap());
     let kiki = UserId(w.kiki.1.parse().unwrap());
-    w.deliver("participant_joined", &w.kiki.1).await;
-    // Spaces the canvas events from the joins in whole milliseconds.
-    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    w.joined_earlier(&w.kiki.1).await;
     for _ in 0..3 {
         w.store
             .place_canvas_object(
@@ -247,7 +268,7 @@ async fn what_landed_on_the_canvas_during_a_call_is_part_of_it() {
             .await
             .expect("placed");
     }
-    // Spaces the canvas events from the joins in whole milliseconds.
+    // Spaces the canvas events from the leave in whole milliseconds.
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     w.deliver("participant_left", &w.kiki.1).await;
 
@@ -258,4 +279,19 @@ async fn what_landed_on_the_canvas_during_a_call_is_part_of_it() {
     assert_eq!(canvas[0]["count"], 3);
     assert_eq!(canvas[0]["user_id"], json!(w.kiki.1));
     assert_eq!(body["canvas_object_count"], 3);
+}
+
+#[tokio::test]
+async fn a_drop_in_under_a_minute_is_not_a_call() {
+    let w = world("slimm-call-history-drop-in").await;
+    let channel = ChannelId(w.channel.parse().unwrap());
+    w.deliver("participant_joined", &w.owner.1).await;
+    w.deliver("participant_left", &w.owner.1).await;
+    support::wait::wait_for("the webhook's events to land", || async {
+        (w.store.voice_events(channel).await.unwrap().len() == 2).then_some(())
+    })
+    .await;
+    let (status, body) = w.calls(&w.owner.0).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["calls"], json!([]), "{body}");
 }
