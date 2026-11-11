@@ -104,7 +104,12 @@ void main() {
     await call.emit([callMe]);
 
     final tile = tester.getRect(find.byType(CallParticipantTile));
-    expect(tile.size, const Size(320, 200));
+    expect(tile.width / tile.height, closeTo(1.6, 0.01));
+    expect(
+      tile.width,
+      greaterThan(640),
+      reason: 'alone, the tile fills the stage',
+    );
     final label = tester.getRect(find.text('Me'));
     expect(tile.contains(label.topLeft), isTrue);
     expect(tile.contains(label.bottomRight), isTrue);

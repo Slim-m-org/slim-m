@@ -8,13 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_tile_badges.dart';
-import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
 import 'package:slimm_app/src/features/voice/widgets/video_label_pill.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../ui_snapshot_support.dart';
-import 'voice_controller_harness.dart';
 
 VoiceParticipant _who({
   bool muted = false,
@@ -133,35 +131,6 @@ void main() {
     testWidgets('an avatar tile has no pill', (tester) async {
       await _pumpTile(tester, _who());
       expect(find.byKey(videoLabelPillKey), findsNothing);
-    });
-
-    testWidgets('a share thumbnail puts its caption on a pill', (tester) async {
-      final harness = VoiceHarness();
-      addTearDown(harness.dispose);
-      final controller = harness.controllerWith(FakeSession(), voiceApi());
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: harness.container,
-          child: MaterialApp(
-            theme: buildTheme(Brightness.light, AppTokens.light),
-            home: Scaffold(
-              body: Align(
-                alignment: Alignment.topLeft,
-                child: ShareThumbnail(
-                  sharer: _who(sharing: true),
-                  controller: controller,
-                  height: 112,
-                  onFocus: () {},
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      final pill = tester.getRect(find.byKey(videoLabelPillKey));
-      final caption = tester.getRect(find.text("Bob's screen"));
-      expect(pill.contains(caption.topLeft), isTrue);
-      expect(pill.contains(caption.bottomRight), isTrue);
     });
   });
 }

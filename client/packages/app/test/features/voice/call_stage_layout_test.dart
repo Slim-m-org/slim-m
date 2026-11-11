@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The stage-and-filmstrip layout `call_stage_layout.dart` replaced three
+/// The stage layout `call_stage_layout.dart` replaced three
 /// separate boxes with. The owner's own report: "it creates 3 different
 /// boxes for if I'm screen sharing and having my camera on and it's not
 /// very easy to navigate on mobile or vertical views."
@@ -19,7 +19,6 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
-import 'package:slimm_app/src/features/voice/widgets/call_roster_motion.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -147,7 +146,7 @@ Future<void> _leave(VoiceHarness harness) =>
 
 void main() {
   testWidgets(
-    'sharing with the camera on is one stage tile plus one filmstrip tile - '
+    'sharing with the camera on is one stage tile plus one camera tile - '
     'never a second box for the same camera',
     (tester) async {
       final harness = await _connected(tester, const [
@@ -170,7 +169,7 @@ void main() {
         find.byKey(const Key('fake-camera-view-user-2')),
         findsOneWidget,
         reason:
-            "Alice's camera renders once, inside her own filmstrip tile - "
+            "Alice's camera renders once, inside her own camera tile - "
             'not a second box beside the stage',
       );
       expect(
@@ -202,8 +201,8 @@ void main() {
       final harness = await _connected(tester, const [_meSharing]);
       addTearDown(harness.dispose);
 
-      expect(find.byType(ScreenShareStage), findsOneWidget);
-      expect(find.byKey(const Key('fake-share-view-user-1')), findsOneWidget);
+      expect(find.byKey(const Key('fake-share-view-user-1')), findsNothing);
+      expect(find.text('Stop sharing'), findsOneWidget);
 
       await _leave(harness);
     },
@@ -218,38 +217,36 @@ void main() {
       ], size: const Size(1200, 900));
       addTearDown(harness.dispose);
 
-      expect(find.byType(ScreenShareStage), findsNWidgets(2));
       expect(find.byKey(const Key('fake-share-view-user-2')), findsOneWidget);
-      expect(find.byKey(const Key('fake-share-view-user-1')), findsOneWidget);
+      expect(find.byKey(const Key('fake-share-view-user-1')), findsNothing);
+      expect(find.text('Stop sharing'), findsOneWidget);
 
       await _leave(harness);
     },
   );
 
-  testWidgets(
-    'the grid lists the remote share before the local one whatever the '
-    'roster order',
-    (tester) async {
-      final harness = await _connected(tester, const [
-        _aliceSharing,
-        _meSharing,
-      ], size: const Size(1200, 900));
-      addTearDown(harness.dispose);
+  testWidgets('the remote share is pinned ahead of the local one whatever the '
+      'roster order', (tester) async {
+    final harness = await _connected(tester, const [
+      _aliceSharing,
+      _meSharing,
+    ], size: const Size(1200, 900));
+    addTearDown(harness.dispose);
 
-      final remote = tester.getTopLeft(
-        find.byKey(const ValueKey('share-tile-user-2')),
-      );
-      final local = tester.getTopLeft(
-        find.byKey(const ValueKey('share-tile-user-1')),
-      );
-      expect(remote.dx, lessThan(local.dx));
+    final remote = tester.getRect(find.byKey(const ValueKey('share:user-2')));
+    final local = tester.getRect(find.byKey(const ValueKey('share:user-1')));
+    expect(
+      remote.width * remote.height,
+      greaterThanOrEqualTo(local.width * local.height),
+      reason: 'the remote share is pinned and the largest',
+    );
+    expect(remote.top, lessThanOrEqualTo(local.top));
 
-      await _leave(harness);
-    },
-  );
+    await _leave(harness);
+  });
 
   testWidgets(
-    'a hand-off between two live sharers keeps the filmstrip mounted rather '
+    'a hand-off between two live sharers keeps the other tiles mounted rather '
     'than fading every tile in it from blank',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
@@ -305,7 +302,7 @@ void main() {
         1.0,
         reason:
             'the stage-to-stage hand-off must update in place, not remount '
-            'the whole filmstrip',
+            'every other tile',
       );
 
       await _leave(harness);
@@ -415,7 +412,7 @@ void main() {
   );
 
   testWidgets(
-    'a small call sits in a bounded room rather than a full-bleed void',
+    'a small call fills the stage rather than sitting in a bounded column',
     (tester) async {
       final harness = await _connected(tester, const [
         _me,
@@ -423,8 +420,8 @@ void main() {
       ], size: const Size(1400, 900));
       addTearDown(harness.dispose);
 
-      final wrap = tester.getRect(find.byType(AnimatedRosterWrap));
-      expect(wrap.width, lessThanOrEqualTo(kContentColumnMax));
+      final cam = tester.getRect(find.byKey(const ValueKey('cam:user-2')));
+      expect(cam.width, greaterThan(kContentColumnMax * 0.8));
 
       await _leave(harness);
     },

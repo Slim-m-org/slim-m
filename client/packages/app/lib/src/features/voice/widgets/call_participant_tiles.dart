@@ -1,17 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The in-call participant tiles, and the call-duration readout.
 ///
-/// A call used to render as a top-anchored list of small rows over a mostly
-/// empty pane, which read as a debug view rather than a place people are.
-/// One tile shape now covers both places a participant can appear -
-/// `call_stage_layout.dart`'s centred grid when nobody is sharing, and its
-/// horizontal filmstrip beneath the stage when somebody is - but the grid's
-/// tiles no longer sit at one fixed size: [callGridTileWidth] grows them for
-/// a two-person call and shrinks them back down past eight, so the room
-/// this product is built for reads as a room rather than a debug view no
-/// matter how many of the two-to-twelve show up. The filmstrip keeps the
-/// original fixed size - it is already correct, since a screen share is
-/// already holding the room.
+/// One tile shape covers every place a participant appears on the call stage;
+/// `../layout/stage_fit.dart` sizes it, so it takes a width and a height.
 library;
 
 import 'package:flutter/material.dart';
@@ -49,44 +40,11 @@ const double kCallTileMaxWidth = 320;
 /// The tile's height as a fraction of its width: 320x200 at the ceiling.
 const double _kCallTileAspect = 0.625;
 
+/// Below this a tile has no room for "(you)" beside a name.
+const double _kYouLabelMinWidth = 112;
+
 /// Room the name label and its padding take at the tile's bottom edge.
 const double _kCallTileLabelBand = 36;
-
-/// How wide one grid tile should render for [count] participants inside
-/// [constraints] - the fixed 112px tile made a two-person call look like
-/// two small faces in a big empty room; this instead grows tiles to fill
-/// the space a small roster leaves, and shrinks them back down once a
-/// bigger roster needs the room. Reads window/pane constraints only, never
-/// `Platform.isX` - desktop-vs-mobile rule 1, width decides.
-///
-/// Tries every column count from one tile per row to one row of tiles, and
-/// keeps the widest tile that still fits both [constraints] dimensions -
-/// the same grid-packing a video call's own tile layout needs elsewhere,
-/// cheap here because a call this product is built for never seats more
-/// than a handful of people.
-double callGridTileWidth(
-  BoxConstraints constraints,
-  int count, {
-  double spacing = AppSpacing.s16,
-}) {
-  if (count <= 0) return kCallTileMinWidth;
-  final maxWidth = constraints.maxWidth.isFinite
-      ? constraints.maxWidth
-      : kCallTileMaxWidth;
-  final maxHeight = constraints.maxHeight;
-  var best = kCallTileMinWidth;
-  for (var columns = 1; columns <= count; columns++) {
-    final rows = (count / columns).ceil();
-    var candidate = (maxWidth - (columns - 1) * spacing) / columns;
-    if (maxHeight.isFinite) {
-      final rowHeight = (maxHeight - (rows - 1) * spacing) / rows;
-      final fromHeight = rowHeight / _kCallTileAspect;
-      if (fromHeight < candidate) candidate = fromHeight;
-    }
-    if (candidate > best) best = candidate;
-  }
-  return best.clamp(kCallTileMinWidth, kCallTileMaxWidth);
-}
 
 /// One participant as a tile: a large avatar with the speaking ring, the
 /// name beneath, and the mute or share state as a small badge - or, once a
@@ -102,6 +60,7 @@ class CallParticipantTile extends StatelessWidget {
     this.cameraView,
     this.onExpand,
     this.width = kCallTileMinWidth,
+    this.height,
     this.contextMenuItemsBuilder,
     this.poorConnection = false,
     this.shareHidden = false,
@@ -119,6 +78,9 @@ class CallParticipantTile extends StatelessWidget {
   /// label and mute badge stay their own fixed size regardless. Callers
   /// pass a size fit to the available room; see [callGridTileWidth].
   final double width;
+
+  /// The tile's height; null keeps the call tile's own 5:8 ratio to [width].
+  final double? height;
 
   /// Opens this participant's profile.
   ///
@@ -180,7 +142,8 @@ class CallParticipantTile extends StatelessWidget {
             style: nameStyle,
           ),
         ),
-        if (participant.isLocal) Text(' (you)', style: nameStyle),
+        if (participant.isLocal && width >= _kYouLabelMinWidth)
+          Text(' (you)', style: nameStyle),
       ],
     );
     if (!onVideo) return name;
@@ -269,7 +232,7 @@ class CallParticipantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final height = width * _kCallTileAspect;
+    final height = this.height ?? width * _kCallTileAspect;
     final avatarSize = AppAvatarSize.largestWithin(
       height - _kCallTileLabelBand - AppSpacing.s8,
     );

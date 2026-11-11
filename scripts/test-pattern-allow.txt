@@ -407,7 +407,7 @@ client/packages/app/test/features/members/edit_display_name_sheet_test.dart 10 3
 client/packages/app/test/features/members/home_shell_dm_member_pane_test.dart 3 0
 client/packages/app/test/features/members/home_shell_medium_members_test.dart 3 1
 client/packages/app/test/features/members/invite_friend_test.dart 0 8
-client/packages/app/test/features/members/invite_landing_section_test.dart 9 11
+client/packages/app/test/features/members/invite_landing_section_test.dart 7 9
 client/packages/app/test/features/members/member_card_banner_test.dart 1 0
 client/packages/app/test/features/members/member_card_message_test.dart 0 1
 client/packages/app/test/features/members/member_handle_line_test.dart 1 0
@@ -774,8 +774,8 @@ client/packages/app/test/features/voice/call_roster_motion_test.dart 2 6
 client/packages/app/test/features/voice/call_screen_desktop_geometry_test.dart 7 0
 client/packages/app/test/features/voice/call_screen_phone_geometry_test.dart 2 2
 client/packages/app/test/features/voice/call_stage_layout_member_card_anchor_test.dart 6 4
-client/packages/app/test/features/voice/call_stage_layout_test.dart 10 3
-client/packages/app/test/features/voice/call_stage_shares_test.dart 16 13
+client/packages/app/test/features/voice/call_stage_layout_test.dart 7 3
+client/packages/app/test/features/voice/call_stage_shares_test.dart 9 9
 client/packages/app/test/features/voice/call_stats_screen_test.dart 4 7
 client/packages/app/test/features/voice/call_strip_tap_test.dart 8 0
 client/packages/app/test/features/voice/call_tile_backdrop_test.dart 4 3
