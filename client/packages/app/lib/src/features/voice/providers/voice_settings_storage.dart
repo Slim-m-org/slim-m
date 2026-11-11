@@ -36,6 +36,7 @@ abstract final class VoiceSettingKeys {
   static const cameraReach = 'slimm.voice.camera_reach';
   static const shareAudio = 'slimm.voice.screen_share_include_audio';
   static const shareAnnotations = 'slimm.voice.screen_share_allow_annotations';
+  static const shareCursor = 'slimm.voice.screen_share_show_cursor';
   static const callOverlay = 'slimm.voice.call_overlay_enabled';
   static const callOverlayCorner = 'slimm.voice.call_overlay_corner';
   static const callOverlayScreen = 'slimm.voice.call_overlay_screen';

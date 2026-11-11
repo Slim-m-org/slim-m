@@ -23,6 +23,7 @@ export 'src/audio_gain.dart';
 export 'src/audio_publish_options.dart';
 export 'src/voice_processing.dart';
 export 'src/screen_share_audio_options.dart';
+export 'src/screen_share_cursor.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_diagnostics.dart' show CallDiagnostics, kDiagnosticsSummaryCap;
 export 'src/call_stats.dart';
