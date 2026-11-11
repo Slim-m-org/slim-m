@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
@@ -87,6 +88,11 @@ Future<void> _render(
   await tester.pump();
   session.emitParticipants(who);
   await tester.pump();
+  final voice = harness.container.read(voiceControllerProvider.notifier);
+  // ignore: invalid_use_of_protected_member
+  voice.state = voice.state.copyWith(
+    connectedAt: DateTime.now().subtract(const Duration(minutes: 7)),
+  );
   await tester.pump(const Duration(seconds: 1));
   await tester.pump(const Duration(seconds: 1));
   await writeSnapshot(tester, name);
@@ -99,7 +105,12 @@ Future<void> _render(
 
 void main() {
   setUpAll(loadRealFonts);
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(
+    () => SharedPreferences.setMockInitialValues({
+      micCueSeenKey: '',
+      shareHintSeenKey: true,
+    }),
+  );
 
   final sixShares = [
     _p(0, local: true),

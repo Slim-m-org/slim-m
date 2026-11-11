@@ -49,7 +49,7 @@ StageBlock? bestContent(List<StageItem> items, Rect box, double gap) {
     bento(items, box, gap),
   ];
   var pool = [for (final b in all) ?b];
-  for (final keep in [_pinnedIsLargest, _legible]) {
+  for (final keep in [_pinnedIsLargest, _uniform(items), _legible]) {
     final kept = [
       for (final b in pool)
         if (keep(b)) b,
@@ -62,6 +62,22 @@ StageBlock? bestContent(List<StageItem> items, Rect box, double gap) {
   }
   return best;
 }
+
+/// Tiles of one kind (bar the pinned one) differ in area by at most [stageMaxKindSpread].
+const double stageMaxKindSpread = 2;
+
+bool Function(StageBlock) _uniform(List<StageItem> items) => (b) {
+  for (final kind in StageKind.values) {
+    final areas = [
+      for (var i = 1; i < items.length; i++)
+        if (items[i].kind == kind) b.rects[i].width * b.rects[i].height,
+    ];
+    if (areas.length < 2) continue;
+    final lo = areas.reduce(math.min);
+    if (areas.reduce(math.max) > lo * stageMaxKindSpread) return false;
+  }
+  return true;
+};
 
 /// The narrowest a content tile may get while a roomier layout exists.
 const double stageMinContentWidth = 108;

@@ -91,6 +91,31 @@ void main() {
         }
       });
 
+      test('same-kind tiles stay within 2x and people never beat a camera', () {
+        final fit = _fit(box, content, people);
+        double area(Rect r) => r.width * r.height;
+        for (final kind in StageKind.values) {
+          final areas = [
+            for (var i = 1; i < content.length; i++)
+              if (content[i].kind == kind) area(fit.items[content[i].id]!),
+          ];
+          if (areas.length < 2) continue;
+          final lo = areas.reduce((a, b) => a < b ? a : b);
+          final hi = areas.reduce((a, b) => a > b ? a : b);
+          expect(hi / lo, lessThanOrEqualTo(2.0001), reason: '$kind');
+        }
+        final cams = [
+          for (final i in content)
+            if (i.kind == StageKind.camera) area(fit.items[i.id]!),
+        ];
+        if (cams.isNotEmpty && !fit.peopleCollapsed) {
+          final smallest = cams.reduce((a, b) => a < b ? a : b);
+          for (final r in fit.people) {
+            expect(area(r), lessThanOrEqualTo(smallest + 0.01));
+          }
+        }
+      });
+
       test('the same input gives the same layout', () {
         final a = _fit(box, content, people);
         final b = _fit(box, content, people);

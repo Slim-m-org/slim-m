@@ -18,6 +18,7 @@ const double _gridTileHeight = 0.625;
 /// The height of a collapsed chip.
 const double stageChipHeight = 32;
 const double _chipWidth = 120;
+const double _narrowStage = 480;
 
 /// The people's tiles and the box left for the content.
 class PeoplePlan {
@@ -102,19 +103,49 @@ PeoplePlan planPeople(
 }) {
   (double, PeoplePlan)? best;
   for (var w = _personMaxWidth; w >= stagePersonMinWidth; w -= 16) {
-    final plan = column
-        ? _columnPlan(people, w, box, gap)
-        : _stripPlan(people, w, box, gap);
-    if (plan == null) continue;
-    final block = bestContent(content, plan.contentRegion, gap);
-    if (block == null) continue;
-    final score = block.area + people * w * w * _personTileHeight;
-    if (best == null || score > best.$1 * 1.005) best = (score, plan);
+    for (final stretch in column ? const [false] : const [false, true]) {
+      final plan = column
+          ? _columnPlan(people, w, box, gap)
+          : _stripPlan(people, w, box, gap, stretch: stretch);
+      if (plan == null) continue;
+      final scored = _score(plan, people, content, gap);
+      if (scored != null && (best == null || scored > best.$1 * 1.005)) {
+        best = (scored, plan);
+      }
+    }
   }
   return best;
 }
 
-PeoplePlan? _stripPlan(int people, double w, Rect box, double gap) {
+double? _score(
+  PeoplePlan plan,
+  int people,
+  List<StageItem> content,
+  double gap,
+) {
+  final block = bestContent(content, plan.contentRegion, gap);
+  if (block == null) return null;
+  final tile = plan.tiles.first;
+  final cameras = [
+    for (var i = 0; i < content.length; i++)
+      if (content[i].kind == StageKind.camera)
+        block.rects[i].width * block.rects[i].height,
+  ];
+  // Audio-only people take what is left and are never bigger than a camera.
+  if (cameras.isNotEmpty &&
+      tile.width * tile.height > cameras.reduce(math.min)) {
+    return null;
+  }
+  return block.area + people * tile.width * tile.height;
+}
+
+PeoplePlan? _stripPlan(
+  int people,
+  double w,
+  Rect box,
+  double gap, {
+  bool stretch = false,
+}) {
   final h = w * _personTileHeight;
   final cols = math.min(people, ((box.width + gap) / (w + gap)).floor());
   if (cols < 1) return null;
@@ -127,9 +158,13 @@ PeoplePlan? _stripPlan(int people, double w, Rect box, double gap) {
     box.width,
     height,
   );
+  // On a narrow stage a single row shares the stacked tiles' width.
+  final wide = stretch && rows == 1 && box.width < _narrowStage
+      ? (box.width - (people - 1) * gap) / people
+      : w;
   return PeoplePlan(
     Rect.fromLTRB(box.left, box.top, box.right, region.top - gap),
-    _tiles(people, cols, w, h, region, gap),
+    _tiles(people, cols, wide, h, region, gap),
   );
 }
 
