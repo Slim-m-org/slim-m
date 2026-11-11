@@ -24,6 +24,9 @@ import 'stream_volume_pill.dart';
 
 const popOutWindowKey = Key('popout_window_view');
 const popOutDragRegionKey = Key('popout_drag_region');
+const popOutTopScrimKey = Key('popout_top_scrim');
+const popOutBottomScrimKey = Key('popout_bottom_scrim');
+const kPopOutScrimHeight = 96.0;
 
 class PopOutWindowView extends ConsumerWidget {
   const PopOutWindowView({super.key, required this.feed, this.frame});
@@ -68,6 +71,8 @@ class PopOutWindowView extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 view,
+                _Scrim(shown: shown, top: true),
+                _Scrim(shown: shown, top: false),
                 if (frame != null) _DragSurface(frame: frame!),
                 if (frame != null)
                   _TopBar(label: label, frame: frame!, shown: shown),
@@ -106,6 +111,39 @@ class PopOutFrame {
   final VoidCallback onMoveStart;
   final void Function(ResizeEdge edge) onResizeStart;
   final VoidCallback onClose;
+}
+
+/// Darkens the edge a control row sits on, so white icons read over a bright share.
+class _Scrim extends StatelessWidget {
+  const _Scrim({required this.shown, required this.top});
+
+  final bool shown;
+  final bool top;
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+    top: top ? 0 : null,
+    bottom: top ? null : 0,
+    left: 0,
+    right: 0,
+    height: kPopOutScrimHeight,
+    child: IgnorePointer(
+      child: AnimatedOpacity(
+        key: top ? popOutTopScrimKey : popOutBottomScrimKey,
+        opacity: shown ? 1 : 0,
+        duration: AppMotion.reduced(context, AppMotion.fast),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: top ? Alignment.topCenter : Alignment.bottomCenter,
+              end: top ? Alignment.bottomCenter : Alignment.topCenter,
+              colors: const [Color(0xB3000000), Color(0x00000000)],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// The whole video is the drag handle, since the window has no title bar.

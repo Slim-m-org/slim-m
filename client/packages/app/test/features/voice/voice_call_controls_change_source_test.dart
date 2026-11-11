@@ -99,7 +99,7 @@ void main() {
       await _switchScreen(tester);
 
       expect(
-        find.text('Everyone in the call will see it until you stop sharing.'),
+        find.text('Everyone in the call sees it until you stop.'),
         findsOneWidget,
         reason: 'the picker must reopen, not silently reuse the old source',
       );
@@ -192,7 +192,7 @@ void main() {
       await _switchScreen(tester);
 
       expect(
-        find.text('Everyone in the call will see it until you stop sharing.'),
+        find.text('Everyone in the call sees it until you stop.'),
         findsNothing,
       );
       expect(session.screenShareCalls.map((c) => (c.enabled, c.sourceId)), [
