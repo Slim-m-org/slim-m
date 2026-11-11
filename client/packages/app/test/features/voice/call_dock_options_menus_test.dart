@@ -83,34 +83,25 @@ void main() {
     (tester) async {
       final dock = await _pumpDock(tester);
       await tester.tap(find.byTooltip('Microphone options'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.text('Voice settings'), findsOneWidget);
-      expect(find.text('USB headset'), findsOneWidget);
-      // Longer lists start collapsed to the current row.
-      expect(find.text('Strong'), findsNothing);
-
-      await tester.tap(find.textContaining('more'));
-      await _settle(tester);
-      expect(
-        find.text('Voice settings'),
-        findsOneWidget,
-        reason: 'expanding keeps it open',
-      );
+      expect(find.textContaining('Show'), findsNothing);
       expect(find.text('Standard'), findsOneWidget);
       expect(find.text('Strong'), findsOneWidget);
 
       await tester.tap(find.text('Strong'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       expect(
         dock.container.read(noiseSuppressionProvider),
         NoiseSuppressionChoice.strong,
       );
+      expect(find.text('Voice settings'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Microphone options'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Microphone'));
+      await _settle(tester);
       await tester.tap(find.text('USB headset'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       expect(dock.session.lastSelectedAudioInput?.id, 'usb-1');
       expect(
         dock.container.read(voiceSettingsControllerProvider).audioInputDeviceId,
@@ -119,7 +110,25 @@ void main() {
     },
   );
 
-  testWidgets('a long device list collapses to the current one until asked', (
+  testWidgets('the mic menu switches stay switches and toggle their settings', (
+    tester,
+  ) async {
+    final dock = await _pumpDock(tester);
+    await tester.tap(find.byTooltip('Microphone options'));
+    await _settle(tester);
+
+    expect(find.byIcon(AppIcons.check), findsNothing);
+    final before = dock.container.read(voiceSettingsControllerProvider);
+    await tester.tap(find.text('Automatic sensitivity'));
+    await tester.tap(find.text('Even out loud sounds'));
+    await _settle(tester);
+    final after = dock.container.read(voiceSettingsControllerProvider);
+    expect(after.inputThresholdAuto, !before.inputThresholdAuto);
+    expect(after.evenOutLoudSounds, !before.evenOutLoudSounds);
+    expect(find.bySubtype<AppToggle>(), findsNWidgets(2));
+  });
+
+  testWidgets('a long device list is one row with the list a click away', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -143,15 +152,14 @@ void main() {
     await tester.tap(find.byTooltip('Microphone options'));
     await _settle(tester);
 
+    expect(find.textContaining('Show'), findsNothing);
     expect(find.text('USB headset'), findsNothing);
-    expect(find.text('Webcam mic'), findsNothing);
-    await tester.tap(find.text('Show 2 more'));
+    await tester.tap(find.text('Microphone'));
     await _settle(tester);
     expect(find.text('USB headset'), findsOneWidget);
     expect(find.text('Webcam mic'), findsOneWidget);
-    await tester.tap(find.text('Show fewer'));
-    await _settle(tester);
-    expect(find.text('Webcam mic'), findsNothing);
+    expect(find.text('System default'), findsWidgets);
+    expect(find.byIcon(AppIcons.check), findsOneWidget);
   });
 
   testWidgets('on a short phone the mic sheet scrolls instead of overflowing', (

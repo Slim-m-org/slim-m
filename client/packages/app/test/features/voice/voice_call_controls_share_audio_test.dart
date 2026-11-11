@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_state.dart';
@@ -23,6 +24,13 @@ Future<void> _openMenu(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+AppToggle _audioSwitch(WidgetTester tester) => tester.widget<AppToggle>(
+  find.descendant(
+    of: find.widgetWithText(AppMenuItem, 'Share audio'),
+    matching: find.bySubtype<AppToggle>(),
+  ),
+);
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -30,22 +38,23 @@ void main() {
     await pumpControls(tester, _sharing(ShareAudio.on));
     await _openMenu(tester);
 
-    expect(find.text('Mute shared audio'), findsOneWidget);
-    expect(find.text('Unmute shared audio'), findsNothing);
+    expect(find.text('Share audio'), findsOneWidget);
+    expect(_audioSwitch(tester).value, isTrue);
   });
 
   testWidgets('a muted share offers to unmute it', (tester) async {
     await pumpControls(tester, _sharing(ShareAudio.muted));
     await _openMenu(tester);
 
-    expect(find.text('Unmute shared audio'), findsOneWidget);
+    expect(find.text('Share audio'), findsOneWidget);
+    expect(_audioSwitch(tester).value, isFalse);
   });
 
   testWidgets('a share with no audio offers no switch', (tester) async {
     await pumpControls(tester, _sharing(ShareAudio.none));
     await _openMenu(tester);
 
-    expect(find.textContaining('shared audio'), findsNothing);
+    expect(find.text('Share audio'), findsNothing);
   });
 
   testWidgets('no share, no switch', (tester) async {
@@ -55,6 +64,6 @@ void main() {
     );
     await _openMenu(tester);
 
-    expect(find.textContaining('shared audio'), findsNothing);
+    expect(find.text('Share audio'), findsNothing);
   });
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Viewers draw on my screen" is in the share menu of a plain voice channel's dock, not only a canvas lounge's.
+/// "Viewers can draw" is in the share menu of a plain voice channel's dock, not only a canvas lounge's.
 /// Set SLIMM_SHARE_SHOTS to a directory to also write the open menu as a PNG.
 library;
 
@@ -60,7 +60,7 @@ void main() {
         await tester.tap(find.byTooltip('Screen share options'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(find.text('Viewers draw on my screen'), findsOneWidget);
+        expect(find.text('Viewers can draw'), findsOneWidget);
         await _shot(tester, 'share-menu-${canvas ?? 'plain'}-desktop');
       },
     );
@@ -82,6 +82,6 @@ void main() {
     await tester.tap(find.byTooltip('Screen share options'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Viewers draw on my screen'), findsOneWidget);
+    expect(find.text('Viewers can draw'), findsOneWidget);
   });
 }

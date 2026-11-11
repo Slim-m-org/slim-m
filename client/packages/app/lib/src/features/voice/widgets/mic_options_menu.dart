@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The call dock's microphone options: input and speaker device, noise
-/// suppression and the input toggles, all backed by the providers Voice
+/// The call dock's microphone options: input and speaker device, the input
+/// level, noise suppression and the input switches, all backed by the providers Voice
 /// settings already uses.
 library;
 
@@ -13,12 +13,14 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart' show AudioDevice;
 
 import '../../../routing/routes.dart';
+import '../../../widgets/control_menu_entries.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../providers/noise_suppression.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import 'call_device_options.dart';
+import 'input_sensitivity_section.dart' show InputSensitivityMeter;
 
 /// The voice settings pane the menu's last row opens.
 const voiceSettingsPane = 'voice';
@@ -52,7 +54,6 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
   List<AudioDevice> _outputs = const [];
   StreamSubscription<void>? _changes;
   late final ValueNotifier<bool> _spaceStrong;
-  final _expanded = <String>{};
 
   @override
   void initState() {
@@ -72,11 +73,6 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
   }
 
   void _rebuild() => setState(() {});
-
-  VoidCallback _toggle(String group) =>
-      () => setState(() {
-        if (!_expanded.remove(group)) _expanded.add(group);
-      });
 
   @override
   void dispose() {
@@ -103,81 +99,98 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
     final settings = ref.watch(voiceSettingsControllerProvider);
     final noise = ref.watch(noiseSuppressionProvider);
     final controller = ref.read(voiceControllerProvider.notifier);
+    final gated = controller.input.supportsInputGate;
     final spaceStrong = controller.input.spaceStrongNoiseSuppression.value;
     final notifier = ref.read(voiceSettingsControllerProvider.notifier);
     return ControlOptionsMenu(
       optionsLabel: 'Microphone options',
       showCaret: widget.showCaret,
       destructive: widget.destructive,
-      menuWidth: deviceMenuWidth,
-      options: [
-        if (controller.devices.supportsAudioInputSelection)
-          ...audioDeviceOptions(
-            heading: 'Microphone',
-            devices: _inputs,
-            selectedId: settings.audioInputDeviceId,
-            onPick: notifier.setAudioInputDevice,
-            expanded: _expanded.contains('Microphone'),
-            onToggle: _toggle('Microphone'),
-          ),
-        if (controller.devices.supportsAudioOutputSelection)
-          ...audioDeviceOptions(
-            heading: 'Speaker',
-            devices: _outputs,
-            selectedId: settings.audioOutputDeviceId,
-            onPick: notifier.setAudioOutputDevice,
-            expanded: _expanded.contains('Speaker'),
-            onToggle: _toggle('Speaker'),
-          ),
-        if (controller.input.supportsInputGate) ...[
-          ...collapsibleOptions(
-            heading: _noiseSuppression,
-            expanded: _expanded.contains(_noiseSuppression),
-            onToggle: _toggle(_noiseSuppression),
-            options: [
-              for (final choice in NoiseSuppressionChoice.offered(
-                supported: ref.watch(strongestSupportedProvider),
-              ))
-                ControlOption(
-                  label: noiseSuppressionLabel(
-                    choice,
-                    spaceStrong: spaceStrong,
-                  ),
-                  selected: choice == noise,
-                  onSelected: () => unawaited(
-                    ref.read(noiseSuppressionProvider.notifier).set(choice),
-                  ),
-                ),
-            ],
-          ),
-          const ControlOptionHeading('Input'),
-          ControlOption(
-            label: 'Automatic sensitivity',
-            selected: settings.inputThresholdAuto,
-            onSelected: () => unawaited(
-              notifier.setInputThresholdAuto(!settings.inputThresholdAuto),
+      menuWidth: callMenuWidth,
+      options: joinMenuGroups([
+        [
+          if (controller.devices.supportsAudioInputSelection)
+            ControlSubmenu(
+              label: 'Microphone',
+              icon: AppIcons.mic,
+              value: audioDeviceValue(_inputs, settings.audioInputDeviceId),
+              options: audioDeviceOptions(
+                devices: _inputs,
+                selectedId: settings.audioInputDeviceId,
+                onPick: notifier.setAudioInputDevice,
+              ),
             ),
-          ),
+          if (gated) const ControlInline(_inputMeter),
+          if (controller.devices.supportsAudioOutputSelection)
+            ControlSubmenu(
+              label: 'Speaker',
+              icon: AppIcons.speaker,
+              value: audioDeviceValue(_outputs, settings.audioOutputDeviceId),
+              options: audioDeviceOptions(
+                devices: _outputs,
+                selectedId: settings.audioOutputDeviceId,
+                onPick: notifier.setAudioOutputDevice,
+              ),
+            ),
+        ],
+        if (gated) [_noiseChoice(noise, spaceStrong)],
+        [
+          if (gated) ...[
+            ControlSwitch(
+              label: 'Automatic sensitivity',
+              value: settings.inputThresholdAuto,
+              onChanged: (value) =>
+                  unawaited(notifier.setInputThresholdAuto(value)),
+            ),
+            ControlSwitch(
+              label: 'Even out loud sounds',
+              value: settings.evenOutLoudSounds,
+              onChanged: (value) =>
+                  unawaited(notifier.setEvenOutLoudSounds(value)),
+            ),
+          ],
+        ],
+        [
+          ...widget.extraOptions,
           ControlOption(
-            label: 'Even out loud sounds',
-            selected: settings.evenOutLoudSounds,
+            label: 'Voice settings',
+            icon: AppIcons.settings,
             onSelected: () => unawaited(
-              notifier.setEvenOutLoudSounds(!settings.evenOutLoudSounds),
+              GoRouter.of(context).push(
+                '${Routes.personalSettings}?$settingsPaneQuery=$voiceSettingsPane',
+              ),
             ),
           ),
         ],
-        ...widget.extraOptions,
-        ControlOption(
-          label: 'Voice settings',
-          icon: AppIcons.settings,
-          onSelected: () => unawaited(
-            GoRouter.of(context).push(
-              '${Routes.personalSettings}?$settingsPaneQuery=$voiceSettingsPane',
-            ),
-          ),
-        ),
-      ],
+      ]),
       child: widget.child,
     );
   }
+
+  ControlSegmented _noiseChoice(
+    NoiseSuppressionChoice noise,
+    bool spaceStrong,
+  ) {
+    final choices = NoiseSuppressionChoice.offered(
+      supported: ref.watch(strongestSupportedProvider),
+    );
+    final shown = choices.contains(noise)
+        ? noise
+        : NoiseSuppressionChoice.strong;
+    return ControlSegmented(
+      label: _noiseSuppression,
+      note: 'Default: ${spaceStrong ? 'Strong' : 'Standard'}',
+      options: [
+        for (final choice in choices)
+          AppSegmentedOption(label: noiseSegmentLabel(choice)),
+      ],
+      selectedIndex: choices.indexOf(shown),
+      onSelected: (i) => unawaited(
+        ref.read(noiseSuppressionProvider.notifier).set(choices[i]),
+      ),
+    );
+  }
 }
+
+Widget _inputMeter(BuildContext context) =>
+    const InputSensitivityMeter(compact: true);

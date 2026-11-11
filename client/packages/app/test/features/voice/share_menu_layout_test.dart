@@ -59,10 +59,10 @@ void main() {
     await _open(tester);
 
     final order = [
-      'Switch screen...',
-      'Viewers draw on my screen',
+      'Sharing',
       '720p',
       '60 fps',
+      'Viewers can draw',
       'Stop sharing',
     ];
     final tops = [

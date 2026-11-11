@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'context_menu_region.dart';
+import 'control_menu_entries.dart';
 import 'control_slider_row.dart';
 import 'control_swatch_row.dart';
 import 'hover_reveal.dart';
@@ -21,9 +22,13 @@ class ControlOption extends ControlOptionEntry {
     this.tone = AppMenuItemTone.normal,
     this.selected = false,
     this.keepOpen = false,
+    this.value,
   });
 
   final String label;
+
+  /// The current choice, drawn secondary at the row's end.
+  final String? value;
   final IconData? icon;
   final VoidCallback onSelected;
   final AppMenuItemTone tone;
@@ -153,9 +158,50 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
     if (entry is ControlSliderGroup) {
       return [AppMenuLabel(entry.heading), ControlSliderRow(group: entry)];
     }
+    if (entry is ControlSubmenu) return [_submenuRow(entry, close)];
+    if (entry is ControlSegmented) {
+      return [
+        AppMenuSegmentedRow(
+          label: entry.label,
+          note: entry.note,
+          options: entry.options,
+          selectedIndex: entry.selectedIndex,
+          onSelected: entry.onSelected,
+        ),
+      ];
+    }
+    if (entry is ControlSwitch) {
+      return [
+        AppMenuSwitchRow(
+          label: entry.label,
+          value: entry.value,
+          onChanged: entry.onChanged,
+        ),
+      ];
+    }
+    if (entry is ControlInline) {
+      return [AppMenuControl(child: Builder(builder: entry.builder))];
+    }
     if (entry is ControlOptionHeading) return [AppMenuLabel(entry.text)];
     if (entry is ControlOptionDivider) return const [AppMenuDivider()];
     return _itemRows(context, entry as ControlOption, close);
+  }
+
+  Widget _submenuRow(ControlSubmenu entry, VoidCallback close) {
+    final value = entry.value;
+    return AppSubmenuItem(
+      label: entry.label,
+      leading: entry.icon,
+      trailing: value == null ? null : AppMenuValue(value),
+      panelWidth: widget.menuWidth,
+      itemsBuilder: (context) => [
+        if (entry.panel case final panel?)
+          panel(context, close)
+        else
+          for (final option in entry.options)
+            ..._itemRows(context, option, close),
+      ],
+    );
   }
 
   List<Widget> _itemRows(
@@ -168,6 +214,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       leading: option.icon,
       tone: option.tone,
       selected: option.selected,
+      trailing: option.value == null ? null : AppMenuValue(option.value!),
       onTap: () {
         if (!option.keepOpen) close();
         option.onSelected();
