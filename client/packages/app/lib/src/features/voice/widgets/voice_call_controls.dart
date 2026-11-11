@@ -366,6 +366,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         _switchScreenOption(context),
       if (widget.voice.shareAudio != ShareAudio.none) _shareAudioOption(),
       _annotationOption(),
+      _cursorOption(),
     ];
     return [
       ...actions,
@@ -413,6 +414,19 @@ class _CallControlsState extends ConsumerState<CallControls> {
             !ref
                 .read(voiceSettingsControllerProvider)
                 .screenShareAllowAnnotations,
+          ),
+    ),
+  );
+
+  ControlOption _cursorOption() => ControlOption(
+    label: 'Show my cursor',
+    icon: AppIcons.sharedCursor,
+    selected: ref.watch(voiceSettingsControllerProvider).screenShareShowCursor,
+    onSelected: () => unawaited(
+      ref
+          .read(voiceSettingsControllerProvider.notifier)
+          .setScreenShareShowCursor(
+            !ref.read(voiceSettingsControllerProvider).screenShareShowCursor,
           ),
     ),
   );
