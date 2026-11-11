@@ -11,6 +11,8 @@
 /// unusable app, which is worse than the problem the floor exists for.
 library;
 
+import 'dart:io' show exit;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
@@ -19,7 +21,9 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../desktop/relaunch.dart';
 import '../../../desktop/rpm_updater.dart';
+import '../../../desktop/update_package_view.dart' show packageManagerCommand;
 import '../../../desktop/startup_screen.dart' show updateActionHint;
 import '../providers/client_floor.dart';
 import '../../../providers/providers.dart';
@@ -50,6 +54,8 @@ class ClientTooOldScreen extends ConsumerStatefulWidget {
     this.rpm,
     this.isWeb = kIsWeb,
     this.onReload,
+    this.relaunch,
+    this.canRelaunch,
   });
 
   /// Injectable for tests; the real build reads its own install format.
@@ -60,6 +66,10 @@ class ClientTooOldScreen extends ConsumerStatefulWidget {
   final bool isWeb;
   final VoidCallback? onReload;
 
+  /// Injectable; the real one starts a fresh copy and exits this one.
+  final Future<void> Function()? relaunch;
+  final bool? canRelaunch;
+
   @override
   ConsumerState<ClientTooOldScreen> createState() => _ClientTooOldScreenState();
 }
@@ -67,9 +77,27 @@ class ClientTooOldScreen extends ConsumerStatefulWidget {
 class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
   bool _busy = false;
   String? _error;
+  String? _errorDetail;
   bool _installed = false;
 
-  InstallFormat get _format => widget.format ?? currentInstallFormat();
+  /// A phone only ever updates through its store, whatever a caller passes.
+  InstallFormat get _format {
+    if (isIOSHost) return InstallFormat.testFlight;
+    if (isAndroidHost) return InstallFormat.apk;
+    return widget.format ?? currentInstallFormat();
+  }
+
+  bool get _canRelaunch => widget.canRelaunch ?? canRelaunchThisProcess();
+
+  Future<void> _restart() async {
+    final relaunch =
+        widget.relaunch ??
+        () async {
+          await spawnRelaunch();
+          exit(0);
+        };
+    await relaunch();
+  }
 
   Future<void> _openRelease() async {
     final uri = Uri.parse(releasesUrl);
@@ -86,9 +114,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
       opened = false;
     }
     if (!mounted || opened) return;
-    setState(
-      () => _error = 'Could not open $releasesUrl. Open it in a browser.',
-    );
+    setState(() => _error = 'Could not open the release page.');
   }
 
   Future<void> _openTestFlight() async {
@@ -103,9 +129,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
       opened = false;
     }
     if (!mounted || opened) return;
-    setState(
-      () => _error = 'Could not open TestFlight. Open it from the home screen.',
-    );
+    setState(() => _error = 'Could not open TestFlight.');
   }
 
   String get _hint => widget.isWeb
@@ -145,6 +169,7 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     setState(() {
       _busy = true;
       _error = null;
+      _errorDetail = null;
     });
     final mine = ref.read(appInfoProvider).valueOrNull?.version;
     final result = await (widget.rpm ?? const RpmUpdater()).apply(
@@ -154,7 +179,8 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
     setState(() {
       _busy = false;
       _installed = result.ok;
-      _error = result.ok ? null : result.detail;
+      _error = result.ok ? null : 'The install did not finish.';
+      _errorDetail = result.ok ? null : _firstLine(result.detail);
     });
   }
 
@@ -203,28 +229,46 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
                           color: tokens.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.s8),
-                      Text(
-                        _installed
-                            ? 'Installed. Restart slim-m to finish.'
-                            : _hint,
-                        textAlign: TextAlign.center,
-                        style: AppText.caption.copyWith(
-                          color: tokens.textSecondary,
+                      if (_error == null) ...[
+                        const SizedBox(height: AppSpacing.s8),
+                        Text(
+                          _installed
+                              ? (_canRelaunch
+                                    ? 'Installed. Restart slim-m to finish.'
+                                    : 'Installed. Close and reopen slim-m to '
+                                          'finish.')
+                              : _hint,
+                          textAlign: TextAlign.center,
+                          style: AppText.caption.copyWith(
+                            color: tokens.textSecondary,
+                          ),
                         ),
-                      ),
-                      if (_error case final detail?) ...[
+                      ],
+                      if (_error case final line?) ...[
                         const SizedBox(height: AppSpacing.s16),
-                        AppErrorState(
-                          message: detail,
-                          onDismiss: () => setState(() => _error = null),
+                        _FailureNote(
+                          line: line,
+                          detail: _errorDetail,
+                          command: _action == _TooOldAction.dnf
+                              ? packageManagerCommand(_format)
+                              : null,
                         ),
                       ],
                       const SizedBox(height: AppSpacing.s24),
-                      if (_action != _TooOldAction.none)
+                      if (_installed && _canRelaunch)
+                        AppButton(
+                          label: 'Restart',
+                          icon: AppIcons.retry,
+                          variant: AppButtonVariant.primary,
+                          size: AppButtonSize.lg,
+                          full: true,
+                          onPressed: _restart,
+                        )
+                      else if (!_installed && _action != _TooOldAction.none)
                         AppButton(
                           label: switch (_action) {
-                            _TooOldAction.dnf => 'Update now',
+                            _TooOldAction.dnf =>
+                              _error == null ? 'Update now' : 'Try again',
                             _TooOldAction.reload => 'Reload',
                             _TooOldAction.testFlight => 'Open TestFlight',
                             _ => 'Open the release',
@@ -233,9 +277,17 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
                           size: AppButtonSize.lg,
                           full: true,
                           busy: _busy,
-                          disabled: _installed,
                           onPressed: _update,
                         ),
+                      if (_error != null && _action == _TooOldAction.dnf) ...[
+                        const SizedBox(height: AppSpacing.s8),
+                        AppButton(
+                          label: 'Open the release page',
+                          variant: AppButtonVariant.ghost,
+                          full: true,
+                          onPressed: _openRelease,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -243,6 +295,59 @@ class _ClientTooOldScreenState extends ConsumerState<ClientTooOldScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+String _firstLine(String text) => text.trim().split('\n').first;
+
+/// One calm line about what went wrong, the manual command, and nothing
+/// stacked: the primary action above it is the retry.
+class _FailureNote extends StatelessWidget {
+  const _FailureNote({required this.line, this.detail, this.command});
+
+  final String line;
+  final String? detail;
+  final String? command;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            line,
+            textAlign: TextAlign.center,
+            style: AppText.ui.copyWith(color: tokens.dangerText),
+          ),
+          if (detail case final detail? when detail.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.s4),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ],
+          if (command case final command?) ...[
+            const SizedBox(height: AppSpacing.s8),
+            Text(
+              'Or run it yourself:',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+            SelectableText(
+              command,
+              textAlign: TextAlign.center,
+              style: AppText.code.copyWith(color: tokens.textPrimary),
+            ),
+          ],
+        ],
       ),
     );
   }

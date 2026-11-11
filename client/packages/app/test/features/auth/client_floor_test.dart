@@ -44,6 +44,8 @@ Future<void> _pumpScreen(
   WidgetTester tester, {
   InstallFormat format = InstallFormat.rpm,
   RpmUpdater? rpm,
+  Future<void> Function()? relaunch,
+  bool canRelaunch = true,
 }) async {
   tester.view.physicalSize = const Size(1200, 900);
   tester.view.devicePixelRatio = 1;
@@ -53,7 +55,12 @@ Future<void> _pumpScreen(
     ProviderScope(
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: ClientTooOldScreen(format: format, rpm: rpm),
+        home: ClientTooOldScreen(
+          format: format,
+          rpm: rpm,
+          relaunch: relaunch,
+          canRelaunch: canRelaunch,
+        ),
       ),
     ),
   );
@@ -184,6 +191,33 @@ void main() {
 
       expect(dnf.applied, isTrue);
       expect(find.textContaining('Restart slim-m'), findsOneWidget);
+      expect(find.text('Update now'), findsNothing);
+    });
+
+    testWidgets('once installed, Restart relaunches the app', (tester) async {
+      var relaunches = 0;
+      await _pumpScreen(
+        tester,
+        rpm: _Dnf(),
+        relaunch: () async => relaunches++,
+      );
+      await tester.tap(find.text('Update now'));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text('Restart'));
+      await tester.pump();
+      expect(relaunches, 1);
+    });
+
+    testWidgets('where no relaunch exists, it says to reopen', (tester) async {
+      await _pumpScreen(tester, rpm: _Dnf(), canRelaunch: false);
+      await tester.tap(find.text('Update now'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Restart'), findsNothing);
+      expect(find.textContaining('Close and reopen'), findsOneWidget);
     });
 
     testWidgets('a failed install says why and stays offerable', (
@@ -197,11 +231,17 @@ void main() {
       await tester.tap(find.text('Update now'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AppErrorState), findsOneWidget);
+      expect(find.text('The install did not finish.'), findsOneWidget);
       expect(find.textContaining('Transaction failed'), findsOneWidget);
       expect(
+        find.text('sudo dnf upgrade --refresh slim-m-client'),
+        findsOneWidget,
+        reason: 'the manual fallback is the exact command',
+      );
+      expect(find.text('Open the release page'), findsOneWidget);
+      expect(
         tester
-            .widget<AppButton>(find.widgetWithText(AppButton, 'Update now'))
+            .widget<AppButton>(find.widgetWithText(AppButton, 'Try again'))
             .disabled,
         isFalse,
         reason: 'a failure that cannot be retried is a dead end',
