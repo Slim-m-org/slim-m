@@ -30,7 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+import 'package:slimm_rtc/rtc.dart' show ScreenShareSource, VoiceSessionState;
 
 import 'mic_call_button.dart';
 import 'muted_talk_watcher.dart';
@@ -40,7 +40,6 @@ import '../providers/camera_switch.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
-import '../providers/voice_state.dart' show ShareAudio;
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
 import 'camera_source_sheet.dart';
@@ -52,7 +51,7 @@ import 'call_device_options.dart';
 import 'call_dock_hint.dart';
 import '../providers/call_dock_hint.dart' show DockHintTarget;
 import 'call_dock_button.dart';
-import 'call_quality_options.dart';
+import 'share_options_menu.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
 export 'call_dock_button.dart';
@@ -113,6 +112,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// by nothing on purpose: it only ever changes what a fresh sheet opens
   /// pointing at, never whether one opens.
   String? _lastSourceId;
+  ScreenShareSource? _lastSource;
 
   StateController<CallShortcutHandlers?>? _shortcutRegistry;
 
@@ -203,7 +203,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             active: voice.screenSharing,
             optionsLabel: 'Screen share options',
             options: shareOptions,
-            menuWidth: deviceMenuWidth,
+            menuWidth: callMenuWidth,
             showCaret: showCaret,
             child: _shareButton(context, voice, showCaret: showCaret),
           ),
@@ -357,91 +357,27 @@ class _CallControlsState extends ConsumerState<CallControls> {
 
   bool get _canSwitchSource => widget.controller.video.screenShareNeedsSource;
 
-  /// Switching and stopping only while sharing on a platform with a source to
-  /// switch between; the quality groups are always there, since they set the
-  /// next share, camera start and what you watch. One menu carries all three
-  /// so a phone's dock keeps a single caret, or none: a compact window opens
-  /// them by long press, since its row has no width to spare.
-  List<ControlOptionEntry> _shareOptions(BuildContext context) {
-    final actions = <ControlOptionEntry>[
-      if (widget.voice.screenSharing && _canSwitchSource)
-        _switchScreenOption(context),
-      if (widget.voice.shareAudio != ShareAudio.none) _shareAudioOption(),
-      _annotationOption(),
-      _cursorOption(),
-    ];
-    return [
-      ...actions,
-      if (actions.isNotEmpty) const ControlOptionDivider(),
-      ...videoQualityOptions(ref),
-      if (widget.voice.screenSharing && _canSwitchSource) ...[
-        const ControlOptionDivider(),
-        _stopSharingOption(context),
-      ],
-    ];
-  }
-
-  ControlOption _switchScreenOption(BuildContext context) => ControlOption(
-    label: 'Switch screen...',
-    icon: AppIcons.screenShareSwitch,
-    onSelected: () {
-      if (_shareRequestInFlight) return;
-      unawaited(_changeSource(context));
-    },
-  );
-
-  ControlOption _shareAudioOption() {
-    final audioOn = widget.voice.shareAudio == ShareAudio.on;
-    return ControlOption(
-      label: audioOn ? 'Mute shared audio' : 'Unmute shared audio',
-      icon: audioOn ? AppIcons.speakerOff : AppIcons.speaker,
-      onSelected: () => unawaited(
-        widget.controller.share.setScreenShareAudioOn(
-          widget.voice.shareAudio == ShareAudio.muted,
+  List<ControlOptionEntry> _shareOptions(BuildContext context) =>
+      shareMenuEntries(
+        ref,
+        voice: widget.voice,
+        controller: widget.controller,
+        current: _lastSource,
+        actions: ShareMenuActions(
+          onStop: () {
+            if (_shareRequestInFlight) return;
+            unawaited(_share(context));
+          },
+          onChangeSource: () {
+            if (_shareRequestInFlight) return;
+            unawaited(_changeSource(context));
+          },
+          onPickSource: (source) {
+            if (_shareRequestInFlight) return;
+            unawaited(_startShare(context, stopFirst: true, preset: source));
+          },
         ),
-      ),
-    );
-  }
-
-  ControlOption _annotationOption() => ControlOption(
-    label: 'Viewers draw on my screen',
-    icon: AppIcons.pen,
-    selected: ref
-        .watch(voiceSettingsControllerProvider)
-        .screenShareAllowAnnotations,
-    onSelected: () => unawaited(
-      ref
-          .read(voiceSettingsControllerProvider.notifier)
-          .setScreenShareAllowAnnotations(
-            !ref
-                .read(voiceSettingsControllerProvider)
-                .screenShareAllowAnnotations,
-          ),
-    ),
-  );
-
-  ControlOption _cursorOption() => ControlOption(
-    label: 'Show my cursor',
-    icon: AppIcons.sharedCursor,
-    selected: ref.watch(voiceSettingsControllerProvider).screenShareShowCursor,
-    onSelected: () => unawaited(
-      ref
-          .read(voiceSettingsControllerProvider.notifier)
-          .setScreenShareShowCursor(
-            !ref.read(voiceSettingsControllerProvider).screenShareShowCursor,
-          ),
-    ),
-  );
-
-  ControlOption _stopSharingOption(BuildContext context) => ControlOption(
-    label: 'Stop sharing',
-    icon: AppIcons.screenShareStop,
-    tone: AppMenuItemTone.danger,
-    onSelected: () {
-      if (_shareRequestInFlight) return;
-      unawaited(_share(context));
-    },
-  );
+      );
 
   Future<void> _share(BuildContext context) async {
     final voice = widget.voice;
@@ -488,6 +424,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   Future<void> _startShare(
     BuildContext context, {
     bool stopFirst = false,
+    ScreenShareSource? preset,
   }) async {
     final controller = widget.controller;
     setState(() => _shareRequestInFlight = true);
@@ -496,12 +433,14 @@ class _CallControlsState extends ConsumerState<CallControls> {
       final settings = ref.read(voiceSettingsControllerProvider);
       final quality = settings.screenShareQuality;
 
-      final pick = await pickShareSource(
-        context,
-        controller,
-        lastSourceId: _lastSourceId,
-        anchorRect: _pickerAnchor(),
-      );
+      final pick = preset != null
+          ? (proceed: true, id: preset.id, source: preset)
+          : await pickShareSource(
+              context,
+              controller,
+              lastSourceId: _lastSourceId,
+              anchorRect: _pickerAnchor(),
+            );
       if (!pick.proceed) return;
       final sourceId = pick.id;
       // The call can end while a picker or the source list is open.
@@ -511,6 +450,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         return;
       }
       _lastSourceId = sourceId ?? _lastSourceId;
+      _lastSource = pick.source ?? _lastSource;
       if (stopFirst) await controller.share.setScreenShare(false);
       await controller.share.setScreenShare(
         true,

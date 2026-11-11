@@ -88,7 +88,7 @@ const voiceSettingsIndex = <SettingsEntry>[
     'voice',
     'Show my cursor',
     description: 'Viewers see your mouse pointer in the share.',
-    keywords: ['mouse', 'pointer', 'cursor', 'screen share', 'game'],
+    keywords: ['mouse', 'pointer', 'cursor', 'hide', 'screen share', 'game'],
   ),
   SettingsEntry(
     'voice',

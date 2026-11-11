@@ -103,7 +103,7 @@ void main() {
     await teardownFixture(tester, fixture.container, fixture.db);
   });
 
-  group('the source picker opened from Switch screen', () {
+  group('the source picker opened by starting a share', () {
     const long = 'Firefox - A very long window title that goes on and on.html';
 
     Future<void> openPicker(WidgetTester tester) async {
@@ -113,10 +113,7 @@ void main() {
       addTearDown(tester.view.reset);
       await pumpControls(
         tester,
-        const VoiceFlags(
-          state: VoiceSessionState.connected,
-          screenSharing: true,
-        ),
+        const VoiceFlags(state: VoiceSessionState.connected),
         session: InertSession(
           needsSource: true,
           sources: Future.value(const [
@@ -125,9 +122,7 @@ void main() {
           ]),
         ),
       );
-      await tester.tap(find.byTooltip('Screen share options'));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(find.text('Switch screen...'));
+      await tester.tap(find.byTooltip(RegExp('^Share a screen')));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump(const Duration(milliseconds: 500));
     }
@@ -137,7 +132,7 @@ void main() {
     ) async {
       await openPicker(tester);
       final rows = tester.getRect(find.text('Screen 1'));
-      final share = tester.getRect(find.byTooltip(RegExp('^You are sharing')));
+      final share = tester.getRect(find.byTooltip(RegExp('^Share a screen')));
       expect(rows.overlaps(share), isFalse);
       final caption = tester.getRect(
         find.text('Everyone in the call sees it until you stop.'),

@@ -8,13 +8,14 @@
 /// would start a fresh one.
 ///
 /// The options caret beside the share button (or a long press, or a
-/// right-click) is the route this file proves: its menu offers "Switch
-/// screen..." and "Stop sharing", while an ordinary tap keeps stopping
+/// right-click) is the route this file proves: its menu offers a "Sharing"
+/// row that lists the sources, and "Stop sharing", while an ordinary tap keeps stopping
 /// outright - `scripts/lib/e2e_voice.py` already drives that same tap by its
 /// "Stop sharing" tooltip.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,12 +44,12 @@ const _sharing = VoiceFlags(
   screenSharing: true,
 );
 
-/// Opens the share button's options menu from its caret and picks the
-/// "Switch screen..." row.
+/// Opens the share button's options menu from its caret and taps the
+/// "Sharing" row, which lists the sources beside it.
 Future<void> _switchScreen(WidgetTester tester) async {
   await tester.tap(find.byTooltip(_caretLabel));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Switch screen...'));
+  await tester.tap(find.text('Sharing'));
   await tester.pumpAndSettle();
 }
 
@@ -80,8 +81,8 @@ void main() {
   );
 
   testWidgets(
-    'Switch screen stops the share, then reopens the picker to choose a '
-    'different source',
+    'the Sharing row lists the sources, and a pick stops the share then '
+    'starts the new one',
     (tester) async {
       final session = InertSession(
         needsSource: true,
@@ -100,9 +101,10 @@ void main() {
 
       expect(
         find.text('Everyone in the call sees it until you stop.'),
-        findsOneWidget,
-        reason: 'the picker must reopen, not silently reuse the old source',
+        findsNothing,
+        reason: 'the list is in the menu, not a second dialog',
       );
+      expect(find.text('Screen 1'), findsOneWidget);
 
       await tester.tap(find.text('Screen 2'));
       await tester.pumpAndSettle();
@@ -172,7 +174,7 @@ void main() {
   });
 
   testWidgets(
-    'on Linux Switch screen still switches, going straight to the other '
+    'on Linux the Sharing row still switches, going straight to the other '
     'source with no second dialog',
     (tester) async {
       final session = InertSession(
@@ -214,9 +216,9 @@ void main() {
     await tester.tap(find.byTooltip(_caretLabel));
     await tester.pumpAndSettle();
 
-    expect(find.text('Switch screen...'), findsNothing);
+    expect(find.text('Sharing'), findsNothing);
     expect(find.text('Stop sharing'), findsNothing);
-    expect(find.text('RESOLUTION'), findsOneWidget);
+    expect(find.text('Resolution'), findsOneWidget);
     expect(session.screenShareCalls, isEmpty);
   });
 
@@ -231,8 +233,8 @@ void main() {
     await tester.tap(find.byTooltip(_caretLabel));
     await tester.pumpAndSettle();
 
-    expect(find.text('Switch screen...'), findsNothing);
-    expect(find.text('RESOLUTION'), findsOneWidget);
+    expect(find.text('Sharing'), findsNothing);
+    expect(find.text('Resolution'), findsOneWidget);
   });
 
   testWidgets('the caret menu offers Stop sharing, which stops and nothing '
@@ -245,7 +247,7 @@ void main() {
 
     await tester.tap(find.byTooltip(_caretLabel));
     await tester.pumpAndSettle();
-    expect(find.text('Switch screen...'), findsOneWidget);
+    expect(find.text('Sharing'), findsOneWidget);
     await tester.tap(find.text('Stop sharing'));
     await tester.pumpAndSettle();
 
@@ -264,7 +266,7 @@ void main() {
     await tester.longPress(find.byTooltip(RegExp(r'Stop sharing')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Switch screen...'), findsOneWidget);
+    expect(find.text('Sharing'), findsOneWidget);
     expect(find.text('Stop sharing'), findsOneWidget);
   });
 
@@ -285,7 +287,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppSheetMenu), findsOneWidget);
-    expect(find.text('Switch screen...'), findsOneWidget);
+    expect(find.text('Sharing'), findsOneWidget);
   });
 
   testWidgets('the caret has its own semantics label', (tester) async {
@@ -300,26 +302,26 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets(
-    'cancelling the Switch screen picker keeps the active share running',
-    (tester) async {
-      final session = InertSession(
-        needsSource: true,
-        sources: Future.value(_sources),
-      );
-      await pumpControls(tester, _sharing, session: session);
+  testWidgets('dismissing the source list keeps the active share running', (
+    tester,
+  ) async {
+    final session = InertSession(
+      needsSource: true,
+      sources: Future.value(_sources),
+    );
+    await pumpControls(tester, _sharing, session: session);
 
-      await _switchScreen(tester);
-      expect(find.text('Screen 2'), findsOneWidget);
+    await _switchScreen(tester);
+    expect(find.text('Screen 2'), findsOneWidget);
 
-      Navigator.of(tester.element(find.text('Screen 2'))).pop();
-      await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Screen 2'), findsNothing);
 
-      expect(
-        session.screenShareCalls,
-        isEmpty,
-        reason: 'dismissing the picker must not stop the active share',
-      );
-    },
-  );
+    expect(
+      session.screenShareCalls,
+      isEmpty,
+      reason: 'dismissing the picker must not stop the active share',
+    );
+  });
 }

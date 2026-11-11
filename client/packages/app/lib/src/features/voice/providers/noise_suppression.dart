@@ -11,6 +11,7 @@ import 'package:slimm_rtc/rtc.dart' show supportsStrongestNoiseSuppression;
 
 import '../../../providers/providers.dart';
 import 'voice_controller.dart';
+
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 enum NoiseSuppressionChoice {
@@ -53,6 +54,12 @@ String noiseSuppressionName(NoiseSuppressionChoice choice) => switch (choice) {
   NoiseSuppressionChoice.strong => 'Strong',
   NoiseSuppressionChoice.strongest => 'Strongest',
 };
+
+/// A choice's name on a segment, where Space default has room for one word.
+String noiseSegmentLabel(NoiseSuppressionChoice choice) =>
+    choice == NoiseSuppressionChoice.spaceDefault
+    ? 'Default'
+    : noiseSuppressionName(choice);
 
 /// [noiseSuppressionName], with Space default saying what the Space currently uses.
 String noiseSuppressionLabel(

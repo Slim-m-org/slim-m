@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
+import '../../touch_targets.dart';
 import '../../app_typography.dart';
 import 'focusable_tap_target.dart';
 
@@ -42,8 +43,29 @@ class AppSegmentedControl extends StatelessWidget {
     required this.selectedIndex,
     required this.onSegmentSelected,
     this.semanticLabel,
-  }) : assert(options.length >= 2,
-            'a segmented control needs at least two options');
+  })  : fill = false,
+        assert(
+          options.length >= 2,
+          'a segmented control needs at least two options',
+        );
+
+  /// Every segment takes a share of the width in proportion to its label of the width it is given, never wrapping, for a control that spans a menu or card.
+  const AppSegmentedControl.fill({
+    super.key,
+    required this.options,
+    required this.selectedIndex,
+    required this.onSegmentSelected,
+    this.semanticLabel,
+  })  : fill = true,
+        assert(
+          options.length >= 2,
+          'a segmented control needs at least two options',
+        );
+
+  final bool fill;
+
+  /// The trough's padding and border on both sides, so a filled control on touch totals a full touch row.
+  static const double _troughInset = 8;
 
   final List<AppSegmentedOption> options;
   final int selectedIndex;
@@ -66,18 +88,31 @@ class AppSegmentedControl extends StatelessWidget {
           border: Border.all(color: tokens.borderSubtle),
           borderRadius: BorderRadius.circular(AppRadii.control),
         ),
-        // Wrap, not Row: a segment keeps its natural width and the whole segment drops to the next line when short of room, so no label breaks mid-word.
-        child: Wrap(
-          spacing: AppSpacing.s4,
-          runSpacing: AppSpacing.s4,
-          children: [
-            for (var i = 0; i < options.length; i++)
-              IntrinsicWidth(child: _inlineSegment(context, tokens, i)),
-          ],
-        ),
+        child: fill ? _filled(context, tokens) : _wrapped(context, tokens),
       ),
     );
   }
+
+  Widget _filled(BuildContext context, AppTokens tokens) => Row(
+        spacing: AppSpacing.s4,
+        children: [
+          for (var i = 0; i < options.length; i++)
+            Expanded(
+              flex: options[i].label.length + 4,
+              child: _inlineSegment(context, tokens, i),
+            ),
+        ],
+      );
+
+  /// Wrap, not Row: a segment keeps its natural width and the whole segment drops to the next line when short of room, so no label breaks mid-word.
+  Widget _wrapped(BuildContext context, AppTokens tokens) => Wrap(
+        spacing: AppSpacing.s4,
+        runSpacing: AppSpacing.s4,
+        children: [
+          for (var i = 0; i < options.length; i++)
+            IntrinsicWidth(child: _inlineSegment(context, tokens, i)),
+        ],
+      );
 
   Widget _inlineSegment(BuildContext context, AppTokens tokens, int index) {
     final option = options[index];
@@ -90,32 +125,47 @@ class AppSegmentedControl extends StatelessWidget {
       semanticLabel: option.label,
       builder: (context, focused, hovered) {
         return AnimatedContainer(
-          duration:
-              AppMotion.reduced(context, const Duration(milliseconds: 150)),
+          duration: AppMotion.reduced(
+            context,
+            const Duration(milliseconds: 150),
+          ),
           // minHeight, not height: a wrapped label needs more than one line at a large text scale.
-          constraints: const BoxConstraints(minHeight: AppSizes.controlSm),
+          constraints: BoxConstraints(
+            minHeight: fill && AppTouchTargets.of(context)
+                ? AppSizes.rowTouch - _troughInset
+                : AppSizes.controlSm,
+          ),
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+          padding: EdgeInsets.symmetric(
+            horizontal: fill ? AppSpacing.s4 : AppSpacing.s12,
+          ),
           decoration: BoxDecoration(
             color: selected ? tokens.surfaceRaised : Colors.transparent,
             border: Border.all(
-                color: selected ? tokens.borderSubtle : Colors.transparent),
+              color: selected ? tokens.borderSubtle : Colors.transparent,
+            ),
             borderRadius: BorderRadius.circular(AppRadii.control),
           ),
-          child: Text(
-            option.label,
-            textAlign: TextAlign.center,
-            style: AppText.caption.copyWith(
-              color: switch ((option.disabled, selected)) {
-                (true, _) => tokens.textDisabled,
-                (false, true) => tokens.textPrimary,
-                (false, false) => tokens.textSecondary,
-              },
-              fontWeight: selected ? AppWeights.medium : AppWeights.regular,
-              fontFamily: AppFonts.sans,
-              // Grey alone read as merely unselected beside a selected neighbour.
-              decoration: option.disabled ? TextDecoration.lineThrough : null,
-              decorationColor: tokens.textDisabled,
+          // A filled segment's tap target already names it.
+          child: ExcludeSemantics(
+            excluding: fill,
+            child: Text(
+              option.label,
+              textAlign: TextAlign.center,
+              maxLines: fill ? 1 : null,
+              overflow: fill ? TextOverflow.ellipsis : null,
+              style: AppText.caption.copyWith(
+                color: switch ((option.disabled, selected)) {
+                  (true, _) => tokens.textDisabled,
+                  (false, true) => tokens.textPrimary,
+                  (false, false) => tokens.textSecondary,
+                },
+                fontWeight: selected ? AppWeights.medium : AppWeights.regular,
+                fontFamily: AppFonts.sans,
+                // Grey alone read as merely unselected beside a selected neighbour.
+                decoration: option.disabled ? TextDecoration.lineThrough : null,
+                decorationColor: tokens.textDisabled,
+              ),
             ),
           ),
         );
