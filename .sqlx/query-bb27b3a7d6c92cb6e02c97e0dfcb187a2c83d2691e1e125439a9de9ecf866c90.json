@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT is_everyone AS \"is_everyone!: bool\", is_bots_role AS \"is_bots_role!: bool\"\n               FROM roles WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "is_everyone!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_bots_role!: bool",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bb27b3a7d6c92cb6e02c97e0dfcb187a2c83d2691e1e125439a9de9ecf866c90"
+}

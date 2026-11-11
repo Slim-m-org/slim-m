@@ -4,7 +4,7 @@
 
 use axum::http::StatusCode;
 use serde_json::json;
-use slimm_server::ids::UserId;
+use slimm_server::ids::{RoleId, UserId};
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
@@ -154,9 +154,21 @@ async fn a_weaker_caller_cannot_reissue_or_revoke_a_stronger_bot() {
     );
     let app = app(store.clone());
     let (bot_id, old, _) = create_bot(&app, &root, "helper", 0).await;
-    sqlx::query("UPDATE roles SET permissions = ? WHERE managed_bot_id = ?")
-        .bind(Permissions::ADMINISTRATOR.bits())
-        .bind(UserId(bot_id.parse().unwrap()))
+    let bot = UserId(bot_id.parse().unwrap());
+    let role = RoleId::generate();
+    sqlx::query(
+        "INSERT INTO roles (id, name, permissions, is_everyone, created_at, managed_bot_id)
+         VALUES (?, 'helper', ?, 0, 0, ?)",
+    )
+    .bind(role)
+    .bind(Permissions::ADMINISTRATOR.bits())
+    .bind(bot)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO member_roles (user_id, role_id) VALUES (?, ?)")
+        .bind(bot)
+        .bind(role)
         .execute(&pool)
         .await
         .unwrap();

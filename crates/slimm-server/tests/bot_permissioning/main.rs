@@ -16,3 +16,4 @@ mod grants;
 mod harness;
 mod lifecycle;
 mod reissue;
+mod shared_role;

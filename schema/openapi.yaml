@@ -15535,12 +15535,15 @@ components:
         role_id:
           type: [string, "null"]
           format: uuid
-          description: The bot's managed role; see docs/decisions/0028-bot-accounts.md.
+          description: >-
+            The bot's own managed role. Null while the bot is granted no
+            permissions, since every bot holds the shared Bots role instead;
+            see docs/decisions/0028-bot-accounts.md.
         permissions:
           type: integer
           format: int64
           description: >-
-            What the managed role currently grants. Change it with `PATCH
+            What the managed role currently grants, 0 without one. Change it with `PATCH
             /bots/{botId}/permissions`, or by editing the role directly.
         prefix:
           type: [string, "null"]
@@ -16922,6 +16925,12 @@ components:
             Informational: the bot this role was minted for, if any. An
             ordinary, freely editable role otherwise; see
             docs/decisions/0028-bot-accounts.md.
+        is_bots_role:
+          type: boolean
+          description: >-
+            True for the one shared role every bot holds. It is edited like any
+            role, and granting it permissions grants them to all bots, but it
+            cannot be deleted.
         position:
           type: integer
           format: int64

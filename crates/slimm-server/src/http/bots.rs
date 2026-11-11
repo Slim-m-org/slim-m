@@ -127,19 +127,20 @@ async fn caller_granted(state: &AppState, user_id: UserId) -> Result<Permissions
     Ok(state.store.granted_base_permissions(user_id).await?)
 }
 
-/// A bot is only manageable by someone who already holds what its role grants.
-/// Module principals have no managed role, so they are not bots to manage.
+/// A bot is only manageable by someone who already holds what its managed role grants; a
+/// bot without one is guarded as holding nothing. Module principals have no token record,
+/// so they are not bots to manage.
 async fn guard_over_bot(
     state: &AppState,
     caller: UserId,
     bot_id: UserId,
-) -> Result<Role, ApiError> {
-    let role = state
-        .store
-        .role_for_bot(bot_id)
-        .await?
-        .ok_or(ApiError::NotFound("no such bot"))?;
-    escalation_guard(caller_granted(state, caller).await?, role.permissions)?;
+) -> Result<Option<Role>, ApiError> {
+    if !state.store.is_bot_account(bot_id).await? {
+        return Err(ApiError::NotFound("no such bot"));
+    }
+    let role = state.store.role_for_bot(bot_id).await?;
+    let held = role.as_ref().map_or(Permissions::NONE, |r| r.permissions);
+    escalation_guard(caller_granted(state, caller).await?, held)?;
     Ok(role)
 }
 
@@ -310,10 +311,12 @@ async fn set_permissions(
         .await
     {
         Ok(bot) => {
-            state.hub.publish(Event::RoleChanged {
-                role_id: current.id,
-                change: None,
-            });
+            for role_id in current.iter().map(|r| r.id).chain(bot.role_id) {
+                state.hub.publish(Event::RoleChanged {
+                    role_id,
+                    change: None,
+                });
+            }
             Ok(Json(bot_dto(&state, bot)))
         }
         Err(UpdateBotPermissionsError::NoSuchBot) => Err(ApiError::NotFound("no such bot")),

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO roles (id, name, permissions, is_everyone, created_at, is_bots_role)\n         VALUES (?, 'Bots', 0, 0, ?, 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e7775479cddffcbeb48755924b429c788f858da8b6c78246c48f59710facc5d8"
+}

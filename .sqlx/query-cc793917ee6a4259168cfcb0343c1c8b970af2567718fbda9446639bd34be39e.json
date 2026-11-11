@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.display_name FROM users u\n               WHERE u.id = ? AND u.is_bot = 1 AND u.deleted_at IS NULL\n                 AND EXISTS (SELECT 1 FROM bot_tokens t WHERE t.bot_user_id = u.id)",
+  "describe": {
+    "columns": [
+      {
+        "name": "display_name",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cc793917ee6a4259168cfcb0343c1c8b970af2567718fbda9446639bd34be39e"
+}
