@@ -174,6 +174,7 @@ class CallAudioState {
     required this.pending,
     required this.expiresAtMs,
     required this.full,
+    this.always = false,
   });
 
   final String moduleId;
@@ -193,6 +194,16 @@ class CallAudioState {
   /// The call holds more people than a session can ask.
   final bool full;
 
+  /// The Space transcribes every call, so nobody was asked and nobody can stop
+  /// it (decision 0113). Read from `mode`, or from a missing asker.
+  final bool always;
+
+  /// The consumer id when the server's own transcriber hears the call
+  /// (decision 0113) rather than a module.
+  static const serverConsumerId = 'server';
+
+  bool get isServerTranscript => moduleId == serverConsumerId;
+
   bool isIncluded(String userId) => included.contains(userId);
 
   /// Waiting on [userId]'s answer, so their prompt is up.
@@ -208,11 +219,13 @@ class CallAudioState {
         purpose: json['purpose'] as String,
         keeps: json['keeps'] as String,
         isOn: json['status'] == 'on',
-        askedBy: json['asked_by'] as String,
+        askedBy: json['asked_by'] as String? ?? '',
         included: _strings(json['included']),
         pending: _strings(json['pending']),
         expiresAtMs: (json['expires_at_ms'] as num).toInt(),
         full: json['full'] as bool? ?? false,
+        always: json['mode'] == 'always' ||
+            (json['mode'] == null && json['asked_by'] == null),
       );
 
   static List<String> _strings(Object? json) => [
@@ -223,7 +236,10 @@ class CallAudioState {
 /// `GET /channels/{id}/voice/call-audio`: the session, if any, and the
 /// modules the caller may turn on here.
 class CallAudioStatus {
-  const CallAudioStatus({this.session, this.startable = const []});
+  const CallAudioStatus({
+    this.session,
+    this.startable = const [],
+  });
 
   final CallAudioState? session;
   final List<CallAudioModule> startable;

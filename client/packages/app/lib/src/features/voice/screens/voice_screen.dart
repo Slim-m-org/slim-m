@@ -39,6 +39,7 @@ import '../widgets/call_stage_layout.dart';
 import '../../../widgets/dock_height_reporter.dart';
 import '../../members/widgets/member_profile.dart';
 import '../widgets/participant_call_menu.dart';
+import '../widgets/transcription_notice.dart';
 import 'voice_call_dock.dart';
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import '../../canvas/widgets/canvas_open_button.dart'
@@ -159,8 +160,10 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     });
   }
 
-  /// Runs [join] now, or after "Join here" when it would move a call open on another device.
+  /// Runs [join] now, after the one-time transcription notice, or after "Join here" when it would move a call open on another device.
   Future<void> _joinConfirmed(Future<void> Function() join) async {
+    if (!widget.isDm && !await confirmTranscriptionNotice(context, ref)) return;
+    if (!mounted) return;
     setState(() => _checking = true);
     final elsewhere = await ref.read(voiceElsewhereCheckProvider)(
       widget.channelId,

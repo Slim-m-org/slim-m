@@ -86,6 +86,7 @@ export 'src/client.dart'
         SlimmApiUsers,
         SlimmApiVoice,
         SlimmApiVoiceCalls,
+        SlimmApiCallTranscripts,
         SlimmApiVoiceRooms,
         SlimmApiWatchSession,
         SlimmApiWebhooks;
@@ -160,6 +161,7 @@ export 'src/events.dart'
         TypingStopped,
         VoiceActivityChanged,
         VoiceCallAudioChanged,
+        CallTranscriptChanged,
         VoiceActivity,
         VoiceMoved,
         VoiceNotice,

@@ -90,6 +90,12 @@ class CallAudioBanner extends ConsumerWidget {
         ],
       );
     }
+    if (session.isServerTranscript) {
+      return (
+        'This call is being transcribed',
+        session.always ? const [] : [stop],
+      );
+    }
     return ('${session.moduleName} is hearing this call', [stop]);
   }
 }

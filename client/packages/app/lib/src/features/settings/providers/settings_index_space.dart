@@ -173,6 +173,18 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['noise', 'keyboard'],
   ),
   SettingsEntry(
+    _voicePage,
+    'Call transcripts',
+    description: 'Kept with the call, for members who may view them.',
+    keywords: ['transcription', 'captions', 'speech', 'listener', 'record'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Transcript retention',
+    description: 'Older transcripts are deleted.',
+    keywords: ['transcription', 'delete', 'history'],
+  ),
+  SettingsEntry(
     'retention',
     'Message retention',
     description: 'How long messages are kept before they are deleted.',

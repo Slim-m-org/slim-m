@@ -25,6 +25,7 @@ import '../../../routing/modal_page.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../messages/providers/message_search.dart';
+import '../../voice/providers/transcript_search.dart';
 import '../../settings/providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/store_stream.dart';
@@ -34,6 +35,7 @@ import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
 import 'command_palette_rows.dart';
 import 'palette_reveal.dart';
+import 'palette_transcript_items.dart';
 
 /// The design's floating card width; not on the spacing grid because it is
 /// the palette's own measured size, like the rail widths beside it. Never
@@ -111,6 +113,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   String _query = '';
   int _highlighted = 0;
   List<api.Message> _messageResults = const [];
+  List<api.TranscriptHit> _transcriptResults = const [];
 
   /// Whether the last message search came back as a 403 rather than a
   /// genuinely empty result; the two must not read the same.
@@ -150,6 +153,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
       _searchGeneration++;
       setState(() {
         _messageResults = const [];
+        _transcriptResults = const [];
         _messagesForbidden = false;
       });
       return;
@@ -164,13 +168,20 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
   /// cannot diverge again the way they already had.
   Future<void> _search(String query) async {
     final generation = ++_searchGeneration;
+    final transcripts = searchTranscriptHits(
+      ref.read,
+      query,
+      limit: paletteResultLimit,
+    );
     final result = await searchAllMessages(
       ref.read,
       query,
       limit: paletteResultLimit,
     );
+    final hits = await transcripts;
     if (!mounted || generation != _searchGeneration) return;
     setState(() {
+      _transcriptResults = hits;
       switch (result) {
         case MessageSearchHits(:final messages):
           _messageResults = messages;
@@ -385,6 +396,14 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
           buildMessageItems(
             _messageResults,
             currentChannelId: widget.currentChannelId,
+            channelsById: {for (final c in inputs.channels) c.id: c},
+          ),
+        ),
+      if (everything)
+        (
+          'Transcripts',
+          buildTranscriptItems(
+            _transcriptResults,
             channelsById: {for (final c in inputs.channels) c.id: c},
           ),
         ),

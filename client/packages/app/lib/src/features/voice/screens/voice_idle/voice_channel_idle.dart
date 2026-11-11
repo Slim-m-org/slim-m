@@ -13,14 +13,17 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../../format.dart';
 import '../../../channels/providers/channel_by_id_provider.dart';
 import '../../../settings/providers/display_preferences.dart';
+import '../../providers/call_transcript.dart' show transcriptFocusProvider;
 import '../../providers/voice_call_history.dart';
 import '../../../../routing/breakpoints.dart';
 import '../../providers/call_recap.dart';
 import '../../widgets/call_recap_card.dart';
+import '../voice_text_pane.dart' show voiceChatPaneVisibleProvider;
 import 'call_history_rows.dart';
 import 'call_moments_view.dart';
 import 'call_timeline_model.dart';
 import 'call_timeline_view.dart';
+import 'call_transcript_section.dart';
 import 'voice_join_bar.dart';
 
 class VoiceChannelIdle extends ConsumerWidget {
@@ -63,6 +66,23 @@ class VoiceChannelIdle extends ConsumerWidget {
     );
   }
 
+  /// The call a search hit for this channel asked to see.
+  api.VoiceCall? _focusedCall(WidgetRef ref, List<api.VoiceCall> calls) {
+    final focus = ref.watch(transcriptFocusProvider);
+    if (focus == null || focus.channelId != channelId) return null;
+    return calls.where((c) => c.transcriptId == focus.transcriptId).firstOrNull;
+  }
+
+  /// Keeps the call selected once the focus is spent, and shows this pane
+  /// rather than the chat the arrival opened.
+  void _adoptFocus(WidgetRef ref, api.VoiceCall call) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(selectedVoiceCallProvider(channelId).notifier).state =
+          call.startedAt;
+      ref.read(voiceChatPaneVisibleProvider.notifier).state = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
@@ -72,7 +92,9 @@ class VoiceChannelIdle extends ConsumerWidget {
     final calls = history.valueOrNull?.calls ?? const <api.VoiceCall>[];
     final finished = _finishedCalls(calls);
     final selectedAt = ref.watch(selectedVoiceCallProvider(channelId));
-    final shown = _selectedCall(calls, selectedAt);
+    final focused = _focusedCall(ref, calls);
+    final shown = focused ?? _selectedCall(calls, selectedAt);
+    if (focused != null) _adoptFocus(ref, focused);
     final ended = recap;
     final sections = <Widget>[
       if (ended != null && ended.isWorthShowing)
@@ -102,6 +124,12 @@ class VoiceChannelIdle extends ConsumerWidget {
           canvasObjectCount: history.valueOrNull?.canvasObjectCount ?? 0,
           onOpenCanvas: onOpenCanvas,
         ),
+        if (shown.transcriptId case final transcriptId?)
+          CallTranscriptSection(
+            key: ValueKey('transcript-$transcriptId'),
+            channelId: channelId,
+            transcriptId: transcriptId,
+          ),
       ],
       if (calls.length > 1)
         _Earlier(
