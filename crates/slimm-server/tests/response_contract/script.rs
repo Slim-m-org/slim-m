@@ -38,6 +38,7 @@ mod refusals;
 mod space_banner;
 mod space_icon;
 mod space_themes;
+mod steam_link;
 mod threads;
 mod totp_calls;
 mod upload_sessions;
@@ -60,6 +61,7 @@ use push_invite_calls::{channel_retention_calls, invite_calls, push_calls};
 use space_banner::banner_calls;
 use space_icon::icon_calls;
 use space_themes::space_theme_calls;
+use steam_link::steam_link_calls;
 use threads::thread_calls;
 use upload_sessions::upload_session_calls;
 
@@ -333,6 +335,7 @@ pub async fn run(c: &mut Contract) {
         .await;
     debug_log_calls(c, root, bob_token).await;
     discord_link_calls(c, bob_token, &bob_id).await;
+    steam_link_calls(c, bob_token, &bob_id).await;
     c.bare("listMyLinkedAccounts", "GET", "/me/links", bob_token)
         .await;
     c.bare(

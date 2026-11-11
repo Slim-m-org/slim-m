@@ -49,6 +49,7 @@ JOBS=(
   "local-share|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_local_share_size_test.dart"
   "voice-notify|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_voice_notify_test.dart"
   "call-header|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_header_test.dart"
+  "call-stage-fit|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_call_stage_fit_test.dart"
   "voice-rail|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_voice_rail_test.dart"
   "canvas-short|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_canvas_short_test.dart"
   "canvas-people|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_canvas_people_test.dart"

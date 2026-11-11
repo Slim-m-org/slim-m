@@ -21,8 +21,6 @@ GUARDED = {
         "_narrowsMode: linux and macos only",
     "client/packages/platform/lib/src/autostart_io.dart":
         "hostAutostart builds the reg.exe backend on windows only, and returns null on a phone",
-    "client/packages/platform/lib/src/game_source_io.dart":
-        "createGameSource returns null off linux, windows and macos",
     "client/packages/rtc/lib/src/os_mic_block_io.dart":
         "osBlocksMicrophone reads the consent store with reg.exe on windows only, false elsewhere",
     "client/packages/rtc/lib/src/endpoint_effects_io.dart":

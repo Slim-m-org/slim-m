@@ -107,6 +107,18 @@ const UNCOVERED: &[(&str, &str)] = &[
          links nothing itself; tests/discord_link.rs drives every outcome of it.",
     ),
     (
+        "startSteamLink",
+        "needs a configured Steam key and redirect, which this fixture's router has \
+         none of, so it can only answer 501 here. Its outcomes are covered by \
+         tests/steam_link.rs.",
+    ),
+    (
+        "steamLinkCallback",
+        "answers HTML to a browser, not JSON, and needs a state minted by \
+         startSteamLink plus Steam's OpenID check; tests/steam_link.rs drives it \
+         against a local fake of Steam.",
+    ),
+    (
         "getLinkedDiscordAvatar",
         "answers image bytes, not JSON, and only after a Discord link stored \
          one; tests/discord_link_avatar.rs drives the 200 and the 404.",
