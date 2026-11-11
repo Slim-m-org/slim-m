@@ -200,6 +200,7 @@ const _deviceKeys = <String>{
   'slimm.voice.screen_share_include_audio',
   'slimm.voice.screen_share_allow_annotations',
   'slimm.voice.screen_share_quality',
+  'slimm.voice.screen_share_show_cursor',
   'slimm.voice.share_hint_seen',
   'slimm.voice.shortcut_overrides',
   'slimm.voice.speaker_preferred',

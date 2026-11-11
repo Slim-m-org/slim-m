@@ -144,7 +144,13 @@ class AtomicPreferencesStore extends SharedPreferencesStorePlatform {
       final data = json.decode(text);
       if (data is! Map) return null;
       return data.cast<String, Object>();
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'A settings file could not be read; its backup is tried next',
+        error,
+        stack,
+      );
       return null;
     }
   }
