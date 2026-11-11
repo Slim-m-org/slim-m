@@ -88,6 +88,7 @@ class CallAudioController
       status: api.CallAudioStatus(
         session: session,
         startable: state.status.startable,
+        transcribable: state.status.transcribable,
       ),
       ended: event.ended,
       clearEnded: session != null,
@@ -121,6 +122,9 @@ class CallAudioController
   Future<void> request(String moduleId) =>
       _act(() => _api.requestCallAudio(channelId, moduleId));
 
+  Future<void> requestTranscript() =>
+      _act(() => _api.requestVoiceTranscript(channelId));
+
   Future<void> answer({required bool allow}) =>
       _act(() => _api.answerCallAudio(channelId, allow: allow));
 
@@ -142,6 +146,7 @@ class CallAudioController
             : api.CallAudioStatus(
                 session: status.session,
                 startable: state.status.startable,
+                transcribable: state.status.transcribable,
               ),
       );
       if (status == null || status.session == null) unawaited(refresh());

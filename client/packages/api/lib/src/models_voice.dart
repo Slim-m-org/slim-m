@@ -239,10 +239,14 @@ class CallAudioStatus {
   const CallAudioStatus({
     this.session,
     this.startable = const [],
+    this.transcribable = false,
   });
 
   final CallAudioState? session;
   final List<CallAudioModule> startable;
+
+  /// The Space transcribes on request and nothing is hearing this call yet (decision 0113).
+  final bool transcribable;
 
   factory CallAudioStatus.fromJson(Map<String, dynamic> json) =>
       CallAudioStatus(
@@ -253,5 +257,6 @@ class CallAudioStatus {
           for (final m in json['startable'] as List<dynamic>? ?? const [])
             CallAudioModule.fromJson(m as Map<String, dynamic>),
         ],
+        transcribable: json['transcribable'] as bool? ?? false,
       );
 }

@@ -163,6 +163,12 @@ extension SlimmApiVoice on SlimmApi {
     return _callAudioStatus(json);
   }
 
+  /// Asks everyone in the call to let the server transcribe it (decision 0113).
+  Future<CallAudioStatus> requestVoiceTranscript(String channelId) async {
+    final json = await send('POST', '/channels/$channelId/voice/transcript');
+    return _callAudioStatus(json);
+  }
+
   /// Answers the ask: a no stops it for everyone and never says who.
   Future<CallAudioStatus> answerCallAudio(
     String channelId, {

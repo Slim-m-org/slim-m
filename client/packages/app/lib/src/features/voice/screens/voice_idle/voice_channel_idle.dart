@@ -326,9 +326,7 @@ class _Earlier extends ConsumerWidget {
       children: [
         _SectionHeader(
           title: 'Earlier in #$name',
-          detail: compact
-              ? null
-              : 'kept $retentionDays days · nothing is recorded',
+          detail: compact ? null : 'kept $retentionDays days',
         ),
         CallHistoryRows(
           compact: compact,
