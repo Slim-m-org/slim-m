@@ -177,6 +177,9 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     final lockedPhone = ref.watch(portraitLockedPhoneProvider);
     // The routed app sees a locked phone's window kept portrait; this route alone reads the real one.
     final real = MediaQueryData.fromView(View.of(context));
+    // Read above the real window: a phone turned to landscape is still a finger, not a pointer.
+    final touch = AppTouchTargets.of(context);
+    final inset = lockedPhone ? real.padding : MediaQuery.paddingOf(context);
     final video = live
         ? (widget.kind == FullscreenVideoKind.camera
               ? CameraFitScope(
@@ -185,11 +188,11 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
                 )
               : ShareZoomView(
                   zoom: _zoom,
-                  pillInset: const EdgeInsets.fromLTRB(
+                  pillInset: EdgeInsets.fromLTRB(
+                    AppSpacing.s8 + inset.left,
                     AppSpacing.s8,
-                    AppSpacing.s8,
-                    AppSpacing.s8,
-                    96,
+                    AppSpacing.s8 + inset.right,
+                    96 + inset.bottom,
                   ),
                   child: controller.screenShareViewFor(widget.identity),
                 ))
@@ -266,13 +269,14 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
         ),
       ),
     );
-    if (!lockedPhone) return page;
+    final dense = AppTouchTargets(enabled: touch, child: page);
+    if (!lockedPhone) return dense;
     return MediaQuery(
       data: real.copyWith(
         textScaler: MediaQuery.textScalerOf(context),
         disableAnimations: MediaQuery.disableAnimationsOf(context),
       ),
-      child: page,
+      child: dense,
     );
   }
 }
