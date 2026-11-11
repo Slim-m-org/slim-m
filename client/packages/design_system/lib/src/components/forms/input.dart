@@ -34,6 +34,7 @@ class AppInput extends StatefulWidget {
     this.icon,
     this.trailing,
     this.errorText,
+    this.invalid = false,
     this.enabled = true,
     this.mono = false,
     this.obscureText = false,
@@ -71,6 +72,10 @@ class AppInput extends StatefulWidget {
   /// a form field without one is not viable; it borrows [AppTokens.dangerText]
   /// and [AppTokens.dangerBorder] rather than inventing new colours.
   final String? errorText;
+
+  /// Draws the error border without a message, for a field that shares an
+  /// error shown under another one.
+  final bool invalid;
   final bool enabled;
 
   /// Switches to `--font-mono`, used for invite codes and server addresses.
@@ -187,7 +192,8 @@ class _AppInputState extends State<AppInput> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final hasError = (widget.errorText ?? '').isNotEmpty;
+    final hasMessage = (widget.errorText ?? '').isNotEmpty;
+    final hasError = hasMessage || widget.invalid;
 
     return Semantics(
       label: widget.obscureText ? null : widget.semanticLabel,
@@ -207,7 +213,7 @@ class _AppInputState extends State<AppInput> {
               ),
             ),
           ],
-          if (hasError) ...[
+          if (hasMessage) ...[
             const SizedBox(height: AppSpacing.s4),
             Padding(
               padding: _beneathTheBorder,

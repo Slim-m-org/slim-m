@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The three credential inputs on the sign-in form: username, the display name
-/// that only a new account is asked for, and password.
+/// The two credential inputs on the sign-in form: username and password.
 ///
 /// Split out of `sign_in_screen.dart` when stating the username and password
 /// rules in helper text took that file past its hard line ceiling. It is the
@@ -25,17 +24,14 @@ import 'sign_in_error.dart';
 
 const usernameRule = 'Letters, digits, _ . and - only. Up to 32 characters.';
 const passwordRule = 'At least $kPasswordMinChars characters.';
-const displayNameHelper =
-    'What others see. Defaults to your username. Up to 64 characters.';
 
 class SignInCredentialFields extends StatelessWidget {
   const SignInCredentialFields({
     super.key,
     required this.username,
-    required this.displayName,
     required this.password,
     required this.creatingAccount,
-    this.askDisplayName = true,
+    this.usernameInvalid = false,
     required this.busy,
     required this.errorFor,
     required this.onSubmit,
@@ -43,16 +39,13 @@ class SignInCredentialFields extends StatelessWidget {
   });
 
   final TextEditingController username;
-  final TextEditingController displayName;
   final TextEditingController password;
 
-  /// Whether this is a registration, which is the only time a display name is
-  /// asked for.
+  /// Whether this is a registration, which states the password rule.
   final bool creatingAccount;
 
-  /// False on the official server, where the name defaults to the username and
-  /// is editable later, so joining is username and password only.
-  final bool askDisplayName;
+  /// Marks the username as failed too, for an error shown under the password.
+  final bool usernameInvalid;
   final bool busy;
 
   /// The error currently owned by a given field, or null when it has none.
@@ -74,24 +67,16 @@ class SignInCredentialFields extends StatelessWidget {
             controller: username,
             explainRejections: creatingAccount,
             serverError: errorFor(SignInErrorField.username),
+            invalid: usernameInvalid,
           ),
-          if (creatingAccount && askDisplayName) ...[
-            const SizedBox(height: AppSpacing.s16),
-            LabeledField(
-              label: 'Display name',
-              helper: displayNameHelper,
-              child: AppInput(
-                controller: displayName,
-                errorText: errorFor(SignInErrorField.displayName),
-                textInputAction: TextInputAction.next,
-                semanticLabel: 'Display name',
-              ),
-            ),
-          ],
           const SizedBox(height: AppSpacing.s16),
           LabeledField(
             label: 'Password',
-            helper: creatingAccount ? passwordRule : null,
+            // The rule and the error never stack: the error replaces it.
+            helper:
+                creatingAccount && errorFor(SignInErrorField.password) == null
+                ? passwordRule
+                : null,
             child: AppInput(
               maxLength: InputLimits.password,
               controller: password,
@@ -111,7 +96,7 @@ class SignInCredentialFields extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: AppButton(
-                label: 'Trouble signing in?',
+                label: 'Forgot password?',
                 variant: AppButtonVariant.ghost,
                 disabled: busy,
                 onPressed: onRecoverAccount,
@@ -130,6 +115,7 @@ class UsernameField extends StatefulWidget {
     required this.controller,
     required this.explainRejections,
     this.serverError,
+    this.invalid = false,
   });
 
   final TextEditingController controller;
@@ -137,6 +123,7 @@ class UsernameField extends StatefulWidget {
   /// Only while creating an account; signing in never needs the rule.
   final bool explainRejections;
   final String? serverError;
+  final bool invalid;
 
   @override
   State<UsernameField> createState() => _UsernameFieldState();
@@ -162,6 +149,7 @@ class _UsernameFieldState extends State<UsernameField> {
         inputFormatters: [_formatter],
         controller: widget.controller,
         errorText: widget.serverError ?? (explain ? usernameRule : null),
+        invalid: widget.invalid,
         autocorrect: false,
         autofillHints: const [AutofillHints.username],
         textInputAction: TextInputAction.next,

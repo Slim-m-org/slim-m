@@ -12382,7 +12382,7 @@ components:
 
     RegisterRequest:
       type: object
-      required: [username, display_name, password, device_name]
+      required: [username, password, device_name]
       properties:
         username:
           type: string
@@ -12397,6 +12397,7 @@ components:
           minLength: 1
           maxLength: 64
           description: >
+            Optional: absent or blank defaults to the username.
             Must not contain control characters or text-direction overrides,
             which could be used to spoof how a name renders to other members.
         password:

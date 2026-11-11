@@ -4,7 +4,7 @@
 ///
 /// Split from `sign_in_screen.dart` for the size ceiling. They read as
 /// alternatives to the action above rather than a list under it, which is why
-/// they share one [Wrap]. "Trouble signing in?" lives under the password
+/// they share one [Wrap]. "Forgot password?" lives under the password
 /// instead, because it is about that field and not a way out of the screen.
 ///
 /// While adding a second Space the way back is "Use a different Space", whose
