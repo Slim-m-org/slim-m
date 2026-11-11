@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CallTranscriptId\", channel_id AS \"channel_id!: ChannelId\",\n                      started_at, ended_at, mode, started_by AS \"started_by: UserId\"\n               FROM call_transcripts WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CallTranscriptId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "started_at",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "ended_at",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "mode",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "started_by: UserId",
+        "ordinal": 5,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "b8fcb35e024079b953389403eaffda99672d640c1e68a93ac8fed689a3b7346a"
+}

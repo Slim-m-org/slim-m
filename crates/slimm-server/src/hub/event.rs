@@ -263,6 +263,14 @@ pub enum Event {
         state: Option<Box<crate::call_audio::CallAudioView>>,
         ended: Option<&'static str>,
     },
+    /// The server started or finished transcribing a call (decision 0113), for
+    /// everyone who can view the channel, so an idle pane re-reads its call.
+    /// Carries no text; never persisted and unnumbered.
+    CallTranscriptChanged {
+        channel_id: ChannelId,
+        transcript_id: crate::ids::CallTranscriptId,
+        ended: bool,
+    },
     /// Ringing was started for a DM call: `caller_id` is calling whoever the
     /// other side of the `channel_id` DM is. `ring_id` names this specific
     /// attempt so a receiving client can tell it apart from an immediate

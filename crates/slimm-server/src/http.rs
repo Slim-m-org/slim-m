@@ -160,7 +160,8 @@ mod version;
 mod viewable_message;
 mod voice;
 use voice::{
-    voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms, voice_webhook,
+    voice_call_audio, voice_calls, voice_notify_prefs, voice_ring, voice_rooms,
+    voice_transcription, voice_transcripts, voice_webhook,
 };
 mod watch_session;
 mod webhooks;
@@ -367,6 +368,8 @@ pub fn router(state: AppState) -> Router {
         .merge(message_components::routes())
         .merge(voice::routes())
         .merge(voice_call_audio::routes())
+        .merge(voice_transcription::routes())
+        .merge(voice_transcripts::routes())
         .merge(voice_calls::routes())
         .merge(voice_ring::routes())
         .merge(voice_notify_prefs::routes())

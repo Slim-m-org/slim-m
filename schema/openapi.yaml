@@ -7678,6 +7678,201 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/voice/transcript:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: requestVoiceTranscript
+      tags: [voice]
+      summary: Ask everyone in the call to let the server transcribe it.
+      description: >
+        Only while the Space's `call_transcription` is `on_request` (decision
+        0113); 409 otherwise. The same flow as a module hearing the call
+        (decision 0105): the caller must be in the call, their request is
+        their own yes, everyone else is asked and has 60 seconds, and answers
+        go to `PUT .../call-audio/consent`. Stop it with `DELETE
+        .../call-audio`. The returned session has `mode` `on_request` and
+        `module_id` is `server`. 501 without a listener configured, 409 when the
+        listener is busy, 429 with `Retry-After` after a decline, and 503 when
+        the listener is away.
+      responses:
+        "200":
+          description: The session as it stands.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceCallAudio"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This server has no call audio listener.
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /voice/transcripts/{transcriptId}:
+    parameters:
+      - name: transcriptId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getVoiceTranscript
+      tags: [voice]
+      summary: Read a call's transcript.
+      description: >
+        Needs `VIEW_CHANNEL` and `VIEW_TRANSCRIPTS` on the transcript's channel
+        at read time, whether or not the reader was in the call (decision
+        0113). 404 when the transcript does not exist or the reader lacks
+        either permission. Lines are oldest first, paged by `after_seq`.
+      parameters:
+        - name: after_seq
+          in: query
+          description: Return only lines with a `seq` strictly above this; 0 by default.
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          description: Page size; the server clamps it to 1 to 500.
+          schema:
+            type: integer
+            default: 200
+      responses:
+        "200":
+          description: The transcript and a page of its lines.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTranscript"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteVoiceTranscript
+      tags: [voice]
+      summary: Delete a call's transcript, its lines and their search entries.
+      description: >
+        Needs `MANAGE_MESSAGES` on the transcript's channel. 404 when the
+        caller cannot view the channel or there is no such transcript.
+      responses:
+        "204":
+          description: Deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /search/transcripts:
+    get:
+      operationId: searchVoiceTranscripts
+      tags: [voice]
+      summary: Full-text search the lines of call transcripts, newest first.
+      description: >
+        Searches only channels where the caller holds `VIEW_CHANNEL` and
+        `VIEW_TRANSCRIPTS` (decision 0113). The query language is the one
+        `GET /search/messages` uses. `before` pages by line time: pass the `at`
+        of the last hit to get the hits strictly older than it.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: before
+          in: query
+          description: Return only lines whose `at` is strictly below this.
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          description: Page size; the server clamps it to 1 to 100.
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Matching lines, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VoiceTranscriptHit"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice/transcription-notice:
+    get:
+      operationId: getVoiceTranscriptionNotice
+      tags: [voice]
+      summary: Whether the caller has seen the notice that the Space transcribes calls.
+      description: >
+        In `always` mode a member is told once, before their first call, not on
+        every call (decision 0113); the acknowledgement is kept per member, so
+        it holds across devices. `mode` is the Space's `call_transcription`.
+      responses:
+        "200":
+          description: The Space's mode and whether the caller acknowledged.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode, acknowledged]
+                properties:
+                  mode:
+                    type: string
+                    enum: [off, on_request, always]
+                  acknowledged:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /voice/transcription-notice/ack:
+    post:
+      operationId: acknowledgeVoiceTranscriptionNotice
+      tags: [voice]
+      summary: Record that the caller saw the transcription notice.
+      description: Idempotent; a repeat keeps the first time.
+      responses:
+        "204":
+          description: Recorded.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/voice/calls:
     get:
       operationId: listVoiceCalls
@@ -7796,6 +7991,8 @@ paths:
       tags: [voice]
       summary: Stop a module hearing this call, for everyone.
       description: >
+        409 when the Space transcribes every call (`mode` `always`): nobody is asked
+        and it cannot be stopped from the call (decision 0113).
         Anyone in the call may stop it. A stop starts the same 60 second wait
         before the channel can be asked again.
       responses:
@@ -7809,6 +8006,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7820,6 +8019,8 @@ paths:
       tags: [voice]
       summary: Say yes or not now to a module hearing this call.
       description: >
+        409 when the Space transcribes every call (`mode` `always`): nobody is asked
+        and it cannot be stopped from the call (decision 0113).
         Only someone in the call may answer. A yes includes the caller once
         everyone has said yes (or at once when it is already on). A no stops
         it for everyone and never says who. 404 when nothing is being asked.
@@ -7848,6 +8049,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -13080,6 +13283,16 @@ components:
             The deployment's second-factor policy. Optional in a PATCH body, so
             a client that predates it can change the join policy without
             silently resetting this. Always present in a response.
+        call_transcription:
+          type: string
+          enum: [off, on_request, always]
+          description: Whether the server transcribes calls (decision 0113); `off` by default.
+        call_transcript_retention_days:
+          type: [integer, "null"]
+          description: Days a finished call transcript is kept; null keeps it forever. 30 by default.
+        call_transcription_available:
+          type: boolean
+          description: False when the call audio listener is not configured, so transcription cannot be turned on.
         join_policy:
           type: string
           enum: [invite, open]
@@ -13156,6 +13369,20 @@ components:
             At most 500 characters, line breaks allowed, no other control or
             invisible character. `{user}` becomes an @mention of the new
             member and `{space}` the Space's name.
+        call_transcription:
+          type: string
+          enum: [off, on_request, always]
+          description: >
+            `on_request` and `always` need the call audio listener; a server
+            without one answers 409. Ending a session is automatic when it is
+            turned off.
+        call_transcript_retention_days:
+          type: [integer, "null"]
+          description: 1 to 3650, or null to keep transcripts forever.
+        call_transcription_available:
+          type: boolean
+          readOnly: true
+          description: Read-only; ignored when sent. See `SpaceSettings`.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.
@@ -15796,6 +16023,13 @@ components:
       type: object
       required: [started_at, events, canvas]
       properties:
+        transcript_id:
+          type: string
+          format: uuid
+          description: >
+            The transcript the server kept of this call (decision 0113), present
+            only when one started inside the call and the caller holds
+            `VIEW_TRANSCRIPTS` on the channel.
         started_at:
           type: integer
           format: int64
@@ -19440,6 +19674,7 @@ components:
         - $ref: "#/components/schemas/VoiceParticipantLeft"
         - $ref: "#/components/schemas/VoiceScreenShareChanged"
         - $ref: "#/components/schemas/VoiceCallAudioChanged"
+        - $ref: "#/components/schemas/VoiceCallTranscriptChanged"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -20999,6 +21234,7 @@ components:
       properties:
         module_id:
           type: string
+          description: The literal `server` when the server's own transcript is hearing the call (decision 0113).
         module_name:
           type: string
         purpose:
@@ -21009,7 +21245,12 @@ components:
           type: string
           enum: [asking, "on"]
         asked_by:
+          type: [string, "null"]
+          description: "Null when nobody asked, because the Space transcribes every call."
+        mode:
           type: string
+          enum: [on_request, always]
+          description: Present only when the server's own transcript hears the call (`module_id` is `server`).
         included:
           type: array
           description: Everyone who said yes, the only people the module hears.
@@ -21034,6 +21275,16 @@ components:
       properties:
         session:
           $ref: "#/components/schemas/CallAudioSession"
+        transcription:
+          type: string
+          enum: [off, on_request, always]
+          description: The Space's transcription mode. Present on `GET`.
+        transcribable:
+          type: boolean
+          description: >
+            Whether `POST .../voice/transcript` may be called now: the mode is
+            `on_request`, nothing hears the call and the listener is connected.
+            Present on `GET`.
         startable:
           type: array
           items:
@@ -21049,6 +21300,95 @@ components:
               keeps:
                 type: string
 
+    VoiceTranscriptLine:
+      type: object
+      required: [seq, speaker_id, at, text]
+      properties:
+        seq:
+          type: integer
+          format: int64
+          description: Per transcript, from 1.
+        speaker_id:
+          type: string
+          format: uuid
+        at:
+          type: integer
+          format: int64
+          description: When the segment started, in epoch milliseconds.
+        text:
+          type: string
+    VoiceTranscript:
+      type: object
+      required: [id, channel_id, started_at, ended_at, mode, lines, next_after_seq]
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        started_at:
+          type: integer
+          format: int64
+        ended_at:
+          type: [integer, "null"]
+          format: int64
+          description: Null while the call is still being transcribed.
+        mode:
+          type: string
+          enum: [on_request, always]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/VoiceTranscriptLine"
+        next_after_seq:
+          type: [integer, "null"]
+          format: int64
+          description: Pass as `after_seq` for the next page; null on the last page.
+    VoiceTranscriptHit:
+      type: object
+      required: [transcript_id, channel_id, seq, speaker_id, at, text, highlight]
+      properties:
+        transcript_id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        speaker_id:
+          type: string
+          format: uuid
+        at:
+          type: integer
+          format: int64
+        text:
+          type: string
+        highlight:
+          type: string
+          description: "`text` with each matched term wrapped between U+E000 and U+E001."
+    VoiceCallTranscriptChanged:
+      type: object
+      required: [type, channel_id, transcript_id, ended]
+      description: >
+        The server started (`ended` false) or finished (`ended` true)
+        transcribing a call (decision 0113). Carries no text: an idle voice pane
+        re-reads the channel's calls. Sent to everyone who can view the channel.
+      properties:
+        type:
+          type: string
+          enum: [call.transcript_changed]
+        channel_id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        ended:
+          type: boolean
+
     VoiceCallAudioChanged:
       type: object
       required: [type, channel_id, state]
@@ -21056,7 +21396,8 @@ components:
         A call-audio session started, changed or ended (decision 0105).
         `state` is null once it ends, and `ended` then says how: `declined`,
         `lapsed`, `stopped`, `call_ended`, `time_limit`, `overload`,
-        `module_disabled`, `channel_removed` or `listener_unavailable`. Never
+        `module_disabled`, `channel_removed`, `transcription_off` or
+        `listener_unavailable`. Never
         says who declined. Sent to everyone who can view the channel.
       properties:
         type:

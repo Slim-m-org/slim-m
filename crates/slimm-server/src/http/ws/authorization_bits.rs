@@ -53,6 +53,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::VoiceScreenShareChanged { .. }
         | Event::WatchTick { .. }
         | Event::CallAudioChanged { .. }
+        | Event::CallTranscriptChanged { .. }
         // Same again: a DM's own VIEW_CHANNEL already limits this to the pair.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }

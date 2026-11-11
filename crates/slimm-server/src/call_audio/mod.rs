@@ -14,6 +14,7 @@ pub mod link;
 pub mod protocol;
 pub mod runtime;
 pub mod session;
+pub mod transcript;
 mod view;
 
 use std::collections::{HashMap, HashSet};
@@ -26,7 +27,7 @@ use uuid::Uuid;
 use self::filter::SegmentRate;
 use self::link::{Link, LinkEvent};
 use self::protocol::ToListener;
-use self::session::{Effect, EndReason, Refused, Session, Subject};
+use self::session::{Consumer, Effect, EndReason, Refused, Session, Subject};
 pub use self::view::CallAudioView;
 use crate::config::ListenerSettings;
 use crate::ids::{ChannelId, UserId};
@@ -51,7 +52,7 @@ pub enum RequestError {
 pub struct Outcome {
     pub session_id: Uuid,
     pub channel: ChannelId,
-    pub module_id: String,
+    pub consumer: Consumer,
     pub effects: Vec<Effect>,
     pub view: CallAudioView,
     pub include: Vec<UserId>,
@@ -91,7 +92,7 @@ impl EventIds {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AcceptedSegment {
     pub channel: ChannelId,
-    pub module_id: String,
+    pub consumer: Consumer,
     pub session_id: Uuid,
     pub user_id: UserId,
     pub start_ms: i64,
@@ -187,7 +188,9 @@ impl CallAudio {
         lock(&inner.state)
             .live
             .iter()
-            .filter(|(_, live)| module_id.is_none_or(|m| live.session.subject.module_id == m))
+            .filter(|(_, live)| {
+                module_id.is_none_or(|m| live.session.subject.consumer.module_id() == Some(m))
+            })
             .map(|(channel, _)| *channel)
             .collect()
     }
@@ -199,6 +202,30 @@ impl CallAudio {
         requester: UserId,
         present: &[UserId],
         now: i64,
+    ) -> Result<Outcome, RequestError> {
+        self.open(channel, now, |id| {
+            Session::request((id, channel, subject), requester, present, now)
+        })
+    }
+
+    /// Opens a session nobody is asked about, with everyone in `present` heard
+    /// (the server's `always` transcription mode).
+    pub fn begin_always(
+        &self,
+        (channel, subject): (ChannelId, Subject),
+        present: &[UserId],
+        now: i64,
+    ) -> Result<Outcome, RequestError> {
+        self.open(channel, now, |id| {
+            Session::always((id, channel, subject), present, now)
+        })
+    }
+
+    fn open(
+        &self,
+        channel: ChannelId,
+        now: i64,
+        make: impl FnOnce(Uuid) -> Option<(Session, Vec<Effect>)>,
     ) -> Result<Outcome, RequestError> {
         let inner = self.inner.as_ref().ok_or(RequestError::Unavailable)?;
         let mut state = lock(&inner.state);
@@ -215,8 +242,7 @@ impl CallAudio {
             return Err(RequestError::Cooldown(*until - now));
         }
         let id = Uuid::now_v7();
-        let (session, effects) = Session::request((id, channel, subject), requester, present, now)
-            .ok_or(RequestError::TooManyPeople)?;
+        let (session, effects) = make(id).ok_or(RequestError::TooManyPeople)?;
         let ids = EventIds {
             session: id,
             counter: Arc::default(),
@@ -426,7 +452,7 @@ impl CallAudio {
         let segment_id = live.ids.mint();
         Some(AcceptedSegment {
             channel,
-            module_id: live.session.subject.module_id.clone(),
+            consumer: live.session.subject.consumer.clone(),
             session_id: live.ids.session,
             user_id,
             start_ms: started + start_ms,
@@ -456,7 +482,7 @@ fn outcome_of(live: &Live, effects: Vec<Effect>) -> Outcome {
     Outcome {
         session_id: live.ids.session,
         channel: live.session.channel,
-        module_id: live.session.subject.module_id.clone(),
+        consumer: live.session.subject.consumer.clone(),
         effects,
         view: CallAudioView::of(&live.session),
         include: live.session.include(),

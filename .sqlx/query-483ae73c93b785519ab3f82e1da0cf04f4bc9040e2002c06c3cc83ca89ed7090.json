@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT call_transcription AS \"v!: String\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "v!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "483ae73c93b785519ab3f82e1da0cf04f4bc9040e2002c06c3cc83ca89ed7090"
+}

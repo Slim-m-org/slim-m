@@ -86,6 +86,9 @@ impl Permissions {
     /// Move a participant from one voice call to another; needed in both
     /// channels. See `docs/decisions/0071-move-members.md`.
     pub const MOVE_MEMBERS: Self = Self(1 << 19);
+    /// Read a call's transcript and find its lines in search, in a channel the
+    /// reader can view. Granted to `@everyone`; see decision 0113.
+    pub const VIEW_TRANSCRIPTS: Self = Self(1 << 20);
 
     /// The union of every defined permission. What administrator resolves to.
     pub const ALL: Self = Self(
@@ -108,7 +111,8 @@ impl Permissions {
             | Self::MENTION_EVERYONE.0
             | Self::RUN_CODE.0
             | Self::VIEW_MODERATION_HISTORY.0
-            | Self::MOVE_MEMBERS.0,
+            | Self::MOVE_MEMBERS.0
+            | Self::VIEW_TRANSCRIPTS.0,
     );
 
     /// Wraps a raw bitmask, for example one loaded from the database.
@@ -337,6 +341,7 @@ mod tests {
             Permissions::RUN_CODE,
             Permissions::VIEW_MODERATION_HISTORY,
             Permissions::MOVE_MEMBERS,
+            Permissions::VIEW_TRANSCRIPTS,
         ];
         let union = named
             .into_iter()

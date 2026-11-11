@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE call_transcripts SET started_by = NULL WHERE started_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "7311c9b3aa2a460f5a4bea069abc3e6681cac4cea4d3b77e39df14a2be08aead"
+}

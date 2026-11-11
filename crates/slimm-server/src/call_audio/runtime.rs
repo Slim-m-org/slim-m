@@ -6,13 +6,14 @@ use std::time::Duration;
 
 use super::link::LinkEvent;
 use super::protocol::FromListener;
-use super::session::{Effect, EndReason};
+use super::session::{Consumer, Effect, EndReason};
+use super::transcript;
 use super::{CallAudioView, Outcome};
 use crate::http::AppState;
 use crate::http::module_events::call_audio as module_events;
 use crate::http::module_host::call_audio_approved;
 use crate::hub::Event;
-use crate::store::now_ms;
+use crate::store::{TranscriptionMode, now_ms};
 
 /// How often the machine is ticked for lapses and the time limit.
 const TICK: Duration = Duration::from_secs(1);
@@ -56,7 +57,10 @@ async fn handle(state: &AppState, event: LinkEvent) {
         }
         LinkEvent::Message(segment @ FromListener::Segment { .. }) => {
             if let Some(accepted) = state.call_audio.accept_segment(&segment, now) {
-                module_events::segment(state, &accepted);
+                match accepted.consumer {
+                    Consumer::Module(_) => module_events::segment(state, &accepted),
+                    Consumer::Transcript => transcript::write_line(state, &accepted).await,
+                }
             }
         }
         LinkEvent::Message(FromListener::Ended { session, reason }) => {
@@ -79,7 +83,12 @@ async fn check_standing(state: &AppState) {
         let Some(view) = state.call_audio.view(channel) else {
             continue;
         };
-        let reason = match standing(state, &view.module_id, channel).await {
+        let checked = if view.transcript {
+            transcript_standing(state).await
+        } else {
+            standing(state, &view.module_id, channel).await
+        };
+        let reason = match checked {
             Ok(None) => continue,
             Ok(Some(reason)) => reason,
             Err(err) => {
@@ -91,6 +100,12 @@ async fn check_standing(state: &AppState) {
             apply(state, outcome).await;
         }
     }
+}
+
+/// A server transcript ends when the Space turns transcription off.
+async fn transcript_standing(state: &AppState) -> anyhow::Result<Option<EndReason>> {
+    let mode = state.store.call_transcription().await?;
+    Ok((mode == TranscriptionMode::Off).then_some(EndReason::TranscriptionOff))
 }
 
 async fn standing(
@@ -127,12 +142,22 @@ pub async fn apply(state: &AppState, outcome: Outcome) -> bool {
     for effect in &outcome.effects {
         match effect {
             Effect::Start => {
-                if !start_listener(state, &outcome) {
+                let transcribing = outcome.consumer == Consumer::Transcript;
+                if transcribing && !transcript::open(state, &outcome).await {
                     stop_unstartable(state, &outcome);
                     return false;
                 }
-                let names = names_of(state, &outcome.include).await;
-                module_events::started(state, &outcome, names);
+                if !start_listener(state, &outcome) {
+                    if transcribing {
+                        transcript::discard(state, &outcome).await;
+                    }
+                    stop_unstartable(state, &outcome);
+                    return false;
+                }
+                if !transcribing {
+                    let names = names_of(state, &outcome.include).await;
+                    module_events::started(state, &outcome, names);
+                }
             }
             Effect::Include => state.call_audio.send_include(outcome.channel),
             Effect::Participant { user_id, included } => {
@@ -145,6 +170,9 @@ pub async fn apply(state: &AppState, outcome: Outcome) -> bool {
                 if *was_on {
                     state.call_audio.send_stop(outcome.session_id);
                     module_events::stopped(state, &outcome, reason.wire());
+                    if outcome.consumer == Consumer::Transcript {
+                        transcript::close(state, &outcome).await;
+                    }
                 }
             }
         }

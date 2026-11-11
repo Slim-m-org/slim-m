@@ -112,6 +112,13 @@ pub(super) async fn collect(b: &mut Builder<'_>, user: UserId) -> anyhow::Result
     )
     .await?;
     b.jsonl(
+        "transcript_lines.jsonl",
+        "What you said on calls that were transcribed",
+        store.export_member_transcript_lines(user),
+        PLAIN,
+    )
+    .await?;
+    b.jsonl(
         "attachments.jsonl",
         "Index of the files you uploaded that are still on your messages",
         store.export_member_attachments(user),

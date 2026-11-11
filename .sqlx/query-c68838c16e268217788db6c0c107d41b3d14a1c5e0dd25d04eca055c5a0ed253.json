@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE users SET transcription_notice_ack_at = ?\n             WHERE id = ? AND transcription_notice_ack_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c68838c16e268217788db6c0c107d41b3d14a1c5e0dd25d04eca055c5a0ed253"
+}

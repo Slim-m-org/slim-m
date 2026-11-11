@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use super::queue::Origin;
 use super::wire::{EventData, ModuleEvent};
+use crate::call_audio::session::Consumer;
 use crate::call_audio::{AcceptedSegment, Outcome};
 use crate::http::AppState;
 use crate::store::now_ms;
@@ -47,7 +48,15 @@ fn push(state: &AppState, module_id: &str, kind: &'static str, id: String, data:
 /// What a person is called to the module: their display name, else their username.
 pub(crate) type Names = BTreeMap<String, String>;
 
+/// The module a session belongs to; a server transcript has none and is sent no events.
+fn module_of(consumer: &Consumer) -> Option<&str> {
+    consumer.module_id()
+}
+
 pub(crate) fn started(state: &AppState, outcome: &Outcome, names: Names) {
+    let Some(module_id) = module_of(&outcome.consumer) else {
+        return;
+    };
     let data = EventData::CallAudioStarted {
         session_id: outcome.session_id.to_string(),
         channel_id: outcome.channel.to_string(),
@@ -55,7 +64,7 @@ pub(crate) fn started(state: &AppState, outcome: &Outcome, names: Names) {
         included: outcome.include.iter().map(ToString::to_string).collect(),
         names,
     };
-    push(state, &outcome.module_id, STARTED, outcome.ids.mint(), data);
+    push(state, module_id, STARTED, outcome.ids.mint(), data);
 }
 
 pub(crate) fn participant(
@@ -65,6 +74,9 @@ pub(crate) fn participant(
     included: bool,
     name: Option<String>,
 ) {
+    let Some(module_id) = module_of(&outcome.consumer) else {
+        return;
+    };
     let data = EventData::CallAudioParticipant {
         session_id: outcome.session_id.to_string(),
         channel_id: outcome.channel.to_string(),
@@ -72,16 +84,13 @@ pub(crate) fn participant(
         included,
         name,
     };
-    push(
-        state,
-        &outcome.module_id,
-        PARTICIPANT,
-        outcome.ids.mint(),
-        data,
-    );
+    push(state, module_id, PARTICIPANT, outcome.ids.mint(), data);
 }
 
 pub(crate) fn segment(state: &AppState, accepted: &AcceptedSegment) {
+    let Some(module_id) = module_of(&accepted.consumer) else {
+        return;
+    };
     let data = EventData::CallAudioSegment {
         session_id: accepted.session_id.to_string(),
         channel_id: accepted.channel.to_string(),
@@ -92,16 +101,13 @@ pub(crate) fn segment(state: &AppState, accepted: &AcceptedSegment) {
         text: accepted.text.clone(),
         language: accepted.language.clone(),
     };
-    push(
-        state,
-        &accepted.module_id,
-        SEGMENT,
-        accepted.segment_id.clone(),
-        data,
-    );
+    push(state, module_id, SEGMENT, accepted.segment_id.clone(), data);
 }
 
 pub(crate) fn stopped(state: &AppState, outcome: &Outcome, reason: &'static str) {
+    let Some(module_id) = module_of(&outcome.consumer) else {
+        return;
+    };
     let data = EventData::CallAudioStopped {
         session_id: outcome.session_id.to_string(),
         channel_id: outcome.channel.to_string(),
@@ -109,5 +115,5 @@ pub(crate) fn stopped(state: &AppState, outcome: &Outcome, reason: &'static str)
         reason,
         segments_sent: outcome.ids.segments_sent(),
     };
-    push(state, &outcome.module_id, STOPPED, outcome.ids.mint(), data);
+    push(state, module_id, STOPPED, outcome.ids.mint(), data);
 }

@@ -45,6 +45,9 @@ struct CallsDto {
 
 #[derive(Serialize)]
 struct CallDto {
+    /// The transcript the server kept of this call, when the caller may read it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transcript_id: Option<String>,
     started_at: i64,
     /// Null while the call is still going.
     ended_at: Option<i64>,
@@ -97,6 +100,7 @@ async fn list(
         Err(VoiceError::Unavailable | VoiceError::Internal(_)) => HashSet::new(),
     };
 
+    let transcripts = visible_transcripts(&state, ctx.user_id, channel_id).await?;
     let mut calls = Vec::new();
     for call in segment(&events, &present)
         .into_iter()
@@ -117,7 +121,12 @@ async fn list(
                 count: a.count,
             })
             .collect();
+        let transcript_id = transcripts
+            .iter()
+            .find(|(_, at)| *at >= call.started_at && *at <= end)
+            .map(|(id, _)| id.to_string());
         calls.push(CallDto {
+            transcript_id,
             started_at: call.started_at,
             ended_at: call.ended_at,
             events: call
@@ -137,6 +146,26 @@ async fn list(
         canvas_object_count: state.store.canvas_object_count(channel_id).await?,
         calls,
     }))
+}
+
+/// The `(id, started_at)` of this channel's transcripts, none when the caller may not read them.
+async fn visible_transcripts(
+    state: &AppState,
+    viewer: UserId,
+    channel_id: ChannelId,
+) -> Result<Vec<(crate::ids::CallTranscriptId, i64)>, ApiError> {
+    let held = state
+        .store
+        .permissions_in_channel(viewer, channel_id)
+        .await?;
+    if !held.contains(Permissions::VIEW_TRANSCRIPTS) {
+        return Ok(Vec::new());
+    }
+    let since = crate::store::now_ms() - CALL_HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    Ok(state
+        .store
+        .call_transcripts_since(channel_id, since)
+        .await?)
 }
 
 /// Everyone in this channel's history whose presence is hidden from
