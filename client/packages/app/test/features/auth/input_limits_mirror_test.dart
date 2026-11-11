@@ -5,12 +5,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/features/auth/widgets/sign_in_error.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/emoji_name.dart';
 
 void main() {
-  test('display name and emoji name caps are the shared limits', () {
-    expect(displayNameMaxLength, InputLimits.name);
+  test('emoji name cap is the shared limit', () {
     expect(maxEmojiNameLength, InputLimits.emojiName);
   });
 }

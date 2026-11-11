@@ -99,7 +99,6 @@ export async function signIn(app: FlutterApp, stack: Stack, username: UserName):
   await app.click('Connect to a Space');
   await app.type('Server address', stack.api);
   await app.click('Continue');
-  await app.click('It matches');
   await app.type('Username', username);
   await app.type('Password', stack.secret);
   await app.click('Sign in');

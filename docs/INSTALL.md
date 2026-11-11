@@ -150,10 +150,10 @@ A system-wide copy (rpm, flatpak, `Program Files`, a machine-wide `/Applications
 However you installed it, the first run asks for the space's address and, if the space is invite-only, a code.
 Both come from whoever runs it.
 
-You will also see a **security check** the first time you connect to a space, showing eight groups of letters and numbers.
-That is the server's fingerprint.
-If you can, check it matches what the owner sees in their server log - it is how you know you reached their server and not somebody in between.
-If you cannot, "It matches - continue" carries on.
+The app remembers each space's key the first time you connect.
+If a space ever answers with a different key, you get a full-screen warning, "This isn't the server you joined before", with five words.
+Ask the space's admin to read you the words from their server log or space settings.
+If they match, "Trust the new server" carries on; if not, "Go back".
 
 Forgotten passwords are handled by the space's admin, not by email: they issue you a one-time reset code, and "Trouble signing in?" on the sign-in screen is where you spend it.
 

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What the create-account form says about claiming and invites.
+/// What the create-account form says about invites.
 ///
 /// Split from `sign_in_screen.dart` for its size ceiling. `/version` reports
 /// `invite_required` for a brand-new, unclaimed deployment as well as a closed
-/// one, so `claimed` picks the wording: unclaimed says the first account is the
-/// admin, claimed says a code is needed, and a server too old to report it
-/// gets wording true of both. The invite wording is withheld once a code is
+/// one, so `claimed` picks the wording: claimed says a code is needed, a server
+/// too old to report it gets wording true of both, and an unclaimed one says
+/// nothing here because "the first account becomes the administrator" is a
+/// warning in the acknowledge modal. The invite wording is withheld once a code is
 /// held this session: telling someone to go and redeem one right after they
 /// did is the contradiction this widget exists to avoid.
 library;
@@ -25,14 +26,7 @@ class InviteRequiredNotice extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (version.claimed == false) {
-      return const ServerNotice(
-        icon: AppIcons.invite,
-        message:
-            'This Space has no members yet, so the first account becomes its '
-            'administrator.',
-      );
-    }
+    if (version.claimed == false) return const SizedBox.shrink();
     if (version.inviteRequired != true ||
         ref.watch(pendingInviteProvider) != null) {
       return const SizedBox.shrink();

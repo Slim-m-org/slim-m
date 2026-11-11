@@ -164,7 +164,7 @@ void main() {
     });
   }
 
-  testWidgets('self-hosted invite link keeps the security check, and the '
+  testWidgets('self-hosted invite link pins silently, and the '
       'server can still be changed', (tester) async {
     await _pump(
       tester,
@@ -180,6 +180,6 @@ void main() {
 
     await _acceptAndContinue(tester);
 
-    expect(find.text('SECURITY CHECK'), findsOneWidget);
+    expect(find.text('SECURITY CHECK'), findsNothing);
   });
 }

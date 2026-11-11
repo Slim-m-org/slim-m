@@ -24,6 +24,9 @@ class FirstRunFrame extends StatelessWidget {
     this.busy = false,
     this.continueFocus,
     this.error,
+    this.onRetry,
+    this.secondaryLabel,
+    this.onSecondary,
     this.cardWidth = kFirstRunCardWidth,
   });
 
@@ -44,6 +47,13 @@ class FirstRunFrame extends StatelessWidget {
 
   /// Why the last save was refused, shown above the actions until the next try.
   final String? error;
+
+  /// Saves again after [error]; the message offers it as its Retry.
+  final VoidCallback? onRetry;
+
+  /// A quieter way past the step, under its body or inside its [error]: "Not now", "Skip for now".
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +160,21 @@ class FirstRunFrame extends StatelessWidget {
           AppFadeIn(key: ValueKey(step), child: body),
           if (error != null) ...[
             const SizedBox(height: AppSpacing.s12),
-            AppErrorState(message: error!),
+            AppErrorState(
+              message: error!,
+              onRetry: onRetry,
+              onDismiss: onSecondary,
+              dismissLabel: secondaryLabel ?? 'Dismiss',
+            ),
+          ],
+          if (secondaryLabel != null && error == null) ...[
+            const SizedBox(height: AppSpacing.s12),
+            AppButton(
+              label: secondaryLabel!,
+              variant: AppButtonVariant.ghost,
+              size: compact ? AppButtonSize.lg : AppButtonSize.md,
+              onPressed: onSecondary,
+            ),
           ],
         ],
       ),

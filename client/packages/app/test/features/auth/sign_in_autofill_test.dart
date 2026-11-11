@@ -18,7 +18,6 @@ Future<Iterable<String>?> _passwordHints(
       home: Scaffold(
         body: SignInCredentialFields(
           username: TextEditingController(),
-          displayName: TextEditingController(),
           password: TextEditingController(),
           creatingAccount: creatingAccount,
           busy: false,

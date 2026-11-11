@@ -39,13 +39,10 @@ const double _tallWindowFloor = 900;
 /// Numbered rather than named-only because the number is the part that says
 /// "two more after this", which is the whole reason the stepper is here.
 ///
-/// Two members, not three: confirming a server's identity is a conditional
-/// security check, not a counted step, since it fires once, more than once,
-/// or not at all depending on what is already pinned for that address.
-/// `server_fingerprint_step.dart` and `server_identity_changed_step.dart`
-/// render it outside this shell for exactly that reason. An earlier third
-/// member, `server`, was never passed by any production widget and is
-/// removed rather than left dead.
+/// Two members, not three: a changed server key is a conditional warning, not
+/// a counted step, and `server_identity_changed_step.dart` renders it outside
+/// this shell. An earlier third member, `server`, was never passed by any
+/// production widget and is removed rather than left dead.
 enum OnboardingStep {
   invite('invite'),
   identity('who are you');

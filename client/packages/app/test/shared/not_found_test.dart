@@ -48,7 +48,7 @@ void main() {
       router.go('/nope/not-a-page');
       await tester.pumpAndSettle();
 
-      expect(find.text('This page does not exist.'), findsOneWidget);
+      expect(find.text('Nothing lives here'), findsOneWidget);
       expect(find.textContaining('GoException'), findsNothing);
       expect(find.text('Page Not Found'), findsNothing);
       final action = find.text('Back to channels');

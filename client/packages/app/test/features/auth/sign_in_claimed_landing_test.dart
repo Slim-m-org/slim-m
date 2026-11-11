@@ -78,38 +78,22 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-void _expectInsideViewport(WidgetTester tester, Finder finder, Size size) {
-  final rect = tester.getRect(finder);
-  expect(rect.left, greaterThanOrEqualTo(0));
-  expect(rect.right, lessThanOrEqualTo(size.width));
-  expect(rect.top, greaterThanOrEqualTo(0));
-  expect(rect.bottom, lessThanOrEqualTo(size.height));
-}
-
 void main() {
   setUpAll(mockAppVersion);
 
   for (final (label, size) in [('phone', _phone), ('desktop', _desktop)]) {
     group(label, () {
-      testWidgets('an unclaimed Space opens on create-account and says the '
-          'first account becomes the administrator', (tester) async {
+      testWidgets('an unclaimed Space opens on create-account, with the '
+          'administrator line left to the acknowledge modal', (tester) async {
         await _pump(tester, size: size, version: const {'claimed': false});
 
         expect(find.text('Create an account'), findsOneWidget);
         expect(find.text('Welcome back'), findsNothing);
-        final notice = find.textContaining('first account becomes');
-        expect(notice, findsOneWidget);
-        expect(find.textContaining('administrator'), findsOneWidget);
+        expect(find.textContaining('first account becomes'), findsNothing);
         expect(find.textContaining('ask a member'), findsNothing);
-        _expectInsideViewport(tester, notice, size);
         final button = find.widgetWithText(AppButton, 'Create account');
         expect(tester.getRect(button).left, greaterThanOrEqualTo(0));
         expect(tester.getRect(button).right, lessThanOrEqualTo(size.width));
-        expect(
-          tester.getRect(notice).bottom,
-          lessThan(tester.getRect(button).top),
-          reason: 'the claim wording sits above the action it explains',
-        );
       });
 
       testWidgets('a claimed Space opens on sign-in', (tester) async {
@@ -142,23 +126,6 @@ void main() {
     expect(find.textContaining('invite code'), findsOneWidget);
     expect(find.textContaining('brand new'), findsNothing);
     expect(find.textContaining('first account'), findsNothing);
-  });
-
-  testWidgets('the dark theme lays the claim notice out the same', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      size: _phone,
-      version: const {'claimed': false},
-      brightness: Brightness.dark,
-    );
-
-    _expectInsideViewport(
-      tester,
-      find.textContaining('first account becomes'),
-      _phone,
-    );
   });
 
   testWidgets('choosing sign-in before the probe answers is not undone by '

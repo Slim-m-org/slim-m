@@ -47,6 +47,14 @@ const PUBLIC_KEY_BYTES: usize = 32;
 /// the 256-bit Ed25519 key directly.
 const FINGERPRINT_BYTES: usize = 16;
 
+/// Words in the spoken fingerprint, each one 11 bits of the hash.
+const FINGERPRINT_WORDS: usize = 5;
+const WORD_BITS: usize = 11;
+
+/// The BIP39 English wordlist (public domain), 2048 words one per line. The
+/// client carries the same list; the shared test vector keeps them in step.
+const WORDLIST: &str = include_str!("identity_wordlist.txt");
+
 /// How many colours the client's cursor palette has (`AppCanvasColors.cursors`
 /// on the client side). Kept here as the one place the server needs to agree
 /// with the client on this number.
@@ -107,7 +115,22 @@ impl ServerIdentity {
             .collect()
     }
 
-    /// Four indices into a six-colour palette, deterministically derived
+    /// The fingerprint as five short words an admin can read aloud: the first
+    /// 55 bits of the SHA-256 of the public key, 11 bits per BIP39 word.
+    pub fn fingerprint_words(&self) -> [&'static str; FINGERPRINT_WORDS] {
+        let hash = Sha256::digest(self.public_key);
+        let words: Vec<&'static str> = WORDLIST.lines().collect();
+        std::array::from_fn(|i| {
+            let first = i * WORD_BITS;
+            let index = (first..first + WORD_BITS).fold(0usize, |acc, bit| {
+                (acc << 1) | usize::from((hash[bit / 8] >> (7 - bit % 8)) & 1)
+            });
+            words[index]
+        })
+    }
+
+    /// Deprecated: no client shows it any more, kept on the wire for older
+    /// clients. Four indices into a six-colour palette, deterministically derived
     /// from the fingerprint, for an at-a-glance colour strip alongside the
     /// hex a person is asked to read aloud.
     pub fn color_strip(&self) -> [u8; COLOR_STRIP_LEN] {
@@ -223,6 +246,23 @@ mod tests {
             assert!(group.chars().all(|c| c.is_ascii_hexdigit()));
         }
         assert_eq!(groups.join(""), identity(7).fingerprint_hex());
+    }
+
+    /// Shared with `server_fingerprint_derivation_test.dart`; change both together.
+    #[test]
+    fn the_fingerprint_words_match_the_shared_vector() {
+        let counting = ServerIdentity {
+            public_key: std::array::from_fn(|i| i as u8),
+        };
+        assert_eq!(
+            counting.fingerprint_words(),
+            ["glide", "hover", "engage", "snow", "drip"]
+        );
+        assert_eq!(
+            identity(7).fingerprint_words(),
+            ["entry", "lock", "toe", "organ", "polar"]
+        );
+        assert_eq!(WORDLIST.lines().count(), 2048);
     }
 
     /// The inequality at the end is not a mathematical certainty for one

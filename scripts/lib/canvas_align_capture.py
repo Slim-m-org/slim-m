@@ -123,12 +123,8 @@ def _sign_in(browser, args, password):
         browser.click("Connect to a Space")
         browser.type_into("Server address", args.base_url)
         browser.click("Continue")
-        # A server with a trusted certificate confirms itself; only an unconfirmed one asks.
         deadline = time.time() + _STEP_TIMEOUT_S
         while not browser.find("Username", field=True):
-            if browser.find("It matches"):
-                browser.click("It matches")
-                break
             if time.time() > deadline:
                 raise RuntimeError("the sign-in form never came up after connecting")
             time.sleep(1)

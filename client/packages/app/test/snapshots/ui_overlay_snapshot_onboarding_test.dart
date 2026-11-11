@@ -55,7 +55,7 @@ const _identityA = {
 };
 
 const _identityB = {
-  'public_key': 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=',
+  'public_key': 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=',
   'fingerprint': 'facefeedf00dd00dfacefeedf00dd00d',
   'fingerprint_groups': [
     'face',
@@ -287,28 +287,9 @@ void main() {
   });
 
   group('server identity (TOFU)', () {
-    testWidgets('first connection to an address shows its fingerprint', (
+    testWidgets("a key that no longer matches what was pinned before", (
       tester,
     ) async {
-      await _pumpOnboarding(
-        tester,
-        versionBody: const {
-          'name': 'slim-m',
-          'version': '0.10.0',
-          'protocol': 1,
-          'identity': _identityA,
-        },
-      );
-      await _openManualDialog(tester);
-      await tester.enterText(find.byType(TextField), 'https://chat.example');
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      expect(find.text('Confirm this server'), findsOneWidget);
-      await _finish(tester, 'tofu-first-connect-fingerprint-desktop');
-    });
-
-    testWidgets("a key that no longer matches what was pinned before, checkbox "
-        "unacknowledged so the risky action stays disabled", (tester) async {
       final keyStore = InMemoryKeyStore();
       await keyStore.put(
         'server_identity:https://chat.example',
@@ -328,36 +309,11 @@ void main() {
       await tester.enterText(find.byType(TextField), 'https://chat.example');
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text("This server's identity changed"), findsOneWidget);
-      await _finish(tester, 'tofu-identity-changed-unacknowledged-desktop');
-    });
-
-    testWidgets('the same warning once the acknowledgement checkbox is ticked, '
-        'which is what unlocks the risky action', (tester) async {
-      final keyStore = InMemoryKeyStore();
-      await keyStore.put(
-        'server_identity:https://chat.example',
-        _identityA['public_key'] as String,
+      expect(
+        find.text("This isn't the server you joined before"),
+        findsOneWidget,
       );
-      await _pumpOnboarding(
-        tester,
-        versionBody: const {
-          'name': 'slim-m',
-          'version': '0.10.0',
-          'protocol': 1,
-          'identity': _identityB,
-        },
-        keyStore: keyStore,
-      );
-      await _openManualDialog(tester);
-      await tester.enterText(find.byType(TextField), 'https://chat.example');
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(Checkbox));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byType(Checkbox));
-      await tester.pumpAndSettle();
-      await _finish(tester, 'tofu-identity-changed-acknowledged-desktop');
+      await _finish(tester, 'tofu-identity-changed-desktop');
     });
 
     testWidgets('the mismatch warning at phone width', (tester) async {
@@ -381,8 +337,11 @@ void main() {
       await tester.enterText(find.byType(TextField), 'https://chat.example');
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text("This server's identity changed"), findsOneWidget);
-      await _finish(tester, 'tofu-identity-changed-unacknowledged-phone');
+      expect(
+        find.text("This isn't the server you joined before"),
+        findsOneWidget,
+      );
+      await _finish(tester, 'tofu-identity-changed-phone');
     });
   });
 }

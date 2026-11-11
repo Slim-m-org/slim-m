@@ -12585,9 +12585,10 @@ components:
             instead of silently. This protects nothing about the very first
             connection: a client with nothing pinned yet cannot tell a
             faithful server from an attacker's own keypair, which is why the
-            onboarding design has the admin read the fingerprint aloud for
-            comparison rather than trusting it silently on that first
-            connect. Deliberately not derived from the TLS certificate, so it
+            first connect pins the key silently, and the client warns only
+            when a pinned key later changes, showing five words (the first
+            55 bits of the key's SHA-256 as BIP39 words) to check with the
+            admin. Deliberately not derived from the TLS certificate, so it
             exists and stays stable for plain-HTTP LAN deployments and behind
             a reverse proxy's own, separately renewing certificate.
           properties:
@@ -12609,8 +12610,9 @@ components:
               minItems: 8
               maxItems: 8
               description: >-
-                The same fingerprint as eight 4-character hex groups, for the
-                onboarding design's two-rows-of-four display.
+                The same fingerprint as eight 4-character hex groups.
+                Deprecated: clients now show five words derived from the
+                public key instead, so nothing reads this.
             color_strip:
               type: array
               items:
@@ -12623,6 +12625,8 @@ components:
               description: >-
                 Four indices into the client's six-entry cursor colour
                 palette, deterministically derived from the fingerprint.
+                Deprecated: no client shows it, and it is kept only so the
+                response stays additive.
 
     TokenPair:
       type: object
@@ -12695,7 +12699,7 @@ components:
 
     RegisterRequest:
       type: object
-      required: [username, display_name, password, device_name]
+      required: [username, password, device_name]
       properties:
         username:
           type: string
@@ -12710,6 +12714,7 @@ components:
           minLength: 1
           maxLength: 64
           description: >
+            Optional: absent or blank defaults to the username.
             Must not contain control characters or text-direction overrides,
             which could be used to spoof how a name renders to other members.
         password:

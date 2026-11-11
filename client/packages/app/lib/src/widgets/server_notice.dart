@@ -45,36 +45,32 @@ class ServerNotice extends StatelessWidget {
   }
 }
 
-/// Says, before anyone commits, whether a server offers the safety tools
-/// slim-m's model is made of.
+/// A fact about a server worth stopping on before an account is created there.
+class ServerWarning {
+  const ServerWarning(this.icon, this.message);
+
+  final IconData icon;
+  final String message;
+}
+
+/// What a server's missing safety tools cost whoever joins it, or null when it
+/// offers both.
 ///
 /// slim-m has no automated scanning and no authority above the deployment, so
-/// reporting and blocking are the whole of a member's recourse. A server
-/// without them is one where being harassed leaves you nothing to do about
-/// it, and that is worth knowing while you are still choosing.
-///
-/// Renders nothing when both are offered, and says "could not tell" rather
-/// than "has neither" for a server too old to advertise anything.
-class ServerSafetyNotice extends StatelessWidget {
-  const ServerSafetyNotice({super.key, required this.version});
-
-  final Version version;
-
-  @override
-  Widget build(BuildContext context) => switch (version.safetyTools) {
-    SafetyTools.present => const SizedBox.shrink(),
-    SafetyTools.unknown => const ServerNotice(
-      icon: AppIcons.unknown,
-      message:
-          'This server is too old to say whether it offers reporting and '
-          'blocking.',
-    ),
-    SafetyTools.missing => ServerNotice(
-      icon: AppIcons.shieldOff,
-      message: _missingMessage(version.missingSafetyTools),
-    ),
-  };
-}
+/// reporting and blocking are the whole of a member's recourse. Says "could
+/// not tell" rather than "has neither" for a server too old to advertise
+/// anything.
+ServerWarning? safetyWarning(Version version) => switch (version.safetyTools) {
+  SafetyTools.present => null,
+  SafetyTools.unknown => const ServerWarning(
+    AppIcons.unknown,
+    'This server is too old to say whether it offers reporting and blocking.',
+  ),
+  SafetyTools.missing => ServerWarning(
+    AppIcons.shieldOff,
+    _missingMessage(version.missingSafetyTools),
+  ),
+};
 
 /// Names what is absent and what its absence costs, in that order: a list of
 /// missing feature names tells someone nothing on its own.
