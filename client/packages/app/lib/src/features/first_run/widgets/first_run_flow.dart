@@ -15,7 +15,10 @@ import '../../../routing/routes.dart';
 import '../../settings/providers/notification_preference_controller.dart';
 import '../providers/first_run_controller.dart';
 import '../providers/first_run_rules.dart';
+import '../../../push/providers/push_controller.dart';
+import '../../../api_failure.dart';
 import 'first_run_device_steps.dart';
+import 'first_run_notifications_step.dart';
 import 'first_run_frame.dart';
 import 'first_run_profile_steps.dart';
 import '../../members/providers/member_actions.dart';
@@ -38,6 +41,8 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
   String? _pronounsSeed;
   String? _error;
   var _busy = false;
+  var _asked = false;
+  var _levelsSkipped = false;
 
   @override
   void initState() {
@@ -66,12 +71,51 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!saved) return;
+    await _advance();
+  }
+
+  Future<void> _advance() async {
     if (_step == FirstRunStep.voice) {
       await _finish();
       return;
     }
-    setState(() => _step = FirstRunStep.values[_step.index + 1]);
+    setState(() {
+      _error = null;
+      _step = FirstRunStep.values[_step.index + 1];
+      if (_step == FirstRunStep.notifications && _blocked) {
+        _levelsSkipped = true;
+        _step = FirstRunStep.voice;
+      }
+    });
     _focusContinue();
+  }
+
+  PushStatus get _push => ref.read(pushControllerProvider);
+  bool get _blocked => _push == PushStatus.registeredNotificationsBlocked;
+  bool get _asking =>
+      _step == FirstRunStep.notifications &&
+      !_asked &&
+      firstRunAsksPermission(_push);
+
+  /// The OS answers inside register; only a grant leads on to the levels.
+  Future<void> _allow() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    await ref.read(pushControllerProvider.notifier).register();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (_push == PushStatus.registered) {
+      setState(() => _asked = true);
+      _focusContinue();
+      return;
+    }
+    _levelsSkipped = true;
+    await _advance();
+  }
+
+  Future<void> _decline() async {
+    _levelsSkipped = true;
+    await _advance();
   }
 
   Future<bool> _saveStep() async {
@@ -86,8 +130,13 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
       }
       return true;
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save the welcome step', e, stack);
-      _error = 'Not saved: ${e.message}';
+      final what = reportFailureSentence(
+        api.LogTag.ui,
+        'save your choices',
+        e,
+        stack,
+      );
+      _error = '$what Try again, or skip this for now and change it later.';
       return false;
     }
   }
@@ -132,7 +181,14 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
       ref.read(firstRunControllerProvider.notifier).complete();
 
   void _back() {
-    setState(() => _step = FirstRunStep.values[_step.index - 1]);
+    setState(() {
+      _error = null;
+      _step = FirstRunStep.values[_step.index - 1];
+      if (_step == FirstRunStep.notifications && _levelsSkipped) {
+        _levelsSkipped = false;
+        if (!firstRunAsksPermission(_push)) _step = FirstRunStep.you;
+      }
+    });
     _focusContinue();
   }
 
@@ -142,46 +198,68 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     _pronounsSeed = _pronouns.text = me.pronouns ?? '';
   }
 
+  (String, String?) _heading(bool asking) => switch (_step) {
+    FirstRunStep.welcome => ('Welcome', null),
+    FirstRunStep.you => (
+      'Set up your profile',
+      'Add a picture, pick a pattern, or keep your initials.',
+    ),
+    FirstRunStep.notifications when asking => (
+      'Turn on notifications',
+      'Your phone needs your permission first.',
+    ),
+    FirstRunStep.notifications => (
+      'Choose your notifications',
+      'You can change this any time in Settings.',
+    ),
+    FirstRunStep.voice => ('Check your voice', 'Pick the devices a call uses.'),
+  };
+
+  Widget _body(bool asking) => switch (_step) {
+    FirstRunStep.welcome => const FirstRunWelcomeStep(),
+    FirstRunStep.you => FirstRunYouStep(pronouns: _pronouns),
+    FirstRunStep.notifications when asking => const FirstRunPermissionAsk(),
+    FirstRunStep.notifications => FirstRunLevelStep(
+      choice: _notify,
+      onChoice: (value) => setState(() => _notify = value),
+    ),
+    FirstRunStep.voice => const FirstRunVoiceStep(),
+  };
+
   @override
   Widget build(BuildContext context) {
     _seedPronouns();
-    final (title, subtitle) = switch (_step) {
-      FirstRunStep.welcome => ('Welcome', null),
-      FirstRunStep.you => (
-        'Set up your profile',
-        'Add a picture so people know it is you.',
-      ),
-      FirstRunStep.notifications => (
-        'Choose your notifications',
-        'You can change this any time in Settings.',
-      ),
-      FirstRunStep.voice => (
-        'Check your voice',
-        'Pick the devices a call uses.',
-      ),
-    };
-    final last = _step == FirstRunStep.voice;
+    ref.watch(pushControllerProvider);
+    final asking = _asking;
+    final (title, subtitle) = _heading(asking);
+    // A step that was skipped is not counted, so the dots stay honest.
+    final skipsNotifications = _levelsSkipped || (_blocked && !_asked);
+    final past = skipsNotifications && _step.index > 2;
+    final (secondary, onSecondary) = _error != null
+        ? ('Skip for now', _advance)
+        : asking
+        ? ('Not now', _decline)
+        : (null, null);
     return FirstRunFrame(
-      step: _step.index,
-      stepCount: FirstRunStep.values.length,
+      step: _step.index - (past ? 1 : 0),
+      stepCount: FirstRunStep.values.length - (skipsNotifications ? 1 : 0),
       title: title,
       subtitle: subtitle,
       continueFocus: _continueFocus,
-      continueLabel: last ? 'Finish' : 'Continue',
+      continueLabel: asking
+          ? 'Allow'
+          : _step == FirstRunStep.voice
+          ? 'Finish'
+          : 'Continue',
       busy: _busy,
-      onContinue: () => unawaited(_continue()),
+      onContinue: () => unawaited(asking ? _allow() : _continue()),
       onSkip: () => unawaited(_skip()),
       onBack: _step == FirstRunStep.welcome ? null : _back,
       error: _error,
-      body: switch (_step) {
-        FirstRunStep.welcome => const FirstRunWelcomeStep(),
-        FirstRunStep.you => FirstRunYouStep(pronouns: _pronouns),
-        FirstRunStep.notifications => FirstRunNotificationsStep(
-          choice: _notify,
-          onChoice: (value) => setState(() => _notify = value),
-        ),
-        FirstRunStep.voice => const FirstRunVoiceStep(),
-      },
+      onRetry: () => unawaited(_continue()),
+      secondaryLabel: secondary,
+      onSecondary: onSecondary == null ? null : () => unawaited(onSecondary()),
+      body: _body(asking),
     );
   }
 }
