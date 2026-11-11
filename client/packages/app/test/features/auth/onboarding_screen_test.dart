@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Tests for the server-identity confirmation step in the manual "connect to
-/// a server" flow: pin on first connect, stay silent on a later match, and
-/// force an explicit, non-default action through if the key ever changes.
+/// Tests for the server-identity check in the manual "connect to a server"
+/// flow: pin silently on first connect, stay silent on a later match, and
+/// stop with a warning if the key ever changes.
 ///
 /// Userinfo stripping lives in onboarding_screen_userinfo_test.dart, and
 /// phone-width modal presentation in onboarding_screen_phone_test.dart.
@@ -121,6 +121,19 @@ Future<void> _tapButton(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('joining the official Space is the top option', (tester) async {
+    await _pumpOnboarding(
+      tester,
+      versionBody: const {'name': 'slim-m', 'version': '0.6.0', 'protocol': 1},
+      onServerChosen: (server, invite) {},
+    );
+
+    final official = tester.getTopLeft(find.text('Join the official Space')).dy;
+    for (final other in ['I have an invite', 'Connect to a Space']) {
+      expect(official, lessThan(tester.getTopLeft(find.text(other)).dy));
+    }
+  });
+
   testWidgets('a server too old to report an identity is not blocked on one', (
     tester,
   ) async {
@@ -144,8 +157,8 @@ void main() {
     );
   });
 
-  testWidgets('the first connection to a server shows its fingerprint, and '
-      'confirming it pins the key and proceeds', (tester) async {
+  testWidgets('the first connection to a server pins its key silently and '
+      'proceeds', (tester) async {
     Uri? chosen;
     final keyStore = InMemoryKeyStore();
     await _pumpOnboarding(
@@ -162,40 +175,9 @@ void main() {
 
     await _enterManualServer(tester);
 
-    expect(find.text('Confirm this server'), findsOneWidget);
-    expect(find.text(_server), findsOneWidget);
-    // Derived from the pinned key (sha256 of 32 zero bytes), not the wire field.
-    expect(find.text('6668  7aad  f862  bd77'), findsOneWidget);
-    expect(chosen, isNull, reason: 'must wait for explicit confirmation');
-
-    await _tapButton(tester, 'It matches - continue');
-
+    expect(find.text('Confirm this server'), findsNothing);
     expect(chosen, Uri.parse(_server));
     expect(await keyStore.read(_handleFor(_server)), _identityA['public_key']);
-  });
-
-  testWidgets('cancelling the first-connect fingerprint step pins nothing', (
-    tester,
-  ) async {
-    Uri? chosen;
-    final keyStore = InMemoryKeyStore();
-    await _pumpOnboarding(
-      tester,
-      versionBody: const {
-        'name': 'slim-m',
-        'version': '0.10.0',
-        'protocol': 1,
-        'identity': _identityA,
-      },
-      keyStore: keyStore,
-      onServerChosen: (server, invite) => chosen = server,
-    );
-
-    await _enterManualServer(tester);
-    await _tapButton(tester, 'Cancel');
-
-    expect(chosen, isNull);
-    expect(await keyStore.read(_handleFor(_server)), isNull);
   });
 
   testWidgets('a later connection matching the pinned key never shows the step '
@@ -224,8 +206,7 @@ void main() {
 
   group('a pinned key that no longer matches', () {
     testWidgets(
-      'is shown as a distinct warning that blocks the risky action until '
-      'it is explicitly acknowledged',
+      'is shown as a distinct warning, and trusting it re-pins the new key',
       (tester) async {
         Uri? chosen;
         final keyStore = InMemoryKeyStore();
@@ -248,20 +229,13 @@ void main() {
 
         await _enterManualServer(tester);
 
-        expect(find.text("This server's identity changed"), findsOneWidget);
-        expect(find.text('Confirm this server'), findsNothing);
+        expect(
+          find.text("This isn't the server you joined before"),
+          findsOneWidget,
+        );
+        expect(chosen, isNull, reason: 'must wait for an explicit choice');
 
-        // Tapping the risky action before acknowledging must do nothing: this
-        // is the one screen a plain tap-through is not allowed to work.
-        await _tapButton(tester, 'Trust the new identity');
-        expect(chosen, isNull);
-        expect(find.text("This server's identity changed"), findsOneWidget);
-
-        await tester.ensureVisible(find.byType(Checkbox));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byType(Checkbox));
-        await tester.pump();
-        await _tapButton(tester, 'Trust the new identity');
+        await _tapButton(tester, 'Trust the new server');
 
         expect(chosen, Uri.parse(_server));
         expect(
@@ -271,7 +245,7 @@ void main() {
       },
     );
 
-    testWidgets('cancelling leaves the old pinned key untouched', (
+    testWidgets('going back leaves the old pinned key untouched', (
       tester,
     ) async {
       Uri? chosen;
@@ -294,7 +268,7 @@ void main() {
       );
 
       await _enterManualServer(tester);
-      await _tapButton(tester, 'Cancel');
+      await _tapButton(tester, 'Go back');
 
       expect(chosen, isNull);
       expect(
@@ -387,9 +361,7 @@ void main() {
       expect(
         find.text('Confirm this server'),
         findsNothing,
-        reason:
-            'the official server has no admin to read a fingerprint to, so '
-            'first connect pins silently instead of asking',
+        reason: 'first connect pins silently instead of asking',
       );
       expect(chosen, Uri.parse(officialServer));
       expect(
@@ -480,13 +452,7 @@ void main() {
       await tester.tap(find.text('Join'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Confirm this server'),
-        findsOneWidget,
-        reason: 'nothing was pinned for an invited address before this',
-      );
-      await _tapButton(tester, 'It matches - continue');
-
+      expect(find.text('Confirm this server'), findsNothing);
       expect(chosen, Uri.parse(_server));
       expect(redeemedCode, 'CODE123');
       expect(

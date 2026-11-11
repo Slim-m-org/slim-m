@@ -35,12 +35,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 30));
 
     // The first card is already fading in while the last has not started.
-    expect(_opacityAbove(tester, 'I have an invite'), greaterThan(0));
-    expect(_opacityAbove(tester, 'Join the official Space'), 0);
+    expect(_opacityAbove(tester, 'Join the official Space'), greaterThan(0));
+    expect(_opacityAbove(tester, 'Connect to a Space'), 0);
 
     await tester.pumpAndSettle();
-    expect(_opacityAbove(tester, 'I have an invite'), 1);
     expect(_opacityAbove(tester, 'Join the official Space'), 1);
+    expect(_opacityAbove(tester, 'Connect to a Space'), 1);
   });
 
   testWidgets('the stepper grows in as a band when a step appears', (

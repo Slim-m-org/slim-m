@@ -73,12 +73,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 /// Prints this deployment's identity fingerprint where its operator can read
-/// it, in the same eight groups a joining client shows them.
+/// it, as the same five words a client shows when a pinned key changes.
 ///
-/// Trust-on-first-use asks a joiner to confirm that code with whoever runs the
-/// server. Until this log line existed that was an unanswerable request: the
-/// fingerprint was derived inside `/version` and shown only to clients, so the
-/// one person being asked to vouch for it had no copy to compare. It is public
+/// A client that sees the key change asks the person to check it with whoever
+/// runs the server, so the operator needs a copy to read aloud. It is public
 /// information by construction - every client that connects is handed it - so
 /// logging it discloses nothing. Generating the keypair on the first call is
 /// also why this runs here: the line doubles as the record of when a
@@ -86,8 +84,8 @@ use tokio::net::{TcpListener, TcpStream};
 async fn log_server_identity(store: &store::Store) -> anyhow::Result<()> {
     let identity = store.server_identity().await?;
     tracing::info!(
-        fingerprint = %identity.fingerprint_groups().join(" "),
-        "server identity; a joining client shows this code, so confirm it matches"
+        fingerprint = %identity.fingerprint_words().join(" "),
+        "server identity; a client whose pinned key changed shows these words, so read them out"
     );
     Ok(())
 }

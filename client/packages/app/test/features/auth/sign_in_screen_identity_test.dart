@@ -401,28 +401,23 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
         await tester.pumpAndSettle();
 
-        expect(find.text("This server's identity changed"), findsOneWidget);
+        expect(
+          find.text("This isn't the server you joined before"),
+          findsOneWidget,
+        );
         expect(
           loginCalls,
           0,
           reason: 'a mismatch must block before any credential is sent',
         );
 
-        await tester.ensureVisible(find.byType(Checkbox));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byType(Checkbox));
-        await tester.pump();
-        final trustButton = find.text('Trust the new identity');
+        final trustButton = find.text('Trust the new server');
         await tester.ensureVisible(trustButton);
         await tester.pumpAndSettle();
         await tester.tap(trustButton);
         await tester.pumpAndSettle();
 
-        expect(
-          loginCalls,
-          1,
-          reason: 'acknowledging must let the sign-in proceed',
-        );
+        expect(loginCalls, 1, reason: 'trusting must let the sign-in proceed');
         expect(
           await keyStore.read(_handleFor(_server)),
           _identityB['public_key'],
@@ -478,7 +473,10 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Sign in'));
         await tester.pumpAndSettle();
 
-        expect(find.text("This server's identity changed"), findsNothing);
+        expect(
+          find.text("This isn't the server you joined before"),
+          findsNothing,
+        );
         expect(loginCalls, 1);
       },
     );

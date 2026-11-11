@@ -252,11 +252,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// than to the field being typed) is what makes a returning sign-in - not
   /// only the manual onboarding dialog - a place TOFU's comparison runs.
   ///
-  /// A first connect to the compiled-in official address pins silently, for
-  /// the reason onboarding's own official button documents: there is no
-  /// separate operator to read a fingerprint to, so the question has no answer.
-  /// This door onto that address used to ask anyway. A key that later changes
-  /// is never silent either way, which is the case the check exists for.
+  /// A first connect pins silently; a key that later changes is the case the
+  /// check exists for.
   Future<void> _submit() async {
     final address = _submittableAddress();
     if (address == null) return;
@@ -273,12 +270,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final push = ref.read(pushControllerProvider.notifier);
     try {
       final reduced = reduceServerAddress(address);
-      // Silent for the compiled-in address; see this method's own doc.
       if (!await confirmServerIdentity(
         context,
         ref,
         reduced,
-        silentFirstConnect: isOfficialServer(reduced),
         requireSlimServer: true,
       )) {
         return;

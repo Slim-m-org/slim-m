@@ -63,6 +63,19 @@ class OnboardingScreen extends ConsumerWidget {
           // Staggered a beat apart so the three ways in arrive as a sequence.
           AppFadeIn(
             child: _Entry(
+              icon: AppIcons.members,
+              title: 'Join the official Space',
+              // The host, not the whole address: a scheme is not something a
+              // person reads, and mono is how every other host here is set.
+              description: Uri.parse(officialServer).host,
+              mono: true,
+              onTap: () => _officialFlow(context, ref),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s12),
+          AppFadeIn(
+            delay: const Duration(milliseconds: 45),
+            child: _Entry(
               icon: AppIcons.invite,
               title: 'I have an invite',
               description: 'Someone sent you a code for their Space.',
@@ -71,25 +84,12 @@ class OnboardingScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.s12),
           AppFadeIn(
-            delay: const Duration(milliseconds: 45),
+            delay: const Duration(milliseconds: 90),
             child: _Entry(
               icon: AppIcons.settings,
               title: 'Connect to a Space',
               description: 'You run your own, or you have its address.',
               onTap: () => _manualFlow(context, ref),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s12),
-          AppFadeIn(
-            delay: const Duration(milliseconds: 90),
-            child: _Entry(
-              icon: AppIcons.members,
-              title: 'Join the official Space',
-              // The host, not the whole address: a scheme is not something a
-              // person reads, and mono is how every other host here is set.
-              description: Uri.parse(officialServer).host,
-              mono: true,
-              onTap: () => _officialFlow(context, ref),
             ),
           ),
           const SizedBox(height: AppSpacing.s12),
@@ -114,12 +114,7 @@ class OnboardingScreen extends ConsumerWidget {
     if (result == null || !context.mounted) return;
 
     final (server, code) = result;
-    if (await confirmServerIdentity(
-      context,
-      ref,
-      server,
-      silentFirstConnect: isOfficialServer(server),
-    )) {
+    if (await confirmServerIdentity(context, ref, server)) {
       onServerChosen(server, code);
     }
   }
@@ -131,24 +126,14 @@ class OnboardingScreen extends ConsumerWidget {
     );
     if (server == null || !context.mounted) return;
 
-    if (await confirmServerIdentity(
-      context,
-      ref,
-      server,
-      silentFirstConnect: isOfficialServer(server),
-    )) {
+    if (await confirmServerIdentity(context, ref, server)) {
       onServerChosen(server, null);
     }
   }
 
   /// The official address is a compile-time constant, never user input, so
-  /// there is nothing to validate here. First connect pins its identity
-  /// silently rather than asking someone to read a fingerprint aloud to an
-  /// admin that, for this address, does not exist - the app and the server
-  /// are published by the same source. A later mismatch still stops the
-  /// flow: that would mean this well-known address answered with a
-  /// different key than the one already pinned, which is worth a hard stop
-  /// regardless of how the address was chosen.
+  /// there is nothing to validate here. A later key mismatch still stops the
+  /// flow, as it does for every address.
   ///
   /// This screen only ever runs on an install with no server chosen before,
   /// so tapping this button is itself evidence there is no account here yet
@@ -156,12 +141,7 @@ class OnboardingScreen extends ConsumerWidget {
   /// opens on creating one rather than asking for a tap it does not need.
   Future<void> _officialFlow(BuildContext context, WidgetRef ref) async {
     final server = Uri.parse(officialServer);
-    if (await confirmServerIdentity(
-      context,
-      ref,
-      server,
-      silentFirstConnect: true,
-    )) {
+    if (await confirmServerIdentity(context, ref, server)) {
       ref.read(assumeNewAccountProvider.notifier).state = true;
       onServerChosen(server, null);
     }

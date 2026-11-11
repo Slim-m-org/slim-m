@@ -21,7 +21,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
-import '../../../default_server.dart';
 import '../../../providers/providers.dart';
 import '../../../server_scheme_policy.dart';
 import '../../../widgets/labeled_field.dart';
@@ -44,12 +43,7 @@ Future<bool?> startAccountRecovery(
   Uri? target,
 ) async {
   if (target == null || requireSecureScheme(target) != null) return null;
-  final trusted = await confirmServerIdentity(
-    context,
-    ref,
-    target,
-    silentFirstConnect: isOfficialServer(target),
-  );
+  final trusted = await confirmServerIdentity(context, ref, target);
   if (!trusted || !context.mounted) return false;
   return showResetPasswordSheet(context, target);
 }
