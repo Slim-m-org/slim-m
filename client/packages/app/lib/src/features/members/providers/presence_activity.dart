@@ -75,7 +75,7 @@ String activityHeading(api.PresenceActivity activity) {
     api.ActivityKind.listening => 'Listening',
     api.ActivityKind.playing => 'Playing',
   };
-  final source = activity.source;
+  final source = activity.source == 'steam' ? 'Steam' : activity.source;
   return source == null ? verb : '$verb on $source';
 }
 
@@ -84,3 +84,18 @@ IconData activityIcon(api.ActivityKind kind) => switch (kind) {
   api.ActivityKind.listening => AppIcons.listening,
   api.ActivityKind.playing => AppIcons.playing,
 };
+
+/// What "now" is for a game's elapsed time; replaced in tests.
+final activityClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);
+
+/// "Playing for 12 min", "Playing for 2 h 5 min", or "Just started".
+String formatPlayTime(Duration elapsed) {
+  final minutes = elapsed.inMinutes;
+  if (minutes < 1) return 'Just started';
+  if (minutes < 60) return 'Playing for $minutes min';
+  final rest = minutes % 60;
+  final hours = minutes ~/ 60;
+  return rest == 0 ? 'Playing for $hours h' : 'Playing for $hours h $rest min';
+}

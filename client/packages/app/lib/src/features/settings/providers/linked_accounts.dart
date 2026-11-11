@@ -18,6 +18,9 @@ final myLinkedAccountsProvider =
 /// Set once the server answers 501 to a link start: it has no Discord app.
 final discordLinkUnavailableProvider = StateProvider<bool>((ref) => false);
 
+/// Set once the server answers 501 to a Steam link start: it has no Steam key.
+final steamLinkUnavailableProvider = StateProvider<bool>((ref) => false);
+
 /// Where the authorize URL opens; replaced in tests.
 final externalUrlLauncherProvider = Provider<ExternalUrlLauncher>(
   (ref) => defaultExternalUrlLauncher,

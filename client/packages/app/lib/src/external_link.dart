@@ -27,3 +27,17 @@ Future<void> openExternalHttpUrl(
   if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
   await launcher(uri, mode: LaunchMode.externalApplication);
 }
+
+/// Opens Steam on the game with [appId] (`steam://run/<id>`), which shows the
+/// store page when the viewer does not own it. This is the one place a
+/// non-http scheme leaves the app, and only for a positive integer id.
+Future<void> openSteamGame(
+  int appId, {
+  ExternalUrlLauncher launcher = launchUrl,
+}) async {
+  if (appId <= 0) return;
+  await launcher(
+    Uri.parse('steam://run/$appId'),
+    mode: LaunchMode.externalApplication,
+  );
+}

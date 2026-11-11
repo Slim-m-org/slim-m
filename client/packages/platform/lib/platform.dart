@@ -19,8 +19,6 @@ export 'src/cross_tab.dart';
 export 'src/device_name.dart';
 export 'src/device_push_keys.dart';
 export 'src/fcm_token_channel.dart';
-export 'src/game_allowlist.dart';
-export 'src/game_source.dart';
 export 'src/host_platform.dart';
 export 'src/autostart.dart';
 export 'src/install_format.dart';

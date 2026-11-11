@@ -48,6 +48,36 @@ extension SlimmApiLinkedAccounts on SlimmApi {
   Future<void> unlinkDiscord() =>
       send('DELETE', '/me/links/discord', expectNoContent: true);
 
+  /// Steam's sign-in URL, to open in a browser. Throws
+  /// [NotConfiguredException] when the server has no Steam key.
+  Future<String> startSteamLink() async {
+    final json = await send('POST', '/me/links/steam/start');
+    return (json as Map<String, dynamic>)['url'] as String;
+  }
+
+  /// Finishes a Steam link with the handoff [code] the browser page showed,
+  /// failing the same ways [completeDiscordLink] does.
+  Future<LinkedAccount> completeSteamLink(String code) async {
+    final json = await send(
+      'POST',
+      '/me/links/steam/complete',
+      body: {'code': code},
+    );
+    return LinkedAccount.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<void> unlinkSteam() =>
+      send('DELETE', '/me/links/steam', expectNoContent: true);
+
+  /// Turns showing the game being played on or off. Throws
+  /// [NotFoundException] when Steam is not linked.
+  Future<void> setSteamSharing({required bool enabled}) => send(
+        'PUT',
+        '/me/links/steam/sharing',
+        body: {'enabled': enabled},
+        expectNoContent: true,
+      );
+
   List<LinkedAccount> _linkedAccounts(Object? json) => [
         for (final item in json as List<dynamic>)
           LinkedAccount.fromJson(item as Map<String, dynamic>),

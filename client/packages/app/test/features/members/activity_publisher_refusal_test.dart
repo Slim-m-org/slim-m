@@ -18,6 +18,8 @@ import 'package:slimm_app/src/features/members/providers/activity_sharing_settin
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/spotify/spotify_config.dart';
+import 'package:slimm_app/src/spotify/spotify_link.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
@@ -37,26 +39,18 @@ class _Music implements NowPlayingSource {
       (controller = StreamController<NowPlaying?>(sync: true)).stream;
 }
 
-class _Games implements GameSource {
-  StreamController<RunningGame?>? controller;
-
-  @override
-  Stream<RunningGame?> watch() =>
-      (controller = StreamController<RunningGame?>(sync: true)).stream;
-}
-
 /// A publisher over a server that refuses any activity titled `refused`, with
 /// 500 for any titled `broken`, and answers everything else.
 class _Rig {
   final music = _Music();
-  final games = _Games();
+  final spotify = _Music();
   final puts = <String>[];
   late final ProviderContainer container;
 
   Future<void> start() async {
     SharedPreferences.setMockInitialValues({
       shareListeningKey: true,
-      shareGameKey: true,
+      shareSpotifyKey: true,
     });
     container = ProviderContainer(
       overrides: [
@@ -64,7 +58,8 @@ class _Rig {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         nowPlayingSourceProvider.overrideWithValue(music),
-        gameSourceProvider.overrideWithValue(games),
+        spotifyClientIdProvider.overrideWithValue('client'),
+        spotifySourceProvider.overrideWithValue(spotify),
         mockApiOverride(_answer),
       ],
     );
@@ -105,7 +100,7 @@ class _Rig {
 
   void listen(String title) => music.controller!.add(NowPlaying(title: title));
 
-  void play(String name) => games.controller!.add(RunningGame(name));
+  void play(String name) => spotify.controller!.add(NowPlaying(title: name));
 
   String? get shared => container.read(sharedActivityProvider)?.title;
 
@@ -121,8 +116,8 @@ void main() {
     addTearDown(rig.dispose);
   });
 
-  test('a refused track lets the game be shared instead', () async {
-    rig.play('Terraria');
+  test('a refused track lets the next feed be shared instead', () async {
+    rig.play('Song B');
     await rig.settle();
     rig.listen('fine');
     await rig.settle();
@@ -131,22 +126,22 @@ void main() {
     rig.listen('refused');
     await rig.settle();
 
-    expect(rig.shared, 'Terraria', reason: 'not the old track, not nothing');
+    expect(rig.shared, 'Song B', reason: 'not the old track, not nothing');
   });
 
   test('a refused track is asked for once, not retried', () async {
-    rig.play('Terraria');
+    rig.play('Song B');
     await rig.settle();
     rig.listen('refused');
     await rig.settle();
-    rig.play('Terraria 2');
+    rig.play('Song C');
     await rig.settle();
 
     expect(rig.puts.where((title) => title == 'refused'), hasLength(1));
   });
 
   test('a different track from the same feed is tried again', () async {
-    rig.play('Terraria');
+    rig.play('Song B');
     await rig.settle();
     rig.listen('refused');
     await rig.settle();
@@ -183,9 +178,9 @@ void main() {
     () async {
       rig.listen('broken');
       await rig.settle();
-      rig.play('Terraria');
+      rig.play('Song B');
       await rig.settle();
-      rig.play('Terraria 2');
+      rig.play('Song C');
       await rig.settle();
 
       expect(

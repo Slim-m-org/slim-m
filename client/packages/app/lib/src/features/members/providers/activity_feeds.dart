@@ -69,21 +69,6 @@ api.ActivityProgress? _progressOf(NowPlaying playing) {
   );
 }
 
-/// The platform's game source, or null where there is none. Overridden in
-/// tests with a fake.
-final gameSourceProvider = Provider<GameSource?>((ref) => _processGame);
-
-final GameSource? _processGame = _shareGame(createGameSource());
-
-GameSource? _shareGame(GameSource? source) =>
-    source == null ? null : SharedGameSource(source);
-
-api.PresenceActivity? activityFromGame(RunningGame game) {
-  final title = capActivityText(game.name);
-  if (title.isEmpty) return null;
-  return api.PresenceActivity(kind: api.ActivityKind.playing, title: title);
-}
-
 /// [text] with hidden characters removed, then cut to the server's cap.
 String capActivityText(String text) => String.fromCharCodes(
   visibleText(text).runes.take(api.PresenceActivity.maxTextChars),
@@ -132,18 +117,6 @@ final _listeningFeed = ActivityFeed(
       ),
 );
 
-final _gameFeed = ActivityFeed(
-  label: 'Show my current game',
-  description: 'Your running Steam game, or one on the list below.',
-  enabled: shareGameProvider,
-  via: 'the game list',
-  available: gameSourceProvider.select((source) => source != null),
-  open: (ref) => ref
-      .read(gameSourceProvider)!
-      .watch()
-      .map((game) => game == null ? null : activityFromGame(game)),
-);
-
 final _spotifyFeed = ActivityFeed(
   label: 'Show my Spotify track',
   description: 'Shows your track even when you play on another device.',
@@ -161,7 +134,7 @@ final _spotifyFeed = ActivityFeed(
 /// In priority order: when two sources both report something, the first
 /// one is what others see.
 final activityFeedsProvider = Provider<List<ActivityFeed>>(
-  (ref) => [_listeningFeed, _spotifyFeed, _gameFeed],
+  (ref) => [_listeningFeed, _spotifyFeed],
 );
 
 /// Feeds this device can actually run, for Settings.

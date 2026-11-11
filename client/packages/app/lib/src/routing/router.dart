@@ -102,7 +102,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: _RedirectListenable(ref),
     redirect: (context, state) =>
         (session.isSignedIn
-            ? claimWebDiscordLink(ref, state.uri)
+            ? (claimWebDiscordLink(ref, state.uri) ??
+                  claimWebSteamLink(ref, state.uri))
             : claimWebInvite(ref, state.uri)) ??
         _redirect(
           signedIn: session.isSignedIn,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Keeps a callback link out of the router.
 ///
-/// The OS hands `slimm://spotify-callback` and `slimm://discord-link` to two
+/// The OS hands `slimm://spotify-callback` and `slimm://discord-link` (and `steam-link`) to two
 /// places: the deep-link stream, which finishes the link, and Flutter's own
 /// route information, which go_router read as `/` and used to replace the
 /// open Settings modal with the channel list. [CallbackRouteGuard] answers the
@@ -21,6 +21,8 @@ class CallbackRouteGuard with WidgetsBindingObserver {
     RouteInformation routeInformation,
   ) async {
     final uri = routeInformation.uri;
-    return isSpotifyCallback(uri) || isDiscordLinkDelivery(uri);
+    return isSpotifyCallback(uri) ||
+        isDiscordLinkDelivery(uri) ||
+        isSteamLinkDelivery(uri);
   }
 }

@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/providers.dart';
 
 const shareListeningKey = 'slimm.presence.share_listening';
-const shareGameKey = 'slimm.presence.share_game';
 
 class ActivitySwitchController extends StateNotifier<bool> {
   ActivitySwitchController(this._ref, this._key) : super(false) {
@@ -46,5 +45,3 @@ final activitySwitchProvider =
     );
 
 final shareListeningProvider = activitySwitchProvider(shareListeningKey);
-
-final shareGameProvider = activitySwitchProvider(shareGameKey);

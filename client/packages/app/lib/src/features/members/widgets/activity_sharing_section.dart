@@ -12,10 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/activity_feeds.dart';
-import '../providers/activity_sharing_settings.dart';
 import '../../../spotify/spotify_link.dart';
 import 'activity_card.dart';
-import 'activity_game_list.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 
@@ -51,7 +49,6 @@ class ActivitySharingSection extends ConsumerWidget {
                     ref.read(feed.enabled.notifier).setEnabled(value),
                 semanticLabel: feed.label,
               ),
-              if (feed.enabled == shareGameProvider) const ActivityGameList(),
             ],
           ],
         ),

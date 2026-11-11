@@ -84,6 +84,8 @@ const Map<String, String> _allowlist = {
       'through _send',
   'GET /invite/{}': 'an HTML page a browser loads from a shared https link, '
       'never this client',
+  'GET /links/steam/callback': 'where Steam sends the member\'s browser '
+      'back; the browser loads it, never this client',
   'GET /links/discord/callback': 'where Discord sends the member\'s browser '
       'back; the browser loads it, never this client',
   'GET /emoji/{}/image': 'reads raw bytes through SlimmApi._fetchBytes, the '

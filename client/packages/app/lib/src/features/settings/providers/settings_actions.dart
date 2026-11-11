@@ -78,6 +78,16 @@ class SettingsActions {
 
   Future<void> unlinkDiscord() => _api.unlinkDiscord();
 
+  Future<String> startSteamLink() => _api.startSteamLink();
+
+  Future<LinkedAccount> completeSteamLink(String code) =>
+      _api.completeSteamLink(code);
+
+  Future<void> unlinkSteam() => _api.unlinkSteam();
+
+  Future<void> setSteamSharing({required bool enabled}) =>
+      _api.setSteamSharing(enabled: enabled);
+
   Future<List<Device>> listDevices() => _api.listDevices();
 
   Future<void> removeDevice(String deviceId) => _api.removeDevice(deviceId);
