@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.111.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.110.0...server-v0.111.0) (2026-11-11)
+
+
+### Features
+
+* audit wave 2b, Discord linking in the app, the call overlay redesign and 21 fix batches ([#2389](https://github.com/Slim-m-org/slim-m/issues/2389)) ([f9c39f0](https://github.com/Slim-m-org/slim-m/commit/f9c39f0d5a4fb3df4c2eccd5138eac4ee0787e9a))
+* everything outstanding for 0.128.0 - fit-to-box call stage, one call menu pattern, transcripts, steam, google play ([#2394](https://github.com/Slim-m-org/slim-m/issues/2394)) ([fe81163](https://github.com/Slim-m-org/slim-m/commit/fe81163fa18b38012eeed0d900f73c84dc316e04))
+
 ## [0.110.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.109.0...server-v0.110.0) (2026-11-10)
 
 
