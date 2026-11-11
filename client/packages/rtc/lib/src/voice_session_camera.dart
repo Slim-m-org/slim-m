@@ -34,6 +34,9 @@ class VoiceCamera {
   /// camera to apply a change.
   CameraQuality quality = CameraQuality.balanced;
 
+  /// The webcam picked in an earlier call; opened instead of the default while it is still plugged in.
+  String? preferredDeviceId;
+
   /// The camera a join asked for opens after "connected"; this reports its start, failure and end.
   Stream<CameraJoinOpen> get joinOpens => _join.events;
 
@@ -51,6 +54,7 @@ class VoiceCamera {
     if (room == null) return false;
     return _host.reported('choose the camera', false, () async {
       await switching.select(room, device);
+      preferredDeviceId = device.id;
       _host.refresh();
       return true;
     });
@@ -69,14 +73,26 @@ class VoiceCamera {
     return result.ok;
   }
 
+  /// The saved webcam's id when this platform picks by id and it is still present, else null.
+  Future<String?> _presentPreferredId() async {
+    final wanted = preferredDeviceId;
+    if (wanted == null || !switching.needsSelection) return null;
+    final present = await devices();
+    return present.any((d) => d.id == wanted) ? wanted : null;
+  }
+
   Future<CameraToggleResult> _setEnabled(lk.Room room, bool enabled) async {
+    final saved = enabled && preferredDeviceId != null
+        ? await _presentPreferredId()
+        : null;
+    final base = cameraCaptureOptionsFor(
+      room.roomOptions.defaultCameraCaptureOptions,
+      quality,
+    );
     final result = await switching.setEnabled(
       room.localParticipant,
       enabled,
-      options: cameraCaptureOptionsFor(
-        room.roomOptions.defaultCameraCaptureOptions,
-        quality,
-      ),
+      options: saved == null ? base : base.copyWith(deviceId: saved),
     );
     // Off only mutes, and the next enable reopens the capture front-facing: reset now.
     if (!enabled && result.ok) switching.resetFacing();

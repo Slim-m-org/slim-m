@@ -113,6 +113,8 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<bool> flipCamera() async => false;
   @override
+  void setPreferredCameraId(String? id) {}
+  @override
   Future<bool> selectCameraDevice(CameraDevice device) async => false;
 
   @override

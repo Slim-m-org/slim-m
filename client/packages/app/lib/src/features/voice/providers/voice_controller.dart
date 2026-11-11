@@ -204,6 +204,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Seeds [setCameraPreference] from the saved setting, awaited once from bootstrap.
   Future<void> restoreCameraPreference() async {
     setCameraPreference(await loadCameraOnJoinPreference(_ref));
+    _session.setPreferredCameraId(await loadCameraDeviceId(_ref));
   }
 
   /// [join] with the mic off for this call, whatever the saved preference;
@@ -323,8 +324,6 @@ class VoiceController extends StateNotifier<VoiceState> {
     final generation = _callGeneration;
     final want = !state.cameraEnabled;
     state = state.copyWith(cameraPending: true);
-    if (want) await _reuseSavedCamera();
-    if (generation != _callGeneration) return;
     final (got, cause) = await setCameraWithin(_session, want);
     if (generation != _callGeneration) return;
     if (cause != null) {
@@ -336,20 +335,6 @@ class VoiceController extends StateNotifier<VoiceState> {
       error: got ? null : cameraFailureMessage(want, cause),
       clearError: got,
     );
-  }
-
-  /// Opens the webcam picked in an earlier call, if it is still plugged in.
-  Future<void> _reuseSavedCamera() async {
-    if (!video.cameraNeedsSelection) return;
-    final id = await loadCameraDeviceId(_ref);
-    if (id == null) return;
-    final devices = await video.cameraDevices();
-    for (final device in devices) {
-      if (device.id == id) {
-        await video.selectCameraDevice(device);
-        return;
-      }
-    }
   }
 
   /// The camera a join asked for opens after connected: pending while it does, and a persistent error when it cannot.
