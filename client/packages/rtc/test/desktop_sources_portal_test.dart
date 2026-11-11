@@ -101,6 +101,21 @@ void main() {
     expect(listed.first.isWindow, isFalse);
   });
 
+  test('the app\'s own overlay windows are never offered to share', () async {
+    _mockPlugin(
+      resetSupported: true,
+      extra: [
+        window('w1', 'Notepad'),
+        window('w2', ownOverlayWindowTitle),
+        window('w3', ' $ownOverlayWindowTitle '),
+      ],
+    );
+
+    final listed = await const WebrtcDesktopSources(isLinux: false).list();
+
+    expect([for (final s in listed) s.id], ['0', 'w1']);
+  });
+
   test('linux never asks for windows, which crashes there', () async {
     final types = <Object?>[];
     _mockPlugin(resetSupported: true, requestedTypes: types);
