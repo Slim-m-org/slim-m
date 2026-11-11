@@ -97,6 +97,8 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
           prefs.getBool(VoiceSettingKeys.shareAudio) ?? false,
       screenShareAllowAnnotations:
           prefs.getBool(VoiceSettingKeys.shareAnnotations) ?? false,
+      screenShareShowCursor:
+          prefs.getBool(VoiceSettingKeys.shareCursor) ?? true,
       callOverlayEnabled: prefs.getBool(VoiceSettingKeys.callOverlay) ?? false,
       callOverlayCorner: enumByName(
         OverlayCorner.values,
@@ -115,6 +117,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
         VoiceSettingKeys.audioOutputDeviceId,
       ),
     );
+    shareCursorVisible.value = state.screenShareShowCursor;
   }
 
   Future<void> setJoinLeaveSoundsEnabled(bool enabled) async {
@@ -204,6 +207,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(screenShareIncludeAudio: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(VoiceSettingKeys.shareAudio, enabled);
+  }
+
+  Future<void> setScreenShareShowCursor(bool enabled) async {
+    state = state.copyWith(screenShareShowCursor: enabled);
+    shareCursorVisible.value = enabled;
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(VoiceSettingKeys.shareCursor, enabled);
   }
 
   Future<void> setScreenShareAllowAnnotations(bool enabled) async {

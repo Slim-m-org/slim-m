@@ -126,6 +126,17 @@ void main() {
       await controller.leave();
     });
 
+    test('restarts when the cursor is hidden and tells the capturer', () async {
+      addTearDown(() => shareCursorVisible.value = true);
+      final (controller, settings, session) = await sharing(desktop());
+      await settings.setScreenShareShowCursor(false);
+      await Future<void>.delayed(_settle);
+
+      expect(session.shareCalls.map((c) => c.enabled), [false, true]);
+      expect(shareCursorVisible.value, isFalse);
+      await controller.leave();
+    });
+
     for (final (name, make) in [
       (
         'wayland',
