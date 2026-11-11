@@ -49,10 +49,13 @@ class ServerIdentityChangedStep extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  AppIcons.warning,
-                  size: AppSizes.icon24,
-                  color: tokens.dangerText,
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Icon(
+                    AppIcons.warning,
+                    size: AppSizes.icon24,
+                    color: tokens.dangerText,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.s12),
                 Text(
@@ -119,19 +122,27 @@ class _Words extends StatelessWidget {
     return Semantics(
       label: 'New server words: ${words.join(' ')}',
       child: ExcludeSemantics(
-        child: Column(
-          children: [
-            for (final word in words)
-              Text(
-                word,
-                textAlign: TextAlign.center,
-                style: AppText.heading.copyWith(
-                  color: tokens.textPrimary,
-                  fontFamily: AppFonts.mono,
-                  height: 1.5,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s16),
+          decoration: BoxDecoration(
+            color: tokens.surfaceRaised,
+            border: Border.all(color: tokens.borderSubtle),
+            borderRadius: BorderRadius.circular(AppRadii.card),
+          ),
+          child: Column(
+            children: [
+              for (final word in words)
+                Text(
+                  word,
+                  textAlign: TextAlign.center,
+                  style: AppText.heading.copyWith(
+                    color: tokens.textPrimary,
+                    fontFamily: AppFonts.mono,
+                    height: 1.5,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

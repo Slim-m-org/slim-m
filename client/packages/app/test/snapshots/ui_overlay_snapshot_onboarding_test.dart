@@ -55,7 +55,7 @@ const _identityA = {
 };
 
 const _identityB = {
-  'public_key': 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=',
+  'public_key': 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=',
   'fingerprint': 'facefeedf00dd00dfacefeedf00dd00d',
   'fingerprint_groups': [
     'face',
@@ -313,7 +313,7 @@ void main() {
         find.text("This isn't the server you joined before"),
         findsOneWidget,
       );
-      await _finish(tester, 'tofu-identity-changed-unacknowledged-desktop');
+      await _finish(tester, 'tofu-identity-changed-desktop');
     });
 
     testWidgets('the mismatch warning at phone width', (tester) async {
@@ -341,7 +341,7 @@ void main() {
         find.text("This isn't the server you joined before"),
         findsOneWidget,
       );
-      await _finish(tester, 'tofu-identity-changed-unacknowledged-phone');
+      await _finish(tester, 'tofu-identity-changed-phone');
     });
   });
 }
