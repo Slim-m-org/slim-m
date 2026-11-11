@@ -29,7 +29,8 @@ Module sessions still never write segment text to the database.
 
 - `off`: nothing is transcribed by the server. Modules with `call.audio` work as 0105 describes.
 - `on_request`: the 0105 per-call flow, with the server as the consumer. Someone in the call presses Transcribe, everyone is asked, it runs only while everyone in the call agrees; a joiner is excluded until they say yes.
-- `always`: every call in every voice channel is transcribed from its first join. Nobody is asked; everyone sees it instead. Joining a voice channel while it is `always` shows a one-line notice in the join bar ("Calls here are transcribed"), and the in-call banner says transcription is on for the whole call. Bots are never heard (0105 rule 6).
+- `always`: every call in every voice channel is transcribed from its first join. Nobody is asked per call. The first time a member joins a call while the Space is `always`, they get a one-time notice ("Calls in this Space are transcribed") that they acknowledge before joining; the acknowledgement is stored on the server per member (`transcription_notice_ack_at`), so it is shown once across devices and never on later calls. The in-call banner still says transcription is on, as a passive indicator. Bots are never heard (0105 rule 6).
+  Owner, 2026-11-11: "we can still first time inform them, just not every voice call they join".
 
 The listener must be configured (`SLIMM_LISTENER_*`); without it the setting is shown disabled with the reason.
 Changing the mode is an admin change and is audited.
@@ -64,12 +65,13 @@ A sweep deletes transcripts whose `ended_at` is past it, with their lines and in
 - `DELETE /voice/transcripts/{id}`.
 - `GET /search/transcripts?q=&before=&limit=` -> hits `{transcript_id, channel_id, seq, speaker_id, at, text, highlight}` across every channel the reader may read, newest first.
 - Space settings carry `call_transcription` and `call_transcript_retention_days` through the existing settings route; the space-settings playbook (the memory `adding-a-space-setting-playbook`) is the checklist.
+- `GET /voice/transcription-notice` -> `{mode, acknowledged}` for the caller; `POST /voice/transcription-notice/ack` records `transcription_notice_ack_at` for the caller (idempotent).
 - Hub events: `CallTranscriptChanged {channel_id, transcript_id, ended}` on start and end, so the idle pane refreshes; lines are not fanned out live in this phase.
 
 ## Client
 
 - Space settings, Voice: "Call transcripts" with Off / When someone asks / Always, a retention picker beside it, and the listener-missing reason when it applies.
-- In a call: the 0105 banner, worded for the server ("This call is being transcribed"), with Stop in `on_request` and no Stop in `always`. The `always` join-bar notice.
+- In a call: the 0105 banner, worded for the server ("This call is being transcribed"), with Stop in `on_request` and no Stop in `always`. In `always`, the one-time notice before the first join (a modal with "Join" and "Cancel"; Join records the acknowledgement), and nothing on later joins.
 - Idle voice pane: a call with a transcript shows a "Transcript" section under "What happened": lines with avatar, name and clock time, collapsed to the first lines with "Show all", plus Delete for those allowed.
 - Ctrl+K: transcript hits are a result group; choosing one opens the voice channel's idle pane on that call, scrolled to the line.
 
