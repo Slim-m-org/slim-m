@@ -404,8 +404,8 @@ They need no `subscriptions` entry.
 
 | Event | `data` |
 | --- | --- |
-| `call.audio.started` | `session_id`, `channel_id`, `started_at_ms`, `included` (user ids) |
-| `call.audio.participant` | `session_id`, `channel_id`, `user_id`, `included` (bool) |
+| `call.audio.started` | `session_id`, `channel_id`, `started_at_ms`, `included` (user ids), `names` (`{user id: display name}` for `included`, the username when there is no display name) |
+| `call.audio.participant` | `session_id`, `channel_id`, `user_id`, `included` (bool), `name` (display name, absent when it cannot be read) |
 | `call.audio.segment` | `session_id`, `channel_id`, `segment_id`, `user_id`, `start_ms`, `end_ms`, `text`, `language` |
 | `call.audio.stopped` | `session_id`, `channel_id`, `stopped_at_ms`, `reason`, `segments_sent` |
 

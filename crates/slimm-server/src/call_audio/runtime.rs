@@ -131,11 +131,14 @@ pub async fn apply(state: &AppState, outcome: Outcome) -> bool {
                     stop_unstartable(state, &outcome);
                     return false;
                 }
-                module_events::started(state, &outcome);
+                let names = names_of(state, &outcome.include).await;
+                module_events::started(state, &outcome, names);
             }
             Effect::Include => state.call_audio.send_include(outcome.channel),
             Effect::Participant { user_id, included } => {
-                module_events::participant(state, &outcome, *user_id, *included);
+                let mut names = names_of(state, &[*user_id]).await;
+                let name = names.remove(&user_id.to_string());
+                module_events::participant(state, &outcome, *user_id, *included, name);
             }
             Effect::Ended { reason, was_on } => {
                 ended = Some(*reason);
@@ -148,6 +151,25 @@ pub async fn apply(state: &AppState, outcome: Outcome) -> bool {
     }
     publish(state, &outcome, ended);
     true
+}
+
+/// One query for everyone named; a person who cannot be read is left out and the module falls back.
+async fn names_of(state: &AppState, ids: &[crate::ids::UserId]) -> module_events::Names {
+    let users = state.store.user_profiles(ids).await.unwrap_or_else(|err| {
+        tracing::warn!(%err, "could not read call-audio speaker names");
+        Vec::new()
+    });
+    users
+        .into_iter()
+        .map(|u| {
+            let name = if u.display_name.trim().is_empty() {
+                u.username
+            } else {
+                u.display_name
+            };
+            (u.id.to_string(), name)
+        })
+        .collect()
 }
 
 fn publish(state: &AppState, outcome: &Outcome, ended: Option<EndReason>) {
