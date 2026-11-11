@@ -28,6 +28,15 @@ const _everyone = api.Role(
   createdAt: 0,
 );
 
+const _bots = api.Role(
+  id: 'role-bots',
+  name: 'Bots',
+  permissions: 0,
+  isEveryone: false,
+  isBotsRole: true,
+  createdAt: 0,
+);
+
 ConfigHarness _server() => ConfigHarness(
   handler: (r) => r.method == 'PATCH'
       ? jsonOk(roleJson('role-mod', 'Mod'))
@@ -130,5 +139,14 @@ void main() {
     expect(find.text('Display role members separately'), findsNothing);
     expect(find.text('Delete role'), findsNothing);
     expect(find.bySemanticsLabel('Role colour: Teal'), findsOneWidget);
+  });
+
+  testWidgets('the shared Bots role stays editable but cannot be deleted', (
+    tester,
+  ) async {
+    await _server().pump(tester, const RoleDisplayTab(role: _bots));
+
+    expect(find.text('Save name'), findsOneWidget);
+    expect(find.text('Delete role'), findsNothing);
   });
 }

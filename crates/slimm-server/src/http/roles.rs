@@ -85,6 +85,8 @@ pub(super) struct RoleDto {
     created_at: i64,
     /// See [`Role::managed_bot_id`].
     managed_bot_id: Option<String>,
+    /// Whether this is the shared role every bot holds; see [`Role::is_bots_role`].
+    is_bots_role: bool,
     /// Hierarchy order: higher sorts first, matching the order this list
     /// already comes back in. `@everyone` always sits last; see
     /// [`Role::position`].
@@ -107,6 +109,7 @@ impl RoleDto {
             color: role.color,
             created_at: role.created_at,
             managed_bot_id: role.managed_bot_id.map(|id| id.to_string()),
+            is_bots_role: role.is_bots_role,
             position: role.position,
             member_count,
         }
@@ -440,6 +443,7 @@ pub(super) fn grantable(caller: Permissions, bits: i64) -> Result<Permissions, A
 fn role_guard_error(err: RoleGuardError) -> ApiError {
     match err {
         RoleGuardError::IsEveryone => ApiError::Conflict("the @everyone role cannot be deleted"),
+        RoleGuardError::IsBotsRole => ApiError::Conflict("the Bots role cannot be deleted"),
         RoleGuardError::LastAdministrator => {
             ApiError::Conflict("this would leave the deployment with no administrator")
         }

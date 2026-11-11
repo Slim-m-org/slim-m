@@ -32,7 +32,7 @@ final _bot = Bot.fromJson(const {
   'created_at': 0,
   'token_name': 'Helper',
   'token_last_used_at': null,
-  'role_id': 'role-helper',
+  'role_id': null,
   'permissions': 0,
 });
 

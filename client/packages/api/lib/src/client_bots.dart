@@ -46,7 +46,7 @@ class Bot {
   /// not an exact last-call time.
   final int? tokenLastUsedAt;
 
-  /// The bot's managed role.
+  /// The bot's own role; null while it is granted no permissions (it holds the shared Bots role).
   final String? roleId;
 
   /// What the managed role currently grants.

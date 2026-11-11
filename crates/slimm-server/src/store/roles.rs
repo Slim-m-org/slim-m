@@ -43,6 +43,8 @@ pub struct Role {
     /// The bot this role was minted for, if any - informational only. See
     /// `docs/decisions/0028-bot-accounts.md`.
     pub managed_bot_id: Option<UserId>,
+    /// The one role every bot holds; it cannot be deleted. See ADR 0028.
+    pub is_bots_role: bool,
     /// Hierarchy order: higher sorts first in [`Store::list_roles`] and is
     /// the value `store::role_reorder`'s escalation guard compares a caller's
     /// own highest role against. `@everyone` stays at its bootstrap default
@@ -67,6 +69,8 @@ pub enum RoleGuardError {
     /// partial unique index on `is_everyone` already guarantees there is
     /// exactly one; deleting it would leave the evaluator with no base.
     IsEveryone,
+    /// The shared Bots role is what makes a bot a bot to the permission model.
+    IsBotsRole,
     /// This change would leave the deployment with no administrator.
     LastAdministrator,
     Internal(anyhow::Error),
@@ -234,6 +238,7 @@ impl Store {
                       is_everyone AS "is_everyone!: bool",
                       mentionable AS "mentionable!: bool", created_at AS "created_at!",
                       managed_bot_id AS "managed_bot_id: UserId",
+                      is_bots_role AS "is_bots_role!: bool",
                       position AS "position!: i64", hoist AS "hoist!: bool", color
                FROM roles ORDER BY position DESC, created_at"#
         )
@@ -251,6 +256,7 @@ impl Store {
                       is_everyone AS "is_everyone!: bool",
                       mentionable AS "mentionable!: bool", created_at AS "created_at!",
                       managed_bot_id AS "managed_bot_id: UserId",
+                      is_bots_role AS "is_bots_role!: bool",
                       position AS "position!: i64", hoist AS "hoist!: bool", color
                FROM roles WHERE id = ?"#,
             role_id
@@ -293,17 +299,21 @@ impl Store {
         // must hold the write lock from the start; see `Store::begin_write`.
         let mut tx = self.begin_write().await?;
 
-        let is_everyone = sqlx::query_scalar!(
-            r#"SELECT is_everyone AS "is_everyone!: bool" FROM roles WHERE id = ?"#,
+        let flags = sqlx::query!(
+            r#"SELECT is_everyone AS "is_everyone!: bool", is_bots_role AS "is_bots_role!: bool"
+               FROM roles WHERE id = ?"#,
             role_id
         )
         .fetch_optional(&mut *tx)
         .await?;
-        let Some(is_everyone) = is_everyone else {
+        let Some(flags) = flags else {
             return Ok(None);
         };
-        if is_everyone {
+        if flags.is_everyone {
             return Err(RoleGuardError::IsEveryone);
+        }
+        if flags.is_bots_role {
+            return Err(RoleGuardError::IsBotsRole);
         }
 
         // Cleared by hand, since no FK covers them; see the note on this
