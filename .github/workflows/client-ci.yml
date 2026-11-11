@@ -13,6 +13,7 @@ on:
       - ".github/actions/linux-build-deps/**"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
+      - "scripts/check-web-bundle-budget.sh"
       # The client reads this: schema_coverage_test.dart fails when a route is
       # documented with no SlimmApi call behind it. A schema-only change used
       # to skip this workflow entirely and land that failure on main, which is
@@ -38,6 +39,7 @@ on:
       - ".github/actions/linux-build-deps/**"
       - ".github/actions/native-hooks-cache/**"
       - ".github/actions/native-hooks-diagnose/**"
+      - "scripts/check-web-bundle-budget.sh"
       # The client reads this: schema_coverage_test.dart fails when a route is
       # documented with no SlimmApi call behind it. A schema-only change used
       # to skip this workflow entirely and land that failure on main, which is
