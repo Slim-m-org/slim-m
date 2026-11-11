@@ -72,23 +72,22 @@ void main() {
     expect(rig.sent('PATCH', '/me'), isEmpty);
   });
 
-  testWidgets(
-    'the notifications step saves the chosen level and can ask the OS',
-    (tester) async {
-      final rig = await pumpFirstRun(tester);
-      await _tap(tester, 'Continue');
-      await _tap(tester, 'Continue');
-      await _tap(tester, 'Mentions and direct messages');
-      await _tap(tester, 'Allow notifications');
-      expect(rig.push.registers, 1);
-      await _tap(tester, 'Continue');
+  testWidgets('the notifications step saves the chosen level, with no OS ask', (
+    tester,
+  ) async {
+    final rig = await pumpFirstRun(tester);
+    await _tap(tester, 'Continue');
+    await _tap(tester, 'Continue');
+    expect(find.text('Allow'), findsNothing);
+    await _tap(tester, 'Mentions and direct messages');
+    await _tap(tester, 'Continue');
 
-      final put = rig.sent('PUT', '/push/preference');
-      expect(put, hasLength(1));
-      expect(jsonDecode(put.first.body), {'preference': 'mentions'});
-      expect(find.text('Check your voice'), findsOneWidget);
-    },
-  );
+    expect(rig.push.registers, 0);
+    final put = rig.sent('PUT', '/push/preference');
+    expect(put, hasLength(1));
+    expect(jsonDecode(put.first.body), {'preference': 'mentions'});
+    expect(find.text('Check your voice'), findsOneWidget);
+  });
 
   testWidgets('keeping the current level sends no preference write', (
     tester,

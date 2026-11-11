@@ -4,6 +4,8 @@ library;
 
 import 'package:slimm_data/data.dart' show Channel;
 
+import '../../../push/providers/push_controller.dart' show PushStatus;
+
 /// An account older than this has had its chance to find its way around.
 const firstRunWindow = Duration(days: 1);
 
@@ -39,3 +41,10 @@ Channel? pickLandingChannel(List<Channel> channels) {
   }
   return best;
 }
+
+/// Whether the notifications step should ask the OS before offering levels.
+///
+/// Only a device that can be pushed to and has not answered yet: desktop is
+/// unsupported, and a blocked or registered device has already answered.
+bool firstRunAsksPermission(PushStatus status) =>
+    status == PushStatus.noTokenYet || status == PushStatus.registrationFailed;

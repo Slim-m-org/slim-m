@@ -13,7 +13,9 @@ import '../../members/widgets/invite_landing_card.dart'
     show kInviteBannerAspect;
 import '../../members/widgets/avatar_settings_section.dart';
 import '../../../providers/server_info.dart';
+import '../../settings/widgets/settings_section_header.dart';
 import '../providers/first_run_controller.dart';
+import 'first_run_avatar_patterns.dart';
 
 const double _iconSize = 56;
 
@@ -123,22 +125,26 @@ class FirstRunYouStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const AvatarSettingsSection(),
-        const SizedBox(height: AppSpacing.s16),
-        Text(
-          'Pronouns (optional)',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        AppInput(
-          controller: pronouns,
-          maxLength: api.InputLimits.pronouns,
-          placeholder: 'e.g. she/her',
-          semanticLabel: 'Pronouns',
+        const FirstRunAvatarPatterns(),
+        SettingsSectionCard(
+          title: 'Pronouns (optional)',
+          topGap: kDenseSectionTopGap,
+          children: [
+            SettingsCardBlock(
+              children: [
+                AppInput(
+                  controller: pronouns,
+                  maxLength: api.InputLimits.pronouns,
+                  placeholder: 'e.g. she/her',
+                  semanticLabel: 'Pronouns',
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );

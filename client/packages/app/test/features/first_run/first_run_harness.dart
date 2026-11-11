@@ -16,6 +16,8 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/first_run/providers/first_run_controller.dart';
+import 'package:slimm_app/src/features/first_run/widgets/avatar_patterns.dart';
+import 'package:slimm_app/src/features/first_run/widgets/first_run_avatar_patterns.dart';
 import 'package:slimm_app/src/features/first_run/widgets/first_run_gate.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -35,11 +37,17 @@ class _Server extends ChosenServer {
 }
 
 class FakePush extends StateNotifier<PushStatus> implements PushController {
-  FakePush(super.status);
+  FakePush(super.status, {this.answer});
   var registers = 0;
 
+  /// What the OS prompt leaves the device at; null leaves it as it was.
+  final PushStatus? answer;
+
   @override
-  Future<void> register() async => registers++;
+  Future<void> register() async {
+    registers++;
+    if (answer != null) state = answer!;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
@@ -82,7 +90,9 @@ Future<FirstRunRig> pumpFirstRun(
   Brightness brightness = Brightness.light,
   Duration accountAge = const Duration(minutes: 5),
   Map<String, Object> prefs = const {},
-  PushStatus pushStatus = PushStatus.noTokenYet,
+  PushStatus pushStatus = PushStatus.unsupportedPlatform,
+  PushStatus? pushAnswer,
+  http.Response? Function(http.Request request)? respond,
   List<Channel>? channels,
   String? inviter,
   bool description = true,
@@ -98,10 +108,21 @@ Future<FirstRunRig> pumpFirstRun(
   for (final c in channels ?? defaultChannels) {
     await db.into(db.channels).insert(c);
   }
+  // The encode needs the real event loop, and runAsync cannot nest in a wait.
+  final png = (await tester.runAsync(
+    () => renderPatternPng(
+      AvatarPattern.rings,
+      accountId: 'u1',
+      base: const Color(0xFF1A6E94),
+    ),
+  ))!;
   final requests = <http.Request>[];
-  final push = FakePush(pushStatus);
+  final push = FakePush(pushStatus, answer: pushAnswer);
   final container = ProviderContainer(
     overrides: [
+      avatarPatternRendererProvider.overrideWithValue(
+        (pattern, {required accountId, required base}) async => png,
+      ),
       fakeMicPreview(FakeMicSource()),
       sessionProvider.overrideWithValue(
         api.SessionStore(
@@ -119,6 +140,8 @@ Future<FirstRunRig> pumpFirstRun(
           session: ref.watch(sessionProvider),
           httpClient: MockClient((request) async {
             requests.add(request);
+            final custom = respond?.call(request);
+            if (custom != null) return custom;
             return _handle(
               request,
               description: description,
