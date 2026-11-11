@@ -34,6 +34,7 @@ const _landscape = Size(844, 390);
 Future<void> _openShareLandscape(
   WidgetTester tester, {
   required bool lockedPhone,
+  bool zoomed = true,
 }) async {
   tester.view.physicalSize = _landscape;
   tester.view.devicePixelRatio = 1;
@@ -83,6 +84,7 @@ Future<void> _openShareLandscape(
   await tester.tap(find.text('open'));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 600));
+  if (!zoomed) return;
   await tester.sendKeyEvent(LogicalKeyboardKey.equal);
   await tester.pump();
 }
@@ -139,6 +141,23 @@ void main() {
       );
       expect(pill.right, lessThanOrEqualTo(_landscape.width - 47));
     });
+  });
+
+  testWidgets('a double tap zooms around the tapped point', (tester) async {
+    await _openShareLandscape(tester, lockedPhone: true, zoomed: false);
+    const at = Offset(700, 150);
+
+    await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final picture = tester.widget<Transform>(
+      find.byKey(const ValueKey('share-zoom-transform')),
+    );
+    final shift = picture.transform.getTranslation();
+    expect(shift.x, closeTo(-at.dx, 1));
+    expect(shift.y, closeTo(-at.dy, 1));
   });
 
   group('a pinch', () {

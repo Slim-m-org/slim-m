@@ -213,7 +213,14 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
         children: [
           Positioned.fill(
             child: widget.kind == FullscreenVideoKind.screenShare
-                ? DoubleClickDetector(onDoubleClick: _zoom.toggle, child: video)
+                ? LayoutBuilder(
+                    builder: (context, box) => DoubleClickDetector(
+                      onDoubleClickAt: (at) => _zoom.toggle(
+                        Offset(at.dx / box.maxWidth, at.dy / box.maxHeight),
+                      ),
+                      child: video,
+                    ),
+                  )
                 : video,
           ),
           Positioned(
