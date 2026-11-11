@@ -242,4 +242,28 @@ void main() {
       expect(labels, ['360p', '720p', '1080p', 'Mirror my view']);
     },
   );
+
+  test('the camera menu marks the camera picked this call', () {
+    final entries = cameraMenuEntries(
+      quality: CameraQuality.balanced,
+      mirror: false,
+      devices: const [
+        CameraDevice(id: 'a', label: 'Front'),
+        CameraDevice(id: 'b', label: 'Desk'),
+      ],
+      canFlip: false,
+      chosenDeviceId: 'b',
+      actions: CameraMenuActions(
+        onQuality: (_) {},
+        onMirror: (_) {},
+        onDevice: (_) {},
+        onFlip: () {},
+      ),
+    );
+    final picked = [
+      for (final entry in entries)
+        if (entry is ControlOption && entry.selected) entry.label,
+    ];
+    expect(picked, ['Desk', '720p']);
+  });
 }

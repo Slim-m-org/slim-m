@@ -103,6 +103,7 @@ List<ControlOptionEntry> cameraMenuEntries({
   required List<CameraDevice> devices,
   required bool canFlip,
   required CameraMenuActions actions,
+  String? chosenDeviceId,
 }) {
   return [
     if (canFlip)
@@ -116,6 +117,7 @@ List<ControlOptionEntry> cameraMenuEntries({
       for (final device in devices)
         ControlOption(
           label: device.label.isEmpty ? 'Unnamed camera' : device.label,
+          selected: device.id == chosenDeviceId,
           onSelected: () => actions.onDevice(device),
         ),
     ],
@@ -173,6 +175,7 @@ class CameraOptionsMenu extends ConsumerWidget {
         mirror: settings.mirrorSelfView,
         devices: devices.length > 1 ? devices : const [],
         canFlip: cameraOn && video.canFlipCamera,
+        chosenDeviceId: video.chosenCameraId,
         actions: CameraMenuActions(
           onQuality: (value) => unawaited(notifier.setCameraQuality(value)),
           onMirror: (value) => unawaited(notifier.setMirrorSelfView(value)),
