@@ -35,6 +35,9 @@ export 'call_tile_badges.dart'
         poorConnectionLabel,
         poorConnectionMessage;
 
+/// The caption a tile shows while its camera is on but has no frame yet.
+const cameraStartingKey = Key('call_tile_camera_starting');
+
 /// The participant menu's width, room enough for its volume slider.
 const double kParticipantMenuWidth = 248;
 
@@ -222,6 +225,19 @@ class CallParticipantTile extends StatelessWidget {
               userId: participant.identity,
               size: avatarSize,
             ),
+          ),
+        ),
+      if (_showsCamera && !feed)
+        Positioned(
+          left: AppSpacing.s8,
+          top: AppSpacing.s8,
+          width: width - 4 * AppSpacing.s8 - AppSpacing.s16,
+          child: Text(
+            'Starting camera',
+            key: cameraStartingKey,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: onFace),
           ),
         ),
       Positioned(
