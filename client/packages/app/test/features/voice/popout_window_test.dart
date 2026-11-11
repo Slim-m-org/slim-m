@@ -11,6 +11,7 @@ import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_app/src/desktop/popout/popout_windowing.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart' show ResizeEdge;
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
+import 'package:slimm_app/src/providers/app_lock_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/popout_window.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_mini_player.dart';
@@ -193,12 +194,12 @@ void main() {
     await tester.tap(_popOutButton);
     await tester.pump();
     expect(rig.windows, hasLength(1));
-    expect(rig.container.read(popOutFeedProvider)?.identity, 'u-ada');
+    expect(rig.container.read(popOutFeedsProvider), [_screen(_ada)]);
 
     rig.windows.single.onCloseRequested();
     await tester.pump();
     expect(rig.windows.single.destroyed, isTrue);
-    expect(rig.container.read(popOutFeedProvider), isNull);
+    expect(rig.container.read(popOutFeedsProvider), isEmpty);
     expect(rig.session.leaveCalls, 0);
     expect(rig.voice.state.state, VoiceSessionState.connected);
     await teardownFixture(tester, rig.container, rig.db);
@@ -231,7 +232,7 @@ void main() {
     rig.voice.replace(_call([_adaStopped]));
     await tester.pump();
     expect(rig.windows.single.destroyed, isTrue);
-    expect(rig.container.read(popOutFeedProvider), isNull);
+    expect(rig.container.read(popOutFeedsProvider), isEmpty);
     await teardownFixture(tester, rig.container, rig.db);
   });
 
@@ -248,9 +249,9 @@ void main() {
   group('several pop-outs', () {
     Future<_Rig> twoOut(WidgetTester tester) async {
       final rig = await _pump(tester, supported: true, who: [_ada, _bo]);
-      rig.container.read(popOutFeedProvider.notifier).state = _screen(_ada);
+      rig.container.read(popOutFeedsProvider.notifier).open(_screen(_ada));
       await tester.pump();
-      rig.container.read(popOutFeedProvider.notifier).state = _screen(_bo);
+      rig.container.read(popOutFeedsProvider.notifier).open(_screen(_bo));
       await tester.pump();
       return rig;
     }
@@ -259,6 +260,68 @@ void main() {
       final rig = await twoOut(tester);
       expect(rig.windows, hasLength(2));
       expect(rig.windows.where((w) => w.destroyed), isEmpty);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('closing one keeps the other', (tester) async {
+      final rig = await twoOut(tester);
+      rig.windows.first.onCloseRequested();
+      await tester.pump();
+      expect(rig.windows.map((w) => w.destroyed), [true, false]);
+      expect(rig.container.read(popOutFeedsProvider), [_screen(_bo)]);
+      expect(rig.session.leaveCalls, 0);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('one stream ending closes only its window', (tester) async {
+      final rig = await twoOut(tester);
+      rig.voice.replace(_call([_adaStopped, _bo]));
+      await tester.pump();
+      expect(rig.windows.map((w) => w.destroyed), [true, false]);
+      expect(rig.container.read(popOutFeedsProvider), [_screen(_bo)]);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('leaving the call closes every window', (tester) async {
+      final rig = await twoOut(tester);
+      rig.voice.replace(const VoiceState());
+      await tester.pump();
+      expect(rig.windows.map((w) => w.destroyed), [true, true]);
+      expect(rig.container.read(popOutFeedsProvider), isEmpty);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('the app lock closes every window', (tester) async {
+      final rig = await twoOut(tester);
+      // ignore: invalid_use_of_protected_member
+      rig.container.read(appLockControllerProvider.notifier).state = true;
+      await tester.pump();
+      expect(rig.windows.map((w) => w.destroyed), [true, true]);
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('popping the same feed twice opens one window', (tester) async {
+      final rig = await twoOut(tester);
+      rig.container.read(popOutFeedsProvider.notifier).open(_screen(_ada));
+      await tester.pump();
+      expect(rig.windows, hasLength(2));
+      expect(rig.container.read(popOutFeedsProvider), hasLength(2));
+      await teardownFixture(tester, rig.container, rig.db);
+    });
+
+    testWidgets('a camera and a screen of one person are two windows', (
+      tester,
+    ) async {
+      final rig = await _pump(
+        tester,
+        supported: true,
+        who: [_ada.copyWith(isCameraOn: true)],
+      );
+      final feeds = rig.container.read(popOutFeedsProvider.notifier);
+      feeds.open(_screen(_ada));
+      feeds.open((identity: 'u-ada', name: 'Ada', kind: FeedKind.camera));
+      await tester.pump();
+      expect(rig.windows, hasLength(2));
       await teardownFixture(tester, rig.container, rig.db);
     });
   });

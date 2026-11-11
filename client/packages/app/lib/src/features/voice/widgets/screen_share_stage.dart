@@ -231,11 +231,11 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
           ShareStageMenu(
             sharerName: widget.sharerName,
             onPopOut: canPopOut
-                ? () => ref.read(popOutFeedProvider.notifier).state = (
+                ? () => ref.read(popOutFeedsProvider.notifier).open((
                     identity: popOutId,
                     name: widget.sharerName,
                     kind: FeedKind.screenShare,
-                  )
+                  ))
                 : null,
             streamVolume: widget.streamVolume,
             quality: widget.quality,

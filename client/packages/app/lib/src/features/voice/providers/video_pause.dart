@@ -86,8 +86,10 @@ final videoInterestHostProvider = Provider<void>((ref) {
   ref.listen<bool>(remoteVideoSeenProvider, (_, seen) {
     relay.setSeen(seen);
   }, fireImmediately: true);
-  ref.listen(popOutLiveFeedProvider, (_, feed) {
-    relay.setPoppedOut({if (feed != null) pictureInPictureTileKey(feed)});
+  ref.listen(popOutLiveFeedsProvider, (_, feeds) {
+    relay.setPoppedOut({
+      for (final feed in feeds) pictureInPictureTileKey(feed),
+    });
   }, fireImmediately: true);
   ref.listen<bool>(
     voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),

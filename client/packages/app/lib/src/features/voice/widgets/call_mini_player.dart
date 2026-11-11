@@ -307,7 +307,7 @@ class _MiniPlayerCard extends ConsumerWidget {
                       semanticLabel: 'Pop out',
                       tooltip: 'Pop out',
                       onPressed: () =>
-                          ref.read(popOutFeedProvider.notifier).state = feed,
+                          ref.read(popOutFeedsProvider.notifier).open(feed),
                     ),
                   ?stop,
                   hide,

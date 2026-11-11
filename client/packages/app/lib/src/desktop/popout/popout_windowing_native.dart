@@ -36,6 +36,9 @@ PopOutWindowFactory? nativePopOutWindowFactory() {
 
 const _minSize = Size(240, 160);
 
+// The KWin rule is shared by title, so only the last window to close may take it out.
+var _openWindows = 0;
+
 class _NativePopOutWindow
     with RegularWindowControllerDelegate
     implements PopOutWindowHandle {
@@ -59,6 +62,7 @@ class _NativePopOutWindow
       delegate: this,
     );
     if (!decorated) _drag.claimFrame();
+    _openWindows++;
   }
 
   final VoidCallback onCloseRequested;
@@ -78,7 +82,7 @@ class _NativePopOutWindow
   @override
   void destroy() {
     _controller.destroy();
-    unawaited(kwinRemoveAboveFullScreen());
+    if (--_openWindows == 0) unawaited(kwinRemoveAboveFullScreen());
   }
 
   @override

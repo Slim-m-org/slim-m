@@ -87,7 +87,9 @@ void main() {
 
       await tester.tap(find.text('Pop out stream'));
       await tester.pumpAndSettle();
-      expect(rig.container.read(popOutFeedProvider)?.identity, 'u-ada');
+      expect(rig.container.read(popOutFeedsProvider).map((f) => f.identity), [
+        'u-ada',
+      ]);
 
       for (final (label, call) in [
         ('Stop watching', 'hide'),
@@ -212,7 +214,9 @@ void main() {
 
     await tester.tap(find.text('Pop out camera'));
     await tester.pump();
-    expect(harness.container.read(popOutFeedProvider)?.identity, 'u-me');
+    expect(harness.container.read(popOutFeedsProvider).map((f) => f.identity), [
+      'u-me',
+    ]);
     await controller.leave();
   });
 }
