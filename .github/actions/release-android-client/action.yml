@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 #
-# Needs, from the calling job's env: ANDROID_UPLOAD_KEYSTORE_B64, ANDROID_KEY_PROPERTIES and ANDROID_GOOGLE_SERVICES_JSON. The calling job checks them before this runs.
+# Needs, from the calling job's env: ANDROID_UPLOAD_KEYSTORE_B64, ANDROID_KEY_PROPERTIES and ANDROID_GOOGLE_SERVICES_JSON. The calling job checks them before this runs. PLAY_SERVICE_ACCOUNT_JSON is optional: empty skips the Play upload.
 name: release android client
-description: Build the upload-signed apk and appbundle, verify the signer, and attach the apk to the client release.
+description: Build the upload-signed apk and appbundle, verify the signer, attach the apk to the client release, and upload the appbundle to Play internal testing.
 
 inputs:
   version:
@@ -113,3 +113,20 @@ runs:
         scripts/upload-release-assets.sh "${{ inputs.tag }}" \
           client/packages/app/dist/slim-m-client-android.apk \
           client/packages/app/dist/SHA256SUMS.android
+
+    - name: skip the play upload
+      if: env.PLAY_SERVICE_ACCOUNT_JSON == ''
+      shell: "bash -e {0}"
+      run: echo "::notice::PLAY_SERVICE_ACCOUNT_JSON is not configured; skipping the Google Play internal testing upload."
+
+    # After the apk attach, so a Play failure fails the job without costing the release its apk.
+    - name: upload to google play internal testing
+      if: env.PLAY_SERVICE_ACCOUNT_JSON != ''
+      uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+      with:
+        serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
+        packageName: top.npcserver.slimm
+        releaseFiles: client/packages/app/dist/slim-m-client-android.aab
+        track: internal
+        status: completed
+        releaseName: ${{ inputs.version }}
