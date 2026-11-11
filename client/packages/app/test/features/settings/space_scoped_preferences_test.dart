@@ -179,6 +179,7 @@ const _deviceKeys = <String>{
   'slimm.voice.call_overlay_corner',
   'slimm.voice.call_overlay_screen',
   'slimm.voice.call_overlay_enabled',
+  'slimm.voice.camera_device_id',
   'slimm.voice.camera_on_join',
   'slimm.voice.mirror_self_view',
   'slimm.voice.camera_quality',

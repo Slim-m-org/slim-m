@@ -54,12 +54,14 @@ void main() {
 
     expect(find.byKey(_feed), findsOneWidget);
     expect(_avatar, findsOneWidget);
+    expect(find.byKey(cameraStartingKey), findsOneWidget);
 
     tracker.markFirstFrame();
     await tester.pump();
 
     expect(find.byKey(_feed), findsOneWidget);
     expect(_avatar, findsNothing);
+    expect(find.byKey(cameraStartingKey), findsNothing);
   });
 
   testWidgets('a camera with no track yet keeps the avatar', (tester) async {

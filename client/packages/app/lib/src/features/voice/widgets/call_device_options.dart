@@ -20,6 +20,7 @@ import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../providers/camera_switch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import '../providers/voice_video_controls.dart';
 import 'video_quality_labels.dart';
 
 /// Wide enough for a device name; the default menu width truncates them.
@@ -81,6 +82,17 @@ List<ControlOptionEntry> audioDeviceOptions({
   );
 }
 
+/// Switches to [device], and remembers it only once the switch worked.
+Future<void> pickCameraDevice(
+  VoiceVideoControls video,
+  VoiceSettingsController notifier,
+  CameraDevice device,
+) async {
+  if (await video.selectCameraDevice(device)) {
+    await notifier.setCameraDeviceId(device.id);
+  }
+}
+
 /// What a pick in the camera menu does.
 class CameraMenuActions {
   const CameraMenuActions({
@@ -103,6 +115,7 @@ List<ControlOptionEntry> cameraMenuEntries({
   required List<CameraDevice> devices,
   required bool canFlip,
   required CameraMenuActions actions,
+  String? chosenDeviceId,
 }) {
   return [
     if (canFlip)
@@ -116,6 +129,7 @@ List<ControlOptionEntry> cameraMenuEntries({
       for (final device in devices)
         ControlOption(
           label: device.label.isEmpty ? 'Unnamed camera' : device.label,
+          selected: device.id == chosenDeviceId,
           onSelected: () => actions.onDevice(device),
         ),
     ],
@@ -173,10 +187,12 @@ class CameraOptionsMenu extends ConsumerWidget {
         mirror: settings.mirrorSelfView,
         devices: devices.length > 1 ? devices : const [],
         canFlip: cameraOn && video.canFlipCamera,
+        chosenDeviceId: settings.cameraDeviceId,
         actions: CameraMenuActions(
           onQuality: (value) => unawaited(notifier.setCameraQuality(value)),
           onMirror: (value) => unawaited(notifier.setMirrorSelfView(value)),
-          onDevice: (device) => unawaited(video.selectCameraDevice(device)),
+          onDevice: (device) =>
+              unawaited(pickCameraDevice(video, notifier, device)),
           onFlip: () => unawaited(video.flipCamera()),
         ),
       ),

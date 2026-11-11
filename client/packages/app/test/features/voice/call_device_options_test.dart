@@ -136,6 +136,26 @@ void main() {
       expect(session.cameraSwitchCalls, ['select:cam-2']);
     });
 
+    testWidgets('a camera pick is remembered for the next call', (
+      tester,
+    ) async {
+      final session = InertSession()
+        ..cameraNeedsSelection = true
+        ..cameraDeviceList = const [_builtIn, _usbCam];
+      final container = await _pump(tester, session);
+      await _open(tester, find.byTooltip('Camera options'));
+      await tester.tap(find.text('USB camera'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        container.read(voiceSettingsControllerProvider).cameraDeviceId,
+        'cam-2',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('slimm.voice.camera_device_id'), 'cam-2');
+    });
+
     testWidgets('offers a flip where the platform flips', (tester) async {
       final session = InertSession()..canFlipCamera = true;
       await _pump(tester, session);
@@ -242,4 +262,28 @@ void main() {
       expect(labels, ['360p', '720p', '1080p', 'Mirror my view']);
     },
   );
+
+  test('the camera menu marks the camera picked this call', () {
+    final entries = cameraMenuEntries(
+      quality: CameraQuality.balanced,
+      mirror: false,
+      devices: const [
+        CameraDevice(id: 'a', label: 'Front'),
+        CameraDevice(id: 'b', label: 'Desk'),
+      ],
+      canFlip: false,
+      chosenDeviceId: 'b',
+      actions: CameraMenuActions(
+        onQuality: (_) {},
+        onMirror: (_) {},
+        onDevice: (_) {},
+        onFlip: () {},
+      ),
+    );
+    final picked = [
+      for (final entry in entries)
+        if (entry is ControlOption && entry.selected) entry.label,
+    ];
+    expect(picked, ['Desk', '720p']);
+  });
 }

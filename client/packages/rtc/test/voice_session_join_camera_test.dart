@@ -12,8 +12,10 @@ import 'support/session_fakes.dart';
 
 class _OneCamera implements CameraDevices {
   @override
-  Future<List<CameraDevice>> list() async =>
-      const [CameraDevice(id: 'cam-1', label: 'Webcam')];
+  Future<List<CameraDevice>> list() async => const [
+        CameraDevice(id: 'cam-1', label: 'Webcam'),
+        CameraDevice(id: 'cam-2', label: 'Desk camera'),
+      ];
 }
 
 Future<void> waitFor(bool Function() done) async {
@@ -29,6 +31,7 @@ void main() {
   late List<VoiceSessionState> stateWhenCameraAsked;
   late List<CameraJoinOpen> opens;
   late List<bool> cameraAsks;
+  late List<String?> cameraDeviceIds;
   late VoiceSession session;
 
   VoiceSession build({Duration timeout = const Duration(seconds: 10)}) {
@@ -37,6 +40,7 @@ void main() {
         camera: (enabled, options) {
           stateWhenCameraAsked.add(session.state);
           cameraAsks.add(enabled);
+          cameraDeviceIds.add(options?.deviceId);
           return enabled ? gate.future : Future<void>.value();
         },
       ),
@@ -62,6 +66,7 @@ void main() {
     gate = Completer<void>();
     stateWhenCameraAsked = [];
     cameraAsks = [];
+    cameraDeviceIds = [];
     opens = [];
     session = build();
   });
@@ -167,5 +172,21 @@ void main() {
     await pumpEventQueue();
 
     expect(seen?.params, CameraQuality.high.params);
+  });
+
+  test('a join opens the saved webcam while it is plugged in', () async {
+    session.setPreferredCameraId('cam-2');
+    await join();
+    await pumpEventQueue();
+
+    expect(cameraDeviceIds, ['cam-2']);
+  });
+
+  test('a join keeps the default when the saved webcam is gone', () async {
+    session.setPreferredCameraId('cam-9');
+    await join();
+    await pumpEventQueue();
+
+    expect(cameraDeviceIds, [null]);
   });
 }

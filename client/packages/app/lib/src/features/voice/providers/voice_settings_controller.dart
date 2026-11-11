@@ -116,6 +116,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       audioOutputDeviceId: prefs.getString(
         VoiceSettingKeys.audioOutputDeviceId,
       ),
+      cameraDeviceId: prefs.getString(VoiceSettingKeys.cameraDeviceId),
     );
     shareCursorVisible.value = state.screenShareShowCursor;
   }
@@ -243,6 +244,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     } else {
       await prefs.setString(VoiceSettingKeys.callOverlayScreen, screen);
     }
+  }
+
+  Future<void> setCameraDeviceId(String id) async {
+    state = state.copyWith(cameraDeviceId: id);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setString(VoiceSettingKeys.cameraDeviceId, id);
   }
 
   Future<void> setMirrorSelfView(bool enabled) async {
