@@ -41,6 +41,8 @@ pub struct LinkedAccount {
     pub linked_at: i64,
     /// When the server stored the account's picture; `None` when it has none.
     pub avatar_updated_at: Option<i64>,
+    /// Whether the member shows what they play (Steam only; false elsewhere).
+    pub share_activity: bool,
 }
 
 /// An account the provider vouched for, held until the member who started the
@@ -224,14 +226,48 @@ impl Store {
     pub async fn linked_accounts(&self, user_id: UserId) -> anyhow::Result<Vec<LinkedAccount>> {
         let rows = sqlx::query_as!(
             LinkedAccount,
-            "SELECT provider, external_id, username, display_name, linked_at,
-                    avatar_updated_at
-             FROM linked_accounts WHERE user_id = ? ORDER BY provider",
+            r#"SELECT provider, external_id, username, display_name, linked_at,
+                    avatar_updated_at, share_activity AS "share_activity: bool"
+             FROM linked_accounts WHERE user_id = ? ORDER BY provider"#,
             user_id
         )
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
+    }
+
+    /// Turns a member's activity sharing on or off for `provider`; false when
+    /// they have no such link.
+    pub async fn set_link_sharing(
+        &self,
+        user_id: UserId,
+        provider: &str,
+        enabled: bool,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query!(
+            "UPDATE linked_accounts SET share_activity = ? WHERE user_id = ? AND provider = ?",
+            enabled,
+            user_id,
+            provider
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Members who linked `provider` and chose to share, with their account ids.
+    pub async fn sharing_links(&self, provider: &str) -> anyhow::Result<Vec<(UserId, String)>> {
+        let rows = sqlx::query!(
+            r#"SELECT user_id AS "user_id!: UserId", external_id AS "external_id!"
+               FROM linked_accounts WHERE provider = ? AND share_activity = 1"#,
+            provider
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.user_id, r.external_id))
+            .collect())
     }
 
     /// Forgets the stored picture after its file could not be written.

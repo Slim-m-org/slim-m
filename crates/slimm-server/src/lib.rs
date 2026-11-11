@@ -197,11 +197,18 @@ pub async fn run() -> anyhow::Result<()> {
     http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
+    let steam = http::steam_link::SteamLinks::new(&config)?;
+    if let Some(steam) = &steam {
+        http::steam_presence::spawn(state.clone(), steam.clone());
+    }
     let mut router = http::router(state).layer(axum::Extension(http::BackupStatusDir(
         config.backup_status_dir.clone(),
     )));
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));
+    }
+    if let Some(steam) = steam {
+        router = router.layer(axum::Extension(steam));
     }
     let app = cors.apply(router);
     let addr = config.listen_addr();

@@ -1336,6 +1336,146 @@ paths:
             text/html:
               schema:
                 type: string
+  /me/links/steam/start:
+    post:
+      operationId: startSteamLink
+      tags: [users]
+      summary: Start linking a Steam account.
+      description: >
+        Answers Steam's OpenID sign-in URL for the client to open in a
+        browser. Its return address carries a one-time state, valid for ten
+        minutes, that ties the callback to the caller. 501 when the server has
+        no Steam Web API key or callback address configured.
+      responses:
+        "200":
+          description: Where to send the browser.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: Steam linking is not configured on this server.
+  /me/links/steam/complete:
+    post:
+      operationId: completeSteamLink
+      tags: [users]
+      summary: Finish linking a Steam account from the app.
+      description: >
+        The same handoff as `completeDiscordLink`, for the SteamID the
+        callback verified (`slimm://steam-link?code=`, or
+        `/app/link/steam?code=` in the web client). The new link starts with
+        sharing off. 404 for a code that is wrong, expired, used or another
+        member's; 409 when that Steam account is linked to someone else here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteDiscordLinkRequest"
+      responses:
+        "200":
+          description: The Steam account now linked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedAccount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /me/links/steam:
+    delete:
+      operationId: unlinkSteam
+      tags: [users]
+      summary: Remove the caller's Steam link, if any.
+      description: >
+        Also ends a game the server was showing for the caller.
+      responses:
+        "204":
+          description: No Steam link remains.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /me/links/steam/sharing:
+    put:
+      operationId: setSteamSharing
+      tags: [users]
+      summary: Turn showing the game being played on or off.
+      description: >
+        Off by default. While on, the server polls Steam for the caller only
+        when they are connected and not hidden. Turning it off ends a game the
+        server was showing. 404 when Steam is not linked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        "204":
+          description: Saved.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /links/steam/callback:
+    get:
+      operationId: steamLinkCallback
+      tags: [users]
+      summary: Where Steam sends the browser back after sign-in.
+      description: >
+        Unauthenticated, like `discordLinkCallback`. Spends the one-time
+        `state`, then accepts the OpenID response only when its return address
+        is ours, its claimed identity is a 17-digit
+        `https://steamcommunity.com/openid/id/` URL, and Steam itself confirms
+        the signature (`check_authentication` answers `is_valid:true`). It
+        links nothing: it holds the SteamID under a handoff code and answers a
+        page that opens the app with it. Every `openid.*` query parameter
+        Steam sends is read; the page is HTML in every case.
+      security: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The page that hands back to the app, or a cancelled link.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: A missing, expired or used state, or a response Steam did not vouch for.
+          content:
+            text/html:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /users/{userId}/links:
     parameters:
       - name: userId
@@ -12171,6 +12311,12 @@ components:
             Whether members can link a Discord account (all three
             SLIMM_DISCORD_* settings are set). Absent on older servers, which
             a client reads as false.
+        steam_link_enabled:
+          type: boolean
+          description: >
+            Whether members can link Steam and show the game they play
+            (SLIMM_STEAM_API_KEY and SLIMM_STEAM_REDIRECT_URI are set). Absent
+            on older servers, which a client reads as false.
         screen_share_max_height:
           type: integer
           description: >
@@ -13211,7 +13357,7 @@ components:
       properties:
         provider:
           type: string
-          enum: [discord]
+          enum: [discord, steam]
         username:
           type: string
         display_name:
@@ -13226,6 +13372,11 @@ components:
             When the server stored the account's picture; absent or null when
             it has none. Fetch it from `getLinkedDiscordAvatar`, using this as
             the cache key.
+        share_activity:
+          type: boolean
+          description: >
+            Whether the member shows the game they play. Meaningful for Steam
+            only; false for every other provider, and absent on older servers.
     SpaceStorage:
       type: object
       required:
@@ -14618,8 +14769,11 @@ components:
       description: >
         What a member is doing right now. Absent when they are doing nothing
         they chose to share, when they are offline, and to every viewer but
-        themselves when they chose `hidden`. The only image is `art_url`,
-        which the server accepts only as a Spotify cover URL.
+        themselves when they chose `hidden`. The only image is `art_url`.
+        A client may set only a Spotify cover; `source` `steam` and
+        `steam_app_id` are set by the server's Steam poller alone, and a
+        client PUT that carries either is refused with 400. A game the poller
+        is showing is not replaced by a client PUT (decision 0115).
       properties:
         type:
           type: string
@@ -14642,9 +14796,9 @@ components:
         art_url:
           type: string
           description: >
-            Cover art. Accepted only as `https://i.scdn.co/image/` followed by
+            Cover art. A client may send only `https://i.scdn.co/image/` followed by
             40 lowercase hex characters, with no port, query or fragment;
-            anything else is refused with 400. Decision 0056.
+            anything else is refused with 400. Decision 0056, and 0115 for Steam.
         duration_ms:
           type: integer
           format: int64
@@ -14664,6 +14818,14 @@ components:
           type: integer
           format: int64
           description: Epoch milliseconds `position_ms` was sampled.
+        steam_app_id:
+          type: integer
+          format: int64
+          description: >
+            The Steam app being played, present only on a game the server
+            read from Steam. A viewer opens `steam://run/<id>` to offer Play.
+            Its `art_url` may then be an https image on a Steam CDN host
+            (under steamstatic.com), with no query or fragment.
 
     SetVisibilityRequest:
       type: object

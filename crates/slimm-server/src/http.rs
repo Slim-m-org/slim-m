@@ -75,6 +75,9 @@ mod linked_avatar;
 mod manager_limited;
 mod member_permissions;
 mod members;
+pub mod steam_api;
+pub mod steam_link;
+pub mod steam_presence;
 use members::{member_nicknames, members_bulk, members_list};
 mod messages;
 use messages::{

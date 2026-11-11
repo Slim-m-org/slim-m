@@ -50,6 +50,8 @@ impl fmt::Debug for Config {
             discord_client_id,
             discord_client_secret,
             discord_redirect_uri,
+            steam_api_key,
+            steam_redirect_uri,
             backup_status_dir,
             alert_min_disk_free_mb,
         } = self;
@@ -83,6 +85,8 @@ impl fmt::Debug for Config {
             .field("discord_client_id", discord_client_id)
             .field("discord_client_secret", &Redacted(discord_client_secret))
             .field("discord_redirect_uri", discord_redirect_uri)
+            .field("steam_api_key", &Redacted(steam_api_key))
+            .field("steam_redirect_uri", steam_redirect_uri)
             .field("backup_status_dir", backup_status_dir)
             .field("alert_min_disk_free_mb", alert_min_disk_free_mb)
             .finish()

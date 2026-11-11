@@ -27,6 +27,10 @@ pub mod livekit_webhook;
 #[allow(dead_code)]
 pub mod discord_link;
 
+/// A local fake of Steam's OpenID endpoint, Web API and store.
+#[allow(dead_code)]
+pub mod steam;
+
 /// Bounded polling for an effect that lands asynchronously.
 #[allow(dead_code)]
 pub mod wait;

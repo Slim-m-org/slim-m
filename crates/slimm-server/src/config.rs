@@ -217,6 +217,15 @@ pub struct Config {
     #[serde(default, deserialize_with = "blank_as_none")]
     pub discord_redirect_uri: Option<String>,
 
+    /// Steam linking and "now playing" (decision 0115). The Web API key is
+    /// from steamcommunity.com/dev/apikey; the redirect URI is this server's
+    /// public `/links/steam/callback`. Both set turns it on; blank reads as
+    /// unset, and a deployment without them has no Steam link.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub steam_api_key: Option<String>,
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub steam_redirect_uri: Option<String>,
+
     /// Directory the backup container writes its `status.json` into, mounted read-only here.
     /// Blank reads as unset, and Storage then says backups are not set up.
     #[serde(default, deserialize_with = "blank_as_none")]
@@ -305,6 +314,8 @@ impl Default for Config {
             discord_client_id: None,
             discord_client_secret: None,
             discord_redirect_uri: None,
+            steam_api_key: None,
+            steam_redirect_uri: None,
             backup_status_dir: None,
             alert_min_disk_free_mb: default_alert_min_disk_free_mb(),
         }

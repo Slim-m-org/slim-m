@@ -56,6 +56,9 @@ pub(super) struct Version {
     /// Whether members can link a Discord account here (all three
     /// `SLIMM_DISCORD_*` settings are set), so a client can hide the option.
     discord_link_enabled: bool,
+    /// Whether members can link Steam here (`SLIMM_STEAM_API_KEY` and
+    /// `SLIMM_STEAM_REDIRECT_URI` are set), so a client can hide the option.
+    steam_link_enabled: bool,
     /// The tallest resolution a screen share may publish at. Enforcement is
     /// entirely client-side (see `client/packages/rtc/lib/src/screen_share_control.dart`),
     /// so every client - not only one with MANAGE_SERVER, which is all
@@ -166,6 +169,7 @@ pub(super) async fn version(
     _limited: RateLimited<READ>,
     State(state): State<AppState>,
     discord: Option<axum::Extension<super::linked_accounts::DiscordLinks>>,
+    steam: Option<axum::Extension<super::steam_link::SteamLinks>>,
 ) -> Result<Json<Version>, ApiError> {
     let identity = state.store.server_identity().await?;
     let landing = state.store.space_landing().await?;
@@ -185,6 +189,7 @@ pub(super) async fn version(
         icon_updated_at: landing.icon_updated_at,
         link_previews_enabled: state.link_previews.is_enabled(),
         discord_link_enabled: discord.is_some(),
+        steam_link_enabled: steam.is_some(),
         screen_share_max_height: state.store.screen_share_max_height().await?,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         members_can_invite: state.store.members_can_invite().await?,

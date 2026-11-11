@@ -120,3 +120,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0109](0109-more-module-events.md) | Modules hear message edits, voice joins and leaves, screen shares, role changes and poll votes, and who reacted | accepted |
 | [0110](0110-favorites.md) | Favorites: GIFs and message media, kept as references | accepted |
 | [0111](0111-personal-space-is-called-notes.md) | A personal space is called Notes, not You | accepted |
+| [0115](0115-steam-game-status.md) | The game a member plays comes from their linked Steam account, not from the machine | accepted |
