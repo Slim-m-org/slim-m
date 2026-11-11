@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The call stage keeps its scroll per channel when the pane is swapped for the
-/// Voice Canvas and back, and the canvas keeps its camera across the same swap.
+/// The canvas keeps its camera when the pane is swapped for the call and back.
 library;
 
 import 'package:flutter/material.dart';
@@ -146,71 +145,13 @@ class _Rig {
       container.read(voiceControllerProvider.notifier).leave();
 }
 
-double _offset(WidgetTester tester, String key) => tester
-    .state<ScrollableState>(
-      find
-          .descendant(
-            of: find.byKey(PageStorageKey<String>(key)),
-            matching: find.byWidgetPredicate((w) => w is Scrollable),
-          )
-          .first,
-    )
-    .position
-    .pixels;
-
-Future<double> _scroll(WidgetTester tester, String key) async {
-  await tester.drag(
-    find.byKey(PageStorageKey<String>(key)),
-    const Offset(0, -300),
-  );
-  await tester.pump(const Duration(seconds: 1));
-  final scrolled = _offset(tester, key);
-  expect(scrolled, greaterThan(100));
-  return scrolled;
-}
-
 void main() {
   final crowd = [for (var i = 0; i < 24; i++) _person(i)];
 
-  testWidgets('the roster grid returns to where it was scrolled', (
-    tester,
-  ) async {
+  testWidgets('the canvas returns to its camera', (tester) async {
     final rig = _Rig(tester);
     addTearDown(rig.harness.dispose);
     await rig.start(crowd);
-    final scrolled = await _scroll(tester, 'call-roster-scroll-channel-1');
-
-    await rig.openCanvas();
-    await rig.closeCanvas();
-
-    expect(_offset(tester, 'call-roster-scroll-channel-1'), scrolled);
-    await rig.leave();
-  });
-
-  testWidgets('the share grid returns to where it was scrolled', (
-    tester,
-  ) async {
-    final rig = _Rig(tester);
-    addTearDown(rig.harness.dispose);
-    await rig.start([
-      for (var i = 0; i < 6; i++) _person(i, sharing: true),
-    ], size: const Size(500, 400));
-    final scrolled = await _scroll(tester, 'call-share-grid-scroll-channel-1');
-
-    await rig.openCanvas();
-    await rig.closeCanvas();
-
-    expect(_offset(tester, 'call-share-grid-scroll-channel-1'), scrolled);
-    await rig.leave();
-  });
-
-  testWidgets('the canvas returns to its camera and the lounge to its scroll', (
-    tester,
-  ) async {
-    final rig = _Rig(tester);
-    addTearDown(rig.harness.dispose);
-    await rig.start(crowd);
-    final scrolled = await _scroll(tester, 'call-roster-scroll-channel-1');
 
     await rig.openCanvas();
     await tester.pump(const Duration(milliseconds: 100));
@@ -224,7 +165,6 @@ void main() {
     final panned = surfaceDocument(tester).camera;
     expect(surfaceDocument(tester).isFitted, isFalse);
     await rig.closeCanvas();
-    expect(_offset(tester, 'call-roster-scroll-channel-1'), scrolled);
 
     await rig.openCanvas();
     await tester.pump(const Duration(milliseconds: 100));

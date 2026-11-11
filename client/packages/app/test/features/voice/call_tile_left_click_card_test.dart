@@ -26,7 +26,7 @@ const _me = VoiceParticipant(
   isLocal: true,
   isSpeaking: false,
   isMuted: false,
-  isScreenSharing: true,
+  isScreenSharing: false,
 );
 
 const _bob = VoiceParticipant(

@@ -72,7 +72,7 @@ String? _focusedTile(WidgetTester tester) {
 
 void main() {
   testWidgets(
-    'Tab visits tiles in reading order, the menu key opens, Escape closes',
+    'Tab visits tiles in stage order, the menu key opens, Escape closes',
     (tester) async {
       final harness = await _connected(tester, [
         _p('a', local: true),
@@ -88,7 +88,8 @@ void main() {
         final id = _focusedTile(tester);
         if (id != null && !order.contains(id)) order.add(id);
       }
-      expect(order, ['a', 'b', 'c']);
+      // Cameras come before audio-only people on the stage (decision 0114).
+      expect(order, ['b', 'a', 'c']);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
       await tester.pumpAndSettle();

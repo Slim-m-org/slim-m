@@ -122,3 +122,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0111](0111-personal-space-is-called-notes.md) | A personal space is called Notes, not You | accepted |
 | [0112](0112-identity-five-words.md) | Pin silently, warn on change, spell the key as five words | accepted |
 | [0113](0113-call-transcripts.md) | Call transcripts are part of the call, kept by the server, searchable, with a Space mode and retention | accepted |
+| [0114](0114-call-stage-fit.md) | The call stage fits shares, cameras and people into the box: pinned, bento and justified rows, cameras never hidden at the end | accepted |

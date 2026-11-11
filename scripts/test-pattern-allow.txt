@@ -773,8 +773,8 @@ client/packages/app/test/features/voice/call_roster_motion_test.dart 2 6
 client/packages/app/test/features/voice/call_screen_desktop_geometry_test.dart 7 0
 client/packages/app/test/features/voice/call_screen_phone_geometry_test.dart 2 2
 client/packages/app/test/features/voice/call_stage_layout_member_card_anchor_test.dart 6 4
-client/packages/app/test/features/voice/call_stage_layout_test.dart 10 3
-client/packages/app/test/features/voice/call_stage_shares_test.dart 16 13
+client/packages/app/test/features/voice/call_stage_layout_test.dart 7 3
+client/packages/app/test/features/voice/call_stage_shares_test.dart 9 9
 client/packages/app/test/features/voice/call_stats_screen_test.dart 4 7
 client/packages/app/test/features/voice/call_strip_tap_test.dart 8 0
 client/packages/app/test/features/voice/call_tile_backdrop_test.dart 4 3

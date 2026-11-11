@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Your own share fills the call stage like a viewer's does. PNGs are written
+/// Your own share's tile fills the call stage like a viewer's share does. PNGs are written
 /// only under SLIMM_UI_SNAPSHOTS=1; the geometry assertions always run.
 library;
 
@@ -72,7 +72,9 @@ Future<Rect> _shareRect(
   await tester.pump(const Duration(seconds: 1));
   await tester.pump(const Duration(seconds: 1));
   final view = find.byKey(
-    Key(localSharing ? 'fake-share-view-me' : 'fake-share-view-them'),
+    localSharing
+        ? const ValueKey('share:me')
+        : const Key('fake-share-view-them'),
   );
   final rect = tester.getRect(view);
   await writeSnapshot(tester, name);
