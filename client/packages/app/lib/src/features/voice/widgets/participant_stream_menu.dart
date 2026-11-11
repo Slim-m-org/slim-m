@@ -50,11 +50,11 @@ List<Widget> participantStreamMenuItems(
 
 VoidCallback? _popOut(WidgetRef ref, VoiceParticipant p, FeedKind kind) {
   if (!ref.read(popOutSupportedProvider)) return null;
-  return () => ref.read(popOutFeedProvider.notifier).state = (
+  return () => ref.read(popOutFeedsProvider.notifier).open((
     identity: p.identity,
     name: p.name,
     kind: kind,
-  );
+  ));
 }
 
 List<Widget> _screenRows(

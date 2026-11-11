@@ -63,7 +63,7 @@ void main() {
     container.read(voiceSettingsControllerProvider);
     await tester.runAsync(() => container.read(preferencesProvider.future));
     container.read(videoInterestHostProvider);
-    container.read(popOutFeedProvider.notifier).state = _feed;
+    container.read(popOutFeedsProvider.notifier).open(_feed);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -95,7 +95,7 @@ void main() {
       await tester.pump();
       expect(session.videoInterests.last, {'screen:u-ada'});
 
-      container.read(popOutFeedProvider.notifier).state = null;
+      container.read(popOutFeedsProvider.notifier).close(_feed);
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
