@@ -501,7 +501,7 @@ mod tests {
     /// caller cannot grant a permission the server does not define.
     #[test]
     fn unknown_permission_bits_are_refused_even_for_a_full_caller() {
-        let undefined = 1i64 << 20;
+        let undefined = 1i64 << (64 - Permissions::ALL.bits().leading_zeros());
         let result = grantable(Permissions::ALL, undefined);
         assert!(matches!(result, Err(ApiError::BadRequest(_))));
     }

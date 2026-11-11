@@ -45,7 +45,7 @@ void main() {
             if (request.method == 'POST') posted.add(request.url.path);
             return _json({
               'session': null,
-              'startable': const [],
+              'startable': const <Object?>[],
               'transcribable': true,
             });
           }, session: api.SessionStore(tokens: _tokens));
