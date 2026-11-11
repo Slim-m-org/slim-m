@@ -14,11 +14,17 @@ import 'device_choice_sheet.dart';
 
 /// The line under the title; on Windows, where a window share can lose its source, it says which windows those are.
 String screenSourceCaption(List<ScreenShareSource> sources, {bool? windows}) {
-  const base = 'Everyone in the call will see it until you stop sharing.';
+  const base = 'Everyone in the call sees it until you stop.';
   final onWindows = windows ?? defaultTargetPlatform == TargetPlatform.windows;
   if (!onWindows || !sources.any((s) => s.isWindow)) return base;
-  return '$base Minimized windows and exclusive fullscreen games cannot be '
-      'captured as a window; share the screen instead.';
+  return '$base Minimized windows and fullscreen games cannot be shared as '
+      'a window.';
+}
+
+/// Some windows report no title; a blank row cannot be told from its neighbours.
+String screenSourceLabel(ScreenShareSource source) {
+  if (source.name.trim().isNotEmpty) return source.name;
+  return source.isWindow ? 'Untitled window' : 'Untitled screen';
 }
 
 /// Returns the chosen source, or null if the sheet was dismissed.
@@ -31,6 +37,7 @@ Future<ScreenShareSource?> showScreenSourceSheet(
   BuildContext context,
   List<ScreenShareSource> sources, {
   String? selectedId,
+  Rect? anchorRect,
 }) {
   return showDeviceChoice<ScreenShareSource>(
     context,
@@ -41,7 +48,8 @@ Future<ScreenShareSource?> showScreenSourceSheet(
     icon: AppIcons.screenShare,
     iconOf: (s) => s.isWindow ? AppIcons.windowRestore : AppIcons.screenShare,
     items: sources,
-    labelOf: (source) => source.name,
+    labelOf: screenSourceLabel,
+    anchorRect: anchorRect,
     isSelected: selectedId == null ? null : (s) => s.id == selectedId,
   );
 }
