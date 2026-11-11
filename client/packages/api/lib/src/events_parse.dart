@@ -342,6 +342,14 @@ ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
             : CallAudioState.fromJson(decoded['state'] as Map<String, dynamic>),
         ended: decoded['ended'] as String?,
       ),
+    'call.transcript_changed'
+        when decoded['channel_id'] is String &&
+            decoded['transcript_id'] is String =>
+      CallTranscriptChanged(
+        channelId: decoded['channel_id'] as String,
+        transcriptId: decoded['transcript_id'] as String,
+        ended: decoded['ended'] as bool? ?? false,
+      ),
     'watch.tick'
         when decoded['channel_id'] is String &&
             decoded['bot_user_id'] is String &&

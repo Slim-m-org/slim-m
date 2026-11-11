@@ -167,7 +167,9 @@ class _PromptBody extends ConsumerWidget {
                   const SizedBox(width: AppSpacing.s8),
                   Expanded(
                     child: Text(
-                      'Let ${session.moduleName} hear this call?',
+                      session.isServerTranscript
+                          ? 'Transcribe this call?'
+                          : 'Let ${session.moduleName} hear this call?',
                       style: AppText.body.copyWith(
                         color: tokens.textPrimary,
                         fontWeight: AppWeights.semi,
@@ -179,7 +181,7 @@ class _PromptBody extends ConsumerWidget {
               const SizedBox(height: AppSpacing.s8),
               Text(
                 '${asker?.displayName ?? 'Someone'} asked. '
-                'These are the module\'s own words.',
+                '${session.isServerTranscript ? 'The server writes it down.' : 'These are the module\'s own words.'}',
                 style: AppText.caption.copyWith(color: tokens.textSecondary),
               ),
               const SizedBox(height: AppSpacing.s8),
@@ -195,8 +197,11 @@ class _PromptBody extends ConsumerWidget {
               if (hidden) ...[
                 const SizedBox(height: AppSpacing.s8),
                 Text(
-                  'Your presence is hidden. The module will see that you '
-                  'were in this call.',
+                  session.isServerTranscript
+                      ? 'Your presence is hidden. You are still named in the '
+                            'transcript.'
+                      : 'Your presence is hidden. The module will see that you '
+                            'were in this call.',
                   key: CallAudioPrompt.hiddenNoteKey,
                   style: AppText.body.copyWith(color: tokens.warnText),
                 ),

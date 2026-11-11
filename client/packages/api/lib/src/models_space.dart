@@ -2,6 +2,7 @@
 /// Deployment-wide space settings models.
 library;
 
+import 'models_call_transcript.dart';
 import 'models_totp.dart';
 
 /// Who may create an account on this deployment.
@@ -42,6 +43,9 @@ class SpaceSettings {
     this.welcomeEnabled = false,
     this.welcomeChannelId,
     this.welcomeMessage = '',
+    this.callTranscription = CallTranscriptionMode.off,
+    this.callTranscriptRetentionDays = 30,
+    this.callTranscriptionAvailable = true,
   });
 
   /// The Space's name, shown in the channel list header and on invites.
@@ -83,6 +87,15 @@ class SpaceSettings {
   /// The welcome template, with `{user}` and `{space}` placeholders.
   final String welcomeMessage;
 
+  /// Whether the server transcribes calls, and how it starts (decision 0113).
+  final CallTranscriptionMode callTranscription;
+
+  /// Days a finished transcript is kept; null keeps them forever.
+  final int? callTranscriptRetentionDays;
+
+  /// False when the server has no listener configured, so the mode cannot work.
+  final bool callTranscriptionAvailable;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -105,6 +118,15 @@ class SpaceSettings {
         welcomeEnabled: json['welcome_enabled'] as bool? ?? false,
         welcomeChannelId: json['welcome_channel_id'] as String?,
         welcomeMessage: json['welcome_message'] as String? ?? '',
+        callTranscription: CallTranscriptionMode.parse(
+          json['call_transcription'] as String?,
+        ),
+        callTranscriptRetentionDays:
+            json.containsKey('call_transcript_retention_days')
+                ? json['call_transcript_retention_days'] as int?
+                : 30,
+        callTranscriptionAvailable:
+            json['call_transcription_available'] as bool? ?? true,
       );
 }
 
@@ -124,6 +146,8 @@ class SpaceSettingsUpdate {
     this.welcomeEnabled,
     this.welcomeChannelId,
     this.welcomeMessage,
+    this.callTranscription,
+    this.callTranscriptRetentionDays,
   });
 
   final String? name;
@@ -138,4 +162,8 @@ class SpaceSettingsUpdate {
   final bool? welcomeEnabled;
   final String? welcomeChannelId;
   final String? welcomeMessage;
+  final CallTranscriptionMode? callTranscription;
+
+  /// Days to keep finished transcripts; `0` keeps them forever.
+  final int? callTranscriptRetentionDays;
 }

@@ -16,6 +16,7 @@ import 'command_palette_items.dart';
 import 'palette_highlight.dart';
 import 'palette_message_text.dart';
 import 'palette_person_body.dart';
+import 'palette_transcript_items.dart' show PaletteTranscriptBody;
 import '../../messages/widgets/message_row_identity.dart' show formatMessageDay;
 
 export 'palette_highlight.dart' show paletteHighlightSpans;
@@ -197,6 +198,12 @@ class PaletteResultRow extends StatelessWidget {
         reason: item.reason,
       ),
       PaletteKind.message => _message(tokens),
+      PaletteKind.transcript => PaletteTranscriptBody(
+        hit: item.transcript!,
+        channelLabel: item.messageChannelLabel ?? 'a channel',
+        query: query,
+        lines: touch ? 2 : 1,
+      ),
       PaletteKind.action => _action(tokens),
     };
     return PaletteRowShell(

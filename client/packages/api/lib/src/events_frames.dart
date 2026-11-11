@@ -397,6 +397,20 @@ class VoiceCallAudioChanged extends ServerEvent {
   final String? ended;
 }
 
+/// A transcript of [channelId]'s call started or ended, so an open call view
+/// reads it again. Lines are not pushed.
+class CallTranscriptChanged extends ServerEvent {
+  const CallTranscriptChanged({
+    required this.channelId,
+    required this.transcriptId,
+    required this.ended,
+  });
+
+  final String channelId;
+  final String transcriptId;
+  final bool ended;
+}
+
 /// A DM call ring started. [callerId] is who is calling; the receiving
 /// account is always the other participant of [channelId]'s DM, so this
 /// reaches only the two of them.

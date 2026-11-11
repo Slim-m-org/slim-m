@@ -75,6 +75,7 @@ export 'client_upload_sessions.dart'
 export 'client_users.dart' show SlimmApiUsers;
 export 'client_voice.dart' show SlimmApiVoice;
 export 'client_voice_calls.dart' show SlimmApiVoiceCalls;
+export 'client_call_transcripts.dart' show SlimmApiCallTranscripts;
 export 'client_voice_rooms.dart' show SlimmApiVoiceRooms;
 export 'client_webhooks.dart' show NewWebhook, SlimmApiWebhooks, Webhook;
 

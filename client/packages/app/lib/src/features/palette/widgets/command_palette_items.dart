@@ -25,7 +25,7 @@ import '../../messages/widgets/message_jump.dart';
 import '../../settings/screens/space_settings_section.dart';
 
 /// Which row layout a [PaletteResultItem] draws with.
-enum PaletteKind { channel, person, message, action }
+enum PaletteKind { channel, person, message, transcript, action }
 
 /// Which sections a query asks for: a leading `#` narrows to channels and a
 /// leading `@` to people, so a type-ahead habit from other chat apps works.
@@ -62,6 +62,7 @@ class PaletteResultItem {
     this.reason,
     this.message,
     this.messageChannelLabel,
+    this.transcript,
   });
 
   final String label;
@@ -77,6 +78,7 @@ class PaletteResultItem {
   final PaletteReason? reason;
   final api.Message? message;
   final String? messageChannelLabel;
+  final api.TranscriptHit? transcript;
   final Future<void> Function(BuildContext context, WidgetRef ref) onSelect;
 }
 
