@@ -12,12 +12,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/phone_landscape.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart'
+    show micCueSeenKey, shareHintSeenKey;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.dart';
+import 'package:slimm_app/src/providers/providers.dart'
+    show preferencesProvider;
+import 'package:slimm_app/src/providers/sync_controller.dart'
+    show SyncStatus, initialSyncCompleteProvider, syncControllerProvider;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../features/voice/call_mini_player_harness.dart';
 import '../features/voice/voice_snapshot_fixtures.dart';
+import '../support/fake_sync.dart';
 import '../ui_snapshot_support.dart';
 
 const _me = VoiceParticipant(
@@ -60,16 +67,37 @@ const _sizes = <String, Size>{
   'small': Size(360, 640),
 };
 
+/// A live connection and no first-call hints: the steady state of a real call.
+final _steady = <Override>[
+  syncControllerProvider.overrideWith(
+    (ref) => StubSyncController(ref, SyncStatus.live),
+  ),
+  initialSyncCompleteProvider.overrideWith((ref) => true),
+  // The shared fixture resets preferences, so the hints are marked seen here.
+  preferencesProvider.overrideWith((ref) async {
+    SharedPreferences.setMockInitialValues({
+      micCueSeenKey: '',
+      shareHintSeenKey: true,
+    });
+    return SharedPreferences.getInstance();
+  }),
+];
+
+/// A steady call a few minutes old.
 List<Override> _call(
   List<VoiceParticipant> people, {
   bool sharing = false,
   bool awaiting = false,
 }) => [
+  ..._steady,
   voiceControllerProvider.overrideWith(
     (ref) => SnapshotVoiceController(
       ref,
       connectedCallState.copyWith(
         participants: people,
+        connectedAt: DateTime.now().subtract(
+          const Duration(minutes: 12, seconds: 34),
+        ),
         screenSharing: sharing,
         awaitingBroadcast: awaiting,
       ),
@@ -95,7 +123,6 @@ Future<void> _resize(WidgetTester tester, Size size) async {
 
 void main() {
   setUpAll(loadRealFonts);
-  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   for (final MapEntry(key: sizeName, value: size) in _sizes.entries) {
     for (final theme in ['dark', 'light']) {
@@ -225,6 +252,7 @@ void main() {
             tester,
             location: '/channels/c-general',
             voice: miniCall(const [_me, remoteShare]),
+            extraOverrides: _steady,
             size: size,
             brightness: theme == 'dark' ? Brightness.dark : Brightness.light,
           );
