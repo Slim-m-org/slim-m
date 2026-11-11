@@ -25,11 +25,15 @@ const double _slop = 24;
 class DoubleClickDetector extends StatefulWidget {
   const DoubleClickDetector({
     super.key,
-    required this.onDoubleClick,
+    this.onDoubleClick,
+    this.onDoubleClickAt,
     required this.child,
   });
 
   final VoidCallback? onDoubleClick;
+
+  /// Called with where the second press landed, in [child]'s own coordinates.
+  final ValueChanged<Offset>? onDoubleClickAt;
   final Widget child;
 
   @override
@@ -60,12 +64,15 @@ class _DoubleClickDetectorState extends State<DoubleClickDetector> {
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_onGlobal);
   }
 
+  bool get _armed =>
+      widget.onDoubleClick != null || widget.onDoubleClickAt != null;
+
   bool _isPrimaryDown(PointerEvent e) =>
       e is PointerDownEvent &&
       (e.kind != PointerDeviceKind.mouse || e.buttons == kPrimaryButton);
 
   void _onTileDown(PointerDownEvent e) {
-    if (widget.onDoubleClick == null || _firstPointer != null) return;
+    if (!_armed || _firstPointer != null) return;
     if (!_isPrimaryDown(e)) return;
     _firstPointer = e.pointer;
     _firstAt = e.position;
@@ -79,9 +86,12 @@ class _DoubleClickDetectorState extends State<DoubleClickDetector> {
     if (e.pointer == _firstPointer) return;
     if (e.pointer == _secondPointer) {
       if (e is PointerUpEvent) {
+        final at = _local(e.position);
         _disarm();
         Timer.run(() {
-          if (mounted) widget.onDoubleClick?.call();
+          if (!mounted) return;
+          widget.onDoubleClick?.call();
+          widget.onDoubleClickAt?.call(at);
         });
       } else if (e is PointerCancelEvent) {
         _disarm();
@@ -96,6 +106,11 @@ class _DoubleClickDetectorState extends State<DoubleClickDetector> {
     } else {
       _disarm();
     }
+  }
+
+  Offset _local(Offset global) {
+    final box = context.findRenderObject();
+    return box is RenderBox ? box.globalToLocal(global) : global;
   }
 
   @override

@@ -260,13 +260,26 @@ class _MiniPlayerCard extends ConsumerWidget {
                       color: Colors.black,
                       child: IgnorePointer(child: view),
                     ),
+                    const _LabelScrim(),
                     if (compact)
                       Positioned(
                         top: 0,
                         right: 0,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [?stop, hide],
+                        // The video is any colour, so the buttons carry their own dark backing in either theme.
+                        child: Theme(
+                          data: forcedDarkTheme,
+                          child: DecoratedBox(
+                            decoration: const BoxDecoration(
+                              color: Color(0x8C000000),
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(AppRadii.card),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [?stop, hide],
+                            ),
+                          ),
                         ),
                       ),
                     Positioned(
@@ -318,4 +331,28 @@ class _MiniPlayerCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Keeps the white name line legible over a bright picture.
+class _LabelScrim extends StatelessWidget {
+  const _LabelScrim();
+
+  @override
+  Widget build(BuildContext context) => const Positioned(
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 28,
+    child: IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x00000000), Color(0xB3000000)],
+          ),
+        ),
+      ),
+    ),
+  );
 }
