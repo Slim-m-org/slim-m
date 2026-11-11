@@ -3,6 +3,8 @@
 /// action first and the long option list only when asked.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -40,6 +42,30 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    return LayoutBuilder(
+      builder: (context, box) =>
+          _group(context, tokens, _summaryRoom(context, box.maxWidth)),
+    );
+  }
+
+  /// What is left of the row once the title, chevron, gaps and insets have
+  /// their natural width, so the summary gives way before the title does.
+  double _summaryRoom(BuildContext context, double width) {
+    final title = TextPainter(
+      text: TextSpan(
+        text: widget.title,
+        style: AppText.ui.copyWith(fontWeight: AppWeights.medium),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    const chrome =
+        2 * AppCardRowScope.inset + AppSizes.icon16 + 2 * AppSpacing.s8;
+    return math.max(0, width - title.width - chrome);
+  }
+
+  Widget _group(BuildContext context, AppTokens tokens, double summaryRoom) {
     return SettingsRowGroup(
       children: [
         AppListRow(
@@ -52,9 +78,12 @@ class _SettingsDisclosureState extends State<SettingsDisclosure> {
             mainAxisSize: MainAxisSize.min,
             spacing: AppSpacing.s8,
             children: [
-              Flexible(
+              // The row's trailing slot is unbounded, so the cap lives here.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: summaryRoom),
                 child: Text(
                   widget.summary,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.ui.copyWith(color: tokens.textSecondary),
                 ),
