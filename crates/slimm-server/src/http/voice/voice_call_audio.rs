@@ -17,12 +17,12 @@ use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
 use super::super::module_host::call_audio_approved;
-use crate::call_audio::session::{Refused, Subject};
+use crate::call_audio::session::{Consumer, Refused, Subject};
 use crate::call_audio::{CallAudioView, Outcome, RequestError, runtime};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{InstalledModule, now_ms};
+use crate::store::{InstalledModule, TranscriptionMode, now_ms};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -45,10 +45,30 @@ struct StartableDto {
 }
 
 #[derive(Serialize)]
-struct CallAudioDto {
+pub(super) struct CallAudioDto {
     session: Option<CallAudioView>,
     /// The modules this caller may start here; empty while a session is on.
     startable: Vec<StartableDto>,
+    /// The Space's transcription mode: `off`, `on_request` or `always`.
+    transcription: &'static str,
+    /// Whether the server's own transcript may be asked for here now.
+    transcribable: bool,
+}
+
+impl CallAudioDto {
+    /// What a route returns once it has changed the session: nothing left to start.
+    pub(super) fn of_session(session: CallAudioView) -> Self {
+        Self::quiet(Some(session))
+    }
+
+    fn quiet(session: Option<CallAudioView>) -> Self {
+        Self {
+            session,
+            startable: Vec::new(),
+            transcription: "off",
+            transcribable: false,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -61,7 +81,11 @@ struct ConsentRequest {
     allow: bool,
 }
 
-async fn voice_channel(state: &AppState, user: UserId, raw: &str) -> Result<ChannelId, ApiError> {
+pub(super) async fn voice_channel(
+    state: &AppState,
+    user: UserId,
+    raw: &str,
+) -> Result<ChannelId, ApiError> {
     let id = ChannelId(parse_uuid(raw)?);
     let wanted = Permissions::VIEW_CHANNEL.union(Permissions::CONNECT);
     if !state
@@ -101,7 +125,15 @@ async fn show(
     } else {
         startable_for(&state, ctx.user_id, channel).await?
     };
-    Ok(Json(CallAudioDto { session, startable }))
+    let mode = state.store.call_transcription().await?;
+    let transcribable =
+        session.is_none() && mode == TranscriptionMode::OnRequest && state.call_audio.is_ready();
+    Ok(Json(CallAudioDto {
+        session,
+        startable,
+        transcription: mode.as_str(),
+        transcribable,
+    }))
 }
 
 async fn startable_for(
@@ -116,7 +148,7 @@ async fn startable_for(
     for module_id in state.store.call_audio_modules_for_channel(channel).await? {
         if let Ok((_, subject)) = startable_module(state, user, &module_id).await {
             out.push(StartableDto {
-                module_id: subject.module_id,
+                module_id: module_id.clone(),
                 module_name: subject.module_name,
                 purpose: subject.purpose,
                 keeps: subject.keeps,
@@ -157,7 +189,7 @@ async fn startable_module(
         return Err(ApiError::Forbidden);
     }
     let subject = Subject {
-        module_id: module.id.clone(),
+        consumer: Consumer::Module(module.id.clone()),
         module_name: module.name.clone(),
         purpose: declared.purpose,
         keeps: declared.keeps,
@@ -167,7 +199,7 @@ async fn startable_module(
 
 /// Who is on the call per LiveKit's own webhooks, falling back to the SFU whenever they cannot be
 /// trusted: nobody is known, or the channel was never read off the SFU since a restart.
-async fn people_in_call(state: &AppState, channel: ChannelId) -> Vec<UserId> {
+pub(super) async fn people_in_call(state: &AppState, channel: ChannelId) -> Vec<UserId> {
     let live = state.voice.live_state();
     let mut present = live.present(channel);
     if (present.is_empty() || !live.is_reconciled(channel))
@@ -220,23 +252,24 @@ async fn ask(
     if !runtime::apply(&state, began).await {
         return Err(ApiError::Unavailable);
     }
-    Ok(Json(CallAudioDto {
-        session: Some(view),
-        startable: Vec::new(),
-    }))
+    Ok(Json(CallAudioDto::of_session(view)))
 }
 
-async fn visible_view(state: &AppState, viewer: UserId, outcome: &Outcome) -> CallAudioView {
+pub(super) async fn visible_view(
+    state: &AppState,
+    viewer: UserId,
+    outcome: &Outcome,
+) -> CallAudioView {
     let mut view = outcome.view.clone();
     view.hide_hidden(&state.store, &state.hub, viewer).await;
     view
 }
 
-fn request_error(err: RequestError) -> ApiError {
+pub(super) fn request_error(err: RequestError) -> ApiError {
     match err {
         RequestError::Unavailable => ApiError::Unavailable,
         RequestError::Busy => ApiError::Conflict("busy: the listener is hearing other calls"),
-        RequestError::AlreadyOn => ApiError::Conflict("a module is already hearing this call"),
+        RequestError::AlreadyOn => ApiError::Conflict("this call is already being heard"),
         RequestError::TooManyPeople => ApiError::Conflict("too many people are in this call"),
         RequestError::Cooldown(ms) => ApiError::RateLimited {
             retry_after_seconds: u64::try_from(ms / 1000 + 1).unwrap_or(60),
@@ -253,6 +286,7 @@ async fn consent(
 ) -> Result<Json<CallAudioDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel = voice_channel(&state, ctx.user_id, &channel).await?;
+    refuse_if_automatic(&state, channel)?;
     let outcome = state
         .call_audio
         .consent(channel, ctx.user_id, req.allow, now_ms())
@@ -267,10 +301,17 @@ async fn consent(
         session = None;
     }
     runtime::apply(&state, outcome).await;
-    Ok(Json(CallAudioDto {
-        session,
-        startable: Vec::new(),
-    }))
+    Ok(Json(CallAudioDto::quiet(session)))
+}
+
+/// A session the Space runs for every call has nobody to ask and nobody who may stop it.
+fn refuse_if_automatic(state: &AppState, channel: ChannelId) -> Result<(), ApiError> {
+    match state.call_audio.view(channel) {
+        Some(view) if view.automatic => Err(ApiError::Conflict(
+            "this Space transcribes every call; it cannot be stopped from the call",
+        )),
+        _ => Ok(()),
+    }
 }
 
 fn refused(err: Refused) -> ApiError {
@@ -287,6 +328,7 @@ async fn stop(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel = voice_channel(&state, ctx.user_id, &channel).await?;
+    refuse_if_automatic(&state, channel)?;
     let outcome = state
         .call_audio
         .stop(channel, ctx.user_id, now_ms())

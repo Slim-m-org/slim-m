@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE call_transcripts SET ended_at = COALESCE(\n                 (SELECT MAX(at) FROM call_transcript_lines WHERE transcript_id = call_transcripts.id),\n                 started_at)\n             WHERE ended_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "02c42aa5ccfc6db37f3f2f0b79757d036b20cb194aa03f85c75097f56b114ec2"
+}

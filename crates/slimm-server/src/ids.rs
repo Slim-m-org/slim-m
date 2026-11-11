@@ -62,6 +62,10 @@ uuid_id!(
     "A DM call's ring-attempt identity: minted fresh per ring, never persisted, so a client can tell today's ring apart from a rapid retry of the same call."
 );
 uuid_id!(
+    CallTranscriptId,
+    "A call transcript's identity: the id of the call-audio session that wrote it."
+);
+uuid_id!(
     InteractionId,
     "A button click awaiting its bot's answer, chosen by the clicking client so a retry is the same click."
 );

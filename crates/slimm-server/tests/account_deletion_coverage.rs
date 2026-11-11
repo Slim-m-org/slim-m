@@ -62,6 +62,8 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ("bot_tokens", "bot_user_id", OnDelete::Purge),
     ("bot_tokens", "created_by", OnDelete::Anonymize),
     ("call_records", "caller_id", OnDelete::Anonymize),
+    ("call_transcript_lines", "speaker_id", OnDelete::Purge),
+    ("call_transcripts", "started_by", OnDelete::Anonymize),
     ("canvas_audit_log", "actor_id", OnDelete::Anonymize),
     ("canvas_media_slots", "user_id", OnDelete::Purge),
     ("canvas_object_locks", "locked_by", OnDelete::Anonymize),

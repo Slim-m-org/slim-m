@@ -24,8 +24,8 @@ use crate::hub::Event;
 use crate::ids::ChannelId;
 use crate::ratelimit::Class;
 use crate::store::{
-    JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS, MAX_WELCOME_MESSAGE_CHARS,
-    SpaceWelcome, TotpPolicy,
+    JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS, MAX_TRANSCRIPT_RETENTION_DAYS,
+    MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome, TotpPolicy, TranscriptionMode,
 };
 
 const BODY_LIMIT: usize = 4 * 1024;
@@ -68,6 +68,12 @@ struct SpaceSettingsDto {
     welcome_channel_id: Option<String>,
     /// The welcome template; `{user}` and `{space}` are filled in.
     welcome_message: String,
+    /// Whether the server transcribes calls: `off`, `on_request` or `always`.
+    call_transcription: &'static str,
+    /// Days a finished call transcript is kept, or null to keep it forever.
+    call_transcript_retention_days: Option<i64>,
+    /// False when the call audio listener is not configured, so transcription cannot be turned on.
+    call_transcription_available: bool,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -86,6 +92,47 @@ struct UpdateSpaceSettingsDto {
     /// An empty string clears the channel.
     welcome_channel_id: Option<String>,
     welcome_message: Option<String>,
+    call_transcription: Option<String>,
+    /// Absent leaves it alone; null keeps transcripts forever.
+    #[serde(default, deserialize_with = "present")]
+    call_transcript_retention_days: Option<Option<i64>>,
+}
+
+fn present<'de, D>(deserializer: D) -> Result<Option<Option<i64>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<i64>::deserialize(deserializer).map(Some)
+}
+
+/// Parses the two transcript settings before anything is written. Turning transcription on
+/// needs the listener, so a Space without one refuses rather than offering what cannot run.
+fn transcript_settings(
+    state: &AppState,
+    body: &UpdateSpaceSettingsDto,
+) -> Result<(Option<TranscriptionMode>, Option<Option<i64>>), ApiError> {
+    let mode = match body.call_transcription.as_deref() {
+        None => None,
+        Some(raw) => {
+            let mode = TranscriptionMode::parse(raw).ok_or(ApiError::BadRequest(
+                "call_transcription must be off, on_request or always",
+            ))?;
+            if mode != TranscriptionMode::Off && !state.call_audio.is_enabled() {
+                return Err(ApiError::Conflict(
+                    "call transcription needs the call audio listener, which this server does not have",
+                ));
+            }
+            Some(mode)
+        }
+    };
+    if let Some(Some(days)) = body.call_transcript_retention_days
+        && !(1..=MAX_TRANSCRIPT_RETENTION_DAYS).contains(&days)
+    {
+        return Err(ApiError::BadRequest(
+            "call_transcript_retention_days must be between 1 and 3650, or null",
+        ));
+    }
+    Ok((mode, body.call_transcript_retention_days))
 }
 
 async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
@@ -107,6 +154,9 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         welcome_enabled: welcome.enabled,
         welcome_channel_id: welcome.channel_id.map(|id| id.to_string()),
         welcome_message: welcome.message,
+        call_transcription: state.store.call_transcription().await?.as_str(),
+        call_transcript_retention_days: state.store.call_transcript_retention_days().await?,
+        call_transcription_available: state.call_audio.is_enabled(),
     })
 }
 
@@ -267,12 +317,15 @@ async fn update(
         && body.welcome_enabled.is_none()
         && body.welcome_channel_id.is_none()
         && body.welcome_message.is_none()
+        && body.call_transcription.is_none()
+        && body.call_transcript_retention_days.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch or a welcome field",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite, hide_bots_in_member_list, a module display switch, a welcome field or a call transcript setting",
         ));
     }
     let welcome = merged_welcome(&state, &body).await?;
+    let (transcription, retention) = transcript_settings(&state, &body)?;
     let name = body.name.as_deref().map(validate_name).transpose()?;
     let changes_version = name.is_some()
         || body.description.is_some()
@@ -280,7 +333,8 @@ async fn update(
         || body.members_can_invite.is_some()
         || body.hide_bots_in_member_list.is_some()
         || body.module_member_badges.is_some()
-        || body.module_profile_sections.is_some();
+        || body.module_profile_sections.is_some()
+        || transcription.is_some();
     let description = body
         .description
         .as_deref()
@@ -331,6 +385,12 @@ async fn update(
             .store
             .set_module_display(body.module_member_badges, body.module_profile_sections)
             .await?;
+    }
+    if let Some(mode) = transcription {
+        state.store.set_call_transcription(mode).await?;
+    }
+    if let Some(days) = retention {
+        state.store.set_call_transcript_retention_days(days).await?;
     }
     // Everything above that `/version` shows, so every member's client re-reads it.
     if changes_version {

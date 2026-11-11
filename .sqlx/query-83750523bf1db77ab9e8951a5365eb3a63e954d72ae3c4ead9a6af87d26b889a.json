@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CallTranscriptId\", started_at FROM call_transcripts\n               WHERE channel_id = ? AND started_at >= ? ORDER BY started_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CallTranscriptId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "started_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "83750523bf1db77ab9e8951a5365eb3a63e954d72ae3c4ead9a6af87d26b889a"
+}

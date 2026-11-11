@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO call_transcripts (id, channel_id, started_at, mode, started_by)\n             VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "221bb634bf6d515057a0eea8a57dccbb62b8f639bf84f93bb4dd26e0b97576fd"
+}

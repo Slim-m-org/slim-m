@@ -149,7 +149,11 @@ async fn track_call_audio(
             return;
         }
         if joined {
-            state.call_audio.joined(channel, user, now)
+            let heard = state.call_audio.joined(channel, user, now);
+            if heard.is_none() {
+                super::voice_transcription::ensure_always(state, channel, user).await;
+            }
+            heard
         } else {
             state.call_audio.left(channel, user, now)
         }

@@ -94,6 +94,7 @@ mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
 mod attachment_originals;
+mod call_transcripts;
 mod favorites;
 mod hold_music;
 mod login_throttle;
@@ -146,6 +147,10 @@ pub use bot_prefix::SetBotPrefixError;
 pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
+pub use call_transcripts::{
+    CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,
+    TranscriptHit, TranscriptLine, TranscriptionMode,
+};
 pub use calls::CallRecord;
 pub use canvas::canvas_batch::{BatchError, BatchItem};
 pub(crate) use canvas::valid_bounds;

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE call_transcripts SET ended_at = ? WHERE id = ? AND ended_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3db939bde50ae13de4700d1263d5c9681a0358eda1c38dffc9687901875c79e5"
+}

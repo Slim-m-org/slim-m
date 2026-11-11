@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT seq, speaker_id AS \"speaker_id!: UserId\", at, text\n               FROM call_transcript_lines WHERE transcript_id = ? AND seq > ?\n               ORDER BY seq LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "seq",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "speaker_id!: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "at",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "text",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "025a686b2056f50b552e44d7d6197b20303d412e866abd0d86f6648ad2fd8a0d"
+}

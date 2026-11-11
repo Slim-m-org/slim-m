@@ -66,6 +66,11 @@ const UNCOVERED: &[(&str, &str)] = &[
          tests/call_audio.rs drives every outcome of it against a fake listener.",
     ),
     (
+        "requestVoiceTranscript",
+        "needs a connected listener and the on_request mode; tests/call_transcripts.rs \
+         drives it against a fake listener.",
+    ),
+    (
         "stopVoiceCallAudio",
         "needs a running session, which needs a connected listener; it can only answer \
          404 here. tests/call_audio.rs covers its 204.",

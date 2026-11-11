@@ -45,6 +45,8 @@ pub enum EndReason {
     ModuleDisabled,
     ChannelRemoved,
     ListenerUnavailable,
+    /// The Space turned transcription off while the server was transcribing.
+    TranscriptionOff,
     /// The person who asked left before anyone answered; nobody refused.
     RequesterLeft,
 }
@@ -61,6 +63,7 @@ impl EndReason {
             Self::ModuleDisabled => "module_disabled",
             Self::ChannelRemoved => "channel_removed",
             Self::ListenerUnavailable => "listener_unavailable",
+            Self::TranscriptionOff => "transcription_off",
         }
     }
 
@@ -88,10 +91,26 @@ pub enum Refused {
     NotInCall,
 }
 
-/// What a person is shown about the module.
+/// Who a call is being heard for: one module, or the server's own transcript (decision 0113).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Consumer {
+    Module(String),
+    Transcript,
+}
+
+impl Consumer {
+    pub fn module_id(&self) -> Option<&str> {
+        match self {
+            Self::Module(id) => Some(id),
+            Self::Transcript => None,
+        }
+    }
+}
+
+/// What a person is shown about who hears the call.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subject {
-    pub module_id: String,
+    pub consumer: Consumer,
     pub module_name: String,
     pub purpose: String,
     pub keeps: String,
@@ -106,6 +125,8 @@ pub struct Session {
     pub status: Status,
     pub expires_at_ms: i64,
     pub started_at_ms: Option<i64>,
+    /// Nobody is asked: everyone is included as they join (the `always` mode).
+    auto_include: bool,
     answers: BTreeMap<UserId, Answer>,
 }
 
@@ -133,15 +154,46 @@ impl Session {
             status: Status::Asking,
             expires_at_ms: now + ASK_WINDOW_MS,
             started_at_ms: None,
+            auto_include: false,
             answers,
         };
         let effects = session.start_if_unanimous(now);
         Some((session, effects))
     }
 
+    /// A session nobody is asked about: it is on at once, with everyone in `present`
+    /// included. `None` when the call is empty or too large to hold.
+    pub fn always(
+        (id, channel, subject): (Uuid, ChannelId, Subject),
+        present: &[UserId],
+        now: i64,
+    ) -> Option<(Self, Vec<Effect>)> {
+        let answers: BTreeMap<UserId, Answer> = present.iter().map(|u| (*u, Answer::Yes)).collect();
+        if answers.is_empty() || answers.len() > MAX_INCLUDED {
+            return None;
+        }
+        let session = Self {
+            id,
+            channel,
+            subject,
+            requested_by: present[0],
+            status: Status::On,
+            expires_at_ms: now + TIME_LIMIT_MS,
+            started_at_ms: Some(now),
+            auto_include: true,
+            answers,
+        };
+        Some((session, vec![Effect::Start]))
+    }
+
     /// Everyone who said yes, in a stable order: the only people the listener may hear.
     pub fn include(&self) -> Vec<UserId> {
         self.with_answer(Answer::Yes)
+    }
+
+    /// Whether nobody was asked, so nobody can turn it off for the call.
+    pub fn is_automatic(&self) -> bool {
+        self.auto_include
     }
 
     /// Everyone who has not answered.
@@ -214,6 +266,16 @@ impl Session {
     pub fn join(&mut self, user: UserId) -> Vec<Effect> {
         if self.answers.contains_key(&user) || self.is_full() {
             return Vec::new();
+        }
+        if self.auto_include {
+            self.answers.insert(user, Answer::Yes);
+            return vec![
+                Effect::Participant {
+                    user_id: user,
+                    included: true,
+                },
+                Effect::Include,
+            ];
         }
         self.answers.insert(user, Answer::Pending);
         Vec::new()

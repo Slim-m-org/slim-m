@@ -420,6 +420,15 @@ async fn channel_frame(
             state,
             ended,
         },
+        Event::CallTranscriptChanged {
+            channel_id,
+            transcript_id,
+            ended,
+        } => ServerFrame::VoiceCallTranscript {
+            channel_id: channel_id.to_string(),
+            transcript_id: transcript_id.to_string(),
+            ended,
+        },
         Event::WatchTick {
             channel_id,
             bot_user_id,

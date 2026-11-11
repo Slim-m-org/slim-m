@@ -5,7 +5,7 @@
 //! then marked ready by hand.
 
 use super::protocol::FromListener;
-use super::session::{Effect, EndReason, Subject};
+use super::session::{Consumer, Effect, EndReason, Subject};
 use super::*;
 
 fn service(max_sessions: u32) -> CallAudio {
@@ -21,7 +21,7 @@ fn service(max_sessions: u32) -> CallAudio {
 
 fn subject() -> Subject {
     Subject {
-        module_id: "transcript".into(),
+        consumer: Consumer::Module("transcript".into()),
         module_name: "Transcript".into(),
         purpose: "p".into(),
         keeps: "k".into(),

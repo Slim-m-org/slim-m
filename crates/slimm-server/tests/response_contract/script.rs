@@ -388,6 +388,55 @@ pub async fn run(c: &mut Contract) {
         root,
     )
     .await;
+    let transcript = slimm_server::ids::CallTranscriptId::generate();
+    c.state
+        .store
+        .begin_call_transcript(&slimm_server::store::NewTranscript {
+            id: transcript,
+            channel_id: call_audio_channel.id,
+            started_at: now - 5000,
+            mode: slimm_server::store::TranscriptionMode::Always,
+            started_by: None,
+        })
+        .await
+        .unwrap();
+    c.state
+        .store
+        .append_call_transcript_line(transcript, caller, now - 4000, "hello transcript")
+        .await
+        .unwrap();
+    c.get(
+        "getVoiceTranscript",
+        &format!("/voice/transcripts/{transcript}"),
+        root,
+    )
+    .await;
+    c.get(
+        "searchVoiceTranscripts",
+        "/search/transcripts?q=hello",
+        root,
+    )
+    .await;
+    c.get(
+        "getVoiceTranscriptionNotice",
+        "/voice/transcription-notice",
+        root,
+    )
+    .await;
+    c.bare(
+        "acknowledgeVoiceTranscriptionNotice",
+        "POST",
+        "/voice/transcription-notice/ack",
+        root,
+    )
+    .await;
+    c.bare(
+        "deleteVoiceTranscript",
+        "DELETE",
+        &format!("/voice/transcripts/{transcript}"),
+        root,
+    )
+    .await;
     c.json(
         "setVoiceNotification",
         "PUT",

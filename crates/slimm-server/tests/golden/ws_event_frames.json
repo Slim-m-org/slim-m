@@ -13,6 +13,7 @@
   "{\"channel_id\":\"CHANNEL\",\"ended\":\"declined\",\"state\":null,\"type\":\"voice.call_audio\"}",
   "{\"channel_id\":\"CHANNEL\",\"ended\":false,\"h\":4.0,\"kind\":\"screen\",\"slot_user_id\":\"ALICE\",\"type\":\"canvas.media_slot_preview.updated\",\"user_id\":\"BOB\",\"w\":3.0,\"x\":1.0,\"y\":2.0}",
   "{\"channel_id\":\"CHANNEL\",\"ended\":true,\"h\":4.0,\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"type\":\"canvas.object_preview.updated\",\"user_id\":\"BOB\",\"w\":3.0,\"x\":1.0,\"y\":2.0}",
+  "{\"channel_id\":\"CHANNEL\",\"ended\":true,\"transcript_id\":\"01900000-0000-7000-8000-00000000000c\",\"type\":\"call.transcript_changed\"}",
   "{\"channel_id\":\"CHANNEL\",\"h\":4.0,\"kind\":\"camera\",\"locked\":true,\"sent_to_back\":false,\"type\":\"canvas.media_slot.changed\",\"user_id\":\"BOB\",\"version\":2,\"w\":3.0,\"x\":1.0,\"y\":2.0}",
   "{\"channel_id\":\"CHANNEL\",\"h\":4.0,\"object_id\":\"01900000-0000-7000-8000-000000000002\",\"op_id\":\"01900000-0000-7000-8000-000000000003\",\"seq\":8,\"type\":\"canvas.object.moved\",\"w\":3.0,\"x\":1.0,\"y\":2.0}",
   "{\"channel_id\":\"CHANNEL\",\"h\":4.0,\"summon\":true,\"tile\":\"tile\",\"type\":\"canvas.view.updated\",\"user_id\":\"BOB\",\"w\":3.0,\"x\":1.0,\"y\":2.0}",
