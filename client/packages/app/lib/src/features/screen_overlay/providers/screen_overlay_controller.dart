@@ -2,8 +2,9 @@
 /// Runs the drawing consent and the overlay window (decision 0096).
 /// Consent is live while viewers may draw and a screen or window is shared. The
 /// overlay is up on top of that when this desktop can host it and a whole screen
-/// is shared; or it shows the call panel (allowed, in a call, not sharing a
-/// whole screen). The two window uses are never wanted together.
+/// is shared; or it shows the call panel (allowed, in a call). On Linux the two
+/// share one window and are never wanted together, since the panel would land in
+/// the stream; on Windows the panel has its own window, which capture excludes.
 library;
 
 import 'dart:async';
@@ -80,6 +81,9 @@ class ScreenOverlayState {
 /// Interval between repaints while a mark is alive.
 const overlayFrameInterval = Duration(milliseconds: 33);
 
+/// Whether this host is Windows, where the overlay windows are excluded from capture; a provider so a test can switch it.
+final overlayHostIsWindowsProvider = Provider<bool>((ref) => isWindowsHost);
+
 /// Asks the Linux portal which monitor its chooser picked; a provider so a test can answer.
 final portalSharedMonitorProvider = Provider<Future<PortalMonitor?> Function()>(
   (ref) => portalSharedMonitor,
@@ -119,6 +123,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   String? _channelId;
   String? _selfId;
   double? _overlayAspect;
+  late final bool _windows = _ref.read(overlayHostIsWindowsProvider);
   bool _panelUp = false;
   int _panelMonitor = 0;
   OverlayPanel? _lastPanel;
@@ -155,14 +160,14 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   bool get _wanted =>
       _support.supported && _consentWanted && _sharingWholeScreen;
 
-  /// Hidden while a whole screen is shared, since Linux cannot keep the panel out of the stream.
+  /// Hidden while a whole screen is shared on Linux, which cannot keep the panel out of the stream.
   bool get _panelWanted {
     final flags = _ref.read(voiceFlagsProvider);
     return _support.supported &&
         _ref.read(voiceSettingsControllerProvider).callOverlayEnabled &&
         flags.channelId != null &&
         flags.state == VoiceSessionState.connected &&
-        !_sharingWholeScreen;
+        (_windows || !_sharingWholeScreen);
   }
 
   /// A probe that ran before the window was up can read unsupported for good, so each join asks again.
@@ -185,7 +190,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         if (!_consentWanted && state.consenting) await _stop();
         if (_consentWanted && !state.consenting) await _begin();
         if (_consentWanted && state.consenting) await _syncOverlay();
-        final panel = !state.active && _panelWanted;
+        final panel = (_windows || !state.active) && _panelWanted;
         if (panel && !_panelUp) await _startPanel();
         if (!panel && _panelUp) await _stopPanel();
       } while (_again && mounted);
@@ -250,12 +255,13 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final monitors = _support.monitors;
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
-    final portal = isWindowsHost ? null : await _portalMonitor();
+    final portal = _windows ? null : await _portalMonitor();
     if (!mounted) return false;
     final candidates = pickSharedMonitors(
       monitors,
       portalOrigin: portal == null ? null : (x: portal.x, y: portal.y),
-      screenNumber: isWindowsHost
+      sourceId: _windows ? controller.share.lastShareSourceId : null,
+      screenNumber: _windows
           ? screenNumberFromLabel(controller.share.lastShareSource?.name ?? '')
           : null,
       capturedSize: captured == null
@@ -268,8 +274,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       _ref.read(voiceSettingsControllerProvider).callOverlayScreen,
     );
     final covered = preferChosenScreen(candidates, chosen);
-    // Showing replaces any panel window, which is why the panel is forgotten rather than hidden.
-    _forgetPanel();
+    // On Linux showing replaces the panel window, which is why the panel is forgotten rather than hidden.
+    if (!_windows) _forgetPanel();
     _draws.reset();
     if (!await _window.show(covered)) return false;
     _overlayAspect = sharedAspect(monitors, covered);
@@ -293,7 +299,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       await _window.appMonitor(),
       chosen: _ref.read(voiceSettingsControllerProvider).callOverlayScreen,
     );
-    if (!await _window.show([monitor]) || !mounted) return;
+    if (!_windows && !await _window.show([monitor])) return;
+    if (!mounted) return;
     _panelMonitor = monitor;
     _forgetPanel();
     _panelUp = true;
@@ -301,7 +308,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   Future<void> _stopPanel() async {
     _forgetPanel();
-    await _window.hide();
+    await (_windows ? _window.panel(null) : _window.hide());
   }
 
   /// A new or closed window holds none of what was sent before, so nothing is assumed sent.
@@ -417,9 +424,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     unawaited(_events?.cancel());
     _draws.reset();
     if (state.consenting) _sendConsent(allowed: false);
-    if (state.active || _panelUp) {
+    if (state.active || (_panelUp && !_windows)) {
       unawaited(_window.hide());
     }
+    if (_panelUp && _windows) unawaited(_window.panel(null));
     _forgetPanel();
     super.dispose();
   }

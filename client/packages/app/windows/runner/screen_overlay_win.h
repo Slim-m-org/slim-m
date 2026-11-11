@@ -17,6 +17,12 @@ struct Monitor {
   int width = 0;
   int height = 0;
   bool primary = false;
+  // GDI device name, such as \\.\DISPLAY1; what the capture order is matched on.
+  std::wstring device;
+  // libwebrtc's screen id for this monitor, or -1 when it is not an active display device.
+  int device_index = -1;
+  // This monitor's 0-based place in libwebrtc's "Screen N" order, or -1 when unknown.
+  int capture_position = -1;
 };
 
 struct Shape {
@@ -62,15 +68,17 @@ struct Panel {
 // worse than none.
 bool Supported(std::vector<Monitor>* monitors);
 
-// Opens the overlay over monitor index [monitor]; false when it could not be
-// made or could not be hidden from capture.
+// Opens the drawing overlay over monitor index [monitor]; false when it could
+// not be made or could not be hidden from capture. The call panel keeps its own
+// window, so showing or hiding this one never touches it.
 bool Show(int monitor);
 
 void Draw(std::vector<Shape> shapes);
 
+// Closes the drawing overlay.
 void Hide();
 
-// Paints the panel on the overlay window when it is over the panel's monitor; a panel that is not present clears it.
+// Paints the panel in its own overlay window over the panel's monitor; a panel that is not present closes that window.
 void SetPanel(Panel panel);
 
 // The index of the monitor the app's own window is on, or -1 when that cannot be told.
