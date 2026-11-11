@@ -18,11 +18,14 @@
 /// row asks directly instead of depending on one.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/voice_controller.dart';
 import '../providers/voice_elsewhere.dart';
 import '../providers/voice_flags.dart';
 import '../../../routing/routes.dart';
@@ -42,12 +45,23 @@ void openVoiceChannel(
     channelId: channelId,
     alreadySelected: alreadySelected,
   )) {
-    final last = container.read(voiceRejoinRequestProvider);
-    container.read(voiceRejoinRequestProvider.notifier).state = (
-      channelId: channelId,
-      n: (last?.n ?? 0) + 1,
-    );
+    unawaited(_rejoinOrAsk(container, channelId));
   }
+}
+
+Future<void> _rejoinOrAsk(ProviderContainer container, String channelId) async {
+  final elsewhere = await container.read(voiceElsewhereCheckProvider)(
+    channelId,
+  );
+  if (elsewhere == null) {
+    await container.read(voiceControllerProvider.notifier).join(channelId);
+    return;
+  }
+  final last = container.read(voiceRejoinRequestProvider);
+  container.read(voiceRejoinRequestProvider.notifier).state = (
+    channelId: channelId,
+    n: (last?.n ?? 0) + 1,
+  );
 }
 
 /// [alreadySelected] is whether this row's channel was already the one on

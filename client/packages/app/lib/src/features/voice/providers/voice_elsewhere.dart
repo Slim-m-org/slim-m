@@ -62,7 +62,7 @@ Future<bool> _targetListsSelf(Ref ref, String channelId) async {
   try {
     final roster = await client.voiceRoster(channelId);
     return roster.any((p) => p.userId == selfId);
-  } on api.ApiException catch (error, stack) {
+  } catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.voice,
       'Could not check for a call on another device',
