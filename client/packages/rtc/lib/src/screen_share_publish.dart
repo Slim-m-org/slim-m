@@ -11,6 +11,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'screen_share.dart';
 import 'screen_share_audio_options.dart';
+import 'screen_share_cursor.dart';
 import 'screen_share_source_size.dart';
 import 'video_publish_options.dart';
 // ignore: implementation_imports
@@ -30,6 +31,7 @@ Future<void> publishScreenShare(
       measureSource,
 }) async {
   if (participant == null) return;
+  if (enabled) applyShareCursor();
   if (!_publishesDirectly(participant, enabled)) {
     await participant.setScreenShareEnabled(
       enabled,

@@ -122,6 +122,13 @@ class VideoQualitySection extends ConsumerWidget {
                 onChanged: notifier.setScreenShareIncludeAudio,
               ),
             SettingsToggleRow(
+              label: 'Show my cursor',
+              description: 'Viewers see your mouse pointer in the share.',
+              value: settings.screenShareShowCursor,
+              semanticLabel: 'Show my mouse cursor in a screen share',
+              onChanged: notifier.setScreenShareShowCursor,
+            ),
+            SettingsToggleRow(
               label: 'Viewers draw on my screen',
               description:
                   'Their marks show on the screen you share for a few seconds.',
