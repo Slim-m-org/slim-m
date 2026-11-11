@@ -56,11 +56,15 @@ class CallTimelineModel {
   const CallTimelineModel({
     required this.startedAt,
     required this.endedAt,
+    required this.ongoing,
     required this.lanes,
     required this.moments,
   });
 
   final int startedAt;
+
+  /// [endedAt] is the time it was drawn at, since the call has not ended.
+  final bool ongoing;
   final int endedAt;
   final List<CallLane> lanes;
   final List<CallMoment> moments;
@@ -100,6 +104,7 @@ class _TimelineBuilder {
     return CallTimelineModel(
       startedAt: call.startedAt,
       endedAt: end,
+      ongoing: call.ongoing,
       lanes: [for (final user in order) _laneFor(user)],
       moments: moments,
     );

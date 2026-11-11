@@ -296,6 +296,56 @@ void main() {
     expect(find.textContaining('3 h 30 min'), findsOneWidget);
   });
 
+  testWidgets('a call still going after you left leads, up to now', (
+    tester,
+  ) async {
+    final morning = _now - 50 * _min;
+    final going = api.VoiceCall(
+      startedAt: morning,
+      endedAt: null,
+      events: [
+        api.VoiceCallEvent(
+          at: morning,
+          userId: 'nick',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        api.VoiceCallEvent(
+          at: morning + 2 * _min,
+          userId: 'kiki',
+          kind: api.VoiceCallEventKind.joined,
+        ),
+        api.VoiceCallEvent(
+          at: morning + 40 * _min,
+          userId: 'nick',
+          kind: api.VoiceCallEventKind.left,
+        ),
+      ],
+      canvas: const [],
+    );
+    await _pump(
+      tester,
+      onJoin: () {},
+      history: api.VoiceCallHistory(
+        retentionDays: 30,
+        canvasObjectCount: 0,
+        calls: [going, ..._history().calls],
+      ),
+    );
+    expect(find.text('This call'), findsOneWidget);
+    expect(find.text('Last call'), findsNothing, reason: 'not yesterday');
+    expect(find.textContaining('–now · 50 min'), findsOneWidget);
+    expect(
+      find.textContaining('–now'),
+      findsNWidgets(2),
+      reason: 'and its row',
+    );
+
+    await tester.tap(find.text('Yest.'));
+    await tester.pump();
+    expect(find.text('Call'), findsOneWidget);
+    expect(find.text('This call'), findsNothing);
+  });
+
   testWidgets('earlier calls line their columns up', (tester) async {
     await _pump(tester, onJoin: () {}, history: _history());
     final wide = tester.getTopLeft(find.text('3 h 30'));

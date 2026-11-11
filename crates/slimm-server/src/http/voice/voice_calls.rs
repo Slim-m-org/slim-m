@@ -15,7 +15,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, Query, enforce};
 use super::super::messages::parse_uuid;
-use crate::call_history::segment;
+use crate::call_history::{Call, segment};
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::Visibility;
@@ -98,7 +98,11 @@ async fn list(
     };
 
     let mut calls = Vec::new();
-    for call in segment(&events, &present).into_iter().take(limit) {
+    for call in segment(&events, &present)
+        .into_iter()
+        .filter(Call::is_listed)
+        .take(limit)
+    {
         let end = call.ended_at.unwrap_or_else(crate::store::now_ms);
         let canvas = state
             .store
