@@ -21,6 +21,12 @@ String screenSourceCaption(List<ScreenShareSource> sources, {bool? windows}) {
       'captured as a window; share the screen instead.';
 }
 
+/// Some windows report no title; a blank row cannot be told from its neighbours.
+String screenSourceLabel(ScreenShareSource source) {
+  if (source.name.trim().isNotEmpty) return source.name;
+  return source.isWindow ? 'Untitled window' : 'Untitled screen';
+}
+
 /// Returns the chosen source, or null if the sheet was dismissed.
 ///
 /// [selectedId] marks whichever source is already in effect - non-null when
@@ -41,7 +47,7 @@ Future<ScreenShareSource?> showScreenSourceSheet(
     icon: AppIcons.screenShare,
     iconOf: (s) => s.isWindow ? AppIcons.windowRestore : AppIcons.screenShare,
     items: sources,
-    labelOf: (source) => source.name,
+    labelOf: screenSourceLabel,
     isSelected: selectedId == null ? null : (s) => s.id == selectedId,
   );
 }
