@@ -67,6 +67,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "user_id",
         Fate::Excluded("the export jobs themselves, not content"),
     ),
+    (
+        "debug_logs",
+        "user_id",
+        Fate::Excluded("a diagnostic log sent to the admins and swept after 30 days, not content"),
+    ),
     ("devices", "user_id", Fate::Excluded(CREDENTIAL)),
     ("dm_channels", "user_a", Fate::Excluded(SOMEONE_ELSE)),
     ("dm_channels", "user_b", Fate::Excluded(SOMEONE_ELSE)),

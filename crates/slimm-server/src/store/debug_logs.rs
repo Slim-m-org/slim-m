@@ -48,7 +48,7 @@ impl Store {
     ) -> anyhow::Result<(i64, i64)> {
         let created_at = now_ms();
         let size = i64::try_from(new.log.len())?;
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin_write().await?;
         let id = sqlx::query_scalar!(
             r#"INSERT INTO debug_logs (user_id, note, app_version, platform, log, size_bytes, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id AS "id!: i64""#,
