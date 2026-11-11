@@ -8,16 +8,16 @@ void main() {
   const window = ScreenShareSource(id: '42', name: 'Game', isWindow: true);
 
   test(
-    'Windows with window sources says which fullscreen cannot be captured',
+    'Windows with window sources says which fullscreen cannot be shared',
     () {
       final caption = screenSourceCaption([screen, window], windows: true);
-      expect(caption, contains('exclusive fullscreen'));
-      expect(caption, contains('share the screen instead'));
+      expect(caption, contains('fullscreen games cannot be shared'));
+      expect(caption.length, lessThan(120));
     },
   );
 
   test('a screens-only list or another platform keeps the plain caption', () {
-    const plain = 'Everyone in the call will see it until you stop sharing.';
+    const plain = 'Everyone in the call sees it until you stop.';
     expect(screenSourceCaption([screen], windows: true), plain);
     expect(screenSourceCaption([screen, window], windows: false), plain);
   });

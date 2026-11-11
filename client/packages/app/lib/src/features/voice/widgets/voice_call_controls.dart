@@ -101,6 +101,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// `VoiceScreenShare.setScreenShare` is ever called, so nothing further down
   /// the stack can catch a re-entrant tap.
   bool _shareRequestInFlight = false;
+  final _shareButtonKey = GlobalKey();
 
   /// The same guard as [_shareRequestInFlight], for [_switchCamera].
   bool _cameraSwitchInFlight = false;
@@ -328,6 +329,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     required bool showCaret,
   }) {
     return CallDockButton(
+      key: _shareButtonKey,
       icon: AppIcons.screenShare,
       tooltip: _shareTooltip(voice),
       active: voice.screenSharing,
@@ -461,6 +463,14 @@ class _CallControlsState extends ConsumerState<CallControls> {
     await _startShare(context, stopFirst: true);
   }
 
+  /// A zero-height strip on the share button's top edge, so the picker rests above the dock.
+  Rect? _pickerAnchor() {
+    final box = _shareButtonKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached) return null;
+    final top = box.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(top.dx, top.dy - AppSpacing.s8, box.size.width, 0);
+  }
+
   Future<void> _startShare(
     BuildContext context, {
     bool stopFirst = false,
@@ -476,6 +486,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         context,
         controller,
         lastSourceId: _lastSourceId,
+        anchorRect: _pickerAnchor(),
       );
       if (!pick.proceed) return;
       final sourceId = pick.id;

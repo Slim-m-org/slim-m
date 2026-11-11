@@ -13,9 +13,12 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/popout_window_view.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_source_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../ui_snapshot_support.dart';
+import 'voice_call_controls_harness.dart';
 import 'voice_controller_harness.dart';
 
 void main() {
@@ -98,5 +101,56 @@ void main() {
     expect(top.height, kPopOutScrimHeight);
     expect(bottom.bottom, 400);
     await teardownFixture(tester, fixture.container, fixture.db);
+  });
+
+  group('the source picker opened from Switch screen', () {
+    const long = 'Firefox - A very long window title that goes on and on.html';
+
+    Future<void> openPicker(WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await pumpControls(
+        tester,
+        const VoiceFlags(
+          state: VoiceSessionState.connected,
+          screenSharing: true,
+        ),
+        session: InertSession(
+          needsSource: true,
+          sources: Future.value(const [
+            ScreenShareSource(id: '1', name: 'Screen 1'),
+            ScreenShareSource(id: 'w', name: long, isWindow: true),
+          ]),
+        ),
+      );
+      await tester.tap(find.byTooltip('Screen share options'));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Switch screen...'));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    testWidgets('opens clear of the dock buttons, not over them', (
+      tester,
+    ) async {
+      await openPicker(tester);
+      final rows = tester.getRect(find.text('Screen 1'));
+      final share = tester.getRect(find.byTooltip(RegExp('^You are sharing')));
+      expect(rows.overlaps(share), isFalse);
+      final caption = tester.getRect(
+        find.text('Everyone in the call sees it until you stop.'),
+      );
+      expect(caption.bottom, lessThan(share.top));
+    });
+
+    testWidgets('a long window title carries a tooltip with the full title', (
+      tester,
+    ) async {
+      await openPicker(tester);
+      expect(find.byTooltip(long), findsOneWidget);
+      expect(find.byTooltip('Screen 1'), findsNothing);
+    });
   });
 }

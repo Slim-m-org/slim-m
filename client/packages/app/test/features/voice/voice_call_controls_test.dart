@@ -236,7 +236,7 @@ void main() {
     expect(session.sourceFetchCount, 1);
     // The sheet's own body copy: its tooltip is also "Share a screen".
     expect(
-      find.text('Everyone in the call will see it until you stop sharing.'),
+      find.text('Everyone in the call sees it until you stop.'),
       findsOneWidget,
     );
   });
@@ -264,7 +264,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Everyone in the call will see it until you stop sharing.'),
+        find.text('Everyone in the call sees it until you stop.'),
         findsNothing,
         reason:
             'xdg-desktop-portal already asks; this sheet would be a second '

@@ -89,9 +89,11 @@ Future<T?> showDeviceChoice<T>(
   required List<T> items,
   required String Function(T item) labelOf,
   bool Function(T item)? isSelected,
+  Rect? anchorRect,
 }) {
   return showAnchoredPopoverOrSheet<T>(
     context,
+    anchorRect: anchorRect,
     sheetScrolls: true,
     sheetBuilder: (_) => DeviceChoiceSheet<T>(
       title: title,
@@ -108,14 +110,25 @@ Future<T?> showDeviceChoice<T>(
       children: [
         AppMenuLabel(title),
         for (final item in items)
-          AppMenuItem(
-            label: labelOf(item),
-            leading: iconOf?.call(item) ?? icon,
-            selected: isSelected?.call(item) ?? false,
-            onTap: () => Navigator.of(context).pop(item),
+          _fullLabelTooltip(
+            labelOf(item),
+            AppMenuItem(
+              label: labelOf(item),
+              leading: iconOf?.call(item) ?? icon,
+              selected: isSelected?.call(item) ?? false,
+              onTap: () => Navigator.of(context).pop(item),
+            ),
           ),
         if (caption case final caption?) AppMenuFootnote(caption),
       ],
     ),
   );
 }
+
+/// The dropdown is 280 wide, so a long window title is cut; hover shows all of it.
+Widget _fullLabelTooltip(String label, Widget row) =>
+    label.length > kDeviceChoiceTruncatesAt
+    ? Tooltip(message: label, child: row)
+    : row;
+
+const kDeviceChoiceTruncatesAt = 26;
