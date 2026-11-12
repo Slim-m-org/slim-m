@@ -338,3 +338,40 @@ async fn a_cooldown_is_forgotten_once_it_has_run_out() {
     call_audio.tick(2_000 + COOLDOWN_MS);
     assert_eq!(call_audio.cooldown_count(), 0);
 }
+
+#[tokio::test]
+async fn a_line_finished_just_after_the_call_ended_is_still_kept() {
+    let call_audio = service(2);
+    let channel = ChannelId::generate();
+    let who = people(2);
+    let outcome = start(&call_audio, channel, &who, 0);
+    call_audio.send_include(channel);
+    call_audio
+        .end(channel, EndReason::CallEnded, 10_000)
+        .expect("the session ends");
+    assert!(call_audio.channels(None).is_empty());
+
+    let late =
+        call_audio.accept_segment(&segment(outcome.session_id, who[0], "last words"), 12_000);
+    assert_eq!(late.map(|s| s.text).as_deref(), Some("last words"));
+    assert!(
+        call_audio
+            .accept_segment(
+                &segment(outcome.session_id, UserId::generate(), "who"),
+                12_001
+            )
+            .is_none(),
+        "the ended session still hears only its include set"
+    );
+
+    call_audio.tick(10_000 + DRAIN_MS);
+    assert!(
+        call_audio
+            .accept_segment(
+                &segment(outcome.session_id, who[0], "too late"),
+                10_000 + DRAIN_MS
+            )
+            .is_none(),
+        "past the drain window nothing is taken"
+    );
+}

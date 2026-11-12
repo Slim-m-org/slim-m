@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The listener against a real `livekit-server --dev`, with the tiny English
-//! model: two people publish a generated voice, only one is included, and
-//! audio frames arrive for that one alone.
+//! model: two people publish a generated voice and only the included one is
+//! heard, and a speaker who publishes after the listener joined is transcribed.
 //!
-//! Opt in with `LISTENER_REAL_LIVEKIT=ws://127.0.0.1:7880`, plus
-//! `LISTENER_TEST_MODEL` (a ggml model file) and `LISTENER_TEST_WAV_SCRIPT`
-//! (`scripts/lib/make_fake_voice.py`). Without them the test passes at once.
+//! Opt in with `LISTENER_REAL_LIVEKIT=ws://127.0.0.1:7880` and
+//! `LISTENER_TEST_MODEL` (a ggml model file), plus `LISTENER_TEST_WAV_SCRIPT`
+//! (`scripts/lib/make_fake_voice.py`) for the first test and
+//! `LISTENER_TEST_SPEECH_WAV` (espeak-ng speech) for the second. Without them
+//! each test passes at once.
 #![cfg(all(feature = "livekit-room", feature = "whisper"))]
 
 use std::collections::HashSet;
@@ -185,4 +187,79 @@ async fn audio_frames_come_only_from_included_identities() {
             assert_eq!(identity, "alice");
         }
     }
+}
+
+/// A mono 16-bit WAV with a 44-byte header (espeak-ng writes one), resampled to [`RATE`].
+fn speech_file(path: &str) -> Vec<i16> {
+    let bytes = std::fs::read(path).unwrap();
+    let rate = u32::from_le_bytes(bytes[24..28].try_into().unwrap()) as usize;
+    let source: Vec<i16> = bytes[44..]
+        .chunks_exact(2)
+        .map(|b| i16::from_le_bytes([b[0], b[1]]))
+        .collect();
+    let length = source.len() * RATE / rate;
+    (0..length)
+        .map(|n| source[(n * rate / RATE).min(source.len() - 1)])
+        .collect()
+}
+
+/// A call's first speaker usually publishes after the listener joined, so this path gets its own test.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_speaker_who_publishes_after_the_listener_joined_is_transcribed() {
+    let (Ok(url), Ok(model), Ok(speech)) = (
+        std::env::var("LISTENER_REAL_LIVEKIT"),
+        std::env::var("LISTENER_TEST_MODEL"),
+        std::env::var("LISTENER_TEST_SPEECH_WAV"),
+    ) else {
+        eprintln!(
+            "skipped: LISTENER_REAL_LIVEKIT, LISTENER_TEST_MODEL and LISTENER_TEST_SPEECH_WAV are not all set"
+        );
+        return;
+    };
+    let room = LiveKitRoom::connect(&url, &token("listener-late", false, true))
+        .await
+        .expect("the listener joins hidden");
+    let heard = Arc::new(Mutex::new(HashSet::new()));
+    let spy = Spy {
+        inner: room,
+        heard: Arc::clone(&heard),
+    };
+    let transcriber = WhisperTranscriber::load(&PathBuf::from(model)).expect("the model loads");
+    let pool = Arc::new(Pool::new(Arc::new(transcriber), 2));
+    let (commands, feed) = unbounded_channel();
+    let (reports, mut seen) = unbounded_channel::<Report>();
+    let params = Params {
+        id: "late".into(),
+        include: ["carol".to_owned()].into(),
+        language: Some("en".into()),
+    };
+    let session = tokio::spawn(run(params, spy, feed, pool, reports));
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let (_carol, carol_task) = speaker(&url, "carol", speech_file(&speech)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    commands.send(SessionCommand::Stop).unwrap();
+    session.await.unwrap();
+    carol_task.abort();
+
+    assert!(
+        heard.lock().unwrap().contains("carol"),
+        "a speaker who arrived after the listener is heard"
+    );
+    let mut text = String::new();
+    while let Ok(report) = seen.try_recv() {
+        if let Report::Segment {
+            identity,
+            text: words,
+            ..
+        } = report
+        {
+            assert_eq!(identity, "carol");
+            text.push_str(&words);
+        }
+    }
+    assert!(
+        text.to_lowercase().contains("listener"),
+        "the speech comes back as words: {text:?}"
+    );
 }

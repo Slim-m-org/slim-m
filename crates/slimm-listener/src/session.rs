@@ -12,7 +12,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::Instant;
 
 use crate::backlog::{Backlog, Queued, TIME_LIMIT_MS};
-use crate::endpoint::Endpointer;
+use crate::endpoint::{Endpointer, SAMPLE_RATE};
 use crate::protocol::Report;
 use crate::room::{RoomEvent, RoomSource, TrackRef};
 use crate::stt::{Done, Meta, Pool, Work, is_noise_marker};
@@ -54,6 +54,12 @@ pub struct Params {
 /// How often limits are checked.
 const TICK: Duration = Duration::from_secs(1);
 
+/// How long a session that was told to stop keeps transcribing what it already heard.
+pub const DRAIN: Duration = Duration::from_secs(30);
+
+/// Samples of one speaker between two "heard" log lines: ten seconds.
+const HEARD_LOG_SAMPLES: u64 = 10 * SAMPLE_RATE as u64;
+
 struct Session<R> {
     id: String,
     include: HashSet<String>,
@@ -67,6 +73,16 @@ struct Session<R> {
     backlog: Backlog,
     in_flight: usize,
     results: UnboundedSender<Done>,
+    heard: HashMap<String, Heard>,
+}
+
+/// What one speaker's audio looked like, so a silent transcript can be told apart from a quiet one.
+#[derive(Default)]
+struct Heard {
+    samples: u64,
+    since_log: u64,
+    peak: u16,
+    utterances: u32,
 }
 
 struct Track {
@@ -97,7 +113,9 @@ pub async fn run<R: RoomSource>(
         backlog: Backlog::default(),
         in_flight: 0,
         results,
+        heard: HashMap::new(),
     };
+    tracing::info!(session = %session.id, included = session.include.len(), "listening to a call");
     let _ = session.reports.send(Report::Started {
         session: session.id.clone(),
     });
@@ -122,6 +140,11 @@ pub async fn run<R: RoomSource>(
         }
     };
     session.room.leave().await;
+    if ending != Ending::Overload {
+        session.drain(&mut done).await;
+    }
+    session.log_heard();
+    tracing::info!(session = %session.id, ending = ending.wire(), "stopped listening");
     if ending != Ending::Stopped {
         let _ = session.reports.send(Report::Ended {
             session: session.id.clone(),
@@ -161,6 +184,7 @@ impl<R: RoomSource> Session<R> {
             };
             if info.subscribed != on {
                 info.subscribed = on;
+                tracing::info!(session = %self.id, identity = %track.identity, on, "microphone subscription");
                 self.room.subscribe(&track, on);
             }
         }
@@ -214,6 +238,7 @@ impl<R: RoomSource> Session<R> {
             .entry(identity.to_owned())
             .or_insert_with(|| Endpointer::new(origin));
         let utterances = endpoint.push(samples);
+        self.note_heard(identity, samples, utterances.len());
         self.queue_all(identity, utterances);
     }
 
@@ -264,7 +289,11 @@ impl<R: RoomSource> Session<R> {
             }
         };
         // Consent can be withdrawn while an utterance is being transcribed.
-        if !self.include.contains(&meta.identity) || is_noise_marker(&transcript.text) {
+        if !self.include.contains(&meta.identity) {
+            return;
+        }
+        if is_noise_marker(&transcript.text) {
+            tracing::info!(session = %self.id, identity = %meta.identity, "an utterance came back as no words");
             return;
         }
         let _ = self.reports.send(Report::Segment {
@@ -275,6 +304,69 @@ impl<R: RoomSource> Session<R> {
             text: transcript.text,
             language: transcript.language,
         });
+    }
+}
+
+impl<R: RoomSource> Session<R> {
+    /// Cuts whatever each speaker was in the middle of and waits, up to [`DRAIN`], for every transcription to come back.
+    async fn drain(&mut self, done: &mut UnboundedReceiver<Done>) {
+        let speakers: Vec<String> = self.endpoints.keys().cloned().collect();
+        for identity in speakers {
+            let last = self
+                .endpoints
+                .get_mut(&identity)
+                .and_then(Endpointer::finish);
+            if let Some(utterance) = last {
+                self.note_heard(&identity, &[], 1);
+                self.queue_all(&identity, vec![utterance]);
+            }
+        }
+        let deadline = tokio::time::sleep(DRAIN);
+        tokio::pin!(deadline);
+        while self.in_flight > 0 || !self.backlog.is_empty() {
+            tokio::select! {
+                Some(finished) = done.recv() => self.on_done(finished),
+                () = &mut deadline => {
+                    tracing::warn!(session = %self.id, in_flight = self.in_flight, "stopped before every utterance was transcribed");
+                    return;
+                }
+            }
+        }
+    }
+
+    fn note_heard(&mut self, identity: &str, samples: &[i16], utterances: usize) {
+        let heard = self.heard.entry(identity.to_owned()).or_default();
+        heard.samples += samples.len() as u64;
+        heard.since_log += samples.len() as u64;
+        heard.peak = samples
+            .iter()
+            .map(|s| s.unsigned_abs())
+            .fold(heard.peak, u16::max);
+        heard.utterances += u32::try_from(utterances).unwrap_or(u32::MAX);
+        if heard.since_log >= HEARD_LOG_SAMPLES {
+            heard.since_log = 0;
+            tracing::info!(
+                session = %self.id,
+                identity,
+                seconds = heard.samples / SAMPLE_RATE as u64,
+                peak = heard.peak,
+                utterances = heard.utterances,
+                "heard a speaker"
+            );
+        }
+    }
+
+    fn log_heard(&self) {
+        for (identity, heard) in &self.heard {
+            tracing::info!(
+                session = %self.id,
+                identity = %identity,
+                seconds = heard.samples / SAMPLE_RATE as u64,
+                peak = heard.peak,
+                utterances = heard.utterances,
+                "heard in total"
+            );
+        }
     }
 }
 
