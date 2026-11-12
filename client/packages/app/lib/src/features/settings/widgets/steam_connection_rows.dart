@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Steam rows of the Connections card: link state in place, and once
-/// linked, the switch for showing the game being played (decision 0115).
+/// The Steam rows of the Connections card: link state in place (decision
+/// 0115). The sharing switch is in the Activity card.
 library;
 
 import 'dart:async';
@@ -15,16 +15,14 @@ import '../providers/steam_link_finish.dart';
 import 'discord_link_code_sheet.dart';
 import 'settings_detail_row.dart';
 import 'settings_section_header.dart';
-import 'settings_toggle_row.dart';
 
-/// The card children for Steam; the link rows while unlinked, the switch once linked.
+/// The card children for Steam.
 List<Widget> steamConnectionChildren(WidgetRef ref, api.LinkedAccount? steam) {
   final status = ref.watch(steamLinkStatusProvider);
   return [
     _SteamLinkRow(steam: steam),
     if (steam == null && status is! SteamLinkFinishing) const _SteamCodeRow(),
     if (status is SteamLinkFailed) _SteamFailure(message: status.message),
-    if (steam != null) _ShareGameRow(steam: steam),
   ];
 }
 
@@ -96,31 +94,4 @@ class _SteamFailure extends ConsumerWidget {
       ),
     ],
   );
-}
-
-class _ShareGameRow extends ConsumerWidget {
-  const _ShareGameRow({required this.steam});
-
-  final api.LinkedAccount steam;
-
-  /// Fills the icon tile and gap of the [SettingsDetailRow]s beside it.
-  static const _lead = AppSizes.icon32 + 14 - AppSpacing.s8;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final chosen = ref.watch(steamConnectionProvider.select((c) => c.sharing));
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: SettingsToggleRow(
-        leading: const SizedBox(width: _lead),
-        label: "Share what I'm playing",
-        description: 'Shows your Steam game to people who see your status.',
-        value: chosen ?? steam.shareActivity,
-        onChanged: (value) => unawaited(
-          ref.read(steamConnectionProvider.notifier).setSharing(value),
-        ),
-        semanticLabel: "Share what I'm playing",
-      ),
-    );
-  }
 }

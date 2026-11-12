@@ -20,6 +20,7 @@ export 'src/device_name.dart';
 export 'src/device_push_keys.dart';
 export 'src/fcm_token_channel.dart';
 export 'src/host_platform.dart';
+export 'src/push_envelope.dart';
 export 'src/autostart.dart';
 export 'src/install_format.dart';
 export 'src/key_store.dart';

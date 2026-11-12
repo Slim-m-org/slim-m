@@ -116,7 +116,7 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'profile',
     'Steam',
-    keywords: ['connections', 'link', 'unlink', 'game', 'playing'],
+    keywords: ['connections', 'link', 'unlink', 'game'],
     conditional: true,
   ),
   SettingsEntry(
@@ -124,6 +124,7 @@ const personalSettingsIndex = <SettingsEntry>[
     "Share what I'm playing",
     description: 'Shows your Steam game to people who see your status.',
     keywords: ['game', 'steam', 'playing', 'activity', 'status'],
+    gate: SettingsGate.steamLinked,
     conditional: true,
   ),
   SettingsEntry(
@@ -259,6 +260,13 @@ const personalSettingsIndex = <SettingsEntry>[
     'notifications',
     'Show message text',
     keywords: ['preview', 'privacy', 'push'],
+  ),
+  SettingsEntry(
+    'notifications',
+    'Message text on lock screen',
+    keywords: ['preview', 'privacy', 'push'],
+    conditional: true,
+    available: _mobile,
   ),
   SettingsEntry(
     'notifications',

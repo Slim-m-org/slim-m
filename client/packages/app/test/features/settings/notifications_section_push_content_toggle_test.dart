@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The "show message text on your lock screen" toggle `NotificationsSection`
-/// carries: iOS-only (see `personal_status_sections.dart`'s own doc comment
-/// on `_PushContentPreviewRow` for why), persisted, and wired to trigger a
+/// carries: mobile-only (iOS and Android, see `PushContentPreviewRow`), persisted, and wired to trigger a
 /// fresh `PUT /push` carrying the new answer rather than leaving the server
 /// holding whatever this device last registered with.
 library;
@@ -101,12 +100,23 @@ void _disposeBeforeReturning(ProviderContainer container) =>
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('absent on a non-iOS platform', (tester) async {
-    await _withPlatform(TargetPlatform.android, () async {
+  testWidgets('absent on desktop', (tester) async {
+    await _withPlatform(TargetPlatform.linux, () async {
       await tester.pumpWidget(_shell(_container()));
       await tester.pumpAndSettle();
 
       expect(find.text(_label), findsNothing);
+    });
+  });
+
+  testWidgets('offered on Android too', (tester) async {
+    await _withPlatform(TargetPlatform.android, () async {
+      final container = _container();
+      await tester.pumpWidget(_shell(container));
+      await tester.pump();
+
+      expect(find.text('Message text on lock screen'), findsOneWidget);
+      _disposeBeforeReturning(container);
     });
   });
 

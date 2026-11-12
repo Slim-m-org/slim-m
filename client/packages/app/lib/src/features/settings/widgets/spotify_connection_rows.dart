@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Spotify rows of the Connections card: link state in place, and once
-/// linked, the switch for whether the track is shown (decisions 0044, 0056).
+/// The Spotify rows of the Connections card: link state in place (decisions
+/// 0044, 0056). The show-track switch is in the Activity card.
 library;
 
 import 'dart:async';
@@ -13,15 +13,13 @@ import '../../../spotify/spotify_link.dart';
 import '../../../spotify/spotify_link_status.dart';
 import 'settings_detail_row.dart';
 import 'settings_section_header.dart';
-import 'settings_toggle_row.dart';
 
-/// The card children for Spotify; only the link row while unlinked.
+/// The card children for Spotify.
 List<Widget> spotifyConnectionChildren(WidgetRef ref) {
   final status = ref.watch(spotifyLinkStatusProvider);
   return [
     const _SpotifyLinkRow(),
     if (status is SpotifyFailed) _SpotifyFailure(message: status.message),
-    if (status is SpotifyConnected) const _ShowTrackRow(),
   ];
 }
 
@@ -83,26 +81,5 @@ class _SpotifyFailure extends ConsumerWidget {
         onDismiss: ref.read(spotifyLinkerProvider).dismissFailure,
       ),
     ],
-  );
-}
-
-class _ShowTrackRow extends ConsumerWidget {
-  const _ShowTrackRow();
-
-  /// Fills the icon tile and gap of the [SettingsDetailRow]s beside it.
-  static const _lead = AppSizes.icon32 + 14 - AppSpacing.s8;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2),
-    child: SettingsToggleRow(
-      leading: const SizedBox(width: _lead),
-      label: 'Show my Spotify track',
-      description: 'Shows your track even when you play on another device.',
-      value: ref.watch(shareSpotifyProvider),
-      onChanged: (value) =>
-          ref.read(shareSpotifyProvider.notifier).setEnabled(value),
-      semanticLabel: 'Show my Spotify track',
-    ),
   );
 }
