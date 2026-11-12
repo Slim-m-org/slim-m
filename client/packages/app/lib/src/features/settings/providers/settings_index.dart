@@ -262,6 +262,13 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'notifications',
+    'Message text on lock screen',
+    keywords: ['preview', 'privacy', 'push'],
+    conditional: true,
+    available: _mobile,
+  ),
+  SettingsEntry(
+    'notifications',
     'Notification schedule',
     description: 'Only notify during the hours you set.',
     keywords: ['quiet hours', 'do not disturb', 'snooze'],

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Turns an incoming data-only FCM message into the same fixed, content-free
-/// local notification on Android, whenever the app is backgrounded or not
+/// Turns an incoming data-only FCM message into a local notification on
+/// Android: the sealed preview when this device can open one, else a fixed,
+/// content-free line, whenever the app is backgrounded or not
 /// running at all - never while it is in the foreground, see
 /// [firebaseMessagingBackgroundHandler]'s doc for why. A `call` kind gets
 /// Android's incoming-call notification (`CallNotifications`) instead; every
@@ -130,6 +131,27 @@ PushAction actionFor(Map<String, dynamic> data) {
   return PushActionGenericAlert(text, channel);
 }
 
+/// The title for [preview]: the sender, with the channel when there is one,
+/// since Android has no subtitle line to put it on.
+String previewTitle(PushPreviewText preview) => preview.channel == null
+    ? preview.title
+    : '${preview.title} in #${preview.channel}';
+
+/// The sealed preview in [data]'s `payload`, or null for any reason it cannot
+/// be shown, so the caller falls back to the generic line.
+Future<PushPreviewText?> openPreview(
+  Map<String, dynamic> data,
+  KeyStore keys, {
+  DateTime? now,
+}) async {
+  final payload = data['payload'];
+  final envelope = await openPushPayload(
+    payload is String ? payload : null,
+    keys,
+  );
+  return envelope?.preview(now ?? DateTime.now());
+}
+
 /// The background isolate entry point FCM invokes when a data message
 /// arrives while the app is backgrounded or fully killed - the only two
 /// states this ever needs to show anything for. FCM only calls its
@@ -155,7 +177,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     case PushActionNone():
       return;
     case PushActionGenericAlert(:final text, :final channel):
-      await LocalNotifications().show(text, channel: channel);
+      final preview = await openPreview(
+        message.data,
+        createPersistentKeyStore(),
+      );
+      await LocalNotifications().show(
+        preview?.body ?? text,
+        channel: channel,
+        title: preview == null ? null : previewTitle(preview),
+      );
     case PushActionIncomingCall(:final callId, :final callerName):
       await CallNotifications().showIncomingCall(
         callId: callId,

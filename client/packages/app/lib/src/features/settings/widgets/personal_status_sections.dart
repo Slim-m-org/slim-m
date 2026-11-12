@@ -77,7 +77,7 @@ class NotificationsSection extends ConsumerWidget {
                 subtitle: 'Turn on Badges for slim-m in iOS Settings.',
               ),
             if (isLinuxHost) const _DesktopMessageTextRow(),
-            if (defaultTargetPlatform == TargetPlatform.iOS)
+            if (pushPreviewPlatforms.contains(defaultTargetPlatform))
               const PushContentPreviewRow(),
             const NotificationScheduleSection(),
           ],

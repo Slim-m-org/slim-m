@@ -26,24 +26,20 @@ import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
 import '../providers/settings_actions.dart';
 
+/// The platforms that can open a sealed push preview.
+const pushPreviewPlatforms = {TargetPlatform.iOS, TargetPlatform.android};
+
 /// The "show message text on the lock screen" toggle.
 ///
-/// Reachable only on iOS: that is the one platform with a Notification
-/// Service Extension able to decrypt the preview this asks the server to
-/// seal (`push/http/push.rs`'s own doc comment on `include_content`; see
-/// `ios/NotificationServiceExtension`). Asking for it on Android would carry
-/// a bigger envelope with nothing on that device able to open it - harmless,
-/// since the relay still cannot read it either way, but pointless, so the
-/// row is gated rather than offering a choice that changes nothing. Kept
-/// discoverable in source rather than merely absent: this doc comment is the
-/// record of why, the same treatment `pasteKeystrokeReadsClipboardImage`
-/// gives its own iOS exclusion.
+/// Mobile only: iOS opens the sealed preview in its Notification Service
+/// Extension and Android in its FCM background handler. Desktop and web have
+/// no push preview to ask for.
 class PushContentPreviewRow extends ConsumerWidget {
   const PushContentPreviewRow({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (defaultTargetPlatform != TargetPlatform.iOS) {
+    if (!pushPreviewPlatforms.contains(defaultTargetPlatform)) {
       return const SizedBox.shrink();
     }
     final enabled = ref.watch(pushContentPreviewSettingsProvider);

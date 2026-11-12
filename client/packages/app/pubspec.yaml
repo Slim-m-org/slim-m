@@ -88,6 +88,8 @@ dev_dependencies:
     sdk: flutter
   # Only imported from test/, to fake the platform under the real BiometricAuthChannel.
   local_auth: ^3.0.1
+  # Only imported from test/, to seal a push payload the way the server does.
+  pinenacl: ^0.6.0
   # Only imported from test/, to run the stock Linux plugin the atomic store replaces.
   path_provider_linux: ^2.2.0
   shared_preferences_linux: ^2.4.0
