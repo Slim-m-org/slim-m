@@ -127,6 +127,6 @@ runs:
         serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
         packageName: top.npcserver.slimm
         releaseFiles: client/packages/app/dist/slim-m-client-android.aab
-        track: internal
+        tracks: internal
         status: completed
         releaseName: ${{ inputs.version }}
