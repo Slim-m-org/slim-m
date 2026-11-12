@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/listener-build-deps
         with:
-          extra-packages: python3
+          extra-packages: python3 espeak-ng
       # The checks job already built these dependencies, so this job only restores that cache.
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
@@ -80,7 +80,10 @@ jobs:
           LISTENER_REAL_LIVEKIT: ws://127.0.0.1:7880
           LISTENER_TEST_MODEL: ${{ github.workspace }}/tiny.en.bin
           LISTENER_TEST_WAV_SCRIPT: ${{ github.workspace }}/scripts/lib/make_fake_voice.py
-        run: cargo test --locked --test real_livekit -- --nocapture
+          LISTENER_TEST_SPEECH_WAV: ${{ runner.temp }}/speech.wav
+        run: |
+          espeak-ng -v en-us -s 150 -w "$LISTENER_TEST_SPEECH_WAV" "Hello everyone. This is a test of the call transcript. The listener should write down every word I say."
+          cargo test --locked --test real_livekit -- --nocapture
 
   image:
     needs: checks

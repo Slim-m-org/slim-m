@@ -329,3 +329,27 @@ async fn a_backlog_that_stays_full_ends_the_session_with_overload() {
     );
     assert_eq!(task.await.unwrap(), Ending::Overload);
 }
+
+#[tokio::test]
+async fn a_stop_mid_sentence_still_reports_what_was_said() {
+    let mut rig = rig(&["alice"]);
+    assert!(matches!(
+        next_report(&mut rig).await,
+        Report::Started { .. }
+    ));
+    for part in [hush(500), tone(900)] {
+        rig.events
+            .send(RoomEvent::Audio {
+                identity: "alice".into(),
+                samples: part,
+            })
+            .unwrap();
+    }
+    settle().await;
+    rig.commands.send(SessionCommand::Stop).unwrap();
+    let Report::Segment { identity, .. } = next_report(&mut rig).await else {
+        panic!("the sentence in progress is transcribed before the session ends");
+    };
+    assert_eq!(identity, "alice");
+    assert_eq!(rig.task.await.unwrap(), Ending::Stopped);
+}

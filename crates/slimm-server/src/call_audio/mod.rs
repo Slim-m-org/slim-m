@@ -34,6 +34,8 @@ use crate::ids::{ChannelId, UserId};
 
 /// How long after a decline, lapse or stop a channel waits before it may be asked again.
 pub const COOLDOWN_MS: i64 = 60_000;
+/// How long an ended session still takes the lines the listener was finishing when it ended.
+pub const DRAIN_MS: i64 = 45_000;
 
 /// Why a request was refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -114,6 +116,8 @@ struct Live {
 #[derive(Default)]
 struct State {
     live: HashMap<ChannelId, Live>,
+    /// Ended sessions by id, with when they stop taking late segments.
+    draining: HashMap<Uuid, (ChannelId, Live, i64)>,
     cooldowns: HashMap<ChannelId, i64>,
     /// The listener's `max_sessions` once it said `ready`; `None` while it is away.
     ready: Option<u32>,
@@ -278,10 +282,16 @@ impl CallAudio {
             Effect::Ended { reason, .. } => Some(*reason),
             _ => None,
         });
-        if let Some(reason) = ended {
-            state.live.remove(&channel);
+        if let Some(reason) = ended
+            && let Some(live) = state.live.remove(&channel)
+        {
             if reason.is_refusal() {
                 state.cooldowns.insert(channel, now + COOLDOWN_MS);
+            }
+            if live.session.started_at_ms.is_some() {
+                state
+                    .draining
+                    .insert(live.ids.session, (channel, live, now + DRAIN_MS));
             }
         }
         Some(Ok(outcome))
@@ -332,7 +342,9 @@ impl CallAudio {
     /// Time passing for every session; also forgets cooldowns that have run out.
     pub fn tick(&self, now: i64) -> Vec<Outcome> {
         if let Some(inner) = &self.inner {
-            lock(&inner.state).cooldowns.retain(|_, until| *until > now);
+            let mut state = lock(&inner.state);
+            state.cooldowns.retain(|_, until| *until > now);
+            state.draining.retain(|_, (_, _, until)| *until > now);
         }
         self.channels(None)
             .into_iter()
@@ -433,10 +445,10 @@ impl CallAudio {
         else {
             return None;
         };
-        let channel = self.channel_of(session)?;
+        let id: Uuid = session.parse().ok()?;
         let inner = self.inner.as_ref()?;
         let mut state = lock(&inner.state);
-        let live = state.live.get_mut(&channel)?;
+        let (channel, live) = live_or_draining(&mut state, id)?;
         let started = live.session.started_at_ms?;
         if !live.sent.contains(identity) {
             live.rate.count_drop();
@@ -499,3 +511,14 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 
 #[cfg(test)]
 mod tests;
+
+/// The session `id` names, live or ended within [`DRAIN_MS`].
+fn live_or_draining(state: &mut State, id: Uuid) -> Option<(ChannelId, &mut Live)> {
+    let State { live, draining, .. } = state;
+    if let Some((channel, live)) = live.iter_mut().find(|(_, l)| l.ids.session == id) {
+        return Some((*channel, live));
+    }
+    draining
+        .get_mut(&id)
+        .map(|(channel, live, _)| (*channel, live))
+}
