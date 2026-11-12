@@ -1,3 +1,4 @@
 # Releases scripts/check-release-assets.py skips: the tag, then why. Keep this short.
 client-v0.91.0 the macOS build crashed (a compile bug), so it has no macOS zip or update manifest; superseded by client-v0.91.1
 client-v0.101.1 the macOS build job was cancelled, so it has no macOS zip or update manifest; superseded by client-v0.102.0
+client-v0.128.0 its release run failed before any asset uploaded (the play track input was wrong); superseded by client-v0.128.1 the same evening
