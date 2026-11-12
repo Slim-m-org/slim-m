@@ -30,7 +30,7 @@ void main() {
       expect(flag.value, isFalse);
     });
 
-    test('a full restart sets it, and each transition is logged with a time',
+    test('a full restart sets it, logged once at its start and once at its end',
         () async {
       final call = await JoinedCall.join();
       addTearDown(call.session.dispose);
@@ -45,10 +45,10 @@ void main() {
       await pumpEventQueue();
 
       final lines = call.log.where((l) => l.startsWith('Call transport'));
-      expect(lines, hasLength(3));
+      expect(lines, hasLength(2));
       expect(lines.first, contains('reconnecting (restart)'));
-      expect(lines.elementAt(1), contains('attempt 2 of 10'));
-      expect(lines.last, matches(RegExp(r'reconnected after \d+ ms')));
+      expect(lines.last,
+          matches(RegExp(r'reconnected after \d+ ms \(2 attempts\)')));
     });
 
     test('an attempt event alone marks a reconnect whose start was missed',

@@ -41,6 +41,7 @@ class VoiceHealthWatch {
     localIdOf: () => _host.room()?.localParticipant?.identity ?? 'local',
     health: health,
     log: _log,
+    note: diagnostics.noteHealthLine,
   );
 
   final _mediaSource = MediaSourceNote();

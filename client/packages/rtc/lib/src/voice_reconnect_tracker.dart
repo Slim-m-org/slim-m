@@ -69,6 +69,10 @@ class ReconnectTracker {
   DateTime? _since;
   Timer? _stuck;
   int _count = 0;
+
+  /// The current episode's retries and escalations, told once when it ends rather than a line each.
+  int _attempts = 0;
+  final List<String> _escalations = [];
   Duration _total = Duration.zero;
   Duration _longest = Duration.zero;
 
@@ -81,12 +85,11 @@ class ReconnectTracker {
     final wasActive = active.value;
     _since ??= _clock();
     _arm();
-    log?.call(
-      wasActive
-          ? 'Call transport: still reconnecting, now a ${kind.name} '
-              '(${_elapsedMs()} ms in)'
-          : 'Call transport: reconnecting (${kind.name})',
-    );
+    if (wasActive) {
+      _escalations.add('${kind.name} at ${_elapsedMs()} ms');
+    } else {
+      log?.call('Call transport: reconnecting (${kind.name})');
+    }
     active.value = true;
     if (kind == ReconnectKind.restart) {
       restarting.value = true;
@@ -99,11 +102,12 @@ class ReconnectTracker {
     final wasActive = active.value;
     _since ??= _clock();
     _arm();
-    log?.call(
-      'Call transport: attempt $attempt of $maxAttempts '
-      '(${_elapsedMs()} ms in, next retry in $nextDelayMs ms)',
-    );
+    _attempts = attempt;
     if (!wasActive) {
+      log?.call(
+        'Call transport: reconnecting (attempt $attempt of $maxAttempts, '
+        'next retry in $nextDelayMs ms)',
+      );
       active.value = true;
       // A retry with no start seen cannot be told from a restart, so it is held as one.
       restarting.value = true;
@@ -122,7 +126,17 @@ class ReconnectTracker {
     _count++;
     _total += elapsed;
     if (elapsed > _longest) _longest = elapsed;
-    log?.call('Call transport: $cause after ${elapsed.inMilliseconds} ms');
+    final detail = [
+      if (_attempts > 0)
+        '$_attempts ${_attempts == 1 ? 'attempt' : 'attempts'}',
+      for (final step in _escalations) 'then a $step',
+    ];
+    log?.call(
+      'Call transport: $cause after ${elapsed.inMilliseconds} ms'
+      '${detail.isEmpty ? '' : ' (${detail.join(', ')})'}',
+    );
+    _attempts = 0;
+    _escalations.clear();
     active.value = false;
     restarting.value = false;
   }

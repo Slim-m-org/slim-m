@@ -41,7 +41,24 @@ void main() {
 
     expect(tracker.stats.count, 1);
     expect(tracker.stats.total, const Duration(seconds: 3));
-    expect(log[1], contains('now a restart (1000 ms in)'));
+    expect(log, [
+      'Call transport: reconnecting (resume)',
+      'Call transport: reconnected after 3000 ms (then a restart at 1000 ms)',
+    ]);
+  });
+
+  test('retries during an episode are told once, when it ends', () {
+    tracker.started(ReconnectKind.resume);
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      pass(const Duration(milliseconds: 100));
+      tracker.attempted(attempt, 10, 300);
+    }
+    tracker.ended('reconnected');
+
+    expect(log, [
+      'Call transport: reconnecting (resume)',
+      'Call transport: reconnected after 300 ms (3 attempts)',
+    ]);
   });
 
   test('counts and totals accumulate, and the longest is kept', () {
@@ -75,6 +92,7 @@ void main() {
 
   test('an attempt alone marks the reconnect and logs the retry', () {
     tracker.attempted(2, 10, 300);
+    tracker.attempted(3, 10, 600);
 
     expect(tracker.active.value, isTrue);
     expect(log.single, contains('attempt 2 of 10'));

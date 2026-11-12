@@ -5,6 +5,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/src/audio_glitch_watch.dart';
+import 'package:slimm_rtc/src/voice_health.dart';
 
 AudioReceiveSample _s({
   num concealed = 0,
@@ -87,5 +88,38 @@ void main() {
     await watch.sample();
 
     expect(watch.health.poorConnections.value, {'me'});
+  });
+
+  test('a healthy minute is noted for diagnostics but kept out of the log',
+      () async {
+    var now = DateTime(2026);
+    var seconds = 0;
+    final lines = <String>[];
+    final notes = <String>[];
+    final watch = AudioGlitchWatch(
+      sources: () => {
+        'Ann': () async => AudioReceiveSample(
+              concealedSamples: 0,
+              totalSamples: seconds * 48000,
+              durationSeconds: seconds,
+              packetsLost: 0,
+              packetsReceived: seconds * 50,
+              jitterSeconds: 0.005,
+              clockRate: 48000,
+            ),
+      },
+      health: VoiceHealth(clock: () => now),
+      log: (m, {LogLevel level = LogLevel.info}) => lines.add(m),
+      note: notes.add,
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await watch.sample();
+      seconds += 5;
+      now = now.add(const Duration(seconds: 5));
+    }
+
+    expect(notes.single, startsWith('[voice-health] last 60s'));
+    expect(lines, isEmpty);
   });
 }
