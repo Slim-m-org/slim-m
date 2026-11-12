@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What's-new entries from 0.128.0, in their own file because the previous
+/// What's-new entries from 0.128.0 on, in their own file because the previous
 /// archive reached its line budget.
 library;
 
@@ -53,6 +53,20 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       WhatsNewPoint(
         'Plus: Discord linking finishes inside the app, bots share one Bots '
         'role, and a long list of smaller fixes.',
+      ),
+    ],
+  ),
+  WhatsNewEntry(
+    version: '0.128.2',
+    headline: 'Message text in Android notifications',
+    points: [
+      WhatsNewPoint(
+        'Android notifications can show who wrote and what they said, like '
+        'on iPhone. Turn on Message text on lock screen in Notifications.',
+      ),
+      WhatsNewPoint(
+        'Each conversation keeps its own notification, so a message in one '
+        'chat no longer hides the one before it from another.',
       ),
     ],
   ),
