@@ -58,7 +58,7 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
   ),
   WhatsNewEntry(
     version: '0.128.2',
-    headline: 'Message text in Android notifications',
+    headline: 'Message text on Android, and a tidier profile',
     points: [
       WhatsNewPoint(
         'Android notifications can show who wrote and what they said, like '
@@ -67,6 +67,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       WhatsNewPoint(
         'Each conversation keeps its own notification, so a message in one '
         'chat no longer hides the one before it from another.',
+      ),
+      WhatsNewPoint(
+        'Connections in your profile only link accounts now. Sharing your '
+        'Spotify track or Steam game is switched on under Activity.',
       ),
     ],
   ),
