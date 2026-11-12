@@ -32,6 +32,10 @@ class CallAudioBanner extends ConsumerWidget {
     final session = model.session;
     final controller = ref.read(callAudioProvider(channelId).notifier);
     if (session == null) return _Ended(model: model, channelId: channelId);
+    // Nothing to answer or stop, so the call header's mark says it instead.
+    if (session.isOn && session.isServerTranscript && session.always) {
+      return _ErrorOnly(message: model.error);
+    }
     final (text, actions) = _content(session, me, controller);
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s12),
@@ -124,6 +128,22 @@ class _Ended extends ConsumerWidget {
       margin: const EdgeInsets.only(top: AppSpacing.s12),
       onDismiss: () =>
           ref.read(callAudioProvider(channelId).notifier).clearEnded(),
+    );
+  }
+}
+
+class _ErrorOnly extends StatelessWidget {
+  const _ErrorOnly({required this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = this.message;
+    if (message == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s12),
+      child: AppErrorState(message: message),
     );
   }
 }
