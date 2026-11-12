@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Uninstall, enable, disable and list for installed modules, apart from the install
-//! half in `dock.rs`. A sibling, not a child, so `tests/openapi_429_coverage.rs` resolves the handlers.
+//! half in `dock.rs`. A sibling, not a child, so `tests/it_infra/openapi_429_coverage.rs` resolves the handlers.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -105,7 +105,7 @@ pub(in crate::http) async fn disable(
 
 /// The shared body of [`enable`] and [`disable`] once the caller is already
 /// authorized: each keeps its own `enforce`/`require_manage_server` call so
-/// `tests/openapi_429_coverage.rs`'s static scan, which reads a handler's own
+/// `tests/it_infra/openapi_429_coverage.rs`'s static scan, which reads a handler's own
 /// body rather than following calls it makes, still sees the charge.
 async fn apply_enabled(
     state: &AppState,

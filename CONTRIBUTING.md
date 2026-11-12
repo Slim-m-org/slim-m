@@ -50,7 +50,7 @@ Server changes:
   `scripts/check-migration-versions.py` and `scripts/lib/test_migrations_are_immutable.py` check both.
 - [ ] After a change to a `query!` or `query_as!`, regenerate `.sqlx/` with `cargo sqlx prepare --workspace -- --all-targets`, and look at `git status` for deleted cache files.
 - [ ] A new or changed route has its entry in `schema/openapi.yaml`.
-  `tests/openapi_contract.rs` fails on drift, and the additive-only OpenAPI check (`oasdiff breaking`) fails on a breaking change.
+  `tests/it_infra/openapi_contract.rs` fails on drift, and the additive-only OpenAPI check (`oasdiff breaking`) fails on a breaking change.
 - [ ] A new route also has a client binding in `client/packages/api`; the `schema_coverage` and `app_reachability` tests fail without one.
 - [ ] Server integration tests use `support::TestDbGuard` and `support::TestDirGuard`, never an unguarded temp path and never `:memory:`.
 

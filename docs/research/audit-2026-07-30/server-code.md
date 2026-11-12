@@ -2,7 +2,7 @@
 # Server code
 
 Seven specialists went over `crates/slimm-server` - HTTP core, HTTP routes, store core, store rest, the standalone modules, a duplication pass, and two performance passes (server and database) - and every finding was then put through an adversarial refutation round.
-Twelve findings were rejected outright, several for the right reason: the thing was already a written decision (the DM exclusion in `list_channels`, the refusal to rely on `ANALYZE`), already pinned by a test the reviewer had not opened (`tests/member_timeout.rs` covers the batched-timeout equivalence a reviewer called structurally invisible), or already registered as debt in `scripts/file-budget-allow.txt`.
+Twelve findings were rejected outright, several for the right reason: the thing was already a written decision (the DM exclusion in `list_channels`, the refusal to rely on `ANALYZE`), already pinned by a test the reviewer had not opened (`tests/it_spaces/member_timeout.rs` covers the batched-timeout equivalence a reviewer called structurally invisible), or already registered as debt in `scripts/file-budget-allow.txt`.
 That is the healthy half: the load-bearing parts of this crate - the permission evaluator, the batched permission paths and their equivalence tests, the invite gate's byte-identical refusals, the router-derived capability probe, `begin_write`'s `BEGIN IMMEDIATE` discipline - hold up when pushed on.
 
 Two findings are serious and both are structural rather than typo-shaped.
@@ -28,7 +28,7 @@ With two administrators, one can strip the other's role; any `MANAGE_ROLES` hold
 The second is sharper and was missed by the first pass: a role-tier deny only applies to roles the user actually holds (`store/permissions.rs:281`), and `evaluate` makes the role tier deny-wins, so a `MANAGE_ROLES` holder can unassign a deny-bearing role *from themselves* and get the `@everyone` bit back - entering a channel the overwrite model denied them.
 
 That is exactly the walk-around `http/overwrites.rs:157` already refuses on the only other route that can hand a bit back, and `http/members.rs:283` already implements the containment check for moderation.
-`tests/member_moderation_routes.rs:6` states the principle: "slim-m has no role hierarchy, so the rule doing that job is permission containment."
+`tests/it_spaces/member_moderation_routes.rs:6` states the principle: "slim-m has no role hierarchy, so the rule doing that job is permission containment."
 The grant direction enforces it and the removal direction does not.
 
 Shape of a fix: apply the same containment predicate in the removal direction on all three routes, including when caller equals target (unlike `members.rs`, which refuses self-moderation outright).
@@ -66,7 +66,7 @@ Seen from four directions (HTTP core, HTTP routes, duplication, performance), wh
 `ratelimit.rs:33` documents `Class::Write` as "Ordinary authenticated writes (send, edit, mark read)", and mark-read is the one that does not charge it.
 `PUT .../read` is the exposed one: it needs only `VIEW_CHANNEL`, so any member can loop unbounded writes at SQLite's single writer, which is the failure `invites::redeem`'s own comment describes paying for.
 `POST /sync` is worse in cost terms - up to 200 scopes, five queries each, unthrottled.
-`tests/pins.rs:391` and `tests/polls.rs:388` both open with "Every other mutating route in this codebase charges a rate limit", so the project asserts this route by route, and the phase-3 audit already found the same omission on `PATCH /messages/{id}`.
+`tests/it_chat/pins.rs:391` and `tests/it_chat/polls.rs:388` both open with "Every other mutating route in this codebase charges a rate limit", so the project asserts this route by route, and the phase-3 audit already found the same omission on `PATCH /messages/{id}`.
 
 The root cause is that `enforce(...)` is a hand-pasted first statement in 47 handlers, each of which also threads a `parts: Parts` clone it uses for nothing else (the authenticated branch of `limit_key` returns before touching it).
 Shape of a fix: fold auth and the limit into one extractor, following the `RateLimited<C>` precedent already in `extract.rs:86`, so the class is declared in the signature and a route with no limit says so visibly.
@@ -84,7 +84,7 @@ After a VACUUM, or inside a restored copy, a search can return messages that do 
 It is latent rather than live: nothing runs VACUUM today, and because messages are only ever soft-deleted the rowid sequence is gapless, so a VACUUM would in practice reassign the same numbers.
 That is a licence rather than a guarantee, which is the standard 0015 itself applied.
 
-Shape of a fix: give `messages` an explicit rowid alias and rebuild the FTS table against it, and pin the property with a test the way `tests/canvas_index.rs` pins the plan.
+Shape of a fix: give `messages` an explicit rowid alias and rebuild the FTS table against it, and pin the property with a test the way `tests/it_canvas/canvas_index.rs` pins the plan.
 The rebuild is the real cost and it is far cheaper before the Phase 9 backup work than after.
 
 ### Medium: a retried poll send whose message was deleted returns 500
@@ -94,7 +94,7 @@ The rebuild is the real cost and it is far cheaper before the Phase 9 backup wor
 The idempotency probe uses `fetch_live_message`, whose SQL ends `AND m.deleted_at IS NULL`.
 `messages.rs:145` does the opposite for the same probe and explains why in as many words: filtering deleted rows out let it fall through to an INSERT that hit the unique id and mapped to a 500.
 `client/packages/api/lib/src/client_messages.dart:176` tells callers `sendPollMessage` is "Idempotent by [id] exactly like `SlimmApi.sendMessage`".
-Nothing in `tests/polls.rs` exercises a repeated id.
+Nothing in `tests/it_chat/polls.rs` exercises a repeated id.
 
 The probe's doc comment states the opposite of what the function does, claiming it mirrors the ordinary send path - which is what would let this pass review.
 
@@ -221,7 +221,7 @@ The same three-arm classification deciding which precedence tier an overwrite ro
 The `"role"` / `"member"` discriminant is the URL path's vocabulary and the database's column value at once, agreed by hand across 21 sites, and `http/overwrites.rs:115` and `:173` spell the `Target`-to-columns conversion twice within one file.
 
 A typo in any arm makes an overwrite silently stop applying rather than failing, which is the quietest possible way to lose a permission rule.
-The equivalence tests in `tests/permissions.rs` are a real backstop and cover base deny, role grant, role deny, member regrant, ADMINISTRATOR, DMs and a ghost channel - but they cover the cases somebody thought to write, and behaviour is identical today only because all three copies happen to agree.
+The equivalence tests in `tests/it_spaces/permissions.rs` are a real backstop and cover base deny, role grant, role deny, member regrant, ADMINISTRATOR, DMs and a ghost channel - but they cover the cases somebody thought to write, and behaviour is identical today only because all three copies happen to agree.
 
 Shape of a fix: one function producing the precedence triple `evaluate` wants, called from all three sites, and promote the target kind to a typed enum with a single string conversion so a misspelling cannot reach the catch-all.
 
@@ -312,7 +312,7 @@ Grouped because this is the pattern, not because each is worth a ticket: in at l
 | `store/safety.rs:285` | The moderation queue "lands with the admin console in Phase 7" | `list_open_reports` is fifteen lines below it and the screen shipped |
 | `store/safety.rs:152` | Two doc comments merged by accident | Hover on a boolean existence probe says it blocks a user; `block_user` has no doc at all, and the deliberate-silence product decision is filed where nobody looks |
 | `http/messages.rs:406` | `with_reactions` attaches reactions and polls | It also attaches attachments, which four callers cannot see from the name or the doc |
-| `store/permissions_batch.rs:176` | (omission) `visible_channels`'s doc does not mention that its safety depends on `list_channels` filtering DMs in another module | Two specialists disagreed here: one filed it as a latent hole plus a test-coverage gap in the equivalence test (which uses no DM and no administrator), the other rejected it because `bootstrap.rs:123` documents the exclusion as deliberately central and `tests/dms.rs:318` pins it end to end for the administrator case. Both are right about their evidence; the residue worth acting on is widening the equivalence test |
+| `store/permissions_batch.rs:176` | (omission) `visible_channels`'s doc does not mention that its safety depends on `list_channels` filtering DMs in another module | Two specialists disagreed here: one filed it as a latent hole plus a test-coverage gap in the equivalence test (which uses no DM and no administrator), the other rejected it because `bootstrap.rs:123` documents the exclusion as deliberately central and `tests/it_chat/dms.rs:318` pins it end to end for the administrator case. Both are right about their evidence; the residue worth acting on is widening the equivalence test |
 | `CLAUDE.md:617`, `docs/STRATEGY.md:172`, `docs/ROADMAP.md:71` | "A single serialized writer plus a read pool" | `db.rs:35` builds one pool of eight connections, any of which may write. `Store::begin_write:167` states the reality correctly. The entire `BEGIN IMMEDIATE` discipline exists *because* there is no serialized writer, so a reader trusting the summary concludes the discipline is unnecessary - which is the worst available conclusion, and the "database is locked" finding in the phase-3 audit is what it costs |
 | `scripts/file-budget-allow.txt:11`, `:12` | Names splits as pending | Both were made |
 

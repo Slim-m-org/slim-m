@@ -186,7 +186,7 @@ Who has to be able to do what: any member holding SEND_MESSAGES plus ATTACH_FILE
 That gives them the exact oracle `http/attachments.rs:178-184` refuses to build, in its own words: "a 403-versus-404 split would tell them whether those exact bytes were shared in a DM or a private channel they cannot see."
 Worse than the oracle, on a hit they now hold a reference, so they can fetch the bytes and the stored filename.
 It also bypasses revocation: a member who saw an id and later lost VIEW_CHANNEL re-links it into a channel they can still post in.
-And it defeats the sharer's delete, since `release_message_attachments` frees the file only when nothing else references it - which is precisely what `tests/attachments/binding.rs::deleting_a_message_releases_its_attachment` exists to guarantee.
+And it defeats the sharer's delete, since `release_message_attachments` frees the file only when nothing else references it - which is precisely what `tests/it_chat/attachments/binding.rs::deleting_a_message_releases_its_attachment` exists to guarantee.
 No test in `binding.rs`, `serving.rs` or `uploading.rs` constrains who may link an id.
 
 Shape: pass the sender's id into `link_attachments` and require upload ownership or existing view access, with the refusal indistinguishable from "never uploaded" or the oracle just moves.
@@ -206,7 +206,7 @@ Who has to be able to do what: a member holding MANAGE_ROLES and nothing else.
 Downgraded from high because `grantable` blocks every upward path, so they can never mint themselves ADMINISTRATOR.
 What they can do is strip ADMINISTRATOR from every administrator down to the last one, and strip MANAGE_SERVER, BAN_MEMBERS or MANAGE_CHANNELS from peer moderators, one request at a time - permissions they do not hold and could not grant.
 With two ADMINISTRATOR-bearing roles, the PATCH path also goes through, because the count guard is satisfied via the other.
-`tests/roles.rs` covers the count invariant and nothing about actor level.
+`tests/it_spaces/roles.rs` covers the count invariant and nothing about actor level.
 
 Shape: lift `members.rs`'s target-level check into a shared guard and apply it to unassign, update and delete, reading granted rather than effective permissions for the reason `members.rs` gives.
 
@@ -325,7 +325,7 @@ Both routes need KICK_MEMBERS or BAN_MEMBERS, so there is no attacker here.
 The value is consistency in a codebase that caps every other free-text field explicitly (message 4000, poll question 300, topic 256, search 200, display name 64, push token 1024), and a length contract a client rendering a removal list can design against.
 
 **Closed 2026-07-30, PR #151.** One shared `validate_reason` at the same 2000, called from the report intake and both moderation verbs, with `required` the only thing that differs - a report must say why, a timeout need not.
-Worth recording what writing it exposed: mutating the length check killed only the new moderation test and nothing in `tests/safety.rs`, so the report reason's own cap had been there all along with no test behind it. There is one now.
+Worth recording what writing it exposed: mutating the length check killed only the new moderation test and nothing in `tests/it_infra/safety.rs`, so the report reason's own cap had been there all along with no test behind it. There is one now.
 
 ## What I would do first
 

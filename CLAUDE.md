@@ -104,7 +104,7 @@ Check `git status` for unexpected `.sqlx/` deletions before committing.
 
 `schema/openapi.yaml` must change with route changes.
 
-`crates/slimm-server/tests/openapi_contract.rs` compares documented routes with the actual Axum router and fails CI when they drift.
+`crates/slimm-server/tests/it_infra/openapi_contract.rs` compares documented routes with the actual Axum router and fails CI when they drift.
 
 ### Source-reading gates
 
@@ -186,9 +186,9 @@ SQLX_OFFLINE=true cargo clippy --all-targets --all-features -- -D warnings
 SQLX_OFFLINE=true cargo nextest run --workspace   # what CI runs; one process per test
 SQLX_OFFLINE=true cargo test --workspace --doc        # nextest skips doctests
 
-# one integration test file, then one case inside it
-SQLX_OFFLINE=true cargo test --test channels
-SQLX_OFFLINE=true cargo test --test channels -- manager_can_rename_a_channel --exact --nocapture
+# one former test file (a module of its area binary), then one case inside it
+SQLX_OFFLINE=true cargo nextest run --test it_spaces channels::
+SQLX_OFFLINE=true cargo nextest run --test it_spaces -E 'test(=channels::manager_can_rename_a_channel)' --no-capture
 ```
 
 Client:

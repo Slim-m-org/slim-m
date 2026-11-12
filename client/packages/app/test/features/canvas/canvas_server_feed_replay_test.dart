@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Replays op feeds the real Rust server produced (`crates/slimm-server/tests/canvas_ops/export_feed.rs`) through `CanvasSync` the way a reconnect does; the client must end on exactly the server's live set, boxes, paint order and note text.
-/// Regenerate with `CANVAS_FEED_EXPORT_DIR=client/packages/app/test/fixtures/canvas_server_feeds cargo nextest run -p slimm-server --test canvas_ops export_feed`.
+/// Replays op feeds the real Rust server produced (`crates/slimm-server/tests/it_canvas/canvas_ops/export_feed.rs`) through `CanvasSync` the way a reconnect does; the client must end on exactly the server's live set, boxes, paint order and note text.
+/// Regenerate with `CANVAS_FEED_EXPORT_DIR=client/packages/app/test/fixtures/canvas_server_feeds cargo nextest run -p slimm-server --test it_canvas canvas_ops::export_feed`.
 library;
 
 import 'dart:convert';

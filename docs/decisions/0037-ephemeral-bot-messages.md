@@ -32,7 +32,7 @@ That is how Discord behaves too, and it is the reason the primitive is cheap eno
 
 It takes no `seq` and does not touch the channel's counter.
 The alternative, taking a `seq` and leaving a gap for everyone else, is what the resync logic reads as loss.
-`tests/ephemeral_messages.rs` sends a message, a private answer and another message, and asserts the two real messages are seq 1 and 2.
+`tests/it_chat/ephemeral_messages.rs` sends a message, a private answer and another message, and asserts the two real messages are seq 1 and 2.
 The client keeps ephemeral messages in a list of their own and merges them into the transcript by time, so nothing has to order them against a numbered stream.
 Its id is a UUIDv7, used only to dedupe and to dismiss.
 

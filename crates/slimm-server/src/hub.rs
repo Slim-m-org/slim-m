@@ -342,7 +342,7 @@ impl Hub {
     /// Builds a hub whose memory guard reads a caller-controlled reading
     /// instead of the real cgroup files, so a test can flip the guard from
     /// admitting to refusing without restarting anything or touching the
-    /// real filesystem. See `tests/memory_admission.rs`.
+    /// real filesystem. See `tests/it_infra/memory_admission.rs`.
     pub fn with_memory_reading(shared: Arc<Mutex<MemoryReading>>) -> Self {
         Self {
             memory_guard: Arc::new(MemoryGuard::with_shared_reading(shared)),

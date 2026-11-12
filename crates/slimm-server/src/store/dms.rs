@@ -296,7 +296,7 @@ impl Store {
     /// only the seq form can use `messages_channel_live` as a single-row
     /// seek - the MAX form scanned every live message in the channel, per
     /// conversation, on a table nothing ever sweeps (measured at ~7,700x
-    /// slower by the 2026-08-11 review at 200k rows). `tests/dm_activity.rs`
+    /// slower by the 2026-08-11 review at 200k rows). `tests/it_chat/dm_activity.rs`
     /// pins both the plan and the equivalence. The hide filter is applied in
     /// an outer query rather than folded into the same `WHERE` as the pair
     /// match, because SQLite cannot see a `SELECT`-list alias (`activity_at`)

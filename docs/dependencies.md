@@ -151,7 +151,7 @@ Re-measure before adding a crate to the list, since each release moves the headr
 `tokio-tungstenite` is a real WebSocket client for the two-client fan-out test.
 `tokio`'s `test-util` feature gives `src/sweeps/tests.rs` a paused clock, so the wait-first timing of the background sweeps is checked without waiting; it adds no crate.
 
-`jsonschema` backs `tests/response_contract.rs`, which validates real responses against `schema/openapi.yaml`.
+`jsonschema` backs `tests/it_infra/response_contract.rs`, which validates real responses against `schema/openapi.yaml`.
 An OpenAPI 3.1 schema object *is* a JSON Schema 2020-12 schema, so a general JSON Schema validator checks it directly, rather than a hand-written copy of each shape drifting alongside the real one.
 `default-features = false` drops the file and http `$ref` resolvers, and the reqwest and aws-lc-rs they drag in: every `$ref` in that document is a local pointer into the one document.
 

@@ -44,7 +44,7 @@ Not started, checked rather than assumed: low-bandwidth and data-saver mode, web
 
 **Swept again 2026-09-02.** Two rows above had gone stale in the other direction - listed as unbuilt when the tree already had them - which is the expensive kind of stale, because it sends somebody to build a second copy.
 
-- *Advanced search operators* are built. `http::search` parses `from:`, `in:`, `has:` and `before:`/`after:`, with `in:` and `from:` carrying an oracle-safety obligation the module documents; `tests/message_search/` splits its coverage along that same line. Only `filename:` from the original row is absent.
+- *Advanced search operators* are built. `http::search` parses `from:`, `in:`, `has:` and `before:`/`after:`, with `in:` and `from:` carrying an oracle-safety obligation the module documents; `tests/it_chat/message_search/` splits its coverage along that same line. Only `filename:` from the original row is absent.
 - *Message edit history* is built, both halves: `store::message_history` holds the revisions and `edit_history_sheet.dart` shows them behind the "(edited)" marker.
 
 What that leaves genuinely unbuilt from this table: low-bandwidth/data-saver mode, ~~webhooks~~ (inbound shipped, see below; outbound is not built), `filename:` search, screen-share *audio* capture, and tap-to-add.

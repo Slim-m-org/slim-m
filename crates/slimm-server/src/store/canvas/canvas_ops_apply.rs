@@ -207,7 +207,7 @@ pub(in crate::store) async fn apply_reorder(
 /// cause, as long as the member still knew their own old op id. `clear`
 /// already carried this exact fence in `restore_candidates`; `remove` did
 /// not, and `restoring_a_stale_remove_does_not_reach_past_a_later_independent_removal`
-/// (`tests/canvas_ops/restore_permission.rs`) reproduces the bypass it left
+/// (`tests/it_canvas/canvas_ops/restore_permission.rs`) reproduces the bypass it left
 /// open.
 pub(in crate::store) async fn apply_restore(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,

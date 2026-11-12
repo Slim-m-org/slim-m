@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A module's declared settings and the values an admin gives them (decision
-//! 0091). A sibling of `dock_lifecycle` so `tests/openapi_429_coverage.rs`
+//! 0091). A sibling of `dock_lifecycle` so `tests/it_infra/openapi_429_coverage.rs`
 //! resolves the handlers. A secret's value is never sent back, only whether it is set.
 
 use std::collections::BTreeMap;

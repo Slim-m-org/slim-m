@@ -2,7 +2,7 @@
 //! Unit tests for `gifs.rs` itself - construction, error mapping, and the
 //! filename extension helper. The token cache has its own tests beside it in
 //! `cache.rs`. The full search-pick-select round trip against a fake
-//! provider lives in `tests/gif_picker.rs` instead, since that needs a real
+//! provider lives in `tests/it_chat/gif_picker.rs` instead, since that needs a real
 //! router and a real fake HTTP server neither of which belongs in a unit test.
 
 use super::filename::{extension_for, slug_filename};

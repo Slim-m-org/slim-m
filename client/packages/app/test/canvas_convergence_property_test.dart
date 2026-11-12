@@ -21,7 +21,7 @@
 ///
 /// What this does NOT cover: the server's own concurrent-write path (two
 /// real HTTP requests racing to allocate a `canvas_ops` seq) - that is
-/// `crates/slimm-server/tests/canvas_ops/convergence.rs`'s job, and it
+/// `crates/slimm-server/tests/it_canvas/canvas_ops/convergence.rs`'s job, and it
 /// checks a different thing (that the durable log never drifts from the
 /// live `canvas_objects` table under real concurrency), not this one. Nor
 /// does this drive a real WebSocket or a real second browser tab; the

@@ -42,7 +42,7 @@ pub const CANVAS_OP_GAP: i64 = 2_000;
 /// oversized op could never advance past it - the same livelock
 /// `message_ops`'s own sync gate refuses to risk. What this budget now stops
 /// is several such ops compounding in one page; each lands in its own,
-/// bounded page instead. See `tests/canvas_ops/feed.rs`.
+/// bounded page instead. See `tests/it_canvas/canvas_ops/feed.rs`.
 pub const CANVAS_OP_PAGE_BYTES: usize = 512 * 1024;
 
 /// A rough per-id wire cost for a `canvas_op_targets` row once serialized

@@ -187,7 +187,7 @@ impl GifSearch {
 
     /// Like [`Self::new`], but redirects the provider's search endpoint to
     /// `base_url` (a fake local server) instead of the real one - the seam
-    /// `tests/gif_picker.rs` uses to drive the whole search-pick-select flow
+    /// `tests/it_chat/gif_picker.rs` uses to drive the whole search-pick-select flow
     /// without ever reaching a live provider. Never called from production
     /// code, and there is no environment variable that reaches it.
     pub fn for_test(provider: &str, base_url: &str, api_key: &str) -> Self {

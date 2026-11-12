@@ -265,7 +265,7 @@ impl Store {
     /// [`Self::viewed_channel_before_delete`] once a channel row is already in
     /// hand, whether or not it is still live, so the overwrite-precedence
     /// bucketing exists once here rather than a fourth copy alongside the two
-    /// `tests/permissions.rs` already tracks in `permissions_batch.rs`.
+    /// `tests/it_spaces/permissions.rs` already tracks in `permissions_batch.rs`.
     async fn evaluate_channel_permissions(
         &self,
         user_id: UserId,

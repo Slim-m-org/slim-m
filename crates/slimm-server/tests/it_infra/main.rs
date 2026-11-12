@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+//! Integration tests for the process itself: config, migrations, sweeps, limits, the CLI and the API contract: one module per former test file.
+
+#[path = "../support/mod.rs"]
+mod support;
+#[path = "../totp_support/mod.rs"]
+mod totp_support;
+
+mod atomic_updates;
+mod attachment_sweep;
+mod audit_hidden_text;
+mod audit_regressions;
+mod audit_retry_after;
+mod audit_status_codes;
+mod background_tasks_wired;
+mod blob_release;
+mod category_overwrite_cleanup_migration;
+mod channel_categories_backfill;
+mod clear_totp_cli;
+mod concurrent_writes_never_lock;
+mod cors;
+mod debug_logs;
+mod diagnostics;
+mod direct_route;
+mod enum_column_validation;
+mod fts_update_trigger;
+mod healthcheck_cli;
+mod inflight_cap;
+mod list_routes_rate_limited;
+mod malformed_requests;
+mod memory_admission;
+mod message_retention_index_plan;
+mod message_store;
+mod messages_bulk_window_index_plan;
+mod metrics;
+mod migration_backfills;
+mod moderation_audit_action_widening;
+mod moderation_audit_backfill;
+mod moderation_audit_rebuilds;
+mod moderation_history_index_plan;
+mod openapi_400_coverage;
+mod openapi_429_coverage;
+mod openapi_contract;
+mod panic_guard;
+mod permissions_batch_cost;
+mod permissions_webhook_batch;
+mod post_commit_failures;
+mod rate_limit_coverage;
+mod refresh_token_index_plan;
+mod request_query_costs;
+mod resource_bounds;
+mod response_contract;
+mod role_hoist_backfill;
+mod safety;
+mod sqlite_build_flags;
+mod sqlite_planner_stats;
+mod storage;
+mod storage_ceiling;
+mod store_audit_counts;
+mod store_slow_mode_poll_and_app;
+mod sweep_passes;
+mod sweeps_and_history;
+mod test_app_harness;
+mod thread_parent_index_plan;
+mod token_sweep;
+mod trace_span_redaction;
+mod unauthenticated_body_charge;
+mod unauthenticated_refusal;
+mod username_collision_migration;
+mod version;
+mod version_canvas_scoped_clear;
+mod write_pool;

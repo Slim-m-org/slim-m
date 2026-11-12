@@ -285,7 +285,7 @@ The equivalent here is structural rather than a function call, and that is stron
 
 **A webhook credential authenticates exactly one route.**
 It never produces a `SessionContext`, so no `Authed` extractor can ever accept it, so there is no "webhook holding `MANAGE_SERVER`" to defend against.
-This should be asserted rather than assumed: a test in the shape of `tests/rate_limit_coverage.rs`, which already asserts that no `Authed` handler charges the unauthenticated `Read` class, over the claim that the delivery route is the only place a webhook token resolves.
+This should be asserted rather than assumed: a test in the shape of `tests/it_infra/rate_limit_coverage.rs`, which already asserts that no `Authed` handler charges the unauthenticated `Read` class, over the claim that the delivery route is the only place a webhook token resolves.
 
 Beyond that, and part of the contract rather than the implementation:
 

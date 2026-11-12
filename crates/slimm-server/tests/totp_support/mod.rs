@@ -70,7 +70,7 @@ pub async fn json_body(response: axum::response::Response) -> Value {
 /// A member with a real password hash and a live session.
 ///
 /// Built through the store rather than `/auth/register`, the way
-/// `tests/recovery.rs` does and for the same reason: joining a claimed
+/// `tests/it_accounts/recovery.rs` does and for the same reason: joining a claimed
 /// deployment is an invite-gated policy decision with its own tests, and these
 /// suites only need somebody signed in.
 pub async fn member(store: &Store, auth: &Auth, username: &str) -> (String, String) {

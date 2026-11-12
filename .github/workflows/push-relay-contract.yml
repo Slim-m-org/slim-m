@@ -10,16 +10,16 @@ on:
       - "crates/slimm-server/src/push.rs"
       - "crates/slimm-server/src/push/**"
       - "crates/slimm-server/src/http/push.rs"
-      - "crates/slimm-server/tests/push_relay_contract_fixture.rs"
-      - "crates/slimm-server/tests/push_relay_contract_kinds/**"
+      - "crates/slimm-server/tests/it_notify/push_relay_contract_fixture.rs"
+      - "crates/slimm-server/tests/it_notify/push_relay_contract_kinds/**"
       - ".github/workflows/push-relay-contract.yml"
   pull_request:
     paths:
       - "crates/slimm-server/src/push.rs"
       - "crates/slimm-server/src/push/**"
       - "crates/slimm-server/src/http/push.rs"
-      - "crates/slimm-server/tests/push_relay_contract_fixture.rs"
-      - "crates/slimm-server/tests/push_relay_contract_kinds/**"
+      - "crates/slimm-server/tests/it_notify/push_relay_contract_fixture.rs"
+      - "crates/slimm-server/tests/it_notify/push_relay_contract_kinds/**"
       - ".github/workflows/push-relay-contract.yml"
   workflow_dispatch:
 
@@ -56,7 +56,7 @@ jobs:
           check-latest: true
 
       - name: generate the fixture from real slimm-server code
-        run: cargo test -p slimm-server --test push_relay_contract_fixture
+        run: cargo test -p slimm-server --test it_notify -- push_relay_contract_fixture::
         env:
           SLIMM_PUSH_CONTRACT_FIXTURE_OUT: ${{ github.workspace }}/slim-m-relay/internal/api/testdata/push_relay_contract.generated.json
 

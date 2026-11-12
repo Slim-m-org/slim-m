@@ -187,7 +187,7 @@ The first slice shipped the field this design needs; it just was not authoritati
 What changes: `latest_canvas_seq` and `viewport_objects` move into **one deferred read transaction** (`self.pool.begin()`), so WAL gives both statements one snapshot and `latest_seq` means exactly "every op at or below this is reflected in what I just read".
 That deletes the "read the cursor before the objects, over-reporting self-heals" reasoning at `http/canvas.rs:162-170` rather than restating it.
 
-**The viewport SQL string itself is not edited.** `tests/canvas_index.rs:78-125` reads that literal out of the source, runs `EXPLAIN QUERY PLAN`, and asserts the first step's constraint suffix is exactly 12 characters.
+**The viewport SQL string itself is not edited.** `tests/it_canvas/canvas_index.rs:78-125` reads that literal out of the source, runs `EXPLAIN QUERY PLAN`, and asserts the first step's constraint suffix is exactly 12 characters.
 Only the executor changes from `&self.pool` to `&mut *tx`.
 
 The four `prev_*` parameters stay working and gain `deprecated: true` with a description saying the op cursor supersedes them.
@@ -320,7 +320,7 @@ No timeout check.
 
 - **`schema/openapi.yaml`**: one new path with two operations; a `delete` on nothing (there is no DELETE); schemas `CanvasOp`, `CanvasOpRequest`, `CanvasOpResult`, `CanvasOpPage`; three new WS event schemas plus their `$ref`s in the `oneOf` at `:4073`; the `deprecated: true` on the four `prev_*` parameters; and the rewritten `latest_seq` description.
   The canvas block is `:2145-2296`, schemas at `:3478-3580`, the WS event at `:4077-4096`.
-- **`tests/response_contract/script/content.rs`**: two cases, `submitCanvasOp` and `listCanvasOps`, beside `placeCanvasObject` (`:93`) and `listCanvasViewport` (`:108`).
+- **`tests/it_infra/response_contract/script/content.rs`**: two cases, `submitCanvasOp` and `listCanvasOps`, beside `placeCanvasObject` (`:93`) and `listCanvasViewport` (`:108`).
   **Order matters:** place a *second* object first, so `listCanvasViewport`'s existing non-empty-page reasoning survives the erase; then `listCanvasOps`; then `submitCanvasOp` with a `remove`.
 - **`http/capability.rs`** needs nothing.
   The list is derived from the router by probing with `SLIMMPROBE` and reading the `Allow` header, so a new path appears on its own.

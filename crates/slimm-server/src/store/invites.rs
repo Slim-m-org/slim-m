@@ -53,7 +53,7 @@ impl Invite {
 /// [`spend_invite`]'s SQL `WHERE` encodes the identical rule a third time and
 /// cannot be unified with this one - sqlx checks a query's SQL at compile
 /// time against a literal, not a runtime function call - which is why
-/// `tests/invite_usability.rs` exists: it is what would catch the SQL copy
+/// `tests/it_accounts/invite_usability.rs` exists: it is what would catch the SQL copy
 /// drifting from this one instead of a shared `fn`.
 fn invite_usable(
     revoked: bool,

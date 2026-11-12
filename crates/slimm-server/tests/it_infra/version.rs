@@ -1,0 +1,171 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+//! GET /version: the unauthenticated probe onboarding uses to learn what a
+//! server is before an account exists, including whether it can deliver push.
+
+use axum::Router;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use serde_json::Value;
+use slimm_server::config::Config;
+use slimm_server::http::gifs::GifSearch;
+use slimm_server::push::PushSender;
+use slimm_server::store::{MAX_SCREEN_SHARE_MAX_HEIGHT, Store};
+use tower::ServiceExt;
+
+use crate::support;
+fn app(store: Store, push: PushSender, gifs: GifSearch) -> Router {
+    support::app::builder(store).push(push).gifs(gifs).router()
+}
+
+async fn get_version(app: Router) -> Value {
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/version")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+#[tokio::test]
+async fn version_reports_push_disabled_without_a_relay() {
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+
+    assert_eq!(body["name"], "slim-m");
+    assert_eq!(body["protocol"], 1);
+    assert!(body["version"].is_string());
+    assert_eq!(body["push_enabled"], false);
+}
+
+#[tokio::test]
+async fn version_reports_push_enabled_with_a_relay() {
+    let config = Config {
+        port: 0,
+        database_path: String::new(),
+        hash_concurrency: 2,
+        push_relay_url: Some("https://relay.example".into()),
+        push_relay_key: Some("smr_test".into()),
+        ..Config::default()
+    };
+    let push = PushSender::new(&config).expect("relay config is valid");
+
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, push, GifSearch::disabled())).await;
+    assert_eq!(body["push_enabled"], true);
+}
+
+#[tokio::test]
+async fn version_reports_gif_search_disabled_without_a_provider() {
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+    assert_eq!(body["gif_search_enabled"], false);
+}
+
+#[tokio::test]
+async fn version_reports_gif_search_enabled_with_a_provider() {
+    let config = Config {
+        port: 0,
+        database_path: String::new(),
+        hash_concurrency: 2,
+        gif_provider: Some("tenor".into()),
+        gif_api_key: Some("test-key".into()),
+        ..Config::default()
+    };
+    let gifs = GifSearch::new(&config).expect("provider config is valid");
+
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, PushSender::disabled(), gifs)).await;
+    assert_eq!(body["gif_search_enabled"], true);
+}
+
+/// Rides here unauthenticated, not behind `/space/screen-share`'s
+/// MANAGE_SERVER gate, precisely so a member with no admin bit can still cap
+/// their own screen share against it.
+#[tokio::test]
+async fn version_reports_the_screen_share_ceiling_with_no_auth_required() {
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+    assert_eq!(body["screen_share_max_height"], MAX_SCREEN_SHARE_MAX_HEIGHT);
+}
+
+#[tokio::test]
+async fn version_reports_the_attachment_ceiling() {
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+    assert!(body["max_attachment_bytes"].as_u64().unwrap() > 0);
+}
+
+const FLOOR_VAR: &str = "SLIMM_MIN_CLIENT_VERSION";
+
+/// Clears the floor variable on drop so a failed assert cannot leak it into a later case.
+struct FloorVar;
+
+impl FloorVar {
+    fn set(value: Option<&str>) -> Self {
+        unsafe {
+            match value {
+                Some(value) => std::env::set_var(FLOOR_VAR, value),
+                None => std::env::remove_var(FLOOR_VAR),
+            }
+        }
+        Self
+    }
+}
+
+impl Drop for FloorVar {
+    fn drop(&mut self) {
+        unsafe { std::env::remove_var(FLOOR_VAR) };
+    }
+}
+
+async fn floor_with(value: Option<&str>) -> Value {
+    let _floor = FloorVar::set(value);
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await
+}
+
+/// One test, because the floor is a process-wide variable read per request.
+/// Unset and blank both leave the field absent: "" would parse as a version nothing satisfies.
+#[tokio::test]
+async fn version_floor_follows_the_operator_variable() {
+    let unset = floor_with(None).await;
+    assert!(
+        unset.get("min_client_version").is_none(),
+        "an unset floor must not appear at all: {unset}"
+    );
+
+    let blank = floor_with(Some("   ")).await;
+    assert!(
+        blank.get("min_client_version").is_none(),
+        "blank is not a floor: {blank}"
+    );
+
+    let set = floor_with(Some("0.76.0")).await;
+    assert_eq!(set["min_client_version"], "0.76.0");
+}
+
+/// The build id is baked in at compile time, so this asserts the wire agrees
+/// with whatever this build was given: present and short when it was set,
+/// absent (never null or a placeholder) when it was not.
+#[tokio::test]
+async fn version_reports_the_build_id_this_build_was_given() {
+    let (store, _guard) = support::new_store("slimm-version-test").await;
+    let body = get_version(app(store, PushSender::disabled(), GifSearch::disabled())).await;
+
+    match slimm_server::http::build_id::from_raw(option_env!("SLIMM_BUILD_ID")) {
+        Some(id) => assert_eq!(body["build_id"], id.as_str()),
+        None => assert!(
+            body.get("build_id").is_none(),
+            "unset must be absent: {body}"
+        ),
+    }
+}

@@ -4,7 +4,7 @@
 //! Its own module rather than three steps inside [`super::deliver::deliver`]'s
 //! fire-and-forget task: this is the whole authorization decision on the push
 //! path, and a task that reports to nothing but the process log cannot be
-//! tested. `tests/blocking_reach.rs` drives it directly.
+//! tested. `tests/it_spaces/blocking_reach.rs` drives it directly.
 
 use std::collections::HashSet;
 

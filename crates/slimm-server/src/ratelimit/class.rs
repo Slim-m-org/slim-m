@@ -58,7 +58,7 @@ classes! {
     /// this does not.
     ///
     /// Unauthenticated only - no `Authed`/`AuthedLimited` handler may charge
-    /// this, enforced by `tests/rate_limit_coverage.rs`. An authenticated GET
+    /// this, enforced by `tests/it_infra/rate_limit_coverage.rs`. An authenticated GET
     /// used to charge this too, on the reasoning that it was "just a read";
     /// that made every one of them fight `/version`'s own callers for a
     /// budget sized for a login screen, not a signed-in client. See
