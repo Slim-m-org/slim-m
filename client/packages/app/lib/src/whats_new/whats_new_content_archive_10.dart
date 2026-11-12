@@ -57,7 +57,7 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
     ],
   ),
   WhatsNewEntry(
-    version: '0.128.2',
+    version: '0.129.0',
     headline: 'Message text on Android, and a tidier profile',
     points: [
       WhatsNewPoint(
