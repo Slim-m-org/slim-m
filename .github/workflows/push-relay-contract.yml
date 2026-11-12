@@ -56,7 +56,7 @@ jobs:
           check-latest: true
 
       - name: generate the fixture from real slimm-server code
-        run: cargo test -p slimm-server --test it_notify -- push_relay_contract_fixture::
+        run: "cargo test -p slimm-server --test it_notify -- push_relay_contract_fixture::"
         env:
           SLIMM_PUSH_CONTRACT_FIXTURE_OUT: ${{ github.workspace }}/slim-m-relay/internal/api/testdata/push_relay_contract.generated.json
 
