@@ -10,6 +10,7 @@ library;
 import 'dart:convert';
 
 import 'package:pinenacl/x25519.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'device_push_keys.dart';
 import 'key_store.dart';
@@ -77,7 +78,8 @@ class PushEnvelope {
       }
       if (json['sent_at'] != null && json['sent_at'] is! int) return null;
       return PushEnvelope._(json);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.push, 'Unreadable push envelope', error, stack);
       return null;
     }
   }
@@ -134,7 +136,8 @@ class PushEnvelope {
 Uint8List? openSealedBox(Uint8List sealed, Uint8List privateKey) {
   try {
     return SealedBox(PrivateKey(privateKey)).decrypt(sealed);
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(LogTag.push, 'Push payload did not open', error, stack);
     return null;
   }
 }
@@ -154,7 +157,8 @@ Future<PushEnvelope?> openPushPayload(
     if (seed.length != 32) return null;
     final plaintext = openSealedBox(base64Decode(payload), seed);
     return plaintext == null ? null : PushEnvelope.decode(plaintext);
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(LogTag.push, 'Push payload not opened', error, stack);
     return null;
   }
 }
