@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The in-call banner when the server is the consumer (decision 0113): the
-/// same words in both modes, Stop only when someone asked for it.
+/// The in-call banner when the server is the consumer (decision 0113): a
+/// banner with Stop when someone asked for it, none when the Space always does.
 library;
 
 import 'dart:async';
@@ -93,10 +93,10 @@ void main() {
         expect(find.byKey(CallAudioBanner.stopKey), findsOneWidget);
       });
 
-      testWidgets('always says so and offers no Stop', (tester) async {
+      testWidgets('always leaves it to the call header mark', (tester) async {
         await _pump(tester, always: true, width: width);
 
-        expect(find.text('This call is being transcribed'), findsOneWidget);
+        expect(find.text('This call is being transcribed'), findsNothing);
         expect(find.byKey(CallAudioBanner.stopKey), findsNothing);
       });
     });

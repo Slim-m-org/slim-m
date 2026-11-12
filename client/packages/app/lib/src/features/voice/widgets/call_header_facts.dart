@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
+import '../providers/call_audio.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_ping.dart';
 import 'call_participant_tiles.dart';
@@ -78,6 +79,10 @@ class CallHeaderLine extends ConsumerWidget {
           Text(' · ', style: facts),
           VoicePingReadout(style: facts),
         ],
+        if (ref.watch(_transcribed(channelId))) ...[
+          Text(' · ', style: facts),
+          const _TranscribedMark(),
+        ],
       ],
     );
     if (!showTitle) return live ? factsRow : const SizedBox.shrink();
@@ -119,6 +124,35 @@ class CallHeaderLine extends ConsumerWidget {
         Flexible(child: titleText),
         if (live) ...[const SizedBox(width: AppSpacing.s12), factsRow],
       ],
+    );
+  }
+}
+
+bool _isTranscribed(CallAudioModel model) {
+  final session = model.session;
+  return session != null && session.isOn && session.isServerTranscript;
+}
+
+ProviderListenable<bool> _transcribed(String channelId) =>
+    callAudioProvider(channelId).select(_isTranscribed);
+
+/// A recording light rather than a banner: the words are a hover away.
+class _TranscribedMark extends StatelessWidget {
+  const _TranscribedMark();
+
+  static const message = 'This call is being transcribed';
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Tooltip(
+      message: message,
+      child: Icon(
+        AppIcons.callAudio,
+        key: const Key('call-transcribed-mark'),
+        size: 12,
+        color: tokens.textSecondary,
+      ),
     );
   }
 }
