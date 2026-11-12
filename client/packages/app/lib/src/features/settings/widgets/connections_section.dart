@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accounts from other services a member links: Discord, Steam with its
-/// now-playing switch, and Spotify with its own.
+/// Accounts from other services a member links: Discord, Steam and Spotify.
 library;
 
 import 'dart:async';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Steam row of Connections: linking, unlinking and the "share what I'm
-/// playing" switch (decision 0115). The server holds the switch, because it
+/// The Steam link in Connections, and the "share what I'm playing" switch in
+/// Activity (decision 0115). The server holds the switch, because it
 /// is what lets it ask Steam about this member, so a change is a request and
 /// the switch shows the choice at once while the request is in flight.
 library;

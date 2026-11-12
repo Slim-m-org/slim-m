@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The Steam row of Connections: offered only when the server has a key, link
-/// and unlink, and the "Share what I'm playing" switch the server holds
-/// (decision 0115).
+/// and unlink. The "Share what I'm playing" switch the server holds sits in
+/// Activity, and only while linked (decision 0115).
 library;
 
 import 'dart:convert';
@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/members/widgets/activity_sharing_section.dart';
 import 'package:slimm_app/src/features/settings/providers/linked_accounts.dart';
 import 'package:slimm_app/src/features/settings/widgets/connections_section.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -83,7 +84,11 @@ class _Server {
   }
 }
 
-Future<void> _pump(WidgetTester tester, _Server server) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _Server server, {
+  bool withActivity = true,
+}) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -104,8 +109,15 @@ Future<void> _pump(WidgetTester tester, _Server server) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(
-          body: SingleChildScrollView(child: ConnectionsSection()),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                const ConnectionsSection(),
+                if (withActivity) const ActivitySharingSection(),
+              ],
+            ),
+          ),
         ),
       ),
     ),
@@ -158,6 +170,15 @@ void main() {
     expect(find.text('Ada on Steam'), findsOneWidget);
     expect(find.text("Share what I'm playing"), findsOneWidget);
     expect(tester.widget<AppToggle>(_shareSwitch).value, isFalse);
+  });
+
+  testWidgets('Connections alone never carries the switch', (tester) async {
+    final server = _Server(links: [_steam(sharing: true)]);
+    await _pump(tester, server, withActivity: false);
+
+    expect(find.text('Ada on Steam'), findsOneWidget);
+    expect(_shareSwitch, findsNothing);
+    expect(find.text("Share what I'm playing"), findsNothing);
   });
 
   testWidgets('the switch sends the choice and reads it back', (tester) async {

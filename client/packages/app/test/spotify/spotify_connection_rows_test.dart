@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The Spotify rows of Connections, driven by the real linker and the real
 /// redirect handler: each state appears in place on the Spotify row, the
-/// show-my-track switch exists only while linked, an error is a persistent
+/// show-my-track switch lives in Activity and only while linked, an error is a persistent
 /// `AppErrorState` with Retry, and Unlink works (decision 0056). Pictures are written only under SLIMM_UI_SNAPSHOTS=1.
 library;
 
@@ -10,7 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/widgets/activity_sharing_section.dart';
 import 'package:slimm_app/src/features/settings/providers/linked_accounts.dart';
+import 'package:slimm_app/src/spotify/spotify_link.dart';
 import 'package:slimm_app/src/features/settings/widgets/connections_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -30,6 +32,7 @@ Future<SpotifyRig> _pump(
   WidgetTester tester, {
   required Size window,
   required Brightness brightness,
+  Widget body = const ConnectionsSection(),
 }) async {
   tester.view.physicalSize = window;
   tester.view.devicePixelRatio = 1.0;
@@ -54,10 +57,10 @@ Future<SpotifyRig> _pump(
             brightness,
             brightness == Brightness.dark ? AppTokens.dark : AppTokens.light,
           ),
-          home: const Scaffold(
+          home: Scaffold(
             body: SingleChildScrollView(
-              padding: EdgeInsets.all(AppSpacing.s16),
-              child: ConnectionsSection(),
+              padding: const EdgeInsets.all(AppSpacing.s16),
+              child: body,
             ),
           ),
         ),
@@ -79,7 +82,7 @@ Future<void> _shot(WidgetTester tester, String name) async {
 void main() {
   setUpAll(loadRealFonts);
 
-  testWidgets('the show-track text lines up with the Spotify title', (
+  testWidgets('the Discord title lines up with the Spotify title', (
     tester,
   ) async {
     final rig = await _pump(
@@ -93,7 +96,6 @@ void main() {
     await _settle(tester);
 
     final title = tester.getTopLeft(find.text('Spotify')).dx;
-    expect(tester.getTopLeft(find.text('Show my Spotify track')).dx, title);
     expect(tester.getTopLeft(find.text('Discord')).dx, title);
   });
 
@@ -141,14 +143,9 @@ void main() {
         await tester.runAsync(() => rig.linker.handleCallback(rig.redirect()));
         await _settle(tester);
         expect(find.text('Nick'), findsOne);
-        expect(find.text('Show my Spotify track'), findsOne);
-        expect(tester.widget<AppToggle>(find.byType(AppToggle)).value, isTrue);
+        expect(find.text('Show my Spotify track'), findsNothing);
+        expect(find.byType(AppToggle), findsNothing);
         await _shot(tester, 'spotify-row-connected-$suffix');
-
-        await tester.tap(find.byType(AppToggle));
-        await _settle(tester);
-        expect(tester.widget<AppToggle>(find.byType(AppToggle)).value, isFalse);
-        expect(find.text('Unlink'), findsWidgets, reason: 'still linked');
 
         await tester.tap(_spotifyButton('Unlink'));
         await _settle(tester);
@@ -186,4 +183,29 @@ void main() {
       });
     }
   }
+
+  testWidgets('Activity offers the Spotify switch only while linked', (
+    tester,
+  ) async {
+    final rig = await _pump(
+      tester,
+      window: const Size(390, 844),
+      brightness: Brightness.light,
+      body: const ActivitySharingSection(),
+    );
+    final toggle = find.byWidgetPredicate((w) => w is AppToggle);
+    expect(find.text('Show my Spotify track'), findsNothing);
+
+    await tester.runAsync(
+      () => rig.container.read(shareSpotifyProvider.notifier).connect(),
+    );
+    await tester.runAsync(() => rig.linker.handleCallback(rig.redirect()));
+    await _settle(tester);
+    expect(find.text('Show my Spotify track'), findsOne);
+    expect(tester.widget<AppToggle>(toggle).value, isTrue);
+
+    await tester.tap(toggle);
+    await _settle(tester);
+    expect(tester.widget<AppToggle>(toggle).value, isFalse);
+  });
 }

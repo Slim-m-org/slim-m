@@ -7,12 +7,18 @@
 /// what your profile card and member row say about you.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/activity_feeds.dart';
 import '../../../spotify/spotify_link.dart';
+import '../../../spotify/spotify_link_status.dart';
+import '../../settings/providers/linked_accounts.dart';
+import '../../settings/providers/steam_connection.dart';
 import 'activity_card.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
@@ -22,11 +28,18 @@ class ActivitySharingSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final spotifyLinked =
+        ref.watch(spotifyLinkStatusProvider) is SpotifyConnected;
     final feeds = [
       for (final feed in ref.watch(availableActivityFeedsProvider))
-        if (feed.enabled != shareSpotifyProvider) feed,
+        if (feed.enabled != shareSpotifyProvider || spotifyLinked) feed,
     ];
-    if (feeds.isEmpty) return const SizedBox.shrink();
+    final steam = ref
+        .watch(myLinkedAccountsProvider)
+        .valueOrNull
+        ?.where((link) => link.isSteam)
+        .firstOrNull;
+    if (feeds.isEmpty && steam == null) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -50,8 +63,41 @@ class ActivitySharingSection extends ConsumerWidget {
                 semanticLabel: feed.label,
               ),
             ],
+            if (steam != null) _ShareGameRow(steam: steam),
           ],
         ),
+      ],
+    );
+  }
+}
+
+/// Steam's switch lives on the server, so its failures show here beside it.
+class _ShareGameRow extends ConsumerWidget {
+  const _ShareGameRow({required this.steam});
+
+  final api.LinkedAccount steam;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chosen = ref.watch(steamConnectionProvider.select((c) => c.sharing));
+    final error = ref.watch(steamConnectionProvider.select((c) => c.error));
+    final controller = ref.read(steamConnectionProvider.notifier);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsToggleRow(
+          label: "Share what I'm playing",
+          description: 'Shows your Steam game to people who see your status.',
+          value: chosen ?? steam.shareActivity,
+          onChanged: (value) => unawaited(controller.setSharing(value)),
+          semanticLabel: "Share what I'm playing",
+        ),
+        if (error != null)
+          SettingsCardBlock(
+            children: [
+              AppErrorState(message: error, onDismiss: controller.dismissError),
+            ],
+          ),
       ],
     );
   }
