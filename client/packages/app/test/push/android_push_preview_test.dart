@@ -20,9 +20,14 @@ String _payload(Map<String, Object?> json) => base64Encode(
   ).encrypt(Uint8List.fromList(utf8.encode(jsonEncode(json)))),
 );
 
-Map<String, Object?> _envelope({int? sentAt, String? channel = 'general'}) => {
+Map<String, Object?> _envelope({
+  int? sentAt,
+  String? channel = 'general',
+  String channelId = 'c1',
+}) => {
   'domain': 'slim-m.push.v1',
   'version': 1,
+  'channel_id': channelId,
   'sent_at': sentAt ?? _now.millisecondsSinceEpoch,
   'sender': 'ana',
   'channel': channel,
@@ -40,15 +45,15 @@ void main() {
     final data = {'kind': 'message', 'payload': _payload(_envelope())};
     final preview = await openPreview(data, await _store(), now: _now);
 
-    expect(preview!.body, 'lunch?');
-    expect(previewTitle(preview), 'ana in #general');
+    expect(preview!.text.body, 'lunch?');
+    expect(previewTitle(preview.text), 'ana in #general');
   });
 
   test('a DM title is the sender alone', () async {
     final data = {'payload': _payload(_envelope(channel: null))};
     final preview = await openPreview(data, await _store(), now: _now);
 
-    expect(previewTitle(preview!), 'ana');
+    expect(previewTitle(preview!.text), 'ana');
   });
 
   test('a stale envelope falls back to the generic line', () async {
@@ -78,5 +83,18 @@ void main() {
     };
 
     expect(await openPreview(data, await _store(), now: _now), isNull);
+  });
+
+  test('two conversations stack and one conversation replaces', () async {
+    final keys = await _store();
+    Future<int> idOf(String channelId) async => (await openPreview(
+      {'payload': _payload(_envelope(channelId: channelId))},
+      keys,
+      now: _now,
+    ))!.notificationId;
+
+    expect(await idOf('c1'), await idOf('c1'));
+    expect(await idOf('c1'), isNot(await idOf('c2')));
+    expect(await idOf('c1'), greaterThanOrEqualTo(previewNotificationIdBase));
   });
 }

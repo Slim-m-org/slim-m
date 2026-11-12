@@ -270,25 +270,21 @@ class LocalNotifications {
     return requester.requestNotificationsPermission();
   }
 
-  /// Shows [text] as this app's one active notification for [channel],
-  /// replacing whatever this app last showed on that channel rather than
-  /// stacking beside it. A push payload is an encrypted envelope nothing on
-  /// this device can open yet, so those notifications are identical within
-  /// their channel and stacking them would add clutter, not information; the
-  /// desktop, which has the message itself, replaces too so a burst reads as
-  /// its latest line. This matches the server's own choice to collapse a
-  /// burst into at most one wake per idle recipient (see `PushSender`).
-  /// [title] defaults to the app's name.
+  /// Shows [text] on [channel], replacing whatever this app last showed under
+  /// the same id, so a burst reads as its latest line. [id] defaults to the
+  /// channel's own; a message preview passes one per conversation. [title]
+  /// defaults to the app's name.
   Future<void> show(
     String text, {
     required LocalAlertChannel channel,
     String? title,
     String? payload,
+    int? id,
   }) async {
     if (!_supported) return;
     await _ensureReady();
     await _plugin.show(
-      channel.notificationId,
+      id ?? channel.notificationId,
       title ?? 'slim-m',
       text,
       NotificationDetails(

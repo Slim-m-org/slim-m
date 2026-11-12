@@ -15,6 +15,8 @@
 /// here may depend on `providers.dart` or any other app state.
 library;
 
+import 'dart:convert';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:slimm_platform/platform.dart';
 
@@ -137,9 +139,12 @@ String previewTitle(PushPreviewText preview) => preview.channel == null
     ? preview.title
     : '${preview.title} in #${preview.channel}';
 
+/// One preview to show: its text and the id it shows under.
+typedef OpenedPreview = ({PushPreviewText text, int notificationId});
+
 /// The sealed preview in [data]'s `payload`, or null for any reason it cannot
 /// be shown, so the caller falls back to the generic line.
-Future<PushPreviewText?> openPreview(
+Future<OpenedPreview?> openPreview(
   Map<String, dynamic> data,
   KeyStore keys, {
   DateTime? now,
@@ -149,8 +154,27 @@ Future<PushPreviewText?> openPreview(
     payload is String ? payload : null,
     keys,
   );
-  return envelope?.preview(now ?? DateTime.now());
+  final text = envelope?.preview(now ?? DateTime.now());
+  if (envelope == null || text == null) return null;
+  return (
+    text: text,
+    notificationId: previewNotificationId(envelope.channelId),
+  );
 }
+
+/// One notification per conversation: two chats stack, one chat shows its
+/// latest line. FNV-1a, because String.hashCode is not stable across runs.
+int previewNotificationId(String? channelId) {
+  if (channelId == null) return previewNotificationIdBase;
+  var hash = 0x811c9dc5;
+  for (final byte in utf8.encode(channelId)) {
+    hash = ((hash ^ byte) * 0x01000193) & 0xffffffff;
+  }
+  return previewNotificationIdBase + (hash & 0x3fffffff);
+}
+
+/// Above the fixed per-channel ids in `LocalAlertChannel`.
+const previewNotificationIdBase = 1000;
 
 /// The background isolate entry point FCM invokes when a data message
 /// arrives while the app is backgrounded or fully killed - the only two
@@ -182,9 +206,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         createPersistentKeyStore(),
       );
       await LocalNotifications().show(
-        preview?.body ?? text,
+        preview?.text.body ?? text,
         channel: channel,
-        title: preview == null ? null : previewTitle(preview),
+        title: preview == null ? null : previewTitle(preview.text),
+        id: preview?.notificationId,
       );
     case PushActionIncomingCall(:final callId, :final callerName):
       await CallNotifications().showIncomingCall(

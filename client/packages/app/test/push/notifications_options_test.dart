@@ -26,6 +26,7 @@ class _FakeNotifications implements LocalNotifications {
     required LocalAlertChannel channel,
     String? title,
     String? payload,
+    int? id,
   }) async {
     if (broken) throw StateError('no notification daemon');
     shown.add(text);

@@ -31,6 +31,7 @@ class _Notifications implements LocalNotifications {
     required LocalAlertChannel channel,
     String? title,
     String? payload,
+    int? id,
   }) async => shown.add(channel);
 
   @override
