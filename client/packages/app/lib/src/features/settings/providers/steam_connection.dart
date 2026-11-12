@@ -14,12 +14,20 @@ import 'linked_accounts.dart';
 import 'settings_actions.dart';
 
 class SteamConnectionState {
-  const SteamConnectionState({this.busy = false, this.error, this.sharing});
+  const SteamConnectionState({
+    this.busy = false,
+    this.error,
+    this.sharing,
+    this.sharingError,
+  });
 
   final bool busy;
 
-  /// A sentence for the last failure; stays until dismissed.
+  /// A sentence for the last link or unlink failure; stays until dismissed.
   final String? error;
+
+  /// The switch's own failure, shown beside the switch rather than the link.
+  final String? sharingError;
 
   /// The switch as just chosen, until the refetched link says the same.
   final bool? sharing;
@@ -29,7 +37,13 @@ class SteamConnection extends Notifier<SteamConnectionState> {
   @override
   SteamConnectionState build() => const SteamConnectionState();
 
-  void dismissError() => state = SteamConnectionState(sharing: state.sharing);
+  void dismissError() => state = SteamConnectionState(
+    sharing: state.sharing,
+    sharingError: state.sharingError,
+  );
+
+  void dismissSharingError() =>
+      state = SteamConnectionState(error: state.error, sharing: state.sharing);
 
   Future<void> link() async {
     state = const SteamConnectionState(busy: true);
@@ -80,7 +94,7 @@ class SteamConnection extends Notifier<SteamConnectionState> {
         await ref.read(myLinkedAccountsProvider.future);
       },
     );
-    state = SteamConnectionState(error: error);
+    state = SteamConnectionState(sharingError: error);
   }
 }
 

@@ -80,7 +80,9 @@ class _ShareGameRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chosen = ref.watch(steamConnectionProvider.select((c) => c.sharing));
-    final error = ref.watch(steamConnectionProvider.select((c) => c.error));
+    final error = ref.watch(
+      steamConnectionProvider.select((c) => c.sharingError),
+    );
     final controller = ref.read(steamConnectionProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,7 +97,10 @@ class _ShareGameRow extends ConsumerWidget {
         if (error != null)
           SettingsCardBlock(
             children: [
-              AppErrorState(message: error, onDismiss: controller.dismissError),
+              AppErrorState(
+                message: error,
+                onDismiss: controller.dismissSharingError,
+              ),
             ],
           ),
       ],

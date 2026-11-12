@@ -48,6 +48,7 @@ class _Server {
 
   bool steamEnabled;
   int startStatus = 200;
+  int sharingStatus = 204;
   List<Map<String, Object?>> links;
   final requests = <String>[];
   final bodies = <String>[];
@@ -73,6 +74,7 @@ class _Server {
           'url': 'https://steamcommunity.com/openid/login?x=1',
         });
       case ('PUT', '/me/links/steam/sharing'):
+        if (sharingStatus != 204) return _json(sharingStatus, {});
         final enabled = (jsonDecode(request.body) as Map)['enabled'] as bool;
         links = [_steam(sharing: enabled)];
         return http.Response('', 204);
@@ -223,5 +225,30 @@ void main() {
     await pumpFrames(tester);
 
     expect(find.text('Steam'), findsNothing);
+  });
+
+  testWidgets('a failed switch shows its error once, in Activity', (
+    tester,
+  ) async {
+    final server = _Server(links: [_steam(sharing: false)])
+      ..sharingStatus = 500;
+    await _pump(tester, server);
+
+    await tester.tap(_shareSwitch);
+    await waitUntil(
+      tester,
+      () => server.requests.contains('PUT /me/links/steam/sharing'),
+    );
+    await pumpFrames(tester);
+
+    final errors = find.byWidgetPredicate((w) => w is AppErrorState);
+    expect(errors, findsOneWidget);
+    expect(
+      find.ancestor(
+        of: errors,
+        matching: find.byWidgetPredicate((w) => w is ActivitySharingSection),
+      ),
+      findsOneWidget,
+    );
   });
 }
