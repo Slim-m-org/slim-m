@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.129.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.128.1...client-v0.129.0) (2026-11-12)
+
+
+### Features
+
+* **client:** android notifications show the message text, and profile connections only link accounts ([#2399](https://github.com/Slim-m-org/slim-m/issues/2399)) ([cebba28](https://github.com/Slim-m-org/slim-m/commit/cebba287bb7b11dd8021b7a71c2ed7cac9637d1a))
+
+
+### Bug Fixes
+
+* **client:** what's new entry is 0.129.0, not 0.128.2 ([#2401](https://github.com/Slim-m-org/slim-m/issues/2401)) ([8423f44](https://github.com/Slim-m-org/slim-m/commit/8423f443bdca14c6dabf5e8b9fcedd5fc7c81f5c))
+
 ## [0.128.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.128.0...client-v0.128.1) (2026-11-12)
 
 
