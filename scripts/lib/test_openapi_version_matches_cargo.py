@@ -3,7 +3,7 @@
 
 Nothing generates this field or checks it against anything else: redocly
 lint only validates that it is a string, and the openapi-vs-router contract
-test in crates/slimm-server/tests/openapi_contract.rs compares routes, never
+test in crates/slimm-server/tests/it_infra/openapi_contract.rs compares routes, never
 this value. That let it sit at 0.18.5 against a 0.37.0 server until PR #596
 hand-corrected it to 0.37.0 - and with nothing to hold the correction in
 place, it drifted straight back: by the time this test was added the server

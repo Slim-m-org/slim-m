@@ -3,7 +3,7 @@
 //! middleware, keyed on the matched route, and `/space/audit-log` reads it.
 //!
 //! One table of audited routes instead of a call in each handler, so a new
-//! admin route is one line here, and `tests/admin_audit.rs` fails when a
+//! admin route is one line here, and `tests/it_spaces/admin_audit.rs` fails when a
 //! mutating route is neither audited nor listed as exempt.
 
 use axum::Router;

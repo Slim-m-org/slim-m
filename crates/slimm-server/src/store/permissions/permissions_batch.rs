@@ -8,7 +8,7 @@
 //! 500-line ceiling. All three load a role context and a set of overwrites
 //! with a bounded number of queries, then run the same pure
 //! [`crate::permissions::evaluate`] the per-user path runs, and each carries
-//! an equivalence test in `tests/permissions.rs` proving the answers
+//! an equivalence test in `tests/it_spaces/permissions.rs` proving the answers
 //! identical to asking the per-user path once per candidate.
 
 use uuid::Uuid;

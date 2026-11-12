@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Gates schema/openapi.yaml against the routes SlimmApi actually calls.
 ///
-/// The mirror image of crates/slimm-server/tests/openapi_contract.rs on this
+/// The mirror image of crates/slimm-server/tests/it_infra/openapi_contract.rs on this
 /// side of the wire. That test reads the router's real source rather than
 /// trusting a hand-maintained list, because a list that only stays accurate
 /// if someone remembers to update it always rots; this file does the same

@@ -4,12 +4,12 @@
 # What CI actually enforces, so this file is not trusted for more than it is
 # worth:
 #
-# - The route surface. crates/slimm-server/tests/openapi_contract.rs parses the
+# - The route surface. crates/slimm-server/tests/it_infra/openapi_contract.rs parses the
 #   methods and paths axum really serves and fails if either side has one the
 #   other does not, so a route cannot be added, removed, or renamed without the
 #   matching edit here.
 # - Response bodies, against the server that sends them.
-#   crates/slimm-server/tests/response_contract/ drives the operationIds below
+#   crates/slimm-server/tests/it_infra/response_contract/ drives the operationIds below
 #   for real and validates the answer against the response schema written here:
 #   status code, content type, fields, types, enums and nullability. Both
 #   directions fail - a field promised here that the server omits, and a field
@@ -18,7 +18,7 @@
 #   are exempt by name in that test's UNCOVERED list, each with its reason;
 #   a stale entry there fails in both directions, so the exemptions cannot
 #   quietly grow either.
-# - The WebSocket frame set, by crates/slimm-server/tests/ws_frame_contract.rs,
+# - The WebSocket frame set, by crates/slimm-server/tests/it_realtime/ws_frame_contract.rs,
 #   which compares ServerFrame.oneOf and ClientFrame.oneOf against the frames
 #   ws/frames.rs really serialises and accepts and fails on drift in either
 #   direction. Frame *bodies* are not checked against a live socket the way

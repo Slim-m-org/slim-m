@@ -60,7 +60,7 @@ Moderation deletes arrive by their own path.
 A trigger also runs inside the same transaction as the write, so the index cannot be left stale by a failure between two statements.
 
 This is not a hypothetical: the whole measurement harness seeds by raw SQL in one transaction and never calls the store, and the index is correct anyway.
-`tests/canvas_index.rs` asserts exactly that with a raw `INSERT` and a raw `DELETE`.
+`tests/it_canvas/canvas_index.rs` asserts exactly that with a raw `INSERT` and a raw `DELETE`.
 
 The update trigger is scoped with `AFTER UPDATE OF x, y, w, h, channel_key, deleted_at`.
 Unscoped, deleting an account would rewrite every R-Tree entry that account ever authored, because anonymization nulls `author_id` on every one of their objects.
@@ -82,7 +82,7 @@ R-Tree coordinates are 32-bit floats and SQLite rounds a stored bounding box out
 That is safe in exactly one direction: it may over-report and can never under-report.
 Every query therefore repeats the intersection test in exact `REAL` arithmetic against `canvas_objects`, and the R-Tree is only ever a way to avoid looking at most rows.
 
-`tests/canvas_index.rs` places an object at x = 4,000,000.6 (where one float32 step is a quarter of a pixel), asserts the R-Tree does return it for a viewport ending at 4,000,000.5, and asserts the store does not.
+`tests/it_canvas/canvas_index.rs` places an object at x = 4,000,000.6 (where one float32 step is a quarter of a pixel), asserts the R-Tree does return it for a viewport ending at 4,000,000.5, and asserts the store does not.
 The test fails if the coordinates stop exercising over-reporting, so it cannot rot into a test that passes for the wrong reason.
 
 ## Does it actually use the R-Tree
@@ -119,7 +119,7 @@ It still returns the right answer, which is what makes it dangerous: nothing is 
 The trap is that this only shows up on a database with no statistics.
 `ANALYZE` was run once during investigation and the planner immediately picked the right plan by itself, which is exactly how this ships broken: it works on the developer's database and not on anyone's deployment.
 
-`tests/canvas_index.rs` reads the SQL out of `src/store/canvas.rs` rather than carrying a copy, and asserts the plan drives from the R-Tree with all six terms.
+`tests/it_canvas/canvas_index.rs` reads the SQL out of `src/store/canvas.rs` rather than carrying a copy, and asserts the plan drives from the R-Tree with all six terms.
 A plan assertion against a copied query only proves the copy is fast.
 
 ## The numbers
@@ -134,7 +134,7 @@ Objects are 180x140 on a jittered grid, and the world is sized so a 1920x1080 vi
 Reproduce with:
 
 ```
-cargo test --release --test canvas_spike -- --ignored --nocapture --test-threads=1
+cargo nextest run --release --test it_canvas canvas_spike:: --run-ignored all --no-capture --test-threads=1
 ```
 
 ### Against object count, one screenful
@@ -221,7 +221,7 @@ It is called out here rather than patched because patching it (a `deleted_seq` c
 
 **Pin the join order, and keep the test that proves it.**
 Already done, but it is worth restating as the standing recommendation: the `CROSS JOIN` is load-bearing and looks like style.
-Any future edit to that query needs `tests/canvas_index.rs` to stay green, and the reason it reads the SQL out of the source is so a well-meant refactor cannot quietly leave the assertion checking something else.
+Any future edit to that query needs `tests/it_canvas/canvas_index.rs` to stay green, and the reason it reads the SQL out of the source is so a well-meant refactor cannot quietly leave the assertion checking something else.
 
 **Have the client stop asking for the region past about four screens wide.**
 The crossover is where the index stops helping, and the right response is not a different index, it is that nobody should be streaming a four-screen region object by object anyway.

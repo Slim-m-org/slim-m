@@ -4,7 +4,7 @@
 //! (migration 0015) in sync.
 //!
 //! Split out of `canvas.rs`, which crossed the 500-line hard limit once
-//! `move` needed both a pool-level wrapper (kept for `tests/canvas_index.rs`'s
+//! `move` needed both a pool-level wrapper (kept for `tests/it_canvas/canvas_index.rs`'s
 //! own R-Tree assertions) and a transaction-level primitive
 //! (`canvas_ops_apply::apply_move` calls it against its own write
 //! transaction).
@@ -17,7 +17,7 @@ use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
 impl Store {
     /// Moves or resizes an object outside any caller's transaction. Kept as a
-    /// raw primitive over the pool for `tests/canvas_index.rs`'s own R-Tree
+    /// raw primitive over the pool for `tests/it_canvas/canvas_index.rs`'s own R-Tree
     /// assertions; `canvas_ops_apply::apply_move`'s authorized,
     /// op-stream-recorded move calls [`move_canvas_object_query`] directly,
     /// against its own write transaction, rather than this wrapper.

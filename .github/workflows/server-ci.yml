@@ -105,9 +105,10 @@ jobs:
           cargo sqlx prepare --workspace --check -- --all-targets
       - name: install nextest
         # Pinned version, checksum-verified by the action rather than piped from
-        # the network straight into tar. nextest runs the workspace's test
-        # binaries in parallel; plain `cargo test` runs them one at a time, so
-        # this is a large wall-clock win on a suite of many integration bins.
+        # the network straight into tar. The it_* integration binaries hold
+        # many former files each and rely on nextest's process per test: some
+        # set a process-wide tracing subscriber or environment variable, which
+        # plain `cargo test` would share across every test of a binary.
         uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
         with:
           tool: cargo-nextest@0.9.143

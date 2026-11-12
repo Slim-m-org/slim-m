@@ -38,8 +38,8 @@ SQLX_OFFLINE=true cargo nextest run --workspace   # what CI runs; one process pe
 SQLX_OFFLINE=true cargo test --workspace --doc        # nextest skips doctests
 
 # one test file, then one case in it
-SQLX_OFFLINE=true cargo test --test channels
-SQLX_OFFLINE=true cargo test --test channels -- manager_can_rename_a_channel --exact --nocapture
+SQLX_OFFLINE=true cargo nextest run --test it_spaces channels::
+SQLX_OFFLINE=true cargo nextest run --test it_spaces -E 'test(=channels::manager_can_rename_a_channel)' --no-capture
 ```
 
 After changing a `query!` or `query_as!`, refresh the offline cache, including test queries:

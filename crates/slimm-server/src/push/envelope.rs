@@ -16,7 +16,7 @@
 //! the same content-free envelope as before, naming nothing but where to
 //! catch up from. Sealing is per device, so one device opting in never widens
 //! what another device's envelope carries, and no plaintext of either shape
-//! ever leaves this function. `tests/push_content_envelope.rs` asserts that
+//! ever leaves this function. `tests/it_notify/push_content_envelope.rs` asserts that
 //! structurally against the serialized relay-bound body rather than trusting
 //! this paragraph.
 //!
@@ -436,7 +436,7 @@ mod tests {
 
     /// And it rides alongside a preview, at the same value passed in - this is
     /// the plaintext-level half of the replay defense; the sealed-round-trip
-    /// half lives in `tests/push_content_envelope.rs`, which actually unseals
+    /// half lives in `tests/it_notify/push_content_envelope.rs`, which actually unseals
     /// real ciphertext rather than inspecting the plaintext before sealing.
     #[test]
     fn sent_at_is_present_alongside_a_preview_at_the_value_passed_in() {

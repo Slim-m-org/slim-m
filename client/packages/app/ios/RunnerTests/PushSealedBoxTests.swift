@@ -8,7 +8,7 @@ import XCTest
 /// libsodium sealed box needs (see PushSealedBox.swift for that reasoning),
 /// and reasoning about crypto is not the same as running it. So this opens
 /// real ciphertext: `push_envelope_cases.json` is written by
-/// `crates/slimm-server/tests/push_envelope_fixture.rs` using the same
+/// `crates/slimm-server/tests/it_notify/push_envelope_fixture.rs` using the same
 /// `crypto_box` version the server actually seals with, and a Rust test
 /// asserts the same file still opens with the server's own crate. If the two
 /// implementations ever disagree, one of the two fails.

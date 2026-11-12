@@ -3,7 +3,7 @@
 ///
 /// Hand-written rather than generated, and deliberately so: nothing here is
 /// checked against the schema by any test. The route surface is gated
-/// (`crates/slimm-server/tests/openapi_contract.rs`), but field names,
+/// (`crates/slimm-server/tests/it_infra/openapi_contract.rs`), but field names,
 /// nullability, and status codes are not, on any of the three sides. A field
 /// renamed on the server and not here fails at runtime, as a null where a value
 /// was expected, so treat the schema as the record and change both together.

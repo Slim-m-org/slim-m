@@ -196,7 +196,7 @@ That is not hypothetical - #675 documented `bulkDeleteMessages`, touched no `cli
 
 `schema/openapi.yaml` declares OpenAPI 3.1 but writes nullable fields with the 3.0 `nullable: true` keyword beside a `type`, at about thirty sites.
 oasdiff cannot read a 3.1 `type: [x, "null"]` union and reports the conversion as the property losing nullability, which fails the additive-only gate on a request property, and redocly rejects carrying both forms at once.
-JSON Schema 2020-12 has no `nullable` keyword, so the response contract test (`tests/response_contract/openapi.rs`) rewrites each `nullable: true` into the union when it loads the schema; without that, a documented-nullable field holding null would fail validation (issue 2089).
+JSON Schema 2020-12 has no `nullable` keyword, so the response contract test (`tests/it_infra/response_contract/openapi.rs`) rewrites each `nullable: true` into the union when it loads the schema; without that, a documented-nullable field holding null would fail validation (issue 2089).
 
 ## hygiene
 
@@ -278,7 +278,7 @@ An entry whose file has dropped back under 500, or which no longer names a check
 Nothing in that list is a judgement that the file is acceptable.
 The two worst are production code, not tests: `store/sessions.rs` at 815 lines carries tokens, refresh rotation, ws tickets and account deletion together, and `push.rs` at 600 carries envelope sealing, the relay client and fan-out triggering.
 Splitting them is real work with real regression risk and does not belong in the change that introduces the gate.
-`schema/openapi.yaml` is the one that will most likely stay: one OpenAPI document split across `$ref` files would give `tests/openapi_contract.rs` two sources to reconcile.
+`schema/openapi.yaml` is the one that will most likely stay: one OpenAPI document split across `$ref` files would give `tests/it_infra/openapi_contract.rs` two sources to reconcile.
 `release.yml` left the list when the steps of `linux-client`, `android-client`, `ios-testflight` and the COPR submit moved into the `release-*` composite actions.
 
 ### The test-pattern ratchet
@@ -648,8 +648,8 @@ The two Linux jobs joined the list on 2026-08-11: a release ships a Linux tarbal
 Neither is path-filtered on `main` (both run on every push there), so the release commit always carries them; the iOS checks get the same guarantee from the pubspec bump matching their filter.
 Those are exact check-run names (a job's `name:`, or its id when a job sets none), matched literally; renaming one of those jobs without updating the matching `required_checks` string silently reopens the gap this closes, since the renamed check is simply absent and the gate times out and fails rather than warns.
 
-~~`schema-ci` is not required: `tests/openapi_contract.rs` already runs inside `server-ci`'s `cargo test --all`, and `schema-ci`'s own job is a redocly lint of the document's syntax, not part of what either release actually ships.~~
-Wrong, and corrected once checked rather than assumed: `tests/openapi_contract.rs` gates the route surface - method and path - against the router, but never the shape of a response body, which is exactly what a breaking `oasdiff` change (a removed field, a narrowed type, a newly required property) reshapes.
+~~`schema-ci` is not required: `tests/it_infra/openapi_contract.rs` already runs inside `server-ci`'s `cargo test --all`, and `schema-ci`'s own job is a redocly lint of the document's syntax, not part of what either release actually ships.~~
+Wrong, and corrected once checked rather than assumed: `tests/it_infra/openapi_contract.rs` gates the route surface - method and path - against the router, but never the shape of a response body, which is exactly what a breaking `oasdiff` change (a removed field, a narrowed type, a newly required property) reshapes.
 Every already-installed client, on a self-host that auto-updates from `latest` or a phone on its own store-review schedule, is trusting that the wire only ever grows.
 Nothing enforced that at the release gate before this: `breaking-change-gate`, the job that actually checks additive-only-ness, ran on pull requests alone, which protects a reviewed PR but not a release cut from whatever is on `main` regardless of how it got there - and branch protection requiring it on `main` is an owner-only repository setting, not something this gate can lean on.
 `breaking-change-gate-main` (schema-ci) is what closes that: see its own section above for why the PR-time job could never be the one `required_checks` points at.

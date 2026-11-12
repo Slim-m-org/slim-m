@@ -137,7 +137,7 @@ Three client limits that are deliberate rather than bugs:
 ## The contract
 
 `schema/openapi.yaml` is the source of record for the wire protocol.
-`crates/slimm-server/tests/openapi_contract.rs` fails when a documented route and the real router drift apart.
+`crates/slimm-server/tests/it_infra/openapi_contract.rs` fails when a documented route and the real router drift apart.
 A new route also needs a client binding, or the `schema_coverage` and `app_reachability` gates fail.
 [CONTRIBUTING.md](../CONTRIBUTING.md) lists the rest of the gates.
 

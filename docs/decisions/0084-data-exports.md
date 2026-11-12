@@ -30,7 +30,7 @@ A saved message carries its text only when the member wrote it, otherwise just i
 A reaction, a poll vote and a saved item are ids with times.
 `manifest.json` lists what is not included, and the in-product copy says the same.
 
-`tests/data_export_coverage.rs` reads the migrated schema like the account deletion coverage test does.
+`tests/it_accounts/data_export_coverage.rs` reads the migrated schema like the account deletion coverage test does.
 Every column that points at a user is either exported to a named file or excluded with a written reason, and each named file must exist in a real archive.
 A new table with a user reference fails that test until someone decides.
 

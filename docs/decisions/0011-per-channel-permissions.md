@@ -111,7 +111,7 @@ Hardcoding `DM_BASE` client-side to skip that call was considered and rejected: 
 ### Route naming and schema
 
 `GET /channels/{channel_id}/permissions` follows the existing nested-route convention (`/channels/{channel_id}/overwrites/...`, `/channels/{channel_id}/canvas/ops`, `/channels/{channel_id}/read`).
-`crates/slimm-server/tests/openapi_contract.rs` fails the build the moment a route exists in the router but not in `schema/openapi.yaml`, so the schema edit has to land in the same change as the route, not after it.
+`crates/slimm-server/tests/it_infra/openapi_contract.rs` fails the build the moment a route exists in the router but not in `schema/openapi.yaml`, so the schema edit has to land in the same change as the route, not after it.
 
 ## The client seam
 
@@ -165,7 +165,7 @@ Everything else that reads `myPermissionsProvider` (`role_editor_sheet.dart`, `r
 
 ## What gets a test, and what mutation it would catch
 
-Server, following `tests/permissions.rs`'s own equivalence-test convention:
+Server, following `tests/it_spaces/permissions.rs`'s own equivalence-test convention:
 
 - The new route returns the same bits `permissions_in_channel` would for an ordinary channel, including the timeout subtraction.
   Mutation: call `granted_permissions_in_channel` instead (skips the subtraction); a test asserting a timed-out caller's `SEND_MESSAGES` bit is absent from the route's answer would fail.
@@ -226,7 +226,7 @@ Batched, the same four measurements are 5, 5, 12 and 12.
 This is the second time a comment here stated a bound that was not there - `viewers_among` did the same thing in July - which is the argument against settling a cost question in prose.
 
 **So the harness exists now.** sqlx emits one `sqlx::query` tracing event per statement, so a subscriber counting those events counts statements.
-It lives in `crates/slimm-server/tests/permissions_batch_cost.rs` and it has one real constraint worth knowing before reusing it: sqlite is synchronous, so sqlx runs each connection on a worker thread of its own and emits the event there.
+It lives in `crates/slimm-server/tests/it_infra/permissions_batch_cost.rs` and it has one real constraint worth knowing before reusing it: sqlite is synchronous, so sqlx runs each connection on a worker thread of its own and emits the event there.
 A thread-local `set_default` subscriber therefore counts nothing, and a test built on one passes vacuously at zero - which is why that file installs a global subscriber, holds itself to a single test so nothing interleaves its counts, and asserts the counter saw sqlx at all before asserting anything about a number.
 
 The resolution itself moved to `store/permissions_resolve.rs`: three rounds for the channel lookups whatever the id count, and one pair query plus two block reads for however many DMs are in the list.

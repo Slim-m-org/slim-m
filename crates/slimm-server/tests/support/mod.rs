@@ -43,8 +43,8 @@ pub mod fake_sfu;
 #[allow(dead_code)]
 pub mod totp_clock;
 
-/// Route and schema extraction shared by `tests/openapi_contract.rs` and
-/// `tests/openapi_429_coverage.rs`.
+/// Route and schema extraction shared by `tests/it_infra/openapi_contract.rs` and
+/// `tests/it_infra/openapi_429_coverage.rs`.
 pub mod openapi;
 
 /// The comment, string and char-literal scrubber the source-reading gates share.

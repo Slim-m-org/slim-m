@@ -71,8 +71,8 @@ Raise a job's limit when its real runtime grows toward it, rather than removing 
 Path-gated so a client-only change never triggers a server build.
 
 `schema/openapi.yaml` is in the path filter even though it is not Rust.
-`crates/slimm-server/tests/openapi_contract.rs` gates the schema against the router, so a schema-only edit that documents a path nothing serves, without touching `crates/`, must still run that test.
-`crates/slimm-server/tests/response_contract/` goes further and validates real response bodies against the document, including refusals: one representative case per documented error status, since `Error` is the same object on every route.
+`crates/slimm-server/tests/it_infra/openapi_contract.rs` gates the schema against the router, so a schema-only edit that documents a path nothing serves, without touching `crates/`, must still run that test.
+`crates/slimm-server/tests/it_infra/response_contract/` goes further and validates real response bodies against the document, including refusals: one representative case per documented error status, since `Error` is the same object on every route.
 Before that, every non-2xx returned before the schema was consulted, so an error body that had drifted from `Error` passed every gate here.
 
 Details, in [ci-details.md](ci-details.md#server-ci): The Rust compiler is pinned; Broken doc links; The sqlx cache; Unused dependencies.
@@ -195,7 +195,7 @@ Details, in [ci-details.md](ci-details.md#e2e): e2e-playwright runs the same sta
 
 The server and the relay agree on the push envelope's wire framing (field names, types, the platform and kind vocabulary, the payload size limit) but live in separate repos and languages, so nothing else here would notice one side changing it.
 This is the only job that checks out both and runs a server-produced request through the relay's real HTTP handler.
-See `crates/slimm-server/tests/push_relay_contract_fixture.rs` and slim-m-relay's `internal/api/push_relay_contract_test.go`.
+See `crates/slimm-server/tests/it_notify/push_relay_contract_fixture.rs` and slim-m-relay's `internal/api/push_relay_contract_test.go`.
 The fixture it hands the relay holds `message` entries only, because the relay's test counts them against its own case table.
 The same run also writes `push_relay_contract_kinds.generated.json` beside it, with one entry per other kind produced through the server's own path for it (`mention`, `call` on Android and on the iOS VoIP token, `call_end`, `security`), and asserts each entry's shape and sealed envelope in server CI.
 The relay ignores that file until its own test adopts it, so a wire-name drift in those kinds fails on this side first.

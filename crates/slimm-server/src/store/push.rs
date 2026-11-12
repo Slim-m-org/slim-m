@@ -262,7 +262,7 @@ impl Store {
     /// owner can see and revoke, so a device live for one and dead for the
     /// other is either a phone notifying an account it can no longer open, or
     /// a row in the settings list that nothing will ever reach.
-    /// `tests/device_liveness.rs` is what fails if they diverge.
+    /// `tests/it_realtime/device_liveness.rs` is what fails if they diverge.
     pub async fn push_targets(&self, user_ids: &[UserId]) -> anyhow::Result<Vec<PushTarget>> {
         if user_ids.is_empty() {
             return Ok(Vec::new());

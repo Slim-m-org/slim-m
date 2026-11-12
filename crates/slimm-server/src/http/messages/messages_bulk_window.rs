@@ -25,7 +25,7 @@
 //! index built for it this route would walk every live message the channel
 //! has ever held to find one author's. Migration 0054 adds
 //! `messages_author_channel_window(channel_id, author_id, created_at)`,
-//! proved by `tests/messages_bulk_window_index_plan.rs`.
+//! proved by `tests/it_infra/messages_bulk_window_index_plan.rs`.
 //!
 //! **The cap.** [`MAX_BULK_DELETE_IDS`] bounds the match count the same way
 //! it bounds the id-list route, reused rather than re-derived: the reasoning

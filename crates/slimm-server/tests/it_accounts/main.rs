@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+//! Integration tests for accounts, sign-in, two-factor, recovery and linked accounts: one module per former test file.
+
+#[path = "../support/mod.rs"]
+mod support;
+#[path = "../totp_support/mod.rs"]
+mod totp_support;
+
+mod account;
+mod account_anonymization;
+mod account_anonymization_authorship;
+mod account_deletion_coverage;
+mod account_deletion_evicts;
+mod account_deletion_indexes_plan;
+mod account_deletion_profile;
+mod account_purge;
+mod auth;
+mod auth_refresh;
+mod avatar_failures;
+mod avatars;
+mod banners;
+mod bootstrap;
+mod data_export_coverage;
+mod data_export_lifecycle;
+mod data_export_limits;
+mod data_export_member;
+mod data_export_scope;
+mod data_export_space;
+mod device_last_seen;
+mod device_version_refresh;
+mod discord_link;
+mod discord_link_avatar;
+mod display_name_trim;
+mod favorites;
+mod identity;
+mod install_sessions;
+mod invite_code_case;
+mod invite_code_disclosure;
+mod invite_landing;
+mod invite_listing_scope;
+mod invite_page;
+mod invite_paging_and_sweep;
+mod invite_redemption_idempotency;
+mod invite_reuse;
+mod invite_usability;
+mod invites;
+mod join_gate;
+mod join_policy;
+mod login_refusals;
+mod login_throttle;
+mod me;
+mod me_profile_fields;
+mod me_timeout;
+mod member_invites;
+mod new_device_sign_in;
+mod password_change;
+mod picture_uploads;
+mod reauth_throttle;
+mod recovery;
+mod recovery_expired;
+mod register_display_name_optional;
+mod registration_gate;
+mod saved_messages;
+mod steam_link;
+mod steam_presence;
+mod totp;
+mod totp_admin;
+mod totp_elevated_policy;
+mod totp_lifecycle;
+mod totp_reauth;
+mod totp_secret_at_rest;
+mod user_notes;
+mod username_case;
+mod users;

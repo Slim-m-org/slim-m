@@ -64,7 +64,7 @@ impl Store {
     ///
     /// [`Store::push_targets`] must ask exactly this, or a device drops off
     /// this list while still being notified and the owner is left with no
-    /// handle on something that keeps buzzing. `tests/device_liveness.rs`
+    /// handle on something that keeps buzzing. `tests/it_realtime/device_liveness.rs`
     /// fails if the two diverge.
     pub async fn list_devices(
         &self,

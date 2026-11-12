@@ -203,7 +203,7 @@ impl MemoryGuard {
 
     /// Builds a guard backed by a caller-controlled reading instead of the
     /// real cgroup files, so a test can flip the answer after connections
-    /// already exist. See `tests/memory_admission.rs`.
+    /// already exist. See `tests/it_infra/memory_admission.rs`.
     pub(super) fn with_shared_reading(shared: Arc<Mutex<MemoryReading>>) -> Self {
         Self::with_source(Box::new(SharedReading(shared)))
     }

@@ -349,7 +349,7 @@ locked, checked inside the same `begin_write` transaction as the upsert.
 Last-write-wins is otherwise untouched - unlocking, relocking at
 unchanged geometry, and a depth toggle are all still free of the check,
 and two viewers dragging the same *unlocked* tile still resolve exactly
-as this paragraph always said. See `tests/canvas_media_slots/lock.rs`.
+as this paragraph always said. See `tests/it_canvas/canvas_media_slots/lock.rs`.
 
 A live frame naming a tile key the
 receiver has never seen (nobody has moved it yet this session, or its

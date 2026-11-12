@@ -278,7 +278,7 @@ fn a_transparent_png_keeps_its_transparency() {
 
 #[test]
 fn a_heic_becomes_a_jpeg_every_client_draws() {
-    let source = include_bytes!("../../../tests/attachments/tiny.heic");
+    let source = include_bytes!("../../../tests/fixtures/tiny.heic");
     let out = run(source, Metadata::RemoveAll).expect("the fixture decodes");
     assert_eq!(out.content_type, "image/jpeg");
     let decoded = image::load_from_memory(&out.bytes).unwrap();

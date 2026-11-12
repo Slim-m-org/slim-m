@@ -319,7 +319,7 @@ Found by three passes.
 **The client's `Perm` mirror is required to match the server exactly and nothing gates it.**
 `permissions.dart:4` says so; the 16 constants do match `crates/slimm-server/src/permissions.rs:35` bit for bit, and no test pins them.
 A bit added server-side simply never appears in the role editor or the overwrites grid, because both iterate `Perm.editable`, and nothing says a bit is missing.
-The repo already gates this class of drift where it matters, by parsing the source (`tests/openapi_contract.rs`, `tests/canvas_index.rs`).
+The repo already gates this class of drift where it matters, by parsing the source (`tests/it_infra/openapi_contract.rs`, `tests/it_canvas/canvas_index.rs`).
 
 **Coverage gaps that explain three of the confirmed defects.**
 

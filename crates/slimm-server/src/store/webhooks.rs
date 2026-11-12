@@ -9,7 +9,7 @@
 //! [`WebhookContext`], never a [`super::sessions::SessionContext`] - a
 //! session is what makes a credential able to *read*, and a webhook must
 //! never read. Nothing in this module can produce one, so no `Authed`
-//! extractor can ever accept a webhook token; `tests/webhooks.rs` asserts
+//! extractor can ever accept a webhook token; `tests/it_modules/webhooks.rs` asserts
 //! that structurally.
 //!
 //! **No roles.** [`super::permissions`]'s role loader returns an empty

@@ -5,7 +5,7 @@
 //! A single `WHERE gone OR past-window` defeats every range seek, so an idle
 //! tick walked the whole live-message index under the write lock whether or
 //! not retention was even on. Each query below can stop at its `LIMIT`, and
-//! `tests/message_retention_index_plan.rs` plans every one of them.
+//! `tests/it_infra/message_retention_index_plan.rs` plans every one of them.
 //!
 //! The two window passes seek `messages_channel_created` by channel and
 //! `created_at`, so a channel with nothing past its window costs one probe

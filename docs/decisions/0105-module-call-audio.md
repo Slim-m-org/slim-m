@@ -317,7 +317,7 @@ Server (`crates/slimm-server`):
 - `http/module_events/`: the four events in `wire.rs`, and a direct enqueue to one module that bypasses the hub.
 - `hub/event.rs` and `http/ws/frames.rs`: the `voice.call_audio` frame.
 - `schema/openapi.yaml`: the routes, the frame and the manifest block.
-- Tests: `tests/call_audio.rs`, `tests/module_call_audio_events.rs`, `tests/support/fake_listener.rs`.
+- Tests: `tests/it_voice/call_audio.rs`, `tests/it_modules/module_call_audio_events.rs`, `tests/support/fake_listener.rs`.
 
 Listener (`crates/slimm-listener`, its own workspace, excluded from the root one):
 

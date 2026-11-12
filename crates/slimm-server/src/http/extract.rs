@@ -326,7 +326,7 @@ impl FromRequest<AppState> for Bytes {
 /// Refuses a caller without the deployment-wide `MANAGE_SERVER` bit: the one
 /// gate the Dock, analytics, retention, storage, emoji and metrics routes
 /// share (decision 0021 names them as one settings surface). Called from each
-/// handler rather than layered as middleware, so `tests/openapi_429_coverage.rs`'s
+/// handler rather than layered as middleware, so `tests/it_infra/openapi_429_coverage.rs`'s
 /// static per-handler scan still sees the rate-limit charge beside it.
 pub(crate) async fn require_manage_server(
     state: &AppState,

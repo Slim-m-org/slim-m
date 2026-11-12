@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The routes that manage community module sources, per
 //! docs/decisions/0046-more-than-one-module-source.md. A sibling of `dock.rs`
-//! rather than a child so `tests/openapi_429_coverage.rs` can resolve the
+//! rather than a child so `tests/it_infra/openapi_429_coverage.rs` can resolve the
 //! handlers; the fetch-side helpers live in `dock/sources.rs`.
 
 use axum::extract::{Path, State};

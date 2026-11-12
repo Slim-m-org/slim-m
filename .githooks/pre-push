@@ -135,12 +135,14 @@ if [ "$rust" = 1 ] && have cargo; then
     step "server tests (nextest)" cargo nextest run --locked --workspace
     step "server doctests" cargo test --locked --workspace --doc
   else
-    FIX="cargo test --locked --workspace"
-    step "server tests (cargo test; install cargo-nextest for speed)" cargo test --locked --workspace
+    # The it_* binaries hold many former files and some set process-wide state, so they need nextest's process per test.
+    FIX="cargo test --locked --workspace --lib --bins"
+    step "server unit tests (install cargo-nextest for the integration tests)" cargo test --locked --workspace --lib --bins
+    step "server doctests" cargo test --locked --workspace --doc
   fi
 elif [ "$schema" = 1 ] && have cargo; then
-  FIX="cargo test --locked -p slimm-server --test openapi_contract"
-  step "openapi contract test" cargo test --locked -p slimm-server --test openapi_contract
+  FIX="cargo test --locked -p slimm-server --test it_infra -- openapi_contract::"
+  step "openapi contract test" cargo test --locked -p slimm-server --test it_infra -- openapi_contract::
 fi
 
 if have flutter; then
