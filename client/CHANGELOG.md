@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.128.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.128.0...client-v0.128.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **client:** the 0.128 web bundle fits its budget, and a settings disclosure no longer overflows at large text ([#2395](https://github.com/Slim-m-org/slim-m/issues/2395)) ([a66135b](https://github.com/Slim-m-org/slim-m/commit/a66135b019264c1db92e85957c01f00c17a49946))
+
 ## [0.128.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.127.0...client-v0.128.0) (2026-11-11)
 
 
