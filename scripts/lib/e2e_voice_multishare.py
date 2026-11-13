@@ -25,7 +25,6 @@ NOT_BLACK_MEAN = 20.0  # live share 100-104, black 0
 MIN_SPREAD = 4.0  # live share 16-25, flat fill 0
 ALICE_SCREEN = "Alice's screen"
 FOCUS = f"Focus {ALICE_SCREEN}"
-SHOW_ALL = "Show all shares"
 # A video must decode new frames across this long to count as live.
 FRESH_SECONDS = 2.0
 # Longer than the cull's 3s dwell plus LiveKit's 1.5s settings debounce.
@@ -160,11 +159,10 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
         after = max(_area(v) for v in share_tiles(pc.videos(), [alice_sid]))
         print(f"  focusing alice's share: its video {before} -> {after} px")
         assert after > before * 1.1, "focusing a share did not enlarge it"
-        ui.open_share_menu(c, ALICE_SCREEN, SHOW_ALL)
-        c.click(SHOW_ALL, settle=2)
+        # Focusing pins a share rather than hiding the rest (decision 0114), so the other keeps playing.
         c.wait_for("Bob's screen")
         wait_for_videos(pc, every, 2)
-        print("  and showing all shares puts both back")
+        print("  and bob's share keeps playing beside it")
 
         _hidden_shares_stop_decoding(c, pc, every)
 
