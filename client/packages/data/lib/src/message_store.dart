@@ -162,25 +162,15 @@ class MessageStore {
   }
 
   /// Whether a channel row exists locally.
-  Future<bool> hasChannel(String channelId) async {
-    final row = await (db.select(db.channels)
-          ..where((c) => c.id.equals(channelId)))
-        .getSingleOrNull();
-    return row != null;
-  }
+  Future<bool> hasChannel(String channelId) =>
+      rows_impl.hasChannel(db, channelId);
 
   /// Whether [messageId] is already held for [channelId] - present at all,
   /// regardless of whether it falls inside whatever window [watchChannel]
   /// currently returns. Used to tell a jump to a message it has already got
   /// apart from one that still needs older history paged in first.
-  Future<bool> hasMessage(String channelId, String messageId) async {
-    final row = await (db.select(db.messages)
-          ..where(
-            (m) => m.channelId.equals(channelId) & m.id.equals(messageId),
-          ))
-        .getSingleOrNull();
-    return row != null;
-  }
+  Future<bool> hasMessage(String channelId, String messageId) =>
+      rows_impl.hasMessage(db, channelId, messageId);
 
   /// How many of [channelId]'s newest rows the transcript must show to include
   /// [messageId], or null where it is not held. A held message can still sit
