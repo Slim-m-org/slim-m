@@ -31,6 +31,7 @@ import 'src/features/accounts/providers/account_providers.dart';
 import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
 import 'src/providers/app_badge_sync.dart';
+import 'src/providers/notification_read_sync.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
@@ -271,6 +272,7 @@ Future<void> _runBootstrapSequence(
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
   container.listen(appBadgeSyncProvider, (_, _) {});
+  container.listen(notificationReadSyncProvider, (_, _) {});
   DeepLinkListener.start(container);
   ShareIntake.start(container);
   await shell.registerListenersAndTray(container);

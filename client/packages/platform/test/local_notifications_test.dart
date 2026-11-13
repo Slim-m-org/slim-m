@@ -268,6 +268,43 @@ void main() {
       expect(requester.calls, 1);
     });
   });
+
+  group('LocalNotifications.cancelShown', () {
+    Future<List<int>> cancelled(
+      Set<int> stale, {
+      bool isAndroid = true,
+    }) async {
+      final cancels = <int>[];
+      _mockPlugin((call) async {
+        switch (call.method) {
+          case 'getActiveNotifications':
+            return [
+              for (final id in [7, 8, 9])
+                {'id': id, 'channelId': 'messages_v1'},
+            ];
+          case 'cancel':
+            cancels.add((call.arguments as Map)['id'] as int);
+        }
+        return true;
+      });
+      addTearDown(() => _mockPlugin(null));
+      await LocalNotifications(isAndroid: isAndroid, isLinux: false)
+          .cancelShown(stale);
+      return cancels;
+    }
+
+    test('cancels only the shown notifications named stale', () async {
+      expect(await cancelled({8, 99}), [8]);
+    });
+
+    test('an empty stale set never reaches the plugin', () async {
+      expect(await cancelled({}), isEmpty);
+    });
+
+    test('off Android there is nothing to cancel', () async {
+      expect(await cancelled({7}, isAndroid: false), isEmpty);
+    });
+  });
 }
 
 /// An [AndroidPermissionRequester] a test fully controls, standing in for
