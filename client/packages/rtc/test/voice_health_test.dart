@@ -250,6 +250,17 @@ void main() {
       expect(health.takeMinuteLine(), isNull);
     });
 
+    test('a clean minute is left out of the debug log, a concealing one is not',
+        () {
+      final clean = VoiceHealth();
+      _feed(clean, [0.0, 0.0]);
+      expect(clean.minuteIsNotable(), isFalse);
+
+      final rough = VoiceHealth();
+      _feed(rough, [0.0, 0.1]);
+      expect(rough.minuteIsNotable(), isTrue);
+    });
+
     test('a call with no remote audio sampled has no remote summary line', () {
       final health = VoiceHealth();
       AudioSendSample at(int s) =>

@@ -55,6 +55,7 @@ class AudioGlitchWatch {
   AudioGlitchWatch({
     required this.sources,
     required this.log,
+    this.note,
     this.nameOf = _same,
     this.local,
     this.shareSources,
@@ -76,6 +77,9 @@ class AudioGlitchWatch {
   final String Function() localIdOf;
   final VoiceHealth health;
   final VoiceLog log;
+
+  /// Takes a healthy minute's line, which stays out of [log] to keep the debug log for what went wrong.
+  final void Function(String line)? note;
   final Duration interval;
 
   Timer? _timer;
@@ -125,7 +129,12 @@ class AudioGlitchWatch {
     }
     await _sampleLocal();
     final line = health.takeMinuteLine();
-    if (line != null) log(line);
+    if (line == null) return;
+    if (health.minuteIsNotable()) {
+      log(line);
+    } else {
+      note?.call(line);
+    }
   }
 
   Future<void> _sampleRemote(String id, AudioStatsSource source) async {

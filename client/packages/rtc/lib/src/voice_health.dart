@@ -228,6 +228,19 @@ class VoiceHealth {
     return minuteLine(_windows());
   }
 
+  /// Whether the last minute belongs in the debug log: someone reached a
+  /// recovered threshold, so a quiet, healthy minute is left out of it.
+  bool minuteIsNotable() => _windows().any((w) {
+        final win = w.window;
+        final slow = (win.rttMs ?? 0) >= kRecoveredRttMs;
+        if (w.local) {
+          return slow || (win.lossShare ?? 0) >= kRecoveredSendLossShare;
+        }
+        return slow ||
+            (win.concealShare ?? 0) >= kRecoveredConcealmentShare ||
+            (win.bufferMs ?? 0) >= kRecoveredJitterBufferMs;
+      });
+
   /// Ends the call: the summary lines for the log, and the summary kept for
   /// the Troubleshooting page. Empty when nothing was sampled.
   List<String> finish() {

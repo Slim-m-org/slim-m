@@ -33,7 +33,9 @@ Tapping the glyph opens that sentence on the tile, because a hover tooltip never
 The glyph is a per-person marker on that person's tile, so rule 6 does not apply to it.
 The tile and the banner both carry a screen reader label.
 
-The log gets one `[voice-health]` line about every 60 seconds, with each person's last minute of concealment, events, jitter, buffer, loss, level and round trip.
+The log gets one `[voice-health]` line about every 60 seconds, with each person's last minute of concealment, events, jitter, buffer, loss, level and round trip, but only when someone's minute reached a recovered threshold (3% concealment or send loss, a 120 ms buffer or a 300 ms round trip).
+A healthy minute goes only to the call diagnostics panel, which shows the latest one, so a long clean call no longer fills the 200-entry debug log and pushes out what went wrong.
+A transport reconnect is two lines: one when it starts and one when it ends, which carries its retry count and any escalation.
 When the call ends it gets a summary: p50 and p95 of concealment, jitter buffer, jitter, round trip and loss, for everyone pooled and for each person.
 A last line counts the transport blips, the times LiveKit's own resume or restart ran, with their total and longest duration; it is absent when the transport held.
 Sampling pauses and the ping readout clears while one runs.
