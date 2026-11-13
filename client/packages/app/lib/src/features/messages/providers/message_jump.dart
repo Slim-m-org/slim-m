@@ -158,7 +158,13 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       return MessageJumpArrived(channelId, messageId, token);
     } on api.NotFoundException {
       return MessageJumpUnreachable(channelId, messageId, token);
-    } on Object {
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.sync,
+        'Could not open the messages around a search hit',
+        error,
+        stack,
+      );
       return MessageJumpFailed(channelId, messageId, token);
     }
   }

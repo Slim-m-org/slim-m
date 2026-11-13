@@ -25,42 +25,48 @@ class MessageContextWindow {
   final List<Message> messages;
 }
 
-class MessageContextController extends StateNotifier<MessageContextWindow?> {
-  MessageContextController(this._ref, this._channelId) : super(null);
+class MessageContextController
+    extends FamilyNotifier<MessageContextWindow?, String> {
+  /// Bumped by every open and close, so a fetch that a close or a newer open overtook never shows.
+  int _ticket = 0;
 
-  final Ref _ref;
-  final String _channelId;
+  @override
+  MessageContextWindow? build(String channelId) => null;
 
   /// Fetches the page around [messageId] and shows it; the fetch's errors
   /// reach the caller, which words them as a jump refusal.
   Future<void> open(String messageId) async {
-    final client = _ref.read(apiProvider);
+    final ticket = ++_ticket;
+    final client = ref.read(apiProvider);
     final target = await client.getMessage(
-      channelId: _channelId,
+      channelId: arg,
       messageId: messageId,
     );
     final page = await client.listMessages(
-      _channelId,
+      arg,
       around: target.seq,
       limit: contextWindowRows,
     );
-    if (!mounted) return;
-    _ref.read(messageExtrasProvider.notifier).applyMessages(page);
+    if (ticket != _ticket) return;
+    ref.read(messageExtrasProvider.notifier).applyMessages(page);
     final rows = [for (final m in page.reversed) _rowFor(m)];
     if (!rows.any((m) => m.id == messageId)) rows.add(_rowFor(target));
     rows.sort((a, b) => a.seq.compareTo(b.seq));
     state = MessageContextWindow(targetId: messageId, messages: rows);
   }
 
-  void close() => state = null;
+  void close() {
+    _ticket++;
+    if (state != null) state = null;
+  }
 }
 
 final messageContextWindowProvider =
-    StateNotifierProvider.family<
+    NotifierProvider.family<
       MessageContextController,
       MessageContextWindow?,
       String
-    >((ref, channelId) => MessageContextController(ref, channelId));
+    >(MessageContextController.new);
 
 Message _rowFor(api.Message m) => Message(
   id: m.id,
