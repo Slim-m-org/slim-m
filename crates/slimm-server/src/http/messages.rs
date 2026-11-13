@@ -306,10 +306,20 @@ async fn list(
     }
 
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
-    let messages = state
-        .store
-        .list_messages(channel_id, params.before, limit)
-        .await?;
+    let messages = match (params.around, params.before) {
+        (Some(_), Some(_)) => {
+            return Err(ApiError::BadRequest(
+                "`around` and `before` cannot be combined",
+            ));
+        }
+        (Some(around), None) => {
+            state
+                .store
+                .list_messages_around(channel_id, around, limit)
+                .await?
+        }
+        (None, before) => state.store.list_messages(channel_id, before, limit).await?,
+    };
     let dtos = self::message_enrich::with_reactions(&state, ctx.user_id, messages).await?;
     Ok(Json(dtos))
 }

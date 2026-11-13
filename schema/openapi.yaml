@@ -4131,11 +4131,22 @@ paths:
       summary: Read a channel's history, newest first.
       description: >
         Keyset paginated on `seq`. Pass the smallest `seq` already seen as
-        `before` to page backwards.
+        `before` to page backwards. Pass `around` instead to read the page
+        centred on one message, for opening a search hit older than anything
+        loaded; it cannot be combined with `before`.
       parameters:
         - name: before
           in: query
           description: Return only messages with a `seq` strictly below this.
+          schema:
+            type: integer
+            format: int64
+        - name: around
+          in: query
+          description: >
+            Return the page centred on this `seq`: about half of `limit` newer
+            messages, then the message at `seq` (when it is still live) and
+            older ones, newest first. The page size is clamped like `limit`.
           schema:
             type: integer
             format: int64

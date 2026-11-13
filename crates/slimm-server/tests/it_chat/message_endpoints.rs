@@ -467,3 +467,85 @@ async fn editing_is_rate_limited_like_the_other_writes() {
         "a sustained edit flood must be refused: {statuses:?}"
     );
 }
+
+#[tokio::test]
+async fn around_returns_a_page_centred_on_the_seq_and_refuses_before() {
+    let (store, _guard) = support::new_store("slimm-msg-around").await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES),
+            true,
+        )
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let app = app(store.clone());
+    let (token, _user) = register(&store, "alice").await;
+    let uri = format!("/channels/{}/messages", channel.id);
+
+    let mut seqs = Vec::new();
+    for n in 0..20 {
+        let sent = app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &uri,
+                Some(&token),
+                Some(json!({ "id": Uuid::now_v7().to_string(), "content": format!("m{n}") })),
+            ))
+            .await
+            .unwrap();
+        seqs.push(json_body(sent).await["seq"].as_i64().unwrap());
+    }
+
+    let page = |query: String| {
+        let app = app.clone();
+        let token = token.clone();
+        let uri = format!("{uri}?{query}");
+        async move {
+            app.oneshot(request("GET", &uri, Some(&token), None))
+                .await
+                .unwrap()
+        }
+    };
+
+    let centred = json_body(page(format!("around={}&limit=10", seqs[9])).await).await;
+    let got: Vec<i64> = centred
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["seq"].as_i64().unwrap())
+        .collect();
+    assert_eq!(got, seqs[5..15].iter().rev().copied().collect::<Vec<_>>());
+
+    let oldest = json_body(page(format!("around={}&limit=10", seqs[0])).await).await;
+    let got: Vec<i64> = oldest
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["seq"].as_i64().unwrap())
+        .collect();
+    assert_eq!(got, seqs[0..6].iter().rev().copied().collect::<Vec<_>>());
+
+    let both = page(format!("around={}&before={}", seqs[9], seqs[9])).await;
+    assert_eq!(both.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn around_needs_view_permission() {
+    let (store, _guard) = support::new_store("slimm-msg-around-perm").await;
+    store
+        .create_role("everyone", Permissions::SEND_MESSAGES, true)
+        .await
+        .unwrap();
+    let channel = store.create_channel("general", "text").await.unwrap();
+    let app = app(store.clone());
+    let (token, _user) = register(&store, "alice").await;
+    let uri = format!("/channels/{}/messages?around=1", channel.id);
+    let denied = app
+        .oneshot(request("GET", &uri, Some(&token), None))
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+}

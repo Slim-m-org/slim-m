@@ -52,6 +52,9 @@ final _searchBar = find.byWidgetPredicate((w) => w is CompactChannelSearchBar);
 /// The hit row, whose text is the file's name since only the file matched.
 final _hit = find.text(_fileName);
 final _flash = find.byWidgetPredicate((w) => w is MessageJumpHighlight);
+
+/// The transcript's own list, whose rect is what "on screen" means here.
+final _transcript = find.byWidgetPredicate((w) => w is Scrollable).first;
 final _snackBar = find.byWidgetPredicate((w) => w is SnackBar);
 
 /// The compact app bar's magnifier toggles this same provider, so opening it
@@ -205,13 +208,45 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('a hit past what the transcript can hold is explained in the '
-      'panel, not in a snack bar', (tester) async {
+  testWidgets('a hit past what the transcript can hold opens a window '
+      'around it, and Jump to present returns', (tester) async {
     final harness = await _mountPhone(
       tester,
       serverSeqs: _range(1, 1600),
       seededSeqs: _range(1551, 1600),
       hitSeq: 100,
+    );
+    await _tapHit(tester);
+
+    expect(await _untilLanded(tester, harness), isTrue);
+    await tester.pump(const Duration(seconds: 1));
+
+    final viewport = tester.getRect(_transcript);
+    final target = tester.getRect(find.text('message 100'));
+    expect(viewport.contains(target.center), isTrue);
+    expect(find.text('message 1600'), findsNothing);
+    expect(find.text('Jump to present'), findsOneWidget);
+    expect(_snackBar, findsNothing);
+
+    await tester.tap(find.text('Jump to present'));
+    await flush(tester);
+
+    expect(find.text('Jump to present'), findsNothing);
+    final live = tester.getRect(find.text('message 1600'));
+    expect(tester.getRect(_transcript).contains(live.center), isTrue);
+    expect(find.text('message 100'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 3));
+    await _unmount(tester);
+  });
+
+  testWidgets('a hit the server no longer has is explained in the panel, '
+      'not in a snack bar', (tester) async {
+    final harness = await _mountPhone(
+      tester,
+      serverSeqs: _range(2, 1600),
+      seededSeqs: _range(1551, 1600),
+      hitSeq: 1,
     );
     await _tapHit(tester);
 
