@@ -158,7 +158,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         flags.channelId != null;
   }
 
-  /// Windows only: the handle of the shared window, which the runner keeps the overlay on (decision 0116).
+  /// Windows only: the handle of the shared window, which the runner keeps the overlay on (decision 0117).
   int? get _sharedWindow {
     if (!_windows) return null;
     final source = _ref
@@ -216,6 +216,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   }
 
   Future<void> _begin() async {
+    api.AppLog.info(
+      api.LogTag.platform,
+      'Drawing consent starting: overlay wanted=$_wanted, window=$_sharedWindow, supported=${_support.supported}',
+    );
     final flags = _ref.read(voiceFlagsProvider);
     final self = _ref
         .read(voiceParticipantsProvider)
@@ -312,7 +316,14 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   Future<bool> _showOverWindow(int window) async {
     _draws.reset();
-    if (!await _window.show(const [0], window: window)) return false;
+    final shown = await _window.show(const [0], window: window);
+    api.AppLog.info(
+      api.LogTag.platform,
+      shown
+          ? 'Drawing overlay follows shared window $window'
+          : 'Drawing overlay could not open over shared window $window',
+    );
+    if (!shown) return false;
     _followedWindow = window;
     return mounted;
   }

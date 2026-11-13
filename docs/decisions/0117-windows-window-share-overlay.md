@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
-# 0116 - On Windows, viewers' marks on a shared window reach the sharer's screen
+# 0117 - On Windows, viewers' marks on a shared window reach the sharer's screen
 
 Status: accepted, 2026-11-13 (built; verified on the Windows VM, see "Checked").
 Amends [0096](0096-screen-overlay.md), "What it covers", for Windows only.

@@ -2,7 +2,7 @@
 # 0096 - Viewers draw on a shared screen, shown by a click-through overlay on the sharer's real screen
 
 Status: accepted (Linux built and checked in a nested KWin; Windows written and compiled for syntax only)
-Amended for Windows window shares by [0116](0116-windows-window-share-overlay.md).
+Amended for Windows window shares by [0117](0117-windows-window-share-overlay.md).
 Date: 2026-10-28
 
 ## The ask
