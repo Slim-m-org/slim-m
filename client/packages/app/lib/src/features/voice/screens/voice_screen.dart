@@ -481,13 +481,15 @@ class _InCallState extends ConsumerState<_InCall> {
           onOpenProfile: (anchor, p) => _openProfile(anchor, ref, p),
           isDm: isDm,
           dockClearance: _clearance(context) ?? defaultDockClearance,
-          menuItemsBuilder: (context, participant, close) =>
-              participantCallMenuItems(
-                context,
-                ref,
-                participant: participant,
-                close: close,
-              ),
+          menuItemsBuilder:
+              (context, participant, close, {withStreams = true}) =>
+                  participantCallMenuItems(
+                    context,
+                    ref,
+                    participant: participant,
+                    close: close,
+                    withStreams: withStreams,
+                  ),
         ),
         Align(
           alignment: Alignment.bottomCenter,

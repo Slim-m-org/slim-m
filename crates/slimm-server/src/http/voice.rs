@@ -142,10 +142,13 @@ async fn token(
         .map(|u| u.display_name.as_str())
         .unwrap_or("unknown");
 
-    match state
-        .voice
-        .mint(channel_id, ctx.user_id, permissions, display_name)
-    {
+    match state.voice.mint(
+        channel_id,
+        ctx.user_id,
+        permissions,
+        display_name,
+        &ctx.device_id.to_string(),
+    ) {
         Ok(token) => Ok(Json(token.into())),
         // No SFU is a supported configuration, not a fault; say so plainly.
         Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
@@ -264,6 +267,8 @@ struct RosterParticipantDto {
     display_name: String,
     is_sharing_screen: bool,
     has_video: bool,
+    /// Whether this is the caller's own connection from the device asking, so a leftover of it never reads as another device.
+    this_device: bool,
 }
 
 #[derive(Serialize)]
@@ -317,6 +322,7 @@ async fn roster(
     let now = crate::store::now_ms();
     let mut earliest_join: Option<i64> = None;
     let mut participants = Vec::with_capacity(connected.len());
+    let my_device = ctx.device_id.to_string();
     for participant in connected {
         if participant.user_id != ctx.user_id
             && visibilities.get(&participant.user_id) == Some(&Visibility::Hidden)
@@ -327,7 +333,10 @@ async fn roster(
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         };
+        let this_device = participant.user_id == ctx.user_id
+            && participant.device_id.as_deref() == Some(my_device.as_str());
         participants.push(RosterParticipantDto {
+            this_device,
             user_id: participant.user_id.to_string(),
             display_name: participant.display_name,
             is_sharing_screen: participant.is_sharing_screen,

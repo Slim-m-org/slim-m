@@ -61,7 +61,7 @@ Future<bool> _targetListsSelf(Ref ref, String channelId) async {
   if (selfId == null) return false;
   try {
     final roster = await client.voiceRoster(channelId);
-    return roster.any((p) => p.userId == selfId);
+    return roster.any((p) => p.userId == selfId && !p.thisDevice);
   } catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.voice,

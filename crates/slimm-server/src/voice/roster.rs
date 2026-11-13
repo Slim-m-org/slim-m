@@ -39,6 +39,8 @@ pub struct RoomParticipant {
     /// When this participant joined the room, in unix milliseconds, as the
     /// SFU reports it. `None` when the SFU predates the field.
     pub joined_at_ms: Option<i64>,
+    /// The device the token was minted for; `None` for a token from before the attribute.
+    pub device_id: Option<String>,
 }
 
 /// How long a roster read is reused. Webhook events drop it sooner, so this only bounds a missed webhook.
@@ -119,6 +121,8 @@ struct ParticipantInfo {
     joined_at_ms: Option<i64>,
     #[serde(default, alias = "joinedAt", deserialize_with = "lenient_i64")]
     joined_at: Option<i64>,
+    #[serde(default)]
+    attributes: std::collections::HashMap<String, String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -203,6 +207,7 @@ impl VoiceService {
                     is_sharing_screen,
                     has_video,
                     joined_at_ms: joined_at_from(p.joined_at_ms, p.joined_at),
+                    device_id: p.attributes.get(super::DEVICE_ATTRIBUTE).cloned(),
                 })
             })
             .collect())
@@ -326,8 +331,33 @@ mod tests {
                 is_sharing_screen: false,
                 has_video: false,
                 joined_at_ms: None,
+                device_id: None,
             }]
         );
+    }
+
+    #[tokio::test]
+    async fn the_device_attribute_is_read_back() {
+        let alice = UserId::generate();
+        let url = spawn_room_service(
+            axum::http::StatusCode::OK,
+            json!({
+                "participants": [
+                    {
+                        "identity": alice.to_string(),
+                        "name": "Alice",
+                        "attributes": { (super::super::DEVICE_ATTRIBUTE): "device-7", "deafened": "" },
+                    },
+                ]
+            }),
+        )
+        .await;
+
+        let participants = service_at(&url)
+            .list_participants(ChannelId::generate())
+            .await
+            .expect("the mock room service answered");
+        assert_eq!(participants[0].device_id.as_deref(), Some("device-7"));
     }
 
     #[tokio::test]
@@ -363,6 +393,7 @@ mod tests {
                 is_sharing_screen: true,
                 has_video: true,
                 joined_at_ms: None,
+                device_id: None,
             }]
         );
     }
