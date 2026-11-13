@@ -32,6 +32,7 @@ import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
 import 'src/providers/app_badge_sync.dart';
 import 'src/providers/notification_read_sync.dart';
+import 'src/widgets/system_bars.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
@@ -105,6 +106,7 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (isAndroidHost) unawaited(drawUnderSystemBars());
   // Before the first SharedPreferences read, which countLaunch makes.
   registerPreferencesStore();
   // Before any audio stack opens: libpulse reads the role once per context.
@@ -513,19 +515,8 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
       ),
     );
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: _systemBarsFor(Theme.of(context).brightness),
+      value: systemBarsFor(Theme.of(context).brightness),
       child: mirrored,
     );
   },
 );
-
-/// Bar icons that contrast with the theme; without this Android keeps the
-/// launch theme's white icons on every light screen.
-SystemUiOverlayStyle _systemBarsFor(Brightness theme) {
-  final icons = theme == Brightness.dark ? Brightness.light : Brightness.dark;
-  return SystemUiOverlayStyle(
-    statusBarIconBrightness: icons,
-    statusBarBrightness: theme,
-    systemNavigationBarIconBrightness: icons,
-  );
-}
