@@ -52,6 +52,7 @@ List<Widget> participantCallMenuItems(
   api.UserProfile? knownProfile,
   String? channelId,
   bool withFullscreen = true,
+  bool withStreams = true,
 }) {
   List<Widget> streamRows({required bool autofocusVolume}) =>
       participantStreamMenuItems(
@@ -177,7 +178,10 @@ List<Widget> participantCallMenuItems(
           },
         ),
       },
-    ...streamRows(autofocusVolume: !actions.contains(ParticipantAction.volume)),
+    if (withStreams)
+      ...streamRows(
+        autofocusVolume: !actions.contains(ParticipantAction.volume),
+      ),
   ];
 }
 

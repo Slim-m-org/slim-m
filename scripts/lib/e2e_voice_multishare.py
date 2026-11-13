@@ -151,12 +151,14 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
         wait_for_videos(pb, every, 1)
         print("  alice and bob each decode the other's share, and not their own")
 
-        before = max(_area(v) for v in share_tiles(pc.videos(), every))
+        # The newest share already takes the big slot (decision 0114), so measure the focused share itself.
+        alice_sid = next(sid for who, sid in sids.items() if who != bob_id)
+        before = max(_area(v) for v in share_tiles(pc.videos(), [alice_sid]))
         ui.open_share_menu(c, ALICE_SCREEN, FOCUS)
         c.click(FOCUS, settle=2)
         c.wait_for(ALICE_SCREEN)
-        after = max(_area(v) for v in share_tiles(pc.videos(), every))
-        print(f"  focusing one share: largest video {before} -> {after} px")
+        after = max(_area(v) for v in share_tiles(pc.videos(), [alice_sid]))
+        print(f"  focusing alice's share: its video {before} -> {after} px")
         assert after > before * 1.1, "focusing a share did not enlarge it"
         ui.open_share_menu(c, ALICE_SCREEN, SHOW_ALL)
         c.click(SHOW_ALL, settle=2)
