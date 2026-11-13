@@ -96,11 +96,14 @@ class PushController extends StateNotifier<PushStatus>
     try {
       return _ref.read(fcmTokenChannelProvider).onTokenRefresh;
     } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.push,
-        'Could not listen for push token changes',
-        error,
-        stack,
+      // The log is a provider; writing it while this one builds trips Riverpod's assertion in debug builds.
+      scheduleMicrotask(
+        () => AppLog.swallowed(
+          LogTag.push,
+          'Could not listen for push token changes',
+          error,
+          stack,
+        ),
       );
       return const Stream.empty();
     }
