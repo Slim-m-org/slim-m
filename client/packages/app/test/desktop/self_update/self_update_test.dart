@@ -137,10 +137,12 @@ void main() {
     List<String>? keys,
     String current = '0.89.0',
     String platform = 'linux-x64',
+    String? fallback,
     FreeSpace? freeSpace,
   }) => fetchVerifiedUpdateWith(
     currentVersion: current,
     platformKey: platform,
+    fallbackPlatformKey: fallback,
     stagingDir: staging,
     client: client,
     trustedKeys: keys ?? [pub],
@@ -231,6 +233,22 @@ void main() {
       }
     },
   );
+
+  test('a missing platform key falls back to the named one', () async {
+    final client = await _server(_Release(key: key));
+    final update = await run(
+      client,
+      platform: 'android-x86_64',
+      fallback: 'linux-x64',
+    );
+    expect(update, isNotNull);
+  });
+
+  test('the preferred key wins over the fallback', () async {
+    final client = await _server(_Release(key: key));
+    final update = await run(client, platform: 'linux-x64', fallback: 'macos');
+    expect(update!.file.path, endsWith('linux-amd64.tar.gz'));
+  });
 
   test('an arm64 host never receives the x64 entry', () async {
     final client = await _server(_Release(key: key));

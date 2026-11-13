@@ -67,6 +67,15 @@ String? updatePlatformKey({required String os, required String arch}) {
   return null;
 }
 
+/// The manifest key of the apk built for [arch] (`hostArchitecture`), or null
+/// for an architecture no apk is built for.
+String? androidApkPlatformKey(String arch) => switch (arch) {
+  'arm64' => 'android-arm64-v8a',
+  'arm' => 'android-armeabi-v7a',
+  'x64' => 'android-x86_64',
+  _ => null,
+};
+
 /// Whether [signatureBase64] is a valid signature of [manifestBytes] by any
 /// key in [trustedKeys].
 Future<bool> manifestSignatureIsValid({

@@ -35,8 +35,14 @@ PLATFORMS = {
     "linux-x64": re.compile(r"^slim-m-client-.+-linux-amd64\.tar\.gz$"),
     "windows-x64": re.compile(r"^slim-m-client-.+-windows-x64\.zip$"),
     "macos": re.compile(r"^slim-m-client-.+-macos\.zip$"),
+    "android-arm64-v8a": re.compile(r"^slim-m-client-android-arm64-v8a\.apk$"),
+    "android-armeabi-v7a": re.compile(r"^slim-m-client-android-armeabi-v7a\.apk$"),
+    "android-x86_64": re.compile(r"^slim-m-client-android-x86_64\.apk$"),
+    # The one fat apk of releases before the per-ABI split.
     "android": re.compile(r"^slim-m-client-android\.apk$"),
 }
+# Clients that predate the split look up "android"; it keeps working as the arm64-v8a apk.
+ANDROID_ALIAS = ("android", "android-arm64-v8a")
 DEFAULT_REQUIRE = "windows-x64,macos,linux-x64"
 MANIFEST_NAME = "manifest.json"
 SIGNATURE_NAME = "manifest.json.sig"
@@ -82,6 +88,9 @@ def build_manifest(tag: str, directory: Path, repo: str, require: list[str]) -> 
                 "sha256": sha256_of(path),
                 "size": path.stat().st_size,
             }
+    alias, target = ANDROID_ALIAS
+    if alias not in artifacts and target in artifacts:
+        artifacts[alias] = dict(artifacts[target])
     missing = [name for name in require if name not in artifacts]
     if missing:
         raise MissingPlatforms(f"required platforms missing from {directory}: {', '.join(missing)}")

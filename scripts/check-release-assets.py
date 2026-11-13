@@ -34,7 +34,8 @@ REQUIRED = {
         r"slim-m-client-{v}-macos\.zip",
         r"slim-m-client-{v}-windows-x64\.zip",
         r"slim-m-client-{v}\.flatpak",
-        r"slim-m-client-android\.apk",
+        # The arm64-v8a apk is the one phones take; releases before the per-ABI split carry the one fat apk under the bare name.
+        r"slim-m-client-android(-arm64-v8a)?\.apk",
     ],
     "server-v": [
         r"SHA256SUMS",
@@ -55,7 +56,7 @@ MANIFEST_PLATFORMS = {
 def describe(pattern, version):
     """A pattern as a readable file name, e.g. slim-m-client-0.89.0-windows-x64.zip."""
     name = pattern.format(v=version)
-    name = name.replace(r"\d+\.fc\d+", "<n>.fc<nn>")
+    name = name.replace(r"\d+\.fc\d+", "<n>.fc<nn>").replace("(-arm64-v8a)?", "-arm64-v8a")
     return name.replace("\\", "")
 
 

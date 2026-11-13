@@ -315,4 +315,15 @@ class LocalNotifications {
     await _ensureReady();
     await _plugin.cancel(channel.notificationId);
   }
+
+  /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.
+  Future<void> cancelShown(Set<int> staleIds) async {
+    if (!_isAndroid || staleIds.isEmpty) return;
+    await _ensureReady();
+    final shown = await _plugin.getActiveNotifications();
+    for (final notification in shown) {
+      final id = notification.id;
+      if (id != null && staleIds.contains(id)) await _plugin.cancel(id);
+    }
+  }
 }

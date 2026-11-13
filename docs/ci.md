@@ -245,7 +245,8 @@ A call that finds the tarball, Windows zip, setup or macOS zip missing writes no
 `release`'s call needs `linux-client` and names its result in its `if:` (`scripts/lib/test_conditional_jobs_keep_their_needs_gate.py`), which also makes it the last writer after `linux-client` re-uploads its partial file.
 Calls for one tag are serialised by a concurrency group, and the run that starts last always sees every earlier attach.
 It uploads with `RELEASE_PLEASE_TOKEN` when set, as `linux-client` does, because a release created with that token refuses uploads from the workflow token.
-`SHA256SUMS.android` is still written by `android-client`, because `scripts/check-release-assets.py` requires it; the apk is in the combined file too.
+`SHA256SUMS.android` is still written by `android-client`, because `scripts/check-release-assets.py` requires it; the apks are in the combined file too.
+The release builds one apk per ABI (`--split-per-abi`) because the fat one weighed 189 MB, and the manifest lists them as `android-<abi>` with `android` kept as an alias of arm64-v8a for clients that predate the split.
 By hand it takes a `tag`, which is how to backfill an older release.
 
 ## release-asset-watchdog
@@ -255,7 +256,7 @@ Client 0.89.0 shipped that way on 2026-09-30: the Windows job failed, `update-ma
 Nothing noticed, because `verify-release-checks` judges check-runs before publish and `update-manifest.py --require` only runs inside the job that was skipped.
 
 `scripts/check-release-assets.py` lists releases through `gh api` (GET only) and compares each release's asset names with the set for its kind, kept in one `REQUIRED` table in the script.
-A `client-v*` release must hold `manifest.json`, `manifest.json.sig`, `SHA256SUMS`, `SHA256SUMS.android`, the rpm, the linux tarball, the flatpak, the macOS and Windows zips and the apk.
+A `client-v*` release must hold `manifest.json`, `manifest.json.sig`, `SHA256SUMS`, `SHA256SUMS.android`, the rpm, the linux tarball, the flatpak, the macOS and Windows zips and the arm64-v8a apk (or the one fat apk of releases before the split).
 A `client-v*` release whose `manifest.json` leaves out a platform whose archive is attached is incomplete too, because the manifest is what the self-updater trusts.
 The script downloads the manifest to read its platform list.
 A `server-v*` release must hold `SHA256SUMS` and the linux amd64 and arm64 binaries.
