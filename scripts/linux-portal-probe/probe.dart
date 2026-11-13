@@ -37,6 +37,15 @@ Future<void> share(int n, {bool enumerate = true}) async {
   await stream.dispose();
 }
 
+Future<void> expectRefusal(Future<Object?> Function() call) async {
+  try {
+    await call();
+    stdout.writeln('PROBE refusal=none');
+  } on Object catch (error) {
+    stdout.writeln('PROBE refusal=$error');
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const SizedBox());
@@ -53,6 +62,17 @@ Future<void> main() async {
         types: [SourceType.Window],
       );
       stdout.writeln('PROBE windows=${windows.length}');
+    case 'nosession':
+      await _channel.invokeMethod<void>('resetDesktopSources');
+      final listed = await desktopCapturer.getSources(
+        types: [SourceType.Screen, SourceType.Window],
+      );
+      stdout.writeln('PROBE listed=${listed.length}');
+    case 'noaudio':
+      await expectRefusal(() => createPeerConnection(<String, dynamic>{}));
+      await expectRefusal(
+        () => navigator.mediaDevices.getUserMedia({'audio': true}),
+      );
     case 'noenum':
       await share(1, enumerate: false);
     default:
