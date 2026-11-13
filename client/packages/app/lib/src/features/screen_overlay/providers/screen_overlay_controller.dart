@@ -252,7 +252,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   }
 
   Future<bool> _showOverlay() async {
-    final monitors = _support.monitors;
+    final monitors = (await _freshSupport()).monitors;
+    if (!mounted) return false;
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
     final portal = _windows ? null : await _portalMonitor();
@@ -280,6 +281,22 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     if (!await _window.show(covered)) return false;
     _overlayAspect = sharedAspect(monitors, covered);
     return mounted;
+  }
+
+  /// Asks the desktop again: a monitor plugged in, woken or resized since the app started would otherwise be covered by the old layout.
+  Future<OverlaySupport> _freshSupport() async {
+    _ref.invalidate(screenOverlaySupportProvider);
+    try {
+      return await _ref.read(screenOverlaySupportProvider.future);
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.platform,
+        'Could not read the monitors again; using the last layout',
+        error,
+        stack,
+      );
+      return _support;
+    }
   }
 
   Future<PortalMonitor?> _portalMonitor() =>

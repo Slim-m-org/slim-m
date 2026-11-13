@@ -107,7 +107,7 @@ class OverlayRig {
     ScreenShareSource? source,
     PortalMonitor? portal,
     bool windows = false,
-    List<OverlayMonitor> monitors = rigMonitors,
+    this.monitors = rigMonitors,
   }) {
     SharedPreferences.setMockInitialValues({
       'slimm.voice.screen_share_allow_annotations': allow,
@@ -145,6 +145,9 @@ class OverlayRig {
   }
 
   final overlay = FakeOverlay();
+
+  /// What the desktop reports when asked; a test changes it to plug in a monitor.
+  List<OverlayMonitor> monitors;
   late final ProviderContainer container;
   late final FixedVoiceController voice;
   late final RigSync sync;

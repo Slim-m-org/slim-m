@@ -79,6 +79,29 @@ void main() {
     });
   });
 
+  test('a monitor plugged in after the app started is the one covered', () {
+    fakeAsync((async) {
+      localShareCapturedSize.value = (width: 1280, height: 800);
+      addTearDown(() => localShareCapturedSize.value = null);
+      final rig = OverlayRig(
+        initial: rigSharing.copyWith(screenSharing: false),
+        monitors: [rigMonitors.first],
+      );
+      async.flushMicrotasks();
+
+      rig.monitors = rigMonitors;
+      rig.voice.set(rigSharing);
+      async.flushMicrotasks();
+      async.elapse(const Duration(milliseconds: 1));
+      async.flushMicrotasks();
+
+      expect(rig.overlay.shown, [
+        [1],
+      ]);
+      expect(rig.sync.sent.last.aspect, closeTo(1.6, 1e-9));
+    });
+  });
+
   test('consent is repeated while the overlay stays up', () {
     fakeAsync((async) {
       final rig = OverlayRig();
