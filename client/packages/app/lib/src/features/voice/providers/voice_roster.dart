@@ -207,7 +207,8 @@ class _RosterPoller {
           ? roster
           : roster.where((p) => p.userId != selfId).toList(growable: false);
       if (_controller.isClosed) return;
-      if (selfId != null) onSelf(roster.any((p) => p.userId == selfId));
+      if (selfId != null)
+        onSelf(roster.any((p) => p.userId == selfId && !p.thisDevice));
       final age = snapshot.callAge;
       onCallStart(
         age == null || roster.isEmpty ? null : DateTime.now().subtract(age),
