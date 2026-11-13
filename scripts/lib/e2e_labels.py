@@ -87,6 +87,9 @@ RES_720P = "720p"
 FPS_30 = "30 fps"
 FPS_60 = "60 fps"
 VOICE_PANE = "Voice and screen share"
+TROUBLESHOOTING_PANE = "Troubleshooting"
+LAST_CALL_AUDIO = "Last call audio"
+COPY_CALL_DIAGNOSTICS = "Copy call diagnostics"
 
 # Voice
 IN_CALL = "in call"
