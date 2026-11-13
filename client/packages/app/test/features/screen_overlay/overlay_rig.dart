@@ -50,6 +50,7 @@ class RigSync extends NoopSyncController {
 
 class FakeOverlay implements ScreenOverlay {
   final shown = <List<int>>[];
+  final windows = <int?>[];
   final draws = <List<OverlayShape>>[];
   final panels = <OverlayPanel?>[];
   int? appMonitorIndex;
@@ -58,8 +59,9 @@ class FakeOverlay implements ScreenOverlay {
   @override
   Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
   @override
-  Future<bool> show(List<int> monitors) async {
+  Future<bool> show(List<int> monitors, {int? window}) async {
     shown.add(monitors);
+    windows.add(window);
     return true;
   }
 

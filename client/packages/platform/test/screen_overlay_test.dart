@@ -304,6 +304,12 @@ void main() {
       });
     });
 
+    test('show carries the shared window handle when there is one', () async {
+      answer((_) => true);
+      await const ChannelScreenOverlay().show([0], window: 263428);
+      expect((calls.single.arguments as Map)['window'], 263428);
+    });
+
     test('draw sends every shape as its json', () async {
       answer((_) => null);
       await const ChannelScreenOverlay().draw(const [

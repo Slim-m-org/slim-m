@@ -31,11 +31,12 @@ class ChannelScreenOverlay implements ScreenOverlay {
   }
 
   @override
-  Future<bool> show(List<int> monitors) async {
+  Future<bool> show(List<int> monitors, {int? window}) async {
     try {
       return await _channel.invokeMethod<bool>('show', {
             'monitor': monitors.first,
             'monitors': monitors,
+            if (window != null) 'window': window,
           }) ??
           false;
     } on PlatformException {
