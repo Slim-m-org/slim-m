@@ -122,6 +122,9 @@ pub const LISTENER_IDENTITY_PREFIX: &str = "listener-";
 pub const DEAFENED_ATTRIBUTE: &str = "deafened";
 const DEAFENED_ATTRIBUTE_ON: &str = "true";
 
+/// The participant attribute naming the device a token was minted for, so the roster can tell a member's own device apart.
+pub const DEVICE_ATTRIBUTE: &str = "slimm.device";
+
 /// Mints LiveKit room tokens and evicts participants.
 #[derive(Clone)]
 pub struct VoiceService {
@@ -263,6 +266,7 @@ impl VoiceService {
         user_id: UserId,
         permissions: Permissions,
         display_name: &str,
+        device_id: &str,
     ) -> Result<RoomToken, VoiceError> {
         let Some(enabled) = self.inner.as_ref() else {
             return Err(VoiceError::Unavailable);
@@ -296,6 +300,7 @@ impl VoiceService {
                 nbf: now,
                 exp: expires,
                 video: grants,
+                attributes: Some([(DEVICE_ATTRIBUTE, device_id)].into()),
             },
         )?;
 
@@ -343,6 +348,7 @@ impl VoiceService {
                     can_update_own_metadata: false,
                     hidden: true,
                 },
+                attributes: None,
             },
         )?;
         Ok(RoomToken {

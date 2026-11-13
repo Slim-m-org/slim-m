@@ -18432,6 +18432,13 @@ components:
           description: >-
             Whether any of this participant's published tracks is video,
             camera or screen share alike.
+        this_device:
+          type: boolean
+          description: >-
+            True only on the caller's own entry when that connection was
+            joined from the device asking, so a connection this device left
+            behind (after a reload or a crash) is not mistaken for the call
+            running on another device. Always false for anyone else.
 
     ReactionSummary:
       type: object
