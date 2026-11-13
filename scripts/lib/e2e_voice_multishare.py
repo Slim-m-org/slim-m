@@ -146,10 +146,10 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
                           for v in seen))
         c.wait_for(ALICE_SCREEN)
         c.wait_for("Bob's screen")
-        mine = wait_for_videos(pa, every, 2)
-        theirs = wait_for_videos(pb, every, 2)
-        print(f"  alice and bob each decode {len(mine)} videos: their own "
-              f"preview and the other's share ({len(theirs)})")
+        # Decision 0114: your own share is a Stop sharing tile, never a live copy of your screen.
+        wait_for_videos(pa, every, 1)
+        wait_for_videos(pb, every, 1)
+        print("  alice and bob each decode the other's share, and not their own")
 
         before = max(_area(v) for v in share_tiles(pc.videos(), every))
         ui.open_share_menu(c, ALICE_SCREEN, FOCUS)
