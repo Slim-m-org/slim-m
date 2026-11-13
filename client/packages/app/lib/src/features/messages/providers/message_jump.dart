@@ -10,9 +10,11 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show MessageStore;
 
 import '../../channels/providers/channel_history.dart';
+import 'message_context_window.dart';
 import 'message_page_size.dart';
 import 'retention_policy.dart';
 import '../../../providers/providers.dart';
@@ -116,11 +118,12 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
           token,
         );
         if (_token != token) return;
-        state = switch (arrived) {
-          _Reach.arrived => MessageJumpArrived(channelId, messageId, token),
-          _Reach.tooFar => MessageJumpUnreachable(channelId, messageId, token),
+        final next = switch (arrived) {
+          _Reach.arrived => _arriveLive(channelId, messageId, token),
+          _Reach.tooFar => await _openContext(channelId, messageId, token),
           _Reach.failed => MessageJumpFailed(channelId, messageId, token),
         };
+        if (_token == token) state = next;
         return;
       }
       if (page == maxPages) break;
@@ -129,9 +132,35 @@ class MessageJumpController extends StateNotifier<MessageJumpState> {
       if (paged != _Paged.more) break;
     }
     if (_token != token) return;
-    state = fetchFailed
+    final next = fetchFailed
         ? MessageJumpFailed(channelId, messageId, token)
-        : MessageJumpUnreachable(channelId, messageId, token);
+        : await _openContext(channelId, messageId, token);
+    if (_token == token) state = next;
+  }
+
+  /// A message the live window holds: any context window over it gives way.
+  MessageJumpState _arriveLive(String channelId, String messageId, int token) {
+    _ref.read(messageContextWindowProvider(channelId).notifier).close();
+    return MessageJumpArrived(channelId, messageId, token);
+  }
+
+  /// For a message paging cannot reach: shows a read-only window around it
+  /// instead. A message the server no longer has is the unreachable case.
+  Future<MessageJumpState> _openContext(
+    String channelId,
+    String messageId,
+    int token,
+  ) async {
+    try {
+      await _ref
+          .read(messageContextWindowProvider(channelId).notifier)
+          .open(messageId);
+      return MessageJumpArrived(channelId, messageId, token);
+    } on api.NotFoundException {
+      return MessageJumpUnreachable(channelId, messageId, token);
+    } on Object {
+      return MessageJumpFailed(channelId, messageId, token);
+    }
   }
 
   /// Fetches the held rows down to the message before widening the window over

@@ -88,7 +88,7 @@ void main() {
   ) async {
     final harness = await mountChannel(
       tester,
-      serverSeqs: _range(1, 1600),
+      serverSeqs: [..._range(1, 49), ..._range(51, 1600)],
       seededSeqs: _range(1551, 1600),
       searchHits: [_hit()],
     );

@@ -25,6 +25,7 @@ import '../providers/channel_drafts.dart';
 import '../providers/channel_history.dart';
 import '../providers/channel_search_controller.dart';
 import '../../messages/providers/message_actions.dart';
+import '../../messages/providers/message_context_window.dart';
 import '../../messages/providers/message_jump.dart';
 import '../providers/mounted_channels.dart';
 import '../../../providers/providers.dart';
@@ -195,6 +196,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   void initState() {
     super.initState();
     _mountedChannels.register(widget.channelId);
+    // A context window from an earlier visit must not greet this one; deferred because providers cannot change while the tree builds.
+    final channelId = widget.channelId;
+    Future.microtask(
+      () => ref.read(messageContextWindowProvider(channelId).notifier).close(),
+    );
     unawaited(_hydrateExtras());
     // Fresh or reused (see [ReadMarker]), this must open on this channel's own draft.
     _composer.text = _drafts.draftFor(widget.channelId);
@@ -227,6 +233,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
       // A jump neither finished nor consumed before the switch must not
       // replay against whichever channel is open next.
       ref.read(messageJumpProvider.notifier).cancelFor(oldWidget.channelId);
+      ref
+          .read(messageContextWindowProvider(oldWidget.channelId).notifier)
+          .close();
       _replyingTo = null;
       _scrollTracker.resetForChannelSwitch();
       _drafts.save(oldWidget.channelId, _composer.text);
