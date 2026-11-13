@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.130.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.129.0...client-v0.130.0) (2026-11-13)
+
+
+### Features
+
+* **client:** an always-on transcript is a mark in the call header, not a banner ([#2405](https://github.com/Slim-m-org/slim-m/issues/2405)) ([1751e78](https://github.com/Slim-m-org/slim-m/commit/1751e78d667ecd42805416c88e90dfa1f72196cb))
+
+
+### Bug Fixes
+
+* **client:** the drawing overlay reads the monitors again each time it opens ([#2411](https://github.com/Slim-m-org/slim-m/issues/2411)) ([a97e4ea](https://github.com/Slim-m-org/slim-m/commit/a97e4ea9a4427e712958fa97741c64d2bb32f28d))
+* **rtc:** keep healthy call minutes and reconnect retries out of the debug log ([#2410](https://github.com/Slim-m-org/slim-m/issues/2410)) ([cd6aeab](https://github.com/Slim-m-org/slim-m/commit/cd6aeab6b60737219ded269eb1d9bcbdcaad7ec6))
+
 ## [0.129.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.128.1...client-v0.129.0) (2026-11-12)
 
 
