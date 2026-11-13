@@ -123,6 +123,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   String? _channelId;
   String? _selfId;
   double? _overlayAspect;
+  int? _followedWindow;
   late final bool _windows = _ref.read(overlayHostIsWindowsProvider);
   bool _panelUp = false;
   int _panelMonitor = 0;
@@ -157,8 +158,22 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
         flags.channelId != null;
   }
 
+  /// Windows only: the handle of the shared window, which the runner keeps the overlay on (decision 0117).
+  int? get _sharedWindow {
+    if (!_windows) return null;
+    final source = _ref
+        .read(voiceControllerProvider.notifier)
+        .share
+        .lastShareSource;
+    return source == null || !source.isWindow
+        ? null
+        : windowHandleFromSourceId(source.id);
+  }
+
   bool get _wanted =>
-      _support.supported && _consentWanted && _sharingWholeScreen;
+      _support.supported &&
+      _consentWanted &&
+      (_sharingWholeScreen || _sharedWindow != null);
 
   /// Hidden while a whole screen is shared on Linux, which cannot keep the panel out of the stream.
   bool get _panelWanted {
@@ -201,6 +216,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   }
 
   Future<void> _begin() async {
+    api.AppLog.info(
+      api.LogTag.platform,
+      'Drawing consent starting: overlay wanted=$_wanted, window=$_sharedWindow, supported=${_support.supported}',
+    );
     final flags = _ref.read(voiceFlagsProvider);
     final self = _ref
         .read(voiceParticipantsProvider)
@@ -214,7 +233,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     state = ScreenOverlayState(
       active: up,
       consenting: true,
-      aspect: up ? _overlayAspect : _capturedAspect(),
+      aspect: up ? _overlayAspectNow : _capturedAspect(),
     );
     _ref.read(toastsProvider.notifier).show('Viewers can draw on your screen.');
     _sendConsent(allowed: true);
@@ -226,8 +245,13 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   /// Opens or closes the overlay window while consent stays, as the shared source or the desktop's support changes.
   Future<void> _syncOverlay() async {
+    if (state.active && _wanted && _followedWindow != _sharedWindow) {
+      await _hideOverlay();
+      if (!mounted) return;
+      state = state.copyWith(active: false, aspect: _capturedAspect);
+    }
     if (_wanted && !state.active && await _showOverlay() && mounted) {
-      state = state.copyWith(active: true, aspect: () => _overlayAspect);
+      state = state.copyWith(active: true, aspect: () => _overlayAspectNow);
       _sendConsent(allowed: true);
     } else if (!_wanted && state.active) {
       await _hideOverlay();
@@ -237,6 +261,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     }
   }
 
+  /// A followed window changes shape as it is resized, and the captured frame is that window.
+  double? get _overlayAspectNow =>
+      _followedWindow == null ? _overlayAspect : _capturedAspect();
+
   double? _capturedAspect() {
     final captured = localShareCapturedSize.value;
     if (captured == null || captured.height == 0) return null;
@@ -244,7 +272,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   }
 
   void _onCapturedSize() {
-    if (!mounted || !state.consenting || state.active) return;
+    if (!mounted || !state.consenting) return;
+    if (state.active && _followedWindow == null) return;
     final aspect = _capturedAspect();
     if (aspect == state.aspect) return;
     state = state.copyWith(aspect: () => aspect);
@@ -254,6 +283,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   Future<bool> _showOverlay() async {
     final monitors = (await _freshSupport()).monitors;
     if (!mounted) return false;
+    final window = _sharedWindow;
+    if (window != null) return _showOverWindow(window);
     final controller = _ref.read(voiceControllerProvider.notifier);
     final captured = localShareCapturedSize.value;
     final portal = _windows ? null : await _portalMonitor();
@@ -283,6 +314,20 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     return mounted;
   }
 
+  Future<bool> _showOverWindow(int window) async {
+    _draws.reset();
+    final shown = await _window.show(const [0], window: window);
+    api.AppLog.info(
+      api.LogTag.platform,
+      shown
+          ? 'Drawing overlay follows shared window $window'
+          : 'Drawing overlay could not open over shared window $window',
+    );
+    if (!shown) return false;
+    _followedWindow = window;
+    return mounted;
+  }
+
   /// Asks the desktop again: a monitor plugged in, woken or resized since the app started would otherwise be covered by the old layout.
   Future<OverlaySupport> _freshSupport() async {
     _ref.invalidate(screenOverlaySupportProvider);
@@ -307,6 +352,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _frames = null;
     _board.clear();
     _draws.reset();
+    _followedWindow = null;
     await _window.hide();
   }
 

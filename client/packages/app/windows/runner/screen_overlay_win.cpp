@@ -5,6 +5,8 @@
 
 #include <windows.h>
 
+#include <dwmapi.h>
+
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -46,6 +48,9 @@ ULONG_PTR g_gdiplus_token = 0;
 bool g_class_registered = false;
 std::vector<Shape> g_shapes;
 Panel g_panel;
+// The shared window the drawing overlay follows, or null when it covers a monitor.
+HWND g_target = nullptr;
+std::vector<HWINEVENTHOOK> g_hooks;
 
 bool BuildSupportsExclude() {
   using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
@@ -301,6 +306,56 @@ size_t MonitorIndex(const std::vector<Monitor>& monitors, int requested) {
              : 0;
 }
 
+// The window as the capturer sees it: the visible frame, without the invisible resize border.
+bool WindowBounds(HWND window, RECT* bounds) {
+  if (FAILED(DwmGetWindowAttribute(window, DWMWA_EXTENDED_FRAME_BOUNDS, bounds,
+                                   sizeof(RECT))) &&
+      !GetWindowRect(window, bounds)) {
+    return false;
+  }
+  return bounds->right > bounds->left && bounds->bottom > bounds->top;
+}
+
+// Puts the overlay back over the shared window, or hides it while the window is minimized, hidden or gone.
+void FollowTarget() {
+  if (g_draw.window == nullptr || g_target == nullptr) return;
+  RECT bounds = {};
+  if (!IsWindow(g_target) || IsIconic(g_target) || !IsWindowVisible(g_target) ||
+      !WindowBounds(g_target, &bounds)) {
+    ShowWindow(g_draw.window, SW_HIDE);
+    return;
+  }
+  int width = bounds.right - bounds.left;
+  int height = bounds.bottom - bounds.top;
+  bool resized = width != g_draw.width || height != g_draw.height;
+  if (resized) {
+    ReleaseSurface(g_draw);
+    g_draw.width = width;
+    g_draw.height = height;
+  }
+  SetWindowPos(g_draw.window, HWND_TOPMOST, bounds.left, bounds.top, width, height,
+               SWP_NOACTIVATE | SWP_SHOWWINDOW);
+  if (resized) Present(g_draw, Content::kShapes);
+}
+
+void CALLBACK OnTargetEvent(HWINEVENTHOOK, DWORD, HWND window, LONG object, LONG,
+                            DWORD, DWORD) {
+  if (window == g_target && object == OBJID_WINDOW) FollowTarget();
+}
+
+void StopFollowing() {
+  for (HWINEVENTHOOK hook : g_hooks) UnhookWinEvent(hook);
+  g_hooks.clear();
+  g_target = nullptr;
+}
+
+void FollowEvents(DWORD first, DWORD last) {
+  DWORD thread = GetWindowThreadProcessId(g_target, nullptr);
+  HWINEVENTHOOK hook = SetWinEventHook(first, last, nullptr, OnTargetEvent, 0,
+                                       thread, WINEVENT_OUTOFCONTEXT);
+  if (hook != nullptr) g_hooks.push_back(hook);
+}
+
 }  // namespace
 
 bool Supported(std::vector<Monitor>* monitors) {
@@ -318,6 +373,27 @@ bool Show(int monitor_index) {
   if (!OpenLayer(g_draw, monitors[index], index)) return false;
   g_shapes.clear();
   RevealLayer(g_draw, Content::kShapes);
+  return true;
+}
+
+bool ShowOverWindow(int64_t handle) {
+  Hide();
+  HWND target = reinterpret_cast<HWND>(static_cast<intptr_t>(handle));
+  RECT bounds = {};
+  if (!IsWindow(target) || !WindowBounds(target, &bounds)) return false;
+  Monitor area;
+  area.x = bounds.left;
+  area.y = bounds.top;
+  area.width = bounds.right - bounds.left;
+  area.height = bounds.bottom - bounds.top;
+  if (!OpenLayer(g_draw, area, 0)) return false;
+  g_shapes.clear();
+  g_target = target;
+  RevealLayer(g_draw, Content::kShapes);
+  // Destroy through location change covers moves, resizes, shows and hides; the minimize pair is the system's own.
+  FollowEvents(EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE);
+  FollowEvents(EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND);
+  FollowTarget();
   return true;
 }
 
@@ -378,6 +454,7 @@ int AppMonitor() {
 }
 
 void Hide() {
+  StopFollowing();
   g_shapes.clear();
   CloseLayer(g_draw);
 }

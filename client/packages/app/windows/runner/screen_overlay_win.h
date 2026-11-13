@@ -73,6 +73,9 @@ bool Supported(std::vector<Monitor>* monitors);
 // window, so showing or hiding this one never touches it.
 bool Show(int monitor);
 
+// Opens the drawing overlay over the window [handle] and follows it; false when it is gone or cannot be hidden from capture.
+bool ShowOverWindow(int64_t handle);
+
 void Draw(std::vector<Shape> shapes);
 
 // Closes the drawing overlay.
