@@ -295,6 +295,15 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
         actorId: decoded['actor_id'] as String,
         activity: _voiceActivity(decoded['activity'])!,
       ),
+    'soundboard.played'
+        when decoded['channel_id'] is String &&
+            decoded['clip_id'] is String &&
+            decoded['player_id'] is String =>
+      SoundboardPlayed(
+        channelId: decoded['channel_id'] as String,
+        clipId: decoded['clip_id'] as String,
+        playerId: decoded['player_id'] as String,
+      ),
     _ => null,
   };
 }

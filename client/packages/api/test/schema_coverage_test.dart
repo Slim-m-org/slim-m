@@ -90,6 +90,8 @@ const Map<String, String> _allowlist = {
       'back; the browser loads it, never this client',
   'GET /emoji/{}/image': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
+  'GET /soundboard/{}/audio': 'reads raw bytes through SlimmApi._fetchBytes, '
+      'the same as GET /attachments/{}',
   'GET /space/themes/{}/picture': 'reads raw bytes through '
       'SlimmApi._fetchBytes, the same as GET /attachments/{}',
   'GET /gifs/preview/{}': 'reads raw bytes through SlimmApi._fetchBytes, the '

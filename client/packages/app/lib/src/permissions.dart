@@ -47,6 +47,9 @@ abstract final class Perm {
   /// Read a call's transcript, including in search (decision 0113).
   static const int viewTranscripts = 1 << 20;
 
+  /// Play a soundboard clip into a voice call (decision 0118).
+  static const int useSoundboard = 1 << 21;
+
   /// Every bit that has a name, in the fixed order the editor lists them.
   static const List<(int bit, String label)> editable = [
     (administrator, 'Administrator'),
@@ -70,6 +73,7 @@ abstract final class Perm {
     (viewModerationHistory, 'View moderation history'),
     (moveMembers, 'Move members between calls'),
     (viewTranscripts, 'View transcripts'),
+    (useSoundboard, 'Use the soundboard'),
   ];
 
   /// [groups] flattened, in the same order - the channel permissions grid's
@@ -150,6 +154,11 @@ abstract final class Perm {
         viewTranscripts,
         'View transcripts',
         'Read what was said in calls, and find it in search.',
+      ),
+      PermSpec(
+        useSoundboard,
+        'Use the soundboard',
+        'Play short clips into a call.',
       ),
     ]),
     PermGroup('Channels & invites', [

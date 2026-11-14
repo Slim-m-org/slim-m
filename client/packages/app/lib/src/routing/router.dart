@@ -31,6 +31,7 @@ import '../features/settings/screens/admin/channel_permissions_screen.dart';
 import '../features/settings/screens/admin/dock_module_screen.dart';
 import '../features/settings/screens/admin/dock_screen.dart';
 import '../features/settings/screens/admin/emoji_screen.dart';
+import '../features/settings/screens/admin/soundboard_screen.dart';
 import '../features/settings/screens/admin/invites_screen.dart';
 import '../features/settings/screens/admin/customize_screen.dart';
 import '../features/settings/screens/admin/performance_screen.dart';
@@ -215,6 +216,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminEmoji,
         pageBuilder: (context, state) =>
             modalPage(context, const EmojiScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminSoundboard,
+        pageBuilder: (context, state) =>
+            modalPage(context, const SoundboardScreen()),
       ),
       GoRoute(
         path: Routes.adminAnalytics,

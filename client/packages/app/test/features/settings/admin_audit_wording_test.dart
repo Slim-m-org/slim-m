@@ -188,6 +188,9 @@ void main() {
     (_change('invite.revoke', target: 'abc'), 'revoked invite abc'),
     (_change('emoji.create', target: 'e1'), 'added :party:'),
     (_change('emoji.bulk_create'), 'added several emoji'),
+    (_change('soundboard.create'), 'added a soundboard clip'),
+    (_change('soundboard.rename', target: 'c1'), 'renamed a soundboard clip'),
+    (_change('soundboard.delete', target: 'c1'), 'removed a soundboard clip'),
     (_change('emoji.delete', target: 'e1'), 'deleted :party:'),
     (_change('module.install', target: 'polls'), 'installed module polls'),
     (

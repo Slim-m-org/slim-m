@@ -38,3 +38,20 @@ class WatchTick extends ServerEvent {
   /// and a new session, so a lower one is older.
   final int epoch;
 }
+
+/// A member played a soundboard clip in a call this account is in. Delivered
+/// only to the accounts in that call, never persisted, so a client plays it
+/// once when it arrives and never replays one from a resync.
+class SoundboardPlayed extends ServerEvent {
+  const SoundboardPlayed({
+    required this.channelId,
+    required this.clipId,
+    required this.playerId,
+  });
+
+  final String channelId;
+  final String clipId;
+
+  /// Whose per-person volume the clip plays at.
+  final String playerId;
+}
