@@ -75,6 +75,7 @@ class OverlayBadge {
   explicit OverlayBadge(HWND window) : window_(window) {}
 
   bool Set(int count) {
+    count_ = count;
     if (!EnsureTaskbar()) return false;
     if (count <= 0) {
       return SUCCEEDED(taskbar_->SetOverlayIcon(window_, nullptr, nullptr));
@@ -86,6 +87,12 @@ class OverlayBadge {
         SUCCEEDED(taskbar_->SetOverlayIcon(window_, icon, label.c_str()));
     DestroyIcon(icon);
     return shown;
+  }
+
+  // A new button means a new taskbar too, so the old interface is dropped first.
+  void Reapply() {
+    taskbar_.Reset();
+    Set(count_);
   }
 
  private:
@@ -104,9 +111,21 @@ class OverlayBadge {
 
   HWND window_;
   ComPtr<ITaskbarList3> taskbar_;
+  int count_ = 0;
 };
 
+std::weak_ptr<OverlayBadge> g_badge;
+
 }  // namespace
+
+UINT TaskbarButtonCreatedMessage() {
+  static const UINT message = RegisterWindowMessageW(L"TaskbarButtonCreated");
+  return message;
+}
+
+void OnTaskbarButtonCreated() {
+  if (auto badge = g_badge.lock()) badge->Reapply();
+}
 
 void RegisterTaskbarAttentionChannel(flutter::BinaryMessenger* messenger,
                                      HWND window) {
@@ -115,6 +134,7 @@ void RegisterTaskbarAttentionChannel(flutter::BinaryMessenger* messenger,
           messenger, "slimm/taskbar_attention",
           &flutter::StandardMethodCodec::GetInstance());
   auto badge = std::make_shared<OverlayBadge>(window);
+  g_badge = badge;
   channel->SetMethodCallHandler(
       [channel, badge, window](
           const flutter::MethodCall<flutter::EncodableValue>& call,

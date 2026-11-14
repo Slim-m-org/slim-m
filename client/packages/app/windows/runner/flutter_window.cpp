@@ -88,6 +88,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     return 0;
   }
 
+  if (message == TaskbarButtonCreatedMessage()) {
+    OnTaskbarButtonCreated();
+  }
+
   switch (message) {
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
