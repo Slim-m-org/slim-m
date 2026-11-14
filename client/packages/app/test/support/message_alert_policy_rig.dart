@@ -95,7 +95,10 @@ class AlertRig {
 
   MessageAlertPolicy get policy => container.read(messageAlertPolicyProvider);
 
+  final _wasNewChannelWait = alertNewChannelWait;
+
   Future<void> start() async {
+    alertNewChannelWait = const Duration(milliseconds: 50);
     db = SlimmDatabase(NativeDatabase.memory());
     final store = makeStore(db);
     await store.upsertChannels([
@@ -204,6 +207,7 @@ class AlertRig {
   }
 
   Future<void> dispose() async {
+    alertNewChannelWait = _wasNewChannelWait;
     container.dispose();
     await db.close();
   }
