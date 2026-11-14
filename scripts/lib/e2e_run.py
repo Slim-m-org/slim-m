@@ -39,6 +39,7 @@ import e2e_settings
 import e2e_coverage
 import e2e_sweep
 import e2e_threads
+import e2e_unread
 import e2e_voice
 import e2e_voice_health
 import e2e_soundboard
@@ -218,6 +219,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("messaging: a mention reads as the member's name in this space",
          lambda: e2e_mention_names.mention_reads_the_name_in_this_space(
              a, b, L.TEXT_CHANNEL, admin, member)),
+        ("messaging: unread follows what was read, a deleted message included",
+         lambda: e2e_unread.unread_follows_what_was_read(b, admin, member)),
         ("admin: renaming a member shows the nickname everywhere",
          lambda: e2e_members.admin_renames_a_member(
              a, L.TEXT_CHANNEL, admin, member)),
