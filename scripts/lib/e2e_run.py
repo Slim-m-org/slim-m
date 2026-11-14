@@ -68,6 +68,7 @@ import e2e_voice_network
 import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_tabs
+import e2e_two_factor
 import e2e_api
 import e2e_browsers
 import e2e_client
@@ -227,6 +228,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("admin: a reset code asks for the admin's password",
          lambda: e2e_password.reset_code_asks_for_the_admins_password(
              a, server, secret, admin)),
+        ("account: two-factor sign-in, with a code and with a recovery code",
+         lambda: e2e_two_factor.sign_in_with_a_second_factor(
+             b, sign_in, server, secret, admin)),
         ("account: changing your password signs out your other devices",
          lambda: e2e_password.change_own_password(
              b, sign_in, server, secret, admin)),

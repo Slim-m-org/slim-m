@@ -61,6 +61,27 @@ REPEAT_PASSWORD = "Repeat new password"
 PASSWORD_CHANGED = "Password changed."
 WRONG_PASSWORD = "That password is not correct."
 
+# Account and security > Two-factor (totp_section.dart, totp_enrol_sheet.dart, totp_code_sheet.dart)
+TOTP_TURN_ON = "Turn on two-factor authentication"
+TOTP_TURN_OFF = "Turn off two-factor authentication"
+TOTP_TURN_OFF_SUBMIT = "Turn off"
+TOTP_COPY_KEY = "Copy"
+TOTP_SETUP_FIELD = "Code from your authenticator app"
+TOTP_CONFIRM = "Turn on"
+TOTP_COPY_ALL = "Copy all"
+TOTP_RECOVERY_LEFT = "Recovery codes, "
+TOTP_CODE_FIELD = "Authentication code"
+DONE = "Done"
+SIGN_OUT = "Sign out"
+
+# Signing in (welcome and sign-in screens)
+CONNECT_TO_SPACE = "Connect to a Space"
+SERVER_ADDRESS = "Server address"
+CONTINUE = "Continue"
+USERNAME = "Username"
+PASSWORD = "Password"
+SIGN_IN = "Sign in"
+
 # The admin's reset code (reset_code_sheet.dart, reauth_sheet.dart)
 RESET_CODE_ROW = "Password reset code..."
 YOUR_PASSWORD = "Your password"
