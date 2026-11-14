@@ -13,11 +13,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use axum::Router;
-use axum::extract::State;
 use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 use tokio::task::JoinHandle;
 
@@ -133,10 +133,23 @@ impl Control {
         self
     }
 
+    pub(crate) fn config(&self) -> &Config {
+        &self.config
+    }
+
+    pub(crate) fn pool(&self) -> &Pool {
+        &self.pool
+    }
+
     pub fn router(self) -> Router {
         Router::new()
             .route("/healthz", get(|| async { "ok" }))
             .route("/v1/control", get(upgrade))
+            .route(
+                "/v1/transcribe",
+                post(crate::transcribe::handler)
+                    .layer(DefaultBodyLimit::max(crate::transcribe::MAX_BODY_BYTES)),
+            )
             .with_state(self)
     }
 }
@@ -164,7 +177,7 @@ async fn upgrade(
 }
 
 /// Compares without stopping at the first difference.
-fn same_secret(a: &str, b: &str) -> bool {
+pub(crate) fn same_secret(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
     let mut diff = a.len() ^ b.len();
     for i in 0..a.len().max(b.len()) {
