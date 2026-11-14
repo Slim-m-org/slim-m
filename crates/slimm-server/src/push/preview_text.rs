@@ -92,6 +92,7 @@ pub(super) fn describe(embeds: &[Embed], attachments: &[AttachmentSummary]) -> S
         [] => String::new(),
         [one] if one.content_type.starts_with("image/") => "Sent an image".to_owned(),
         [one] if one.content_type.starts_with("video/") => "Sent a video".to_owned(),
+        [one] if one.voice.is_some() => "Sent a voice message".to_owned(),
         [one] => format!("Sent {}", one.filename),
         many if many.iter().all(|a| a.content_type.starts_with("image/")) => {
             format!("Sent {} images", many.len())
@@ -149,6 +150,16 @@ mod tests {
         assert_eq!(
             describe(&[], &[file("notes.pdf", "application/pdf")]),
             "Sent notes.pdf"
+        );
+        let mut voice = file("voice-message.wav", "audio/wav");
+        voice.voice = Some(crate::store::VoiceInfo {
+            duration_ms: 3_000,
+            waveform: vec![0; 64],
+        });
+        assert_eq!(describe(&[], &[voice]), "Sent a voice message");
+        assert_eq!(
+            describe(&[], &[file("song.mp3", "audio/mpeg")]),
+            "Sent song.mp3"
         );
         let two = [file("a.png", "image/png"), file("b.jpg", "image/jpeg")];
         assert_eq!(describe(&[], &two), "Sent 2 images");

@@ -25,7 +25,7 @@ String attachmentKindLabel(List<api.Attachment> attachments) {
   final only = attachments.single;
   if (only.contentType.startsWith('image/')) return 'Photo';
   if (isVideo(only.contentType)) return 'Video';
-  if (only.contentType.startsWith('audio/')) return 'Voice message';
+  if (only.voice != null) return 'Voice message';
   return only.filename;
 }
 
