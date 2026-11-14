@@ -36,10 +36,27 @@ import e2e_input as I
 import e2e_labels as L
 
 
+def _settled_row(client, text, timeout=5):
+    """The row once it stops moving: a message that just arrived scrolls the transcript under it."""
+    deadline = time.time() + timeout
+    row = client.wait_for(text)
+    while time.time() < deadline:
+        time.sleep(0.3)
+        again = client.wait_for(text)
+        if (again["x"], again["y"]) == (row["x"], row["y"]):
+            return again
+        row = again
+    return row
+
+
 def _open_from_menu(client, text):
     """Right-click the message and choose "Reply in thread"."""
-    row = client.wait_for(text)
-    I.right_click(client, row["x"], row["y"])
+    for _ in range(2):
+        row = _settled_row(client, text)
+        I.right_click(client, row["x"], row["y"])
+        if client.find(L.REPLY_IN_THREAD):
+            break
+        client.dismiss_overlay()
     client.click(L.REPLY_IN_THREAD, settle=2)
     client.wait_for(L.THREAD_HEADER)
 
