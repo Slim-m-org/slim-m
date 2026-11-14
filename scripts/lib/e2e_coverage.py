@@ -52,11 +52,22 @@ def from_requests(urls, origin):
     return out
 
 
+def _fits(path, template):
+    got, want = path.split("/"), template.split("/")
+    return len(got) == len(want) and all(
+        w == "{}" or g == w for g, w in zip(got, want))
+
+
+def template_for(path, templates):
+    """The documented route a path was a request to; any segment fills a {param}, and the most literal match wins."""
+    fits = [t for t in templates if _fits(canon(path), canon(t))]
+    return max(fits, key=lambda t: canon(t).count("/") - canon(t).count("{}"), default=None)
+
+
 def report(touched, schema_path):
     known = documented(schema_path)
-    seen = {canon(p) for p in touched}
-    covered = sorted({p for p in known if canon(p) in seen})
-    missing = sorted({p for p in known if canon(p) not in seen})
+    covered = sorted({template_for(p, known) for p in touched} - {None})
+    missing = sorted(set(known) - set(covered))
     pct = 100 * len(covered) // max(len(known), 1)
     print(f"  {len(covered)}/{len(known)} documented API paths touched ({pct}%)")
     print(f"  not touched: {', '.join(missing) if missing else 'none'}")

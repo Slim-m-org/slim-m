@@ -100,3 +100,33 @@ class ReportTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TemplateForTest(unittest.TestCase):
+    KNOWN = ["/channels/{channelId}", "/channels/order",
+             "/messages/{messageId}/reactions/{emoji}", "/space/themes/{theme_id}", "/ws"]
+
+    def test_any_segment_fills_a_param(self):
+        cases = {
+            f"/messages/{UUID}/reactions/%F0%9F%91%8D": "/messages/{messageId}/reactions/{emoji}",
+            "/space/themes/midnight": "/space/themes/{theme_id}",
+            f"/channels/{UUID}": "/channels/{channelId}",
+            "/ws": "/ws",
+        }
+        for raw, want in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(C.template_for(raw, self.KNOWN), want)
+
+    def test_a_literal_route_beats_the_param_beside_it(self):
+        self.assertEqual(C.template_for("/channels/order", self.KNOWN), "/channels/order")
+
+    def test_an_undocumented_path_counts_for_nothing(self):
+        self.assertIsNone(C.template_for(f"/channels/{UUID}/nope", self.KNOWN))
+
+    def test_report_counts_a_reaction_as_its_route(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml") as fh:
+            fh.write("paths:\n  /messages/{messageId}/reactions/{emoji}:\n    put: {}\n")
+            fh.flush()
+            with contextlib.redirect_stdout(io.StringIO()):
+                covered, missing = C.report({f"/messages/{UUID}/reactions/%E2%9C%85"}, fh.name)
+        self.assertEqual((covered, missing), (["/messages/{messageId}/reactions/{emoji}"], []))

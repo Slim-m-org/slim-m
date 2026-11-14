@@ -84,6 +84,13 @@ class NetworkEventsTest(unittest.TestCase):
         client._note({"method": "Network.requestWillBeSent", "params": {}})
         self.assertEqual(e2e_client.REQUEST_URLS, set())
 
+    def test_a_websocket_counts_as_a_request_to_its_path(self):
+        client = e2e_client.Client("a", 0)
+        client._note({"method": "Network.webSocketCreated",
+                      "params": {"url": "ws://localhost:8095/ws?token=x"}})
+        client._note({"method": "Network.webSocketCreated", "params": {}})
+        self.assertEqual(e2e_client.REQUEST_URLS, {"http://localhost:8095/ws?token=x"})
+
     def test_a_request_is_not_mistaken_for_a_console_line(self):
         client = e2e_client.Client("a", 0)
         client._note(self.sent("http://localhost:8095/me"))

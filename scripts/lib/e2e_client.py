@@ -105,6 +105,11 @@ class Client:
             if url.startswith(("http://", "https://")):
                 REQUEST_URLS.add(url)
             return
+        if method == "Network.webSocketCreated":
+            url = params.get("url") or ""
+            if url.startswith(("ws://", "wss://")):
+                REQUEST_URLS.add("http" + url[2:])
+            return
         if method == "Log.entryAdded":
             entry = params.get("entry") or {}
             line = " ".join(str(entry.get(k) or "")
