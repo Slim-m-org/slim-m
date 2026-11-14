@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """A file big enough for upload sessions survives a channel switch and a dropped network.
 
-Alice's upload is throttled so it is still going while she switches channels
-and comes back, and while her network drops for a few seconds; the session
+Alice's upload is throttled so it is still going while she switches to her
+Notes and comes back, and while her network drops for a few seconds; the session
 has to resume where it stopped rather than start over or give up. The file
 is made in her page from a fixed pattern and hashed there, and an
 attachment's id is the sha256 of the bytes the server stored, so a part sent
@@ -88,7 +88,7 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         time.sleep(3)
         assert _send_state(a) == "disabled", "a 40 MB upload finished before it could be interrupted"
 
-        a.click(L.VOICE_CHANNEL, settle=2)
+        a.click(L.NOTES, settle=2)
         a.click(L.TEXT_CHANNEL, settle=2)
         assert a.find(NAME), "switching channels dropped the staged upload"
         print("  switching channels mid-upload keeps the file staged and uploading")

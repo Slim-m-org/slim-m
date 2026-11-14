@@ -73,6 +73,16 @@ VIEW_CHANNELS = "View channels"
 FROM_THIS_GRID = " from this grid"
 DISCARD = "Discard"
 
+# The personal space every account has in its Direct messages section.
+NOTES = "Notes"
+
+# Group messages (new_group_dm_sheet.dart, group_dm_members_action.dart, group_dm_members_sheet.dart)
+NEW_GROUP_MESSAGE = "New group message"
+START_GROUP_WITH = "Start group with "
+GROUP_MEMBERS = "Group members"
+LEAVE_GROUP = "Leave group"
+GROUP_INTRO = "just between the people in this group"
+
 # Account and security > Two-factor (totp_section.dart, totp_enrol_sheet.dart, totp_code_sheet.dart)
 TOTP_TURN_ON = "Turn on two-factor authentication"
 TOTP_TURN_OFF = "Turn off two-factor authentication"

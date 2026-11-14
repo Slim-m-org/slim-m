@@ -24,6 +24,7 @@ import e2e_canvas_live
 import e2e_canvas_shapes
 import e2e_labels as L
 import e2e_large_upload
+import e2e_group_dm
 import e2e_invite_landing
 import e2e_media_slots
 import e2e_messaging
@@ -230,6 +231,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("permissions: a private channel follows who was added, live",
          lambda: e2e_private_channel.private_channel_follows_who_was_added(
              a, b, admin, member)),
+        ("messaging: a group message reaches everyone in it, and leaving ends it",
+         lambda: e2e_group_dm.group_message_reaches_everyone_and_leaving_ends_it(
+             a, b, admin, member, server)),
         ("admin: renaming a member shows the nickname everywhere",
          lambda: e2e_members.admin_renames_a_member(
              a, L.TEXT_CHANNEL, admin, member)),
