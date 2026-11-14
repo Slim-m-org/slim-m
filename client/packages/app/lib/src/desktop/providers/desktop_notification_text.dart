@@ -18,8 +18,9 @@ const desktopNotificationMaxRunes = 200;
   required bool isDm,
   String? channelName,
   Map<String, String> mentionNames = const {},
+  String? authorName,
 }) {
-  final author = message.authorDisplayName;
+  final author = authorName ?? message.authorDisplayName;
   final named = author != null && author.isNotEmpty;
   if (!showText || !named) {
     return (

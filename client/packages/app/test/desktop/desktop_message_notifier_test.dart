@@ -24,6 +24,7 @@ import 'package:slimm_app/src/features/accounts/providers/account_slot.dart';
 import 'package:slimm_app/src/features/accounts/providers/notification_target.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
+import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/desktop/providers/desktop_message_notifier.dart';
 import 'package:slimm_app/src/desktop/providers/desktop_message_text_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -176,6 +177,49 @@ Future<void> _settle(_Setup setup, {bool Function()? until}) async {
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('a nickname names the author and the mention in the alert', () async {
+    if (!isDesktopHost) return;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    final setup = await _wire(
+      extra: [
+        membersProvider.overrideWith(
+          (ref) async => [
+            const api.UserProfile(
+              id: 'alice',
+              username: 'alice',
+              displayName: 'Captain Al',
+              createdAt: 0,
+            ),
+            const api.UserProfile(
+              id: 'bob',
+              username: 'bob',
+              displayName: 'Bob',
+              createdAt: 0,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    setup.events.add(
+      api.MessageCreated(
+        _message(
+          id: 'm1',
+          authorId: 'alice',
+          authorDisplayName: 'Alice',
+          channelId: 'group-1',
+          content: 'hi @alice',
+        ),
+      ),
+    );
+    await _settle(setup);
+
+    expect(setup.notifications.shown, [
+      'Captain Al in #general: hi @Captain Al',
+    ]);
+    await setup.dispose();
+  });
 
   test('backgrounded, another author: shows a named notification', () async {
     if (!isDesktopHost) return;

@@ -54,6 +54,8 @@ final desktopMessageNotifierProvider = Provider<void>((ref) {
   // Android and iOS notify from platform push; only the desktop needs this.
   if (!isDesktopHost) return;
 
+  // Kept alive so an alert reads the roster from memory instead of refetching it.
+  ref.listen(membersProvider, (_, _) {});
   final notifier = _DesktopMessageNotifier(ref);
   final sub = ref.read(liveEventsProvider).listen(notifier.onServerEvent);
   ref.onDispose(sub.cancel);
@@ -87,12 +89,14 @@ class _DesktopMessageNotifier {
             storeProvider.future,
           )).channelRow(message.channelId)
         : null;
+    final members = showText ? await _roster() : const <api.UserProfile>[];
     final text = desktopNotificationText(
       message,
       showText: showText,
       isDm: alert.isDm,
       channelName: channel?.name,
-      mentionNames: showText ? await _mentionNames(message.content) : const {},
+      mentionNames: mentionNamesFrom(AsyncData(members)),
+      authorName: _authorName(members, message),
     );
     final origin = _ref.read(accountSlotProvider)?.account?.origin;
     final payload = origin == null
@@ -117,14 +121,19 @@ class _DesktopMessageNotifier {
     );
   }
 
-  /// Only fetched for a message that carries an `@`, since the roster is a network read when nothing is showing it.
-  Future<Map<String, String>> _mentionNames(String content) async {
-    if (!content.contains('@')) return const {};
+  Future<List<api.UserProfile>> _roster() async {
     try {
-      final members = await _ref.read(membersProvider.future);
-      return mentionNamesFrom(AsyncData(members));
+      return await _ref.read(membersProvider.future);
     } on Object {
-      return const {};
+      return const [];
     }
+  }
+
+  /// The author's name in this space, nickname first; null keeps the message's own.
+  String? _authorName(List<api.UserProfile> members, api.Message message) {
+    for (final member in members) {
+      if (member.id == message.authorId) return member.displayName;
+    }
+    return null;
   }
 }
