@@ -34,8 +34,25 @@ class _SpyPlugin implements FlutterLocalNotificationsPlugin {
     DidReceiveBackgroundNotificationResponseCallback?
         onDidReceiveBackgroundNotificationResponse,
   }) async {
+    initSettings = initializationSettings;
     onResponse = onDidReceiveNotificationResponse;
     return true;
+  }
+
+  InitializationSettings? initSettings;
+  NotificationDetails? shownDetails;
+  String? shownPayload;
+
+  @override
+  Future<void> show(
+    int id,
+    String? title,
+    String? body,
+    NotificationDetails? notificationDetails, {
+    String? payload,
+  }) async {
+    shownDetails = notificationDetails;
+    shownPayload = payload;
   }
 
   @override
@@ -124,6 +141,33 @@ void main() {
       await expectLater(
         notifications.show('New message', channel: LocalAlertChannel.messages),
         completes,
+      );
+    });
+
+    test('Windows posts a toast under the app user model id, payload intact',
+        () async {
+      final plugin = _SpyPlugin();
+      final notifications = LocalNotifications(
+        plugin: plugin,
+        isAndroid: false,
+        isLinux: false,
+        isWindows: true,
+      );
+
+      await notifications.show(
+        'hello',
+        channel: LocalAlertChannel.calls,
+        title: 'Alice',
+        payload: 'where',
+      );
+
+      expect(
+          plugin.initSettings?.windows?.appUserModelId, windowsAppUserModelId);
+      expect(plugin.shownPayload, 'where');
+      expect(
+        plugin.shownDetails?.windows?.scenario,
+        WindowsNotificationScenario.urgent,
+        reason: 'a ring is the one alert allowed to break through',
       );
     });
 

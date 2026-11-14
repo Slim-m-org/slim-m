@@ -38,6 +38,10 @@ const securityChannelName = 'Security alerts';
 const voiceChannelId = 'voice_v1';
 const voiceChannelName = 'Voice activity';
 
+/// What Windows files a toast under; the plugin registers it for the user.
+const windowsAppUserModelId = 'top.npcserver.slimm';
+const _windowsActivationGuid = '6f1d2b5e-3c0a-4e7b-9a52-5d8e1c4b7a31';
+
 /// The Android channel a plain content-free alert posts through, and the
 /// stable notification id it replaces rather than stacks beside.
 ///
@@ -169,38 +173,42 @@ class _PluginPermissionRequester implements AndroidPermissionRequester {
 /// Displays the fixed local notification a data-only push needs on Android,
 /// and creates the versioned channel it displays through.
 ///
-/// Android and Linux only. iOS shows its alert straight from APNs with no
+/// Android, Linux and Windows. iOS shows its alert straight from APNs with no
 /// app code involved (a `kind` that should alert already carries a plain-text
 /// `aps.alert` the OS renders itself), and the web has no notification plugin
 /// behind this to call. Linux has no remote push, so nothing wakes a closed
 /// app - but a running desktop app posts through org.freedesktop.Notifications
 /// (the flutter_local_notifications_linux D-Bus backend, pure Dart, no native
 /// registration) when a message arrives unfocused; see `push_controller.dart`.
-/// macOS and Windows are not wired yet: each needs its own init settings
-/// (a GUID on Windows, entitlements on macOS) and is a separate change.
+/// Windows posts a toast through the plugin's own native library, which
+/// registers the [windowsAppUserModelId] for the current user on first use, so
+/// the installer needs no shortcut work for it. macOS is not wired yet.
 class LocalNotifications {
   LocalNotifications({
     FlutterLocalNotificationsPlugin? plugin,
     bool? isAndroid,
     bool? isLinux,
+    bool? isWindows,
     AndroidPermissionRequester? permissionRequester,
     Future<void> Function(String? payload)? onActivated,
   })  : _onActivated = onActivated,
         _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
         _isAndroid = isAndroid ?? isAndroidHost,
         _isLinux = isLinux ?? isLinuxHost,
+        _isWindows = isWindows ?? isWindowsHost,
         _permissionRequester = permissionRequester;
 
   final FlutterLocalNotificationsPlugin _plugin;
   final bool _isAndroid;
   final bool _isLinux;
+  final bool _isWindows;
 
   /// Called when the person clicks a notification, with the payload it was shown with.
   final Future<void> Function(String? payload)? _onActivated;
 
   /// The platforms this actually displays on today. iOS/web render (or do
-  /// not) without this class; macOS/Windows are not wired yet.
-  bool get _supported => _isAndroid || _isLinux;
+  /// not) without this class; macOS is not wired yet.
+  bool get _supported => _isAndroid || _isLinux || _isWindows;
 
   /// Nullable rather than defaulted in the initializer list: the default wraps
   /// `_plugin`, and an initializer list cannot read a field it is still in the
@@ -244,6 +252,11 @@ class LocalNotifications {
       const InitializationSettings(
         android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
         linux: LinuxInitializationSettings(defaultActionName: 'Open slim-m'),
+        windows: WindowsInitializationSettings(
+          appName: 'slim-m',
+          appUserModelId: windowsAppUserModelId,
+          guid: _windowsActivationGuid,
+        ),
       ),
       onDidReceiveNotificationResponse: (response) => unawaited(
         _onActivated?.call(response.payload) ?? Future<void>.value(),
@@ -299,6 +312,10 @@ class LocalNotifications {
           urgency: channel.critical
               ? LinuxNotificationUrgency.critical
               : LinuxNotificationUrgency.normal,
+        ),
+        windows: WindowsNotificationDetails(
+          scenario:
+              channel.critical ? WindowsNotificationScenario.urgent : null,
         ),
       ),
       payload: payload,

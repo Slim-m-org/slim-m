@@ -14,6 +14,7 @@ add_executable(${BINARY_NAME} WIN32
   "now_playing_channel.cpp"
   "screen_overlay_channel.cpp"
   "single_instance.cpp"
+  "taskbar_attention_channel.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -66,6 +67,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "wtsapi32.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "gdi32.lib" "user32.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE now_playing_smtc)
 target_link_libraries(${BINARY_NAME} PRIVATE screen_overlay_win)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")

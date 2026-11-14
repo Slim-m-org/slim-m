@@ -33,6 +33,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import '../support/fake_api.dart';
+import '../support/fake_taskbar_attention.dart';
 
 class _FakeNotifications implements LocalNotifications {
   final shown = <String>[];
@@ -89,12 +90,19 @@ http.Response _json(Object body) => http.Response(
 );
 
 class _Setup {
-  _Setup(this.container, this.events, this.notifications, this.db);
+  _Setup(
+    this.container,
+    this.events,
+    this.notifications,
+    this.db,
+    this.taskbar,
+  );
 
   final ProviderContainer container;
   final StreamController<api.ServerEvent> events;
   final _FakeNotifications notifications;
   final SlimmDatabase db;
+  final FakeTaskbarAttention taskbar;
 
   Future<void> dispose() async {
     container.dispose();
@@ -117,6 +125,7 @@ Future<_Setup> _wire({List<Override> extra = const []}) async {
 
   final events = StreamController<api.ServerEvent>.broadcast();
   final notifications = _FakeNotifications();
+  final taskbar = FakeTaskbarAttention();
 
   final container = ProviderContainer(
     overrides: [
@@ -125,6 +134,7 @@ Future<_Setup> _wire({List<Override> extra = const []}) async {
       storeProvider.overrideWith((ref) async => store),
       liveEventsProvider.overrideWithValue(events.stream),
       localNotificationsProvider.overrideWithValue(notifications),
+      taskbarAttentionProvider.overrideWithValue(taskbar),
       ...extra,
       mockApiOverride((request) async {
         if (request.url.path.startsWith(
@@ -154,7 +164,7 @@ Future<_Setup> _wire({List<Override> extra = const []}) async {
   await container.read(channelNotificationOverridesProvider.notifier).refresh();
   container.read(desktopMessageNotifierProvider);
 
-  return _Setup(container, events, notifications, db);
+  return _Setup(container, events, notifications, db, taskbar);
 }
 
 /// Pushes a message by "me" (never notified) behind whatever the test just
@@ -305,6 +315,40 @@ void main() {
       isEmpty,
       reason: 'the account signed in now must never be notified about itself',
     );
+    await setup.dispose();
+  });
+
+  test('backgrounded, a message that notifies flashes the taskbar', () async {
+    if (!isDesktopHost) return;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    final setup = await _wire();
+
+    setup.events.add(
+      api.MessageCreated(
+        _message(id: 'm1', authorId: 'alice', channelId: 'group-1'),
+      ),
+    );
+    await _settle(setup);
+
+    expect(setup.taskbar.calls, ['flash']);
+    await setup.dispose();
+  });
+
+  test('a focused window does not flash the taskbar', () async {
+    if (!isDesktopHost) return;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final setup = await _wire();
+    setup.container.read(accountActiveProvider.notifier).state = false;
+
+    setup.events.add(
+      api.MessageCreated(
+        _message(id: 'm1', authorId: 'alice', channelId: 'group-1'),
+      ),
+    );
+    await _settle(setup);
+
+    expect(setup.notifications.shown, isNotEmpty);
+    expect(setup.taskbar.calls, isEmpty);
     await setup.dispose();
   });
 

@@ -26,6 +26,7 @@ import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import '../support/fake_api.dart';
+import '../support/fake_taskbar_attention.dart';
 
 class _FakeNotifications implements LocalNotifications {
   final shown = <LocalAlertChannel>[];
@@ -58,17 +59,20 @@ const _tokens = api.TokenPair(
 void main() {
   late StreamController<api.ServerEvent> events;
   late _FakeNotifications notifications;
+  late FakeTaskbarAttention taskbar;
   late ProviderContainer container;
 
   setUp(() {
     events = StreamController<api.ServerEvent>.broadcast();
     notifications = _FakeNotifications();
+    taskbar = FakeTaskbarAttention();
     container = ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(events.stream),
         localNotificationsProvider.overrideWithValue(notifications),
+        taskbarAttentionProvider.overrideWithValue(taskbar),
         mockApiOverride(
           (_) async => http.Response(
             '[]',
@@ -111,6 +115,14 @@ void main() {
     await ring('r1');
 
     expect(notifications.shown, [LocalAlertChannel.calls]);
+  });
+
+  test('a ring flashes the taskbar and stops it when the ring ends', () async {
+    await ring('r1');
+    expect(taskbar.calls, ['flash']);
+
+    await endRing('r1');
+    expect(taskbar.calls, ['flash', 'stop']);
   });
 
   test('the notification comes down when the ring ends', () async {

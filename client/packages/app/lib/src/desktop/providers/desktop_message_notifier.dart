@@ -9,6 +9,8 @@
 /// [LocalNotifications.show]; on Android and iOS the platform push already
 /// does this, so this stays inert there.
 ///
+/// Also flashes the Windows taskbar button until the window is focused.
+///
 /// Only when the window is not focused. A focused desktop app shows its own
 /// unread state in the rail, and a second OS banner on top of the channel you
 /// are already reading is noise, not news. Own messages are skipped for the
@@ -97,6 +99,7 @@ class _DesktopMessageNotifier {
             channelId: message.channelId,
           ).encode();
     final notifications = _ref.read(localNotificationsProvider);
+    if (!foreground) unawaited(_ref.read(taskbarAttentionProvider).flash());
     // The per-kind OS control only reaches a banner filed under the kind it is; see LocalAlertChannel.
     final alertChannel = alert.mentionsSelf
         ? LocalAlertChannel.mentions

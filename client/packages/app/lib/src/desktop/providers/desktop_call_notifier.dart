@@ -21,6 +21,9 @@
 /// `spawn_ring_sweep` timeout) that is lost if it is missed, and "focused"
 /// only means the app has focus, not that anyone is looking at it.
 ///
+/// A ring also flashes the Windows taskbar button, which Windows does let
+/// through even when it will not hand over focus.
+///
 /// Read by `startAccountServices` for every account's container, beside the
 /// message notifier, so a ring in a Space out of view still raises one.
 library;
@@ -42,6 +45,7 @@ final desktopCallNotifierProvider = Provider<void>((ref) {
   if (!isDesktopHost) return;
 
   final notifications = ref.read(localNotificationsProvider);
+  final taskbar = ref.read(taskbarAttentionProvider);
 
   ref.listen<IncomingDmCallRing?>(
     dmCallRingControllerProvider.select((s) => s.visibleIncoming),
@@ -49,6 +53,7 @@ final desktopCallNotifierProvider = Provider<void>((ref) {
       // Fire-and-forget: a failed notification must not disturb the call.
       if (next == null) {
         notifications.cancel(LocalAlertChannel.calls);
+        taskbar.stop();
         return;
       }
       // Only a genuinely new ring, never one already dealt with.
@@ -57,6 +62,7 @@ final desktopCallNotifierProvider = Provider<void>((ref) {
         incomingCallAlertText,
         channel: LocalAlertChannel.calls,
       );
+      taskbar.flash();
     },
   );
 });
