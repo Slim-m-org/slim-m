@@ -40,7 +40,7 @@ const _played = api.SoundboardPlayed(
 );
 
 class _Rig {
-  _Rig({bool soundsOn = true}) {
+  _Rig({bool soundsOn = true, this.failingFetches = 0}) {
     SharedPreferences.setMockInitialValues({
       soundboardSoundsEnabledKey: soundsOn,
     });
@@ -48,12 +48,16 @@ class _Rig {
       overrides: [
         liveEventsProvider.overrideWithValue(events.stream),
         soundClipPlayerProvider.overrideWithValue(player),
-        soundClipAudioProvider.overrideWith(
-          (ref, id) async => api.FetchedBytes(
+        soundClipAudioProvider.overrideWith((ref, id) async {
+          fetches++;
+          if (fetches <= failingFetches) {
+            throw const api.TransportException('offline');
+          }
+          return api.FetchedBytes(
             bytes: Uint8List.fromList([1, 2, 3]),
             contentType: 'audio/wav',
-          ),
-        ),
+          );
+        }),
         voiceControllerProvider.overrideWith(
           (ref) => FakeVoiceController(ref, session: session),
         ),
@@ -64,6 +68,8 @@ class _Rig {
     voice.connect();
   }
 
+  final int failingFetches;
+  var fetches = 0;
   final events = StreamController<api.ServerEvent>.broadcast();
   final player = _RecordingPlayer();
   final session = FakeSession();
@@ -83,8 +89,8 @@ class _Rig {
   }
 }
 
-Future<_Rig> _rig({bool soundsOn = true}) async {
-  final rig = _Rig(soundsOn: soundsOn);
+Future<_Rig> _rig({bool soundsOn = true, int failingFetches = 0}) async {
+  final rig = _Rig(soundsOn: soundsOn, failingFetches: failingFetches);
   addTearDown(rig.dispose);
   await Future<void>.delayed(const Duration(milliseconds: 10));
   return rig;
@@ -104,6 +110,15 @@ void main() {
       expect(rig.player.played.single.volume, 1.0);
     },
   );
+
+  test('a clip whose audio failed to load plays on the next try', () async {
+    final rig = await _rig(failingFetches: 1);
+    await rig.hear();
+    expect(rig.player.played, isEmpty);
+    await rig.hear();
+    expect(rig.player.played, hasLength(1), reason: 'the failure was not kept');
+    expect(rig.fetches, 2);
+  });
 
   test('a clip for a call this device is not in is ignored', () async {
     final rig = await _rig();

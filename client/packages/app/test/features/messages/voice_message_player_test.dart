@@ -68,8 +68,9 @@ void main() {
 
   Future<ProviderContainer> pump(
     WidgetTester tester,
-    List<Attachment> messages,
-  ) async {
+    List<Attachment> messages, {
+    Set<String> unplayable = const {},
+  }) async {
     player = FakePlayer();
     late ProviderContainer container;
     await tester.pumpWidget(
@@ -77,7 +78,9 @@ void main() {
         overrides: [
           voicePlayerFactoryProvider.overrideWithValue(() => player),
           attachmentBytesProvider.overrideWith(
-            (ref, id) async => Uint8List.fromList([1, 2, 3, 4]),
+            (ref, id) async => unplayable.contains(id)
+                ? throw const TransportException('offline')
+                : Uint8List.fromList([1, 2, 3, 4]),
           ),
         ],
         child: Builder(
@@ -195,5 +198,25 @@ void main() {
     final seek = player.log.last;
     expect(seek, startsWith('seek '));
     expect(int.parse(seek.split(' ').last), closeTo(20000, 800));
+  });
+
+  testWidgets('a message that cannot play says so on its own row only', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      [voiceMessage('a'), voiceMessage('b')],
+      unplayable: {'a'},
+    );
+    await tester.tap(find.byTooltip('Play').first);
+    await tester.pump();
+    await tester.pump();
+    final error = find.text('The voice message could not be played.');
+    expect(error, findsOneWidget);
+    expect(
+      tester.getCenter(error).dy,
+      lessThan(tester.getCenter(find.byTooltip('Play').last).dy),
+      reason: "under the first message's player, above the second's",
+    );
   });
 }

@@ -82,6 +82,7 @@ class VoicePlaybackState {
     this.position = Duration.zero,
     this.speed = 1.0,
     this.error,
+    this.errorFor,
   });
 
   /// The message the engine holds, playing or paused.
@@ -91,6 +92,9 @@ class VoicePlaybackState {
   final Duration position;
   final double speed;
   final String? error;
+
+  /// The message [error] is about, so only its player shows it.
+  final String? errorFor;
 
   VoicePlaybackState copyWith({
     bool? loading,
@@ -155,6 +159,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
       state = VoicePlaybackState(
         speed: state.speed,
         error: 'Leave the call to play a voice message.',
+        errorFor: voice.id,
       );
       return;
     }
@@ -180,6 +185,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
       state = VoicePlaybackState(
         speed: state.speed,
         error: 'The voice message could not be played.',
+        errorFor: voice.id,
       );
     }
   }

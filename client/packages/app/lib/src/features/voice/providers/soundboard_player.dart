@@ -46,6 +46,8 @@ class SoundboardPlayer {
           .read(soundClipPlayerProvider)
           .play(audio.bytes, mimeType: audio.contentType, volume: volume);
     } on Object catch (error, stack) {
+      // A failed fetch must not stay cached, or this clip is silent until the app restarts.
+      _ref.invalidate(soundClipAudioProvider(clipId));
       api.AppLog.swallowed(
         api.LogTag.voice,
         'A soundboard clip could not play',

@@ -41,9 +41,7 @@ class VoiceMessagePlayer extends ConsumerWidget {
     );
     final speed = ref.watch(voicePlaybackProvider.select((s) => s.speed));
     final error = ref.watch(
-      voicePlaybackProvider.select(
-        (s) => s.attachmentId == null ? s.error : null,
-      ),
+      voicePlaybackProvider.select((s) => s.errorFor == id ? s.error : null),
     );
     final playback = ref.read(voicePlaybackProvider.notifier);
     final total = voice.duration;
