@@ -5,6 +5,9 @@
 //! and the iOS extension refuses an empty body and leaves "New message", so
 //! the preview reads what the message does carry instead.
 
+use std::collections::HashMap;
+
+use super::mention_grammar::{mentioned_usernames, rewrite_mentions};
 use crate::ids::MessageId;
 use crate::store::{AttachmentSummary, Embed, Store};
 
@@ -28,6 +31,47 @@ pub(super) async fn preview_text(store: &Store, message_id: MessageId, content: 
         .map(|(_, attachments)| attachments)
         .unwrap_or_default();
     describe(&embeds, &attachments)
+}
+
+/// [`preview_text`] with each `@username` of a live member written as the name
+/// the member list shows (nickname, else account name).
+///
+/// A lookup failure leaves the text as typed: a preview is a nicety.
+pub(super) async fn preview_with_names(
+    store: &Store,
+    message_id: MessageId,
+    content: &str,
+) -> String {
+    let text = preview_text(store, message_id, content).await;
+    let usernames: Vec<String> = mentioned_usernames(&text).into_iter().collect();
+    match mention_names(store, &usernames).await {
+        Ok(names) if !names.is_empty() => rewrite_mentions(&text, &names),
+        Ok(_) => text,
+        Err(err) => {
+            tracing::warn!(error = %err, "push: failed to resolve mention names for a preview");
+            text
+        }
+    }
+}
+
+/// Lower-cased username to shown name, left out where the two are equal.
+async fn mention_names(
+    store: &Store,
+    usernames: &[String],
+) -> anyhow::Result<HashMap<String, String>> {
+    let ids = store.user_ids_for_usernames(usernames).await?;
+    let nicknames = store.nicknames_for(&ids).await?;
+    let profiles = store.user_profiles(&ids).await?;
+    Ok(profiles
+        .into_iter()
+        .filter_map(|user| {
+            let shown = nicknames
+                .get(&user.id)
+                .cloned()
+                .unwrap_or(user.display_name);
+            (shown != user.username).then(|| (user.username.to_lowercase(), shown))
+        })
+        .collect())
 }
 
 /// Pure so it can be tested without a store: the first embed's title, then its

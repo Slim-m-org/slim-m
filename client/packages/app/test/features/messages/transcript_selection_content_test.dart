@@ -15,6 +15,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_app/src/features/messages/widgets/transcript_selection.dart';
@@ -70,14 +71,19 @@ void main() {
   });
 
   Future<void> pump(WidgetTester tester, String content) => tester.pumpWidget(
-    MaterialApp(
-      theme: buildTheme(
-        Brightness.dark,
-        AppTokens.dark,
-      ).copyWith(platform: TargetPlatform.linux),
-      home: Scaffold(
-        body: TranscriptSelection(
-          child: MessageBody(content: content, knownUsernames: const {'alice'}),
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildTheme(
+          Brightness.dark,
+          AppTokens.dark,
+        ).copyWith(platform: TargetPlatform.linux),
+        home: Scaffold(
+          body: TranscriptSelection(
+            child: MessageBody(
+              content: content,
+              knownUsernames: const {'alice'},
+            ),
+          ),
         ),
       ),
     ),

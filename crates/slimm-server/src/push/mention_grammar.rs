@@ -7,7 +7,7 @@
 //! text, so it needs no store, no permissions and no async, which is why its
 //! tests are plain unit tests rather than a database fixture.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// The distinct role names inside `@[Name]` tokens in `content` - the
 /// mention syntax for a role, a separate bracketed grammar rather than a
@@ -63,26 +63,80 @@ pub(super) fn mentioned_usernames(content: &str) -> HashSet<String> {
     let mut names = HashSet::new();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] != b'@' {
-            i += 1;
-            continue;
+        match mention_end(bytes, i) {
+            Some(end) => {
+                names.insert(content[i + 1..end].to_owned());
+                i = end;
+            }
+            None => i += 1,
         }
-        let start = i + 1;
-        if escaped_at(bytes, i) || start >= bytes.len() || !is_mention_start(bytes[start]) {
-            i += 1;
-            continue;
-        }
-        let mut end = start + 1;
-        while end < bytes.len() && is_mention_continuation(bytes[end]) {
-            end += 1;
-        }
-        while end > start + 1 && matches!(bytes[end - 1], b'.' | b'-') {
-            end -= 1;
-        }
-        names.insert(content[start..end].to_owned());
-        i = end;
     }
     names
+}
+
+/// Where the `@name` starting at `at` ends, or `None` when `at` opens no mention.
+fn mention_end(bytes: &[u8], at: usize) -> Option<usize> {
+    let start = at + 1;
+    if bytes[at] != b'@'
+        || escaped_at(bytes, at)
+        || start >= bytes.len()
+        || !is_mention_start(bytes[start])
+    {
+        return None;
+    }
+    let mut end = start + 1;
+    while end < bytes.len() && is_mention_continuation(bytes[end]) {
+        end += 1;
+    }
+    while end > start + 1 && matches!(bytes[end - 1], b'.' | b'-') {
+        end -= 1;
+    }
+    Some(end)
+}
+
+/// `content` with each `@username` found in `names` (lower-cased keys) written
+/// as `@<shown name>`; fenced blocks and inline code are left as typed, as the
+/// client's parser leaves them unrendered.
+pub(super) fn rewrite_mentions(content: &str, names: &HashMap<String, String>) -> String {
+    let bytes = content.as_bytes();
+    let mut out = String::with_capacity(content.len());
+    let (mut i, mut copied, mut fenced) = (0, 0, false);
+    while i < bytes.len() {
+        let line_start = i == 0 || bytes[i - 1] == b'\n';
+        if line_start && content[i..].starts_with("```") {
+            fenced = !fenced;
+            i += 3;
+        } else if fenced {
+            i += 1;
+        } else if bytes[i] == b'`' {
+            i = code_span_end(bytes, i);
+        } else if let Some(end) = mention_end(bytes, i) {
+            if let Some(shown) = names.get(&content[i + 1..end].to_lowercase()) {
+                out.push_str(&content[copied..i]);
+                out.push('@');
+                out.push_str(shown);
+                copied = end;
+            }
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+    out.push_str(&content[copied..]);
+    out
+}
+
+/// The index past the inline code span opening at `at`: up to the next backtick
+/// on the same line, as the client reads it, else just past the lone backtick.
+fn code_span_end(bytes: &[u8], at: usize) -> usize {
+    let close = bytes[at + 1..]
+        .iter()
+        .position(|&b| b == b'`' || b == b'\n')
+        .map(|offset| at + 1 + offset);
+    match close {
+        Some(j) if bytes[j] == b'`' && j > at + 1 => j + 1,
+        _ => at + 1,
+    }
 }
 
 /// Whether the `@` at `at` is escaped: preceded by an odd run of
@@ -109,7 +163,7 @@ fn is_mention_continuation(b: u8) -> bool {
 mod tests {
     use std::collections::HashSet;
 
-    use super::{mentioned_role_names, mentioned_usernames};
+    use super::{mentioned_role_names, mentioned_usernames, rewrite_mentions};
 
     #[test]
     fn finds_a_bracketed_role_mention_with_spaces_and_mixed_case() {
@@ -248,5 +302,34 @@ mod tests {
         let raw = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("reading {}: {e}", path.display()));
         serde_json::from_str(&raw).expect("mention_charset_cases.json must be valid JSON")
+    }
+
+    fn names() -> std::collections::HashMap<String, String> {
+        [("ada".to_owned(), "Countess Ada".to_owned())].into()
+    }
+
+    #[test]
+    fn a_known_mention_reads_as_the_shown_name() {
+        assert_eq!(
+            rewrite_mentions("hi @Ada, and @ghost.", &names()),
+            "hi @Countess Ada, and @ghost."
+        );
+    }
+
+    #[test]
+    fn code_spans_and_fences_keep_the_username() {
+        let text = "`@ada` and `x @ada`\n```\n@ada\n```\nthen @ada";
+        assert_eq!(
+            rewrite_mentions(text, &names()),
+            "`@ada` and `x @ada`\n```\n@ada\n```\nthen @Countess Ada"
+        );
+    }
+
+    #[test]
+    fn an_unclosed_backtick_and_an_escaped_at_are_literal() {
+        assert_eq!(
+            rewrite_mentions("a ` @ada \\@ada", &names()),
+            "a ` @Countess Ada \\@ada"
+        );
     }
 }

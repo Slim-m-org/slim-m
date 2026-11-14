@@ -258,6 +258,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       mentionInk: tokens.accent,
       mentionFill: tokens.accentSoft,
       linkInk: tokens.accent,
+      mentionNames: ref.watch(mentionNamesProvider),
     );
   }
 

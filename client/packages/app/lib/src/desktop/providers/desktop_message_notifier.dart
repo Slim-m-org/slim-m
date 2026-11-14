@@ -44,6 +44,10 @@ import '../../features/accounts/providers/notification_target.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import '../../providers/live_events.dart';
+import '../../features/members/providers/member_presence.dart'
+    show membersProvider;
+import '../../features/members/providers/mention_names.dart'
+    show mentionNamesFrom;
 import '../../features/messages/providers/message_alert_policy.dart';
 import '../../providers/providers.dart';
 import '../../push/providers/push_controller.dart';
@@ -90,6 +94,7 @@ class _DesktopMessageNotifier {
       showText: showText,
       isDm: alert.isDm,
       channelName: channel?.name,
+      mentionNames: showText ? await _mentionNames(message.content) : const {},
     );
     final origin = _ref.read(accountSlotProvider)?.account?.origin;
     final payload = origin == null
@@ -113,5 +118,16 @@ class _DesktopMessageNotifier {
         payload: payload,
       ),
     );
+  }
+
+  /// Only fetched for a message that carries an `@`, since the roster is a network read when nothing is showing it.
+  Future<Map<String, String>> _mentionNames(String content) async {
+    if (!content.contains('@')) return const {};
+    try {
+      final members = await _ref.read(membersProvider.future);
+      return mentionNamesFrom(AsyncData(members));
+    } on Object {
+      return const {};
+    }
   }
 }

@@ -245,7 +245,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.text('@ada'),
+        find.text('@Ada'),
         findsOneWidget,
         reason:
             'rendered as its own Text widget only inside the chip, '
@@ -256,7 +256,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('@ada'),
+        find.text('@Ada'),
         findsOneWidget,
         reason:
             'a failed /members refetch is not evidence the deployment has no '
@@ -306,6 +306,6 @@ void main() {
       reason: 'the dot honestly reporting the drop is correct, not a bug',
     );
     expect(find.text('Announcements'), findsOneWidget);
-    expect(find.text('@ada'), findsOneWidget);
+    expect(find.text('@Ada'), findsOneWidget);
   });
 }
