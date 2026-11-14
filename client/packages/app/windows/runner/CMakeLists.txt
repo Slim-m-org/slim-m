@@ -17,6 +17,7 @@ add_executable(${BINARY_NAME} WIN32
   "taskbar_attention_channel.cpp"
   "utils.cpp"
   "win32_window.cpp"
+  "windows_toasts_channel.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"
@@ -37,6 +38,16 @@ if(CPPWINRT_DIRS)
   target_include_directories(now_playing_smtc PRIVATE "${CPPWINRT_LATEST}")
 endif()
 target_link_libraries(now_playing_smtc PUBLIC "windowsapp")
+
+# Toast removal is C++/WinRT too, so it gets the same treatment as the SMTC reader.
+add_library(toast_history_win STATIC "toast_history_win.cpp")
+target_compile_features(toast_history_win PUBLIC cxx_std_17)
+target_compile_definitions(toast_history_win PRIVATE "NOMINMAX" "WIN32_LEAN_AND_MEAN")
+target_include_directories(toast_history_win PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+if(CPPWINRT_DIRS)
+  target_include_directories(toast_history_win PRIVATE "${CPPWINRT_LATEST}")
+endif()
+target_link_libraries(toast_history_win PUBLIC "windowsapp")
 
 # GDI+ headers are not clean under the runner's warnings-as-errors, so the
 # overlay's drawing is its own library, like the SMTC reader above.
@@ -69,6 +80,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "wtsapi32.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "gdi32.lib" "user32.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE now_playing_smtc)
+target_link_libraries(${BINARY_NAME} PRIVATE toast_history_win)
 target_link_libraries(${BINARY_NAME} PRIVATE screen_overlay_win)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 

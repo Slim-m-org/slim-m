@@ -171,6 +171,36 @@ void main() {
       );
     });
 
+    test('cancelling on Windows also asks the runner to take the toast down',
+        () async {
+      const channel = MethodChannel('test/windows_toasts');
+      final removed = <Object?>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        removed.add(call.arguments);
+        return true;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      final notifications = LocalNotifications(
+        plugin: _SpyPlugin(),
+        isAndroid: false,
+        isLinux: false,
+        isWindows: true,
+        windowsToasts: channel,
+      );
+
+      await notifications.cancel(LocalAlertChannel.calls);
+
+      expect(removed, [
+        {
+          'tag': '${LocalAlertChannel.calls.notificationId}',
+          'aumid': windowsAppUserModelId,
+        },
+      ]);
+    });
+
     test('Linux initializes and posts through the plugin, with no channels',
         () async {
       final calledMethods = <String>[];

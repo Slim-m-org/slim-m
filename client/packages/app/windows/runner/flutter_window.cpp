@@ -6,6 +6,7 @@
 #include "clipboard_image_channel.h"
 #include "global_hotkeys_channel.h"
 #include "taskbar_attention_channel.h"
+#include "windows_toasts_channel.h"
 #include "now_playing_channel.h"
 #include "screen_overlay_channel.h"
 #include "single_instance.h"
@@ -42,6 +43,7 @@ bool FlutterWindow::OnCreate() {
                                 GetHandle());
   RegisterTaskbarAttentionChannel(flutter_controller_->engine()->messenger(),
                                   GetHandle());
+  RegisterWindowsToastsChannel(flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

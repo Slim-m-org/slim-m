@@ -19,7 +19,9 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'host_platform.dart';
 
@@ -40,6 +42,9 @@ const voiceChannelName = 'Voice activity';
 
 /// What Windows files a toast under; the plugin registers it for the user.
 const windowsAppUserModelId = 'top.npcserver.slimm';
+
+/// The runner channel that removes a toast this app posted.
+const windowsToastsChannelName = 'slimm/windows_toasts';
 const _windowsActivationGuid = '6f1d2b5e-3c0a-4e7b-9a52-5d8e1c4b7a31';
 
 /// The Android channel a plain content-free alert posts through, and the
@@ -191,7 +196,10 @@ class LocalNotifications {
     bool? isWindows,
     AndroidPermissionRequester? permissionRequester,
     Future<void> Function(String? payload)? onActivated,
+    MethodChannel? windowsToasts,
   })  : _onActivated = onActivated,
+        _windowsToasts =
+            windowsToasts ?? const MethodChannel(windowsToastsChannelName),
         _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
         _isAndroid = isAndroid ?? isAndroidHost,
         _isLinux = isLinux ?? isLinuxHost,
@@ -199,6 +207,7 @@ class LocalNotifications {
         _permissionRequester = permissionRequester;
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final MethodChannel _windowsToasts;
   final bool _isAndroid;
   final bool _isLinux;
   final bool _isWindows;
@@ -331,6 +340,24 @@ class LocalNotifications {
     if (!_supported) return;
     await _ensureReady();
     await _plugin.cancel(channel.notificationId);
+    if (_isWindows) await _removeWindowsToast(channel.notificationId);
+  }
+
+  /// The plugin's cancel needs package identity, which an installed or
+  /// unzipped build lacks, so the runner removes the toast by its AUMID.
+  Future<void> _removeWindowsToast(int id) async {
+    try {
+      await _windowsToasts.invokeMethod<bool>('remove', {
+        'tag': '$id',
+        'aumid': windowsAppUserModelId,
+      });
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not take a toast down', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'Could not take a toast down', error, stack);
+    }
   }
 
   /// Takes down the notifications this app is showing whose id is in [staleIds], leaving every other one up.
