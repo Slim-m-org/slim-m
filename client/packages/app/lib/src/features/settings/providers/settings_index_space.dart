@@ -143,6 +143,14 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry('emoji', 'Emoji (0)', conditional: true),
   SettingsEntry(
+    'soundboard',
+    'Soundboard',
+    description: 'Short clips members play into a call.',
+    keywords: ['sound', 'clips', 'audio', 'sfx'],
+    conditional: true,
+  ),
+  SettingsEntry('soundboard', 'Clips (0 of 48)', conditional: true),
+  SettingsEntry(
     _voicePage,
     'Strong by default',
     description: 'Also removes keyboards, fans and room noise.',

@@ -279,6 +279,14 @@ pub(super) enum ServerFrame {
         transcript_id: String,
         ended: bool,
     },
+    /// A member played a soundboard clip in a call this connection's account is in;
+    /// see [`crate::hub::Event::SoundboardPlayed`].
+    #[serde(rename = "soundboard.played")]
+    SoundboardPlayed {
+        channel_id: String,
+        clip_id: String,
+        player_id: String,
+    },
     /// A DM call ring started; see [`crate::hub::Event::CallRinging`].
     #[serde(rename = "call.ringing")]
     CallRinging {

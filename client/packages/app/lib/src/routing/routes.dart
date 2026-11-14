@@ -63,6 +63,7 @@ abstract final class Routes {
   static const adminOverwrites = '/settings/permissions';
   static const channelSettings = '/settings/channel';
   static const adminEmoji = '/settings/emoji';
+  static const adminSoundboard = '/settings/soundboard';
   static const adminAnalytics = '/settings/analytics';
   static const adminPerformance = '/settings/performance';
   static const adminSpaceVoice = '/settings/space-voice';

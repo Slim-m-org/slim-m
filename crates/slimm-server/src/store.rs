@@ -55,6 +55,7 @@ mod linked_accounts;
 mod member_gate;
 mod members_bulk;
 mod messages;
+mod soundboard;
 use messages::{
     message_embeds, message_forwards, message_history, message_module_origins, message_ops,
     message_retention, message_search, messages_bulk,
@@ -250,6 +251,7 @@ pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardE
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
+pub use soundboard::{MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipError};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;

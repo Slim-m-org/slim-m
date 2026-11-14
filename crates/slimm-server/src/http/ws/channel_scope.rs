@@ -83,6 +83,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::SoundboardPlayed { .. }
         | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return None,
     })

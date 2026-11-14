@@ -377,6 +377,12 @@ classes! {
     /// before it reaches the store. A real client misses only when its 30-second ticket
     /// lapsed or its session was revoked, so the burst of ten is generous.
     HelloFailure,
+    /// Playing a soundboard clip into a call (decision 0118), charged per caller.
+    ///
+    /// One play every three seconds with no burst beyond it: each accepted play
+    /// makes every client in the call make a noise, so the limit is about the
+    /// room's ears, not the server's CPU.
+    Soundboard,
 }
 
 impl Class {
@@ -403,6 +409,7 @@ impl Class {
             Class::Asset => (150.0, 25.0),
             Class::Gif => (10.0, 1.0),
             Class::LinkPreview => (10.0, 1.0),
+            Class::Soundboard => (1.0, 1.0 / 3.0),
             // See this variant's own doc comment for how these were sized.
             Class::Ring => (5.0, 1.0 / 5.0),
             // See this variant's own doc comment for the roster and reconnect math.

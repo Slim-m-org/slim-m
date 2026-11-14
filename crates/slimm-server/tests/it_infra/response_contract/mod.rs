@@ -132,6 +132,12 @@ const UNCOVERED: &[(&str, &str)] = &[
          success, the permission gate and the unconfigured 501.",
     ),
     (
+        "playSoundboardClip",
+        "its 204 needs a reachable LiveKit room service to list who is in the call, which this \
+         harness has none of, and has no body to check; tests/it_voice/soundboard.rs drives \
+         it against a fake room service.",
+    ),
+    (
         "kickVoiceParticipant",
         "the only path to its 204 goes through a reachable LiveKit room service, \
          which this harness has none of. Nothing is lost by not driving it: the \

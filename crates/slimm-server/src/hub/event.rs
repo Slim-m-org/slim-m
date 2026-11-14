@@ -405,6 +405,16 @@ pub enum Event {
         actor_id: UserId,
         activity: crate::voice_notify::Activity,
     },
+    /// Someone played a soundboard clip in a call `user_id` is in (decision
+    /// 0118). Private to `user_id`: the play route publishes one per
+    /// participant, so only members of the call ever receive it. Ephemeral:
+    /// never persisted, no catch-up.
+    SoundboardPlayed {
+        user_id: UserId,
+        channel_id: ChannelId,
+        clip_id: crate::ids::SoundClipId,
+        player_id: UserId,
+    },
     /// A voice session closed. Internal: only the module event consumer reads
     /// it, and no websocket frame is ever built from it.
     VoiceSessionClosed {

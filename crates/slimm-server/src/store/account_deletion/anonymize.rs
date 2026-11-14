@@ -181,6 +181,12 @@ pub(super) async fn anonymize_authored_content(
     )
     .execute(&mut **tx)
     .await?;
+    sqlx::query!(
+        "UPDATE soundboard_clips SET uploader_id = NULL WHERE uploader_id = ?",
+        user_id
+    )
+    .execute(&mut **tx)
+    .await?;
     // The display name and the document's own `author` field both name the person.
     sqlx::query(
         "UPDATE space_themes
