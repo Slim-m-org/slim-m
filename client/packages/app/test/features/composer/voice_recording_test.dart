@@ -17,8 +17,13 @@ class FakeCapture implements VoiceCaptureBackend {
   bool cancelled = false;
   bool stopped = false;
 
+  bool failsToStart = false;
+
   @override
-  Future<bool> start() async => started = allowed;
+  Future<bool> start() async {
+    if (failsToStart) throw StateError('ffmpeg: not found');
+    return started = allowed;
+  }
 
   @override
   Future<double> level() async => nextLevel;
@@ -66,9 +71,11 @@ class FakeActions implements ComposerActions {
 }
 
 class Rig {
-  Rig({bool allowed = true}) : capture = FakeCapture(allowed: allowed) {
+  Rig({bool allowed = true, bool onLinux = false})
+    : capture = FakeCapture(allowed: allowed) {
     container = ProviderContainer(
       overrides: [
+        voiceRecordingNeedsToolsProvider.overrideWithValue(onLinux),
         voiceCaptureFactoryProvider.overrideWithValue(() => capture),
         composerActionsProvider.overrideWithValue(actions),
       ],
@@ -109,6 +116,17 @@ void main() {
     expect(rig.state.phase, VoicePhase.failed);
     expect(rig.state.error, contains('Microphone access is off'));
     expect(rig.state.clip, isNull);
+  });
+
+  test('a Linux start that fails names the programs it needs', () async {
+    for (final onLinux in [true, false]) {
+      final rig = Rig(onLinux: onLinux)..listen();
+      rig.capture.failsToStart = true;
+      await rig.recorder.start();
+      expect(rig.state.phase, VoicePhase.failed);
+      expect(rig.state.error!.contains('ffmpeg'), onLinux);
+      rig.container.dispose();
+    }
   });
 
   test('recording shows the running clock and the newest levels', () async {

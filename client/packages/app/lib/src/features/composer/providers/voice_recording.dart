@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_platform/platform.dart' show isLinuxHost;
 
 import '../../../api_failure.dart';
 import 'composer_actions.dart';
@@ -155,9 +156,12 @@ class VoiceRecorder
         error,
         stack,
       );
-      state = const VoiceRecordingState(
+      state = VoiceRecordingState(
         phase: VoicePhase.failed,
-        error: 'The microphone could not be opened.',
+        error: ref.read(voiceRecordingNeedsToolsProvider)
+            ? 'Could not record. On Linux this needs ffmpeg and parecord '
+                  '(pulseaudio-utils) installed.'
+            : 'The microphone could not be opened.',
       );
       return;
     }
@@ -280,6 +284,10 @@ class VoiceRecorder
 
 final voiceRecorderProvider = NotifierProvider.autoDispose
     .family<VoiceRecorder, VoiceRecordingState, String>(VoiceRecorder.new);
+
+/// Linux records through the ffmpeg and parecord programs, so a failed start
+/// there is most often one of them missing. Replaced in tests.
+final voiceRecordingNeedsToolsProvider = Provider<bool>((ref) => isLinuxHost);
 
 /// Builds the microphone only when a recording starts, so nothing native is
 /// touched by a composer that never records. Replaced in tests.
