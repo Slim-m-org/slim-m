@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: SoundClipId\", name AS \"name!\", sha256 AS \"sha256!\",\n                      duration_ms AS \"duration_ms!\", uploader_id AS \"uploader_id?: UserId\",\n                      created_at AS \"created_at!\"\n               FROM soundboard_clips WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: SoundClipId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "sha256!",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "duration_ms!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "uploader_id?: UserId",
+        "ordinal": 4,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "f48c722728fe99c8b24fee188f65fe3276fc71f2184652dd94417e8a9024ca71"
+}

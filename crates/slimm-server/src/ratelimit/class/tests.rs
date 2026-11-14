@@ -72,6 +72,15 @@ fn ringing_is_throttled_harder_than_an_ordinary_write() {
     );
 }
 
+/// A clip is a noise in everyone's ears, so the budget is exactly one play
+/// every three seconds with no burst to spend on top.
+#[test]
+fn a_soundboard_play_is_one_every_three_seconds() {
+    let (burst, refill) = Class::Soundboard.budget();
+    assert_eq!(burst, 1.0);
+    assert!((1.0 / refill - 3.0).abs() < 1e-9, "refill {refill}");
+}
+
 /// The lockout, not this bucket, has to be what stops somebody grinding a
 /// six-digit code: a per-address budget at or below the per-account failure
 /// limit means the limiter answers first, the lockout never fires, and an

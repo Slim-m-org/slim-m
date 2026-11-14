@@ -195,6 +195,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::VoiceNotice { .. }
+        | Event::SoundboardPlayed { .. }
         // Internal to the module event consumer; it moves no permission.
         | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
@@ -236,6 +237,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::Canvas(CanvasEvent::View { .. })
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
+        | Event::SoundboardPlayed { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::InteractionForm { .. } => true,

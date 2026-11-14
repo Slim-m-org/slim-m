@@ -23,7 +23,8 @@ const EVERYONE_DEFAULTS: Permissions = Permissions::VIEW_CHANNEL
     .union(Permissions::CONNECT)
     .union(Permissions::SPEAK)
     .union(Permissions::USE_CANVAS)
-    .union(Permissions::VIEW_TRANSCRIPTS);
+    .union(Permissions::VIEW_TRANSCRIPTS)
+    .union(Permissions::USE_SOUNDBOARD);
 
 /// The outcome of a bootstrap attempt.
 #[derive(Debug, PartialEq, Eq)]

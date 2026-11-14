@@ -36,6 +36,7 @@ pub mod mentions;
 pub mod module_runtime;
 mod net_guard;
 pub mod notifications;
+pub mod soundboard;
 pub use notifications::notification_schedule;
 pub mod permissions;
 pub mod presence;

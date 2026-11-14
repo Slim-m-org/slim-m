@@ -8,9 +8,10 @@ use crate::ids::MessageId;
 
 /// Tables whose rows keep an `attachments` row alive. `canvas_object_attachments` has no ON
 /// DELETE guard, so a holder missing here fails the FK on delete or sweeps a live blob.
-const HOLDER_TABLES: [&str; 3] = [
+const HOLDER_TABLES: [&str; 4] = [
     "message_attachments",
     "custom_emoji",
+    "soundboard_clips",
     "canvas_object_attachments",
 ];
 
