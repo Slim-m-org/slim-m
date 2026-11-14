@@ -264,8 +264,13 @@ async fn message_preview(
             return None;
         }
     };
+    let nickname = store
+        .nicknames_for(&[author_id])
+        .await
+        .ok()
+        .and_then(|mut found| found.remove(&author_id));
     Some(envelope::MessagePreview::new(
-        &author.display_name,
+        nickname.as_deref().unwrap_or(&author.display_name),
         &channel_name,
         content,
     ))
