@@ -17,6 +17,7 @@ const desktopNotificationMaxRunes = 200;
   required bool showText,
   required bool isDm,
   String? channelName,
+  Map<String, String> mentionNames = const {},
 }) {
   final author = message.authorDisplayName;
   final named = author != null && author.isNotEmpty;
@@ -31,7 +32,13 @@ const desktopNotificationMaxRunes = 200;
       : ' in #$channelName';
   return (
     title: '$author$where',
-    body: _cut(previewLine(message.content, message.attachments)),
+    body: _cut(
+      previewLine(
+        message.content,
+        message.attachments,
+        mentionNames: mentionNames,
+      ),
+    ),
   );
 }
 

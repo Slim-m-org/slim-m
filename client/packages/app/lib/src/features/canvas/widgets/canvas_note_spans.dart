@@ -20,9 +20,13 @@ class NoteSpanStyle {
     required this.mentionInk,
     required this.mentionFill,
     required this.linkInk,
+    this.mentionNames = const {},
   });
 
   final Set<String> knownUsernames;
+
+  /// Lower-cased username to the name shown for it in this space.
+  final Map<String, String> mentionNames;
   final Color mentionInk;
   final Color mentionFill;
   final Color linkInk;
@@ -30,6 +34,9 @@ class NoteSpanStyle {
   /// Changes whenever the spans for the same text would differ.
   int get revision => Object.hash(
     Object.hashAllUnordered(knownUsernames),
+    Object.hashAllUnordered(
+      mentionNames.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
     mentionInk,
     mentionFill,
     linkInk,
@@ -77,7 +84,9 @@ InlineSpan _mention(String raw, NoteSpanStyle style) {
   final name = raw.substring(1).toLowerCase();
   final known =
       style.knownUsernames.contains(name) || _reservedMentions.contains(name);
-  return known ? _chip(raw, style) : TextSpan(text: raw);
+  if (!known) return TextSpan(text: raw);
+  final shown = style.mentionNames[name];
+  return _chip(shown == null ? raw : '@$shown', style);
 }
 
 InlineSpan _chip(String text, NoteSpanStyle style) => TextSpan(

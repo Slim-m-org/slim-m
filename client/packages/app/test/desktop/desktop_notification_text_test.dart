@@ -2,6 +2,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/providers/desktop_notification_text.dart';
+import 'package:slimm_app/src/features/messages/widgets/message_inline.dart'
+    show rewriteMentions;
 
 api.Message _message(
   String content, {
@@ -102,5 +104,37 @@ void main() {
       channelName: 'general',
     );
     expect(text.body, 'New message');
+  });
+
+  group('mention names', () {
+    const names = {'ada': 'Countess Ada'};
+
+    String body(String content) => desktopNotificationText(
+      _message(content),
+      showText: true,
+      isDm: false,
+      mentionNames: names,
+    ).body;
+
+    test('a mention reads as the name in this space', () {
+      expect(body('hi @Ada, and @ghost.'), 'hi @Countess Ada, and @ghost.');
+    });
+
+    test('code, fences and escapes keep the username', () {
+      expect(body('`@ada` \\@ada'), '@ada @ada');
+      expect(
+        rewriteMentions('```\n@ada\n```\nthen @ada', names),
+        '```\n@ada\n```\nthen @Countess Ada',
+      );
+    });
+
+    test('with no names the text is untouched', () {
+      final text = desktopNotificationText(
+        _message('hi @ada'),
+        showText: true,
+        isDm: false,
+      );
+      expect(text.body, 'hi @ada');
+    });
   });
 }
