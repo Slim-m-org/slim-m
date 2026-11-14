@@ -38,6 +38,8 @@ import '../features/channels/providers/channel_notification_overrides_controller
 import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/composer/providers/composer_focus.dart';
 import '../features/auth/providers/database_key_store.dart';
+import '../features/members/providers/member_presence.dart'
+    show memberModerationWatcherProvider;
 import '../features/members/providers/member_selection.dart';
 import '../features/modules/providers/module_sound_settings.dart';
 import '../features/settings/providers/notification_schedule_controller.dart';
@@ -148,6 +150,8 @@ class HomeShell extends ConsumerWidget {
     ref.watch(channelNotificationOverridesProvider.select((_) => null));
     // Session-lifetime, or permission invalidation only ran with RolesScreen open.
     ref.watch(roleChangeWatcherProvider);
+    // Session-lifetime, or someone who joined stayed out of every picker until a member pane opened.
+    ref.watch(memberModerationWatcherProvider);
     // Forces creation for the session; nothing here reads its own state.
     ref.watch(notificationSoundControllerProvider);
     // Session-lifetime, so hold music reacts to the call without a screen mounting it.
