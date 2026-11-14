@@ -359,9 +359,10 @@ class OverlayPanel {
 abstract class ScreenOverlay {
   Future<OverlaySupport> support();
 
-  /// Covers each of [monitors] (indexes into [OverlaySupport.monitors]); false
-  /// when the window could not be made.
-  Future<bool> show(List<int> monitors);
+  /// Covers each of [monitors] (indexes into [OverlaySupport.monitors]), or,
+  /// on Windows, follows the shared window [window] (its handle) instead;
+  /// false when the window could not be made.
+  Future<bool> show(List<int> monitors, {int? window});
 
   Future<void> draw(List<OverlayShape> shapes);
 

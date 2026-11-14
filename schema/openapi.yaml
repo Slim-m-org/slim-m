@@ -132,6 +132,8 @@ tags:
       the other things an admin configures for the whole community.
   - name: emoji
     description: The deployment's custom emoji - upload, list, fetch, and remove.
+  - name: soundboard
+    description: The Space's short audio clips - manage them, and play one into a call.
 
 security:
   - bearerAuth: []
@@ -4131,11 +4133,22 @@ paths:
       summary: Read a channel's history, newest first.
       description: >
         Keyset paginated on `seq`. Pass the smallest `seq` already seen as
-        `before` to page backwards.
+        `before` to page backwards. Pass `around` instead to read the page
+        centred on one message, for opening a search hit older than anything
+        loaded; it cannot be combined with `before`.
       parameters:
         - name: before
           in: query
           description: Return only messages with a `seq` strictly below this.
+          schema:
+            type: integer
+            format: int64
+        - name: around
+          in: query
+          description: >
+            Return the page centred on this `seq`: about half of `limit` newer
+            messages, then the message at `seq` (when it is still live) and
+            older ones, newest first. The page size is clamped like `limit`.
           schema:
             type: integer
             format: int64
@@ -4488,6 +4501,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: voice
+          in: query
+          required: false
+          description: >
+            `true` marks the upload as a voice message. It must then be audio
+            and carry `duration_ms` (1 millisecond up to 5 minutes and 10
+            seconds) and `waveform`, or the request is a 400.
+          schema:
+            type: boolean
+        - name: duration_ms
+          in: query
+          required: false
+          description: The voice message's length in milliseconds; read only with `voice`.
+          schema:
+            type: integer
+            format: int64
+        - name: waveform
+          in: query
+          required: false
+          description: >
+            The voice message's 64 loudness buckets as 128 hex characters, one
+            byte each; read only with `voice`.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -12074,6 +12111,206 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /soundboard:
+    get:
+      operationId: listSoundboardClips
+      tags: [soundboard]
+      summary: Every soundboard clip in this Space.
+      description: >
+        Unpaginated: the set is capped at 48. Readable by every authenticated
+        member. Decision 0118.
+      responses:
+        "200":
+          description: The Space's clips, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SoundClip"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      operationId: uploadSoundboardClip
+      tags: [soundboard]
+      summary: Add a soundboard clip.
+      description: >
+        Requires MANAGE_SERVER, like custom emoji. The body is the raw audio
+        bytes. The type is sniffed from the bytes and must be mp3 or wav; the
+        length is read from the bytes and must be at most 5 seconds, and the
+        upload at most 512 KB. A name is 1 to 32 characters and unique ignoring
+        case. At most 48 clips per Space.
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          audio/mpeg:
+            schema:
+              type: string
+              format: binary
+          audio/wav:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: The clip was added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoundClip"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "507":
+          $ref: "#/components/responses/InsufficientStorage"
+  /soundboard/{clip_id}:
+    parameters:
+      - name: clip_id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: renameSoundboardClip
+      tags: [soundboard]
+      summary: Rename a soundboard clip.
+      description: Requires MANAGE_SERVER. The same name rules as an upload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          description: The renamed clip.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoundClip"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteSoundboardClip
+      tags: [soundboard]
+      summary: Remove a soundboard clip.
+      description: >
+        Requires MANAGE_SERVER. Idempotent: removing a clip already gone
+        answers 204. The stored bytes are left for the orphan sweep.
+      responses:
+        "204":
+          description: Removed, or already absent.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /soundboard/{clip_id}/audio:
+    get:
+      operationId: fetchSoundboardClipAudio
+      tags: [soundboard]
+      summary: A clip's audio bytes.
+      description: >
+        Readable by any authenticated member. Content-addressed, so the bytes
+        under an id never change and a client may cache them for good.
+      parameters:
+        - name: clip_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The clip's raw bytes.
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /channels/{channelId}/voice/soundboard/{clip_id}/play:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: clip_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: playSoundboardClip
+      tags: [soundboard]
+      summary: Play a clip into the call the caller is in.
+      description: >
+        Needs VIEW_CHANNEL, CONNECT and USE_SOUNDBOARD in the channel, and a
+        seat in its call. Every participant, the caller included, receives a
+        `soundboard.played` frame and plays its own cached copy; nobody outside
+        the call receives it. One play per caller every 3 seconds; a faster
+        caller gets 429 with `retry_after_seconds`.
+      responses:
+        "204":
+          description: The call has been told.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /emoji/bulk:
     post:
       operationId: bulkUploadCustomEmoji
@@ -12482,6 +12719,27 @@ components:
             $ref: "#/components/schemas/Error"
 
   schemas:
+    SoundClip:
+      type: object
+      description: >-
+        One soundboard clip. The audio is fetched at /soundboard/{id}/audio.
+      required: [id, name, duration_ms, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        duration_ms:
+          type: integer
+          format: int64
+          description: The length read from the bytes at upload, at most 5000.
+        uploader_id:
+          type: string
+          nullable: true
+          description: Null once the uploader's account has been deleted.
+        created_at:
+          type: integer
+          format: int64
     CustomEmoji:
       type: object
       description: >-
@@ -13444,6 +13702,12 @@ components:
         call_transcription_available:
           type: boolean
           description: False when the call audio listener is not configured, so transcription cannot be turned on.
+        transcribe_voice_messages:
+          type: boolean
+          description: Whether the server turns voice messages into text; off by default.
+        transcribe_voice_messages_available:
+          type: boolean
+          description: False when the speech listener is not configured, so voice transcripts cannot be turned on.
         join_policy:
           type: string
           enum: [invite, open]
@@ -13531,6 +13795,16 @@ components:
           type: [integer, "null"]
           description: 1 to 3650, or null to keep transcripts forever.
         call_transcription_available:
+          type: boolean
+          readOnly: true
+          description: Read-only; ignored when sent. See `SpaceSettings`.
+        transcribe_voice_messages:
+          type: boolean
+          description: >
+            Turns voice message transcripts on or off. Turning them on needs
+            the speech listener; a server without one answers 409. Turning them
+            off stops new work and hides the transcripts already made.
+        transcribe_voice_messages_available:
           type: boolean
           readOnly: true
           description: Read-only; ignored when sent. See `SpaceSettings`.
@@ -18176,6 +18450,36 @@ components:
             filename:
               type: string
               description: The name it was uploaded under.
+        voice:
+          type: boolean
+          description: >-
+            True for a voice message recorded in the composer, which then
+            carries `duration_ms` and `waveform`; omitted when false. A property
+            of the bytes: the first upload of a given hash decides.
+        duration_ms:
+          type: integer
+          format: int64
+          description: The length of a voice message, in milliseconds.
+        waveform:
+          type: array
+          items:
+            type: integer
+          description: >-
+            A voice message's loudness in 64 buckets from 0 to 255, so a player
+            can draw it without decoding the audio.
+        transcript:
+          type: object
+          required: [status, text]
+          description: >-
+            What was heard in a voice message, while the Space transcribes
+            them; omitted otherwise. Also sent live as `message.voice_transcript`.
+          properties:
+            status:
+              type: string
+              enum: [pending, ready, failed]
+            text:
+              type: string
+              description: Empty until `ready`, and when nothing was said.
 
     GifResult:
       type: object
@@ -18432,6 +18736,13 @@ components:
           description: >-
             Whether any of this participant's published tracks is video,
             camera or screen share alike.
+        this_device:
+          type: boolean
+          description: >-
+            True only on the caller's own entry when that connection was
+            joined from the device asking, so a connection this device left
+            behind (after a reload or a crash) is not mistaken for the call
+            running on another device. Always false for anyone else.
 
     ReactionSummary:
       type: object
@@ -19823,6 +20134,7 @@ components:
         - $ref: "#/components/schemas/CodeRunChanged"
         - $ref: "#/components/schemas/CodeRunsCleared"
         - $ref: "#/components/schemas/MessageLinkPreviewsRemoved"
+        - $ref: "#/components/schemas/MessageVoiceTranscript"
         - $ref: "#/components/schemas/ThreadUpdated"
         - $ref: "#/components/schemas/MessagePinned"
         - $ref: "#/components/schemas/MessageUnpinned"
@@ -19884,6 +20196,7 @@ components:
         - $ref: "#/components/schemas/NewDeviceSignIn"
         - $ref: "#/components/schemas/VoiceMoved"
         - $ref: "#/components/schemas/VoiceNotice"
+        - $ref: "#/components/schemas/SoundboardPlayed"
         - $ref: "#/components/schemas/ServerPong"
         - $ref: "#/components/schemas/ServerError"
     CanvasObjectPlaced:
@@ -20624,6 +20937,31 @@ components:
           type: string
           format: uuid
 
+    MessageVoiceTranscript:
+      type: object
+      required: [type, channel_id, message_id, attachment_id, status, text]
+      description: >
+        A voice message's transcript started, finished or failed, for everyone
+        who can view the channel. Never persisted; reading the message is the
+        catch-up.
+      properties:
+        type:
+          type: string
+          enum: [message.voice_transcript]
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        attachment_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, ready, failed]
+        text:
+          type: string
+
     MessageLinkPreviewsRemoved:
       type: object
       required: [type, channel_id, message_id]
@@ -21310,6 +21648,28 @@ components:
         activity:
           type: string
           enum: [call_started, joined, streaming]
+
+    SoundboardPlayed:
+      type: object
+      required: [type, channel_id, clip_id, player_id]
+      description: >
+        A member played a soundboard clip in a call this account is in. Delivered
+        only to the connections of accounts in that call, never persisted, with no
+        catch-up. The client plays its cached copy of the clip once, unless it is
+        deafened or has turned soundboard sounds off.
+      properties:
+        type:
+          type: string
+          enum: [soundboard.played]
+        channel_id:
+          type: string
+          format: uuid
+        clip_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
 
     VoiceActivityChanged:
       type: object

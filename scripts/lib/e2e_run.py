@@ -31,6 +31,7 @@ import e2e_markdown
 import e2e_composer
 import e2e_dm_call
 import e2e_members
+import e2e_mention_names
 import e2e_message_menu
 import e2e_reconcile
 import e2e_replies
@@ -40,7 +41,9 @@ import e2e_sweep
 import e2e_threads
 import e2e_voice
 import e2e_voice_health
+import e2e_soundboard
 import e2e_voice_deafen
+import e2e_voice_message
 import e2e_voice_move
 import e2e_voice_mic_release
 import e2e_voice_devices
@@ -209,6 +212,12 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_invite_landing.signed_out_sees_the_card(
              b, sign_in, server, secret, a, admin, picture())),
         ("admin: creating a role", lambda: e2e_admin.create_role(a, admin)),
+        ("messaging: a recorded voice message reaches the channel and plays",
+         lambda: e2e_voice_message.recorded_message_reaches_the_channel_and_plays(
+             a, b, L.TEXT_CHANNEL, admin)),
+        ("messaging: a mention reads as the member's name in this space",
+         lambda: e2e_mention_names.mention_reads_the_name_in_this_space(
+             a, b, L.TEXT_CHANNEL, admin, member)),
         ("admin: renaming a member shows the nickname everywhere",
          lambda: e2e_members.admin_renames_a_member(
              a, L.TEXT_CHANNEL, admin, member)),
@@ -327,6 +336,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: deafening silences what you hear and nothing of what you say",
          lambda: e2e_voice_deafen.deafen_silences_playback_not_the_mic(
              a, b, room_id, admin.me()["id"], member.me()["id"])),
+        ("voice: a soundboard clip plays for everyone in the call, not a deafened listener",
+         lambda: e2e_soundboard.clip_plays_for_everyone_in_the_call(
+             a, b, admin, member, room_id)),
         ("voice: a moderator moves a member to another call and they hear her there",
          lambda: e2e_voice_move.moving_a_member_takes_their_call_with_them(
              a, b, admin, room_id, member.me()["id"])),

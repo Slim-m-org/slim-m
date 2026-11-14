@@ -52,6 +52,9 @@ It is not bundled because distro builds of mpv and ffmpeg are GPL, which does no
 
 Screen share also needs `xdg-desktop-portal` running, and a remembered sign-in needs a Secret Service provider (gnome-keyring, KWallet, KeePassXC).
 
+Recording a voice message runs the `parecord` and `ffmpeg` programs: install `pulseaudio-utils` and `ffmpeg` on Debian, Ubuntu and Fedora, `pulseaudio-utils` and `ffmpeg` on openSUSE, or `libpulse` and `ffmpeg` on Arch.
+Without them everything else works, and the composer says what is missing when a recording cannot start.
+
 On Fedora, prefer the packaged build once it is available:
 
 ```

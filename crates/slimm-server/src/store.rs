@@ -55,6 +55,7 @@ mod linked_accounts;
 mod member_gate;
 mod members_bulk;
 mod messages;
+mod soundboard;
 use messages::{
     message_embeds, message_forwards, message_history, message_module_origins, message_ops,
     message_retention, message_search, messages_bulk,
@@ -67,6 +68,7 @@ mod modules;
 mod scene_refresh;
 use modules::{module_health, module_kv, module_permissions, module_stats};
 mod attachment_text;
+mod attachment_voice;
 mod data_exports;
 mod export_capacity;
 mod export_member;
@@ -86,6 +88,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
+mod voice_transcripts;
 pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
 mod recovery;
 mod refresh_rotation;
@@ -135,6 +138,7 @@ pub use analytics::{
 pub use apps::{AppLaunch, AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
 pub use attachment_text::TextCandidate;
+pub use attachment_voice::{MAX_VOICE_MS, VoiceInfo, WAVEFORM_BUCKETS};
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
 pub use bootstrap::Bootstrap;
 pub use bot_command_options::BotCommandOption;
@@ -250,6 +254,7 @@ pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardE
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
+pub use soundboard::{MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipError};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;
@@ -271,6 +276,7 @@ pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
+pub use voice_transcripts::{TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{
     WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
 };

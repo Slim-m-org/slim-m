@@ -16,6 +16,8 @@ pub(super) struct Claims<'a> {
     pub(super) nbf: u64,
     pub(super) exp: u64,
     pub(super) video: VideoGrant,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) attributes: Option<std::collections::BTreeMap<&'a str, &'a str>>,
 }
 
 #[derive(Serialize)]

@@ -27,6 +27,8 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
     required this.whatFailed,
     required this.read,
     required this.update,
+    this.unavailableReason,
+    this.isAvailable,
   });
 
   final String title;
@@ -38,6 +40,10 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
   final String whatFailed;
   final bool Function(SpaceSettings settings) read;
   final SpaceSettingsUpdate Function(bool value) update;
+
+  /// Said under the switch, which is then off and disabled, when [isAvailable] answers false.
+  final String? unavailableReason;
+  final bool Function(SpaceSettings settings)? isAvailable;
 
   @override
   ConsumerState<SpaceSettingSwitchSection> createState() =>
@@ -70,6 +76,8 @@ class _SpaceSettingSwitchSectionState
     ref.listen(spaceSettingsProvider, (_, next) => retireOptimistic(next));
     final stored = settings.valueOrNull;
     final current = optimistic ?? (stored == null ? null : widget.read(stored));
+    final available =
+        stored == null || (widget.isAvailable?.call(stored) ?? true);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -82,8 +90,10 @@ class _SpaceSettingSwitchSectionState
               description: widget.description,
               value: current ?? false,
               semanticLabel: widget.semanticLabel,
-              onChanged: current == null || saving ? null : _set,
+              onChanged: current == null || saving || !available ? null : _set,
             ),
+            if (!available && widget.unavailableReason != null)
+              SettingsSubRow(label: widget.unavailableReason!),
             if (settings.hasError && current == null)
               SettingsCardBlock(
                 children: [

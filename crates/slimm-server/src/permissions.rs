@@ -89,6 +89,9 @@ impl Permissions {
     /// Read a call's transcript and find its lines in search, in a channel the
     /// reader can view. Granted to `@everyone`; see decision 0113.
     pub const VIEW_TRANSCRIPTS: Self = Self(1 << 20);
+    /// Play a soundboard clip into a voice call. Granted to `@everyone`; see
+    /// decision 0118.
+    pub const USE_SOUNDBOARD: Self = Self(1 << 21);
 
     /// The union of every defined permission. What administrator resolves to.
     pub const ALL: Self = Self(
@@ -112,7 +115,8 @@ impl Permissions {
             | Self::RUN_CODE.0
             | Self::VIEW_MODERATION_HISTORY.0
             | Self::MOVE_MEMBERS.0
-            | Self::VIEW_TRANSCRIPTS.0,
+            | Self::VIEW_TRANSCRIPTS.0
+            | Self::USE_SOUNDBOARD.0,
     );
 
     /// Wraps a raw bitmask, for example one loaded from the database.
@@ -342,6 +346,7 @@ mod tests {
             Permissions::VIEW_MODERATION_HISTORY,
             Permissions::MOVE_MEMBERS,
             Permissions::VIEW_TRANSCRIPTS,
+            Permissions::USE_SOUNDBOARD,
         ];
         let union = named
             .into_iter()

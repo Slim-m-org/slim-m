@@ -32,7 +32,7 @@ class _SlowOverlay implements ScreenOverlay {
   @override
   Future<OverlaySupport> support() async => const OverlaySupport.unsupported();
   @override
-  Future<bool> show(List<int> monitors) async => true;
+  Future<bool> show(List<int> monitors, {int? window}) async => true;
   @override
   Future<void> hide() async {}
   @override

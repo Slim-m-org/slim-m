@@ -13,6 +13,7 @@ import 'call_transcripts_section.dart';
 import 'noise_suppression_default_section.dart';
 import 'screen_share_cap_section.dart';
 import 'uplink_test_section.dart';
+import 'voice_message_transcripts_section.dart';
 
 class SpaceVoiceScreen extends StatelessWidget {
   const SpaceVoiceScreen({super.key});
@@ -37,6 +38,7 @@ class SpaceVoicePane extends StatelessWidget {
       ScreenShareCapSection(),
       NoiseSuppressionDefaultSection(),
       CallTranscriptsSection(),
+      VoiceMessageTranscriptsSection(),
       UplinkTestSection(),
     ],
   );

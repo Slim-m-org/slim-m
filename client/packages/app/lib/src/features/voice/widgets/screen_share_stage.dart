@@ -64,7 +64,11 @@ class ScreenShareStage extends ConsumerStatefulWidget {
     this.quality,
     this.stripVolume,
     this.stripQuality,
+    this.personItems,
   });
+
+  /// The sharer's own rows (their voice volume, mute, profile) above the stream's, since a sharer has no separate tile.
+  final List<Widget> Function(VoidCallback close)? personItems;
 
   /// The strip's inline volume pill, called with the strip's hold callback; null when the share carries no sound.
   final Widget Function(ValueChanged<bool> hold)? stripVolume;
@@ -216,6 +220,12 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
     );
   }
 
+  List<Widget>? _personRows(VoidCallback close) {
+    final rows = widget.personItems?.call(close);
+    if (rows == null || rows.isEmpty) return null;
+    return [...rows, const AppMenuDivider()];
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -226,25 +236,28 @@ class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
         key: _menu,
         tapRegionGroupId: _menuGroup,
         onOpenChanged: hold,
-        itemsBuilder: (_, close) => shareStageMenuItems(
-          close,
-          ShareStageMenu(
-            sharerName: widget.sharerName,
-            onPopOut: canPopOut
-                ? () => ref.read(popOutFeedsProvider.notifier).open((
-                    identity: popOutId,
-                    name: widget.sharerName,
-                    kind: FeedKind.screenShare,
-                  ))
-                : null,
-            streamVolume: widget.streamVolume,
-            quality: widget.quality,
-            onFocus: widget.onFocus,
-            focused: widget.focused,
-            onStopWatching: widget.onStopWatching,
-            onFullscreen: widget.onExpand,
+        itemsBuilder: (_, close) => [
+          ...?_personRows(close),
+          ...shareStageMenuItems(
+            close,
+            ShareStageMenu(
+              sharerName: widget.sharerName,
+              onPopOut: canPopOut
+                  ? () => ref.read(popOutFeedsProvider.notifier).open((
+                      identity: popOutId,
+                      name: widget.sharerName,
+                      kind: FeedKind.screenShare,
+                    ))
+                  : null,
+              streamVolume: widget.streamVolume,
+              quality: widget.quality,
+              onFocus: widget.onFocus,
+              focused: widget.focused,
+              onStopWatching: widget.onStopWatching,
+              onFullscreen: widget.onExpand,
+            ),
           ),
-        ),
+        ],
         child: Stack(
           fit: StackFit.expand,
           children: [

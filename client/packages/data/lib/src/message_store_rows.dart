@@ -61,3 +61,23 @@ Future<void> removeForwardSnapshot(SlimmDatabase db, String messageId) async {
     ),
   );
 }
+
+/// Whether a channel row exists locally.
+Future<bool> hasChannel(SlimmDatabase db, String channelId) async {
+  final row = await (db.select(db.channels)
+        ..where((c) => c.id.equals(channelId)))
+      .getSingleOrNull();
+  return row != null;
+}
+
+/// Whether [messageId] is held for [channelId], however far outside the watched window.
+Future<bool> hasMessage(
+  SlimmDatabase db,
+  String channelId,
+  String messageId,
+) async {
+  final row = await (db.select(db.messages)
+        ..where((m) => m.channelId.equals(channelId) & m.id.equals(messageId)))
+      .getSingleOrNull();
+  return row != null;
+}

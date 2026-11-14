@@ -85,12 +85,21 @@ class ReleaseChecksumsListWhatIsAttachedTest(unittest.TestCase):
             "android-client",
             "client/packages/app",
             [
-                "client/packages/app/build/app/outputs/flutter-apk/app-release.apk",
+                "client/packages/app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk",
+                "client/packages/app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk",
+                "client/packages/app/build/app/outputs/flutter-apk/app-x86_64-release.apk",
                 "client/packages/app/build/app/outputs/bundle/release/app-release.aab",
             ],
         )
         patterns = attached_patterns(step_named("android-client", "attach to the github release"))
-        self.assertEqual([n.removeprefix("./") for n in names], ["slim-m-client-android.apk"])
+        self.assertEqual(
+            sorted(n.removeprefix("./") for n in names),
+            [
+                "slim-m-client-android-arm64-v8a.apk",
+                "slim-m-client-android-armeabi-v7a.apk",
+                "slim-m-client-android-x86_64.apk",
+            ],
+        )
         for name in names:
             self.assertTrue(any(fnmatch.fnmatch(name.removeprefix("./"), p) for p in patterns), name)
 

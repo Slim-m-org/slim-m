@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -168,6 +169,18 @@ class _ComposerState extends ConsumerState<Composer> {
       !_attachments.hasBlockingAttachment &&
       _stats.overBy == null &&
       _slowModeRemaining <= 0;
+
+  /// The mic stands in for Send only while there is nothing to send and nothing pending.
+  bool get _canRecord =>
+      !_commandRunning &&
+      !_stats.hasText &&
+      _attachments.isEmpty &&
+      _slowModeRemaining <= 0;
+
+  void _sendVoice(Attachment voice, Uint8List bytes) {
+    _attachments.addResolved(voice, bytes);
+    unawaited(_send());
+  }
 
   @override
   void initState() {
@@ -460,6 +473,8 @@ class _ComposerState extends ConsumerState<Composer> {
               channelName: widget.channelName,
               hasText: _stats.hasText,
               canSend: _canSend,
+              canRecord: _canRecord,
+              onVoiceSent: _sendVoice,
               onSend: _send,
               onTyping: _onTyping,
               onOpenActions: _openActions,

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE soundboard_clips SET name = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1654189fbd3ab67102fddadf9788ea331c61f399fa4d4ac5f860ea287bd9934e"
+}

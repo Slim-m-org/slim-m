@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart'
-    show LocalAlertChannel, isAndroidHost, isLinuxHost;
+    show LocalAlertChannel, isAndroidHost, isLinuxHost, isWindowsHost;
 
 import '../../../providers/toasts.dart';
 import '../../../push/providers/push_controller.dart';
@@ -39,8 +39,8 @@ class NotificationTroubleshootingCard extends StatelessWidget {
 class TestNotificationRow extends ConsumerStatefulWidget {
   const TestNotificationRow({super.key});
 
-  // Only where a local notification actually displays (Android, Linux desktop); a pipe test via the same LocalNotifications.show path a real alert uses.
-  static bool get _supported => isAndroidHost || isLinuxHost;
+  // Only where a local notification actually displays (Android, Linux, Windows); a pipe test via the same LocalNotifications.show path a real alert uses.
+  static bool get _supported => isAndroidHost || isLinuxHost || isWindowsHost;
 
   @override
   ConsumerState<TestNotificationRow> createState() =>

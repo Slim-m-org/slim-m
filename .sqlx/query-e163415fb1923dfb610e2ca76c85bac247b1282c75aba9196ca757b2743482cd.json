@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT sha256 AS \"sha256!: Vec<u8>\", filename AS \"filename!\",\n                      content_type AS \"content_type!\", size AS \"size!\",\n                      original_size AS \"original_size!\", original_filename AS \"original_filename!\"\n               FROM attachments WHERE sha256 = ?",
+  "query": "SELECT a.sha256 AS \"sha256!: Vec<u8>\", a.filename AS \"filename!\",\n                      a.content_type AS \"content_type!\", a.size AS \"size!\",\n                      a.original_size AS \"original_size!\", a.original_filename AS \"original_filename!\",\n                      v.duration_ms AS \"voice_ms?: i64\", v.waveform AS \"voice_waveform?: Vec<u8>\"\n               FROM attachments a LEFT JOIN attachment_voice v ON v.sha256 = a.sha256\n               WHERE a.sha256 = ?",
   "describe": {
     "columns": [
       {
@@ -32,6 +32,16 @@
         "name": "original_filename!",
         "ordinal": 5,
         "type_info": "Text"
+      },
+      {
+        "name": "voice_ms?: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "voice_waveform?: Vec<u8>",
+        "ordinal": 7,
+        "type_info": "Blob"
       }
     ],
     "parameters": {
@@ -43,8 +53,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "123201a4146b5746ef6561172f573ce9f7b7c263c99c7128dfb310bcf55d270b"
+  "hash": "e163415fb1923dfb610e2ca76c85bac247b1282c75aba9196ca757b2743482cd"
 }

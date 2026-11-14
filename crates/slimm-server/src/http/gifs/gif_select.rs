@@ -79,6 +79,8 @@ pub(crate) async fn store_gif(
         content_type: content_type.to_owned(),
         size,
         spoiler: false,
+        voice: None,
+        transcript: None,
         original: None,
     }))
 }

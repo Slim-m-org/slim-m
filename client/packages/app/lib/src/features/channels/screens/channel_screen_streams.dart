@@ -22,6 +22,19 @@ class ChannelStreamCache {
   int? _transcriptWindow;
   Stream<List<Message>>? _transcriptStream;
 
+  List<Message>? _contextRows;
+  Stream<List<Message>>? _contextStream;
+
+  /// A fixed context window as a stream, kept while [rows] stays the same list
+  /// so a rebuild does not resubscribe and flash the transcript empty.
+  Stream<List<Message>> contextTranscript(List<Message> rows) {
+    if (!identical(_contextRows, rows)) {
+      _contextRows = rows;
+      _contextStream = Stream.value(rows);
+    }
+    return _contextStream!;
+  }
+
   /// [store.watchChannelRow], recreated only when [store] or [channelId]
   /// changes rather than on every call.
   Stream<Channel?> channelRow(MessageStore store, String channelId) {

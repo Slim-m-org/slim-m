@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT a.sha256 AS \"sha256!: Vec<u8>\", a.size AS \"size!\"\n               FROM attachments a\n               JOIN attachment_voice v ON v.sha256 = a.sha256\n               LEFT JOIN attachment_transcripts t ON t.sha256 = a.sha256\n               WHERE (t.sha256 IS NULL OR t.status = 'pending')\n                 AND lower(hex(a.sha256)) NOT IN (SELECT value FROM json_each(?))\n                 AND EXISTS (SELECT 1 FROM message_attachments ma\n                               JOIN messages m ON m.id = ma.message_id\n                              WHERE ma.sha256 = a.sha256 AND m.is_encrypted = 0\n                                AND m.deleted_at IS NULL)\n               ORDER BY a.created_at DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "sha256!: Vec<u8>",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "size!",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "9dcce1db1adc2028b0c187719a582c63245be39bf92c1c393db8c06c311cc045"
+}

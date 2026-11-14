@@ -143,6 +143,14 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry('emoji', 'Emoji (0)', conditional: true),
   SettingsEntry(
+    'soundboard',
+    'Soundboard',
+    description: 'Short clips members play into a call.',
+    keywords: ['sound', 'clips', 'audio', 'sfx'],
+    conditional: true,
+  ),
+  SettingsEntry('soundboard', 'Clips (0 of 48)', conditional: true),
+  SettingsEntry(
     _voicePage,
     'Strong by default',
     description: 'Also removes keyboards, fans and room noise.',
@@ -183,6 +191,18 @@ const spaceSettingsIndex = <SettingsEntry>[
     'Transcript retention',
     description: 'Older transcripts are deleted.',
     keywords: ['transcription', 'delete', 'history'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Voice messages',
+    description: 'Members read them without playing them.',
+    keywords: ['transcribe', 'transcript', 'speech', 'listener'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Transcribe voice messages',
+    description: 'Members read them without playing them.',
+    keywords: ['transcript', 'speech', 'listener', 'audio'],
   ),
   SettingsEntry(
     'retention',

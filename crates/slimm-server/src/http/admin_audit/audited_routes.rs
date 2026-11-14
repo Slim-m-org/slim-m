@@ -210,6 +210,19 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "emoji.delete",
         Some("emoji_id"),
     ),
+    route(Method::POST, "/soundboard", "soundboard.create", None),
+    route(
+        Method::PATCH,
+        "/soundboard/{clip_id}",
+        "soundboard.rename",
+        Some("clip_id"),
+    ),
+    route(
+        Method::DELETE,
+        "/soundboard/{clip_id}",
+        "soundboard.delete",
+        Some("clip_id"),
+    ),
     route(
         Method::POST,
         "/space/dock/modules/{id}/install",

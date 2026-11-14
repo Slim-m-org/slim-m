@@ -52,6 +52,7 @@ import 'call_dock_hint.dart';
 import '../providers/call_dock_hint.dart' show DockHintTarget;
 import 'call_dock_button.dart';
 import 'share_options_menu.dart';
+import 'soundboard_button.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
 export 'call_dock_button.dart';
@@ -176,6 +177,9 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ? _switchCameraButton(context)
         : null;
     final extra = widget.extraControl;
+    final soundboard = canUseSoundboard(ref, voice.channelId)
+        ? SoundboardButton(channelId: voice.channelId!)
+        : null;
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -208,6 +212,10 @@ class _CallControlsState extends ConsumerState<CallControls> {
             child: _shareButton(context, voice, showCaret: showCaret),
           ),
         ),
+        if (soundboard != null && !widget.tight) ...[
+          const SizedBox(width: AppSpacing.s8),
+          soundboard,
+        ],
         if (extra != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
           extra,
@@ -215,7 +223,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       ],
     );
     if (!widget.tight) return primary;
-    final spilled = [?switchCamera, ?extra];
+    final spilled = [?switchCamera, ?soundboard, ?extra];
     return _spillColumn(primary, spilled);
   }
 

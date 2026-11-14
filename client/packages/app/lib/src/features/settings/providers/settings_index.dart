@@ -300,6 +300,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'notifications',
+    'Soundboard sounds',
+    description: 'Hear clips people play in a call.',
+    keywords: ['soundboard', 'clips', 'sfx'],
+  ),
+  SettingsEntry(
+    'notifications',
     'Notify me for',
     keywords: ['mentions', 'all messages', 'push'],
   ),

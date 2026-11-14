@@ -74,6 +74,9 @@ Requires:       libpulse.so.0()(64bit)
 Requires:       libpipewire-0.3.so.0()(64bit)
 # pw-cli, pw-link and pw-dump keep the call out of shared desktop audio; without them a share goes out with no audio.
 Requires:       pipewire-utils
+# Voice messages record through parecord and encode with ffmpeg (ffmpeg-free or RPM Fusion's ffmpeg); without them recording fails.
+Requires:       pulseaudio-utils
+Requires:       /usr/bin/ffmpeg
 
 # media_kit_video's own Linux plugin - the video texture/rendering
 # integration, distinct from media_kit's separate dlopen of libmpv to drive

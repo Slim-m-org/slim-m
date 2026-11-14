@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/space_voice_screen.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -41,6 +42,7 @@ Future<List<Map<String, dynamic>>> _open(
   bool available = true,
   String mode = 'off',
   int? retentionDays = 30,
+  bool voiceAvailable = true,
   Size size = const Size(1000, 1400),
 }) async {
   tester.view.physicalSize = size;
@@ -58,6 +60,8 @@ Future<List<Map<String, dynamic>>> _open(
           'call_transcription': mode,
           'call_transcript_retention_days': retentionDays,
           'call_transcription_available': available,
+          'transcribe_voice_messages': false,
+          'transcribe_voice_messages_available': voiceAvailable,
         });
       case '/space/screen-share':
         return _json({'max_height': 2160});
@@ -100,6 +104,10 @@ Future<void> _tap(WidgetTester tester, String label) async {
   await tester.tap(target);
   await _frames(tester);
 }
+
+final _voiceSwitch = find.byWidgetPredicate(
+  (w) => w is SettingsToggleRow && w.label == 'Transcribe voice messages',
+);
 
 void main() {
   for (final (name, size) in [
@@ -162,6 +170,32 @@ void main() {
       findsOneWidget,
     );
     await _tap(tester, 'Always');
+    expect(patches, isEmpty);
+  });
+
+  testWidgets('the voice message switch patches only its own field', (
+    tester,
+  ) async {
+    final patches = await _open(tester);
+
+    expect(find.text('Voice messages'), findsOneWidget);
+    tester.widget<SettingsToggleRow>(_voiceSwitch).onChanged!(true);
+    await _frames(tester);
+    expect(patches, [
+      {'transcribe_voice_messages': true},
+    ]);
+  });
+
+  testWidgets('without a listener the voice message switch says why', (
+    tester,
+  ) async {
+    final patches = await _open(tester, voiceAvailable: false);
+
+    expect(
+      find.text('Needs the call listener, which this server is not running.'),
+      findsOneWidget,
+    );
+    expect(tester.widget<SettingsToggleRow>(_voiceSwitch).onChanged, isNull);
     expect(patches, isEmpty);
   });
 }

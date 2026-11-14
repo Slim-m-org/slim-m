@@ -11,6 +11,7 @@ import '../../../routing/routes.dart';
 import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../emoji/widgets/emoji_name_tip.dart';
 import '../../emoji/widgets/emoji_names.dart';
+import '../../members/providers/mention_names.dart';
 import 'message_inline.dart';
 import 'message_spoiler.dart';
 
@@ -94,7 +95,7 @@ List<InlineSpan> buildSpans(List<InlineNode> nodes, InlineContext ctx) => [
         _isRenderableMention(raw, ctx.knownUsernames)
             ? WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
-                child: _MentionChip(raw),
+                child: _UserMentionChip(raw),
               )
             : TextSpan(text: raw),
       InlineRoleMention(:final name) =>
@@ -150,6 +151,28 @@ List<InlineSpan> buildSpans(List<InlineNode> nodes, InlineContext ctx) => [
       ),
     },
 ];
+
+/// The chip for `@username`, reading the member's name in this space when one
+/// is known and naming the username on hover so equal names stay tellable.
+class _UserMentionChip extends ConsumerWidget {
+  const _UserMentionChip(this.raw);
+
+  final String raw;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final key = raw.substring(1).toLowerCase();
+    final shown = ref.watch(mentionNamesProvider.select((names) => names[key]));
+    if (shown == null) return _MentionChip(raw);
+    return Tooltip(
+      message: raw,
+      waitDuration: emojiNameHoverRest,
+      // Read as the name on screen; a separate "@username" node would be read before the message.
+      excludeFromSemantics: true,
+      child: _MentionChip('@$shown'),
+    );
+  }
+}
 
 InlineSpan _emojiSpan(String raw, Map<String, String> customEmoji) {
   final id = customEmojiIdFor(raw, customEmoji);

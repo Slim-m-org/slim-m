@@ -53,7 +53,8 @@ runs:
         flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
           --build-name=${{ inputs.version }} \
           --build-number=${{ github.run_number }}
-        flutter build apk --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
+        # One apk per ABI: the fat one carried every ABI and weighed 189 MB. The appbundle above is untouched; Play splits it itself.
+        flutter build apk --release --split-per-abi --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
           --build-name=${{ inputs.version }} \
           --build-number=${{ github.run_number }}
 
@@ -76,21 +77,23 @@ runs:
           exit 1
         fi
         # Captured to a file and echoed before matching. The previous form assigned a grep pipeline, so a miss aborted with no output at all.
-        "$tool" verify --print-certs \
-          build/app/outputs/flutter-apk/app-release.apk > certs.txt 2>&1 || {
-            echo "::error::apksigner could not verify the release apk"
-            cat certs.txt
+        for abi in arm64-v8a armeabi-v7a x86_64; do
+          "$tool" verify --print-certs \
+            "build/app/outputs/flutter-apk/app-${abi}-release.apk" > certs.txt 2>&1 || {
+              echo "::error::apksigner could not verify the ${abi} release apk"
+              cat certs.txt
+              exit 1
+            }
+          cat certs.txt
+          if grep -q 'Android Debug' certs.txt; then
+            echo "::error::${abi} release apk is signed with the debug keystore; key.properties did not take effect"
             exit 1
-          }
-        cat certs.txt
-        if grep -q 'Android Debug' certs.txt; then
-          echo "::error::release apk is signed with the debug keystore; key.properties did not take effect"
-          exit 1
-        fi
-        if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
-          echo "::error::signer is not Play's registered upload key (want $EXPECTED_SHA256)"
-          exit 1
-        fi
+          fi
+          if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
+            echo "::error::${abi} signer is not Play's registered upload key (want $EXPECTED_SHA256)"
+            exit 1
+          fi
+        done
         echo "signed by the expected upload key"
 
     - name: checksums
@@ -98,11 +101,13 @@ runs:
       working-directory: client/packages/app
       run: |
         mkdir -p dist
-        cp build/app/outputs/flutter-apk/app-release.apk \
-          "dist/slim-m-client-android.apk"
+        for abi in arm64-v8a armeabi-v7a x86_64; do
+          cp "build/app/outputs/flutter-apk/app-${abi}-release.apk" \
+            "dist/slim-m-client-android-${abi}.apk"
+        done
         cp build/app/outputs/bundle/release/app-release.aab \
           "dist/slim-m-client-android.aab"
-        (cd dist && sha256sum -- slim-m-client-android.apk > SHA256SUMS.android)
+        (cd dist && sha256sum -- slim-m-client-android-*.apk > SHA256SUMS.android)
 
     # No aab: a Play upload format testers download by mistake; docs/INSTALL.md.
     - name: attach to the github release
@@ -111,7 +116,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
       run: |
         scripts/upload-release-assets.sh "${{ inputs.tag }}" \
-          client/packages/app/dist/slim-m-client-android.apk \
+          'client/packages/app/dist/slim-m-client-android-*.apk' \
           client/packages/app/dist/SHA256SUMS.android
 
     - name: skip the play upload

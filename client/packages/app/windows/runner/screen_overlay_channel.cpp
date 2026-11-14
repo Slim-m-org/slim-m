@@ -175,10 +175,15 @@ void RegisterScreenOverlayChannel(flutter::BinaryMessenger* messenger) {
           result->Success(SupportReply());
         } else if (method == "show") {
           int monitor = 0;
+          const EncodableValue* window = nullptr;
           if (args != nullptr) {
             monitor = static_cast<int>(NumberOf(Field(*args, "monitor"), 0));
+            window = Field(*args, "window");
           }
-          result->Success(EncodableValue(slimm_overlay::Show(monitor)));
+          bool shown = window != nullptr
+              ? slimm_overlay::ShowOverWindow(static_cast<int64_t>(NumberOf(window, 0)))
+              : slimm_overlay::Show(monitor);
+          result->Success(EncodableValue(shown));
         } else if (method == "draw") {
           std::vector<slimm_overlay::Shape> shapes;
           const EncodableValue* raw = args == nullptr ? nullptr : Field(*args, "shapes");

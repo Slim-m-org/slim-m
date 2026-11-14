@@ -15,6 +15,7 @@ import '../providers/media_preferences.dart';
 import '../../../message_preview.dart';
 import '../../../widgets/animation_gate.dart';
 import 'attachment_view.dart' show isInlineImage, isVideo;
+import 'message_inline.dart' show rewriteMentions;
 import '../../../widgets/image_decode.dart';
 
 /// The label for a text-less target, or empty when it carried nothing.
@@ -24,15 +25,21 @@ String attachmentKindLabel(List<api.Attachment> attachments) {
   final only = attachments.single;
   if (only.contentType.startsWith('image/')) return 'Photo';
   if (isVideo(only.contentType)) return 'Video';
-  if (only.contentType.startsWith('audio/')) return 'Voice message';
+  if (only.voice != null) return 'Voice message';
   return only.filename;
 }
 
 /// One line naming a message: its text flattened, else what it attached, else
 /// "(no text)". Shared by every list that previews a message, so none can
 /// print raw markup or leave a photo-only message blank.
-String previewLine(String content, List<api.Attachment> attachments) {
-  final text = plainPreview(content);
+///
+/// [mentionNames] writes each known `@username` as the name shown for it.
+String previewLine(
+  String content,
+  List<api.Attachment> attachments, {
+  Map<String, String> mentionNames = const {},
+}) {
+  final text = plainPreview(rewriteMentions(content, mentionNames));
   if (text.isNotEmpty) return text;
   final kind = attachmentKindLabel(attachments);
   return kind.isEmpty ? '(no text)' : kind;

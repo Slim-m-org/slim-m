@@ -35,14 +35,15 @@ def share_quality_from_the_share_menu(client):
         client.click(L.SHARE_OPTIONS, settle=2)
         client.wait_for(L.SHARE_RESOLUTION_HEADING)
         client.shot("quality-menu")
+        # A segmented pick leaves the menu open, so the frame rate is in the same menu.
         client.click(L.RES_720P, settle=2)
-        client.click(L.SHARE_OPTIONS, settle=2)
         client.click(L.FPS_60, settle=2)
         stored = _stored_quality(client)
         assert stored == "720p60", \
             f"nothing durable recorded the choice: {before!r} -> {stored!r}"
         print("  720p at 60 fps was chosen from the share menu, and stored")
     finally:
+        client.dismiss_overlay()
         _tap_label(client, L.LEAVE_CALL, settle=4)
 
     client.click(L.PERSONAL_SETTINGS, settle=3)

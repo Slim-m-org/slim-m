@@ -34,6 +34,7 @@ import '../../messages/providers/ephemeral_messages.dart';
 import '../../members/providers/member_presence.dart';
 import '../../messages/providers/message_actions.dart';
 import '../../messages/providers/message_editing.dart';
+import '../../messages/providers/message_context_window.dart';
 import '../../messages/providers/message_jump.dart';
 import '../providers/pins_controller.dart';
 import '../../../providers/providers.dart';
@@ -42,6 +43,7 @@ import '../../members/providers/user_profiles.dart';
 import '../widgets/channel_search.dart';
 import '../widgets/compact_channel_search.dart' show channelSearchScope;
 import '../../../widgets/dismiss_keyboard_on_drag.dart';
+import '../../messages/widgets/context_window_bar.dart';
 import '../../messages/widgets/ephemeral_report.dart';
 import '../../messages/widgets/jump_to_latest_button.dart';
 import '../../messages/widgets/message_jump.dart';
@@ -171,6 +173,16 @@ class ChannelTranscriptPane extends ConsumerWidget {
     });
   }
 
+  /// Back to the live window, at its newest message.
+  void _leaveContext(WidgetRef ref) {
+    final jump = ref.read(messageJumpProvider);
+    if (jumpArrivalFor(jump, channelId) case (:final token, messageId: _)) {
+      ref.read(messageJumpProvider.notifier).consume(token);
+    }
+    ref.read(messageContextWindowProvider(channelId).notifier).close();
+    scrollTracker.resetForChannelSwitch();
+  }
+
   Widget? _jumpBanner(WidgetRef ref, JumpNotice? notice) {
     if (notice == null) return null;
     final jump = ref.read(messageJumpProvider.notifier);
@@ -227,6 +239,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
       messageJumpProvider.select((s) => jumpNoticeFor(s, channelId)),
     );
     _closeSearchOnArrival(ref);
+    final contextWindow = ref.watch(messageContextWindowProvider(channelId));
 
     return Expanded(
       child: DismissKeyboardOnDrag(
@@ -244,16 +257,18 @@ class ChannelTranscriptPane extends ConsumerWidget {
                 child: Stack(
                   children: [
                     StreamBuilder<List<Message>>(
-                      stream: streams.transcript(
-                        store,
-                        channelId,
-                        history.window,
-                      ),
+                      stream: contextWindow != null
+                          ? streams.contextTranscript(contextWindow.messages)
+                          : streams.transcript(
+                              store,
+                              channelId,
+                              history.window,
+                            ),
                       builder: (context, snapshot) {
                         final rows = snapshot.data ?? const <Message>[];
                         final transcript = visibleTranscript(rows, blocked);
                         final oldest = oldestDeliveredSeq(rows);
-                        paging.syncOldest(oldest);
+                        if (contextWindow == null) paging.syncOldest(oldest);
                         resolveAuthorProfiles(ref, [
                           ...transcript.messages.map((m) => m.authorId),
                           ...privateAnswers.map((m) => m.authorId),
@@ -269,7 +284,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           manuallyUnread: manuallyUnread,
                         );
                         // Gated on the viewport and on the search being closed: scrolled into history, this rebuild is a message arriving somewhere unread.
-                        if (scrollTracker.atLatest && !searchShowing) {
+                        if (scrollTracker.atLatest &&
+                            !searchShowing &&
+                            contextWindow == null) {
                           onMarkRead(readUpTo, lastReadSeq, manuallyUnread);
                         }
                         return MessageTranscript(
@@ -297,12 +314,14 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           knownRoleNames: knownRoleNames,
                           customEmoji: customEmoji,
                           // A channel with nothing delivered has no history to page, so its oldest loaded row is vacuously its first.
-                          history: history.copyWith(
-                            atStart:
-                                history.atStart ||
-                                (oldest == null &&
-                                    syncStatus == SyncStatus.live),
-                          ),
+                          history: contextWindow != null
+                              ? const ChannelHistory(atStart: true)
+                              : history.copyWith(
+                                  atStart:
+                                      history.atStart ||
+                                      (oldest == null &&
+                                          syncStatus == SyncStatus.live),
+                                ),
                           onLoadOlder: () => unawaited(paging.loadOlder()),
                           onRetryOlder: () => unawaited(paging.retry()),
                           // The policy itself lives in `channel_message_actions.dart`; this only supplies the pane's own state.
@@ -366,26 +385,36 @@ class ChannelTranscriptPane extends ConsumerWidget {
                         );
                       },
                     ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: scrollTracker.scrolledAway,
-                          builder: (context, scrolledAway, _) =>
-                              JumpToLatestButton(
-                                visible: scrolledAway,
-                                onTap: () => scrollTracker.scrollToLatest(
-                                  duration: AppMotion.reduced(
-                                    context,
-                                    AppMotion.slow,
+                    if (contextWindow != null)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: ContextWindowBar(
+                          onJumpToPresent: () => _leaveContext(ref),
+                        ),
+                      )
+                    else
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: scrollTracker.scrolledAway,
+                            builder: (context, scrolledAway, _) =>
+                                JumpToLatestButton(
+                                  visible: scrolledAway,
+                                  onTap: () => scrollTracker.scrollToLatest(
+                                    duration: AppMotion.reduced(
+                                      context,
+                                      AppMotion.slow,
+                                    ),
                                   ),
                                 ),
-                              ),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

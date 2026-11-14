@@ -62,6 +62,7 @@ import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_spans.dart';
 import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
+import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../channels/providers/threads.dart' show openThreadProvider;
 import '../../../providers/server_info.dart';

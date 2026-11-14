@@ -22,8 +22,9 @@ import 'voice_controller_harness.dart';
 const _items = ['Pop out stream', 'Stop watching', 'Full screen'];
 
 Future<({ProviderContainer container, List<String> calls})> _pumpStage(
-  WidgetTester tester,
-) async {
+  WidgetTester tester, {
+  List<Widget> Function(VoidCallback close)? personItems,
+}) async {
   final calls = <String>[];
   final container = ProviderContainer(
     overrides: [popOutSupportedProvider.overrideWithValue(true)],
@@ -42,6 +43,8 @@ Future<({ProviderContainer container, List<String> calls})> _pumpStage(
             width: 640,
             height: 360,
             child: ScreenShareStage(
+              key: const ValueKey('stage'),
+              personItems: personItems,
               sharerName: 'Ada',
               popOutIdentity: 'u-ada',
               streamVolume: const Text('Stream volume'),
@@ -102,6 +105,18 @@ void main() {
       }
     });
   }
+
+  testWidgets('a sharer\'s own voice rows come first, above the stream\'s', (
+    tester,
+  ) async {
+    await _pumpStage(
+      tester,
+      personItems: (close) => [AppMenuItem(label: 'Mute for me', onTap: close)],
+    );
+    await rightClickMenu(tester, find.byKey(const ValueKey('stage')));
+    expect(_labels(tester), ['Mute for me', ..._items]);
+    expect(find.text('Stream volume'), findsOneWidget);
+  });
 
   testWidgets('a hidden stream is shown again from the person\'s menu', (
     tester,

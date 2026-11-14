@@ -45,8 +45,9 @@ class VerifiedUpdate {
   final File file;
 }
 
-/// Returns the verified download for [platformKey], or null when the newest
-/// release is not newer than [currentVersion]. Throws [SelfUpdateFailure] for
+/// Returns the verified download for [platformKey], or for
+/// [fallbackPlatformKey] when the manifest has no artifact under the first,
+/// or null when the newest release is not newer than [currentVersion]. Throws [SelfUpdateFailure] for
 /// every other stop, including a manifest with no artifact for this platform,
 /// which must never read as "nothing to do"; the staging
 /// directory then holds no finished file.
@@ -55,9 +56,11 @@ Future<VerifiedUpdate?> fetchVerifiedUpdate({
   required String platformKey,
   required Directory stagingDir,
   required http.Client client,
+  String? fallbackPlatformKey,
 }) => fetchVerifiedUpdateWith(
   currentVersion: currentVersion,
   platformKey: platformKey,
+  fallbackPlatformKey: fallbackPlatformKey,
   stagingDir: stagingDir,
   client: client,
 );
@@ -70,6 +73,7 @@ Future<VerifiedUpdate?> fetchVerifiedUpdateWith({
   required String platformKey,
   required Directory stagingDir,
   required http.Client client,
+  String? fallbackPlatformKey,
   List<String> trustedKeys = trustedUpdateKeys,
   FreeSpace freeSpace = freeSpaceOf,
 }) async {
@@ -103,7 +107,11 @@ Future<VerifiedUpdate?> fetchVerifiedUpdateWith({
     );
   }
   if (!isNewer(manifest.version, currentVersion)) return null;
-  final artifact = manifest.artifacts[platformKey];
+  final artifact =
+      manifest.artifacts[platformKey] ??
+      (fallbackPlatformKey == null
+          ? null
+          : manifest.artifacts[fallbackPlatformKey]);
   if (artifact == null) {
     throw SelfUpdateFailure(
       SelfUpdateFailureKind.noArtifactForPlatform,

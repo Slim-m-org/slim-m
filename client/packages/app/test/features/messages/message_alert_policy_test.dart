@@ -5,7 +5,11 @@
 /// account's, the order the server resolves it in for push.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show MessageStore;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/message_alert_policy.dart';
 import '../../support/message_alert_policy_rig.dart';
@@ -13,11 +17,13 @@ import '../../support/message_alert_policy_rig.dart';
 void main() {
   late AlertRig rig;
 
-  Future<void> wire(AlertRig next) async {
+  Future<void> rigWire(AlertRig next) async {
     rig = next;
     await rig.start();
     addTearDown(rig.dispose);
   }
+
+  Future<void> wire(AlertRig next) => rigWire(next);
 
   group('the account preference', () {
     test('nothing silences a plain group message', () async {
@@ -173,6 +179,25 @@ void main() {
     });
   });
 
+  test(
+    'a new DM whose channel is stored a moment late is still a DM',
+    () async {
+      await wire(AlertRig(account: 'mentions'));
+      alertNewChannelWait = const Duration(seconds: 1);
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 100), () {
+          return MessageStore(rig.db).upsertChannels(const [
+            api.Channel(id: 'dm-new', name: 'Bob', kind: 'dm', createdAt: 0),
+          ]);
+        }),
+      );
+
+      final alert = await rig.policy.evaluate(alertMessage('dm-new', 'hi'));
+
+      expect(alert?.isDm, isTrue, reason: 'a DM alerts under "mentions"');
+    },
+  );
+
   group('what was set on another device', () {
     late Duration originalMaxAge;
 
@@ -180,6 +205,13 @@ void main() {
       originalMaxAge = alertStateMaxAge;
       alertStateMaxAge = const Duration(milliseconds: 40);
     });
+
+    // These time a 40 ms window, which waiting for an unstored channel would outlast.
+    Future<void> wire(AlertRig next) async {
+      await rigWire(next);
+      alertNewChannelWait = Duration.zero;
+    }
+
     tearDown(() => alertStateMaxAge = originalMaxAge);
 
     Future<void> pastMaxAge() =>

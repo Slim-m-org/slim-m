@@ -5,6 +5,9 @@
 //! and the iOS extension refuses an empty body and leaves "New message", so
 //! the preview reads what the message does carry instead.
 
+use std::collections::HashMap;
+
+use super::mention_grammar::{mentioned_usernames, rewrite_mentions};
 use crate::ids::MessageId;
 use crate::store::{AttachmentSummary, Embed, Store};
 
@@ -30,6 +33,47 @@ pub(super) async fn preview_text(store: &Store, message_id: MessageId, content: 
     describe(&embeds, &attachments)
 }
 
+/// [`preview_text`] with each `@username` of a live member written as the name
+/// the member list shows (nickname, else account name).
+///
+/// A lookup failure leaves the text as typed: a preview is a nicety.
+pub(super) async fn preview_with_names(
+    store: &Store,
+    message_id: MessageId,
+    content: &str,
+) -> String {
+    let text = preview_text(store, message_id, content).await;
+    let usernames: Vec<String> = mentioned_usernames(&text).into_iter().collect();
+    match mention_names(store, &usernames).await {
+        Ok(names) if !names.is_empty() => rewrite_mentions(&text, &names),
+        Ok(_) => text,
+        Err(err) => {
+            tracing::warn!(error = %err, "push: failed to resolve mention names for a preview");
+            text
+        }
+    }
+}
+
+/// Lower-cased username to shown name, left out where the two are equal.
+async fn mention_names(
+    store: &Store,
+    usernames: &[String],
+) -> anyhow::Result<HashMap<String, String>> {
+    let ids = store.user_ids_for_usernames(usernames).await?;
+    let nicknames = store.nicknames_for(&ids).await?;
+    let profiles = store.user_profiles(&ids).await?;
+    Ok(profiles
+        .into_iter()
+        .filter_map(|user| {
+            let shown = nicknames
+                .get(&user.id)
+                .cloned()
+                .unwrap_or(user.display_name);
+            (shown != user.username).then(|| (user.username.to_lowercase(), shown))
+        })
+        .collect())
+}
+
 /// Pure so it can be tested without a store: the first embed's title, then its
 /// description, then its author; otherwise a sentence about the attachments.
 pub(super) fn describe(embeds: &[Embed], attachments: &[AttachmentSummary]) -> String {
@@ -48,6 +92,7 @@ pub(super) fn describe(embeds: &[Embed], attachments: &[AttachmentSummary]) -> S
         [] => String::new(),
         [one] if one.content_type.starts_with("image/") => "Sent an image".to_owned(),
         [one] if one.content_type.starts_with("video/") => "Sent a video".to_owned(),
+        [one] if one.voice.is_some() => "Sent a voice message".to_owned(),
         [one] => format!("Sent {}", one.filename),
         many if many.iter().all(|a| a.content_type.starts_with("image/")) => {
             format!("Sent {} images", many.len())
@@ -83,6 +128,8 @@ mod tests {
             content_type: kind.to_owned(),
             size: 1,
             spoiler: false,
+            voice: None,
+            transcript: None,
             original: None,
         }
     }
@@ -103,6 +150,16 @@ mod tests {
         assert_eq!(
             describe(&[], &[file("notes.pdf", "application/pdf")]),
             "Sent notes.pdf"
+        );
+        let mut voice = file("voice-message.wav", "audio/wav");
+        voice.voice = Some(crate::store::VoiceInfo {
+            duration_ms: 3_000,
+            waveform: vec![0; 64],
+        });
+        assert_eq!(describe(&[], &[voice]), "Sent a voice message");
+        assert_eq!(
+            describe(&[], &[file("song.mp3", "audio/mpeg")]),
+            "Sent song.mp3"
         );
         let two = [file("a.png", "image/png"), file("b.jpg", "image/jpeg")];
         assert_eq!(describe(&[], &two), "Sent 2 images");

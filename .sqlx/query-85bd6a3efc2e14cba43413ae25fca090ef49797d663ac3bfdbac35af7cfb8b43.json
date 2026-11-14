@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE soundboard_clips SET uploader_id = NULL WHERE uploader_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "85bd6a3efc2e14cba43413ae25fca090ef49797d663ac3bfdbac35af7cfb8b43"
+}

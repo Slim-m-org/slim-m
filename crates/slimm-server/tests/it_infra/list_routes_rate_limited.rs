@@ -56,8 +56,8 @@ fn get(uri: &str, token: &str) -> Request<Body> {
         .unwrap()
 }
 
-/// `AuthedRead`'s burst is 40 (`ratelimit/class.rs`), so a run well past it
-/// is refused if the route charges anything at all.
+/// `AuthedRead` allows a burst of 40 refilling at 8/s (`ratelimit/class.rs`), so a long run is
+/// refused whenever the route charges anything; 45 tries flaked on a slow runner the refill outpaced.
 #[tokio::test]
 async fn channel_and_category_lists_charge_a_rate_limit() {
     let (store, _guard) = new_store("slimm-list-routes-rate-limited").await;
@@ -66,7 +66,7 @@ async fn channel_and_category_lists_charge_a_rate_limit() {
 
     for uri in ["/channels", "/categories"] {
         let mut throttled = false;
-        for _ in 0..45 {
+        for _ in 0..1000 {
             let response = app.clone().oneshot(get(uri, &token)).await.unwrap();
             if response.status() == StatusCode::TOO_MANY_REQUESTS {
                 throttled = true;

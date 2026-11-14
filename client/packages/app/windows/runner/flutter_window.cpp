@@ -5,6 +5,8 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "clipboard_image_channel.h"
 #include "global_hotkeys_channel.h"
+#include "taskbar_attention_channel.h"
+#include "windows_toasts_channel.h"
 #include "now_playing_channel.h"
 #include "screen_overlay_channel.h"
 #include "single_instance.h"
@@ -39,6 +41,9 @@ bool FlutterWindow::OnCreate() {
   RegisterScreenOverlayChannel(flutter_controller_->engine()->messenger());
   RegisterClipboardImageChannel(flutter_controller_->engine()->messenger(),
                                 GetHandle());
+  RegisterTaskbarAttentionChannel(flutter_controller_->engine()->messenger(),
+                                  GetHandle());
+  RegisterWindowsToastsChannel(flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -81,6 +86,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (message == SecondInstanceMessage()) {
     OnSecondInstance(hwnd);
     return 0;
+  }
+
+  if (message == TaskbarButtonCreatedMessage()) {
+    OnTaskbarButtonCreated();
   }
 
   switch (message) {

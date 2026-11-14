@@ -15,10 +15,10 @@ pub mod protocol;
 pub mod runtime;
 pub mod session;
 pub mod transcript;
+mod types;
 mod view;
 
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use tokio::sync::mpsc;
@@ -27,7 +27,8 @@ use uuid::Uuid;
 use self::filter::SegmentRate;
 use self::link::{Link, LinkEvent};
 use self::protocol::ToListener;
-use self::session::{Consumer, Effect, EndReason, Refused, Session, Subject};
+use self::session::{Effect, EndReason, Refused, Session, Subject};
+pub use self::types::{AcceptedSegment, EventIds, Outcome, RequestError};
 pub use self::view::CallAudioView;
 use crate::config::ListenerSettings;
 use crate::ids::{ChannelId, UserId};
@@ -36,74 +37,6 @@ use crate::ids::{ChannelId, UserId};
 pub const COOLDOWN_MS: i64 = 60_000;
 /// How long an ended session still takes the lines the listener was finishing when it ended.
 pub const DRAIN_MS: i64 = 45_000;
-
-/// Why a request was refused.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestError {
-    Unavailable,
-    /// The listener is at its `max_sessions`.
-    Busy,
-    AlreadyOn,
-    /// Milliseconds left of the wait after a decline.
-    Cooldown(i64),
-    TooManyPeople,
-}
-
-/// What a transition left behind, copied out so effects run without the lock.
-#[derive(Debug, Clone)]
-pub struct Outcome {
-    pub session_id: Uuid,
-    pub channel: ChannelId,
-    pub consumer: Consumer,
-    pub effects: Vec<Effect>,
-    pub view: CallAudioView,
-    pub include: Vec<UserId>,
-    pub started_at_ms: Option<i64>,
-    pub ids: EventIds,
-}
-
-/// Mints `call-audio:<session>:<n>` ids, once each.
-#[derive(Debug, Clone)]
-pub struct EventIds {
-    session: Uuid,
-    counter: Arc<AtomicU64>,
-    sent: Arc<AtomicU64>,
-}
-
-impl PartialEq for EventIds {
-    fn eq(&self, other: &Self) -> bool {
-        self.session == other.session
-    }
-}
-
-impl Eq for EventIds {}
-
-impl EventIds {
-    pub fn mint(&self) -> String {
-        let n = self.counter.fetch_add(1, Ordering::Relaxed) + 1;
-        format!("call-audio:{}:{n}", self.session)
-    }
-
-    /// Segments handed to the module so far.
-    pub fn segments_sent(&self) -> u64 {
-        self.sent.load(Ordering::Relaxed)
-    }
-}
-
-/// A segment that passed every check, ready for the module.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AcceptedSegment {
-    pub channel: ChannelId,
-    pub consumer: Consumer,
-    pub session_id: Uuid,
-    pub user_id: UserId,
-    pub start_ms: i64,
-    pub end_ms: i64,
-    pub text: String,
-    pub language: Option<String>,
-    pub segment_id: String,
-    pub ids: EventIds,
-}
 
 struct Live {
     session: Session,
@@ -161,6 +94,20 @@ impl CallAudio {
 
     pub fn is_enabled(&self) -> bool {
         self.inner.is_some()
+    }
+
+    /// The listener's one-shot transcription address and bearer secret, when one is configured.
+    pub fn transcribe_endpoint(&self) -> Option<(String, String)> {
+        let settings = &self.inner.as_ref()?.settings;
+        let http = settings
+            .url
+            .replacen("wss://", "https://", 1)
+            .replacen("ws://", "http://", 1);
+        let authority = http.splitn(4, '/').take(3).collect::<Vec<_>>().join("/");
+        Some((
+            format!("{authority}/v1/transcribe"),
+            settings.secret.clone(),
+        ))
     }
 
     /// Whether the listener is connected and said `ready`.
@@ -247,11 +194,7 @@ impl CallAudio {
         }
         let id = Uuid::now_v7();
         let (session, effects) = make(id).ok_or(RequestError::TooManyPeople)?;
-        let ids = EventIds {
-            session: id,
-            counter: Arc::default(),
-            sent: Arc::default(),
-        };
+        let ids = EventIds::new(id);
         let live = Live {
             session,
             ids,
@@ -460,7 +403,7 @@ impl CallAudio {
             return None;
         }
         let user_id = UserId(identity.parse().ok()?);
-        live.ids.sent.fetch_add(1, Ordering::Relaxed);
+        live.ids.count_sent();
         let segment_id = live.ids.mint();
         Some(AcceptedSegment {
             channel,

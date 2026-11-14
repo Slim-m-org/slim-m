@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM soundboard_clips WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "bdf2f9a6a2d78e97283664b9bbc12f0c4ead624511a66d34ca01403690983bf6"
+}

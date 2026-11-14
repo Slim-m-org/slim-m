@@ -106,6 +106,14 @@ pub(super) enum ServerFrame {
         message_id: String,
         op_seq: i64,
     },
+    #[serde(rename = "message.voice_transcript")]
+    MessageVoiceTranscript {
+        channel_id: String,
+        message_id: String,
+        attachment_id: String,
+        status: &'static str,
+        text: String,
+    },
     #[serde(rename = "message.embeds")]
     MessageEmbedsChanged {
         channel_id: String,
@@ -278,6 +286,14 @@ pub(super) enum ServerFrame {
         channel_id: String,
         transcript_id: String,
         ended: bool,
+    },
+    /// A member played a soundboard clip in a call this connection's account is in;
+    /// see [`crate::hub::Event::SoundboardPlayed`].
+    #[serde(rename = "soundboard.played")]
+    SoundboardPlayed {
+        channel_id: String,
+        clip_id: String,
+        player_id: String,
     },
     /// A DM call ring started; see [`crate::hub::Event::CallRinging`].
     #[serde(rename = "call.ringing")]
