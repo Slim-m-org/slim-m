@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
+import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 api.UserProfile _member(String username, String shown) => api.UserProfile(
@@ -79,4 +80,41 @@ void main() {
     expect(find.text('@everyone'), findsOneWidget);
     expect(find.text('@Captain Al'), findsNothing);
   });
+
+  testWidgets(
+    'a nickname set after the roster loaded shows without a refetch',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          membersProvider.overrideWith(
+            (ref) async => [_member('alice', 'Alice')],
+          ),
+          liveEventsProvider.overrideWithValue(const Stream.empty()),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AppTokens.light),
+            home: const Scaffold(
+              body: MessageBody(
+                content: 'hi @alice',
+                knownUsernames: {'alice'},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('@Alice'), findsOneWidget);
+
+      container
+          .read(memberProfileOverridesProvider.notifier)
+          .applyKnown(_member('alice', 'Captain Al'));
+      await tester.pump();
+      expect(find.text('@Captain Al'), findsOneWidget);
+    },
+  );
 }

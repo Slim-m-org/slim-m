@@ -45,7 +45,7 @@ import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import '../../providers/live_events.dart';
 import '../../features/members/providers/member_presence.dart'
-    show membersProvider;
+    show memberProfileOverridesProvider, membersProvider;
 import '../../features/members/providers/mention_names.dart'
     show mentionNamesFrom;
 import '../../features/messages/providers/message_alert_policy.dart';
@@ -91,7 +91,11 @@ class _DesktopMessageNotifier {
             storeProvider.future,
           )).channelRow(message.channelId)
         : null;
-    final members = showText ? await _roster() : const <api.UserProfile>[];
+    final live = _ref.read(memberProfileOverridesProvider);
+    final members = [
+      for (final m in showText ? await _roster() : const <api.UserProfile>[])
+        live[m.id] ?? m,
+    ];
     final text = desktopNotificationText(
       message,
       showText: showText,

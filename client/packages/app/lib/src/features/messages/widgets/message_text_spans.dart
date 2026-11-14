@@ -167,6 +167,8 @@ class _UserMentionChip extends ConsumerWidget {
     return Tooltip(
       message: raw,
       waitDuration: emojiNameHoverRest,
+      // Read as the name on screen; a separate "@username" node would be read before the message.
+      excludeFromSemantics: true,
       child: _MentionChip('@$shown'),
     );
   }
