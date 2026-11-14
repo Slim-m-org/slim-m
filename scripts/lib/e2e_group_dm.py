@@ -46,6 +46,9 @@ def group_message_reaches_everyone_and_leaving_ends_it(a, b, admin, member, serv
         a.click(L.TEXT_CHANNEL)
         a.click(L.NEW_GROUP_MESSAGE, settle=1.5)
         a.click("Bob", settle=0.5)
+        # The list is capped in height, and every earlier scenario's fresh member sorts beside this one.
+        a.type_into(L.SEARCH_PEOPLE, display)
+        a.settle(0.8)
         a.click(display, settle=0.5)
         a.click(f"{L.START_GROUP_WITH}3 people", settle=3)
         group_id = a.ev("location.hash").split("/channels/")[-1].split("?")[0]

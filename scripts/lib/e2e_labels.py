@@ -78,6 +78,7 @@ NOTES = "Notes"
 
 # Group messages (new_group_dm_sheet.dart, group_dm_members_action.dart, group_dm_members_sheet.dart)
 NEW_GROUP_MESSAGE = "New group message"
+SEARCH_PEOPLE = "Search people"
 START_GROUP_WITH = "Start group with "
 GROUP_MEMBERS = "Group members"
 LEAVE_GROUP = "Leave group"
