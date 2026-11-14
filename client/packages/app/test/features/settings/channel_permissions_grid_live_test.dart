@@ -146,6 +146,13 @@ Future<_Harness> _open(
   return harness;
 }
 
+/// A few frames for a tap and the fake server's reply to land.
+Future<void> _frames(WidgetTester tester) async {
+  for (var i = 0; i < 8; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
 Finder _cell(String columnKey, int bit) =>
     find.byKey(ValueKey('cell:$columnKey:$bit'));
 
@@ -231,17 +238,17 @@ void main() {
       await tester.tap(
         find.bySemanticsLabel('Add a role or member to this grid'),
       );
-      await tester.pumpAndSettle();
+      await _frames(tester);
       await tester.tap(find.text('Nadia').last);
-      await tester.pumpAndSettle();
+      await _frames(tester);
       await _tapCell(tester, 'member:m-nadia', send);
       await tester.tap(find.text('Save changes'));
-      await tester.pumpAndSettle();
+      await _frames(tester);
       expect(harness.stored['member:m-nadia'], (send, 0));
       expect(find.textContaining('unsaved'), findsNothing);
 
       await tester.tap(find.bySemanticsLabel('Remove Nadia from this grid'));
-      await tester.pumpAndSettle();
+      await _frames(tester);
 
       expect(find.text('1 unsaved change'), findsOneWidget);
     });
