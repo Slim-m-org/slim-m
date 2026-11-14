@@ -127,6 +127,8 @@ mod tests {
             content_type: kind.to_owned(),
             size: 1,
             spoiler: false,
+            voice: None,
+            transcript: None,
             original: None,
         }
     }

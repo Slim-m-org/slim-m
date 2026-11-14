@@ -34,7 +34,11 @@ void main() {
     await flush(tester);
     await tester.tap(sendButton);
     await flush(tester);
-    await tester.tap(sendButton);
+    // The button is a mic by now; a second click must not start recording.
+    await tester.tap(
+      find.byTooltip('Record a voice message'),
+      warnIfMissed: false,
+    );
     await flush(tester);
     gate.complete();
     await flush(tester);

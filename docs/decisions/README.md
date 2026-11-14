@@ -127,3 +127,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0116](0116-context-window-for-old-search-hits.md) | An old search hit opens a read-only window around it | accepted |
 | [0117](0117-windows-window-share-overlay.md) | On Windows, viewers' marks on a shared window reach the sharer's screen | accepted |
 | [0118](0118-soundboard.md) | A soundboard of short clips the Space owns, played locally by each listener | accepted |
+| [0119](0119-voice-messages.md) | Voice messages, with optional transcripts from the speech listener the calls already use | accepted |

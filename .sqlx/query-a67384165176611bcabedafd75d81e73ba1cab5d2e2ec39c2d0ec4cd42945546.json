@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings SET transcribe_voice_messages = ?, updated_at = ? WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a67384165176611bcabedafd75d81e73ba1cab5d2e2ec39c2d0ec4cd42945546"
+}

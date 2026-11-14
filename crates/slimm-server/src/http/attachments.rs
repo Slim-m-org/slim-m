@@ -62,6 +62,8 @@ struct UploadParams {
     filename: Option<String>,
     /// Where the file is headed; see `attachment_uploads::may_attach`.
     channel_id: Option<String>,
+    #[serde(flatten)]
+    voice: super::attachment_voice::VoiceParams,
 }
 
 // --- Handlers ---
@@ -103,6 +105,7 @@ async fn upload(
     super::attachment_uploads::may_attach(&state, ctx.user_id, params.channel_id.as_deref())
         .await?;
 
+    let voice_request = params.voice.parse()?;
     let max_bytes = effective_attachment_max(&state).await?;
     // A fast-fail on a declared oversize; the true size is re-checked below.
     if let Some(declared) = content_length(&headers) {
@@ -165,6 +168,8 @@ async fn upload(
         .store
         .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
         .await?;
+    let voice =
+        super::attachment_voice::record(&state, &sha256, content_type, voice_request).await?;
     drop(placing);
     drop(reservation);
     state.media.prewarm_preview(&hex_id, content_type);
@@ -178,6 +183,8 @@ async fn upload(
             size,
             spoiler: false,
             original: None,
+            voice,
+            transcript: None,
         })),
     ))
 }

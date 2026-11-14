@@ -144,6 +144,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::Message(MessageEvent::PollVoted { .. })
         | Event::Message(MessageEvent::ComponentsChanged { .. })
         | Event::Message(MessageEvent::EmbedsChanged { .. })
+        | Event::Message(MessageEvent::VoiceTranscript { .. })
         | Event::Message(MessageEvent::LinkPreviewsRemoved { .. })
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
@@ -240,6 +241,8 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::SoundboardPlayed { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        // Lossy on purpose: reading the message is the catch-up.
+        | Event::Message(MessageEvent::VoiceTranscript { .. })
         | Event::InteractionForm { .. } => true,
         Event::Message(MessageEvent::Created { .. })
         | Event::Message(MessageEvent::Edited { .. })

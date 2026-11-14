@@ -112,7 +112,9 @@ void main() {
     );
 
     final hintCenterY = tester.getCenter(find.byKey(_hintKey)).dy;
-    final sendCenterY = tester.getCenter(sendButton).dy;
+    final sendCenterY = tester
+        .getCenter(find.byTooltip('Record a voice message'))
+        .dy;
     expect(
       (hintCenterY - sendCenterY).abs(),
       lessThan(2),

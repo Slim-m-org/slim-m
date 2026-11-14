@@ -4501,6 +4501,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: voice
+          in: query
+          required: false
+          description: >
+            `true` marks the upload as a voice message. It must then be audio
+            and carry `duration_ms` (1 millisecond up to 5 minutes and 10
+            seconds) and `waveform`, or the request is a 400.
+          schema:
+            type: boolean
+        - name: duration_ms
+          in: query
+          required: false
+          description: The voice message's length in milliseconds; read only with `voice`.
+          schema:
+            type: integer
+            format: int64
+        - name: waveform
+          in: query
+          required: false
+          description: >
+            The voice message's 64 loudness buckets as 128 hex characters, one
+            byte each; read only with `voice`.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -13676,6 +13700,12 @@ components:
         call_transcription_available:
           type: boolean
           description: False when the call audio listener is not configured, so transcription cannot be turned on.
+        transcribe_voice_messages:
+          type: boolean
+          description: Whether the server turns voice messages into text; off by default.
+        transcribe_voice_messages_available:
+          type: boolean
+          description: False when the speech listener is not configured, so voice transcripts cannot be turned on.
         join_policy:
           type: string
           enum: [invite, open]
@@ -13763,6 +13793,16 @@ components:
           type: [integer, "null"]
           description: 1 to 3650, or null to keep transcripts forever.
         call_transcription_available:
+          type: boolean
+          readOnly: true
+          description: Read-only; ignored when sent. See `SpaceSettings`.
+        transcribe_voice_messages:
+          type: boolean
+          description: >
+            Turns voice message transcripts on or off. Turning them on needs
+            the speech listener; a server without one answers 409. Turning them
+            off stops new work and hides the transcripts already made.
+        transcribe_voice_messages_available:
           type: boolean
           readOnly: true
           description: Read-only; ignored when sent. See `SpaceSettings`.
@@ -18408,6 +18448,36 @@ components:
             filename:
               type: string
               description: The name it was uploaded under.
+        voice:
+          type: boolean
+          description: >-
+            True for a voice message recorded in the composer, which then
+            carries `duration_ms` and `waveform`; omitted when false. A property
+            of the bytes: the first upload of a given hash decides.
+        duration_ms:
+          type: integer
+          format: int64
+          description: The length of a voice message, in milliseconds.
+        waveform:
+          type: array
+          items:
+            type: integer
+          description: >-
+            A voice message's loudness in 64 buckets from 0 to 255, so a player
+            can draw it without decoding the audio.
+        transcript:
+          type: object
+          required: [status, text]
+          description: >-
+            What was heard in a voice message, while the Space transcribes
+            them; omitted otherwise. Also sent live as `message.voice_transcript`.
+          properties:
+            status:
+              type: string
+              enum: [pending, ready, failed]
+            text:
+              type: string
+              description: Empty until `ready`, and when nothing was said.
 
     GifResult:
       type: object
@@ -20062,6 +20132,7 @@ components:
         - $ref: "#/components/schemas/CodeRunChanged"
         - $ref: "#/components/schemas/CodeRunsCleared"
         - $ref: "#/components/schemas/MessageLinkPreviewsRemoved"
+        - $ref: "#/components/schemas/MessageVoiceTranscript"
         - $ref: "#/components/schemas/ThreadUpdated"
         - $ref: "#/components/schemas/MessagePinned"
         - $ref: "#/components/schemas/MessageUnpinned"
@@ -20863,6 +20934,31 @@ components:
         message_id:
           type: string
           format: uuid
+
+    MessageVoiceTranscript:
+      type: object
+      required: [type, channel_id, message_id, attachment_id, status, text]
+      description: >
+        A voice message's transcript started, finished or failed, for everyone
+        who can view the channel. Never persisted; reading the message is the
+        catch-up.
+      properties:
+        type:
+          type: string
+          enum: [message.voice_transcript]
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        attachment_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, ready, failed]
+        text:
+          type: string
 
     MessageLinkPreviewsRemoved:
       type: object

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachment_transcripts (sha256, status, text, language, updated_at)\n             SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)\n             ON CONFLICT (sha256) DO UPDATE SET status = excluded.status, text = excluded.text,\n                 language = excluded.language, updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "d913e4047144777352c92098e9c539c6c93c236bf1fbd8c8881634a6cdaa90c8"
+}

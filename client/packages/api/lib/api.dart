@@ -137,6 +137,7 @@ export 'src/events.dart'
         MessageComponentsChanged,
         MessageEmbedsChanged,
         MessageLinkPreviewsRemoved,
+        MessageVoiceTranscript,
         MessageEphemeral,
         MessageEdited,
         MessagePinned,

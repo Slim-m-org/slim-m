@@ -72,3 +72,4 @@ mod space_removal;
 mod space_setup;
 mod space_themes_http;
 mod space_welcome;
+mod voice_transcript_setting;

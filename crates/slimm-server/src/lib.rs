@@ -59,6 +59,7 @@ mod voice_session_sweeps;
 
 pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
 pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
+pub mod voice_transcripts;
 pub use sweeps::{
     run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
     run_transcript_retention_sweep_pass, sweep_stale_call_rings, sweep_stale_call_rings_at,
@@ -198,6 +199,7 @@ pub async fn run() -> anyhow::Result<()> {
     http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let _call_audio = call_audio::runtime::spawn(state.clone());
+    voice_transcripts::spawn_voice_transcript_sweep(state.clone());
     let steam = http::steam_link::SteamLinks::new(&config)?;
     if let Some(steam) = &steam {
         http::steam_presence::spawn(state.clone(), steam.clone());

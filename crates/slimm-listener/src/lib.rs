@@ -2,6 +2,7 @@
 //! The call-audio listener's parts, so tests and the binary share them.
 
 pub mod backlog;
+pub mod clip;
 pub mod config;
 pub mod control;
 pub mod endpoint;
@@ -10,3 +11,4 @@ pub mod protocol;
 pub mod room;
 pub mod session;
 pub mod stt;
+pub mod transcribe;

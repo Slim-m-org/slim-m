@@ -249,6 +249,8 @@ impl Replacement {
             content_type: compressed.content_type.to_owned(),
             size,
             spoiler: false,
+            voice: None,
+            transcript: None,
             original: original.map(|o| OriginalInfo {
                 size: o.size,
                 filename: o.filename,

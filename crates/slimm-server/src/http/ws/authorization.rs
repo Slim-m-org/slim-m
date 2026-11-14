@@ -352,6 +352,19 @@ async fn channel_frame(
             message_id: message_id.to_string(),
             embeds: super::super::embeds::dtos_from_stored(link_previews, (*embeds).clone()),
         },
+        Event::Message(MessageEvent::VoiceTranscript {
+            channel_id,
+            message_id,
+            attachment_id,
+            status,
+            text,
+        }) => ServerFrame::MessageVoiceTranscript {
+            channel_id: channel_id.to_string(),
+            message_id: message_id.to_string(),
+            attachment_id,
+            status,
+            text,
+        },
         Event::Message(MessageEvent::LinkPreviewsRemoved {
             channel_id,
             message_id,

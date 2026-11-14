@@ -21,6 +21,8 @@ use sqlx::QueryBuilder;
 pub(super) mod refs;
 
 use super::attachment_originals::insert_attachment;
+use super::attachment_voice::VoiceInfo;
+use super::voice_transcripts::VoiceTranscript;
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -55,6 +57,10 @@ pub struct AttachmentSummary {
     pub spoiler: bool,
     /// The uploaded original kept beside this copy, when the space kept one.
     pub original: Option<OriginalInfo>,
+    /// Set when this is a voice message.
+    pub voice: Option<VoiceInfo>,
+    /// What was heard in a voice message, while the Space transcribes them.
+    pub transcript: Option<VoiceTranscript>,
 }
 
 /// An uploaded original kept beside a compressed attachment.
@@ -139,10 +145,12 @@ impl Store {
         sha256: &[u8],
     ) -> anyhow::Result<Option<AttachmentSummary>> {
         let row = sqlx::query!(
-            r#"SELECT sha256 AS "sha256!: Vec<u8>", filename AS "filename!",
-                      content_type AS "content_type!", size AS "size!",
-                      original_size AS "original_size!", original_filename AS "original_filename!"
-               FROM attachments WHERE sha256 = ?"#,
+            r#"SELECT a.sha256 AS "sha256!: Vec<u8>", a.filename AS "filename!",
+                      a.content_type AS "content_type!", a.size AS "size!",
+                      a.original_size AS "original_size!", a.original_filename AS "original_filename!",
+                      v.duration_ms AS "voice_ms?: i64", v.waveform AS "voice_waveform?: Vec<u8>"
+               FROM attachments a LEFT JOIN attachment_voice v ON v.sha256 = a.sha256
+               WHERE a.sha256 = ?"#,
             sha256
         )
         .fetch_optional(&self.pool)
@@ -154,6 +162,8 @@ impl Store {
             size: r.size,
             spoiler: false,
             original: OriginalInfo::from_columns(r.original_size, r.original_filename),
+            voice: VoiceInfo::from_columns(r.voice_ms, r.voice_waveform),
+            transcript: None,
         }))
     }
 
@@ -247,9 +257,14 @@ impl Store {
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
             "SELECT ma.message_id, a.sha256, COALESCE(ma.filename, a.filename) AS filename, \
-                    a.content_type, a.size, a.original_size, a.original_filename, ma.spoiler \
+                    a.content_type, a.size, a.original_size, a.original_filename, ma.spoiler, \
+                    v.duration_ms AS voice_ms, v.waveform AS voice_waveform, \
+                    t.status AS transcript_status, t.text AS transcript_text \
              FROM message_attachments ma \
              JOIN attachments a ON a.sha256 = ma.sha256 \
+             LEFT JOIN attachment_voice v ON v.sha256 = a.sha256 \
+             LEFT JOIN attachment_transcripts t ON t.sha256 = a.sha256 \
+                  AND (SELECT transcribe_voice_messages FROM space_settings WHERE id = 1) = 1 \
              WHERE ma.message_id IN (",
         );
         let mut separated = builder.separated(", ");
@@ -274,6 +289,14 @@ impl Store {
                 original: OriginalInfo::from_columns(
                     row.try_get("original_size")?,
                     row.try_get("original_filename")?,
+                ),
+                voice: VoiceInfo::from_columns(
+                    row.try_get("voice_ms")?,
+                    row.try_get("voice_waveform")?,
+                ),
+                transcript: VoiceTranscript::from_columns(
+                    row.try_get("transcript_status")?,
+                    row.try_get("transcript_text")?,
                 ),
             };
             match grouped.iter_mut().find(|(id, _)| *id == message_id) {

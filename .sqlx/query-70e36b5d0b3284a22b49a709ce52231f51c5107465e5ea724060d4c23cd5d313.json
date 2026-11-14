@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachment_voice (sha256, duration_ms, waveform)\n             SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)\n             ON CONFLICT (sha256) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "70e36b5d0b3284a22b49a709ce52231f51c5107465e5ea724060d4c23cd5d313"
+}

@@ -28,6 +28,7 @@ mod attachment_original;
 mod attachment_preview;
 mod attachment_range;
 mod attachment_uploads;
+mod attachment_voice;
 mod attachments;
 mod auth;
 mod bot_commands;

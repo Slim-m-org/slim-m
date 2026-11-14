@@ -18,6 +18,8 @@ class Attachment {
     required this.size,
     this.spoiler = false,
     this.original,
+    this.voice,
+    this.transcript,
   });
 
   /// Hex sha256 of the stored bytes. Also the path segment a fetch uses, and
@@ -42,6 +44,12 @@ class Attachment {
   /// keeps originals; fetched with `fetchAttachment`'s original flag.
   final AttachmentOriginal? original;
 
+  /// Set when this is a voice message recorded in the composer.
+  final VoiceInfo? voice;
+
+  /// What was heard, while the Space transcribes voice messages.
+  final VoiceTranscript? transcript;
+
   /// This attachment as the file that was uploaded, for saving it.
   Attachment? get asOriginal {
     final kept = original;
@@ -65,6 +73,62 @@ class Attachment {
             : AttachmentOriginal.fromJson(
                 json['original'] as Map<String, dynamic>,
               ),
+        voice: json['voice'] == true ? VoiceInfo.fromJson(json) : null,
+        transcript: json['transcript'] == null
+            ? null
+            : VoiceTranscript.fromJson(
+                json['transcript'] as Map<String, dynamic>,
+              ),
+      );
+}
+
+/// What a voice message's player needs: its length and 64 loudness buckets.
+class VoiceInfo {
+  const VoiceInfo({required this.duration, required this.waveform});
+
+  /// How many loudness buckets a waveform has.
+  static const buckets = 64;
+
+  final Duration duration;
+
+  /// [buckets] values from 0 to 255.
+  final List<int> waveform;
+
+  /// Reads the `duration_ms` and `waveform` of an attachment object.
+  factory VoiceInfo.fromJson(Map<String, dynamic> json) => VoiceInfo(
+        duration: Duration(milliseconds: json['duration_ms'] as int? ?? 0),
+        waveform: (json['waveform'] as List<dynamic>? ?? const [])
+            .map((v) => v as int)
+            .toList(growable: false),
+      );
+}
+
+enum VoiceTranscriptStatus {
+  pending,
+  ready,
+  failed;
+
+  static VoiceTranscriptStatus parse(String? raw) => switch (raw) {
+        'ready' => ready,
+        'failed' => failed,
+        _ => pending,
+      };
+}
+
+/// The text of a voice message.
+class VoiceTranscript {
+  const VoiceTranscript({required this.status, this.text = ''});
+
+  final VoiceTranscriptStatus status;
+
+  /// Empty until [status] is ready, and when nothing was said.
+  final String text;
+
+  /// Reads the `status` and `text` of a transcript object or a live frame.
+  factory VoiceTranscript.fromJson(Map<String, dynamic> json) =>
+      VoiceTranscript(
+        status: VoiceTranscriptStatus.parse(json['status'] as String?),
+        text: json['text'] as String? ?? '',
       );
 }
 
