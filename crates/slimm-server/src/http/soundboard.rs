@@ -2,7 +2,7 @@
 //! The soundboard (decision 0118): the Space's named clips, and playing one into a call.
 //!
 //! Managed like custom emoji: readable by every member, written with
-//! MANAGE_SERVER. Playing needs USE_SOUNDBOARD in the call's channel and a seat
+//! MANAGE_SERVER. Playing needs SPEAK and USE_SOUNDBOARD in the call's channel and a seat
 //! in the call; the server only fans a signal out, and each client in the call
 //! plays its own cached copy.
 
@@ -183,6 +183,7 @@ async fn play(
         .await?;
     let needed = Permissions::VIEW_CHANNEL
         .union(Permissions::CONNECT)
+        .union(Permissions::SPEAK)
         .union(Permissions::USE_SOUNDBOARD);
     if !permissions.contains(needed) {
         return Err(ApiError::Forbidden);

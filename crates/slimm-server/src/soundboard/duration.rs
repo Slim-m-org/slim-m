@@ -11,8 +11,29 @@ pub fn of(bytes: &[u8], content_type: &str) -> Option<i64> {
     }
 }
 
+fn le16(bytes: &[u8], at: usize) -> Option<u16> {
+    Some(u16::from_le_bytes(bytes.get(at..at + 2)?.try_into().ok()?))
+}
+
 fn le32(bytes: &[u8], at: usize) -> Option<u32> {
     Some(u32::from_le_bytes(bytes.get(at..at + 4)?.try_into().ok()?))
+}
+
+/// The byte rate an uncompressed `fmt ` body implies, or None when it is
+/// compressed, implausible, or its stated byte rate disagrees, since a forged
+/// rate is how a long clip would pass for a short one.
+fn pcm_byte_rate(bytes: &[u8], body: usize) -> Option<u32> {
+    let format = le16(bytes, body)?;
+    let channels = u32::from(le16(bytes, body + 2)?);
+    let sample_rate = le32(bytes, body + 4)?;
+    let stated = le32(bytes, body + 8)?;
+    let bits = u32::from(le16(bytes, body + 14)?);
+    let plausible = matches!(format, 1 | 3 | 0xFFFE)
+        && (1..=8).contains(&channels)
+        && (8_000..=192_000).contains(&sample_rate)
+        && matches!(bits, 8 | 16 | 24 | 32);
+    let derived = sample_rate * channels * bits / 8;
+    (plausible && stated == derived).then_some(derived)
 }
 
 /// The RIFF chunk walk: byte rate from `fmt `, payload size from `data`.
@@ -24,7 +45,7 @@ fn wav(bytes: &[u8]) -> Option<i64> {
         let size = le32(bytes, at + 4)? as usize;
         let body = at + 8;
         if id == b"fmt " {
-            byte_rate = Some(le32(bytes, body + 8)?);
+            byte_rate = Some(pcm_byte_rate(bytes, body)?);
         } else if id == b"data" {
             let available = bytes.len() - body;
             // A streamed file may write 0xFFFFFFFF or a size past the end; the file's end is the truth.

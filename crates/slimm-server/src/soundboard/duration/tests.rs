@@ -44,6 +44,20 @@ fn a_wav_claiming_more_data_than_it_holds_is_measured_by_what_it_holds() {
 }
 
 #[test]
+fn a_wav_whose_byte_rate_disagrees_with_its_format_has_no_length() {
+    let mut bytes = wav_bytes(16_000);
+    bytes[28..32].copy_from_slice(&u32::MAX.to_le_bytes());
+    assert_eq!(of(&bytes, "audio/wav"), None);
+}
+
+#[test]
+fn a_compressed_wav_has_no_length() {
+    let mut bytes = wav_bytes(16_000);
+    bytes[20..22].copy_from_slice(&2u16.to_le_bytes());
+    assert_eq!(of(&bytes, "audio/wav"), None);
+}
+
+#[test]
 fn a_wav_without_a_data_chunk_has_no_length() {
     assert_eq!(of(&wav_bytes(16_000)[..36], "audio/wav"), None);
 }

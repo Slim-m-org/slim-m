@@ -16,12 +16,13 @@ import '../../channels/providers/channel_permissions.dart';
 import 'call_dock_button.dart';
 import 'soundboard_picker.dart';
 
-/// Whether this member may play clips in [channelId]'s call.
+/// Whether this member may play clips in [channelId]'s call; a listen-only
+/// member cannot, matching the server.
 bool canUseSoundboard(WidgetRef ref, String? channelId) =>
     channelId != null &&
     ref
         .watch(myChannelPermissionsProvider(channelId))
-        .hasPermission(Perm.useSoundboard);
+        .hasPermission(Perm.speak | Perm.useSoundboard);
 
 class SoundboardButton extends StatefulWidget {
   const SoundboardButton({super.key, required this.channelId});

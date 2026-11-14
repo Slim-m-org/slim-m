@@ -274,6 +274,25 @@ async fn a_new_member_holds_use_soundboard_and_a_channel_deny_takes_it_away() {
 }
 
 #[tokio::test]
+async fn someone_who_may_not_speak_in_the_call_cannot_play() {
+    let rig = rig().await;
+    let member = rig.member("member").await;
+    rig.room.seat(&[member.id]);
+    let id = rig.clip("honk").await;
+    rig.store
+        .set_member_overwrite(
+            rig.channel_id,
+            member.id,
+            Permissions::NONE,
+            Permissions::SPEAK,
+        )
+        .await
+        .unwrap();
+    let (status, _) = rig.play(&member.token, &id).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn one_play_per_person_every_three_seconds() {
     let rig = rig().await;
     let member = rig.member("member").await;

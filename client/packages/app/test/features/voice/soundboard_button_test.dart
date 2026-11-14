@@ -160,7 +160,7 @@ void main() {
   });
 
   testWidgets(
-    'only a member holding USE_SOUNDBOARD in the channel gets the button',
+    'only a member holding SPEAK and USE_SOUNDBOARD in the channel gets the button',
     (tester) async {
       Future<bool> seen(int permissions) async {
         late bool shown;
@@ -183,7 +183,11 @@ void main() {
       }
 
       expect(await seen(Perm.connect | Perm.speak), isFalse);
-      expect(await seen(Perm.connect | Perm.useSoundboard), isTrue);
+      expect(await seen(Perm.connect | Perm.useSoundboard), isFalse);
+      expect(
+        await seen(Perm.connect | Perm.speak | Perm.useSoundboard),
+        isTrue,
+      );
     },
   );
 }

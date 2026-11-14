@@ -37,12 +37,12 @@ pub enum AddError {
     Storage(anyhow::Error),
 }
 
-/// Trims a clip name and refuses an empty, over-long or control-laden one.
+/// Trims a clip name and refuses an empty, over-long or hidden-character one.
 pub fn normalize_name(raw: &str) -> Option<String> {
     let name = raw.trim();
     let usable = !name.is_empty()
         && name.chars().count() <= MAX_NAME_CHARS
-        && !name.chars().any(char::is_control);
+        && !name.chars().any(crate::hidden_chars::is_hidden_char);
     usable.then(|| name.to_owned())
 }
 
@@ -118,5 +118,17 @@ pub(crate) fn refused(err: SoundClipError) -> AddError {
     match err {
         SoundClipError::NameTaken => AddError::NameTaken,
         SoundClipError::Full => AddError::Full,
+    }
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::normalize_name;
+
+    #[test]
+    fn a_name_with_an_invisible_or_direction_character_is_refused() {
+        assert_eq!(normalize_name(" honk "), Some("honk".to_owned()));
+        assert_eq!(normalize_name("ho\u{200B}nk"), None);
+        assert_eq!(normalize_name("\u{202E}knoh"), None);
     }
 }

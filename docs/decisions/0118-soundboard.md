@@ -42,7 +42,7 @@ Owner's answers on 2026-11-13:
 
 ## Playing
 
-- `POST /channels/{id}/voice/soundboard/{clip}/play` needs `VIEW_CHANNEL`, `CONNECT` and `USE_SOUNDBOARD` in the channel, so a channel overwrite can take it away, and the caller must be in the call.
+- `POST /channels/{id}/voice/soundboard/{clip}/play` needs `VIEW_CHANNEL`, `CONNECT`, `SPEAK` and `USE_SOUNDBOARD` in the channel, so a channel overwrite can take it away and a listen-only member cannot play, and the caller must be in the call.
 - The server lists the call's participants from the SFU and publishes one private `soundboard.played` event per participant.
   A member who is only watching the channel never receives it, and a member who is not in the call cannot trigger it.
 - The frame is `{channel_id, clip_id, player_id}`.
