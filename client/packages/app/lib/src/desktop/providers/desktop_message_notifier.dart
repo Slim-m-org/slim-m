@@ -127,7 +127,13 @@ class _DesktopMessageNotifier {
   Future<List<api.UserProfile>> _roster() async {
     try {
       return await _ref.read(membersProvider.future);
-    } on Object {
+    } catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.platform,
+        'Could not read the member list; the alert keeps the names as sent',
+        error,
+        stack,
+      );
       return const [];
     }
   }
