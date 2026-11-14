@@ -53,6 +53,7 @@ class MessageTranscript extends StatefulWidget {
     this.channelName,
     this.channelIsThread = false,
     this.channelIsVoice = false,
+    this.channelIsGroup = false,
     this.channelTopic,
     this.threadParent,
     required this.scrollController,
@@ -113,8 +114,9 @@ class MessageTranscript extends StatefulWidget {
   /// "name" is a person, or a voice channel), which simply omits it.
   final String? channelName;
 
-  /// Whether this is a voice channel's chat; picks the empty-state copy.
+  /// Whether this is a voice channel's chat, or a group DM; each picks its empty-state copy.
   final bool channelIsVoice;
+  final bool channelIsGroup;
 
   /// Whether this transcript is a thread's own, which takes its own start
   /// copy rather than a channel welcome with an empty name in it.
@@ -335,6 +337,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       channelTopic: widget.channelTopic,
       channelIsThread: widget.channelIsThread,
       channelIsVoice: widget.channelIsVoice,
+      channelIsGroup: widget.channelIsGroup,
       threadParent: widget.threadParent,
     );
     // Shrink-wrapped, a thread lays out every row: affordable only while it is short.

@@ -46,6 +46,7 @@ class ChannelStartHeader extends StatelessWidget {
     this.topic,
     this.isThread = false,
     this.isVoice = false,
+    this.isGroup = false,
   });
 
   final String? name;
@@ -56,6 +57,9 @@ class ChannelStartHeader extends StatelessWidget {
 
   /// A voice channel's chat: [name] is its name, shown without a hash.
   final bool isVoice;
+
+  /// A group DM, which is more than "the two of you".
+  final bool isGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +124,8 @@ class ChannelStartHeader extends StatelessWidget {
               topic ??
                   'This is the start of the chat for the $n voice channel.',
             final String n => topic ?? 'This is the start of the #$n channel.',
+            null when isGroup =>
+              'Messages sent here are just between the people in this group.',
             null => 'Messages sent here are just between the two of you.',
           }, style: AppText.body.copyWith(color: tokens.textSecondary)),
         ],

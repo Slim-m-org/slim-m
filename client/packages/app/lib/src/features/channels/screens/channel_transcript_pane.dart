@@ -66,6 +66,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.channelTopic,
     required this.isThread,
     this.isVoice = false,
+    this.isGroup = false,
     this.searchPage = false,
     required this.lastReadSeq,
     required this.syncedSeq,
@@ -89,6 +90,9 @@ class ChannelTranscriptPane extends ConsumerWidget {
 
   /// A voice channel's chat, whose empty state is not the text channel's.
   final bool isVoice;
+
+  /// A group DM, whose empty state speaks to a group rather than a pair.
+  final bool isGroup;
 
   /// The phone's search page is up: it shows in place of the transcript even
   /// before a query, and a jump arriving from elsewhere closes it.
@@ -304,6 +308,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
                           channelName: hashChannelName,
                           channelIsThread: isThread,
                           channelIsVoice: isVoice,
+                          channelIsGroup: isGroup,
                           channelTopic: channelTopic,
                           threadParent: isThread
                               ? ThreadParentSlot(channelId: channelId)

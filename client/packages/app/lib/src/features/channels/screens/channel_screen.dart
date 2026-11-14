@@ -450,6 +450,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               composer: _composer,
               hashChannelName: isVoice ? channelName : hashChannelName,
               isVoice: isVoice,
+              isGroup: channel?.isGroupDm ?? false,
               searchPage: searchPage,
               channelTopic: channel?.topic,
               isThread: isThread,
