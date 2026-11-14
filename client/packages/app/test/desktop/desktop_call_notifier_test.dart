@@ -18,8 +18,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/providers/desktop_call_notifier.dart';
+import 'package:slimm_app/src/desktop/providers/desktop_message_text_settings.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/push/providers/push_controller.dart';
@@ -30,6 +32,7 @@ import '../support/fake_taskbar_attention.dart';
 
 class _FakeNotifications implements LocalNotifications {
   final shown = <LocalAlertChannel>[];
+  final titles = <String?>[];
   final cancelled = <LocalAlertChannel>[];
 
   @override
@@ -39,7 +42,10 @@ class _FakeNotifications implements LocalNotifications {
     String? title,
     String? payload,
     int? id,
-  }) async => shown.add(channel);
+  }) async {
+    shown.add(channel);
+    titles.add(title);
+  }
 
   @override
   Future<void> cancel(LocalAlertChannel channel) async =>
@@ -62,7 +68,11 @@ void main() {
   late FakeTaskbarAttention taskbar;
   late ProviderContainer container;
 
+  late Completer<void> usersAnswer;
+
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    usersAnswer = Completer<void>()..complete();
     events = StreamController<api.ServerEvent>.broadcast();
     notifications = _FakeNotifications();
     taskbar = FakeTaskbarAttention();
@@ -73,13 +83,18 @@ void main() {
         liveEventsProvider.overrideWithValue(events.stream),
         localNotificationsProvider.overrideWithValue(notifications),
         taskbarAttentionProvider.overrideWithValue(taskbar),
-        mockApiOverride(
-          (_) async => http.Response(
-            '[]',
+        mockApiOverride((request) async {
+          final users = request.url.path.endsWith('/users');
+          if (users) await usersAnswer.future;
+          return http.Response(
+            users
+                ? '[{"id":"someone-else","username":"sam",'
+                      '"display_name":"Sam","created_at":0}]'
+                : '[]',
             200,
             headers: {'content-type': 'application/json'},
-          ),
-        ),
+          );
+        }),
       ],
     );
     container.read(desktopCallNotifierProvider);
@@ -89,7 +104,7 @@ void main() {
 
   /// One turn of the event loop, which is all a broadcast stream needs to
   /// deliver to the controller and the listener behind it.
-  Future<void> settle() => Future<void>.delayed(Duration.zero);
+  Future<void> settle() => pumpEventQueue();
 
   Future<void> ring(String ringId, {String callerId = 'someone-else'}) async {
     events.add(
@@ -115,6 +130,31 @@ void main() {
     await ring('r1');
 
     expect(notifications.shown, [LocalAlertChannel.calls]);
+  });
+
+  test('the notification names the caller', () async {
+    await ring('r1');
+
+    expect(notifications.titles, ['Sam']);
+  });
+
+  test('with message text hidden it does not name the caller', () async {
+    SharedPreferences.setMockInitialValues({desktopMessageTextKey: false});
+    container.invalidate(preferencesProvider);
+
+    await ring('r1');
+
+    expect(notifications.titles, [null]);
+  });
+
+  test('a ring that ends before the name arrives raises nothing', () async {
+    usersAnswer = Completer<void>();
+    await ring('r1');
+    await endRing('r1');
+    usersAnswer.complete();
+    await settle();
+
+    expect(notifications.shown, isEmpty);
   });
 
   test('a ring flashes the taskbar and stops it when the ring ends', () async {
