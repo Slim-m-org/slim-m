@@ -74,4 +74,38 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.130.0',
+    headline: 'Voice messages, a soundboard, and names in mentions',
+    points: [
+      WhatsNewPoint(
+        'Record a voice message with the mic button, which takes the place '
+        'of Send while the message box is empty. Spaces can turn on '
+        'transcripts in Space settings, under Voice.',
+      ),
+      WhatsNewPoint(
+        'Calls have a soundboard. Admins add short clips in Space settings, '
+        'and anyone in the call can play one. Turn off Soundboard sounds in '
+        'Notifications to stop hearing them.',
+      ),
+      WhatsNewPoint(
+        'A mention reads as the name people use in this Space. Hover it to '
+        'see the username.',
+      ),
+      WhatsNewPoint(
+        'On Windows, messages and calls in the background show a '
+        'notification, flash the taskbar button and badge it with your '
+        'unread count.',
+      ),
+      WhatsNewPoint(
+        'Opening a search result from long ago shows it in place, with a '
+        'bar to jump back to the present.',
+      ),
+      WhatsNewPoint(
+        'Fixed "In a call on another device" showing after you left a call '
+        'or reloaded, and a Linux crash when joining a call without a '
+        'sound server.',
+      ),
+    ],
+  ),
 ];
