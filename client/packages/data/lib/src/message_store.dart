@@ -310,6 +310,7 @@ class MessageStore {
       await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
           .write(const ChannelsCompanion(
         cursor: Value(0),
+        liveSeq: Value(null),
         mentionedSeq: Value(0),
         opCursor: Value(null),
       ));
@@ -405,7 +406,7 @@ class MessageStore {
   /// vanish from every view. Same operation either way.
   Future<void> discard(String id) async {
     await pending_impl.forgetPendingAttachments(this, id);
-    await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
+    await cursors_impl.discardRowHelper(this, id);
   }
 
   /// The attachment ids a send was queued with, for a retry to carry again.

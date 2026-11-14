@@ -71,7 +71,7 @@ Future<List<InboxEntry>> buildInbox(
       InboxEntry(
         channel: w.channel,
         mentioned: w.mentioned,
-        unread: w.channel.cursor - w.channel.lastReadSeq,
+        unread: w.channel.standingSeq - w.channel.lastReadSeq,
         message: messages[w.channel.id],
       ),
   ];

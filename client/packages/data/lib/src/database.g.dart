@@ -41,6 +41,12 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _liveSeqMeta =
+      const VerificationMeta('liveSeq');
+  @override
+  late final GeneratedColumn<int> liveSeq = GeneratedColumn<int>(
+      'live_seq', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _lastReadSeqMeta =
       const VerificationMeta('lastReadSeq');
   @override
@@ -185,6 +191,7 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
         createdAt,
         topic,
         cursor,
+        liveSeq,
         lastReadSeq,
         mentionedSeq,
         manuallyUnread,
@@ -244,6 +251,10 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
     if (data.containsKey('cursor')) {
       context.handle(_cursorMeta,
           cursor.isAcceptableOrUnknown(data['cursor']!, _cursorMeta));
+    }
+    if (data.containsKey('live_seq')) {
+      context.handle(_liveSeqMeta,
+          liveSeq.isAcceptableOrUnknown(data['live_seq']!, _liveSeqMeta));
     }
     if (data.containsKey('last_read_seq')) {
       context.handle(
@@ -366,6 +377,8 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
           .read(DriftSqlType.string, data['${effectivePrefix}topic']),
       cursor: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}cursor'])!,
+      liveSeq: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}live_seq']),
       lastReadSeq: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}last_read_seq'])!,
       mentionedSeq: attachedDatabase.typeMapping
@@ -423,15 +436,18 @@ class Channel extends DataClass implements Insertable<Channel> {
   /// The highest `seq` this client holds for the channel: the sync cursor.
   final int cursor;
 
+  /// The highest `seq` among this channel's messages still standing here, which unlike [cursor] falls back when that message is deleted.
+  /// Null on a row written before it was tracked; read it through `standingSeq`.
+  final int? liveSeq;
+
   /// How far the user has read, mirrored from the server.
   final int lastReadSeq;
 
   /// The highest `seq` of a message in this channel that mentioned the
-  /// caller, the same "sync cursor" shape [cursor] already is: advanced by
-  /// [MessageStore.applyMessage] whenever an applied `api.Message` carries
-  /// `mentionsMe`, never lowered. `mentionedSeq > lastReadSeq` is the rail's
-  /// unread-mention flag, the same `cursor > lastReadSeq` comparison already
-  /// drives the plain unread dot - see `rail_channel.dart`.
+  /// caller: advanced by [MessageStore.applyMessage] whenever an applied
+  /// `api.Message` carries `mentionsMe`, and cleared when that message is
+  /// deleted. `mentionedSeq > lastReadSeq` is the rail's unread-mention flag,
+  /// beside `standingSeq > lastReadSeq` for the plain dot - see `rail_channel.dart`.
   final int mentionedSeq;
 
   /// The reader asked to see this channel as unread even though they have
@@ -529,6 +545,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       required this.createdAt,
       this.topic,
       required this.cursor,
+      this.liveSeq,
       required this.lastReadSeq,
       required this.mentionedSeq,
       this.manuallyUnread,
@@ -558,6 +575,9 @@ class Channel extends DataClass implements Insertable<Channel> {
       map['topic'] = Variable<String>(topic);
     }
     map['cursor'] = Variable<int>(cursor);
+    if (!nullToAbsent || liveSeq != null) {
+      map['live_seq'] = Variable<int>(liveSeq);
+    }
     map['last_read_seq'] = Variable<int>(lastReadSeq);
     map['mentioned_seq'] = Variable<int>(mentionedSeq);
     if (!nullToAbsent || manuallyUnread != null) {
@@ -612,6 +632,9 @@ class Channel extends DataClass implements Insertable<Channel> {
       topic:
           topic == null && nullToAbsent ? const Value.absent() : Value(topic),
       cursor: Value(cursor),
+      liveSeq: liveSeq == null && nullToAbsent
+          ? const Value.absent()
+          : Value(liveSeq),
       lastReadSeq: Value(lastReadSeq),
       mentionedSeq: Value(mentionedSeq),
       manuallyUnread: manuallyUnread == null && nullToAbsent
@@ -667,6 +690,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       createdAt: serializer.fromJson<int>(json['createdAt']),
       topic: serializer.fromJson<String?>(json['topic']),
       cursor: serializer.fromJson<int>(json['cursor']),
+      liveSeq: serializer.fromJson<int?>(json['liveSeq']),
       lastReadSeq: serializer.fromJson<int>(json['lastReadSeq']),
       mentionedSeq: serializer.fromJson<int>(json['mentionedSeq']),
       manuallyUnread: serializer.fromJson<bool?>(json['manuallyUnread']),
@@ -698,6 +722,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       'createdAt': serializer.toJson<int>(createdAt),
       'topic': serializer.toJson<String?>(topic),
       'cursor': serializer.toJson<int>(cursor),
+      'liveSeq': serializer.toJson<int?>(liveSeq),
       'lastReadSeq': serializer.toJson<int>(lastReadSeq),
       'mentionedSeq': serializer.toJson<int>(mentionedSeq),
       'manuallyUnread': serializer.toJson<bool?>(manuallyUnread),
@@ -726,6 +751,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           int? createdAt,
           Value<String?> topic = const Value.absent(),
           int? cursor,
+          Value<int?> liveSeq = const Value.absent(),
           int? lastReadSeq,
           int? mentionedSeq,
           Value<bool?> manuallyUnread = const Value.absent(),
@@ -751,6 +777,7 @@ class Channel extends DataClass implements Insertable<Channel> {
         createdAt: createdAt ?? this.createdAt,
         topic: topic.present ? topic.value : this.topic,
         cursor: cursor ?? this.cursor,
+        liveSeq: liveSeq.present ? liveSeq.value : this.liveSeq,
         lastReadSeq: lastReadSeq ?? this.lastReadSeq,
         mentionedSeq: mentionedSeq ?? this.mentionedSeq,
         manuallyUnread:
@@ -786,6 +813,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       topic: data.topic.present ? data.topic.value : this.topic,
       cursor: data.cursor.present ? data.cursor.value : this.cursor,
+      liveSeq: data.liveSeq.present ? data.liveSeq.value : this.liveSeq,
       lastReadSeq:
           data.lastReadSeq.present ? data.lastReadSeq.value : this.lastReadSeq,
       mentionedSeq: data.mentionedSeq.present
@@ -838,6 +866,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           ..write('createdAt: $createdAt, ')
           ..write('topic: $topic, ')
           ..write('cursor: $cursor, ')
+          ..write('liveSeq: $liveSeq, ')
           ..write('lastReadSeq: $lastReadSeq, ')
           ..write('mentionedSeq: $mentionedSeq, ')
           ..write('manuallyUnread: $manuallyUnread, ')
@@ -868,6 +897,7 @@ class Channel extends DataClass implements Insertable<Channel> {
         createdAt,
         topic,
         cursor,
+        liveSeq,
         lastReadSeq,
         mentionedSeq,
         manuallyUnread,
@@ -897,6 +927,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           other.createdAt == this.createdAt &&
           other.topic == this.topic &&
           other.cursor == this.cursor &&
+          other.liveSeq == this.liveSeq &&
           other.lastReadSeq == this.lastReadSeq &&
           other.mentionedSeq == this.mentionedSeq &&
           other.manuallyUnread == this.manuallyUnread &&
@@ -924,6 +955,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
   final Value<int> createdAt;
   final Value<String?> topic;
   final Value<int> cursor;
+  final Value<int?> liveSeq;
   final Value<int> lastReadSeq;
   final Value<int> mentionedSeq;
   final Value<bool?> manuallyUnread;
@@ -950,6 +982,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.createdAt = const Value.absent(),
     this.topic = const Value.absent(),
     this.cursor = const Value.absent(),
+    this.liveSeq = const Value.absent(),
     this.lastReadSeq = const Value.absent(),
     this.mentionedSeq = const Value.absent(),
     this.manuallyUnread = const Value.absent(),
@@ -977,6 +1010,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     required int createdAt,
     this.topic = const Value.absent(),
     this.cursor = const Value.absent(),
+    this.liveSeq = const Value.absent(),
     this.lastReadSeq = const Value.absent(),
     this.mentionedSeq = const Value.absent(),
     this.manuallyUnread = const Value.absent(),
@@ -1007,6 +1041,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     Expression<int>? createdAt,
     Expression<String>? topic,
     Expression<int>? cursor,
+    Expression<int>? liveSeq,
     Expression<int>? lastReadSeq,
     Expression<int>? mentionedSeq,
     Expression<bool>? manuallyUnread,
@@ -1034,6 +1069,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       if (createdAt != null) 'created_at': createdAt,
       if (topic != null) 'topic': topic,
       if (cursor != null) 'cursor': cursor,
+      if (liveSeq != null) 'live_seq': liveSeq,
       if (lastReadSeq != null) 'last_read_seq': lastReadSeq,
       if (mentionedSeq != null) 'mentioned_seq': mentionedSeq,
       if (manuallyUnread != null) 'manually_unread': manuallyUnread,
@@ -1064,6 +1100,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       Value<int>? createdAt,
       Value<String?>? topic,
       Value<int>? cursor,
+      Value<int?>? liveSeq,
       Value<int>? lastReadSeq,
       Value<int>? mentionedSeq,
       Value<bool?>? manuallyUnread,
@@ -1090,6 +1127,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       createdAt: createdAt ?? this.createdAt,
       topic: topic ?? this.topic,
       cursor: cursor ?? this.cursor,
+      liveSeq: liveSeq ?? this.liveSeq,
       lastReadSeq: lastReadSeq ?? this.lastReadSeq,
       mentionedSeq: mentionedSeq ?? this.mentionedSeq,
       manuallyUnread: manuallyUnread ?? this.manuallyUnread,
@@ -1132,6 +1170,9 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     }
     if (cursor.present) {
       map['cursor'] = Variable<int>(cursor.value);
+    }
+    if (liveSeq.present) {
+      map['live_seq'] = Variable<int>(liveSeq.value);
     }
     if (lastReadSeq.present) {
       map['last_read_seq'] = Variable<int>(lastReadSeq.value);
@@ -1202,6 +1243,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
           ..write('createdAt: $createdAt, ')
           ..write('topic: $topic, ')
           ..write('cursor: $cursor, ')
+          ..write('liveSeq: $liveSeq, ')
           ..write('lastReadSeq: $lastReadSeq, ')
           ..write('mentionedSeq: $mentionedSeq, ')
           ..write('manuallyUnread: $manuallyUnread, ')
@@ -3328,6 +3370,7 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   required int createdAt,
   Value<String?> topic,
   Value<int> cursor,
+  Value<int?> liveSeq,
   Value<int> lastReadSeq,
   Value<int> mentionedSeq,
   Value<bool?> manuallyUnread,
@@ -3355,6 +3398,7 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<int> createdAt,
   Value<String?> topic,
   Value<int> cursor,
+  Value<int?> liveSeq,
   Value<int> lastReadSeq,
   Value<int> mentionedSeq,
   Value<bool?> manuallyUnread,
@@ -3402,6 +3446,9 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<int> get cursor => $composableBuilder(
       column: $table.cursor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get liveSeq => $composableBuilder(
+      column: $table.liveSeq, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get lastReadSeq => $composableBuilder(
       column: $table.lastReadSeq, builder: (column) => ColumnFilters(column));
@@ -3490,6 +3537,9 @@ class $$ChannelsTableOrderingComposer
 
   ColumnOrderings<int> get cursor => $composableBuilder(
       column: $table.cursor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get liveSeq => $composableBuilder(
+      column: $table.liveSeq, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get lastReadSeq => $composableBuilder(
       column: $table.lastReadSeq, builder: (column) => ColumnOrderings(column));
@@ -3581,6 +3631,9 @@ class $$ChannelsTableAnnotationComposer
   GeneratedColumn<int> get cursor =>
       $composableBuilder(column: $table.cursor, builder: (column) => column);
 
+  GeneratedColumn<int> get liveSeq =>
+      $composableBuilder(column: $table.liveSeq, builder: (column) => column);
+
   GeneratedColumn<int> get lastReadSeq => $composableBuilder(
       column: $table.lastReadSeq, builder: (column) => column);
 
@@ -3665,6 +3718,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<int> createdAt = const Value.absent(),
             Value<String?> topic = const Value.absent(),
             Value<int> cursor = const Value.absent(),
+            Value<int?> liveSeq = const Value.absent(),
             Value<int> lastReadSeq = const Value.absent(),
             Value<int> mentionedSeq = const Value.absent(),
             Value<bool?> manuallyUnread = const Value.absent(),
@@ -3692,6 +3746,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             createdAt: createdAt,
             topic: topic,
             cursor: cursor,
+            liveSeq: liveSeq,
             lastReadSeq: lastReadSeq,
             mentionedSeq: mentionedSeq,
             manuallyUnread: manuallyUnread,
@@ -3719,6 +3774,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             required int createdAt,
             Value<String?> topic = const Value.absent(),
             Value<int> cursor = const Value.absent(),
+            Value<int?> liveSeq = const Value.absent(),
             Value<int> lastReadSeq = const Value.absent(),
             Value<int> mentionedSeq = const Value.absent(),
             Value<bool?> manuallyUnread = const Value.absent(),
@@ -3746,6 +3802,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             createdAt: createdAt,
             topic: topic,
             cursor: cursor,
+            liveSeq: liveSeq,
             lastReadSeq: lastReadSeq,
             mentionedSeq: mentionedSeq,
             manuallyUnread: manuallyUnread,

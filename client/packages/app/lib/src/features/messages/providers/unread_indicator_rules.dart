@@ -67,7 +67,7 @@ UnreadIndicator unreadIndicatorForChannel(
 }) => unreadIndicatorFor(
   channelOverride: channelOverride,
   isDm: isDm,
-  unread: channel.cursor > channel.lastReadSeq,
+  unread: channel.standingSeq > channel.lastReadSeq,
   mentioned: channel.mentionedSeq > channel.lastReadSeq,
   manuallyUnread: channel.manuallyUnread ?? false,
 );

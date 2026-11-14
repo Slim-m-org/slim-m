@@ -60,7 +60,13 @@ Future<void> advanceCursorHelper(
         ..where((c) => c.id.equals(channelId)))
       .getSingleOrNull();
   final newest = seqs.reduce(math.max);
-  if (row == null || row.cursor >= newest) return;
+  if (row == null) return;
+  // A row stands once it is stored, whether or not the cursor may move over it.
+  if ((row.liveSeq ?? row.cursor) < newest) {
+    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+        .write(ChannelsCompanion(liveSeq: Value(newest)));
+  }
+  if (row.cursor >= newest) return;
   final cursor = row.cursor;
   if (advance == CursorAdvance.whenContiguous && cursor > 0) {
     final nextHeld = seqs.where((seq) => seq > cursor).reduce(math.min);
@@ -68,6 +74,38 @@ Future<void> advanceCursorHelper(
   }
   await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
       .write(ChannelsCompanion(cursor: Value(newest)));
+}
+
+/// Drops one message row, walking the channel's standing seq back to the newest row left and clearing a mention that was this one.
+Future<void> discardRowHelper(MessageStore store, String id) async {
+  final db = store.db;
+  await db.transaction(() async {
+    final gone = await (db.select(db.messages)..where((m) => m.id.equals(id)))
+        .getSingleOrNull();
+    await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
+    if (gone == null || gone.seq <= 0) return;
+    final row = await channelRow(store, gone.channelId);
+    if (row == null) return;
+    final standing = row.liveSeq ?? row.cursor;
+    final newest = standing > gone.seq
+        ? standing
+        : await _newestHeldSeq(db, gone.channelId);
+    await (db.update(db.channels)..where((c) => c.id.equals(gone.channelId)))
+        .write(ChannelsCompanion(
+      liveSeq: Value(newest),
+      mentionedSeq:
+          row.mentionedSeq == gone.seq ? const Value(0) : const Value.absent(),
+    ));
+  });
+}
+
+Future<int> _newestHeldSeq(SlimmDatabase db, String channelId) async {
+  final got = await db.customSelect(
+    'SELECT MAX(seq) AS newest FROM messages WHERE channel_id = ? AND seq > 0',
+    variables: [Variable.withString(channelId)],
+    readsFrom: {db.messages},
+  ).getSingle();
+  return got.read<int?>('newest') ?? 0;
 }
 
 /// [advanceCursorHelper]'s own shape for `mentionedSeq`, only ever called for a

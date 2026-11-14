@@ -106,6 +106,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'or reloaded, and a Linux crash when joining a call without a '
         'sound server.',
       ),
+      WhatsNewPoint(
+        'A channel no longer stays unread after the message you had not '
+        'read yet is deleted.',
+      ),
     ],
   ),
 ];

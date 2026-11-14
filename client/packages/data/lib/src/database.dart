@@ -25,15 +25,18 @@ class Channels extends Table {
   /// The highest `seq` this client holds for the channel: the sync cursor.
   IntColumn get cursor => integer().withDefault(const Constant(0))();
 
+  /// The highest `seq` among this channel's messages still standing here, which unlike [cursor] falls back when that message is deleted.
+  /// Null on a row written before it was tracked; read it through `standingSeq`.
+  IntColumn get liveSeq => integer().nullable()();
+
   /// How far the user has read, mirrored from the server.
   IntColumn get lastReadSeq => integer().withDefault(const Constant(0))();
 
   /// The highest `seq` of a message in this channel that mentioned the
-  /// caller, the same "sync cursor" shape [cursor] already is: advanced by
-  /// [MessageStore.applyMessage] whenever an applied `api.Message` carries
-  /// `mentionsMe`, never lowered. `mentionedSeq > lastReadSeq` is the rail's
-  /// unread-mention flag, the same `cursor > lastReadSeq` comparison already
-  /// drives the plain unread dot - see `rail_channel.dart`.
+  /// caller: advanced by [MessageStore.applyMessage] whenever an applied
+  /// `api.Message` carries `mentionsMe`, and cleared when that message is
+  /// deleted. `mentionedSeq > lastReadSeq` is the rail's unread-mention flag,
+  /// beside `standingSeq > lastReadSeq` for the plain dot - see `rail_channel.dart`.
   IntColumn get mentionedSeq => integer().withDefault(const Constant(0))();
 
   /// The reader asked to see this channel as unread even though they have
@@ -326,7 +329,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 29;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -434,6 +437,12 @@ class SlimmDatabase extends _$SlimmDatabase {
             () => _addColumnOnce(m, messages, messages.linkPreviewsRemoved)),
         _UpgradeStep(
             28, () => _addColumnOnce(m, channels, channels.dmMemberIds)),
+        _UpgradeStep(29, () async {
+          await _addColumnOnce(m, channels, channels.liveSeq);
+          await m.database.customStatement(
+              'UPDATE channels SET live_seq = COALESCE((SELECT MAX(seq) FROM messages '
+              'WHERE messages.channel_id = channels.id AND seq > 0), cursor)');
+        }),
       ];
 
   /// How each schema version is reached. Most add a column in place that the
