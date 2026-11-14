@@ -4499,6 +4499,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: voice
+          in: query
+          required: false
+          description: >
+            `true` marks the upload as a voice message. It must then be audio
+            and carry `duration_ms` (1 millisecond up to 5 minutes and 10
+            seconds) and `waveform`, or the request is a 400.
+          schema:
+            type: boolean
+        - name: duration_ms
+          in: query
+          required: false
+          description: The voice message's length in milliseconds; read only with `voice`.
+          schema:
+            type: integer
+            format: int64
+        - name: waveform
+          in: query
+          required: false
+          description: >
+            The voice message's 64 loudness buckets as 128 hex characters, one
+            byte each; read only with `voice`.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -18187,6 +18211,23 @@ components:
             filename:
               type: string
               description: The name it was uploaded under.
+        voice:
+          type: boolean
+          description: >-
+            True for a voice message recorded in the composer, which then
+            carries `duration_ms` and `waveform`; omitted when false. A property
+            of the bytes: the first upload of a given hash decides.
+        duration_ms:
+          type: integer
+          format: int64
+          description: The length of a voice message, in milliseconds.
+        waveform:
+          type: array
+          items:
+            type: integer
+          description: >-
+            A voice message's loudness in 64 buckets from 0 to 255, so a player
+            can draw it without decoding the audio.
 
     GifResult:
       type: object
