@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'voice_recording.dart';
 
@@ -44,7 +45,13 @@ class RecordVoiceCapture implements VoiceCaptureBackend {
       try {
         await _begin(AudioEncoder.opus, 'ogg');
         return true;
-      } on Object {
+      } on Object catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.voice,
+          'Opus recording failed, recording WAV instead',
+          error,
+          stack,
+        );
         await _recorder.cancel();
       }
     }

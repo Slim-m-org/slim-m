@@ -3,6 +3,7 @@
 /// a running clock with the live level, and send.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,47 @@ import '../providers/voice_recording.dart';
 
 /// Called with the stored voice message and the bytes it was recorded as.
 typedef VoiceSent = void Function(Attachment attachment, Uint8List bytes);
+
+/// The mic that stands in for Send. It wakes a moment after it appears, so the
+/// second click of a double-click on Send cannot land on it and start recording.
+class ComposerMicButton extends StatefulWidget {
+  const ComposerMicButton({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  /// How long a fresh mic ignores presses.
+  static const wakeDelay = Duration(milliseconds: 600);
+
+  @override
+  State<ComposerMicButton> createState() => _ComposerMicButtonState();
+}
+
+class _ComposerMicButtonState extends State<ComposerMicButton> {
+  late final Timer _wake;
+  bool _awake = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _wake = Timer(ComposerMicButton.wakeDelay, () {
+      if (mounted) setState(() => _awake = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _wake.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AppIconButton(
+    icon: AppIcons.mic,
+    semanticLabel: 'Record a voice message',
+    tooltip: 'Record a voice message',
+    onPressed: _awake ? widget.onPressed : null,
+  );
+}
 
 class ComposerVoiceBar extends ConsumerWidget {
   const ComposerVoiceBar({

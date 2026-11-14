@@ -9,7 +9,7 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show Attachment;
+import 'package:slimm_api/api.dart' show Attachment, AppLog, LogTag;
 import 'package:slimm_platform/platform.dart' show isIOSHost;
 
 import '../../../audio/sound_output_router.dart';
@@ -169,7 +169,13 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
       await _engine.play(bytes, voice.contentType, state.speed);
       if (state.attachmentId != voice.id) return;
       state = state.copyWith(loading: false, playing: true);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'A voice message could not play',
+        error,
+        stack,
+      );
       if (state.attachmentId != voice.id) return;
       state = VoicePlaybackState(
         speed: state.speed,

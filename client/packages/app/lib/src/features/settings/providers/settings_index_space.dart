@@ -185,6 +185,18 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['transcription', 'delete', 'history'],
   ),
   SettingsEntry(
+    _voicePage,
+    'Voice messages',
+    description: 'Members read them without playing them.',
+    keywords: ['transcribe', 'transcript', 'speech', 'listener'],
+  ),
+  SettingsEntry(
+    _voicePage,
+    'Transcribe voice messages',
+    description: 'Members read them without playing them.',
+    keywords: ['transcript', 'speech', 'listener', 'audio'],
+  ),
+  SettingsEntry(
     'retention',
     'Message retention',
     description: 'How long messages are kept before they are deleted.',

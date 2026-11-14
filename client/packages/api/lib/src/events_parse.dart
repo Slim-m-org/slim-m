@@ -162,6 +162,16 @@ ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
         messageId: decoded['message_id'] as String,
         components: ComponentRow.listFromJson(decoded['components']),
       ),
+    'message.voice_transcript'
+        when decoded['channel_id'] is String &&
+            decoded['message_id'] is String &&
+            decoded['attachment_id'] is String =>
+      MessageVoiceTranscript(
+        channelId: decoded['channel_id'] as String,
+        messageId: decoded['message_id'] as String,
+        attachmentId: decoded['attachment_id'] as String,
+        transcript: VoiceTranscript.fromJson(decoded),
+      ),
     'message.embeds'
         when decoded['channel_id'] is String &&
             decoded['message_id'] is String &&

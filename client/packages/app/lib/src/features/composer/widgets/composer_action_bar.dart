@@ -147,10 +147,7 @@ class ComposerActionBar extends ConsumerWidget {
                         else
                           ..._pointerButtons(context),
                         if (canRecord && !canSend)
-                          AppIconButton(
-                            icon: AppIcons.mic,
-                            semanticLabel: 'Record a voice message',
-                            tooltip: 'Record a voice message',
+                          ComposerMicButton(
                             onPressed: () => unawaited(
                               ref
                                   .read(

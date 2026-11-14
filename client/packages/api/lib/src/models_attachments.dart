@@ -19,6 +19,7 @@ class Attachment {
     this.spoiler = false,
     this.original,
     this.voice,
+    this.transcript,
   });
 
   /// Hex sha256 of the stored bytes. Also the path segment a fetch uses, and
@@ -46,6 +47,9 @@ class Attachment {
   /// Set when this is a voice message recorded in the composer.
   final VoiceInfo? voice;
 
+  /// What was heard, while the Space transcribes voice messages.
+  final VoiceTranscript? transcript;
+
   /// This attachment as the file that was uploaded, for saving it.
   Attachment? get asOriginal {
     final kept = original;
@@ -70,6 +74,11 @@ class Attachment {
                 json['original'] as Map<String, dynamic>,
               ),
         voice: json['voice'] == true ? VoiceInfo.fromJson(json) : null,
+        transcript: json['transcript'] == null
+            ? null
+            : VoiceTranscript.fromJson(
+                json['transcript'] as Map<String, dynamic>,
+              ),
       );
 }
 
@@ -91,6 +100,35 @@ class VoiceInfo {
         waveform: (json['waveform'] as List<dynamic>? ?? const [])
             .map((v) => v as int)
             .toList(growable: false),
+      );
+}
+
+enum VoiceTranscriptStatus {
+  pending,
+  ready,
+  failed;
+
+  static VoiceTranscriptStatus parse(String? raw) => switch (raw) {
+        'ready' => ready,
+        'failed' => failed,
+        _ => pending,
+      };
+}
+
+/// The text of a voice message.
+class VoiceTranscript {
+  const VoiceTranscript({required this.status, this.text = ''});
+
+  final VoiceTranscriptStatus status;
+
+  /// Empty until [status] is ready, and when nothing was said.
+  final String text;
+
+  /// Reads the `status` and `text` of a transcript object or a live frame.
+  factory VoiceTranscript.fromJson(Map<String, dynamic> json) =>
+      VoiceTranscript(
+        status: VoiceTranscriptStatus.parse(json['status'] as String?),
+        text: json['text'] as String? ?? '',
       );
 }
 

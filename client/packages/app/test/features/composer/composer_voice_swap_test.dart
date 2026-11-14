@@ -10,6 +10,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_actions.dart';
 import 'package:slimm_app/src/features/composer/providers/voice_recording.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_action_bar.dart';
+import 'package:slimm_app/src/features/composer/widgets/composer_voice_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_recording_test.dart' show FakeActions, FakeCapture;
@@ -108,6 +109,7 @@ void main() {
       capture: capture,
       actions: FakeActions(),
     );
+    await tester.pump(ComposerMicButton.wakeDelay);
     await tester.tap(record);
     await tester.pump();
     expect(bar, findsOneWidget);
@@ -132,6 +134,7 @@ void main() {
       capture: FakeCapture(allowed: false),
       actions: FakeActions(),
     );
+    await tester.pump(ComposerMicButton.wakeDelay);
     await tester.tap(record);
     await tester.pump();
     expect(find.byKey(const Key('composer-voice-error')), findsOneWidget);
@@ -151,4 +154,23 @@ void main() {
     await tester.pump();
     expect(bar, findsNothing);
   });
+
+  testWidgets(
+    'a fresh mic ignores a press, so a double-click on Send cannot record',
+    (tester) async {
+      final capture = FakeCapture();
+      await pumpBar(
+        tester,
+        canRecord: true,
+        canSend: false,
+        capture: capture,
+        actions: FakeActions(),
+      );
+      await tester.tap(record, warnIfMissed: false);
+      await tester.pump();
+      expect(capture.started, isFalse);
+      expect(bar, findsNothing);
+      await tester.pump(ComposerMicButton.wakeDelay);
+    },
+  );
 }

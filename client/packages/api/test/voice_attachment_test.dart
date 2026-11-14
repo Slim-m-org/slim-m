@@ -70,4 +70,60 @@ void main() {
     });
     expect(attachment.voice, isNull);
   });
+
+  test('a transcript rides on the attachment and on a live frame', () {
+    final attachment = Attachment.fromJson({
+      'id': 'x',
+      'filename': 'v.ogg',
+      'content_type': 'audio/ogg',
+      'size': 1,
+      'voice': true,
+      'duration_ms': 1000,
+      'waveform': List.filled(64, 0),
+      'transcript': {'status': 'ready', 'text': 'hello'},
+    });
+    expect(attachment.transcript!.status, VoiceTranscriptStatus.ready);
+    expect(attachment.transcript!.text, 'hello');
+
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'message.voice_transcript',
+        'channel_id': 'c',
+        'message_id': 'm',
+        'attachment_id': 'x',
+        'status': 'pending',
+        'text': '',
+      }),
+    );
+    expect(event, isA<MessageVoiceTranscript>());
+    expect(
+      (event as MessageVoiceTranscript).transcript.status,
+      VoiceTranscriptStatus.pending,
+    );
+  });
+
+  test('the voice transcript setting reads and writes', () async {
+    Map<String, dynamic>? sent;
+    final api = SlimmApi(
+      baseUrl: _base,
+      session: SessionStore(tokens: _tokens()),
+      httpClient: MockClient((request) async {
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'join_policy': 'invite',
+            'transcribe_voice_messages': true,
+            'transcribe_voice_messages_available': false,
+          }),
+          200,
+        );
+      }),
+    );
+    final settings = await api.setSpaceSettings(
+      const SpaceSettingsUpdate(transcribeVoiceMessages: true),
+    );
+    expect(sent, {'transcribe_voice_messages': true});
+    expect(settings.transcribeVoiceMessages, isTrue);
+    expect(settings.transcribeVoiceMessagesAvailable, isFalse);
+  });
 }

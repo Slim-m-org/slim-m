@@ -148,7 +148,13 @@ class VoiceRecorder
         );
         return;
       }
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'The microphone could not start',
+        error,
+        stack,
+      );
       state = const VoiceRecordingState(
         phase: VoicePhase.failed,
         error: 'The microphone could not be opened.',
@@ -250,7 +256,13 @@ class VoiceRecorder
       return (attachment, clip.capture.bytes);
     } on ApiException catch (error) {
       _failUpload(clip, describeApiFailure('send the voice message', error));
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'A voice message upload failed',
+        error,
+        stack,
+      );
       _failUpload(clip, 'The voice message could not be sent.');
     }
     return null;

@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/voice_waveform.dart';
 import '../providers/voice_playback.dart';
+import 'voice_transcript_line.dart';
 
 /// Wide enough for a minute of speech to read, narrow enough to stay a chip.
 const double kVoicePlayerMaxWidth = 320;
@@ -123,6 +124,7 @@ class VoiceMessagePlayer extends ConsumerWidget {
               ],
             ),
           ),
+          VoiceTranscriptLine(attachment: attachment),
           if (error != null) ...[
             const SizedBox(height: AppSpacing.s4),
             Text(
