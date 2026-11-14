@@ -23,10 +23,12 @@ import e2e_canvas_crowd
 import e2e_canvas_live
 import e2e_canvas_shapes
 import e2e_labels as L
+import e2e_large_upload
 import e2e_invite_landing
 import e2e_media_slots
 import e2e_messaging
 import e2e_password
+import e2e_private_channel
 import e2e_markdown
 import e2e_composer
 import e2e_dm_call
@@ -162,6 +164,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
             L.TEXT_CHANNEL)),
         ("messaging: an attachment", lambda: e2e_messaging.attach(
             a, b, L.TEXT_CHANNEL, upload(), admin)),
+        ("messaging: a 40 MB upload survives a channel switch and a dropped network",
+         lambda: e2e_large_upload.large_file_survives_a_switch_and_a_dropped_network(
+             a, b, admin, member)),
         ("messaging: a reply, and a reply to a deleted message",
          lambda: e2e_replies.reply_and_a_deleted_parent(
              a, b, L.TEXT_CHANNEL, admin)),
@@ -222,6 +227,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              a, b, L.TEXT_CHANNEL, admin, member)),
         ("messaging: unread follows what was read, a deleted message included",
          lambda: e2e_unread.unread_follows_what_was_read(b, admin, member)),
+        ("permissions: a private channel follows who was added, live",
+         lambda: e2e_private_channel.private_channel_follows_who_was_added(
+             a, b, admin, member)),
         ("admin: renaming a member shows the nickname everywhere",
          lambda: e2e_members.admin_renames_a_member(
              a, L.TEXT_CHANNEL, admin, member)),

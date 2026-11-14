@@ -61,6 +61,18 @@ REPEAT_PASSWORD = "Repeat new password"
 PASSWORD_CHANGED = "Password changed."
 WRONG_PASSWORD = "That password is not correct."
 
+# Creating a channel and its permission grid (create_channel_sheet.dart, channel_permissions_*.dart)
+CREATE_CHANNEL_IN = "Create a channel in "
+CHANNEL_NAME = "Channel name"
+MAKE_PRIVATE = "Make this channel private"
+CREATE_CHANNEL = "Create channel"
+MANAGE_CHANNEL = "Manage "
+CHANNEL_SETTINGS = "Channel settings"
+ADD_ROLE_OR_MEMBER = "Add role or member"
+VIEW_CHANNELS = "View channels"
+FROM_THIS_GRID = " from this grid"
+DISCARD = "Discard"
+
 # Account and security > Two-factor (totp_section.dart, totp_enrol_sheet.dart, totp_code_sheet.dart)
 TOTP_TURN_ON = "Turn on two-factor authentication"
 TOTP_TURN_OFF = "Turn off two-factor authentication"

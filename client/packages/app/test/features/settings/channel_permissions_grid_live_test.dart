@@ -68,7 +68,21 @@ class _Harness {
   final Map<String, (int, int)> stored;
   final events = StreamController<api.ServerEvent>.broadcast();
 
-  Future<http.Response> handle(http.Request request) async => http.Response(
+  Future<http.Response> handle(http.Request request) async {
+    if (request.method == 'PUT') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      for (final o
+          in (body['overwrites'] as List).cast<Map<String, dynamic>>()) {
+        stored['${o['kind']}:${o['id']}'] = (
+          o['allow'] as int,
+          o['deny'] as int,
+        );
+      }
+    }
+    return _answer();
+  }
+
+  http.Response _answer() => http.Response(
     jsonEncode({
       'overwrites': [
         for (final e in stored.entries)
@@ -205,6 +219,30 @@ void main() {
       await harness.otherAdminChanges(tester);
 
       expect(_cell('member:m-nadia', send), findsNothing);
+      expect(find.text('1 unsaved change'), findsOneWidget);
+    });
+  });
+
+  group('a column saved in this sitting', () {
+    testWidgets('can be removed again, and the removal waits to be saved', (
+      tester,
+    ) async {
+      final harness = await _open(tester, {});
+      await tester.tap(
+        find.bySemanticsLabel('Add a role or member to this grid'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nadia').last);
+      await tester.pumpAndSettle();
+      await _tapCell(tester, 'member:m-nadia', send);
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+      expect(harness.stored['member:m-nadia'], (send, 0));
+      expect(find.textContaining('unsaved'), findsNothing);
+
+      await tester.tap(find.bySemanticsLabel('Remove Nadia from this grid'));
+      await tester.pumpAndSettle();
+
       expect(find.text('1 unsaved change'), findsOneWidget);
     });
   });
