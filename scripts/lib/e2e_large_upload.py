@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """A file big enough for upload sessions survives a channel switch and a dropped network.
 
+It runs in a channel of its own, so a 40 MB message never lengthens #general
+under the scenarios after it.
+
 Alice's upload is throttled so it is still going while she switches to her
 Notes and comes back, and while her network drops for a few seconds; the session
 has to resume where it stopped rather than start over or give up. The file
@@ -71,10 +74,13 @@ def _download(member, attachment_id):
 
 
 def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
-    channel_id = admin.channel_named(L.TEXT_CHANNEL)["id"]
-    before = {m["id"] for m in admin.messages(channel_id)}
-    a.click(L.TEXT_CHANNEL)
-    b.click(L.TEXT_CHANNEL)
+    name = f"e2e-upload-{int(time.time()) % 100000}"
+    channel_id = admin.call("POST", "/channels", {"name": name, "kind": "text"})["id"]
+    before = set()
+    a.wait_for(name)
+    a.click(name)
+    b.wait_for(name)
+    b.click(name)
     try:
         _throttle(a, UPLOAD_BYTES_PER_SECOND)
         a.watch_for_file_input()
@@ -89,7 +95,7 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         assert _send_state(a) == "disabled", "a 40 MB upload finished before it could be interrupted"
 
         a.click(L.NOTES, settle=2)
-        a.click(L.TEXT_CHANNEL, settle=2)
+        a.click(name, settle=2)
         assert a.find(NAME), "switching channels dropped the staged upload"
         print("  switching channels mid-upload keeps the file staged and uploading")
 
@@ -122,3 +128,6 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         print(f"  the 40 MB file arrived whole (sha256 {sha[:12]}), and bob downloads the same bytes")
     finally:
         a.go_online()
+        for c in (a, b):
+            c.click(L.TEXT_CHANNEL)
+        admin.status("DELETE", f"/channels/{channel_id}")
