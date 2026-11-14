@@ -127,15 +127,17 @@ class ConversationPane extends ConsumerWidget {
   }
 
   Widget _unresolved(WidgetRef ref) {
+    final removed = ref.watch(removedRoomsProvider);
+    final deleted = ref.watch(deletedChannelsProvider);
     final fallback = fallbackChannel(
       last: ref.read(lastTextChannelProvider),
       previous: ref.read(previousTextChannelProvider),
-      gone: channelId,
+      gone: {channelId, ...removed, ...deleted.keys},
     );
-    if (ref.watch(removedRoomsProvider).contains(channelId)) {
+    if (removed.contains(channelId)) {
       return _LeaveRemovedRoom(fallback: fallback);
     }
-    final deletedName = ref.watch(deletedChannelsProvider)[channelId];
+    final deletedName = deleted[channelId];
     if (deletedName == null) return UnlistedChannel(channelId: channelId);
     return _LeaveRemovedRoom(
       fallback: fallback,

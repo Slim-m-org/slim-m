@@ -82,6 +82,27 @@ void main() {
     });
   }
 
+  testWidgets('when the channel before is deleted too, it lands on the list '
+      'instead of bouncing between the two', (tester) async {
+    final s = await _open(tester, 1400);
+    final deleted = s.container.read(deletedChannelsProvider.notifier);
+    deleted.state = {...deleted.state, 'c1': 'general'};
+    await MessageStore(s.db).removeChannel('c1');
+    await _settle(tester);
+    expect(_location(tester), '/channels/c2');
+
+    await _delete(s.container, s.db);
+    final seen = <String>{};
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      seen.add(_location(tester));
+    }
+
+    expect(_location(tester), '/channels');
+    expect(seen, isNot(contains('/channels/c1')));
+    await teardown(tester, s.container, s.db);
+  });
+
   testWidgets('a channel that was never seen still reads as not found', (
     tester,
   ) async {
@@ -95,9 +116,9 @@ void main() {
   });
 
   test('the fallback is never the channel that went away', () {
-    expect(fallbackChannel(last: 'c2', previous: 'c1', gone: 'c2'), 'c1');
-    expect(fallbackChannel(last: 'c1', previous: 'c0', gone: 'c2'), 'c1');
-    expect(fallbackChannel(last: 'c2', previous: 'c2', gone: 'c2'), isNull);
-    expect(fallbackChannel(last: null, previous: null, gone: 'c2'), isNull);
+    expect(fallbackChannel(last: 'c2', previous: 'c1', gone: {'c2'}), 'c1');
+    expect(fallbackChannel(last: 'c1', previous: 'c0', gone: {'c2'}), 'c1');
+    expect(fallbackChannel(last: 'c2', previous: 'c2', gone: {'c2'}), isNull);
+    expect(fallbackChannel(last: null, previous: null, gone: {'c2'}), isNull);
   });
 }

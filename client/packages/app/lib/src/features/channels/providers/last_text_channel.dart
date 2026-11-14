@@ -18,15 +18,15 @@ final deletedChannelsProvider = StateProvider<Map<String, String>>(
   (ref) => const {},
 );
 
-/// Where to go when [gone] disappears from under the screen: the [last] text
-/// channel, else the [previous] one, never [gone] itself.
+/// Where to go when a channel disappears from under the screen: [last], else [previous],
+/// never one in [gone], so two deleted channels cannot send the screen back and forth.
 String? fallbackChannel({
   required String? last,
   required String? previous,
-  required String gone,
+  required Set<String> gone,
 }) {
-  if (last != null && last != gone) return last;
-  if (previous != null && previous != gone) return previous;
+  if (last != null && !gone.contains(last)) return last;
+  if (previous != null && !gone.contains(previous)) return previous;
   return null;
 }
 

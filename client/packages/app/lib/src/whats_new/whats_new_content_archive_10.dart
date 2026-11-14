@@ -110,6 +110,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'A channel no longer stays unread after the message you had not '
         'read yet is deleted.',
       ),
+      WhatsNewPoint(
+        'When two channels you had open are deleted, the app goes back to '
+        'the channel list instead of flickering between them.',
+      ),
     ],
   ),
 ];
