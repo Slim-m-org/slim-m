@@ -12293,6 +12293,8 @@ paths:
       responses:
         "204":
           description: The call has been told.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

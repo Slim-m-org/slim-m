@@ -52,23 +52,35 @@ async fn an_existing_everyone_role_gains_view_transcripts_and_nothing_else_chang
     .await
     .expect("seed roles");
 
-    migrator().await.run(&pool).await.expect("apply 0183");
-
-    let store = Store::new(pool);
-    let roles = store.list_roles().await.expect("list roles");
-    let bits = |name: &str| {
-        roles
-            .iter()
-            .find(|r| r.name == name)
-            .unwrap()
-            .permissions
-            .bits()
+    let mut through = migrator().await;
+    through.migrations = through
+        .iter()
+        .filter(|m| m.version <= VERSION)
+        .cloned()
+        .collect();
+    through.run(&pool).await.expect("apply 0183");
+    let bits = |name: &'static str| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>("SELECT permissions FROM roles WHERE name = ?1")
+                .bind(name)
+                .fetch_one(&pool)
+                .await
+                .expect("read role")
+        }
     };
     assert_eq!(
-        bits("@everyone"),
+        bits("@everyone").await,
         held.union(Permissions::VIEW_TRANSCRIPTS).bits()
     );
-    assert_eq!(bits("Mod"), held.bits(), "only @everyone is granted it");
+    assert_eq!(
+        bits("Mod").await,
+        held.bits(),
+        "only @everyone is granted it"
+    );
+
+    migrator().await.run(&pool).await.expect("apply the rest");
+    let store = Store::new(pool);
     assert_eq!(
         store.call_transcription().await.unwrap(),
         TranscriptionMode::Off
