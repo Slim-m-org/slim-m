@@ -29,6 +29,7 @@ import 'attachment_reveal.dart';
 import 'attachment_spoiler.dart';
 import 'attachment_types.dart';
 import 'attachment_video_player.dart';
+import 'voice_message_player.dart';
 import 'image_actions_menu.dart';
 import '../../../widgets/run_guarded.dart';
 import 'fullscreen_image_viewer.dart';
@@ -110,6 +111,9 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     final downloadGated =
         autoDownload == MediaAutoDownload.manual && !_revealed;
     if (isVideo(attachment.contentType)) return _video(downloadGated);
+    if (attachment.voice != null) {
+      return VoiceMessagePlayer(attachment: attachment);
+    }
     if (!_isImage) return AttachmentChip(attachment: attachment);
     return _image(context, downloadGated: downloadGated);
   }

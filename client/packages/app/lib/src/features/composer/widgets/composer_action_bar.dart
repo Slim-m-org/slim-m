@@ -15,12 +15,14 @@ import 'package:slimm_api/api.dart' show Attachment;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/threads.dart';
+import '../providers/voice_recording.dart';
 import 'composer_extras.dart';
 import 'composer_picker_button.dart';
 import 'composer_gif_command.dart';
 import 'composer_picker_panel.dart' show showComposerPickerSheet;
 import 'composer_scrollbar.dart';
 import 'composer_shortcodes.dart';
+import 'composer_voice_bar.dart';
 import 'poll_composer_sheet.dart';
 
 class ComposerActionBar extends ConsumerWidget {
@@ -33,6 +35,8 @@ class ComposerActionBar extends ConsumerWidget {
     required this.channelName,
     required this.hasText,
     required this.canSend,
+    required this.canRecord,
+    required this.onVoiceSent,
     required this.onSend,
     required this.onTyping,
     required this.onOpenActions,
@@ -71,6 +75,12 @@ class ComposerActionBar extends ConsumerWidget {
   /// Whether [onSendPressed] is offered at all right now; see
   /// `composer.dart`'s own `_canSend` for everything that feeds it.
   final bool canSend;
+
+  /// Whether the mic may stand in for Send: an empty composer with nothing staged.
+  final bool canRecord;
+
+  /// Takes a recorded voice message once it is uploaded.
+  final VoiceSent onVoiceSent;
   final Future<void> Function() onSend;
   final ValueChanged<String> onTyping;
   final VoidCallback onOpenActions;
@@ -90,6 +100,9 @@ class ComposerActionBar extends ConsumerWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // True only for the docked thread pane's own copy (`home_shell_pane_slots.dart`), where the parent channel's identical controls are also on screen.
     final isThread = ref.watch(openThreadProvider) == channelId;
+    final recording = ref.watch(
+      voiceRecorderProvider(channelId).select((s) => s.isActive),
+    );
     // A line break grows the bar over a beat, earlier lines holding still.
     return ComposerShortcodes(
       controller: controller,
@@ -107,39 +120,57 @@ class ComposerActionBar extends ConsumerWidget {
           child: ComposerScrollbarFrame(
             builder: (context, scrollController) => Padding(
               padding: const EdgeInsets.fromLTRB(12, 5, 10, 5),
-              child: Row(
-                // Top, not centred: a centred icon drifts as the field grows.
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _attachButton(),
-                  const SizedBox(width: AppSpacing.s8),
-                  Expanded(
-                    child: ComposerField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      channelName: channelName,
-                      hasText: hasText,
-                      onSend: onSend,
-                      onTyping: onTyping,
-                      isThread: isThread,
-                      scrollController: scrollController,
+              child: recording
+                  ? ComposerVoiceBar(channelId: channelId, onSent: onVoiceSent)
+                  : Row(
+                      // Top, not centred: a centred icon drifts as the field grows.
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _attachButton(),
+                        const SizedBox(width: AppSpacing.s8),
+                        Expanded(
+                          child: ComposerField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            channelName: channelName,
+                            hasText: hasText,
+                            onSend: onSend,
+                            onTyping: onTyping,
+                            isThread: isThread,
+                            scrollController: scrollController,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.s8),
+                        // Behind the add button at touch density; see `showComposerActionsSheet`.
+                        if (touch)
+                          _touchEmojiButton(context)
+                        else
+                          ..._pointerButtons(context),
+                        if (canRecord && !canSend)
+                          AppIconButton(
+                            icon: AppIcons.mic,
+                            semanticLabel: 'Record a voice message',
+                            tooltip: 'Record a voice message',
+                            onPressed: () => unawaited(
+                              ref
+                                  .read(
+                                    voiceRecorderProvider(channelId).notifier,
+                                  )
+                                  .start(),
+                            ),
+                          )
+                        else
+                          // Disabled when empty or over the limit.
+                          AppIconButton(
+                            icon: AppIcons.send,
+                            semanticLabel: isThread
+                                ? 'Send reply'
+                                : 'Send message',
+                            tooltip: isThread ? 'Send reply' : 'Send message',
+                            onPressed: canSend ? onSendPressed : null,
+                          ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.s8),
-                  // Behind the add button at touch density; see `showComposerActionsSheet`.
-                  if (touch)
-                    _touchEmojiButton(context)
-                  else
-                    ..._pointerButtons(context),
-                  // Always rendered, only disabled when empty or over the limit.
-                  AppIconButton(
-                    icon: AppIcons.send,
-                    semanticLabel: isThread ? 'Send reply' : 'Send message',
-                    tooltip: isThread ? 'Send reply' : 'Send message',
-                    onPressed: canSend ? onSendPressed : null,
-                  ),
-                ],
-              ),
             ),
           ),
         ),
