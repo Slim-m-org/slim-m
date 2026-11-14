@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import '../../messages/providers/message_search.dart'
-    show matchedAttachmentName;
+    show matchedAttachmentName, matchedVoiceTranscript;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../settings/providers/display_density.dart';
@@ -349,7 +349,15 @@ class SearchResultRow extends ConsumerWidget {
                       knownRoleNames: knownRoleNames,
                       customEmoji: customEmoji,
                     ),
-                  if (matchedAttachmentName(message) case final file?)
+                  if (matchedVoiceTranscript(message) case final said?) ...[
+                    Text(
+                      said,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.ui.copyWith(color: tokens.textPrimary),
+                    ),
+                    const _AttachmentMatchLine(file: 'a voice message'),
+                  ] else if (matchedAttachmentName(message) case final file?)
                     _AttachmentMatchLine(file: file),
                 ],
               ),

@@ -7,7 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import '../../messages/providers/message_search.dart'
-    show matchedAttachmentName;
+    show matchedAttachmentName, matchedVoiceTranscript;
 import '../../messages/providers/message_search_query.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -347,7 +347,9 @@ class PaletteMessageMeta extends StatelessWidget {
       color: tokens.textSecondary,
     );
     final day = formatMessageDay(message.createdAt);
-    final file = matchedAttachmentName(message);
+    final file = matchedVoiceTranscript(message) != null
+        ? 'a voice message'
+        : matchedAttachmentName(message);
     return Row(
       children: [
         PaletteMessageAuthor(

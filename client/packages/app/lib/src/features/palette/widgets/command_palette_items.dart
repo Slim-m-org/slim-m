@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import '../../messages/providers/message_search.dart'
-    show matchedAttachmentName;
+    show matchedAttachmentName, matchedVoiceTranscript;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -240,7 +240,9 @@ PaletteResultItem messageResultItem(
   required Future<void> Function(BuildContext context, WidgetRef ref) onSelect,
 }) {
   final label = message.content.isEmpty
-      ? (matchedAttachmentName(message) ?? '')
+      ? (matchedVoiceTranscript(message) ??
+            matchedAttachmentName(message) ??
+            '')
       : message.content;
   return PaletteResultItem(
     label: label,

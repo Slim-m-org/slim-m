@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The line under a voice message: transcribing, then the words behind a
-/// toggle, updated live by a frame without rereading the message.
+/// The line under a voice message: transcribing, then the words in full,
+/// updated live by a frame without rereading the message.
 library;
 
 import 'dart:async';
@@ -72,13 +72,8 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('Transcribing...'), findsNothing);
-    expect(find.byKey(const Key('voice-transcript-text')), findsNothing);
-    await tester.tap(find.byKey(const Key('voice-transcript-toggle')));
-    await tester.pump();
     expect(find.text('meet me at the lighthouse'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('voice-transcript-toggle')));
-    await tester.pump();
-    expect(find.text('meet me at the lighthouse'), findsNothing);
+    expect(find.textContaining('Show'), findsNothing);
   });
 
   testWidgets('a frame for another attachment changes nothing here', (
