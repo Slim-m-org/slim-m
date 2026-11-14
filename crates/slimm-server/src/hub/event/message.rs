@@ -92,6 +92,15 @@ pub enum MessageEvent {
         message_id: MessageId,
         embeds: Arc<Vec<Embed>>,
     },
+    /// A voice message's transcript started, finished or failed. Never
+    /// persisted and unnumbered; the message read is the catch-up.
+    VoiceTranscript {
+        channel_id: ChannelId,
+        message_id: MessageId,
+        attachment_id: String,
+        status: &'static str,
+        text: String,
+    },
     /// The author or a moderator removed a message's link-preview cards. One
     /// way only: a removed preview stays removed. `op_seq` is its place in the
     /// message-op stream, where an offline client finds it as an edit.

@@ -36,3 +36,4 @@ mod upload_session_channel;
 mod upload_sessions;
 mod uploading;
 mod voice;
+mod voice_transcripts;

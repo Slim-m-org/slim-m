@@ -96,6 +96,20 @@ impl CallAudio {
         self.inner.is_some()
     }
 
+    /// The listener's one-shot transcription address and bearer secret, when one is configured.
+    pub fn transcribe_endpoint(&self) -> Option<(String, String)> {
+        let settings = &self.inner.as_ref()?.settings;
+        let http = settings
+            .url
+            .replacen("wss://", "https://", 1)
+            .replacen("ws://", "http://", 1);
+        let authority = http.splitn(4, '/').take(3).collect::<Vec<_>>().join("/");
+        Some((
+            format!("{authority}/v1/transcribe"),
+            settings.secret.clone(),
+        ))
+    }
+
     /// Whether the listener is connected and said `ready`.
     pub fn is_ready(&self) -> bool {
         self.inner

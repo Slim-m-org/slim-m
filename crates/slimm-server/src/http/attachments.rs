@@ -184,6 +184,7 @@ async fn upload(
             spoiler: false,
             original: None,
             voice,
+            transcript: None,
         })),
     ))
 }

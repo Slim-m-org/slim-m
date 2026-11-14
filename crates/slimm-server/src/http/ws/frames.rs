@@ -106,6 +106,14 @@ pub(super) enum ServerFrame {
         message_id: String,
         op_seq: i64,
     },
+    #[serde(rename = "message.voice_transcript")]
+    MessageVoiceTranscript {
+        channel_id: String,
+        message_id: String,
+        attachment_id: String,
+        status: &'static str,
+        text: String,
+    },
     #[serde(rename = "message.embeds")]
     MessageEmbedsChanged {
         channel_id: String,

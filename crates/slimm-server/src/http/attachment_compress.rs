@@ -250,6 +250,7 @@ impl Replacement {
             size,
             spoiler: false,
             voice: None,
+            transcript: None,
             original: original.map(|o| OriginalInfo {
                 size: o.size,
                 filename: o.filename,

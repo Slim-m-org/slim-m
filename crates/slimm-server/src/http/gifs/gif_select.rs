@@ -80,6 +80,7 @@ pub(crate) async fn store_gif(
         size,
         spoiler: false,
         voice: None,
+        transcript: None,
         original: None,
     }))
 }

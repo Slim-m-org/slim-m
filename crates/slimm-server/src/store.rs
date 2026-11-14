@@ -87,6 +87,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
+mod voice_transcripts;
 pub use read_state::{SeqHeads, UNREAD_COUNT_CAP};
 mod recovery;
 mod refresh_rotation;
@@ -273,6 +274,7 @@ pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
 pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
+pub use voice_transcripts::{TranscriptStatus, VoiceCandidate, VoiceTranscript};
 pub use watch_sessions::{
     WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
 };

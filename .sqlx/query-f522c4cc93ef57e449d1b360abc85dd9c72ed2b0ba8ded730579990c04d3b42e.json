@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.channel_id AS \"channel_id!: ChannelId\", m.id AS \"message_id!: MessageId\"\n               FROM message_attachments ma JOIN messages m ON m.id = ma.message_id\n               WHERE ma.sha256 = ? AND m.is_encrypted = 0 AND m.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "message_id!: MessageId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f522c4cc93ef57e449d1b360abc85dd9c72ed2b0ba8ded730579990c04d3b42e"
+}

@@ -20,7 +20,7 @@
 
 mod extract;
 mod pdf_worker;
-mod retry;
+pub(crate) mod retry;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

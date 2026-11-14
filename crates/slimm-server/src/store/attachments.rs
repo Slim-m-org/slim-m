@@ -22,6 +22,7 @@ pub(super) mod refs;
 
 use super::attachment_originals::insert_attachment;
 use super::attachment_voice::VoiceInfo;
+use super::voice_transcripts::VoiceTranscript;
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -58,6 +59,8 @@ pub struct AttachmentSummary {
     pub original: Option<OriginalInfo>,
     /// Set when this is a voice message.
     pub voice: Option<VoiceInfo>,
+    /// What was heard in a voice message, while the Space transcribes them.
+    pub transcript: Option<VoiceTranscript>,
 }
 
 /// An uploaded original kept beside a compressed attachment.
@@ -160,6 +163,7 @@ impl Store {
             spoiler: false,
             original: OriginalInfo::from_columns(r.original_size, r.original_filename),
             voice: VoiceInfo::from_columns(r.voice_ms, r.voice_waveform),
+            transcript: None,
         }))
     }
 
@@ -254,10 +258,13 @@ impl Store {
         let mut builder = QueryBuilder::new(
             "SELECT ma.message_id, a.sha256, COALESCE(ma.filename, a.filename) AS filename, \
                     a.content_type, a.size, a.original_size, a.original_filename, ma.spoiler, \
-                    v.duration_ms AS voice_ms, v.waveform AS voice_waveform \
+                    v.duration_ms AS voice_ms, v.waveform AS voice_waveform, \
+                    t.status AS transcript_status, t.text AS transcript_text \
              FROM message_attachments ma \
              JOIN attachments a ON a.sha256 = ma.sha256 \
              LEFT JOIN attachment_voice v ON v.sha256 = a.sha256 \
+             LEFT JOIN attachment_transcripts t ON t.sha256 = a.sha256 \
+                  AND (SELECT transcribe_voice_messages FROM space_settings WHERE id = 1) = 1 \
              WHERE ma.message_id IN (",
         );
         let mut separated = builder.separated(", ");
@@ -286,6 +293,10 @@ impl Store {
                 voice: VoiceInfo::from_columns(
                     row.try_get("voice_ms")?,
                     row.try_get("voice_waveform")?,
+                ),
+                transcript: VoiceTranscript::from_columns(
+                    row.try_get("transcript_status")?,
+                    row.try_get("transcript_text")?,
                 ),
             };
             match grouped.iter_mut().find(|(id, _)| *id == message_id) {

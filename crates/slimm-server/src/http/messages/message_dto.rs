@@ -192,6 +192,24 @@ pub(crate) struct AttachmentDto {
     duration_ms: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     waveform: Option<Vec<u8>>,
+    /// What was heard, while the Space transcribes voice messages.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transcript: Option<TranscriptDto>,
+}
+
+#[derive(Serialize, Clone)]
+pub(crate) struct TranscriptDto {
+    pub(crate) status: &'static str,
+    pub(crate) text: String,
+}
+
+impl From<crate::store::VoiceTranscript> for TranscriptDto {
+    fn from(t: crate::store::VoiceTranscript) -> Self {
+        Self {
+            status: t.status.as_str(),
+            text: t.text,
+        }
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -215,6 +233,7 @@ impl From<AttachmentSummary> for AttachmentDto {
             voice: a.voice.is_some(),
             duration_ms: a.voice.as_ref().map(|v| v.duration_ms),
             waveform: a.voice.map(|v| v.waveform),
+            transcript: a.transcript.map(TranscriptDto::from),
         }
     }
 }

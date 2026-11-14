@@ -275,6 +275,7 @@ async fn complete(
             size,
             spoiler: false,
             voice: None,
+            transcript: None,
             original: None,
         })),
     ))
