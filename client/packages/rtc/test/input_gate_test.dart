@@ -267,6 +267,7 @@ void main() {
           level: 0,
           sensitivity: 1,
           muted: false,
+          isLocal: true,
           voice: true,
         ),
         isTrue,
@@ -277,6 +278,7 @@ void main() {
           level: 1,
           sensitivity: 1,
           muted: false,
+          isLocal: true,
           voice: false,
         ),
         isFalse,
@@ -290,6 +292,7 @@ void main() {
           level: 0,
           sensitivity: 1,
           muted: true,
+          isLocal: true,
           voice: true,
         ),
         isFalse,
@@ -303,6 +306,7 @@ void main() {
           level: 0.3,
           sensitivity: 0.5,
           muted: false,
+          isLocal: true,
         ),
         isFalse,
       );
@@ -312,8 +316,33 @@ void main() {
           level: 0.6,
           sensitivity: 0.5,
           muted: false,
+          isLocal: true,
         ),
         isTrue,
+      );
+    });
+
+    test('your own sensitivity never hides someone else speaking', () {
+      expect(
+        isSpeakingNow(
+          reported: true,
+          level: 0.05,
+          sensitivity: 0,
+          muted: false,
+          isLocal: false,
+        ),
+        isTrue,
+        reason: 'the setting says it only changes your own ring',
+      );
+      expect(
+        isSpeakingNow(
+          reported: false,
+          level: 1,
+          sensitivity: 1,
+          muted: false,
+          isLocal: false,
+        ),
+        isFalse,
       );
     });
   });

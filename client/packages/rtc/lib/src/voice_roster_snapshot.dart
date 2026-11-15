@@ -58,6 +58,7 @@ VoiceParticipant _toParticipant(
       level: p.audioLevel,
       sensitivity: sensitivity,
       muted: muted,
+      isLocal: isLocal,
       voice: voice,
     ),
     isMuted: muted,
@@ -76,16 +77,20 @@ bool deafenedFromAttributes(Map<String, String> attributes) =>
 
 /// Whether a participant shows as speaking. [voice], the local input gate's
 /// own reading, wins over the SFU's lagging report whenever it is known.
+/// [sensitivity] is this person's setting for their own ring, so it never
+/// hides someone else speaking.
 bool isSpeakingNow({
   required bool reported,
   required double level,
   required double sensitivity,
   required bool muted,
+  required bool isLocal,
   bool? voice,
-}) =>
-    voice != null
-        ? voice && !muted
-        : passesActivationThreshold(reported, level, sensitivity);
+}) {
+  if (voice != null) return voice && !muted;
+  if (!isLocal) return reported;
+  return passesActivationThreshold(reported, level, sensitivity);
+}
 
 /// Whether [reported] and [level] together clear [sensitivity]'s floor.
 ///
