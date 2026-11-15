@@ -33,6 +33,7 @@ import '../providers/voice_elsewhere.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_roster.dart';
 import '../../../routing/breakpoints.dart';
+import '../../../routing/launch_route.dart';
 import '../../../routing/routes.dart';
 import '../widgets/bot_call_controls.dart';
 import '../widgets/call_stage_layout.dart';
@@ -139,7 +140,13 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   void _arrive() {
     // Closing the canvas remounts this screen with no memory; the handoff carries it across, however long the canvas was open.
     final handedOff = ref.read(_canvasHandoffProvider) == widget.channelId;
-    _autoJoinedFor = widget.openChat || handedOff ? widget.channelId : null;
+    // A page load onto this channel is not a click; a DM's call never opens from the address.
+    final loaded =
+        !widget.isDm &&
+        ref.read(launchRouteProvider).takeArrival(widget.channelId);
+    _autoJoinedFor = widget.openChat || handedOff || loaded
+        ? widget.channelId
+        : null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (handedOff) ref.read(_canvasHandoffProvider.notifier).state = null;

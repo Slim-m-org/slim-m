@@ -115,8 +115,8 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'the channel list instead of flickering between them.',
       ),
       WhatsNewPoint(
-        'On the web, links and the back button keep working after you '
-        'reload a tab you have used for a while.',
+        'On the web, reloading keeps you on the page you were on, and links '
+        'and the back button keep working after it.',
       ),
     ],
   ),

@@ -60,6 +60,7 @@ import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/messages/screens/thread_screen.dart';
 import 'breakpoints.dart';
+import 'launch_route.dart';
 import 'modal_page.dart';
 import 'page_transitions.dart';
 import 'routes.dart';
@@ -91,7 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   var disposed = false;
   ref.onDispose(() => disposed = true);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: signedOutHome(),
     observers: [
       OverlayCoverObserver((stack) {
@@ -316,6 +317,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  final launch = ref.read(launchRouteProvider);
+  router.routerDelegate.addListener(
+    () => launch.showed(router.routerDelegate.currentConfiguration.uri.path),
+  );
+  return router;
 });
 
 String? _redirect({
