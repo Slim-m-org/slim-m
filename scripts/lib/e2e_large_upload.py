@@ -92,7 +92,10 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         sha = a.ev("window.__e2eMadeSha")
         a.wait_for(NAME)
         time.sleep(3)
-        assert _send_state(a) == "disabled", "a 40 MB upload finished before it could be interrupted"
+        state = _send_state(a)
+        if state != "disabled":
+            a.shot("large-upload-not-uploading")
+        assert state == "disabled", f"Send read {state!r} three seconds into a throttled 40 MB upload"
 
         a.click(L.NOTES, settle=2)
         a.click(name, settle=2)
