@@ -20,6 +20,7 @@ import '../../palette/widgets/command_palette_compact.dart';
 import '../../palette/widgets/command_palette_items.dart';
 import '../../palette/widgets/command_palette_rows.dart';
 import '../providers/channel_by_id_provider.dart';
+import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
 /// What a search is called on its page: "#general", "this thread", "this
 /// conversation" for a person or group.
@@ -203,6 +204,7 @@ class _HitState extends ConsumerState<_Hit> {
             cachedDisplayName: widget.message.authorDisplayName,
             resolution: resolution,
           ),
+          mentionNames: ref.watch(mentionNamesProvider),
           onSelect: (_, _) async => _open(),
         ),
         query: widget.query,

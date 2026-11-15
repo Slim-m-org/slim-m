@@ -23,6 +23,7 @@ import '../../../routing/routes.dart';
 import '../../messages/widgets/author_label.dart';
 import '../../messages/widgets/message_jump.dart';
 import '../../settings/screens/space_settings_section.dart';
+import '../../messages/widgets/message_inline.dart' show rewriteMentions;
 
 /// Which row layout a [PaletteResultItem] draws with.
 enum PaletteKind { channel, person, message, transcript, action }
@@ -215,11 +216,13 @@ List<PaletteResultItem> buildMessageItems(
   List<api.Message> messages, {
   required String? currentChannelId,
   Map<String, Channel> channelsById = const {},
+  Map<String, String> mentionNames = const {},
 }) => [
   for (final message in messages)
     messageResultItem(
       message,
       channelLabel: paletteChannelLabel(channelsById[message.channelId]),
+      mentionNames: mentionNames,
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),
         ref.read,
@@ -237,6 +240,7 @@ PaletteResultItem messageResultItem(
   api.Message message, {
   required String channelLabel,
   String? authorName,
+  Map<String, String> mentionNames = const {},
   required Future<void> Function(BuildContext context, WidgetRef ref) onSelect,
 }) {
   final label = message.content.isEmpty
@@ -244,11 +248,13 @@ PaletteResultItem messageResultItem(
             matchedAttachmentName(message) ??
             '')
       : message.content;
+  // Read aloud the way the chips show it: the member's name, not the stored @username.
+  final spoken = rewriteMentions(label, mentionNames);
   return PaletteResultItem(
     label: label,
     semanticLabel: authorName == null
-        ? null
-        : 'Message from $authorName: $label',
+        ? (spoken == label ? null : spoken)
+        : 'Message from $authorName: $spoken',
     kind: PaletteKind.message,
     message: message,
     messageChannelLabel: channelLabel,

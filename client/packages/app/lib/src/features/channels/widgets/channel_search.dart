@@ -18,6 +18,8 @@ import '../../messages/widgets/message_text.dart';
 import '../../palette/widgets/command_palette_rows.dart'
     show PaletteSectionHeader;
 import 'compact_channel_search.dart';
+import '../../members/providers/mention_names.dart' show mentionNamesProvider;
+import '../../messages/widgets/message_inline.dart' show rewriteMentions;
 
 class ChannelSearchBar extends StatelessWidget {
   const ChannelSearchBar({
@@ -314,7 +316,8 @@ class SearchResultRow extends ConsumerWidget {
     );
     return Semantics(
       button: true,
-      label: 'Message from $name: ${message.content}',
+      label:
+          'Message from $name: ${rewriteMentions(message.content, ref.watch(mentionNamesProvider))}',
       onTap: () => onSelect(message),
       child: ExcludeSemantics(
         child: AppFocusRing(

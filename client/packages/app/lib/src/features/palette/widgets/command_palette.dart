@@ -36,6 +36,7 @@ import 'command_palette_items.dart';
 import 'command_palette_rows.dart';
 import 'palette_reveal.dart';
 import 'palette_transcript_items.dart';
+import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 
 /// The design's floating card width; not on the spacing grid because it is
 /// the palette's own measured size, like the rail widths beside it. Never
@@ -397,6 +398,7 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             _messageResults,
             currentChannelId: widget.currentChannelId,
             channelsById: {for (final c in inputs.channels) c.id: c},
+            mentionNames: ref.watch(mentionNamesProvider),
           ),
         ),
       if (everything)
