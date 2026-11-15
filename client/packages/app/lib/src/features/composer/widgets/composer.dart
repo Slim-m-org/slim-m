@@ -37,8 +37,10 @@ import 'composer_code_blocks.dart';
 import '../../settings/providers/ui_sound_settings.dart'
     show messageSentSignalProvider;
 import 'composer_send_focus.dart';
+import 'composer_send_gate.dart';
 import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
+import 'composer_footer.dart';
 import 'composer_edit_last.dart';
 import 'composer_key_handler.dart';
 import 'composer_focus_registration.dart';
@@ -135,7 +137,7 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _gifSearchEnabled = false;
 
   /// Seconds left before slow mode allows another send, refreshed in
-  /// [build] from [slowModeRemainingSecondsProvider]; see [_canSend].
+  /// [build] from [slowModeRemainingSecondsProvider]; see [ComposerSendGate.canSend].
   int _slowModeRemaining = 0;
 
   final _focusRegistration = ComposerFocusRegistration();
@@ -156,26 +158,12 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _commandRunning = false;
   final _launchId = RetryId(newMessageId);
 
-  /// A staged file is sendable on its own: a photo needs no caption, and the
-  /// server accepts an empty body precisely when attachments ride along.
-  /// Blocked while anything staged is still uploading or has failed, or a
-  /// send would go out missing whatever has not resolved to an id yet.
-  /// Also blocked over the character limit, so a doomed request never
-  /// reaches the wire at all; see [ComposerBanners]'s `overLimitBy` band for
-  /// where that refusal is explained.
-  bool get _canSend =>
-      !_commandRunning &&
-      (_stats.hasSendableText || !_attachments.isEmpty) &&
-      !_attachments.hasBlockingAttachment &&
-      _stats.overBy == null &&
-      _slowModeRemaining <= 0;
-
-  /// The mic stands in for Send only while there is nothing to send and nothing pending.
-  bool get _canRecord =>
-      !_commandRunning &&
-      !_stats.hasText &&
-      _attachments.isEmpty &&
-      _slowModeRemaining <= 0;
+  ComposerSendGate get _gate => ComposerSendGate(
+    commandRunning: _commandRunning,
+    stats: _stats,
+    attachments: _attachments,
+    slowModeRemaining: _slowModeRemaining,
+  );
 
   void _sendVoice(Attachment voice, Uint8List bytes) {
     _attachments.addResolved(voice, bytes);
@@ -348,7 +336,7 @@ class _ComposerState extends ConsumerState<Composer> {
   );
 
   Future<void> _send() async {
-    if (!_canSend) return;
+    if (!_gate.canSend) return;
     final gifQuery = _gifSearchEnabled && _attachments.isEmpty
         ? gifCommandQuery(widget.controller.text)
         : null;
@@ -472,8 +460,8 @@ class _ComposerState extends ConsumerState<Composer> {
               channelId: widget.channelId,
               channelName: widget.channelName,
               hasText: _stats.hasText,
-              canSend: _canSend,
-              canRecord: _canRecord,
+              canSend: _gate.canSend,
+              canRecord: _gate.canRecord,
               onVoiceSent: _sendVoice,
               onSend: _send,
               onTyping: _onTyping,
@@ -493,18 +481,12 @@ class _ComposerState extends ConsumerState<Composer> {
               onStageGif: _actions.stageGif,
               pickerController: _pickerController,
             ),
-            ComposerPhotoStripSlot(
+            ComposerFooter(
               channelId: widget.channelId,
+              charCount: _stats.charCount,
               stageFile: _actions.stageFile,
               onBrowse: () => unawaited(
                 _actions.pickAttachment(AttachmentSource.photoLibrary),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: MessageLengthCounter(length: _stats.charCount),
               ),
             ),
           ],
