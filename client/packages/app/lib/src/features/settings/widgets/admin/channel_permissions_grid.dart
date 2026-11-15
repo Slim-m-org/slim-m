@@ -34,6 +34,7 @@ import 'channel_permissions_card.dart';
 import 'channel_permissions_columns.dart';
 import 'channel_permissions_picker.dart';
 import '../../providers/settings_actions.dart';
+import '../viewport_pin.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
   const ChannelPermissionsGrid({super.key, required Channel this.channel})
@@ -55,6 +56,8 @@ class ChannelPermissionsGrid extends ConsumerStatefulWidget {
 
 class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     with GuardedActionState<ChannelPermissionsGrid> {
+  final _section = GlobalKey();
+
   /// `column.key` -> (allow, deny), for every column currently shown -
   /// loaded overwrites plus anything a pending edit or a freshly added
   /// column has touched.
@@ -422,6 +425,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       grid: view,
     );
     return Column(
+      key: _section,
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -433,18 +437,25 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
         if (shrinkWrap) card else Expanded(child: card),
-        if (_isDirty)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.s12),
-            child: SettingsSaveBar(
-              changeCount: _changeCount,
-              saving: _saving,
-              onDiscard: _discard,
-              onSave: _save,
-            ),
-          ),
+        if (_isDirty) _saveBar(shrinkWrap: shrinkWrap),
       ],
     );
+  }
+
+  /// In a page that scrolls, the bar holds to the bottom of the view while the grid is on screen, so an edit far down never hides it.
+  Widget _saveBar({required bool shrinkWrap}) {
+    final bar = Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s12),
+      child: SettingsSaveBar(
+        changeCount: _changeCount,
+        saving: _saving,
+        onDiscard: _discard,
+        onSave: _save,
+      ),
+    );
+    return shrinkWrap
+        ? ViewportPin(edge: ViewportEdge.bottom, section: _section, child: bar)
+        : bar;
   }
 
   Widget _cell(GridColumn column, PermSpec spec, int myPermissions) {
