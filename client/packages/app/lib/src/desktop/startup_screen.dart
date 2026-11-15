@@ -103,17 +103,21 @@ class StartupApp extends StatelessWidget {
   /// Set where the native title bar is hidden; see [StartupWindowChrome].
   final DesktopWindowPort? windowPort;
 
+  /// No navigator: a `home` one switches web to single-entry history on every load, and tearing
+  /// down a history past the browser's 50 entries leaves the address bar and links dead.
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'slim-m',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(Brightness.dark, AppTokens.dark),
-    home: StartupScreen(
-      status: status,
-      prompt: prompt,
-      windowPort: windowPort,
-      leaving: leaving,
-      rounded: rounded,
+    builder: (context, _) => Overlay.wrap(
+      child: StartupScreen(
+        status: status,
+        prompt: prompt,
+        windowPort: windowPort,
+        leaving: leaving,
+        rounded: rounded,
+      ),
     ),
   );
 }

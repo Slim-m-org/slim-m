@@ -114,6 +114,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'When two channels you had open are deleted, the app goes back to '
         'the channel list instead of flickering between them.',
       ),
+      WhatsNewPoint(
+        'On the web, links and the back button keep working after you '
+        'reload a tab you have used for a while.',
+      ),
     ],
   ),
 ];
