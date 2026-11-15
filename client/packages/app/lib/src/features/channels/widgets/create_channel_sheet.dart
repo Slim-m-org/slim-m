@@ -171,6 +171,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
             value: _restricted,
             onChanged: (v) => setState(() => _restricted = v),
             semanticLabel: 'Make this channel private',
+            inset: 0,
           ),
         if (canRestrict && _restricted)
           PrivateAudiencePicker(

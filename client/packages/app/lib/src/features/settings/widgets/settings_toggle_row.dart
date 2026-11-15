@@ -44,6 +44,7 @@ class SettingsToggleRow extends StatelessWidget {
     required this.semanticLabel,
     this.description,
     this.leading,
+    this.inset,
   });
 
   final String label;
@@ -55,6 +56,9 @@ class SettingsToggleRow extends StatelessWidget {
   /// An icon in the same column an [AppListRow]'s leading uses, for a toggle
   /// that sits among such rows in one card.
   final Widget? leading;
+
+  /// The row's side padding, for a toggle laid out as a form field whose edges line up with the fields around it.
+  final double? inset;
 
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -76,7 +80,7 @@ class SettingsToggleRow extends StatelessWidget {
       constraints: BoxConstraints(minHeight: metrics.minHeight),
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: metrics.inset,
+          horizontal: inset ?? metrics.inset,
           vertical: metrics.vertical,
         ),
         child: Row(
