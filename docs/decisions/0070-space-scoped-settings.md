@@ -58,6 +58,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Join and leave sounds | `slimm.voice.join_leave_sounds_enabled` | Space | sounds |
 | Hold music and track | `slimm.voice.hold_music_*` | Space | sounds |
 | Call ring sound | `slimm.voice.call_ring_sound_enabled` | Space | sounds |
+| Call to bring back after a restart or crash | `slimm.voice.call_in_progress` | Space | the call belongs to one server |
 | Microphone and speaker choice | `slimm.voice.audio_*_device_id` | Device | hardware |
 | Camera on join, camera quality | `slimm.voice.camera_*` | Device | hardware |
 | Noise suppression, sensitivity, input threshold, even out loud sounds | `slimm.voice.*` | Device | the microphone |

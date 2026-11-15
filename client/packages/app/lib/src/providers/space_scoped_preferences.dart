@@ -33,6 +33,7 @@ const Set<String> spaceScopedKeys = {
   'slimm.voice.hold_music_unsent',
   'slimm.voice.call_ring_sound_enabled',
   'slimm.voice.soundboard_sounds',
+  'slimm.voice.call_in_progress',
 };
 
 /// Where [key] is stored for the Space at [origin].
