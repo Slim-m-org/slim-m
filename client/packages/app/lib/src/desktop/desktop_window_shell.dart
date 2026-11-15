@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/providers/account_host.dart';
 import '../features/accounts/providers/account_providers.dart';
+import '../features/voice/providers/call_restore.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
@@ -91,6 +92,7 @@ class DesktopWindowShell {
 
   /// Writes any pending geometry, then destroys the window through [port].
   Future<void> quit(DesktopWindowPort port) async {
+    await _forgetCall();
     try {
       await _controller?.flush();
     } catch (error, stack) {
@@ -382,6 +384,23 @@ class DesktopWindowShell {
     final notice = await screen.read(firstRunTrayNoticeProvider.future);
     if (notice.hasBeenShown(action)) return;
     screen.read(firstRunTrayNoticeCloseActionProvider.notifier).state = action;
+  }
+
+  /// A deliberate quit, so the call it leaves does not come back on the next start.
+  Future<void> _forgetCall() async {
+    final container = _accounts?.active?.container;
+    if (container == null) return;
+    try {
+      final restore = await container.read(callRestoreProvider.future);
+      await restore.markQuit();
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'Could not forget the call on quit',
+        error: error,
+        stack: stack,
+      );
+    }
   }
 
   /// The account on screen owns the settings a close acts on; the first one built may be gone.

@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../features/voice/providers/call_restore.dart';
 import '../widgets/anchored_menu.dart';
 import '../widgets/animated_menu_portal.dart';
 import 'desktop_window_port.dart';
@@ -50,6 +51,11 @@ class WindowMenuButton extends ConsumerStatefulWidget {
 class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
   final _controller = AnimatedMenuController();
 
+  Future<void> _restart() async {
+    await (await ref.read(callRestoreProvider.future)).markRestart();
+    await widget.port.relaunch();
+  }
+
   @override
   Widget build(BuildContext context) {
     final update = ref.watch(inSessionUpdateProvider);
@@ -68,7 +74,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
               leading: AppIcons.retry,
               onTap: () {
                 _controller.hide();
-                unawaited(widget.port.relaunch());
+                unawaited(_restart());
               },
             ),
           AppMenuItem(

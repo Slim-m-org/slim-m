@@ -19,6 +19,7 @@ import 'package:slimm_platform/platform.dart';
 import '../providers/auto_update_preference.dart';
 import '../providers/providers.dart';
 import '../providers/windows_adopt.dart';
+import '../features/voice/providers/call_restore.dart';
 import '../features/voice/providers/voice_controller.dart';
 import 'desktop_window_port.dart';
 import 'self_update/self_update_controller.dart';
@@ -138,6 +139,7 @@ Future<void> runUpdateAction(
       if (ref.read(voiceControllerProvider).channelId != null) return;
       await port.relaunch();
     case UpdateMenuAction.restartToUpdate:
+      await (await ref.read(callRestoreProvider.future)).markRestart();
       await port.relaunch();
     case UpdateMenuAction.packageManager:
       await showUpdatePackageView(context, update: update);

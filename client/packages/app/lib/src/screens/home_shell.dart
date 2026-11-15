@@ -29,6 +29,7 @@ import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
 import '../features/voice/providers/voice_notice_controller.dart';
+import '../features/voice/widgets/call_restore_gate.dart';
 import '../features/voice/widgets/voice_notice_banner_host.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
@@ -109,24 +110,26 @@ class HomeShell extends ConsumerWidget {
     final scaffold = _scaffold(context, ref, layout, facts);
 
     final shell = WhatsNewGate(
-      child: BotFormGate(
-        child: PushToTalkListener(
-          child: CallbackShortcuts(
-            bindings: _shortcutBindings(context, ref),
-            // CallbackShortcuts only fires for a focused descendant, so this
-            // default makes the shortcut work the instant the app opens.
-            child: Focus(
-              autofocus: true,
-              child: _LayoutBridge(
-                layout: layout,
-                child: NewDeviceBannerHost(
-                  child: VoiceNoticeBannerHost(
-                    child: AdminAlertBannerHost(
-                      child: RulesGateBannerHost(
-                        child: UpdateBannerHost(
-                          child: DownloadFailureHost(
-                            child: DatabaseResetNotice(
-                              child: AppBackgroundHost(child: scaffold),
+      child: CallRestoreGate(
+        child: BotFormGate(
+          child: PushToTalkListener(
+            child: CallbackShortcuts(
+              bindings: _shortcutBindings(context, ref),
+              // CallbackShortcuts only fires for a focused descendant, so this
+              // default makes the shortcut work the instant the app opens.
+              child: Focus(
+                autofocus: true,
+                child: _LayoutBridge(
+                  layout: layout,
+                  child: NewDeviceBannerHost(
+                    child: VoiceNoticeBannerHost(
+                      child: AdminAlertBannerHost(
+                        child: RulesGateBannerHost(
+                          child: UpdateBannerHost(
+                            child: DownloadFailureHost(
+                              child: DatabaseResetNotice(
+                                child: AppBackgroundHost(child: scaffold),
+                              ),
                             ),
                           ),
                         ),

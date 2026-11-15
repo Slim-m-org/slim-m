@@ -118,6 +118,14 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'On the web, reloading keeps you on the page you were on, and links '
         'and the back button keep working after it.',
       ),
+      WhatsNewPoint(
+        'When slim-m restarts to update during a call, it puts you back in '
+        'the call. If it closes unexpectedly, it asks whether to rejoin.',
+      ),
+      WhatsNewPoint(
+        'Voice activity sensitivity only changes your own speaking ring now. '
+        'It used to hide quieter people speaking too.',
+      ),
     ],
   ),
 ];
