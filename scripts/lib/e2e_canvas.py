@@ -72,6 +72,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import e2e_labels as L
+import e2e_call_restore
 from e2e_api import wait_until
 from e2e_board_frame import SHARED_H, SHARED_W, board_frame, clear_window, fit_to_board_zoom_one
 
@@ -314,8 +315,10 @@ def reload_persists(client, channel, admin_api, channel_id):
     origin_url = client.ev("location.origin")
     client.go_away()
     client.come_back(f"{origin_url}/#/channels")
+    # The reload left the call without a leave, so the app offers it back; Rejoin is how a person returns.
+    client.wait_for(e2e_call_restore.PROMPT, timeout=30)
+    client.click("Rejoin")
     client.click(channel)
-    # In call, not a composer: clicking a voice channel joins it directly.
     client.wait_for(L.IN_CALL)
     client.click(L.OPEN_CANVAS)
     client.wait_for("1 stroke, 1 image", timeout=30)

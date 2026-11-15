@@ -54,6 +54,8 @@ _SEND_STATE = """(function(){
 
 
 def _throttle(client, upload):
+    # Emulation is ignored until the Network domain is on, which only an earlier go_offline used to do.
+    client.send("Network.enable")
     client.send("Network.emulateNetworkConditions", {
         "offline": False, "latency": 0, "downloadThroughput": -1, "uploadThroughput": upload})
 
