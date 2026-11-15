@@ -45,4 +45,18 @@ void main() {
     expect(find.text('splash'), findsNothing);
     expect(find.text('home'), findsOneWidget);
   });
+
+  testWidgets('the app beneath is hidden from a screen reader while covered', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(_cover(covered: true));
+    expect(find.bySemanticsLabel('home'), findsNothing);
+    expect(find.bySemanticsLabel('splash'), findsOneWidget);
+
+    await tester.pumpWidget(_cover(covered: false));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.bySemanticsLabel('home'), findsOneWidget, reason: 'mid fade');
+    semantics.dispose();
+  });
 }

@@ -40,7 +40,8 @@ class _LaunchCoverState extends State<LaunchCover> {
       textDirection: TextDirection.ltr,
       fit: StackFit.expand,
       children: [
-        widget.child,
+        // Hidden from assistive tech while covered, or a screen reader walks a home nobody can see yet.
+        ExcludeSemantics(excluding: widget.covered, child: widget.child),
         if (_mounted)
           IgnorePointer(
             ignoring: !widget.covered,
