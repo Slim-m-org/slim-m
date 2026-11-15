@@ -110,10 +110,12 @@ def private_channel_follows_who_was_added(a, b, admin, member):
         while b.find(secret_line):
             assert time.time() < deadline, "bob's open channel kept showing the message after removal"
             time.sleep(0.25)
+        b.wait_for(f"no longer have access to #{name}", timeout=TIMEOUT)
+        assert not b.find("was not found"), "bob got the not-found card instead of leaving the channel"
         status = _bob_reads(member, channel_id)
         assert status in (403, 404), f"after removal the server answered bob's read with {status}"
         b.shot("private-removed")
-        print("  removing him, while he sits in it, takes it off his screen and the server refuses him")
+        print("  removing him, while he sits in it, takes him out with a notice and the server refuses him")
     finally:
         a.dismiss_overlay()
         if channel_id:

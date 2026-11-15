@@ -126,6 +126,11 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'Voice activity sensitivity only changes your own speaking ring now. '
         'It used to hide quieter people speaking too.',
       ),
+      WhatsNewPoint(
+        'Losing access to the channel you have open takes you back with a '
+        'notice instead of an error, and the permission grid keeps Save and '
+        'the column names in view while you edit.',
+      ),
     ],
   ),
 ];
