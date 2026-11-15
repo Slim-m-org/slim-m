@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
+import 'package:slimm_data/data.dart' as local show Channel;
 
 import 'dms.dart';
 import '../../../providers/rate_limit_retry.dart';
@@ -19,6 +20,11 @@ import '../../../providers/rate_limit_retry.dart';
 /// their read markers, deduplicating a concurrent caller into the refresh
 /// already running rather than starting a second.
 class ChannelRefresher {
+  ChannelRefresher({this.onLost});
+
+  /// Told the channels a refresh dropped because the server stopped listing them, by id with their name.
+  final void Function(Map<String, String> lost)? onLost;
+
   Future<void>? _inFlight;
   Completer<void>? _trailing;
   _Request? _trailingRequest;
@@ -73,8 +79,12 @@ class ChannelRefresher {
       ...channels,
       ...dms.map((dm) => channelFromDm(dm, selfId: selfId)),
     ];
+    final held = await store.allChannels();
+    if (!isCurrent()) return;
     await store.replaceChannels(all);
     if (!isCurrent()) return;
+    final lost = lostChannels(held, {for (final c in all) c.id});
+    if (lost.isNotEmpty) onLost?.call(lost);
     await store.replaceCategories(categories);
 
     await _hydrateReadMarkers(api, store, isCurrent: isCurrent, wait: wait);
@@ -215,3 +225,18 @@ class _Request {
   final MessageStore store;
   final bool Function() isCurrent;
 }
+
+/// The channels in [held] that [listed] no longer has, by id with their name.
+/// Threads are never listed and DMs and rooms leave by other paths, so neither counts.
+Map<String, String> lostChannels(
+  List<local.Channel> held,
+  Set<String> listed,
+) => {
+  for (final c in held)
+    if (!listed.contains(c.id) &&
+        c.parentMessageId == null &&
+        c.roomOwnerId == null &&
+        c.kind != 'dm' &&
+        c.name.isNotEmpty)
+      c.id: c.name,
+};

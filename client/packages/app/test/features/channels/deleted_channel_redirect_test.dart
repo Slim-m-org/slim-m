@@ -82,6 +82,23 @@ void main() {
     });
   }
 
+  testWidgets('losing access to the open channel goes back saying so', (
+    tester,
+  ) async {
+    final s = await _open(tester, 1400);
+    final lost = s.container.read(lostChannelsProvider.notifier);
+    lost.state = {...lost.state, 'c2': 'ticket-0004'};
+    await MessageStore(s.db).removeChannel('c2');
+    await _settle(tester);
+
+    expect(_location(tester), '/channels/c1');
+    expect(
+      s.container.read(toastsProvider).map((t) => t.message),
+      contains('You no longer have access to #ticket-0004'),
+    );
+    await teardown(tester, s.container, s.db);
+  });
+
   testWidgets('when the channel before is deleted too, it lands on the list '
       'instead of bouncing between the two', (tester) async {
     final s = await _open(tester, 1400);

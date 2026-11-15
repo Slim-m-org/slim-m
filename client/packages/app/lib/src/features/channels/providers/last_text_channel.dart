@@ -18,6 +18,12 @@ final deletedChannelsProvider = StateProvider<Map<String, String>>(
   (ref) => const {},
 );
 
+/// Channels whose access was taken away this session, by id with their name,
+/// so a screen still showing one leaves saying so rather than as not found.
+final lostChannelsProvider = StateProvider<Map<String, String>>(
+  (ref) => const {},
+);
+
 /// Where to go when a channel disappears from under the screen: [last], else [previous],
 /// never one in [gone], so two deleted channels cannot send the screen back and forth.
 String? fallbackChannel({

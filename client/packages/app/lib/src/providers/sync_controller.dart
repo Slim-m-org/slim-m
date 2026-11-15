@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
 import '../features/channels/providers/channel_refresher.dart';
+import '../features/channels/providers/last_text_channel.dart';
 import 'providers.dart';
 import 'app_lifecycle.dart';
 import '../sync/providers/reconnect_backoff.dart';
@@ -118,7 +119,12 @@ class SyncController extends StateNotifier<SyncStatus> {
   );
   late final SyncCatchUp _catchUp;
   late final SyncEventApplier _applier;
-  final _channelRefresher = ChannelRefresher();
+  late final _channelRefresher = ChannelRefresher(
+    onLost: (lost) {
+      final notifier = _ref.read(lostChannelsProvider.notifier);
+      notifier.state = {...notifier.state, ...lost};
+    },
+  );
 
   /// Whether this controller has been live before, which tells a reconnect from
   /// the first connect of a session.
