@@ -70,6 +70,7 @@ class ChannelRefresher {
     final categoriesFuture = api.listCategories();
     final dmsFuture = api.listDirectMessages();
     await Future.wait([channelsFuture, categoriesFuture, dmsFuture]);
+    final held = await store.allChannels();
     if (!isCurrent()) return;
     final channels = await channelsFuture;
     final categories = await categoriesFuture;
@@ -79,8 +80,6 @@ class ChannelRefresher {
       ...channels,
       ...dms.map((dm) => channelFromDm(dm, selfId: selfId)),
     ];
-    final held = await store.allChannels();
-    if (!isCurrent()) return;
     await store.replaceChannels(all);
     if (!isCurrent()) return;
     final lost = lostChannels(held, {for (final c in all) c.id});
