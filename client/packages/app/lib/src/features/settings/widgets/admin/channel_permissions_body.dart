@@ -154,10 +154,7 @@ class _PermissionGridViewState extends State<PermissionGridView> {
             child: ViewportPin(
               edge: ViewportEdge.top,
               section: _section,
-              child: ColoredBox(
-                color: Theme.of(context).extension<AppTokens>()!.surfaceRaised,
-                child: header,
-              ),
+              child: _PinnedHeaderSurface(child: header),
             ),
           ),
         ],
@@ -339,6 +336,27 @@ class _NoMatches extends StatelessWidget {
           style: AppText.ui.copyWith(color: tokens.textSecondary),
         ),
       ),
+    );
+  }
+}
+
+/// The card's own fill and side borders behind the column names, so a pinned header neither shows rows through it nor cuts the card's frame.
+class _PinnedHeaderSurface extends StatelessWidget {
+  const _PinnedHeaderSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.surfaceRaised,
+        border: Border.symmetric(
+          vertical: BorderSide(color: tokens.borderSubtle),
+        ),
+      ),
+      child: child,
     );
   }
 }

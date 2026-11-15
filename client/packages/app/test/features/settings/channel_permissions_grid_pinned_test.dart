@@ -148,15 +148,14 @@ Future<ScrollController> _open(WidgetTester tester) async {
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: SingleChildScrollView(
+          // A ListView, as the settings pane is: it lays children out a frame after the scroll.
+          body: ListView(
             controller: scroll,
-            child: const Column(
-              children: [
-                SizedBox(height: 200),
-                ChannelPermissionsGrid(channel: _channel),
-                SizedBox(height: 800),
-              ],
-            ),
+            children: const [
+              SizedBox(height: 200),
+              ChannelPermissionsGrid(channel: _channel),
+              SizedBox(height: 800),
+            ],
           ),
         ),
       ),
@@ -185,8 +184,15 @@ void main() {
     expect(tester.getRect(_header).top, greaterThan(0), reason: 'at rest');
 
     scroll.jumpTo(400);
-    await _settle(tester);
+    await tester.pump();
+    expect(
+      tester.getRect(_header).top,
+      0,
+      reason: 'in the same frame as the scroll',
+    );
 
+    scroll.jumpTo(600);
+    await _settle(tester);
     expect(
       tester.getRect(_header).top,
       0,
