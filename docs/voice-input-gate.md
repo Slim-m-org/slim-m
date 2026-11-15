@@ -134,8 +134,24 @@ Measured on 2026-10-13 against `livekit-server` 1.10.1 with LiveKit's Python SDK
 | `update_interval: 200`, `smooth_intervals: 1` | 30-215 ms | 690-750 ms |
 | `update_interval: 100`, `smooth_intervals: 1`, `min_percentile: 20` | 50-120 ms | 140-210 ms |
 
-The last row is what `docker-compose.voice.yml` ships.
+The last row is what `docker-compose.voice.yml` ships, with `active_level: 45` on top of it (see below).
 Clearing that fast would flicker between words, so the client keeps a ring lit for 300 ms after the SFU drops it (`SpeakingHold` in `slimm_rtc`); the local ring on a host with the input gate already has the gate's own hold and skips this.
+
+### How quiet a voice still lights a ring
+
+A packet counts as speech when it is louder than `active_level` (in -dBov, LiveKit's default 35).
+Measured on 2026-11-15 by `e2e_voice_activity.py`: one browser captured the same speech-shaped voice at falling levels, and another sampled what it heard and whether the ring was lit every 100 ms.
+The browser's auto gain lifts most of it back up, so only the softest voice that was still plainly heard got near the threshold.
+
+| voice captured at | heard at | lit at `active_level` 35 | lit at 45 |
+| --- | --- | --- | --- |
+| -6 to -40 dB | -15 to -18 dB | 99-100% | 100% |
+| -50 dB | -25 dB | 91% (54% at LiveKit's default timing) | 100% |
+| -60 dB | -54 dB | not counted as audible | not counted as audible |
+| fan-like hiss, no voice | -49 dB | 0% | 0% |
+
+The e2e stack runs the same `audio` block as `docker-compose.voice.yml`, and `test_e2e_stack_script.py` fails if they drift apart.
+Remote rings also ignore the listener's own Voice activity sensitivity; that slider only changes your own ring.
 
 ## Level outside a call
 

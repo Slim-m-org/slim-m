@@ -37,6 +37,8 @@ LK_PORT="${E2E_LK_PORT:-7880}"
 LK_CONTAINER="${E2E_LK_CONTAINER:-slimm-e2e-lk}"
 # The version prod runs, so the run tests what ships rather than whatever is latest.
 LIVEKIT_VERSION="${LIVEKIT_VERSION:-v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20}"
+# Speaker detection as docker-compose.voice.yml sets it, so a ring measured here is the one prod shows; test_e2e_stack_script.py keeps them equal.
+LK_AUDIO="${E2E_LK_AUDIO:-update_interval: 100, smooth_intervals: 1, min_percentile: 20, active_level: 45}"
 # Below the kernel's ephemeral range (32768-60999), where an outgoing socket can already hold a port.
 RTC_UDP_START="${E2E_RTC_UDP_START:-21000}"
 RTC_UDP_END="${E2E_RTC_UDP_END:-21050}"
@@ -97,7 +99,8 @@ start_sfu() {
   docker run -d --name "$LK_CONTAINER" \
     -p "127.0.0.1:$LK_PORT:7880" -p "127.0.0.1:$RTC_TCP_PORT:$RTC_TCP_PORT" \
     -p "127.0.0.1:$RTC_UDP_START-$RTC_UDP_END:$RTC_UDP_START-$RTC_UDP_END/udp" \
-    -e LIVEKIT_CONFIG="rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}" \
+    -e LIVEKIT_CONFIG="rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}
+audio: {$LK_AUDIO}" \
     "livekit/livekit-server:$LIVEKIT_VERSION" --dev --bind 0.0.0.0 >/dev/null
   wait_for_url "http://localhost:$LK_PORT" "$SFU_WAIT" || {
     echo "livekit never came up:"; docker logs "$LK_CONTAINER" 2>&1 | tail -20; exit 1; }

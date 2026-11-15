@@ -58,6 +58,8 @@ import e2e_voice_share
 import e2e_share_quality
 import e2e_share_ramp
 import e2e_voice_noise
+import e2e_call_restore
+import e2e_voice_activity
 import e2e_voice_desktop
 import e2e_voice_desktop_volume
 import e2e_voice_encode
@@ -336,6 +338,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: leaving", lambda: e2e_voice.leave_call(a, b, room_id)),
         ("voice: re-clicking a channel already left rejoins it",
          lambda: e2e_voice_rejoin.rejoin_after_leaving(a, room_id)),
+        ("voice: a reload mid-call offers the call back, and a call left on purpose is not",
+         lambda: e2e_call_restore.reload_mid_call_offers_to_rejoin(a, room_id)),
         ("voice: join time, click to first remote audio",
          lambda: e2e_voice_join_time.join_time(a, b, room_id)),
         ("voice: a client that loses its network rejoins on its own",
@@ -343,6 +347,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              a, b, room_id)),
         ("voice: noise suppression quiets the noise floor and keeps the voice",
          lambda: e2e_voice_noise.suppression_quiets_the_noise_floor(
+             a, server, secret, admin, sign_in, room_id)),
+        ("voice: the speaking ring lights for a soft voice you can hear",
+         lambda: e2e_voice_activity.ring_follows_a_soft_voice(
              a, server, secret, admin, sign_in, room_id)),
         ("voice: a listener's volume slider scales the sound, to silence, and "
          "survives rejoining",
