@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/providers.dart';
@@ -60,7 +61,13 @@ class CallToRestore {
         muted: json['muted'] as bool,
         restart: json['restart'] as bool? ?? false,
       );
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'Ignored an unreadable call to bring back',
+        error,
+        stack,
+      );
       return null;
     }
   }
