@@ -2,6 +2,8 @@
 //! The space every nested-category test starts from: gamers is gamer-only,
 //! minecraft follows it, and cs2 has its own rows letting only the cs role in.
 
+use std::collections::BTreeMap;
+
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
@@ -259,4 +261,20 @@ pub(super) fn category_events(events: &[Event]) -> (usize, usize) {
         .filter(|e| matches!(e, Event::OverwriteChanged { .. }))
         .count();
     (changed, overwrites)
+}
+
+/// Each `OverwriteChanged` published since the last drain, by channel id.
+pub(super) fn overwrite_events(w: &mut World) -> BTreeMap<String, Vec<UserId>> {
+    let mut out = BTreeMap::new();
+    for event in w.drain() {
+        if let Event::OverwriteChanged {
+            channel_id,
+            previously_visible_to,
+        } = event
+        {
+            let first = out.insert(channel_id.to_string(), (*previously_visible_to).clone());
+            assert!(first.is_none(), "{channel_id} was published twice");
+        }
+    }
+    out
 }

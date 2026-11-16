@@ -24,8 +24,6 @@
 //! half-applied. Same checks as [`set`], run per entry before any of them
 //! write.
 
-use std::sync::Arc;
-
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
@@ -37,7 +35,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
-use crate::hub::Event;
+use super::overwrite_changes::{publish_changed, visible_before};
 use crate::ids::{ChannelId, RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -225,7 +223,7 @@ async fn set(
     let granted = allow.remove(old_allow).union(old_deny.remove(deny));
     refuse_ungrantable(caller_permissions, granted)?;
 
-    let previously_visible_to = previously_visible_to(&state, channel_id, target).await?;
+    let before = visible_before(&state, &[channel_id], &[target]).await?;
     match target {
         Target::Role(role_id) => {
             if state.store.role(role_id).await?.is_none() {
@@ -246,10 +244,7 @@ async fn set(
                 .await?;
         }
     }
-    state.hub.publish(Event::OverwriteChanged {
-        channel_id,
-        previously_visible_to: Arc::new(previously_visible_to),
-    });
+    publish_changed(&state, before);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -342,22 +337,12 @@ async fn batch_set(
         });
     }
 
-    // Resolved before the write, per target then deduplicated; see `previously_visible_to`.
-    let mut previously_visible_to_all = Vec::new();
-    for target in &targets {
-        previously_visible_to_all.extend(previously_visible_to(&state, channel_id, *target).await?);
-    }
-    previously_visible_to_all.sort();
-    previously_visible_to_all.dedup();
-
+    let before = visible_before(&state, &[channel_id], &targets).await?;
     state
         .store
         .set_channel_overwrites_batch(channel_id, &entries)
         .await?;
-    state.hub.publish(Event::OverwriteChanged {
-        channel_id,
-        previously_visible_to: Arc::new(previously_visible_to_all),
-    });
+    publish_changed(&state, before);
 
     let overwrites = state
         .store
@@ -409,7 +394,7 @@ async fn clear(
         refuse_ungrantable(caller_permissions, old_deny)?;
     }
 
-    let previously_visible_to = previously_visible_to(&state, channel_id, target).await?;
+    let before = visible_before(&state, &[channel_id], &[target]).await?;
     match target {
         Target::Role(role_id) => {
             state
@@ -424,31 +409,6 @@ async fn clear(
                 .await?
         }
     }
-    state.hub.publish(Event::OverwriteChanged {
-        channel_id,
-        previously_visible_to: Arc::new(previously_visible_to),
-    });
+    publish_changed(&state, before);
     Ok(StatusCode::NO_CONTENT)
-}
-
-/// Who this overwrite affects and could already view the channel, resolved
-/// before the write lands.
-///
-/// See [`Event::OverwriteChanged`] for why the event needs it: the ordinary
-/// per-viewer check runs after the change, so the people whose access it just
-/// removed are exactly the ones it would exclude.
-pub(super) async fn previously_visible_to(
-    state: &AppState,
-    channel_id: ChannelId,
-    target: Target,
-) -> Result<Vec<UserId>, ApiError> {
-    let affected = match target {
-        Target::Member(user_id) => vec![user_id],
-        Target::Role(role_id) => match state.store.role(role_id).await? {
-            // `@everyone` has no `member_roles` rows; it applies to every live member.
-            Some(role) if role.is_everyone => state.store.all_live_user_ids().await?,
-            _ => state.store.members_with_role(role_id).await?,
-        },
-    };
-    Ok(state.store.viewers_among(channel_id, &affected).await?)
 }

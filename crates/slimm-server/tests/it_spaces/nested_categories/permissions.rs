@@ -6,27 +6,10 @@ use std::collections::BTreeMap;
 
 use axum::http::StatusCode;
 use serde_json::json;
-use slimm_server::hub::Event;
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
 
-use super::world::{NONE, VIEW, World, entry, has, world};
-
-/// Each `OverwriteChanged` published since the last drain, by channel id.
-fn overwrite_events(w: &mut World) -> BTreeMap<String, Vec<UserId>> {
-    let mut out = BTreeMap::new();
-    for event in w.drain() {
-        if let Event::OverwriteChanged {
-            channel_id,
-            previously_visible_to,
-        } = event
-        {
-            let first = out.insert(channel_id.to_string(), (*previously_visible_to).clone());
-            assert!(first.is_none(), "{channel_id} was published twice");
-        }
-    }
-    out
-}
+use super::world::{NONE, VIEW, entry, has, overwrite_events, world};
 
 fn keys(events: &BTreeMap<String, Vec<UserId>>) -> Vec<String> {
     events.keys().cloned().collect()

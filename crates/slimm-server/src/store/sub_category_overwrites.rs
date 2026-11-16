@@ -48,8 +48,8 @@ pub(super) async fn copy_into_synced_sub_categories(
     Ok(())
 }
 
-/// Every live synced channel following `category`, directly or through a synced
-/// sub-category, with its own category; a save's snapshot and write share it.
+/// Every live synced channel following `category`, directly or through a synced sub-category, with
+/// its own category (a room follows its lobby instead); a save's snapshot and write share it.
 pub(super) async fn synced_channels_beneath<'e, E>(
     executor: E,
     category: ChannelCategoryId,
@@ -61,6 +61,7 @@ where
         r#"SELECT ch.id AS "id!: ChannelId", ch.category_id AS "home!: ChannelCategoryId"
            FROM channels ch
            WHERE ch.deleted_at IS NULL AND ch.permissions_synced = 1
+             AND ch.room_lobby_id IS NULL
              AND (ch.category_id = ?
                   OR ch.category_id IN (
                       SELECT s.id FROM channel_categories s

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ch.id AS \"id!: ChannelId\", ch.category_id AS \"home!: ChannelCategoryId\"\n           FROM channels ch\n           WHERE ch.deleted_at IS NULL AND ch.permissions_synced = 1\n             AND ch.room_lobby_id IS NULL\n             AND (ch.category_id = ?\n                  OR ch.category_id IN (\n                      SELECT s.id FROM channel_categories s\n                      WHERE s.parent_id = ? AND s.permissions_synced = 1\n                        AND s.deleted_at IS NULL))\n           ORDER BY ch.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "home!: ChannelCategoryId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "a48744f58e19957f8d3267ffdee0578f7fcc76961158ea64db0c16e3f2b85e52"
+}

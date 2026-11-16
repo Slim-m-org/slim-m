@@ -13,6 +13,7 @@ A voice channel can be a lobby: `creates_rooms` on the channel, set by anyone wi
 Opening a lobby does not join it.
 The client asks the server for a room (`POST /channels/{id}/voice/room`), and the server creates a voice channel named after the person, right below the lobby in the same category, with a copy of the lobby's overwrites so exactly the same people can see it.
 Asking again while that room exists returns it instead of making a second one, which is what makes the request safe to retry.
+The room keeps following the lobby: every later change to the lobby's overwrites, whether edited on the lobby or copied down from its category, rewrites the room's in the same transaction (decision 0120 found the one-time copy let a room outlive a narrowing).
 
 A room is an ordinary voice channel with an owner (`room_owner_id`), so everything that already works on a channel (calls, the canvas, chat, permissions, the live channel list) works on a room with no special case.
 

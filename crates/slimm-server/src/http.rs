@@ -116,6 +116,7 @@ pub use storage::BackupStatusDir;
 mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;
+mod overwrite_changes;
 mod overwrites;
 mod page_shell;
 pub mod panic_guard;

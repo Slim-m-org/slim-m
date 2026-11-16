@@ -10,10 +10,11 @@ use super::Store;
 use super::overwrites_batch::OverwriteBatchEntry;
 use super::permissions::ChannelOverwrite;
 use super::sub_category_overwrites::{copy_into_synced_sub_categories, synced_channels_beneath};
+use super::voice_rooms::copy_lobby_overwrites_into_rooms;
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 
-/// Replaces `channel`'s overwrites with `category`'s and marks it synced.
+/// Replaces `channel`'s overwrites with `category`'s, and its rooms' with them, and marks it synced.
 pub(super) async fn copy_category_overwrites(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel: ChannelId,
@@ -40,7 +41,7 @@ pub(super) async fn copy_category_overwrites(
     )
     .execute(&mut **tx)
     .await?;
-    Ok(())
+    copy_lobby_overwrites_into_rooms(tx, channel).await
 }
 
 /// Marks `channel` as holding its own overwrites, after an edit of its own.

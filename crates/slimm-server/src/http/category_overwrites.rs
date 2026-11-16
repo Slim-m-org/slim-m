@@ -2,8 +2,6 @@
 //! Category permissions (decisions 0064 and 0120): a category's overwrites, and syncing a channel
 //! or sub-category back to its parent's, with the caller's deployment-wide permissions as the ceiling.
 
-use std::sync::Arc;
-
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::request::Parts;
@@ -13,12 +11,12 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_roles};
 use super::messages::parse_uuid;
+use super::overwrite_changes::{publish_changed, target_of, visible_before};
 use super::overwrites::{
     BatchSetRequest, MAX_BATCH_ENTRIES, OverwriteDto, OverwritesDto, Target, check_bits,
-    parse_target, previously_visible_to, refuse_ungrantable,
+    parse_target, refuse_ungrantable,
 };
-use crate::hub::Event;
-use crate::ids::{ChannelCategoryId, ChannelId, UserId};
+use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{ChannelCategory, OverwriteBatchEntry};
@@ -65,26 +63,6 @@ async fn list(
     require_manage_roles(&state, ctx.user_id).await?;
     let id = live_category(&state, &category_id).await?.id;
     Ok(Json(category_dto(&state, id).await?))
-}
-
-/// Who each synced channel's change affects and could already view it,
-/// resolved before the write; see `overwrites::previously_visible_to`.
-async fn visible_before(
-    state: &AppState,
-    channels: &[ChannelId],
-    targets: &[Target],
-) -> Result<Vec<(ChannelId, Vec<UserId>)>, ApiError> {
-    let mut out = Vec::with_capacity(channels.len());
-    for &channel in channels {
-        let mut users = Vec::new();
-        for target in targets {
-            users.extend(previously_visible_to(state, channel, *target).await?);
-        }
-        users.sort();
-        users.dedup();
-        out.push((channel, users));
-    }
-    Ok(out)
 }
 
 /// Applies the entries and copies the result into everything synced beneath. Every entry is
@@ -149,15 +127,6 @@ async fn batch_set(
     state.store.set_category_overwrites(id, &entries).await?;
     publish_changed(&state, before);
     Ok(Json(category_dto(&state, id).await?))
-}
-
-fn publish_changed(state: &AppState, before: Vec<(ChannelId, Vec<UserId>)>) {
-    for (channel_id, previously_visible_to) in before {
-        state.hub.publish(Event::OverwriteChanged {
-            channel_id,
-            previously_visible_to: Arc::new(previously_visible_to),
-        });
-    }
 }
 
 /// Makes a sub-category follow its parent again (decision 0120), adopting
@@ -236,11 +205,4 @@ async fn sync(
         overwrites: overwrites.into_iter().map(OverwriteDto::from).collect(),
         synced: Some(true),
     }))
-}
-
-fn target_of(kind: &str, id: uuid::Uuid) -> Target {
-    match kind {
-        "member" => Target::Member(UserId(id)),
-        _ => Target::Role(crate::ids::RoleId(id)),
-    }
 }

@@ -185,7 +185,9 @@ Listing the parent is a disclosure, and it is the one the owner chose: anyone wh
 An admin who files a public sub-category under a staff-only parent shows that parent's name to everyone, so the parent's permissions sheet says so in one line.
 
 `GET /channels` and every channel frame stay filtered per channel and carry `category_id` exactly as they do today.
-A temporary voice room counts as a channel for this rule, and it copies its lobby's overwrites, so it can never make a category visible to someone the lobby is hidden from.
+A temporary voice room counts as a channel for this rule, and it holds its lobby's overwrites, so it can never make a category visible to someone the lobby is hidden from.
+Every write to a lobby's rows, copied down from a category or edited on the lobby itself, rewrites its live rooms' rows in the same transaction and publishes `overwrite.changed` for each room.
+A room is never in a category save's synced set, even after a sync of its own, because it follows its lobby instead.
 
 ## Wire changes
 
