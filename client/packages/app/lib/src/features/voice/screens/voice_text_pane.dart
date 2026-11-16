@@ -31,6 +31,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/app_panel_reveal.dart';
+import '../../../widgets/header_icon_action.dart';
 import '../../channels/screens/channel_screen.dart';
 
 /// Whether the voice channel's docked chat pane is open, at desktop widths.
@@ -136,10 +137,9 @@ class VoiceChatAction extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(voiceChatPaneVisibleProvider);
-    return AppIconButton(
+    return HeaderIconAction(
       icon: AppIcons.chat,
-      semanticLabel: 'Toggle text chat',
-      tooltip: 'Text chat',
+      label: 'Toggle text chat',
       active: open,
       touch: true,
       onPressed: () =>

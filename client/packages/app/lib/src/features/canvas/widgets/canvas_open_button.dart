@@ -29,6 +29,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/header_icon_action.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../screens/canvas_pane.dart';
 
@@ -57,26 +58,42 @@ class CanvasOpenButton extends ConsumerWidget {
   /// voice-only behavior until it opts in.
   final bool isDm;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (!isVoice && !isDm) return const SizedBox.shrink();
-    final open = ref.watch(canvasOpenProvider) == channelId;
+  /// Whether the button draws anything, for a header that leaves it out
+  /// rather than spacing around an empty box.
+  static bool shows(
+    BuildContext context,
+    WidgetRef ref, {
+    required String channelId,
+    required bool isVoice,
+    required bool isDm,
+  }) {
+    if (!isVoice && !isDm) return false;
+    if (!isVoice || callDockOmitsCanvasToggle(context)) return true;
     // The call dock carries the toggle in a live call, except on a phone where the header does.
-    final voice = ref.watch(voiceFlagsProvider);
-    if (isVoice &&
-        !callDockOmitsCanvasToggle(context) &&
-        voice.inCallStageFor(channelId)) {
-      return const SizedBox.shrink();
-    }
-    return _button(ref, open);
+    return !ref.watch(
+      voiceFlagsProvider.select((voice) => voice.inCallStageFor(channelId)),
+    );
   }
 
-  Widget _button(WidgetRef ref, bool open) => AppIconButton(
-    key: canvasOpenButtonKey,
-    icon: AppIcons.canvas,
-    semanticLabel: open ? 'Close canvas' : 'Open canvas',
-    active: open,
-    onPressed: () =>
-        ref.read(canvasOpenProvider.notifier).state = open ? null : channelId,
-  );
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!shows(
+      context,
+      ref,
+      channelId: channelId,
+      isVoice: isVoice,
+      isDm: isDm,
+    )) {
+      return const SizedBox.shrink();
+    }
+    final open = ref.watch(canvasOpenProvider) == channelId;
+    return HeaderIconAction(
+      key: canvasOpenButtonKey,
+      icon: AppIcons.canvas,
+      label: open ? 'Close canvas' : 'Open canvas',
+      active: open,
+      onPressed: () =>
+          ref.read(canvasOpenProvider.notifier).state = open ? null : channelId,
+    );
+  }
 }

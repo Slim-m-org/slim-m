@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../canvas/widgets/canvas_open_button.dart';
 import '../../voice/widgets/dm_call_button.dart';
 import '../../../routing/breakpoints.dart';
+import '../../../widgets/header_icon_action.dart';
 import 'channel_title_glyph.dart';
 import 'group_dm_members_action.dart';
 import 'channel_topic_text.dart';
@@ -176,54 +177,62 @@ class ChannelHeader extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.s12),
-          AppIconButton(
-            icon: AppIcons.pin,
-            semanticLabel: 'Pinned messages',
-            onPressed: () => showPinnedMessagesSheet(context, channelId),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpacing.s4,
+            children: [
+              HeaderIconAction(
+                icon: AppIcons.pin,
+                label: 'Pinned messages',
+                onPressed: () => showPinnedMessagesSheet(context, channelId),
+              ),
+              if (!isVoice)
+                HeaderIconAction(
+                  icon: AppIcons.thread,
+                  label: 'Threads',
+                  onPressed: () => showThreadsSheet(context, channelId),
+                ),
+              if (groupMemberIds.isNotEmpty)
+                GroupDmMembersAction(channelId: channelId),
+              if (DmCallButton.shows(
+                isDm: isDm,
+                isPersonalSpace: isPersonalSpace,
+              ))
+                DmCallButton(channelId: channelId),
+              if (onToggleTextChat case final toggle?)
+                HeaderIconAction(
+                  icon: AppIcons.chat,
+                  label: 'Toggle text chat',
+                  active: textChatOpen,
+                  onPressed: toggle,
+                ),
+              if (CanvasOpenButton.shows(
+                context,
+                ref,
+                channelId: channelId,
+                isVoice: isVoice,
+                isDm: isDm,
+              ))
+                CanvasOpenButton(
+                  channelId: channelId,
+                  isVoice: isVoice,
+                  isDm: isDm,
+                ),
+              HeaderIconAction(
+                icon: AppIcons.search,
+                label: 'Search messages',
+                active: searchOpen,
+                onPressed: onToggleSearch,
+              ),
+              if (opensMemberDrawer)
+                HeaderIconAction(
+                  icon: AppIcons.members,
+                  label: 'Show members',
+                  onPressed: scaffold.openEndDrawer,
+                ),
+              if (canToggleMembers) const MemberListToggle(),
+            ],
           ),
-          const SizedBox(width: AppSpacing.s4),
-          if (!isVoice)
-            AppIconButton(
-              icon: AppIcons.thread,
-              semanticLabel: 'Threads',
-              onPressed: () => showThreadsSheet(context, channelId),
-            ),
-          const SizedBox(width: AppSpacing.s4),
-          if (groupMemberIds.isNotEmpty) ...[
-            GroupDmMembersAction(channelId: channelId),
-            const SizedBox(width: AppSpacing.s4),
-          ],
-          DmCallButton(channelId: channelId),
-          const SizedBox(width: AppSpacing.s4),
-          if (onToggleTextChat case final toggle?) ...[
-            AppIconButton(
-              icon: AppIcons.chat,
-              semanticLabel: 'Toggle text chat',
-              active: textChatOpen,
-              onPressed: toggle,
-            ),
-            const SizedBox(width: AppSpacing.s4),
-          ],
-          CanvasOpenButton(channelId: channelId, isVoice: isVoice, isDm: isDm),
-          const SizedBox(width: AppSpacing.s4),
-          AppIconButton(
-            icon: AppIcons.search,
-            semanticLabel: 'Search messages',
-            active: searchOpen,
-            onPressed: onToggleSearch,
-          ),
-          if (opensMemberDrawer) ...[
-            const SizedBox(width: AppSpacing.s4),
-            AppIconButton(
-              icon: AppIcons.members,
-              semanticLabel: 'Show members',
-              onPressed: scaffold.openEndDrawer,
-            ),
-          ],
-          if (canToggleMembers) ...[
-            const SizedBox(width: AppSpacing.s4),
-            const MemberListToggle(),
-          ],
         ],
       ),
     );

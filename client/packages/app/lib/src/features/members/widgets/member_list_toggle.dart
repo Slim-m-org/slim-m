@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
+import '../../../widgets/header_icon_action.dart';
 import 'member_pane.dart';
 
 class MemberListToggle extends ConsumerWidget {
@@ -20,9 +21,9 @@ class MemberListToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visible = memberPaneWanted(ref, MediaQuery.sizeOf(context));
-    return AppIconButton(
+    return HeaderIconAction(
       icon: AppIcons.members,
-      semanticLabel: 'Toggle member list',
+      label: 'Toggle member list',
       active: visible,
       onPressed: () {
         ref.read(memberPaneVisibleProvider.notifier).state = !visible;
