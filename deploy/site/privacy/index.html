@@ -22,7 +22,7 @@
 <body>
 <main>
 <h1>slim-m privacy policy</h1>
-<p class="date">Last updated 5 October 2026</p>
+<p class="date">Last updated 16 November 2026</p>
 
 <p>This covers the slim-m app and the official server at slim.npc-server.top.
 It's written plainly because I think that's more useful than legal wording, and it's meant to be accurate, so if something here looks wrong please tell me.</p>
@@ -49,7 +49,9 @@ If you join somebody else's space, that server is run by them, they decide what 
 <p>This is the official server, and I'd guess most others work the same way.</p>
 <ul>
 <li>Your account: username, display name, profile photo, status, a hash of your password (never the password itself), and two-factor details if you turn that on.</li>
-<li>What you post: messages, edits, reactions, poll votes, attachments, and drawings on the canvas.</li>
+<li>What you post: messages, edits, reactions, poll votes, attachments, voice messages, and drawings on the canvas.</li>
+<li>Call history: who joined and left each call and who shared their screen, with the times. It's deleted after 30 days.</li>
+<li>Call transcripts and voice message transcripts, but only if the space turns them on. There's more on those below.</li>
 <li>Your devices: a name, the app version, and when each was last used, so you can sign them out.</li>
 <li>Your push token, if you turn on notifications.</li>
 <li>Moderation records: reports, blocks, removals, and a log of admin actions.</li>
@@ -60,7 +62,57 @@ I only look at logs when something is broken.</p>
 
 <h2>Voice and screen sharing</h2>
 <p>Calls go through a LiveKit server that sits next to the app server, in real time.
-Nothing is recorded, and the app has no way to record a call.</p>
+The audio and video of a call are never recorded or stored, and the app has no feature that records them.</p>
+<p>What the server does keep is the call history from the list above.
+A voice channel shows it as its recent calls, anyone who can see the channel can see it, and it's deleted after 30 days.
+If you've set your presence to hidden, you're left out of it for everyone but you.</p>
+
+<h2>Call transcripts</h2>
+<p>A space can turn on call transcripts, which write down what people say in a call.
+A transcript is a text record of speech, not an audio recording.
+The server keeps who said each line, when they said it, and the words, and never the sound.</p>
+<p>It's off unless an admin of the space turns it on, and it only works if whoever runs the server also runs a separate speech listener next to it.
+The setting has three choices:</p>
+<ul>
+<li>Off: nothing is transcribed. This is the default.</li>
+<li>When someone asks: someone in a call asks, and everyone else in the call is asked too. It only starts once everyone says yes, anyone saying no ends it, and anyone in the call can stop it. Someone who joins later isn't transcribed until they say yes.</li>
+<li>Always: every call in the space's voice channels is transcribed from the first join, and nobody is asked per call. The first time you join a call in that space, the app tells you once and you can join or cancel. After that a mark in the call header shows it's on, nobody in the call can turn it off, and the only way to not be transcribed is to not join.</li>
+</ul>
+<p>The listener joins the call as a hidden participant that can only listen.
+It only listens to the microphones of the people being transcribed, never screen share audio, cameras, or bots.
+It turns speech into text with whisper, an open source speech model that runs on the listener's own machine, so your voice isn't sent to any outside company.
+The audio only sits in memory until it's turned into text, and it's never written to disk.
+It's speech to text, so it gets words wrong sometimes.
+Calls in direct messages are never transcribed.</p>
+<p>Anyone in the space who can see that voice channel and has the View transcripts permission can read its transcripts, whether or not they were in the call, until the transcript is deleted.
+Everyone has View transcripts by default and admins always have it, but an admin can take it away for the whole space or in one channel.
+Transcripts show up with the call in the voice channel's history and in search.
+If your presence is hidden you're still transcribed, and your name is still on your lines.</p>
+<p>By default a transcript is deleted 30 days after its call ends.
+An admin can make that shorter or longer, or keep them forever, and someone with the Manage messages permission can delete one early.</p>
+
+<h2>Bots and modules</h2>
+<p>A bot is an account an admin adds to the space.
+Bots are never transcribed, but a bot can read the same things a member with the same permissions can.
+So a bot that can see a voice channel and has View transcripts can read that channel's transcripts and search them, and bots have View transcripts by default like everyone else.
+If you run a space and don't want a bot reading them, deny it View transcripts in that channel's permissions, or take the permission off @everyone and give it only to the roles that should have it.</p>
+<p>An admin can also install a module that hears calls as text, which works like the When someone asks setting.
+The module has to say what it does and what it keeps, everyone in the call sees that and is asked, and it only runs while everyone agrees.
+What it does with the text after that is up to the module, which is why it has to say so first.
+It can't run in a call the server is already transcribing, and it never reads the server's own transcripts.</p>
+
+<h2>Voice messages</h2>
+<p>You can record a voice message of up to 5 minutes in the message box, and it's sent like any other file.
+So unlike a call, a voice message is an actual recording of your voice, and the server stores it, along with how long it is and a small waveform for drawing it.
+It's kept and deleted the same way as other attachments, so it stays until the message is deleted or the space's message retention removes it.
+The app only uses the microphone for this while you're recording one.</p>
+<p>A space can also turn on voice message transcripts.
+It's off by default and needs the same listener as call transcripts.
+When it's on, the server sends each voice message's audio to the listener, which turns it into text the same way and doesn't keep the audio.
+The text shows under the voice message for anyone who can read the message, and search finds it.
+That includes voice messages in direct messages, and ones sent before it was turned on.
+The text goes when the voice message goes.
+If the space turns it off again, the text is hidden but kept until the message is deleted.</p>
 
 <h2>Push notifications</h2>
 <p>Apple delivers them.
@@ -77,15 +129,23 @@ On Android, Google's Firebase Cloud Messaging carries it the same way.</p>
 </ul>
 
 <h2>What I don't do</h2>
-<p>No ads, no analytics, no crash reporting service, no tracking across other apps and sites, and I don't sell or share your data.</p>
+<p>No ads, no analytics, no crash reporting service, no tracking across other apps and sites, and I don't sell or share your data.
+The server doesn't scan or score transcripts or voice messages, and doesn't send them to an AI service or any other company.
+Other than server backups, they only leave it when a person or a bot that can read them copies them somewhere.
+The usage stats an admin can turn on for a space are just counts the server works out, like messages per day, and they never name anyone.</p>
 
 <h2>Deleting your data</h2>
-<p>In the app, go to Settings, then Account &amp; devices, then Delete account.
+<p>In the app, go to Settings, then Account and security, then Delete account.
 It asks for your password, and a two-factor code if you have that on.
 On the server you're connected to, it purges your personal data, signs out every device, and frees the username.
+That includes your call history and everything you said in call transcripts.
 Your old messages in shared channels stay, but without your name on them.
+That goes for voice messages too, so if you want those gone, delete them before you delete the account.
 It can't be undone.
 On somebody else's server the same button does the same thing, but I can't speak for what their backups keep.</p>
+
+<p>You can also download a copy of your data from Settings, then About slim-m, then Download my data.
+It has your messages, the files you uploaded, your call times, and what you said in call transcripts, among other things.</p>
 
 <h2>Children</h2>
 <p>slim-m isn't meant for children under 13, and I don't knowingly keep data from them.</p>
