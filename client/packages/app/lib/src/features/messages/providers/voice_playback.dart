@@ -13,7 +13,7 @@ import 'package:slimm_api/api.dart' show Attachment, AppLog, LogTag;
 import 'package:slimm_platform/platform.dart' show isIOSHost;
 
 import '../../../audio/sound_output_router.dart';
-import '../../voice/providers/voice_controller.dart';
+import '../../voice/providers/voice_flags.dart';
 import 'attachment_bytes.dart';
 
 /// The speeds the player cycles through.
@@ -74,6 +74,15 @@ class AudioPlayersVoiceBackend implements VoicePlayerBackend {
   Future<void> dispose() async => _created?.dispose();
 }
 
+/// Why a message did not play.
+enum VoicePlaybackError {
+  /// The clip could not be fetched or decoded; trying again may work.
+  unplayable,
+
+  /// On iOS a call holds the audio session playback would take.
+  inCall,
+}
+
 class VoicePlaybackState {
   const VoicePlaybackState({
     this.attachmentId,
@@ -91,11 +100,12 @@ class VoicePlaybackState {
   final bool playing;
   final Duration position;
   final double speed;
-  final String? error;
+  final VoicePlaybackError? error;
 
   /// The message [error] is about, so only its player shows it.
   final String? errorFor;
 
+  /// Leaves [error] behind: it belongs to the moment it was set.
   VoicePlaybackState copyWith({
     bool? loading,
     bool? playing,
@@ -111,12 +121,23 @@ class VoicePlaybackState {
 }
 
 class VoicePlayback extends Notifier<VoicePlaybackState> {
+  /// [ios] stands in for the host in tests.
+  VoicePlayback({bool? ios}) : _ios = ios ?? isIOSHost;
+
+  final bool _ios;
   VoicePlayerBackend? _backend;
   StreamSubscription<Duration>? _positions;
   StreamSubscription<void>? _done;
 
   @override
   VoicePlaybackState build() {
+    if (_ios) {
+      ref.listen(voiceFlagsProvider.select((f) => f.channelId), (_, channel) {
+        if (channel == null && state.error == VoicePlaybackError.inCall) {
+          dismissError();
+        }
+      });
+    }
     ref.onDispose(() {
       unawaited(_positions?.cancel());
       unawaited(_done?.cancel());
@@ -144,7 +165,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
       if (state.playing) {
         await _engine.pause();
         state = state.copyWith(playing: false);
-      } else {
+      } else if (!_refusedInCall(voice)) {
         await _engine.resume();
         state = state.copyWith(playing: true);
       }
@@ -153,16 +174,28 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
     await _start(voice);
   }
 
+  /// Stops a message before a call claims the audio session it shares on iOS.
+  Future<void> stopForCall() async {
+    if (!_ios) return;
+    state = VoicePlaybackState(speed: state.speed);
+    await _backend?.stop();
+  }
+
+  void dismissError() => state = state.copyWith();
+
+  // On iOS a call holds the shared audio session, which playback would take.
+  bool _refusedInCall(Attachment voice) {
+    if (!_ios || ref.read(voiceFlagsProvider).channelId == null) return false;
+    state = VoicePlaybackState(
+      speed: state.speed,
+      error: VoicePlaybackError.inCall,
+      errorFor: voice.id,
+    );
+    return true;
+  }
+
   Future<void> _start(Attachment voice) async {
-    // On iOS a call holds the shared audio session, which playback would take.
-    if (isIOSHost && ref.read(voiceControllerProvider).channelId != null) {
-      state = VoicePlaybackState(
-        speed: state.speed,
-        error: 'Leave the call to play a voice message.',
-        errorFor: voice.id,
-      );
-      return;
-    }
+    if (_refusedInCall(voice)) return;
     state = VoicePlaybackState(
       attachmentId: voice.id,
       loading: true,
@@ -172,7 +205,11 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
       final bytes = await ref.read(attachmentBytesProvider(voice.id).future);
       if (state.attachmentId != voice.id) return;
       await _engine.play(bytes, voice.contentType, state.speed);
-      if (state.attachmentId != voice.id) return;
+      if (state.attachmentId != voice.id) {
+        // Nothing holds this message any more, so a play that landed late must not keep sounding.
+        if (state.attachmentId == null) await _engine.stop();
+        return;
+      }
       state = state.copyWith(loading: false, playing: true);
     } on Object catch (error, stack) {
       AppLog.swallowed(
@@ -184,7 +221,7 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
       if (state.attachmentId != voice.id) return;
       state = VoicePlaybackState(
         speed: state.speed,
-        error: 'The voice message could not be played.',
+        error: VoicePlaybackError.unplayable,
         errorFor: voice.id,
       );
     }

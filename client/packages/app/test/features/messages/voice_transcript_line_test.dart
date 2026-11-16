@@ -96,6 +96,63 @@ void main() {
     expect(find.text('Transcribing...'), findsOneWidget);
   });
 
+  testWidgets('a refetched ready transcript outranks a stale pending frame', (
+    tester,
+  ) async {
+    await pump(tester, voiceWith(null));
+    events.add(
+      const MessageVoiceTranscript(
+        channelId: 'c',
+        messageId: 'm',
+        attachmentId: 'a1',
+        transcript: VoiceTranscript(status: VoiceTranscriptStatus.pending),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Transcribing...'), findsOneWidget);
+    await pump(
+      tester,
+      voiceWith(
+        const VoiceTranscript(
+          status: VoiceTranscriptStatus.ready,
+          text: 'meet me at the lighthouse',
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('meet me at the lighthouse'), findsOneWidget);
+    expect(find.text('Transcribing...'), findsNothing);
+  });
+
+  testWidgets('a newer live frame still wins over what the message carries', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      voiceWith(
+        const VoiceTranscript(
+          status: VoiceTranscriptStatus.ready,
+          text: 'first pass',
+        ),
+      ),
+    );
+    events.add(
+      const MessageVoiceTranscript(
+        channelId: 'c',
+        messageId: 'm',
+        attachmentId: 'a1',
+        transcript: VoiceTranscript(
+          status: VoiceTranscriptStatus.ready,
+          text: 'second pass',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('second pass'), findsOneWidget);
+  });
+
   testWidgets('failed and silent clips have their own plain lines', (
     tester,
   ) async {
