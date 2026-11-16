@@ -122,6 +122,33 @@ class CallRestore {
     await _prefs.setString(callRestoreKey, call.restarting(_now()).encode());
   }
 
+  /// The restart did not happen after all: the call is this process's again, and asks if it crashes.
+  Future<void> abandonRestart() async {
+    _closing = false;
+    final call = CallToRestore.decode(_prefs.getString(callRestoreKey));
+    if (call == null || !call.restart) return;
+    await _prefs.setString(
+      callRestoreKey,
+      CallToRestore(
+        channelId: call.channelId,
+        userId: call.userId,
+        at: call.at,
+        muted: call.muted,
+      ).encode(),
+    );
+  }
+
+  /// Marks the call to come back, runs [relaunch], and takes the mark back if it throws.
+  Future<void> relaunchKeepingCall(Future<void> Function() relaunch) async {
+    await markRestart();
+    try {
+      await relaunch();
+    } catch (_) {
+      await abandonRestart();
+      rethrow;
+    }
+  }
+
   /// The app is quitting on purpose, so nothing comes back.
   Future<void> markQuit() async {
     _closing = true;

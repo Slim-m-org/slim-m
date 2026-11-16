@@ -52,8 +52,8 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
   final _controller = AnimatedMenuController();
 
   Future<void> _restart() async {
-    await (await ref.read(callRestoreProvider.future)).markRestart();
-    await widget.port.relaunch();
+    final restore = await ref.read(callRestoreProvider.future);
+    await restore.relaunchKeepingCall(widget.port.relaunch);
   }
 
   @override

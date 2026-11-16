@@ -139,8 +139,8 @@ Future<void> runUpdateAction(
       if (ref.read(voiceControllerProvider).channelId != null) return;
       await port.relaunch();
     case UpdateMenuAction.restartToUpdate:
-      await (await ref.read(callRestoreProvider.future)).markRestart();
-      await port.relaunch();
+      final restore = await ref.read(callRestoreProvider.future);
+      await restore.relaunchKeepingCall(port.relaunch);
     case UpdateMenuAction.packageManager:
       await showUpdatePackageView(context, update: update);
     case UpdateMenuAction.openRelease:

@@ -106,6 +106,27 @@ void main() {
       expect((await restore.take('user-1'))?.restart, isTrue);
     });
 
+    test('a relaunch that fails gives the call back to this run', () async {
+      final prefs = await _prefs({callRestoreKey: _record(at: now)});
+      final restore = CallRestore(prefs, now: () => now);
+      await expectLater(
+        restore.relaunchKeepingCall(() async => throw StateError('no spawn')),
+        throwsStateError,
+      );
+      await restore.forget();
+      expect(
+        prefs.getString(callRestoreKey),
+        isNull,
+        reason: 'leaving the call still forgets it',
+      );
+      await restore.remember(
+        channelId: 'voice-1',
+        userId: 'user-1',
+        muted: false,
+      );
+      expect((await restore.take('user-1'))?.restart, isFalse);
+    });
+
     test('a quit forgets the call, and nothing after it writes one', () async {
       final prefs = await _prefs({callRestoreKey: _record(at: now)});
       final restore = CallRestore(prefs, now: () => now);
