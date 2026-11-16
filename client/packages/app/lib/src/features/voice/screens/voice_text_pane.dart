@@ -31,6 +31,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/app_panel_reveal.dart';
+import '../../../widgets/header_icon_action.dart';
 import '../../channels/screens/channel_screen.dart';
 import '../providers/voice_chat_unread.dart';
 import '../widgets/voice_chat_unread_dot.dart';
@@ -146,12 +147,10 @@ class VoiceChatAction extends ConsumerWidget {
     return VoiceChatToggleDot(
       unread: unread,
       touch: true,
-      toggle: AppIconButton(
+      toggle: HeaderIconAction(
         icon: AppIcons.chat,
-        semanticLabel: unread
-            ? 'Toggle text chat, new messages'
-            : 'Toggle text chat',
-        tooltip: 'Text chat',
+        label: 'Toggle text chat',
+        semanticLabel: unread ? 'Toggle text chat, new messages' : null,
         active: open,
         touch: true,
         onPressed: () =>

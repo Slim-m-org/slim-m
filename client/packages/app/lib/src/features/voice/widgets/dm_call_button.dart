@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/header_icon_action.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/dm_call_start.dart';
 import '../screens/dm_call_pane.dart';
@@ -20,17 +21,24 @@ class DmCallButton extends ConsumerWidget {
 
   final String channelId;
 
+  /// For a header that leaves an absent button out rather than spacing around it.
+  static bool shows({required bool isDm, required bool isPersonalSpace}) =>
+      isDm && !isPersonalSpace;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-    if (channel == null || channel.kind != 'dm' || channel.isPersonalSpace) {
+    if (channel == null ||
+        !shows(
+          isDm: channel.kind == 'dm',
+          isPersonalSpace: channel.isPersonalSpace,
+        )) {
       return const SizedBox.shrink();
     }
     final open = ref.watch(dmCallOpenProvider) == channelId;
-    return AppIconButton(
+    return HeaderIconAction(
       icon: AppIcons.startCall,
-      semanticLabel: 'Call',
-      tooltip: 'Call',
+      label: 'Call',
       active: open,
       onPressed: () => _toggle(ref, open),
     );

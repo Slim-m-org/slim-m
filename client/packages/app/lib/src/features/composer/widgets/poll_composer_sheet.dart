@@ -22,7 +22,7 @@ import '../../../api_failure.dart';
 import '../../../ids.dart';
 import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
-import '../../emoji/widgets/emoji_picker.dart';
+import '../../emoji/widgets/emoji_field_picker.dart';
 import 'poll_view.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
@@ -100,20 +100,19 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     return 'Send poll';
   }
 
-  Widget _emojiButton(TextEditingController controller, String field) {
-    return AppIconButton(
-      icon: AppIcons.smile,
-      semanticLabel: 'Insert emoji in $field',
-      tooltip: 'Insert emoji',
-      onPressed: () => showEmojiPickerSheet(
-        context,
-        onSelect: (emoji) {
-          insertAtSelection(controller, emoji);
-          setState(() {});
-        },
-      ),
-    );
-  }
+  /// [field] with its emoji button, which opens the picker under it.
+  Widget _withEmoji(
+    TextEditingController controller,
+    String field,
+    Widget Function(Widget button) build,
+  ) => EmojiFieldPicker(
+    semanticLabel: 'Insert emoji in $field',
+    onSelect: (emoji) {
+      insertAtSelection(controller, emoji);
+      setState(() {});
+    },
+    builder: (context, button) => build(button),
+  );
 
   void _addOption() {
     if (_options.length >= _maxOptions) return;
@@ -218,14 +217,18 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
             const SizedBox(height: AppSpacing.s12),
-            AppInput(
-              controller: _question,
-              placeholder: 'Ask a question',
-              autofocus: true,
-              inputFormatters: _questionFormatters,
-              trailing: _emojiButton(_question, 'the question'),
-              onChanged: (_) => setState(() {}),
-              semanticLabel: 'Poll question',
+            _withEmoji(
+              _question,
+              'the question',
+              (button) => AppInput(
+                controller: _question,
+                placeholder: 'Ask a question',
+                autofocus: true,
+                inputFormatters: _questionFormatters,
+                trailing: button,
+                onChanged: (_) => setState(() {}),
+                semanticLabel: 'Poll question',
+              ),
             ),
             const SizedBox(height: AppSpacing.s8),
             AnimatedSize(
@@ -237,31 +240,32 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
                   for (var i = 0; i < _options.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: AppInput(
-                              controller: _options[i],
-                              placeholder: 'Option ${i + 1}',
-                              inputFormatters: _optionFormatters,
-                              trailing: _emojiButton(
-                                _options[i],
-                                'option ${i + 1}',
+                      child: _withEmoji(
+                        _options[i],
+                        'option ${i + 1}',
+                        (button) => Row(
+                          children: [
+                            Expanded(
+                              child: AppInput(
+                                controller: _options[i],
+                                placeholder: 'Option ${i + 1}',
+                                inputFormatters: _optionFormatters,
+                                trailing: button,
+                                onChanged: (_) => setState(() {}),
+                                semanticLabel: 'Option ${i + 1}',
                               ),
-                              onChanged: (_) => setState(() {}),
-                              semanticLabel: 'Option ${i + 1}',
                             ),
-                          ),
-                          // Only for a row past the minimum: the first two options are required, so nothing removes them.
-                          if (i >= _minOptions) ...[
-                            const SizedBox(width: AppSpacing.s8),
-                            AppIconButton(
-                              icon: AppIcons.dismiss,
-                              semanticLabel: 'Remove option ${i + 1}',
-                              onPressed: () => _removeOption(i),
-                            ),
+                            // Only for a row past the minimum: the first two options are required, so nothing removes them.
+                            if (i >= _minOptions) ...[
+                              const SizedBox(width: AppSpacing.s8),
+                              AppIconButton(
+                                icon: AppIcons.dismiss,
+                                semanticLabel: 'Remove option ${i + 1}',
+                                onPressed: () => _removeOption(i),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                 ],

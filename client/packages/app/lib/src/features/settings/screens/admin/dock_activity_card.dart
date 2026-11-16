@@ -13,13 +13,6 @@ import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_info_line.dart';
 import '../../widgets/settings_section_header.dart';
 
-/// "3 KB", "12 bytes": the coarse size a stored-data line needs.
-String dockBytes(int bytes) {
-  if (bytes < 1024) return '$bytes bytes';
-  final kib = bytes / 1024;
-  return '${kib.toStringAsFixed(kib < 10 ? 1 : 0)} KB';
-}
-
 /// "1.2M", "340k", "12": a fuel count a person can read at a glance.
 String dockFuel(int fuel) {
   if (fuel >= 1000000) {

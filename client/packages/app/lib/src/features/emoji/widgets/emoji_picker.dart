@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The emoji picker's hover-anchored entry point: the floating surface
-/// opened from the add-reaction control on a message hover, wrapping the
+/// The emoji picker's anchored entry points: the add-reaction control on a
+/// message hover, and [EmojiPickerAnchor] for anything else that opens the
 /// one [EmojiPickerPanel] (re-exported here so a caller needs this import
-/// only).
+/// only), such as a message menu's Add reaction.
 ///
 /// The two touch-reachable entry points - a bottom sheet reaching the full
 /// catalog, and the composer's own narrower one over just the Space's own
@@ -10,11 +10,15 @@
 /// keep this file inside the review budget.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../routing/breakpoints.dart';
 import '../../../widgets/animated_menu_portal.dart';
 import 'emoji_picker_panel.dart';
+import 'emoji_picker_sheets.dart';
 import '../../../widgets/hover_reveal.dart';
 import '../../../widgets/message_context_menu_layout.dart';
 import '../../../action_labels.dart';
@@ -29,15 +33,6 @@ const Offset _buttonDrop = Offset(0, 4);
 
 /// The add-reaction glyph, anchored so its picker opens beneath it and
 /// closes on an outside tap, an escape, or a pick.
-///
-/// Positioned through [MessageMenuLayout] - the same clamp
-/// `ContextMenuRegion` uses - rather than a bare `CompositedTransformFollower`
-/// offset, which had no notion of the viewport edge: opened from a message
-/// near the right side of the transcript, the panel ran off the screen with
-/// only its category rail visible. A static anchor taken at open time means
-/// the panel does not track the button through a scroll the way the
-/// follower did, so it closes on one instead, `ContextMenuRegion`'s own
-/// answer to the same trade.
 class EmojiPickerButton extends StatefulWidget {
   const EmojiPickerButton({
     super.key,
@@ -61,9 +56,60 @@ class EmojiPickerButton extends StatefulWidget {
 }
 
 class _EmojiPickerButtonState extends State<EmojiPickerButton> {
+  final _picker = GlobalKey<EmojiPickerAnchorState>();
+
+  void _toggle() {
+    final picker = _picker.currentState;
+    if (picker == null) return;
+    picker.isOpen ? picker.close() : picker.open();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return EmojiPickerAnchor(
+      key: _picker,
+      onSelect: widget.onSelect,
+      child: switch (widget.triggerBuilder) {
+        final build? => build(context, _toggle),
+        null => AppIconButton(
+          focusNode: widget.focusNode,
+          icon: AppIcons.smile,
+          semanticLabel: ActionLabels.addReaction,
+          iconSize: AppSizes.icon16,
+          onPressed: _toggle,
+        ),
+      },
+    );
+  }
+}
+
+/// Hosts the picker for whatever opens it, a button or a context menu: a
+/// bottom sheet at compact width, else a panel anchored beside the opener.
+///
+/// Positioned through [MessageMenuLayout], the same clamp `ContextMenuRegion`
+/// uses, so a panel opened near the window's edge stays on screen. The anchor
+/// is taken at open time and the panel closes on a scroll rather than
+/// tracking it, `ContextMenuRegion`'s own answer to the same trade.
+class EmojiPickerAnchor extends StatefulWidget {
+  const EmojiPickerAnchor({
+    super.key,
+    required this.onSelect,
+    required this.child,
+  });
+
+  final ValueChanged<String> onSelect;
+  final Widget child;
+
+  @override
+  State<EmojiPickerAnchor> createState() => EmojiPickerAnchorState();
+}
+
+class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
   final _controller = AnimatedMenuController();
   Offset _anchor = Offset.zero;
   ScrollPosition? _watched;
+
+  bool get isOpen => _controller.isShowing;
 
   @override
   void dispose() {
@@ -71,18 +117,28 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
     super.dispose();
   }
 
-  /// Keeps the row that reveals this button on hover from unmounting it while
+  /// Opens at [at], in the overlay's coordinates, or under [EmojiPickerAnchor.child].
+  void open({Offset? at}) {
+    if (LayoutClass.of(context) == LayoutClass.compact) {
+      unawaited(showEmojiPickerSheet(context, onSelect: widget.onSelect));
+      return;
+    }
+    _anchor = at ?? _belowChild();
+    _setOpen(true);
+  }
+
+  void close() => _setOpen(false);
+
+  /// Keeps the row that reveals the opener on hover from unmounting it while
   /// the panel is open, since reaching the panel takes the pointer off the row.
   void _setOpen(bool open) {
+    if (!open && !_controller.isShowing) return;
     HoverRevealScope.maybeOf(context)?.pin(open);
-    if (open) _anchor = _anchorOffset();
     _watchScroll(open);
     open ? _controller.show() : _controller.hide();
   }
 
-  /// The button's own bottom-left corner, in the overlay's coordinate space,
-  /// dropped by [_buttonDrop] - the same corner the old follower anchored to.
-  Offset _anchorOffset() {
+  Offset _belowChild() {
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox?;
     final box = context.findRenderObject() as RenderBox?;
@@ -104,8 +160,6 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
     _watched = position;
     _watched?.addListener(_closeOnScroll);
   }
-
-  void _toggle() => _setOpen(!_controller.isShowing);
 
   void _select(String emoji) {
     _setOpen(false);
@@ -136,16 +190,7 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
           ),
         ),
       ),
-      child: switch (widget.triggerBuilder) {
-        final build? => build(context, _toggle),
-        null => AppIconButton(
-          focusNode: widget.focusNode,
-          icon: AppIcons.smile,
-          semanticLabel: ActionLabels.addReaction,
-          iconSize: AppSizes.icon16,
-          onPressed: _toggle,
-        ),
-      },
+      child: widget.child,
     );
   }
 }

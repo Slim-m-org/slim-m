@@ -13,7 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
+import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -21,6 +23,7 @@ import 'package:slimm_app/src/features/messages/widgets/pinned_messages_sheet.da
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 import '../../support/fake_sync.dart';
 
@@ -74,7 +77,78 @@ Future<void> _pump(
   );
 }
 
+final _pinnedJson = {
+  'id': 'm1',
+  'channel_id': 'c1',
+  'author_id': 'other',
+  'author_display_name': 'Other',
+  'seq': 1,
+  'content': 'pinned content',
+  'created_at': 0,
+  'edited_at': null,
+  'pinned_at': 0,
+  'pinned_by': 'other',
+};
+
+final _unpin = find.bySemanticsLabel('Unpin this message');
+
+/// One pin in c1, viewed with [permissions]; an unpin is refused with a 403.
+ProviderContainer _onePinned(int permissions) {
+  final container = ProviderContainer(
+    overrides: [
+      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+      myChannelPermissionsProvider.overrideWith((ref, _) => permissions),
+      mockApiOverride((request) async {
+        if (request.method == 'DELETE') {
+          return http.Response(
+            jsonEncode({'error': 'forbidden'}),
+            403,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        final body = request.url.path == '/channels/c1/pins'
+            ? [_pinnedJson]
+            : <Object>[];
+        return http.Response(
+          jsonEncode(body),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
 void main() {
+  testWidgets('a member who cannot manage messages is offered no unpin', (
+    tester,
+  ) async {
+    await _pump(tester, _onePinned(Perm.sendMessages), 'c1');
+    await tester.tap(find.text('open'));
+    await pumpFrames(tester);
+
+    expect(find.text('pinned content'), findsOneWidget);
+    expect(_unpin, findsNothing);
+  });
+
+  testWidgets('a refused unpin says why on the row and keeps the pin', (
+    tester,
+  ) async {
+    await _pump(tester, _onePinned(Perm.manageMessages), 'c1');
+    await tester.tap(find.text('open'));
+    await pumpFrames(tester);
+
+    await tester.tap(_unpin);
+    await pumpFrames(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Could not unpin the message'), findsOneWidget);
+    expect(find.text('pinned content'), findsOneWidget);
+  });
+
   testWidgets(
     'a failed first load says so and offers a retry that recovers it',
     (tester) async {

@@ -7,8 +7,6 @@
 /// wires them to a field that has no send row.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +20,7 @@ import '../../composer/widgets/composer_autocomplete_query.dart';
 import '../../composer/widgets/composer_list_keys.dart';
 import '../../composer/widgets/composer_markdown_shortcuts.dart';
 import '../../composer/widgets/composer_shortcodes.dart';
-import '../../emoji/widgets/emoji_picker_sheets.dart';
+import '../../emoji/widgets/emoji_field_picker.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import 'canvas_note_limits.dart';
 
@@ -211,20 +209,15 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
     return KeyEventResult.ignored;
   }
 
-  void _pickEmoji() => unawaited(
-    showEmojiPickerSheet(
-      context,
-      onSelect: (emoji) {
-        widget.focusNode.requestFocus();
-        final before = widget.controller.value;
-        insertAtSelection(widget.controller, emoji);
-        if (!_fits(widget.controller.text)) {
-          widget.controller.value = before;
-          _markFull();
-        }
-      },
-    ),
-  );
+  void _insertEmoji(String emoji) {
+    widget.focusNode.requestFocus();
+    final before = widget.controller.value;
+    insertAtSelection(widget.controller, emoji);
+    if (!_fits(widget.controller.text)) {
+      widget.controller.value = before;
+      _markFull();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -255,43 +248,42 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
                 const SingleActivator(LogicalKeyboardKey.escape):
                     widget.onCancel!,
             },
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  // Named outside the field too: its hint leaves the accessible name once there is text.
-                  child: Semantics(
-                    label: widget.hintText,
-                    child: TextField(
-                      controller: widget.controller,
-                      focusNode: widget.focusNode,
-                      minLines: widget.minLines,
-                      maxLines: widget.maxLines,
-                      keyboardType: TextInputType.multiline,
-                      inputFormatters: [
-                        NoteByteLimitFormatter(onRefused: _markFull),
-                      ],
-                      style: AppText.body.copyWith(color: tokens.textPrimary),
-                      cursorColor: tokens.accent,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: widget.hintText,
+            child: EmojiFieldPicker(
+              semanticLabel: 'Insert emoji',
+              onSelect: _insertEmoji,
+              builder: (context, button) => Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    // Named outside the field too: its hint leaves the accessible name once there is text.
+                    child: Semantics(
+                      label: widget.hintText,
+                      child: TextField(
+                        controller: widget.controller,
+                        focusNode: widget.focusNode,
+                        minLines: widget.minLines,
+                        maxLines: widget.maxLines,
+                        keyboardType: TextInputType.multiline,
+                        inputFormatters: [
+                          NoteByteLimitFormatter(onRefused: _markFull),
+                        ],
+                        style: AppText.body.copyWith(color: tokens.textPrimary),
+                        cursorColor: tokens.accent,
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          hintText: widget.hintText,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                AppIconButton(
-                  icon: AppIcons.smile,
-                  semanticLabel: 'Insert emoji',
-                  tooltip: 'Insert emoji',
-                  onPressed: _pickEmoji,
-                ),
-              ],
+                  button,
+                ],
+              ),
             ),
           ),
         ),

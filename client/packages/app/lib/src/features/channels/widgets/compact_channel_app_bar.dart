@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/header_icon_action.dart';
 import '../providers/channel_by_id_provider.dart';
 import '../providers/channel_search_controller.dart';
 import '../providers/pins_controller.dart';
@@ -209,12 +210,10 @@ class ChannelSearchAction extends ConsumerWidget {
     final open = ref.watch(
       channelSearchProvider(channelId).select((s) => s.open),
     );
-    return AppIconButton(
+    return HeaderIconAction(
       icon: AppIcons.search,
-      semanticLabel: 'Search messages',
-      tooltip: 'Search',
+      label: 'Search messages',
       active: open,
-      touch: true,
       onPressed: () =>
           ref.read(channelSearchProvider(channelId).notifier).toggle(),
     );
@@ -231,12 +230,12 @@ class _PinsAction extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pins = ref.watch(pinsControllerProvider(channelId));
-    return AppIconButton(
+    return HeaderIconAction(
       icon: AppIcons.pin,
+      label: 'Pinned messages',
       semanticLabel: pins.pinned == null
           ? 'Pinned messages, loading'
           : 'Pinned messages, ${pins.pinned!.length}',
-      tooltip: 'Pinned messages',
       touch: true,
       onPressed: () => showPinnedMessagesSheet(context, channelId),
     );
@@ -253,10 +252,9 @@ class _ThreadsAction extends StatelessWidget {
   final String channelId;
 
   @override
-  Widget build(BuildContext context) => AppIconButton(
+  Widget build(BuildContext context) => HeaderIconAction(
     icon: AppIcons.thread,
-    semanticLabel: 'Threads',
-    tooltip: 'Threads',
+    label: 'Threads',
     touch: true,
     onPressed: () => showThreadsSheet(context, channelId),
   );
@@ -266,10 +264,9 @@ class _MembersAction extends StatelessWidget {
   const _MembersAction();
 
   @override
-  Widget build(BuildContext context) => AppIconButton(
+  Widget build(BuildContext context) => HeaderIconAction(
     icon: AppIcons.members,
-    semanticLabel: 'Show members',
-    tooltip: 'Members',
+    label: 'Show members',
     touch: true,
     onPressed: () => Scaffold.of(context).openEndDrawer(),
   );

@@ -22,6 +22,7 @@ import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
 import 'author_label.dart';
+import 'message_preview_text.dart';
 import '../../../widgets/sheet_item_list.dart';
 import '../../members/widgets/user_avatar.dart';
 
@@ -52,7 +53,6 @@ class _ThreadsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final threads = ref.watch(threadsListProvider(channelId));
     final hasList = threads.valueOrNull?.isNotEmpty ?? false;
 
@@ -60,31 +60,7 @@ class _ThreadsSheet extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s12,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                AppIcons.thread,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Text(
-                'Threads',
-                style: AppText.body.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.semi,
-                ),
-              ),
-            ],
-          ),
-        ),
+        const AppSheetHeader('Threads'),
         ConstrainedBox(
           key: threadsBodyBoxKey,
           // A ceiling for a real list, via `_Body`'s own shrinkWrap ListView; an empty or loading state keeps a modest fixed box instead.
@@ -184,10 +160,9 @@ class ThreadRow extends ConsumerWidget {
           fontWeight: thread.isUnread ? AppWeights.medium : AppWeights.regular,
         ),
       ),
-      subtitle: Text(
-        thread.parentContent,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+      subtitle: MessagePreviewText(
+        messageId: thread.parentMessageId,
+        content: thread.parentContent,
       ),
       trailing: _ReplyCount(thread: thread),
     );

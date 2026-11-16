@@ -39,7 +39,9 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.textContaining('8 cores, 16 GB memory, 400 GB free of 500 GB'),
+        find.textContaining(
+          '8 cores, 16.0 GB memory, 400.0 GB free of 500.0 GB',
+        ),
         findsOneWidget,
       );
     });

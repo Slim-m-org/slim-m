@@ -7,6 +7,8 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../format.dart';
+
 /// Where the capacity guidance is documented, linked from every place it shows.
 const capacityGuidanceUrl =
     'https://github.com/Slim-m-org/slim-m/blob/main/docs/capacity-guidance.md';
@@ -40,19 +42,6 @@ class SetupTip {
   final String text;
 }
 
-/// `8 GB`, or `7.5 GB` when it is not whole; terabytes past 1024 GB.
-String formatCapacityBytes(int bytes) {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  var value = bytes.toDouble();
-  var unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  final whole = value >= 10 || value == value.roundToDouble();
-  return '${value.toStringAsFixed(whole ? 0 : 1)} ${units[unit]}';
-}
-
 String _plural(int count, String one, String many) =>
     '$count ${count == 1 ? one : many}';
 
@@ -65,7 +54,7 @@ String machineSummary(api.SpaceCapacity capacity) {
         capacity.memoryLimitBytes != null &&
         capacity.memoryLimitBytes! < (capacity.memoryTotalBytes ?? memory + 1);
     parts.add(
-      '${formatCapacityBytes(memory)} memory${limited ? ' (container limit)' : ''}',
+      '${formatByteSize(memory)} memory${limited ? ' (container limit)' : ''}',
     );
   }
   final free = capacity.diskFreeBytes;
@@ -73,8 +62,8 @@ String machineSummary(api.SpaceCapacity capacity) {
   if (free != null) {
     parts.add(
       total == null
-          ? '${formatCapacityBytes(free)} free disk'
-          : '${formatCapacityBytes(free)} free of ${formatCapacityBytes(total)} disk',
+          ? '${formatByteSize(free)} free disk'
+          : '${formatByteSize(free)} free of ${formatByteSize(total)} disk',
     );
   }
   return parts.join(', ');
@@ -123,7 +112,7 @@ bool _diskIsLow(api.SpaceCapacity capacity) {
 List<SetupTip> setupTips(api.SpaceCapacity capacity) {
   final tips = <SetupTip>[];
   if (_diskIsLow(capacity)) {
-    final free = formatCapacityBytes(capacity.diskFreeBytes!);
+    final free = formatByteSize(capacity.diskFreeBytes!);
     tips.add(
       SetupTip(
         SetupTipTarget.media,

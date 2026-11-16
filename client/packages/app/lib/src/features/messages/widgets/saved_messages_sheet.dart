@@ -27,7 +27,7 @@ import 'author_label.dart';
 import '../../channels/widgets/channel_label.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'message_jump.dart';
-import 'reply_target_summary.dart' show previewLine;
+import 'message_preview_text.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/sheet_item_list.dart';
 import '../../members/widgets/user_avatar.dart';
@@ -148,7 +148,6 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
   @override
   Widget build(BuildContext context) {
     final message = widget.saved.message;
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final density = ref.watch(messageDensityControllerProvider);
     final resolution = ref.watch(
       batchProfilesControllerProvider.select(
@@ -202,11 +201,10 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
             profile: resolution.profile,
             secondary: where == null ? null : '·  $where',
           ),
-          subtitle: Text(
-            previewLine(message.content, message.attachments),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: tokens.textSecondary),
+          subtitle: MessagePreviewText(
+            messageId: message.id,
+            content: message.content,
+            attachments: message.attachments,
           ),
           trailing: AppIconButton(
             icon: AppIcons.removeFromList,

@@ -8,6 +8,8 @@ import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../emoji/widgets/emoji_picker.dart'
+    show EmojiPickerAnchor, EmojiPickerAnchorState;
 import '../../members/widgets/bot_menu_sections.dart' show BotMenuSection;
 import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/hover_reveal.dart';
@@ -140,7 +142,8 @@ class MessageActions {
 ///
 /// This is the only add-reaction affordance a finger has: the picker button
 /// beside a message is revealed by a [MouseRegion] that touch never fires, so
-/// [onAddReaction] is what makes reacting reachable at all on a phone.
+/// the menu's Add reaction is what makes reacting reachable at all on a phone.
+/// It opens the picker where the hover toolbar's does at the same width.
 ///
 /// The row tints across a hold, showing visible progress toward the threshold
 /// instead of a dead finger (motion spec 10). It runs over the framework's own
@@ -152,7 +155,6 @@ class MessageContextMenuRegion extends StatefulWidget {
     super.key,
     required this.content,
     required this.actions,
-    required this.onAddReaction,
     required this.onPickReaction,
     this.reactedEmoji = const {},
     required this.child,
@@ -161,13 +163,9 @@ class MessageContextMenuRegion extends StatefulWidget {
   final String content;
   final MessageActions actions;
 
-  /// Opens the emoji picker for this message. Deliberately not part of
-  /// [MessageActions]: that class is a set of `can*`/`on*` pairs a caller
-  /// that knows permissions supplies, and reacting is ungated in this client
-  /// exactly as the hover button has always been.
-  final VoidCallback onAddReaction;
-
-  /// Reacts (or, for one the viewer already left, un-reacts) with a quick pick.
+  /// Reacts (or, for one the viewer already left, un-reacts) with a quick
+  /// pick or one from the picker. Not part of [MessageActions]: reacting is
+  /// ungated in this client exactly as the hover button has always been.
   final ValueChanged<String> onPickReaction;
 
   /// The reaction tokens the viewer has already left, shown selected in the quick row.
@@ -185,6 +183,13 @@ class _MessageContextMenuRegionState extends State<MessageContextMenuRegion> {
   /// the hold-progress tint.
   bool _holding = false;
 
+  final _region = GlobalKey<ContextMenuRegionState>();
+  final _picker = GlobalKey<EmojiPickerAnchorState>();
+
+  /// Where the menu was, so the picker opens in its place.
+  void _addReaction() =>
+      _picker.currentState?.open(at: _region.currentState?.anchor);
+
   /// The item list both the floating menu and the bottom sheet render,
   /// parameterised on how each closes itself: hiding the overlay controller
   /// for one, popping the sheet's own route for the other.
@@ -193,7 +198,7 @@ class _MessageContextMenuRegionState extends State<MessageContextMenuRegion> {
       actions: widget.actions,
       content: widget.content,
       reacted: widget.reactedEmoji,
-      onAddReaction: widget.onAddReaction,
+      onAddReaction: _addReaction,
       onPickReaction: widget.onPickReaction,
       close: close,
     ),
@@ -205,7 +210,8 @@ class _MessageContextMenuRegionState extends State<MessageContextMenuRegion> {
     return MessageRowRoving(
       builder: (context, rowNode) {
         final reveal = HoverRevealScope.maybeOf(context);
-        return ContextMenuRegion(
+        final region = ContextMenuRegion(
+          key: _region,
           focusNode: rowNode,
           itemsBuilder: _items,
           onOpenChanged: (open) => reveal?.pin(open),
@@ -221,6 +227,11 @@ class _MessageContextMenuRegionState extends State<MessageContextMenuRegion> {
                 : Colors.transparent,
             child: widget.child,
           ),
+        );
+        return EmojiPickerAnchor(
+          key: _picker,
+          onSelect: widget.onPickReaction,
+          child: region,
         );
       },
     );

@@ -20,7 +20,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
-import '../../../widgets/attachment_format.dart';
+import '../../../format.dart';
 import '../../../widgets/transfer_meter.dart';
 import 'staged_attachment_model.dart';
 import '../providers/composer_actions.dart';

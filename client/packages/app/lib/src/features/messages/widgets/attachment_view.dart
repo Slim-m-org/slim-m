@@ -23,7 +23,7 @@ import '../providers/attachment_preview_bytes.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_chip.dart';
-import '../../../widgets/attachment_format.dart';
+import '../../../format.dart';
 import 'attachment_image_states.dart';
 import 'attachment_reveal.dart';
 import 'attachment_spoiler.dart';

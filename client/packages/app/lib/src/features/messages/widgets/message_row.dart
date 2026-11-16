@@ -31,7 +31,6 @@ import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/breakpoints.dart';
 
 import 'continuation_marker.dart';
-import '../../emoji/widgets/emoji_picker.dart';
 import 'message_hover_toolbar.dart';
 import '../../../widgets/hover_reveal.dart';
 import 'message_context_menu.dart';
@@ -228,8 +227,6 @@ class MessageRow extends ConsumerWidget {
     return MessageContextMenuRegion(
       content: copyText,
       actions: actions,
-      onAddReaction: () =>
-          showEmojiPickerSheet(context, onSelect: callbacks.onPickReaction),
       onPickReaction: callbacks.onPickReaction,
       reactedEmoji: {
         for (final r in extras.reactions)
