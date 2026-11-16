@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/category_nesting.dart';
+import 'package:slimm_app/src/features/channels/providers/collapsed_categories_preference.dart';
 import 'package:slimm_app/src/features/channels/widgets/category_header_menu.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
@@ -45,8 +46,11 @@ Future<List<http.Request>> _pump(
   WidgetTester tester,
   ChannelCategoryRow category, {
   bool nests = true,
+  Set<String> collapsed = const {},
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues({
+    collapsedCategoriesKey: collapsed.toList(),
+  });
   final requests = <http.Request>[];
   final db = SlimmDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -84,7 +88,7 @@ Future<List<http.Request>> _pump(
           body: CategoryHeaderMenu(
             category: category,
             categories: _categories,
-            collapsed: const {},
+            collapsed: collapsed,
             label: Text(category.name),
           ),
         ),
@@ -130,5 +134,17 @@ void main() {
     expect(_offered('Create sub-category...'), isFalse);
     expect(_offered('Move into...'), isFalse);
     expect(_offered('Rename category...'), isTrue);
+  });
+
+  testWidgets('a sub-category under a folded parent offers to expand, which '
+      'opens the parent too', (tester) async {
+    await _pump(tester, _cs2, collapsed: {'gamers', 'music'});
+
+    expect(_offered('Collapse category'), isFalse);
+    await tester.tap(find.text('Expand category'));
+    await pumpFrames(tester);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList(collapsedCategoriesKey), ['music']);
   });
 }

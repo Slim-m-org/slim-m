@@ -39,6 +39,21 @@ class CollapsedCategoriesController extends StateNotifier<Set<String>> {
     if (!mounted) return;
     final next = {...state};
     if (!next.remove(categoryId)) next.add(categoryId);
+    await _save(next);
+  }
+
+  /// Folds or unfolds a category as its chevron reads: one under a folded
+  /// parent reads folded, so unfolding it opens the parent too, in one write.
+  Future<void> toggleShown(String categoryId, {String? parentId}) async {
+    await _loaded;
+    if (!mounted) return;
+    if (parentId == null || !state.contains(parentId)) {
+      return toggle(categoryId);
+    }
+    await _save(state.difference({parentId, categoryId}));
+  }
+
+  Future<void> _save(Set<String> next) async {
     state = next;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setStringList(collapsedCategoriesKey, next.toList());

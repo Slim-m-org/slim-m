@@ -252,14 +252,14 @@ class _ChannelCategorySectionsState
     // Any section, the implicit uncategorised one included: it is a real place a channel can live.
     final label = SectionLabel(
       category?.name ?? 'Channels',
-      collapsed: view.collapsed.contains(category?.id),
+      collapsed: view.folded(category),
       indicator: category == null ? null : view.rollupOf(category),
       onToggle: category == null
           ? null
           : () => unawaited(
               ref
                   .read(collapsedCategoriesProvider.notifier)
-                  .toggle(category.id),
+                  .toggleShown(category.id, parentId: category.parentId),
             ),
       trailingBuilder: !widget.canManage
           ? null

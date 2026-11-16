@@ -2,12 +2,12 @@
 /// Click-and-hold reordering of the channel rail at pointer widths.
 ///
 /// A held press lifts a channel or a category; the item follows the pointer
-/// as a floating copy, the original stays as a dimmed placeholder, and an
-/// insertion line shows where release will place it. Rows never shuffle while
-/// carrying. A plain click, a quick press and a short drag never lift, so
-/// selecting and scrolling are untouched. `docs/design/desktop-vs-mobile.md`
-/// rules 1 and 3: width picks this path, and the phone path lifts on a long
-/// press too.
+/// as a floating copy that keeps clear of the insertion line showing where
+/// release will place it, and the original stays as an empty slot. Rows
+/// never shuffle while carrying. A plain click, a quick press and a short
+/// drag never lift, so selecting and scrolling are untouched.
+/// `docs/design/desktop-vs-mobile.md` rules 1 and 3: width picks this path,
+/// and the phone path lifts on a long press too.
 library;
 
 import 'dart:async';
@@ -95,6 +95,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
   final _slot = ValueNotifier<DropSlot?>(null);
   final _boxKeys = <String, GlobalKey>{};
   final _pointer = ValueNotifier<Offset>(Offset.zero);
+  final _copyAt = ValueNotifier<Offset>(Offset.zero);
   late final AnimationController _lift = AnimationController(
     vsync: this,
     duration: AppMotion.base,
@@ -143,6 +144,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     _stopCarry();
     _lift.dispose();
     _pointer.dispose();
+    _copyAt.dispose();
     _slot.dispose();
     super.dispose();
   }
@@ -317,6 +319,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
       entry: entry,
     );
     _pointer.value = global;
+    _copyAt.value = origin;
     overlay.insert(entry);
     HardwareKeyboard.instance.addHandler(_onKey);
     _scrollTimer = Timer.periodic(
@@ -340,9 +343,8 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
       context,
       RailCarryOverlay(
         copy: copy,
-        pointer: _pointer,
+        at: _copyAt,
         slot: _slot,
-        grab: carry.grab,
         size: carry.size,
         inset: carry.inset,
         lift: _lift,
@@ -393,9 +395,23 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
             y,
             insetOf: (s) => widget.carriedRowInset * _depthOf(s),
           );
-    if (slot == carry.slot) return;
-    carry.slot = slot;
-    _slot.value = slot;
+    if (slot != carry.slot) {
+      carry.slot = slot;
+      _slot.value = slot;
+    }
+    final held = _pointer.value - carry.grab;
+    final lineY = slot == null
+        ? null
+        : stack.localToGlobal(Offset(0, slot.y)).dy;
+    _copyAt.value = Offset(
+      held.dx,
+      carriedCopyTop(
+        held: held.dy,
+        height: carry.size.height,
+        pointerY: _pointer.value.dy,
+        lineY: lineY,
+      ),
+    );
   }
 
   void _autoScroll() {

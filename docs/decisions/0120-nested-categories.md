@@ -257,6 +257,9 @@ A newer client on an older server finds no `parent_id` key and offers no nesting
 - Collapsing a parent hides its own rows and every sub-category beneath it, and expanding it again restores each sub-category's own state.
 - A folded parent's dot rolls up its sub-categories' channels too.
 - A row that would light (selected, unread or mentioned) still surfaces under a folded parent, beneath its own sub-category heading when it has one.
+  That heading reads folded, as its parent does, and pressing it (or its menu's "Expand category") opens the parent and itself.
+- At pointer widths a folded header's dot takes its hidden add glyph's place, on the rows' dot column, and steps left of the glyph once it shows, as a row's dot does for its kebab.
+  On touch the glyph always shows and keeps the trailing edge, so the dot sits just before it.
 - Collapsed rows stay zero-height items, as today, so a reorder payload still names every channel.
 
 ### Moving things at pointer widths
@@ -264,12 +267,14 @@ A newer client on an older server finds no `parent_id` key and offers no nesting
 This is `DesktopRailReorder`.
 
 - A carried channel can land in any expanded section at either depth, and the insertion line is inset to the depth it lands at.
+- The carried copy never runs across the line: where the line would cross it, the copy sits just past the line's cap on the pointer's side, so it covers the row under the pointer and nothing strikes through its label.
 - Lifting a top-level category carries its whole block, sub-categories included, and lifting a sub-category carries its own block.
 - A carried category is offered the top-level gaps and the sub-category gaps of every other expanded top-level block, which is how it gets filed under one.
 - No category is ever offered a gap inside its own block.
 - Where the last gap of a block and the next top-level gap share a line, the side the pointer is on decides: above it stays inside the block, below it starts the next one.
 - A gap that would make a third level is still offered, marked refused: any gap inside a sub-category's block, and every sub-category gap for a carried category that has sub-categories of its own.
-  The line there is danger-toned, inset to the third level, with "Two levels at most" beneath it and a not-allowed cursor, and a drop on it sends nothing.
+  The line there is danger-toned and inset to the third level, the carried copy takes a danger-toned edge with "Two levels at most" on it, the cursor is not-allowed, and a drop there sends nothing.
+  The reason sat beneath the line first, where it covered the label of the row it refused.
   Silently snapping to the nearest legal gap was the first design; it left a manager guessing why the category did not land where they let go.
 - An older server, one whose listing carries no `parent_id`, is offered top-level gaps only.
 - A category drop sends one `PUT /categories/order`, and a channel drop sends `PUT /channels/order` as today.

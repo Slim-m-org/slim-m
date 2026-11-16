@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show CategoryOrderGroup, ChannelOrderGroup;
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_reorder.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_carry_overlay.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drag_lift.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_insertion_line.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -105,9 +107,22 @@ Future<TestGesture> _carry(WidgetTester tester, String from, double toY) async {
 }
 
 final _line = find.byWidgetPredicate((w) => w is RailInsertionLine);
+final _copy = find.byWidgetPredicate((w) => w is RailDragLift);
 
 bool get _refusedShown =>
-    find.text(RailInsertionLine.refusedReason).evaluate().isNotEmpty;
+    find.text(RailCarryOverlay.refusedReason).evaluate().isNotEmpty;
+
+/// The carried copy and the line's cap never share a row of pixels.
+void _expectCopyClearOfLine(WidgetTester tester) {
+  final y = tester.getRect(_line).center.dy;
+  final copy = tester.getRect(_copy);
+  const reach = RailInsertionLine.cap / 2;
+  expect(
+    copy.bottom <= y - reach || copy.top >= y + reach,
+    isTrue,
+    reason: 'the copy $copy runs across the line at $y',
+  );
+}
 
 List<String> _shape(List<CategoryOrderGroup> groups) => [
   for (final g in groups) '${g.parentId}:${g.categoryIds.join(',')}',
@@ -191,5 +206,29 @@ void main() {
         .firstWhere((g) => g.categoryId == 'cs2')
         .channelIds;
     expect(into, ['jazz', 'ranked', 'casual']);
+  });
+
+  testWidgets('the carried copy keeps clear of the line, and a refused one '
+      'says why on itself', (tester) async {
+    await _pump(tester);
+    final rankedTop = tester.getRect(find.text('ranked')).top;
+    var gesture = await _carry(tester, 'jazz', rankedTop + 6);
+    _expectCopyClearOfLine(tester);
+    await gesture.up();
+    await pumpFrames(tester);
+
+    final between = tester.getRect(find.text('ranked')).bottom;
+    gesture = await _carry(tester, 'header:music', between - 6);
+    expect(_refusedShown, isTrue);
+    _expectCopyClearOfLine(tester);
+    expect(
+      find.descendant(
+        of: _copy,
+        matching: find.text(RailCarryOverlay.refusedReason),
+      ),
+      findsOneWidget,
+    );
+    await gesture.up();
+    await pumpFrames(tester);
   });
 }

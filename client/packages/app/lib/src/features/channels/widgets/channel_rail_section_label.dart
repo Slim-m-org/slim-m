@@ -78,17 +78,20 @@ class _SectionLabelState extends State<SectionLabel> {
         ),
       ),
     );
+    final touch = AppTouchTargets.of(context);
+    final revealed = touch || _hovered || _trailingFocused;
+    // At pointer width the dot shares the hover-revealed glyph's slot, as a row's dot shares its kebab's.
+    final slotsDot = !touch && widget.trailingBuilder != null;
+    final dot = slotsDot ? _indicatorDot(tokens, widget.indicator) : null;
     final label = onToggle == null
         ? title
         : _FoldButton(
             collapsed: widget.collapsed,
             name: widget.text,
-            indicator: widget.indicator,
+            indicator: slotsDot ? null : widget.indicator,
             onToggle: onToggle,
             child: title,
           );
-    final touch = AppTouchTargets.of(context);
-    final revealed = touch || _hovered || _trailingFocused;
     final trailing = widget.trailingBuilder?.call(
       revealed,
       (v) => setState(() => _trailingFocused = v),
@@ -111,7 +114,20 @@ class _SectionLabelState extends State<SectionLabel> {
           child: Row(
             children: [
               Expanded(child: label),
-              ?trailing,
+              if (dot != null && revealed)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.s8),
+                  child: dot,
+                ),
+              if (trailing != null)
+                Stack(
+                  alignment: AlignmentDirectional.centerEnd,
+                  children: [
+                    trailing,
+                    // The hidden glyph's place is the rows' dot column.
+                    if (dot != null && !revealed) dot,
+                  ],
+                ),
             ],
           ),
         ),
@@ -291,17 +307,11 @@ class _FoldButton extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.s4),
                 Expanded(child: child),
-                if (indicator case (
-                  :final unread,
-                  :final mentioned,
-                ) when unread || mentioned)
+                if (_indicatorDot(tokens, indicator) case final dot?)
                   Padding(
                     // No right inset: the header's own padding already puts the dot on the rows' dot column.
                     padding: const EdgeInsets.only(left: AppSpacing.s8),
-                    child: AppListRow.indicatorDot(
-                      mentioned: mentioned,
-                      color: mentioned ? tokens.accentFill : tokens.textPrimary,
-                    ),
+                    child: dot,
                   ),
               ],
             ),
@@ -311,3 +321,16 @@ class _FoldButton extends StatelessWidget {
     );
   }
 }
+
+/// A folded header's dot for the rows it hides, or null when none of them lights.
+Widget? _indicatorDot(
+  AppTokens tokens,
+  ({bool unread, bool mentioned})? indicator,
+) => switch (indicator) {
+  (:final unread, :final mentioned) when unread || mentioned =>
+    AppListRow.indicatorDot(
+      mentioned: mentioned,
+      color: mentioned ? tokens.accentFill : tokens.textPrimary,
+    ),
+  _ => null,
+};

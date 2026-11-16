@@ -97,7 +97,8 @@ class CategoryHeaderMenu extends ConsumerWidget {
             top.parentId == null)
           top,
     ];
-    final isCollapsed = collapsed.contains(category.id);
+    final isCollapsed =
+        collapsed.contains(category.id) || collapsed.contains(parent?.id);
     void then(VoidCallback action) {
       close();
       action();
@@ -154,7 +155,9 @@ class CategoryHeaderMenu extends ConsumerWidget {
         leading: isCollapsed ? AppIcons.unfold : AppIcons.fold,
         onTap: () => then(
           () => unawaited(
-            ref.read(collapsedCategoriesProvider.notifier).toggle(category.id),
+            ref
+                .read(collapsedCategoriesProvider.notifier)
+                .toggleShown(category.id, parentId: parent?.id),
           ),
         ),
       ),

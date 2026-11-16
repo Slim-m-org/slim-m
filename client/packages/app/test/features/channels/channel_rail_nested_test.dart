@@ -234,4 +234,54 @@ void main() {
     expect(_dotBeside(tester, 'cs2'), isFalse);
     expect(_dotBeside(tester, 'gamers'), isFalse, reason: 'it is open');
   });
+
+  testWidgets('under a folded parent a surfaced sub-heading reads folded, and '
+      'pressing it opens the parent and itself', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(
+      tester,
+      channels: [
+        _channel('lobby', 'gamers'),
+        _channel('ranked', 'cs2'),
+        _channel('matchmaking', 'cs2', cursor: 3),
+      ],
+      categories: const [_gamers, _cs2],
+      collapsed: {'gamers'},
+    );
+
+    expect(tester.getSemantics(find.bySemanticsLabel('cs2')).hint, 'Expand');
+    expect(_shown('ranked'), isFalse);
+    await tester.tap(find.text('cs2'));
+    await pumpFrames(tester);
+
+    expect(_shown('lobby') && _shown('ranked'), isTrue);
+    expect(tester.getSemantics(find.bySemanticsLabel('cs2')).hint, 'Collapse');
+    semantics.dispose();
+  });
+
+  testWidgets('a folded header puts its dot on the rows dot column for a '
+      'manager at pointer width', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(
+      tester,
+      channels: [
+        _channel('lobby', 'gamers'),
+        _channel('matchmaking', 'cs2', cursor: 3),
+      ],
+      categories: const [_gamers, _cs2],
+      collapsed: {'gamers'},
+      canManage: true,
+    );
+
+    final dots = [
+      for (final e in find.byKey(AppListRow.unreadDotKey).evaluate())
+        (e.renderObject! as RenderBox).localToGlobal(
+          (e.renderObject! as RenderBox).size.center(Offset.zero),
+        ),
+    ];
+    expect(dots, hasLength(2), reason: 'the header and the surfaced row');
+    expect(dots.first.dx, closeTo(dots.last.dx, 0.5));
+  });
 }
