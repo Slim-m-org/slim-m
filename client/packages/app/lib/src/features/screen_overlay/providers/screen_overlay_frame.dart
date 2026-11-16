@@ -9,6 +9,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../canvas/providers/canvas_pen_style.dart';
 import 'screen_annotation_board.dart';
+import 'screen_annotation_call.dart';
 
 /// Stroke width on the sharer's screen, in logical pixels.
 const overlayInkWidth = 4.0;
@@ -69,16 +70,17 @@ List<OverlayShape> overlayShapesFor(
 
 /// Whether the sharer's own client shows [frame] on their screen.
 ///
-/// This is the gate that matters: the server relays any member's mark, but the
-/// overlay lives on the sharer's machine and only paints what the sharer allowed.
+/// This is the gate that matters: the overlay lives on the sharer's machine and
+/// only paints what the sharer allowed, drawn by someone in [callMembers].
 bool overlayAccepts(
   api.CanvasScreenAnnotation frame, {
   required bool overlayActive,
   required String? selfId,
   required String? callChannelId,
+  required Iterable<String> callMembers,
 }) =>
     overlayActive &&
     frame.kind != 'consent' &&
     selfId != null &&
     frame.targetUserId == selfId &&
-    frame.channelId == callChannelId;
+    markInCall(frame, callChannelId: callChannelId, callMembers: callMembers);

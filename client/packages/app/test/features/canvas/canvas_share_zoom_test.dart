@@ -28,7 +28,11 @@ Future<CanvasDocument> _pump(WidgetTester tester) async {
   addTearDown(document.dispose);
   final overrides = CanvasPresenceTileOverrides();
   addTearDown(overrides.dispose);
-  final feed = ScreenAnnotationFeed(selfId: () => 'me');
+  final feed = ScreenAnnotationFeed(
+    selfId: () => 'me',
+    callChannelId: () => 'call',
+    callMembers: () => const ['me', 'sharer'],
+  );
   addTearDown(feed.dispose);
   await tester.pumpWidget(
     ProviderScope(

@@ -8,7 +8,7 @@
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
 use super::signals;
-use crate::hub::{Event, Hub, RoleChange};
+use crate::hub::{CanvasEvent, Event, Hub, RoleChange};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
 
@@ -30,6 +30,12 @@ pub(super) async fn authorize(
     }
     if let Some(decision) = super::account_frames::authorize(ctx, &event) {
         return Ok(decision);
+    }
+    // Only the call it was drawn in hears a screen annotation; the canvas gates still apply to them.
+    if let Event::Canvas(CanvasEvent::ScreenAnnotation(annotation)) = &event
+        && !annotation.audience.contains(&ctx.user_id)
+    {
+        return Ok(Authorization::Withhold);
     }
     if let Event::EphemeralMessage {
         recipient_id,

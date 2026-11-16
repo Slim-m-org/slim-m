@@ -172,6 +172,7 @@ async fn serve(
     // A client that sends `active` frames reports real use; its keepalives then prove nothing.
     let mut reports_activity = reported_active.is_some();
     let mut canvas_watch = canvas_watch::CanvasWatch::default();
+    let mut annotation_relay = signals_screen_annotation::AnnotationRelay::default();
     let mut budget = FrameBudget::new(Instant::now());
     let liveness = state.hub.liveness_deadline();
     let silence = tokio::time::sleep(liveness);
@@ -331,11 +332,10 @@ async fn serve(
                             }) => {
                                 let frame_bytes = text.as_str().len();
                                 signals_screen_annotation::handle_canvas_screen_annotation(
-                                    &state.store,
-                                    &state.hub,
-                                    &state.limiter,
+                                    &state,
                                     &ctx,
                                     &mut cache,
+                                    &mut annotation_relay,
                                     signals_screen_annotation::ScreenAnnotationFrame {
                                         channel_id,
                                         target_user_id,

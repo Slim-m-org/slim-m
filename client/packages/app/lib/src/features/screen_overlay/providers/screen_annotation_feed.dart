@@ -11,6 +11,7 @@ import '../../../providers/sync_controller.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'screen_annotation_board.dart';
+import 'screen_annotation_call.dart';
 import 'screen_annotation_consent.dart';
 
 bool _nobody(String userId) => false;
@@ -18,26 +19,40 @@ bool _nobody(String userId) => false;
 class ScreenAnnotationFeed extends ChangeNotifier {
   ScreenAnnotationFeed({
     required String? Function() selfId,
+    required String? Function() callChannelId,
+    required Iterable<String> Function() callMembers,
     bool Function(String userId)? isBlocked,
     DateTime Function()? clock,
   }) : _selfId = selfId,
+       _callChannelId = callChannelId,
+       _callMembers = callMembers,
        _isBlocked = isBlocked ?? _nobody,
        _clock = clock ?? annotationNow;
 
   final String? Function() _selfId;
+  final String? Function() _callChannelId;
+  final Iterable<String> Function() _callMembers;
   final bool Function(String userId) _isBlocked;
   final DateTime Function() _clock;
   final _consent = ScreenAnnotationConsent();
   final Map<String, ScreenAnnotationBoard> _boards = {};
 
-  /// Folds in a frame from the socket. A viewer's own marks are applied
-  /// locally as they are drawn, so the relay's echo of them is skipped.
+  /// Folds in a frame from the socket. A mark counts only between two people
+  /// in my call, and the relay's echo of my own marks is skipped.
   void handle(api.ServerEvent event) {
     if (event is! api.CanvasScreenAnnotation) return;
-    if (event.kind != 'consent' && event.userId == _selfId()) return;
-    if (event.kind != 'consent' && _isBlocked(event.userId)) return;
+    if (event.kind != 'consent' && !_acceptsMark(event)) return;
     _fold(event);
   }
+
+  bool _acceptsMark(api.CanvasScreenAnnotation mark) =>
+      mark.userId != _selfId() &&
+      !_isBlocked(mark.userId) &&
+      markInCall(
+        mark,
+        callChannelId: _callChannelId(),
+        callMembers: _callMembers(),
+      );
 
   /// A mark this viewer is drawing, shown at once rather than after the round trip.
   void applyLocal(api.CanvasScreenAnnotation frame) => _fold(frame);
@@ -86,6 +101,9 @@ final screenAnnotationFeedProvider = Provider<ScreenAnnotationFeed>((ref) {
         .where((p) => p.isLocal)
         .firstOrNull
         ?.identity,
+    callChannelId: () => ref.read(voiceFlagsProvider).channelId,
+    callMembers: () =>
+        ref.read(voiceParticipantsProvider).map((p) => p.identity),
     isBlocked: (userId) => ref.read(blocksProvider).contains(userId),
   );
   final sub = ref

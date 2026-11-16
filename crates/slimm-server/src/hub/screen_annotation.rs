@@ -56,4 +56,6 @@ pub struct ScreenAnnotationEvent {
     pub allowed: bool,
     /// Consent frames only: the shared screen's width over its height.
     pub aspect: Option<f64>,
+    /// Who it is delivered to: the channel's call roster when it was relayed. Never on the wire.
+    pub audience: Vec<UserId>,
 }

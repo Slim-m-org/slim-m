@@ -14,12 +14,13 @@ api.CanvasScreenAnnotation _frame({
   String kind = 'stroke',
   String target = 'me',
   String channel = 'call',
+  String from = 'viewer',
   List<double> points = const [0.1, 0.2, 0.3, 0.4],
   String? text,
   bool ended = true,
 }) => api.CanvasScreenAnnotation(
   channelId: channel,
-  userId: 'viewer',
+  userId: from,
   targetUserId: target,
   kind: kind,
   annotationId: 'a',
@@ -80,11 +81,13 @@ void main() {
       bool active = true,
       String? self = 'me',
       String? channel = 'call',
+      List<String> members = const ['me', 'viewer'],
     }) => overlayAccepts(
       f,
       overlayActive: active,
       selfId: self,
       callChannelId: channel,
+      callMembers: members,
     );
 
     test('a mark over my shared screen is shown while the overlay is on', () {
@@ -101,6 +104,11 @@ void main() {
 
     test('a mark from another channel is not shown', () {
       expect(accepts(_frame(channel: 'elsewhere')), isFalse);
+    });
+
+    test('a mark from someone who is not in my call is not shown', () {
+      expect(accepts(_frame(from: 'stranger')), isFalse);
+      expect(accepts(_frame(), members: const ['me']), isFalse);
     });
 
     test('consent frames are never marks', () {
