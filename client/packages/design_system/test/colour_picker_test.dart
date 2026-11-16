@@ -282,6 +282,16 @@ void main() {
     );
   });
 
+  testWidgets('the preview chip lines up with the hex field border', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final chip = tester.getRect(find.bySemanticsLabel(RegExp('^Preview #')));
+    final hex = tester.getRect(find.byKey(AppColourPicker.hexFieldKey));
+
+    expect(chip.center.dy, hex.center.dy);
+  });
+
   testWidgets('beside puts the square left of the hex field and buttons', (
     tester,
   ) async {
