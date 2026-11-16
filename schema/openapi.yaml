@@ -13250,14 +13250,12 @@ components:
           items:
             type: string
           description: >
-            Role names this member holds, for a client to render a badge
-            (e.g. "Op") beside them. Excludes `@everyone`: every member holds
-            that one, so including it would put a meaningless badge on every
-            row. Empty rather than absent for a member with nothing beyond
-            it. Deliberately no colour field: badges use the design system's
-            accent, not a per-role one. Absent on servers older than this
-            field, which a client must treat as unknown rather than "no
-            roles".
+            Role names this member holds, highest position first. Excludes
+            `@everyone`: every member holds that one, so including it would
+            put a meaningless badge on every row. Empty rather than absent
+            for a member with nothing beyond it. Absent on servers older
+            than this field, which a client must treat as unknown rather
+            than "no roles".
         role_ids:
           type: array
           items:
@@ -13269,6 +13267,18 @@ components:
             made against the id. Nothing stops two roles sharing a name, so a
             client deciding "does this member hold that role" by name would
             answer yes for both of them.
+        role_colors:
+          type: array
+          items:
+            type: [integer, "null"]
+            format: int64
+          description: >
+            The same roles' colours, positionally matching `roles`: an index
+            into the role palette (the `color` a `Role` carries), or null for
+            a role nobody gave a colour. A member's name wears the first
+            non-null entry, so any member can colour names without `GET
+            /roles`, which needs MANAGE_ROLES. Absent on servers older than
+            this field, which reads as no colours.
         hoisted_role_id:
           type: [string, "null"]
           format: uuid

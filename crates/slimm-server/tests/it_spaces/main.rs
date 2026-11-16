@@ -35,6 +35,7 @@ mod member_bulk_moderation;
 mod member_moderation_evicts_concurrently;
 mod member_moderation_routes;
 mod member_nicknames;
+mod member_role_colors;
 mod member_roles;
 mod member_timeout;
 mod members_channel_scope;

@@ -18,6 +18,7 @@ use sqlx::{QueryBuilder, SqliteConnection};
 use super::{Store, now_ms};
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
+use role_hoist::HeldRole;
 
 pub(super) mod role_bots;
 pub(super) mod role_hierarchy;
@@ -342,7 +343,7 @@ impl Store {
         Ok(Some(()))
     }
 
-    /// Non-`@everyone` roles for a batch of users, as (id, name) pairs, in one query no
+    /// Non-`@everyone` roles for a batch of users, highest position first, in one query no
     /// matter how many are asked about - the same batching shape
     /// [`Store::reactions_for_messages`] uses to keep a page of messages from
     /// paying one query per row. `GET /members` is the caller that actually
@@ -364,7 +365,7 @@ impl Store {
     pub async fn roles_for_users(
         &self,
         user_ids: &[UserId],
-    ) -> anyhow::Result<Vec<(UserId, Vec<(RoleId, String)>)>> {
+    ) -> anyhow::Result<Vec<(UserId, Vec<HeldRole>)>> {
         if user_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -372,7 +373,7 @@ impl Store {
         // Built rather than a fixed `query!` because the id list is variable
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
-            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name \
+            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name, r.color AS color \
              FROM member_roles mr JOIN roles r ON r.id = mr.role_id \
              WHERE r.is_everyone = 0 AND mr.user_id IN (",
         );
@@ -385,13 +386,18 @@ impl Store {
         let rows = builder.build().fetch_all(&self.pool).await?;
 
         use sqlx::Row;
-        let mut grouped: Vec<(UserId, Vec<(RoleId, String)>)> = Vec::new();
+        let mut grouped: Vec<(UserId, Vec<HeldRole>)> = Vec::new();
         for row in rows {
             let user_id: UserId = row.try_get("user_id")?;
-            let role = (row.try_get("role_id")?, row.try_get("name")?);
-            match grouped.iter_mut().find(|(id, _)| *id == user_id) {
-                Some((_, roles)) => roles.push(role),
-                None => grouped.push((user_id, vec![role])),
+            let role = HeldRole {
+                id: row.try_get("role_id")?,
+                name: row.try_get("name")?,
+                color: row.try_get("color")?,
+            };
+            // Rows arrive grouped by user, so a member's roles are always the last entry.
+            match grouped.last_mut() {
+                Some((id, roles)) if *id == user_id => roles.push(role),
+                _ => grouped.push((user_id, vec![role])),
             }
         }
         Ok(grouped)

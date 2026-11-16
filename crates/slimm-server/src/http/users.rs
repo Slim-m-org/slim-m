@@ -28,7 +28,7 @@ use super::user_status::{
     validate_pronouns, validate_status_text,
 };
 use crate::hub::Event;
-use crate::ids::{RoleId, UserId};
+use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::{Store, User};
 
@@ -89,13 +89,11 @@ pub(super) struct UserDto {
     /// When this user's profile banner image was last set, or `null` for the
     /// profile colour. A cache-busting version on `GET /users/{userId}/banner`.
     banner_updated_at: Option<i64>,
-    /// Role names this member holds, for a client to render a badge (e.g.
-    /// "Op") beside them. Excludes `@everyone`: every member holds that one,
-    /// so including it would put a meaningless badge on every row. Empty
-    /// rather than omitted for a member with nothing beyond it - the same
-    /// "always present, empty means none" convention `MessageDto::reactions`
-    /// already follows. Deliberately no colour: badges use the design
-    /// system's accent, not a per-role one.
+    /// Role names this member holds, highest position first. Excludes
+    /// `@everyone`: every member holds that one, so including it would put a
+    /// meaningless badge on every row. Empty rather than omitted for a member
+    /// with nothing beyond it - the same "always present, empty means none"
+    /// convention `MessageDto::reactions` already follows.
     roles: Vec<String>,
     /// The same roles as ids, positionally matching [`Self::roles`].
     ///
@@ -104,6 +102,10 @@ pub(super) struct UserDto {
     /// client deciding "does this member hold that role" by name would answer
     /// yes for both of them.
     role_ids: Vec<String>,
+    /// The same roles' palette colours, positionally matching [`Self::roles`]:
+    /// an index, or `null` for a role nobody gave one. A member's name wears
+    /// the first non-null entry, so no client needs `GET /roles` to colour it.
+    role_colors: Vec<Option<i64>>,
     /// The hoisted role this member is listed under in the member pane, or
     /// `null` when none of theirs is hoisted. Always one of [`Self::role_ids`].
     hoisted_role_id: Option<String>,
@@ -181,8 +183,7 @@ pub(super) async fn to_dto(store: &Store, user: User) -> anyhow::Result<UserDto>
 /// query per row.
 pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<Vec<UserDto>> {
     let ids: Vec<UserId> = users.iter().map(|u| u.id).collect();
-    let roles: HashMap<UserId, Vec<(RoleId, String)>> =
-        store.roles_for_users(&ids).await?.into_iter().collect();
+    let roles: HashMap<UserId, Vec<_>> = store.roles_for_users(&ids).await?.into_iter().collect();
     // Batched for the same reason the roles above are; see this function's note.
     let timed_out = store.timed_out_among_until(&ids).await?;
     let hoisted = store.hoisted_roles_for_users(&ids).await?;
@@ -203,8 +204,9 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 created_at: user.created_at,
                 avatar_updated_at: user.avatar_updated_at,
                 banner_updated_at: user.banner_updated_at,
-                roles: held.iter().map(|(_, name)| name.clone()).collect(),
-                role_ids: held.iter().map(|(id, _)| id.to_string()).collect(),
+                roles: held.iter().map(|role| role.name.clone()).collect(),
+                role_ids: held.iter().map(|role| role.id.to_string()).collect(),
+                role_colors: held.iter().map(|role| role.color).collect(),
                 hoisted_role_id: hoisted.get(&user.id).map(|role| role.id.to_string()),
                 hoisted_role_position: hoisted.get(&user.id).map(|role| role.position),
                 timed_out_until: timed_out.get(&user.id).copied(),

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The `hoist` flag and the per-member top hoisted role the member pane
-//! sections on; split out of `roles.rs`, which sits at the line ceiling.
+//! The `hoist` flag, the per-member top hoisted role the member pane
+//! sections on, and the member-visible shape of a held role; split out of
+//! `roles.rs`, which sits at the line ceiling.
 
 use std::collections::HashMap;
 
@@ -8,6 +9,15 @@ use sqlx::{QueryBuilder, Row};
 
 use super::super::Store;
 use crate::ids::{RoleId, UserId};
+
+/// One role a member holds, as every member sees it: no permission bits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeldRole {
+    pub id: RoleId,
+    pub name: String,
+    /// The role's palette index, or `None` when nobody chose one; see [`super::Role::color`].
+    pub color: Option<i64>,
+}
 
 /// The hoisted role a member is listed under: the highest-position one they hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
