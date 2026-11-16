@@ -34,6 +34,7 @@ import 'admin/channel_permissions_screen.dart';
 import '../widgets/admin/channel_permissions_heading.dart';
 import 'admin/dock_screen.dart';
 import 'admin/emoji_screen.dart';
+import 'admin/soundboard_create.dart';
 import 'admin/soundboard_screen.dart';
 import 'admin/export_screen.dart';
 import 'admin/invites_screen.dart';
@@ -219,6 +220,10 @@ SettingsPaneGroup _configurationGroup(_SpaceAccess access) {
           label: 'Soundboard',
           icon: AppIcons.music,
           compactRoute: Routes.adminSoundboard,
+          actions: const [
+            SoundboardCreateButton(),
+            SizedBox(width: AppSpacing.s8),
+          ],
           builder: (_) => const SoundboardPane(),
         ),
     ],

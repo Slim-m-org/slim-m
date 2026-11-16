@@ -9,6 +9,7 @@ abstract final class ActionLabels {
   static const createRole = 'Create role';
   static const createInvite = 'Create invite';
   static const createEmoji = 'Create emoji';
+  static const createClip = 'Create clip';
   static const createBot = 'Create bot';
   static const createWebhook = 'Create webhook';
   static const createResetCode = 'Create a reset code';

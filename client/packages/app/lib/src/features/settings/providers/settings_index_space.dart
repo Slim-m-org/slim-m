@@ -149,7 +149,7 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['sound', 'clips', 'audio', 'sfx'],
     conditional: true,
   ),
-  SettingsEntry('soundboard', 'Clips (0 of 48)', conditional: true),
+  SettingsEntry('soundboard', 'Clips', conditional: true),
   SettingsEntry(
     _voicePage,
     'Strong by default',

@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Soundboard administration: add, rename and remove the Space's clips
-/// (`/soundboard`). Writing needs MANAGE_SERVER, the same bit custom emoji use;
-/// reading is open to every member.
+/// Soundboard administration: create, listen to, rename and remove the
+/// Space's clips (`/soundboard`). Writing needs MANAGE_SERVER, the same bit
+/// custom emoji use; reading is open to every member.
 library;
 
 import 'dart:async';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../../api_failure.dart';
+import '../../../../audio/sound_clip_player.dart';
+import '../../../../format.dart';
 import '../../../../routing/routes.dart';
+import '../../../../widgets/app_drop_zone.dart';
 import '../../../../widgets/confirm_dialog.dart';
+import '../../../../widgets/name_sheet.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../../voice/providers/soundboard_actions.dart';
 import '../../../voice/providers/soundboard_clips.dart';
@@ -20,11 +26,8 @@ import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'soundboard_create.dart';
 import 'soundboard_intake.dart';
-import 'soundboard_rename_sheet.dart';
-
-/// The most clips one Space holds, mirrored from the server.
-const maxSoundClips = 48;
 
 class SoundboardScreen extends StatelessWidget {
   const SoundboardScreen({super.key});
@@ -34,89 +37,77 @@ class SoundboardScreen extends StatelessWidget {
     title: 'Soundboard',
     backTooltip: 'Back to Space settings',
     backFallback: Routes.spaceSettings,
+    actions: [
+      SoundboardCreateButton(),
+      SizedBox(width: AppSpacing.s8),
+    ],
     child: SoundboardPane(),
   );
 }
 
-class SoundboardPane extends ConsumerStatefulWidget {
+class SoundboardPane extends ConsumerWidget {
   const SoundboardPane({super.key});
 
-  @override
-  ConsumerState<SoundboardPane> createState() => _SoundboardPaneState();
-}
-
-class _SoundboardPaneState extends ConsumerState<SoundboardPane>
-    with GuardedActionState<SoundboardPane> {
-  bool _busy = false;
-
-  Future<void> _add() async {
-    final pick = await ref.read(soundClipPickerProvider)();
-    if (pick == null || !mounted) return;
-    if (pick.bytes.length > soundClipMaxBytes) {
-      setActionError('That file is over 512 KB. A clip is at most 512 KB.');
-      return;
-    }
-    setState(() => _busy = true);
-    final ok = await guard(
-      whatFailed: 'add the clip',
-      action: () => ref
-          .read(soundboardActionsProvider)
-          .upload(pick.bytes, name: pick.suggestedName),
-    );
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok) ref.invalidate(soundClipsProvider);
+  Future<void> _dropped(
+    BuildContext context,
+    WidgetRef ref,
+    List<DropItem> files,
+  ) async {
+    final pick = await readDroppedSoundClip(files);
+    if (pick == null || !context.mounted) return;
+    await createSoundClip(context, ref, pick: pick);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final clips = ref.watch(soundClipsProvider);
-    return AppAsyncView<List<api.SoundClip>>(
-      value: AppAsyncState(data: clips.valueOrNull, error: clips.error),
-      center: false,
-      errorMessage: 'Could not load the soundboard.',
-      onRetry: () => ref.invalidate(soundClipsProvider),
-      data: (context, list) => SettingsSectionCard(
-        title: 'Clips (${list.length} of $maxSoundClips)',
-        description:
-            'Short mp3 or wav clips, up to 5 seconds, played in calls.',
-        children: [
-          SettingsCardBlock(
-            children: [
-              AppButton(
-                label: _busy ? 'Adding...' : 'Add clip',
-                icon: AppIcons.add,
-                disabled: _busy || list.length >= maxSoundClips,
-                onPressed: _add,
-              ),
-              if (actionError != null) ...[
-                const SizedBox(height: AppSpacing.s8),
-                AppErrorState(
-                  message: actionError!,
-                  onDismiss: clearActionError,
-                ),
-              ],
-            ],
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final count = clips.valueOrNull?.length;
+    return AppDropZone(
+      enabled:
+          count != null &&
+          count < maxSoundClips &&
+          !ref.watch(soundClipCreatingProvider),
+      label: 'Drop to create a clip',
+      icon: AppIcons.music,
+      onDrop: (files) => unawaited(_dropped(context, ref, files)),
+      child: AppAsyncView<List<api.SoundClip>>(
+        value: AppAsyncState(data: clips.valueOrNull, error: clips.error),
+        center: false,
+        errorMessage: 'Could not load the soundboard.',
+        onRetry: () => ref.invalidate(soundClipsProvider),
+        data: (context, list) => SettingsSectionCard(
+          title: 'Clips',
+          description:
+              'Short mp3 or wav clips, up to 5 seconds, played in calls.',
+          trailing: Text(
+            '${list.length} of $maxSoundClips',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
-          if (list.isEmpty)
-            const SettingsEmptyState(
-              icon: AppIcons.music,
-              title: 'No clips yet.',
-              detail: 'Add one and members can play it in a call.',
-            )
-          else
-            for (final clip in list)
-              _ClipRow(key: ValueKey(clip.id), clip: clip),
-        ],
+          children: [
+            if (list.isEmpty)
+              const SettingsEmptyState(
+                icon: AppIcons.music,
+                title: 'No clips yet.',
+                detail: 'Create one and members can play it in a call.',
+              )
+            else
+              for (final clip in list)
+                _ClipRow(key: ValueKey(clip.id), clip: clip, clips: list),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _ClipRow extends ConsumerStatefulWidget {
-  const _ClipRow({super.key, required this.clip});
+  const _ClipRow({super.key, required this.clip, required this.clips});
 
   final api.SoundClip clip;
+
+  /// Every clip, so a rename can say a name is taken before it is sent.
+  final List<api.SoundClip> clips;
 
   @override
   ConsumerState<_ClipRow> createState() => _ClipRowState();
@@ -125,6 +116,48 @@ class _ClipRow extends ConsumerStatefulWidget {
 class _ClipRowState extends ConsumerState<_ClipRow>
     with GuardedActionState<_ClipRow> {
   bool _busy = false;
+
+  /// Plays on this device only: the admin hears it before anyone in a call does.
+  Future<void> _listen() async {
+    final clip = widget.clip;
+    try {
+      final audio = await ref.read(soundClipAudioProvider(clip.id).future);
+      if (!mounted) return;
+      await ref
+          .read(soundClipPlayerProvider)
+          .play(audio.bytes, mimeType: audio.contentType, volume: 1);
+    } on Object catch (error, stack) {
+      if (!mounted) return;
+      // A failed fetch must not stay cached, or the clip stays silent until the app restarts.
+      ref.invalidate(soundClipAudioProvider(clip.id));
+      setActionError(
+        reportFailureSentence(
+          api.LogTag.voice,
+          'play ${clip.name}',
+          error,
+          stack,
+        ),
+      );
+    }
+  }
+
+  Future<void> _rename() {
+    final clip = widget.clip;
+    final clips = widget.clips;
+    return showNameSheet(
+      context,
+      title: 'Rename ${clip.name}',
+      fieldLabel: 'Clip name',
+      initial: clip.name,
+      maxChars: soundClipMaxNameChars,
+      whatFailed: 'rename the clip',
+      problem: (name) => soundClipNameProblem(name, clips, renaming: clip.id),
+      onSave: (ref, name) async {
+        await ref.read(soundboardActionsProvider).rename(clip.id, name: name);
+        ref.invalidate(soundClipsProvider);
+      },
+    );
+  }
 
   Future<void> _remove() async {
     final confirmed = await confirmDangerousAction(
@@ -150,23 +183,23 @@ class _ClipRowState extends ConsumerState<_ClipRow>
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return SettingsEntityRow(
       dense: true,
-      leading: Icon(
-        AppIcons.music,
-        size: AppSizes.icon20,
-        color: tokens.textSecondary,
+      // Leads with what a member will hear, as an emoji row leads with its image.
+      leading: AppIconButton(
+        icon: AppIcons.play,
+        semanticLabel: 'Listen to ${clip.name}',
+        tooltip: 'Listen',
+        onPressed: () => unawaited(_listen()),
       ),
       headline: clip.name,
       badge: Text(
-        '${(clip.durationMs / 1000).toStringAsFixed(1)} s',
+        formatClipLength(clip.durationMs),
         style: AppText.caption.copyWith(color: tokens.textSecondary),
       ),
       actions: [
         AppIconButton(
           icon: AppIcons.edit,
           semanticLabel: 'Rename ${clip.name}',
-          onPressed: _busy
-              ? null
-              : () => unawaited(showRenameSoundClipSheet(context, clip: clip)),
+          onPressed: _busy ? null : () => unawaited(_rename()),
         ),
         AppIconButton(
           icon: AppIcons.delete,
