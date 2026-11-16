@@ -78,11 +78,18 @@ class _Mic implements MicPort {
 }
 
 class _Devices implements AudioDevices {
+  /// Holds the device list, which opening a chosen microphone reads first.
+  Completer<void>? listGate;
+
   @override
-  Future<List<AudioDevice>> inputs() async => const [
-        AudioDevice(id: 'mic-1', label: 'Headset'),
-        AudioDevice(id: 'mic-2', label: 'Desk'),
-      ];
+  Future<List<AudioDevice>> inputs() async {
+    await listGate?.future;
+    return const [
+      AudioDevice(id: 'mic-1', label: 'Headset'),
+      AudioDevice(id: 'mic-2', label: 'Desk'),
+    ];
+  }
+
   @override
   Future<List<AudioDevice>> outputs() async => const [];
   @override
@@ -96,18 +103,20 @@ class _Devices implements AudioDevices {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late _Mic mic;
+  late _Devices devices;
   late Completer<void> gate;
   late JoinTimings timings;
   late VoiceSession session;
 
   setUp(() async {
     mic = _Mic();
+    devices = _Devices();
     gate = Completer<void>();
     timings = JoinTimings();
     session = VoiceSession(
       roomFactory: () => _GatedRoom(gate),
       micPort: mic,
-      audioDevices: _Devices(),
+      audioDevices: devices,
       liveOutput: (room, device) async {},
       joinTimings: timings,
       inputGate: InputGateMonitor.disabled(),
@@ -152,6 +161,25 @@ void main() {
 
     expect(mic.published, isEmpty,
         reason: 'the person muted, so the join must not open the microphone');
+    expect(mic.open, isFalse);
+  });
+
+  test('a mute asked while the join reads the devices to open the mic wins',
+      () async {
+    final joined = join();
+    await pumpEventQueue();
+    devices.listGate = Completer<void>();
+    gate.complete();
+    await pumpEventQueue();
+    expect(session.state, VoiceSessionState.connecting);
+
+    final muted = session.setMicrophoneEnabled(false);
+    devices.listGate!.complete();
+    await joined;
+
+    expect(await muted, isTrue);
+    expect(mic.published, isEmpty,
+        reason: 'the mute came after the join asked to open, so it wins');
     expect(mic.open, isFalse);
   });
 

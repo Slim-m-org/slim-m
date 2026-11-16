@@ -28,6 +28,10 @@ class _Mic implements MicPort {
   /// How long a publish takes, for a test that looks at the call meanwhile.
   Duration? enableDelay;
 
+  /// Holds a publish until completed; [opening] counts the publishes started.
+  Completer<void>? enableGate;
+  int opening = 0;
+
   @override
   bool get hasTrack => published;
 
@@ -38,6 +42,8 @@ class _Mic implements MicPort {
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
     final delay = enableDelay;
     if (enabled && delay != null) await Future<void>.delayed(delay);
+    if (enabled) opening++;
+    if (enabled) await enableGate?.future;
     if (enabled && enableFailures > 0) {
       enableFailures--;
       throw StateError('no capture device');
@@ -177,6 +183,23 @@ void main() {
     await pollUntil(() => mic.enables == 2);
 
     expect(mic.open, isTrue);
+  });
+
+  test('a mute asked while a failing republish runs is not reopened after it',
+      () async {
+    await join();
+    mic
+      ..enableGate = Completer<void>()
+      ..enableFailures = 1;
+
+    mic.end();
+    await pollUntil(() => mic.opening == 2);
+    expect(await session.setMicrophoneEnabled(false), isTrue);
+    mic.enableGate!.complete();
+    await _settle();
+
+    expect(mic.enables, 1, reason: 'the person muted, so nothing reopens it');
+    expect(mic.open, isFalse);
   });
 
   test('a muted microphone with no publication is left alone', () async {

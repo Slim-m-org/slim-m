@@ -19,6 +19,7 @@ abstract interface class MicPort {
   /// Whether that track is published and not muted.
   bool get open;
 
+  /// Calls take effect in the order they are made; livekit's publish queue keeps that order.
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options);
 
   /// The capture's level in dBFS from the sender's own stats, or null when the

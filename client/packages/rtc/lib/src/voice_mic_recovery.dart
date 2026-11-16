@@ -176,6 +176,9 @@ class VoiceMicRecovery {
 
   /// The [setEnabled] calls in flight, which publish on their own.
   int _setting = 0;
+
+  /// Counts [setEnabled] calls, so one can tell a later ask overtook it.
+  int _asks = 0;
   int _unpublishedProbes = 0;
 
   /// Whether the mic is healthy, being brought back, or given up on.
@@ -219,18 +222,22 @@ class VoiceMicRecovery {
 
   /// Mutes or unmutes the local microphone; returns whether it ended in the
   /// requested state, since a token without SPEAK or a denied OS permission
-  /// mean no and the UI must show what happened.
+  /// mean no and the UI must show what happened. The last ask wins: one
+  /// overtaken before it reached the microphone only says whether it agrees.
   Future<bool> setEnabled(bool enabled) async {
     if (_host.room() == null) return false;
     // Nothing can be published before the connect, so the join applies this once it has.
     if (_host.state() == VoiceSessionState.connecting) {
       _askedWhileConnecting = enabled;
     }
+    final ask = ++_asks;
     final intent = _wanted;
     _wanted = enabled;
     // A chosen microphone that came back since the last open is used again, not the default.
     if (enabled && switching.chosenInput != null) {
       await _host.forgetUnplugged();
+      // The later ask already reached the microphone, which applies asks in order.
+      if (ask != _asks) return _wanted == enabled;
     }
     _setting++;
     try {
@@ -248,7 +255,8 @@ class VoiceMicRecovery {
       return true;
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
-      _wanted = intent;
+      // A later ask stands; putting this one's old intent back would undo it.
+      if (ask == _asks) _wanted = intent;
       if (enabled && mic.hasTrack) release.onMuted();
       if (enabled) unawaited(noteFailure(classifyMicFailure(e)));
       _host.noteError(e);
