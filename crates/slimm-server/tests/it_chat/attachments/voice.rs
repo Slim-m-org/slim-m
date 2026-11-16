@@ -132,3 +132,64 @@ async fn a_voice_flag_on_something_that_is_not_audio_is_refused() {
     let (status, _) = post(&app, &alice, &query, png(4)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn someone_else_cannot_turn_your_audio_file_into_a_voice_message() {
+    let (store, _guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL
+                .union(Permissions::SEND_MESSAGES)
+                .union(Permissions::ATTACH_FILES),
+            true,
+        )
+        .await
+        .unwrap();
+    let channel = store
+        .create_channel("general", "text")
+        .await
+        .unwrap()
+        .id
+        .to_string();
+    let app = app(store.clone());
+    let (alice, _) = register(&store, "alice").await;
+    let (bob, _) = register(&store, "bob").await;
+
+    let (_, song) = post(&app, &alice, "", ogg(9)).await;
+    let message_id = Uuid::now_v7().to_string();
+    app.clone()
+        .oneshot(request_json(
+            "POST",
+            &format!("/channels/{channel}/messages"),
+            &alice,
+            json!({ "id": message_id, "content": "", "attachment_ids": [song["id"]] }),
+        ))
+        .await
+        .unwrap();
+
+    let query = format!("voice=true&duration_ms=4200&waveform={}", waveform_hex());
+    let (status, _) = post(&app, &bob, &query, ogg(9)).await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let listed = app
+        .clone()
+        .oneshot(request_plain(
+            "GET",
+            &format!("/channels/{channel}/messages"),
+            &alice,
+        ))
+        .await
+        .unwrap();
+    let list = json_body(listed).await;
+    let messages = list
+        .as_array()
+        .cloned()
+        .unwrap_or_else(|| list["messages"].as_array().unwrap().clone());
+    let alices = messages.iter().find(|m| m["id"] == message_id).unwrap();
+    assert_eq!(
+        alices["attachments"][0].get("voice"),
+        None,
+        "bob's upload of the same bytes must not relabel alice's file: {alices}"
+    );
+}

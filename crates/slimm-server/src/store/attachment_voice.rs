@@ -3,6 +3,7 @@
 //! loudness buckets the player draws. See migration 0187.
 
 use super::Store;
+use crate::ids::UserId;
 
 /// Loudness buckets in a waveform; the client draws exactly this many bars.
 pub const WAVEFORM_BUCKETS: usize = 64;
@@ -31,20 +32,26 @@ impl VoiceInfo {
 }
 
 impl Store {
-    /// Marks `sha256` as a voice message. The first upload of a blob decides; a repeat is ignored.
+    /// Marks `sha256` as a voice message for its only uploader. The first upload decides, and
+    /// bytes someone else already uploaded stay as they were, or their message would change.
     pub async fn set_attachment_voice(
         &self,
         sha256: &[u8],
         voice: &VoiceInfo,
+        uploader: UserId,
     ) -> anyhow::Result<()> {
         sqlx::query!(
             "INSERT INTO attachment_voice (sha256, duration_ms, waveform)
              SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
+               AND NOT EXISTS (SELECT 1 FROM attachment_uploaders
+                               WHERE sha256 = ? AND uploaded_by != ?)
              ON CONFLICT (sha256) DO NOTHING",
             sha256,
             voice.duration_ms,
             voice.waveform,
             sha256,
+            sha256,
+            uploader,
         )
         .execute(&self.pool)
         .await?;

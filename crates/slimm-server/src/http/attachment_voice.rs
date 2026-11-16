@@ -64,6 +64,7 @@ pub(super) async fn record(
     sha256: &[u8],
     content_type: &str,
     request: Option<VoiceInfo>,
+    uploader: crate::ids::UserId,
 ) -> Result<Option<VoiceInfo>, ApiError> {
     let Some(voice) = request else {
         return Ok(None);
@@ -71,7 +72,10 @@ pub(super) async fn record(
     if !content_type.starts_with("audio/") {
         return Err(ApiError::BadRequest("a voice message must be audio"));
     }
-    state.store.set_attachment_voice(sha256, &voice).await?;
+    state
+        .store
+        .set_attachment_voice(sha256, &voice, uploader)
+        .await?;
     Ok(Some(voice))
 }
 

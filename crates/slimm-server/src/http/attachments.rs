@@ -169,7 +169,8 @@ async fn upload(
         .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
         .await?;
     let voice =
-        super::attachment_voice::record(&state, &sha256, content_type, voice_request).await?;
+        super::attachment_voice::record(&state, &sha256, content_type, voice_request, ctx.user_id)
+            .await?;
     drop(placing);
     drop(reservation);
     state.media.prewarm_preview(&hex_id, content_type);
