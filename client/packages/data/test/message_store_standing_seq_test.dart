@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
-api.Message _message(int seq, {bool mentionsMe = false}) => api.Message(
+api.Message _message(int seq, {bool mentionsMe = false, int? editedAt}) =>
+    api.Message(
       id: 'm$seq',
       channelId: 'c1',
       authorId: 'user-1',
@@ -16,7 +17,7 @@ api.Message _message(int seq, {bool mentionsMe = false}) => api.Message(
       seq: seq,
       content: 'hello $seq',
       createdAt: 1000,
-      editedAt: null,
+      editedAt: editedAt,
       mentionsMe: mentionsMe,
     );
 
@@ -71,6 +72,38 @@ void main() {
     final row = await _row(store);
     expect(row.mentionedSeq > row.lastReadSeq, isFalse);
     expect(row.standingSeq > row.lastReadSeq, isFalse);
+  });
+
+  test('deleting the newest mention falls back to an older unread one',
+      () async {
+    final store = await _store();
+    await store.setReadMarker('c1', 100);
+    await store.applyMessages([
+      _message(101, mentionsMe: true),
+      _message(102),
+      _message(104, mentionsMe: true),
+    ]);
+    expect((await _row(store)).mentionedSeq, 104);
+
+    await store.discard('m104');
+
+    final row = await _row(store);
+    expect(row.mentionedSeq, 101, reason: '101 still mentions the reader');
+    expect(row.mentionedSeq > row.lastReadSeq, isTrue);
+  });
+
+  test('a mention edited away is not what a deleted mention falls back to',
+      () async {
+    final store = await _store();
+    await store.applyMessages([
+      _message(1, mentionsMe: true),
+      _message(2, mentionsMe: true),
+    ]);
+    await store.applyEdited(_message(1, editedAt: 2000));
+
+    await store.discard('m2');
+
+    expect((await _row(store)).mentionedSeq, 0);
   });
 
   test('deleting every message held drops the standing seq to nothing',

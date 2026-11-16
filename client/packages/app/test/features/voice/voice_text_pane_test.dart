@@ -157,7 +157,7 @@ Future<void> _unmount(WidgetTester tester) async {
 /// which is what drives it on a phone.
 Widget _tabsWithAppBarAction() => const Column(
   children: [
-    VoiceChatAction(),
+    VoiceChatAction(channelId: 'v1'),
     Expanded(
       child: VoiceCallWithChatTabs(channelId: 'v1', call: Text('CALL')),
     ),

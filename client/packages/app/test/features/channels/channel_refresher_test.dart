@@ -361,4 +361,46 @@ void main() {
 
     expect(puts, {'chan-1': 8}, reason: 'other devices still showed it unread');
   });
+
+  test('a channel marked unread elsewhere keeps the mark over a marker '
+      'this device holds ahead', () async {
+    final puts = <String, Object?>{};
+    final db = SlimmDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final store = MessageStore(db);
+    final api = testApi((request) async {
+      final path = request.url.path;
+      if (path == '/channels') return _json(_twoChannels);
+      if (path == '/categories' || path == '/dms') return _json(<Object>[]);
+      if (path == '/read-states') {
+        return _json([
+          for (final id in ['chan-1', 'chan-2'])
+            {
+              'channel_id': id,
+              'last_read_seq': 3,
+              'unread': 5,
+              'manually_unread': id == 'chan-1',
+            },
+        ]);
+      }
+      if (request.method == 'PUT' && path.endsWith('/read')) {
+        final seq = (jsonDecode(request.body) as Map<String, dynamic>)['seq'];
+        puts[path.split('/')[2]] = seq;
+        return _json({'last_read_seq': seq, 'unread': 0});
+      }
+      return http.Response('not found', 404);
+    }, session: SessionStore(tokens: _tokens));
+    final refresher = ChannelRefresher();
+    await refresher.refresh(api, store, isCurrent: () => true);
+    puts.clear();
+    // Both were read here while the server could not be told.
+    await store.setReadMarker('chan-1', 8);
+    await store.setReadMarker('chan-2', 8);
+
+    await refresher.refresh(api, store, isCurrent: () => true);
+
+    expect(puts, {
+      'chan-2': 8,
+    }, reason: 'marking chan-1 read would clear the unread mark set after it');
+  });
 }

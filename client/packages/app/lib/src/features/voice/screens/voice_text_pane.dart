@@ -32,6 +32,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/app_panel_reveal.dart';
 import '../../channels/screens/channel_screen.dart';
+import '../providers/voice_chat_unread.dart';
+import '../widgets/voice_chat_unread_dot.dart';
 
 /// Whether the voice channel's docked chat pane is open, at desktop widths.
 /// Defaults closed: opening a voice channel keeps the call stage at full
@@ -130,20 +132,31 @@ class VoiceCallWithChatTabs extends ConsumerWidget {
 /// The text chat toggle in a voice channel's app bar, lit while the chat is
 /// open. It drives [voiceChatPaneVisibleProvider], the same state the desktop
 /// header's toggle drives, so a resize across the dock width keeps the choice.
+/// Opening the channel joins its call with the chat closed, so the dot is what
+/// says the rail's unread mark is waiting in here.
 class VoiceChatAction extends ConsumerWidget {
-  const VoiceChatAction({super.key});
+  const VoiceChatAction({super.key, required this.channelId});
+
+  final String channelId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(voiceChatPaneVisibleProvider);
-    return AppIconButton(
-      icon: AppIcons.chat,
-      semanticLabel: 'Toggle text chat',
-      tooltip: 'Text chat',
-      active: open,
+    final unread = !open && ref.watch(voiceChatUnreadProvider(channelId));
+    return VoiceChatToggleDot(
+      unread: unread,
       touch: true,
-      onPressed: () =>
-          ref.read(voiceChatPaneVisibleProvider.notifier).state = !open,
+      toggle: AppIconButton(
+        icon: AppIcons.chat,
+        semanticLabel: unread
+            ? 'Toggle text chat, new messages'
+            : 'Toggle text chat',
+        tooltip: 'Text chat',
+        active: open,
+        touch: true,
+        onPressed: () =>
+            ref.read(voiceChatPaneVisibleProvider.notifier).state = !open,
+      ),
     );
   }
 }

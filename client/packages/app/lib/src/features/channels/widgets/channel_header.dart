@@ -19,7 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../canvas/widgets/canvas_open_button.dart';
+import '../../voice/providers/voice_chat_unread.dart';
 import '../../voice/widgets/dm_call_button.dart';
+import '../../voice/widgets/voice_chat_unread_dot.dart';
 import '../../../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';
 import 'group_dm_members_action.dart';
@@ -111,6 +113,10 @@ class ChannelHeader extends ConsumerWidget {
 
     final topic = this.topic;
     final hasTopic = topic != null && topic.isNotEmpty;
+    final chatUnread =
+        onToggleTextChat != null &&
+        !textChatOpen &&
+        ref.watch(voiceChatUnreadProvider(channelId));
 
     return Container(
       height: AppSizes.headerBar,
@@ -196,11 +202,16 @@ class ChannelHeader extends ConsumerWidget {
           DmCallButton(channelId: channelId),
           const SizedBox(width: AppSpacing.s4),
           if (onToggleTextChat case final toggle?) ...[
-            AppIconButton(
-              icon: AppIcons.chat,
-              semanticLabel: 'Toggle text chat',
-              active: textChatOpen,
-              onPressed: toggle,
+            VoiceChatToggleDot(
+              unread: chatUnread,
+              toggle: AppIconButton(
+                icon: AppIcons.chat,
+                semanticLabel: chatUnread
+                    ? 'Toggle text chat, new messages'
+                    : 'Toggle text chat',
+                active: textChatOpen,
+                onPressed: toggle,
+              ),
             ),
             const SizedBox(width: AppSpacing.s4),
           ],

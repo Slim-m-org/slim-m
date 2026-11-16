@@ -34,9 +34,10 @@ class Channels extends Table {
 
   /// The highest `seq` of a message in this channel that mentioned the
   /// caller: advanced by [MessageStore.applyMessage] whenever an applied
-  /// `api.Message` carries `mentionsMe`, and cleared when that message is
-  /// deleted. `mentionedSeq > lastReadSeq` is the rail's unread-mention flag,
-  /// beside `standingSeq > lastReadSeq` for the plain dot - see `rail_channel.dart`.
+  /// `api.Message` carries `mentionsMe`, and walked back to the newest mention
+  /// still held when that message is deleted. `mentionedSeq > lastReadSeq` is
+  /// the rail's unread-mention flag, beside `standingSeq > lastReadSeq` for the
+  /// plain dot - see `rail_channel.dart`.
   IntColumn get mentionedSeq => integer().withDefault(const Constant(0))();
 
   /// The reader asked to see this channel as unread even though they have
@@ -262,6 +263,10 @@ class Messages extends Table {
   BoolColumn get linkPreviewsRemoved =>
       boolean().withDefault(const Constant(false))();
 
+  /// Whether this message mentions the reader, as the server last said.
+  /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
+  BoolColumn get mentionsMe => boolean().withDefault(const Constant(false))();
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   BoolColumn get pending => boolean().withDefault(const Constant(false))();
@@ -329,7 +334,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 30;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -442,6 +447,13 @@ class SlimmDatabase extends _$SlimmDatabase {
           await m.database.customStatement(
               'UPDATE channels SET live_seq = COALESCE((SELECT MAX(seq) FROM messages '
               'WHERE messages.channel_id = channels.id AND seq > 0), cursor)');
+        }),
+        // The row at a channel's mention cursor is the one mention already known.
+        _UpgradeStep(30, () async {
+          await _addColumnOnce(m, messages, messages.mentionsMe);
+          await m.database.customStatement(
+              'UPDATE messages SET mentions_me = 1 WHERE seq > 0 AND seq = '
+              '(SELECT mentioned_seq FROM channels WHERE channels.id = messages.channel_id)');
         }),
       ];
 
