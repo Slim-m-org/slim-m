@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_editor_page.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_gallery.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -87,8 +88,14 @@ class EditorRig {
         return true;
       }),
       themeFilePickerProvider.overrideWithValue(() async => pick),
+      toastsProvider.overrideWith((ref) => _HeldToasts()),
     ],
   );
+
+  /// What the editor said in toasts, oldest first.
+  List<String> get toasts => [
+    for (final toast in container.read(toastsProvider)) toast.message,
+  ];
 
   /// Opens settings as the app does, a modal over a channel, on Appearance
   /// with Themes and the editor pushed; a second pane and a search entry for
@@ -160,6 +167,16 @@ class EditorRig {
     );
     await settle(tester);
   }
+}
+
+/// Keeps every toast until read, so none leaves a dismissal timer behind.
+class _HeldToasts extends ToastsController {
+  @override
+  int show(
+    String message, {
+    AppToastSeverity severity = AppToastSeverity.info,
+    Duration duration = ToastsController.defaultDuration,
+  }) => super.show(message, severity: severity, duration: Duration.zero);
 }
 
 /// The laptop the editor is judged at, and the phone.

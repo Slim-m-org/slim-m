@@ -43,11 +43,13 @@ void main() {
   testWidgets('Save keeps the theme in Mine and says so; saving again '
       'updates the same entry', (tester) async {
     final rig = EditorRig();
-    await rig.open(tester);
+    await rig.open(tester, size: phone);
+    final preview = tester.getRect(byKey('theme-editor-preview'));
 
     await _rename(tester, 'Dusk');
     await tapIn(tester, byKey('theme-editor-save'));
-    expect(find.text('Saved to Mine.'), findsOneWidget);
+    expect(rig.toasts, ['Saved to Mine.']);
+    expect(tester.getRect(byKey('theme-editor-preview')), preview);
     expect(find.text('Edit theme'), findsOneWidget);
     await _rename(tester, 'Dusk two');
     await tapIn(tester, byKey('theme-editor-save'));
@@ -60,6 +62,7 @@ void main() {
   testWidgets('a full device is said inline, not saved', (tester) async {
     final rig = EditorRig();
     await rig.open(tester);
+    final preview = tester.getRect(byKey('theme-editor-preview'));
     final mine = rig.container.read(myThemesProvider.notifier);
     final filler = ThemeEditorSeed.fromBase('dark').document;
     for (var i = 0; i < myThemesMax; i++) {
@@ -67,7 +70,11 @@ void main() {
     }
 
     await tapIn(tester, byKey('theme-editor-save'));
-    expect(byKey('theme-editor-error'), findsOneWidget);
+    expect(
+      tester.getRect(byKey('theme-editor-error')).top,
+      greaterThan(preview.bottom),
+    );
+    expect(tester.getRect(byKey('theme-editor-preview')), preview);
     expect(
       find.text('This device holds 50 themes. Delete one first.'),
       findsOneWidget,
@@ -123,7 +130,7 @@ void main() {
     final body = rig.published! as Map<String, dynamic>;
     expect(body['format'], 'slimm-theme');
     expect(body['author'], 'Self');
-    expect(find.text('Published to the Space.'), findsOneWidget);
+    expect(rig.toasts, ['Published to the Space.']);
   });
 
   testWidgets('a full author quota is shown, not swallowed', (tester) async {
@@ -172,7 +179,7 @@ void main() {
     final parsed = parseThemeFile(utf8.decode(bytes));
     expect(parsed.problems, isEmpty);
     expect(parsed.document!.name, 'Dusk Rose');
-    expect(find.text('Exported dusk-rose.slimm-theme.json.'), findsOneWidget);
+    expect(rig.toasts, ['Exported dusk-rose.slimm-theme.json.']);
   });
 
   testWidgets('delete asks, removes the saved theme and goes back to Themes', (

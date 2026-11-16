@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/toasts.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
@@ -23,7 +24,6 @@ import '../providers/theme_file_io.dart';
 import '../providers/theme_links.dart';
 import '../providers/theme_source.dart';
 import '../providers/theme_store_actions.dart';
-import 'settings_info_line.dart';
 import 'settings_sub_pages.dart';
 import 'theme_colour_panel.dart';
 import 'theme_contrast_panel.dart';
@@ -83,7 +83,6 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   final _scroll = ScrollController();
   _OpenPicker? _open;
   String? _error;
-  String? _notice;
   bool _busy = false;
 
   @override
@@ -102,13 +101,18 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     super.dispose();
   }
 
-  /// Shows [error] or [notice] at the top, scrolling back to it.
-  void _say({String? error, String? notice}) {
-    setState(() {
-      _error = error;
-      _notice = notice;
-    });
-    if (error == null && notice == null) return;
+  /// Says a finished action as a toast, so the pinned preview never moves.
+  void _confirm(String notice) {
+    if (!mounted) return;
+    setState(() => _error = null);
+    ref
+        .read(toastsProvider.notifier)
+        .show(notice, severity: AppToastSeverity.success);
+  }
+
+  /// Shows [error] under the preview, scrolling back to it.
+  void _fail(String error) {
+    setState(() => _error = error);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
       unawaited(
@@ -127,13 +131,13 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     final failure = await runGuarded(whatFailed: whatFailed, action: action);
     if (!mounted) return;
     setState(() => _busy = false);
-    if (failure != null) _say(error: failure);
+    if (failure != null) _fail(failure);
   }
 
   bool _requireValid() {
     if (_draft.canSave) return true;
-    _say(
-      error: _draft.nameValid
+    _fail(
+      _draft.nameValid
           ? 'Fix the failing contrast checks first.'
           : 'Give the theme a name of 1 to $themeNameMaxChars characters.',
     );
@@ -147,7 +151,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
         .read(myThemesProvider.notifier)
         .save(_draft.document, id: _draft.mineId);
     if (id == null) {
-      _say(error: 'This device holds $myThemesMax themes. Delete one first.');
+      _fail('This device holds $myThemesMax themes. Delete one first.');
       return false;
     }
     final applied = ref.read(customThemeProvider);
@@ -163,7 +167,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
 
   Future<void> _save() async {
     _closePicker();
-    if (await _persist() && mounted) _say(notice: 'Saved to Mine.');
+    if (await _persist() && mounted) _confirm('Saved to Mine.');
   }
 
   Future<void> _saveAndApply() async {
@@ -174,14 +178,14 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
       _draft.document,
       source: MineThemeSource(_draft.mineId!),
     );
-    if (mounted) _say(notice: 'Saved to Mine and applied.');
+    if (mounted) _confirm('Saved to Mine and applied.');
   }
 
   Future<void> _publish() async {
     if (!_requireValid()) return;
     await _run('publish the theme', () async {
       await publishTheme(ref, _draft.document);
-      _say(notice: 'Published to the Space.');
+      _confirm('Published to the Space.');
     });
   }
 
@@ -191,7 +195,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     final name = themeFileName(_draft.document.name);
     try {
       final saved = await ref.read(themeFileSaverProvider)(name, bytes);
-      if (saved && mounted) _say(notice: 'Exported $name.');
+      if (saved && mounted) _confirm('Exported $name.');
     } on Object catch (error, stack) {
       api.reportFailure(
         api.LogTag.platform,
@@ -199,7 +203,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
         error,
         stack,
       );
-      _say(error: 'Could not save the file.');
+      _fail('Could not save the file.');
     }
   }
 
@@ -327,22 +331,15 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     ];
   }
 
-  List<Widget> _messages(double inset) => [
-    if (_error != null)
-      Padding(
-        padding: EdgeInsets.fromLTRB(inset, AppSpacing.s12, inset, 0),
-        child: AppErrorState(
-          key: const Key('theme-editor-error'),
-          message: _error!,
-          onDismiss: () => setState(() => _error = null),
-        ),
+  List<Widget> _errorLines() => [
+    if (_error case final error?) ...[
+      AppErrorState(
+        key: const Key('theme-editor-error'),
+        message: error,
+        onDismiss: () => setState(() => _error = null),
       ),
-    if (_notice != null)
-      SettingsInfoLine(
-        _notice!,
-        key: const Key('theme-editor-notice'),
-        padding: EdgeInsets.fromLTRB(inset, AppSpacing.s12, inset, 0),
-      ),
+      const SizedBox(height: AppSpacing.s24),
+    ],
   ];
 
   Widget _preview({required double inset, required bool roomy}) {
@@ -398,12 +395,6 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
                 key: const Key('theme-editor-tokens'),
                 controller: _scroll,
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _messages(inset),
-                    ),
-                  ),
                   if (pin)
                     PinnedHeaderSliver(child: preview)
                   else
@@ -420,7 +411,10 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
                       child: AppContentColumn(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: _cards(roomy: roomy),
+                          children: [
+                            ..._errorLines(),
+                            ..._cards(roomy: roomy),
+                          ],
                         ),
                       ),
                     ),
