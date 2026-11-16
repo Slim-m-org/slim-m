@@ -176,7 +176,8 @@ void main() {
       await tester.tap(find.text('View profile'));
       await tester.pumpAndSettle();
 
-      expect(find.text('@maya'), findsOneWidget);
+      // Her display name is her username, so the card shows it once, with its copy button.
+      expect(find.byTooltip('Copy username'), findsOneWidget);
     },
   );
 

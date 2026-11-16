@@ -38,7 +38,7 @@ const _tokens = api.TokenPair(
 
 const _pink = Color(0xFFE0699A);
 
-/// A pixel of the band in either look: the profile colour's hue, not the neutral sheet or page.
+/// A pixel of the band: the profile colour's hue, not the neutral sheet or page.
 bool _inBand(Color pixel) {
   final hsl = HSLColor.fromColor(pixel);
   final hue = HSLColor.fromColor(_pink).hue;

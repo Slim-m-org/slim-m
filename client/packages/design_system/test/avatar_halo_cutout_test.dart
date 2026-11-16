@@ -100,4 +100,31 @@ void main() {
       });
     }
   }
+
+  testWidgets('the marks cut into the dot take the surface the caller names',
+      (tester) async {
+    Future<Color?> dotBackdrop({Color? surface}) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: AppAvatar(
+            name: 'Nadia',
+            size: AppAvatarSize.s56,
+            status: AppPresence.dnd,
+            surfaceColor: surface,
+          ),
+        ),
+      );
+      return tester
+          .widget<AppStatusDot>(
+              find.byWidgetPredicate((w) => w is AppStatusDot))
+          .backgroundColor;
+    }
+
+    expect(await dotBackdrop(), AppTokens.dark.surfaceBase);
+    expect(
+      await dotBackdrop(surface: AppTokens.dark.surfaceRaised),
+      AppTokens.dark.surfaceRaised,
+    );
+  });
 }

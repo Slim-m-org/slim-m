@@ -23,7 +23,7 @@ String formatJoinDate(int createdAtMs) {
 }
 
 /// The member's own "About" text, labelled so it is not read as their typed
-/// status, which sits beside the presence word above. [onEdit] adds a pencil
+/// status, which has its own line under their name. [onEdit] adds a pencil
 /// on your own card; with no text it becomes a prompt to write one.
 class MemberProfileAbout extends StatelessWidget {
   const MemberProfileAbout({super.key, required this.about, this.onEdit});
@@ -81,7 +81,7 @@ class MemberProfileAbout extends StatelessWidget {
   }
 }
 
-/// The join date, muted, under the presence line; the invite code a moderator
+/// The join date, muted, closing the name block; the invite code a moderator
 /// can see rides in its tooltip rather than a line of its own.
 class MemberProfileJoined extends StatelessWidget {
   const MemberProfileJoined({

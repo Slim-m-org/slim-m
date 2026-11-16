@@ -43,6 +43,7 @@ class UserAvatar extends ConsumerWidget {
     this.placeholder,
     this.image,
     this.profileColour,
+    this.surfaceColor,
   }) : _known = null;
 
   const UserAvatar.known({
@@ -59,6 +60,7 @@ class UserAvatar extends ConsumerWidget {
     this.placeholder,
     this.image,
     this.profileColour,
+    this.surfaceColor,
   }) : _known = (avatarUpdatedAt,);
 
   final String name;
@@ -81,6 +83,9 @@ class UserAvatar extends ConsumerWidget {
   /// The person's profile colour, which their initials disc is a deep shade
   /// of. Null looks it up, or on [UserAvatar.known] takes the id's preset.
   final Color? profileColour;
+
+  /// The surface under the avatar, when not the base one; see [AppAvatar.surfaceColor].
+  final Color? surfaceColor;
 
   final (int?,)? _known;
 
@@ -138,6 +143,7 @@ class UserAvatar extends ConsumerWidget {
       ringColor: ringColor,
       semanticLabel: semanticLabel,
       placeholder: placeholder,
+      surfaceColor: surfaceColor,
     );
     // The ring's pulse is a ticker; a hidden window should not run it, but an unfocused one is still watched.
     return TickerMode(

@@ -112,6 +112,7 @@ class AppAvatar extends StatelessWidget {
     this.ringColor,
     this.placeholder,
     this.semanticLabel,
+    this.surfaceColor,
   });
 
   /// The display name a round avatar's initials are derived from, the
@@ -168,6 +169,10 @@ class AppAvatar extends StatelessWidget {
 
   final String? semanticLabel;
 
+  /// What the avatar sits on, when that is not [AppTokens.surfaceBase]: the
+  /// marks punched out of the dot and the speaking glyph are drawn in it.
+  final Color? surfaceColor;
+
   /// The name, then whatever the ring and the dot show, so a screen reader
   /// hears what a sighted viewer sees.
   String _label(String? presenceWord) => '$name${speaking ? ', speaking' : ''}'
@@ -188,6 +193,7 @@ class AppAvatar extends StatelessWidget {
     final dot = presence != null && presence != AppPresence.unknown;
     final phone = dot && mobileOnly && presence == AppPresence.online;
     final geometry = AppAvatarGeometry(size, phone: phone);
+    final surface = surfaceColor ?? tokens.surfaceBase;
 
     Widget content = image == null
         ? _Face(
@@ -223,7 +229,7 @@ class AppAvatar extends StatelessWidget {
         size: size,
         round: round,
         radius: radius,
-        glyphBackgroundColor: tokens.surfaceBase,
+        glyphBackgroundColor: surface,
         child: content,
       );
     } else if (ringColor != null) {
@@ -259,7 +265,7 @@ class AppAvatar extends StatelessWidget {
                     : AppStatusDot(
                         status: presence,
                         size: geometry.dotDiameter,
-                        backgroundColor: tokens.surfaceBase),
+                        backgroundColor: surface),
               ),
             ),
           ],

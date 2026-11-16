@@ -86,7 +86,11 @@ void main() {
       findsNothing,
       reason: 'with no display name of her own, the username shows once',
     );
-    expect(find.text('Online'), findsOneWidget);
+    expect(
+      find.text('Online'),
+      findsNothing,
+      reason: 'presence is the dot on the avatar, not a word line',
+    );
     expect(find.text('Message'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
     expect(find.byTooltip('Add note'), findsOneWidget);
@@ -125,10 +129,10 @@ void main() {
     await tester.pump();
 
     final name = tester.getTopLeft(find.text('maya'));
-    final presence = tester.getTopLeft(find.text('Online'));
+    final joined = tester.getTopLeft(find.textContaining('Joined'));
     final message = tester.getTopLeft(find.text('Message'));
-    expect(presence.dy, greaterThan(name.dy));
-    expect(message.dy, greaterThan(presence.dy));
+    expect(joined.dy, greaterThan(name.dy));
+    expect(message.dy, greaterThan(joined.dy));
   });
 
   testWidgets('roles show as chips, with the join date, for everyone', (
@@ -204,24 +208,6 @@ void main() {
       reason: 'the first Esc returns to the profile, not the caller',
     );
     expect(find.text('maya'), findsOneWidget);
-  });
-
-  testWidgets('presence is a word beside its dot, never the dot alone', (
-    tester,
-  ) async {
-    for (final (state, word) in const [
-      (api.PresenceState.online, 'Online'),
-      (api.PresenceState.away, 'Away'),
-      (api.PresenceState.dnd, 'Do not disturb'),
-      (api.PresenceState.offline, 'Offline'),
-    ]) {
-      await tester.pumpWidget(
-        _harness(_body(_other), presence: {_other.id: state}),
-      );
-      await tester.pump();
-      expect(find.text(word), findsOneWidget, reason: '$state');
-      expect(find.byType(AppStatusDot), findsWidgets, reason: '$state');
-    }
   });
 
   testWidgets('nobody reported yet reads as no word and no dot', (

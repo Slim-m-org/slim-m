@@ -50,10 +50,17 @@ Future<void> withRealShadows(
   Future<void> Function() capture,
 ) async {
   debugDisableShadows = false;
-  boundary.markNeedsPaint();
+  _repaintAll(boundary);
   await tester.pump();
   await capture();
   debugDisableShadows = true;
-  boundary.markNeedsPaint();
+  _repaintAll(boundary);
   await tester.pump();
+}
+
+/// Every node, not only [root]: a popover or sheet sits in a repaint boundary of its own
+/// whose cached picture would keep its flat shadow.
+void _repaintAll(RenderObject root) {
+  root.markNeedsPaint();
+  root.visitChildren(_repaintAll);
 }

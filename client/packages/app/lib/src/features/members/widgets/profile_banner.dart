@@ -4,8 +4,6 @@
 /// window is unfocused or covered, like every other animation here.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -26,55 +24,19 @@ const double kProfileBannerAspect = 300 / kProfileBannerHeight;
 /// The widest a banner is decoded for, in logical pixels: a card is never wider.
 const double _decodeWidth = 520;
 
-/// How a band with no image is drawn; both stay selectable until the owner picks one.
-enum ProfileBandLook {
-  /// A diagonal from the colour, muted, to a darker shade of it.
-  gradient,
-
-  /// The colour washed over the card's own surface, fading down.
-  tonal,
-}
-
-/// The look every band draws; a test overrides it to render the other one.
-final profileBandLookProvider = Provider<ProfileBandLook>(
-  (ref) => ProfileBandLook.gradient,
-);
-
-/// The no-image band for [colour] in [look], on a card of [surface].
-Decoration profileBandDecoration(
-  Color colour,
-  ProfileBandLook look,
-  Color surface,
-) => switch (look) {
-  ProfileBandLook.gradient => _gradientBand(colour),
-  ProfileBandLook.tonal => _tonalBand(
-    nudgeForContrast(colour, surface, minRatio: 2),
-  ),
-};
-
-Decoration _gradientBand(Color colour) {
-  final hsl = HSLColor.fromColor(colour);
-  final light = hsl.withSaturation(math.min(hsl.saturation, 0.55));
+/// The no-image band for [colour] on a card of [surface]: the colour washed
+/// over the surface, nudged off it when the two would read as one.
+Decoration profileBandDecoration(Color colour, Color surface) {
+  final tone = nudgeForContrast(colour, surface, minRatio: 2);
+  // Translucent rather than blended with a token, so it takes whatever surface the card is.
   return BoxDecoration(
     gradient: LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        light.toColor(),
-        light.withLightness(light.lightness * 0.6).toColor(),
-      ],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [tone.withValues(alpha: 0.45), tone.withValues(alpha: 0.3)],
     ),
   );
 }
-
-/// Translucent rather than blended with a token, so it takes whatever surface the card is.
-Decoration _tonalBand(Color colour) => BoxDecoration(
-  gradient: LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [colour.withValues(alpha: 0.45), colour.withValues(alpha: 0.3)],
-  ),
-);
 
 class ProfileBanner extends ConsumerWidget {
   const ProfileBanner({
@@ -99,10 +61,9 @@ class ProfileBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final look = ref.watch(profileBandLookProvider);
     final fill = switch (colour) {
       final colour? => DecoratedBox(
-        decoration: profileBandDecoration(colour, look, tokens.surfaceRaised),
+        decoration: profileBandDecoration(colour, tokens.surfaceRaised),
         child: const SizedBox.expand(),
       ),
       null => ColoredBox(color: tokens.surfaceSunken),

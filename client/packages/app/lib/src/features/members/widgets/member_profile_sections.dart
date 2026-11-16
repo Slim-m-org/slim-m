@@ -15,7 +15,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
-import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_handle_line.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
@@ -24,7 +23,7 @@ import 'member_profile_status_line.dart';
 import 'user_avatar.dart';
 import 'profile_colour.dart';
 
-/// Avatar, name, handle, the presence word beside its dot (never the dot alone), and the
+/// Avatar with its presence dot, name, handle, the status they typed, and the
 /// join date. Someone whose display name is only their username shows it once.
 class MemberProfileHeader extends ConsumerWidget {
   const MemberProfileHeader({
@@ -52,7 +51,6 @@ class MemberProfileHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final presence = ref.watch(presenceForProvider(profile.id));
     final timedOut = timeoutActive(profile.timedOutUntil);
     final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
     final extras = [
@@ -74,7 +72,13 @@ class MemberProfileHeader extends ConsumerWidget {
       nameStyle: handleOnly ? nameStyle : null,
     );
 
-    final statusLine = inCallTogether
+    final statusText = ref.watch(
+      statusTextProvider((userId: profile.id, snapshot: profile.statusText)),
+    );
+    final statusLine = statusText != null || isSelf
+        ? MemberProfileStatusLine(statusText: statusText, editable: isSelf)
+        : null;
+    final callLine = inCallTogether
         ? Row(
             children: [
               Icon(AppIcons.speaker, size: 12, color: tokens.accent),
@@ -90,16 +94,7 @@ class MemberProfileHeader extends ConsumerWidget {
               ),
             ],
           )
-        : MemberProfileStatusLine(
-            presence: presence,
-            statusText: ref.watch(
-              statusTextProvider((
-                userId: profile.id,
-                snapshot: profile.statusText,
-              )),
-            ),
-            editable: isSelf,
-          );
+        : null;
 
     final name = handleOnly
         ? handleLine
@@ -127,8 +122,8 @@ class MemberProfileHeader extends ConsumerWidget {
             profileColour: profileColourOfUser(profile),
             name: profile.displayName,
             size: AppAvatarSize.s56,
-            // The status line below carries presence, once, with its word.
-            presence: false,
+            presence: true,
+            surfaceColor: tokens.surfaceRaised,
             // The ring here means "in a call with you", so the name says that.
             speaking: inCallTogether,
             // The profile colour; absent on an older server reads as no ring.
@@ -180,7 +175,8 @@ class MemberProfileHeader extends ConsumerWidget {
           else
             name,
           if (!handleOnly) handleLine,
-          Padding(padding: const EdgeInsets.only(top: 2), child: statusLine),
+          for (final line in [?statusLine, ?callLine])
+            Padding(padding: const EdgeInsets.only(top: 2), child: line),
           MemberProfileJoined(
             createdAt: profile.createdAt,
             inviteCode: inviteCode,
