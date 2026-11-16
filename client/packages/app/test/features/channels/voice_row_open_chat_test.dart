@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The owner: "I can't clear a notification easily or read a chat on mobile/desktop of a voice chat without joining the voice channel".
 /// A voice row's menu opens its chat without joining at every width, reading there clears the row, and a tap still joins once.
+/// Out of the call its chat toggle stays mentions only, the rail's rule; only a call lights it for every message.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_chat_unread_dot.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
@@ -115,6 +117,31 @@ Future<void> _openMenu(WidgetTester tester, double width, String row) =>
     ? longPressMenu(tester, find.text(row))
     : rightClickMenu(tester, find.text(row));
 
+Future<void> _say(
+  WidgetTester tester,
+  _Shell s,
+  int seq, {
+  bool mentionsMe = false,
+}) async {
+  final store = await s.container.read(storeProvider.future);
+  await tester.runAsync(
+    () => store.applyMessages([
+      api.Message(
+        id: 'm-$seq',
+        channelId: _voiceId,
+        authorId: 'alice',
+        authorDisplayName: 'Alice',
+        seq: seq,
+        content: 'more $seq',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        editedAt: null,
+        mentionsMe: mentionsMe,
+      ),
+    ]),
+  );
+  await pumpFrames(tester);
+}
+
 Future<int> _lastReadSeq(WidgetTester tester, _Shell s) async {
   final store = await s.container.read(storeProvider.future);
   final rows = (await tester.runAsync(store.allChannels))!;
@@ -142,6 +169,30 @@ void main() {
       expect(s.tokenRequests, isEmpty, reason: 'reading never joins');
       expect(s.container.read(voiceFlagsProvider).channelId, isNull);
       expect(await _lastReadSeq(tester, s), 1, reason: 'reading clears it');
+
+      semantics.dispose();
+      await teardown(tester, s.container, s.db);
+    });
+  }
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('out of the call only a mention marks the toggle at $width', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final s = await _pump(tester, width);
+      await _openMenu(tester, width, 'movie-room');
+      await tester.tap(find.text('Open chat'));
+      await pumpFrames(tester, frames: 20);
+      await tester.tap(find.bySemanticsLabel('Toggle text chat'));
+      await pumpFrames(tester);
+
+      await _say(tester, s, 2);
+      expect(s.container.read(voiceFlagsProvider).channelId, isNull);
+      expect(find.byKey(voiceChatUnreadKey), findsNothing, reason: 'plain');
+
+      await _say(tester, s, 3, mentionsMe: true);
+      expect(find.byKey(voiceChatUnreadKey), findsOneWidget, reason: 'mention');
 
       semantics.dispose();
       await teardown(tester, s.container, s.db);

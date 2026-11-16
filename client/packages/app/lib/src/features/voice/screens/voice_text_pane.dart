@@ -134,7 +134,7 @@ class VoiceCallWithChatTabs extends ConsumerWidget {
 /// open. It drives [voiceChatPaneVisibleProvider], the same state the desktop
 /// header's toggle drives, so a resize across the dock width keeps the choice.
 /// Opening the channel joins its call with the chat closed, so the dot is what
-/// says the rail's unread mark is waiting in here.
+/// says new text is waiting in here.
 class VoiceChatAction extends ConsumerWidget {
   const VoiceChatAction({super.key, required this.channelId});
 

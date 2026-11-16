@@ -53,6 +53,8 @@ The owner: "I can't clear a notification easily or read a chat on mobile/desktop
   A channel manager cannot make a voice channel's default louder than mentions, so its settings row offers only Mentions only and Muted.
 - A lobby (`creates_rooms`, decision 0065) lights nothing, chimes for nothing and pushes nothing, a mention or an own choice included: opening it moves to a room, so its chat is never on screen to read.
 - The row menu's "Open chat" reads a voice channel's chat without joining its call, at every width, and reading there clears it like any channel.
+- While connected to its call, any new message lights the dot on the call's chat toggle, like Discord (the owner, 2026-11-16); a muted chat stays quiet.
+  Only that dot changes: the rail, the badges, pushes and chimes keep the mentions only default, and out of the call the toggle follows them.
 
 ## Hiding an indicator is not marking anything read
 
