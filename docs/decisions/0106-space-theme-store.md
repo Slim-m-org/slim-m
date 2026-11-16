@@ -94,3 +94,12 @@ The theme editor finishes what the file format promised: you can now make a them
 - Import and Export use the existing wire format through the file picker; an import that fails the checks is refused with the first three problems.
 - Not built: "accent from my background picture" (0104), which needs palette extraction and is not cheap.
 - No migration and no server change.
+
+## The gallery (built 2026-11-16)
+
+- Themes is a grid of small copies of the app, each painted in its own theme's tokens: three across beside the nav, two on a phone, and one tap applies.
+- The card in use carries the accent ring and "In use" whatever its source, read from the source stored with the custom slot (`slimm.appearance.custom_theme_source`).
+- Built-ins get a pencil for Customise and System gets nothing; Mine and Space cards get one menu that right-click, a long-press and the kebab all open, and Delete and Remove confirm.
+- A theme in use that nothing keeps (applied from a file, or from a Mine or Space entry that is gone) is a Not saved card first in Mine, with Save to Mine.
+- A Space theme that fails a contrast check or cannot be read says so on its card, and Edit a copy opens one that fails only contrast.
+- Following the Space default is not a gallery row: the default's card is the one in use while it is followed.

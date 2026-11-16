@@ -1,114 +1,223 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Themes page under Appearance: with a populated Space section for an
-/// admin, with a row menu and the header menu open, and with the store down.
+/// The Themes gallery under Appearance at a laptop and a phone: the whole
+/// gallery, the Space filter with a picture and a broken theme, a Not saved
+/// theme, empty and failed sections, a card's menu and sheet, the confirms,
+/// and an import that failed.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/settings/providers/theme_store.dart';
-import 'package:slimm_app/src/permissions.dart';
-import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_gallery.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_source.dart';
 
 import '../ui_snapshot_support.dart';
+import 'ui_snapshot_themes_fixture.dart';
 
-Map<String, dynamic> _stored(
-  String id,
-  String name,
-  AppTokens tokens,
-  String author,
-) => {
-  'id': id,
-  'name': name,
-  'author_id': author == 'Nick' ? 'user-nick' : 'user-ren',
-  'author_name': author,
-  'created_at': 1,
-  'has_picture': false,
-  'theme': ThemeDocument.of(
-    tokens,
-    name: name,
-    author: author,
-    base: 'forest',
-    brightness: Brightness.dark,
-  ).toJson(),
-};
+const _route = '/settings?pane=appearance&page=themes';
+const _viewports = ['laptop-1280', 'phone-portrait'];
 
-final _populated = [
-  meProvider.overrideWith(
-    (ref) async => const api.Me(
-      id: 'user-nick',
-      username: 'nick',
-      displayName: 'Nick',
-      createdAt: 0,
-      permissions: Perm.manageServer,
-    ),
-  ),
-  spaceThemesProvider.overrideWith(
-    (ref) async => api.SpaceThemeList.fromJson({
-      'default_theme_id': 't1',
-      'themes': [
-        _stored(
-          't1',
-          'Pine at dusk over a very long lake',
-          AppTokens.forest,
-          'Ren',
-        ),
-        _stored('t2', 'Mine', AppTokens.mocha, 'Nick'),
-        _stored('t3', 'Pumpkin', AppTokens.halloween, 'Ren'),
-      ],
-    }),
-  ),
-];
+Finder _key(String key) => find.byKey(Key(key));
 
-Future<void> _tapIn(WidgetTester tester, Finder finder) async {
-  await tester.tap(finder);
+Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 350));
 }
 
+/// The picture decodes outside the fake clock.
+Future<void> _decode(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 300)),
+  );
+  await tester.pump();
+}
+
+Future<void> _reveal(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(
+    finder,
+    200,
+    scrollable: find
+        .descendant(
+          of: _key('themes-page-list'),
+          matching: find.byWidgetPredicate((w) => w is Scrollable),
+        )
+        .first,
+  );
+  await tester.pump();
+  await _decode(tester);
+}
+
+Future<void> _tapIn(WidgetTester tester, Finder finder) async {
+  await tester.tap(finder);
+  await _settle(tester);
+}
+
+Future<void> _render(
+  WidgetTester tester,
+  String viewport,
+  String theme,
+  String name, {
+  List<Override>? overrides,
+  Future<void> Function(WidgetTester tester)? then,
+}) => renderSurface(
+  tester,
+  _route,
+  viewport,
+  theme,
+  '$name-$viewport-$theme',
+  overrides: overrides ?? themesFixture(),
+  afterSettle: (tester) async {
+    await _decode(tester);
+    await then?.call(tester);
+  },
+);
+
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final viewport in phoneAndDesktop) {
-    testWidgets('themes page populated at $viewport', (tester) async {
-      await renderSurface(
+  for (final viewport in _viewports) {
+    testWidgets('the gallery at $viewport', (tester) async {
+      await _render(tester, viewport, darkAndLight, 'settings-themes-gallery');
+    });
+
+    testWidgets('the Space filter at $viewport', (tester) async {
+      await _render(
         tester,
-        '/settings?pane=appearance&page=themes',
         viewport,
         darkAndLight,
-        'settings-themes-populated-$viewport-$darkAndLight',
-        overrides: _populated,
+        'settings-themes-space',
+        overrides: themesFixture(
+          applied: pumpkin,
+          source: const SpaceThemeSource('pumpkin'),
+          filter: ThemeGalleryFilter.space,
+        ),
       );
     });
-    testWidgets('themes page row menu at $viewport', (tester) async {
-      await renderSurface(
+
+    testWidgets('a Not saved theme at $viewport', (tester) async {
+      await _render(
         tester,
-        '/settings?pane=appearance&page=themes',
-        viewport,
-        'dark',
-        'settings-themes-row-menu-$viewport-dark',
-        overrides: _populated,
-        afterSettle: (tester) async {
-          await tester.ensureVisible(find.byKey(const Key('theme-store-t3')));
-          await tester.pump(const Duration(milliseconds: 350));
-          await tester.drag(
-            find.byKey(const Key('theme-store-t3')),
-            const Offset(0, -300),
-          );
-          await tester.pump(const Duration(milliseconds: 350));
-          await _tapIn(tester, find.byKey(const Key('theme-menu-t2')));
-        },
-      );
-    });
-    testWidgets('themes page store error at $viewport', (tester) async {
-      await renderSurface(
-        tester,
-        '/settings?pane=appearance&page=themes',
         viewport,
         darkAndLight,
-        'settings-themes-error-$viewport-$darkAndLight',
+        'settings-themes-unsaved',
+        overrides: themesFixture(
+          applied: lilac,
+          source: const FileThemeSource(),
+          filter: ThemeGalleryFilter.mine,
+        ),
+      );
+    });
+
+    testWidgets('empty sections at $viewport', (tester) async {
+      await _render(
+        tester,
+        viewport,
+        darkAndLight,
+        'settings-themes-empty',
+        overrides: themesFixture(mine: false, emptyStore: true),
+        then: (tester) => _reveal(tester, _key('theme-store-empty')),
+      );
+    });
+
+    testWidgets('a store that failed at $viewport', (tester) async {
+      await _render(
+        tester,
+        viewport,
+        darkAndLight,
+        'settings-themes-error',
+        overrides: themesFixture(store: false),
+        then: (tester) => _reveal(tester, _key('themes-store-error')),
       );
     });
   }
+
+  testWidgets('right-click on a Mine card', (tester) async {
+    await _render(
+      tester,
+      'laptop-1280',
+      darkAndLight,
+      'settings-themes-menu-mine',
+      then: (tester) async {
+        await _reveal(tester, _key('theme-mine-harbour'));
+        await tester.tapAt(
+          tester.getCenter(_key('theme-mine-harbour')),
+          buttons: kSecondaryButton,
+        );
+        await _settle(tester);
+      },
+    );
+  });
+
+  testWidgets('the kebab on the Space default, for an admin', (tester) async {
+    await _render(
+      tester,
+      'laptop-1280',
+      'dark',
+      'settings-themes-menu-space-admin',
+      then: (tester) async {
+        await _reveal(tester, _key('theme-menu-pine'));
+        await _tapIn(tester, _key('theme-menu-pine'));
+      },
+    );
+  });
+
+  testWidgets('a long-press on the Space default on a phone', (tester) async {
+    await _render(
+      tester,
+      'phone-portrait',
+      darkAndLight,
+      'settings-themes-sheet-space',
+      then: (tester) async {
+        await _reveal(tester, _key('theme-store-pine'));
+        await tester.longPress(_key('theme-store-pine'));
+        await _settle(tester);
+      },
+    );
+  });
+
+  for (final viewport in _viewports) {
+    testWidgets('confirming a removal at $viewport', (tester) async {
+      await _render(
+        tester,
+        viewport,
+        'dark',
+        'settings-themes-confirm-remove',
+        then: (tester) async {
+          await _reveal(tester, _key('theme-menu-pine'));
+          await _tapIn(tester, _key('theme-menu-pine'));
+          await _tapIn(tester, find.text('Remove'));
+        },
+      );
+    });
+
+    testWidgets('confirming a delete at $viewport', (tester) async {
+      await _render(
+        tester,
+        viewport,
+        'light',
+        'settings-themes-confirm-delete',
+        then: (tester) async {
+          await _reveal(tester, _key('theme-mine-harbour-menu'));
+          await _tapIn(tester, _key('theme-mine-harbour-menu'));
+          await _tapIn(tester, find.text('Delete'));
+        },
+      );
+    });
+  }
+
+  testWidgets('an import that failed', (tester) async {
+    await _render(
+      tester,
+      'laptop-1280',
+      'dark',
+      'settings-themes-import-error',
+      overrides: themesFixture(pick: badFile),
+      then: (tester) async {
+        await _reveal(tester, _key('theme-import'));
+        await _tapIn(tester, _key('theme-import'));
+        await tester.pump(const Duration(milliseconds: 350));
+      },
+    );
+  });
 }

@@ -53,14 +53,24 @@ Future<void> applyThemeDocument(
 Future<void> applyStoreTheme(WidgetRef ref, api.SpaceTheme theme) async {
   final document = parseThemeJson(theme.theme).document;
   if (document == null) return;
-  Uint8List? bytes;
-  if (theme.hasPicture) {
-    bytes = await ref.read(spaceThemePictureProvider(theme.id).future);
-  }
+  await applySpaceTheme(ref, theme.id, document, hasPicture: theme.hasPicture);
+}
+
+/// Applies the Space theme [id], already read as [document], fetching its
+/// picture first when it has one.
+Future<void> applySpaceTheme(
+  WidgetRef ref,
+  String id,
+  ThemeDocument document, {
+  required bool hasPicture,
+}) async {
+  final bytes = hasPicture
+      ? await ref.read(spaceThemePictureProvider(id).future)
+      : null;
   await applyThemeDocument(
     ref,
     document,
-    source: SpaceThemeSource(theme.id),
+    source: SpaceThemeSource(id),
     pictureBytes: bytes,
   );
 }

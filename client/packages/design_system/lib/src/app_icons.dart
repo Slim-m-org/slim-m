@@ -166,6 +166,13 @@ abstract final class AppIcons {
   /// or a video before it finishes buffering. See `downloads/downloads_controller.dart`.
   static const IconData download = LucideIcons.download300;
 
+  /// Bringing a file in, [download]'s counterpart: importing a theme file.
+  static const IconData upload = LucideIcons.upload300;
+
+  /// A light or a dark theme, on its card in the theme gallery.
+  static const IconData themeLight = LucideIcons.sun300;
+  static const IconData themeDark = LucideIcons.moon300;
+
   /// Handing an opened image to the system share sheet; see `image_export.dart`.
   static const IconData share = LucideIcons.share2300;
 

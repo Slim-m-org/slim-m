@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Themes page's Mine card: new, import, menu actions, and the ways
-/// into the editor from a built-in or a Space theme.
+/// The gallery's Mine section: new, import, card menu actions, the Not saved
+/// card, and the ways into the editor from a built-in or a Space theme.
 library;
 
 import 'dart:convert';
@@ -11,10 +11,13 @@ import 'package:slimm_app/src/features/settings/providers/my_themes.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_labels.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_source.dart';
+import 'package:slimm_app/src/features/settings/widgets/theme_gallery_menu.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'theme_editor_harness.dart';
+import 'theme_gallery_rig.dart' show revealInGallery;
 
 Finder _key(String key) => find.byKey(Key(key));
 
@@ -30,8 +33,17 @@ ThemeFilePick _file(String text) =>
     ThemeFilePick(fileName: 'x.json', bytes: utf8.encode(text));
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {
+  await revealInGallery(tester, finder);
   await tester.tap(finder);
   await settle(tester);
+}
+
+/// Applies [document] from a file, the way an older install held it.
+Future<void> _applyUnsaved(EditorRig rig, ThemeDocument document) async {
+  final c = rig.container;
+  await c.read(customThemeProvider.notifier).set(document);
+  await c.read(customThemeSourceProvider.notifier).set(const FileThemeSource());
+  await c.read(themeControllerProvider.notifier).select(AppThemeChoice.custom);
 }
 
 Future<EditorRig> _page(WidgetTester tester, {EditorRig? rig}) async {
@@ -131,9 +143,10 @@ void main() {
 
     await _tap(tester, _key('theme-import'));
     expect(find.textContaining('Could not import b.json'), findsOneWidget);
+    expect(find.text('The file is not text.'), findsOneWidget);
   });
 
-  testWidgets('export from a row saves the file', (tester) async {
+  testWidgets('export from a card saves the file', (tester) async {
     final rig = EditorRig();
     await _page(tester, rig: rig);
     final id = await rig.container
@@ -146,7 +159,9 @@ void main() {
     expect(rig.saved.single.$1, 'pine-fir.slimm-theme.json');
   });
 
-  testWidgets('publish from a row posts and shows a cap error', (tester) async {
+  testWidgets('publish from a card posts and shows a cap error', (
+    tester,
+  ) async {
     final rig = EditorRig(
       publishStatus: 409,
       publishMessage: 'this Space is at its theme limit',
@@ -163,7 +178,7 @@ void main() {
     expect(find.textContaining('theme limit'), findsOneWidget);
   });
 
-  testWidgets('delete from a row removes it', (tester) async {
+  testWidgets('delete from a card removes it once confirmed', (tester) async {
     final rig = EditorRig();
     await _page(tester, rig: rig);
     final id = await rig.container
@@ -173,6 +188,8 @@ void main() {
 
     await _tap(tester, _key('theme-mine-$id-menu'));
     await _tap(tester, find.text('Delete'));
+    expect(rig.container.read(myThemesProvider), hasLength(1));
+    await _tap(tester, find.byKey(ThemeGalleryMenu.confirmKey));
     expect(rig.container.read(myThemesProvider), isEmpty);
   });
 
@@ -181,25 +198,86 @@ void main() {
   ) async {
     final rig = EditorRig();
     await _page(tester, rig: rig);
-    await rig.container
-        .read(customThemeProvider.notifier)
-        .set(_doc('Borrowed'));
+    await _applyUnsaved(rig, _doc('Borrowed'));
     await tester.pump();
 
     expect(_key('theme-mine'), findsOneWidget);
-    await _tap(tester, _key('theme-mine-menu'));
-    await _tap(tester, find.text('Save to Mine'));
-    expect(rig.container.read(myThemesProvider).map((t) => t.document.name), [
-      'Borrowed',
-    ]);
+    expect(find.text('Applied from a file. Save it to keep it.'), findsOne);
+    await _tap(tester, _key('theme-mine-save'));
+    final mine = rig.container.read(myThemesProvider);
+    expect(mine.map((t) => t.document.name), ['Borrowed']);
+    expect(
+      rig.container.read(customThemeSourceProvider),
+      MineThemeSource(mine.single.id),
+    );
     expect(_key('theme-mine'), findsNothing);
+  });
+
+  testWidgets('the Not saved menu saves, publishes and exports', (
+    tester,
+  ) async {
+    final rig = EditorRig();
+    await _page(tester, rig: rig);
+    await _applyUnsaved(rig, _doc('Borrowed'));
+    await tester.pump();
+
+    await _tap(tester, _key('theme-mine-menu'));
+    expect(find.text('Save to Mine'), findsNWidgets(2));
+    expect(find.text('Publish to Space'), findsOneWidget);
+    await _tap(tester, find.text('Export to file'));
+    expect(rig.saved.single.$1, 'borrowed.slimm-theme.json');
+  });
+
+  testWidgets('a Space theme applied and then removed reads as Not saved', (
+    tester,
+  ) async {
+    final rig = EditorRig();
+    await _page(tester, rig: rig);
+    final c = rig.container;
+    await c.read(customThemeProvider.notifier).set(_doc('Gone'));
+    await c
+        .read(customThemeSourceProvider.notifier)
+        .set(const SpaceThemeSource('s9'));
+    await c
+        .read(themeControllerProvider.notifier)
+        .select(AppThemeChoice.custom);
+    await settle(tester);
+
+    expect(find.text('It is no longer in the Space.'), findsOneWidget);
+  });
+
+  testWidgets('import keeps three problems and counts the rest', (
+    tester,
+  ) async {
+    final rig = EditorRig()..pick = _file('{"format":"slimm-theme"}');
+    await _page(tester, rig: rig);
+
+    await _tap(tester, _key('theme-import'));
+    expect(find.text('Could not import x.json.'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'And \d+ more\.')), findsOneWidget);
+  });
+
+  testWidgets('import past the limit says to delete one first', (tester) async {
+    final rig = EditorRig()..pick = _file(_doc('Extra').toJsonText());
+    await _page(tester, rig: rig);
+    final mine = rig.container.read(myThemesProvider.notifier);
+    for (var i = 0; i < myThemesMax; i++) {
+      await mine.save(_doc('Theme $i'));
+    }
+    await tester.pump();
+
+    await _tap(tester, _key('theme-import'));
+    expect(
+      find.text('This device holds $myThemesMax themes. Delete one first.'),
+      findsOneWidget,
+    );
+    expect(rig.container.read(myThemesProvider), hasLength(myThemesMax));
   });
 
   testWidgets('Customise on a built-in opens a copy of it', (tester) async {
     await _page(tester);
 
-    await _tap(tester, _key('theme-builtin-menu-forest'));
-    await _tap(tester, find.text('Customise'));
+    await _tap(tester, _key('theme-customise-forest'));
     expect(find.text('New theme'), findsOneWidget);
     final name = tester.widget<EditableText>(
       find.descendant(
@@ -214,8 +292,8 @@ void main() {
     tester,
   ) async {
     await _page(tester);
-    expect(_key('theme-builtin-menu-system'), findsNothing);
-    expect(_key('theme-builtin-menu-spaceDefault'), findsNothing);
+    expect(_key('theme-customise-system'), findsNothing);
+    expect(_key('theme-builtin-spaceDefault'), findsNothing);
   });
 
   testWidgets('Edit a copy on a Space theme opens it under a new name', (

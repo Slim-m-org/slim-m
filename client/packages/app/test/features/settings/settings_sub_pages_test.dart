@@ -312,7 +312,7 @@ void main() {
       );
 
       await _tap(tester, find.text('Color theme'));
-      expect(find.text('Built in'), findsOneWidget);
+      expect(find.byKey(const Key('themes-page-list')), findsOneWidget);
       expect(find.text('Profile'), findsOneWidget, reason: 'the nav stays');
       expect(
         location(router),
@@ -335,7 +335,7 @@ void main() {
       expect(find.text('New theme'), findsOneWidget);
 
       await _tap(tester, find.byTooltip('Back to Themes'));
-      expect(find.text('Built in'), findsOneWidget);
+      expect(find.byKey(const Key('themes-page-list')), findsOneWidget);
       expect(
         location(router),
         Routes.personalSettingsPage('appearance', 'themes'),

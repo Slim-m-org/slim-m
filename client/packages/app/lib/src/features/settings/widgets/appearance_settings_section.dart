@@ -12,6 +12,7 @@ import '../../../providers/providers.dart';
 import '../providers/display_density.dart';
 import '../providers/display_preferences.dart';
 import '../providers/stored_theme.dart';
+import '../providers/theme_labels.dart';
 import 'background_settings_card.dart';
 import 'display_settings_section.dart';
 import 'settings_section_header.dart';
@@ -21,7 +22,6 @@ import 'settings_slider_row.dart';
 import 'settings_sub_pages.dart';
 import 'settings_toggle_row.dart';
 import 'theme_gallery.dart';
-import 'theme_swatch.dart';
 
 class AppearanceSettingsSection extends ConsumerWidget {
   const AppearanceSettingsSection({super.key});

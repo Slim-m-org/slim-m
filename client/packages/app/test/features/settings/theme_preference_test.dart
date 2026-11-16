@@ -206,7 +206,7 @@ void main() {
     }
   });
 
-  testWidgets('on a phone the Themes page lists swatches', (tester) async {
+  testWidgets('on a phone a Themes card applies its theme', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -305,7 +305,7 @@ void main() {
   });
 }
 
-/// Taps [choice] on the Themes page, so a tap proves the row is wired to the controller.
+/// Taps [choice] on the Themes page, so a tap proves the card is wired to the controller.
 Future<void> _choose(WidgetTester tester, AppThemeChoice choice) async {
   await tester.tap(find.byKey(Key('theme-builtin-${choice.name}')));
   await tester.pump(const Duration(milliseconds: 100));

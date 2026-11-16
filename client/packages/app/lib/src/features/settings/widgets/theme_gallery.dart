@@ -1,43 +1,28 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Settings > Appearance > Themes, a page inside the Appearance pane:
-/// built-in, personal and Space themes (decision 0106).
+/// Settings > Appearance > Themes, a page inside the Appearance pane: a grid
+/// of live miniatures for the built-in, Mine and Space themes, one tap to
+/// apply (decision 0106).
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../api_failure.dart';
-import '../../../permissions.dart';
-import '../../../providers/providers.dart';
-import '../providers/stored_theme.dart';
+import '../../../providers/providers.dart' show meProvider;
+import '../providers/my_themes.dart';
 import '../providers/theme_draft.dart';
+import '../providers/theme_gallery.dart';
+import '../providers/theme_gallery_actions.dart';
 import '../providers/theme_store.dart';
-import '../providers/theme_store_actions.dart';
-import 'my_themes_card.dart';
-import 'settings_empty.dart';
-import 'settings_section_header.dart';
 import 'settings_sub_pages.dart';
 import 'theme_editor_page.dart';
-import 'theme_list_row.dart';
-import 'theme_menu_button.dart';
-import 'theme_menus.dart';
-import 'theme_preview.dart';
-import 'theme_swatch.dart';
-
-const _builtIn = [
-  AppThemeChoice.system,
-  AppThemeChoice.dark,
-  AppThemeChoice.softDark,
-  AppThemeChoice.light,
-  AppThemeChoice.trueBlack,
-  AppThemeChoice.catppuccin,
-  AppThemeChoice.forest,
-  AppThemeChoice.halloween,
-];
+import 'theme_gallery_card.dart';
+import 'theme_gallery_layout.dart';
+import 'theme_gallery_menu.dart';
+import 'theme_gallery_section_header.dart';
+import 'theme_gallery_unsaved_card.dart';
 
 /// The Themes page, opened from Appearance's Color theme row or `?page=themes`.
 SettingsSubPage themesSubPage() => SettingsSubPage(
@@ -45,220 +30,289 @@ SettingsSubPage themesSubPage() => SettingsSubPage(
   title: 'Themes',
   backLabel: 'Back to Appearance',
   urlId: 'themes',
-  builder: (_) => const ThemeGallery(),
+  builder: (_) => const ThemeGalleryPage(),
 );
 
-class ThemeGallery extends ConsumerStatefulWidget {
-  const ThemeGallery({super.key});
+const _filters = {
+  ThemeGalleryFilter.all: 'All',
+  ThemeGalleryFilter.builtIn: 'Built in',
+  ThemeGalleryFilter.mine: 'Mine',
+  ThemeGalleryFilter.space: 'Space',
+};
+
+typedef _CardBuilder =
+    Widget Function(ThemeGalleryEntry entry, Key key, {Key? menuKey});
+
+class ThemeGalleryPage extends ConsumerStatefulWidget {
+  const ThemeGalleryPage({super.key});
 
   @override
-  ConsumerState<ThemeGallery> createState() => _ThemeGalleryState();
+  ConsumerState<ThemeGalleryPage> createState() => _ThemeGalleryPageState();
 }
 
-class _ThemeGalleryState extends ConsumerState<ThemeGallery> {
-  String? _error;
-  bool _busy = false;
+class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
+  late final _actions = ThemeGalleryActions(ref);
+  final _scroll = ScrollController();
 
-  Future<void> _run(String whatFailed, Future<void> Function() action) async {
-    if (_busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await action();
-    } catch (e, stack) {
-      _error = reportFailureSentence(api.LogTag.ui, whatFailed, e, stack);
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// A failure shows at the top, so the page goes there to show it.
+  void _showError(ThemeGalleryStatus? before, ThemeGalleryStatus now) {
+    if (now.error == null || now.error == before?.error) return;
+    if (!_scroll.hasClients || _scroll.offset == 0) return;
+    final duration = AppMotion.reduced(context, AppMotion.slow);
+    if (duration == Duration.zero) {
+      _scroll.jumpTo(0);
+    } else {
+      unawaited(
+        _scroll.animateTo(0, duration: duration, curve: AppMotion.entrance),
+      );
     }
-    if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _rowAction(api.SpaceTheme theme, ThemeRowAction action) {
-    final whatFailed = switch (action) {
-      ThemeRowAction.copy => 'copy the theme',
-      ThemeRowAction.setDefault => 'set the default theme',
-      ThemeRowAction.clearDefault => 'clear the default theme',
-      ThemeRowAction.remove => 'remove the theme',
-    };
-    return _run(whatFailed, () async {
-      switch (action) {
-        case ThemeRowAction.copy:
-          _editCopyOf(theme);
-        case ThemeRowAction.setDefault:
-          await setSpaceDefaultTheme(ref, theme.id);
-        case ThemeRowAction.clearDefault:
-          await setSpaceDefaultTheme(ref, null);
-        case ThemeRowAction.remove:
-          await removeStoreTheme(ref, theme.id);
-      }
-    });
-  }
-
-  void _editCopyOf(api.SpaceTheme theme) {
-    final document = parseThemeJson(theme.theme).document;
-    if (document == null) return;
-    _openEditor(document, theme.name);
-  }
-
-  void _openEditor(ThemeDocument source, String name) {
-    final copy = source.copyWith(name: themeCopyName(name), author: '');
-    SettingsSubPages.of(
-      context,
-    ).push(themeEditorSubPage(ThemeEditorSeed(copy)));
-  }
-
-  Widget? _builtInMenu(AppThemeChoice choice) {
-    final base = themeBaseOf(choice);
-    if (base == null) return null;
-    return ThemeMenuButton<ThemeRowAction>(
-      key: Key('theme-builtin-menu-${choice.name}'),
-      semanticLabel: 'More for ${themeLabel(choice)}',
-      onSelected: (_) {
-        final source = ThemeEditorSeed.fromBase(base).document;
-        _openEditor(source, themeLabel(choice));
-      },
-      items: (pick) => themeRowMenuItems(pick, copyLabel: 'Customise'),
-    );
-  }
-
-  Widget _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
-    final me = ref.read(meProvider).valueOrNull;
-    final isAdmin = me?.permissions.hasPermission(Perm.manageServer) ?? false;
-    final canRemove = isAdmin || (me != null && theme.authorId == me.id);
-    return ThemeMenuButton<ThemeRowAction>(
-      key: Key('theme-menu-${theme.id}'),
-      semanticLabel: 'More for ${theme.name}',
-      enabled: !_busy,
-      onSelected: (action) => unawaited(_rowAction(theme, action)),
-      items: (pick) => themeRowMenuItems(
-        pick,
-        isDefault: isDefault,
-        canSetDefault: isAdmin,
-        canRemove: canRemove,
-        copyLabel: 'Edit a copy',
-      ),
-    );
-  }
+  void _openEditor(ThemeEditorSeed? seed) =>
+      SettingsSubPages.of(context).push(themeEditorSubPage(seed));
 
   @override
   Widget build(BuildContext context) {
-    final store = ref.watch(spaceThemesProvider);
-    final storeFailed = store.hasError && !store.hasValue;
-    // Watched so the first menu already knows who may remove and set the default.
-    ref.watch(meProvider);
-    return ListView(
-      key: const Key('themes-page-list'),
-      padding: EdgeInsets.only(bottom: SettingsSubPages.bottomInsetOf(context)),
-      children: [
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.s8),
-            child: AppErrorState(
-              message: _error!,
-              onDismiss: () => setState(() => _error = null),
-            ),
-          ),
-        _builtInCard(),
-        MyThemesCard(
-          onError: (message) => setState(() => _error = message),
-          busy: _busy,
-        ),
-        _spaceCard(store, storeFailed),
-      ],
+    final gallery = ref.watch(themeGalleryProvider);
+    final status = ref.watch(themeGalleryStatusProvider);
+    ref.listen(themeGalleryStatusProvider, _showError);
+    final filter = ref.watch(themeGalleryFilterProvider);
+    final menu = ThemeGalleryMenu(
+      actions: _actions,
+      me: ref.watch(meProvider).valueOrNull,
+      openEditor: _openEditor,
+    );
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(
+      builder: (context, box) {
+        final layout = ThemeGalleryLayout(box.maxWidth, scaler);
+        final enabled = !status.busy;
+        Widget card(ThemeGalleryEntry entry, Key key, {Key? menuKey}) =>
+            ThemeGalleryCard(
+              key: key,
+              entry: entry,
+              width: layout.cardWidth,
+              enabled: enabled,
+              onApply: () => unawaited(_actions.apply(entry)),
+              onCustomise: _customise(entry),
+              menuItems: menu.itemsFor(entry),
+              sheetHeader: (context) => menu.sheetHeader(context, entry),
+              menuKey: menuKey,
+            );
+        return CustomScrollView(
+          key: const Key('themes-page-list'),
+          controller: _scroll,
+          slivers: [
+            if (status.error case final error?)
+              _box(
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.s8),
+                  child: AppErrorState(
+                    key: const Key('themes-page-error'),
+                    message: error.message,
+                    detail: error.detail,
+                    onDismiss: ref
+                        .read(themeGalleryStatusProvider.notifier)
+                        .dismiss,
+                  ),
+                ),
+              ),
+            _box(_filter(filter, wide: layout.columns == 3)),
+            if (filter.shows(ThemeGalleryFilter.builtIn)) ...[
+              _box(const ThemeGallerySectionHeader(title: 'Built in')),
+              _grid(
+                layout,
+                gallery.builtIn,
+                (e) => card(e, Key('theme-builtin-${e.choice!.name}')),
+              ),
+            ],
+            if (filter.shows(ThemeGalleryFilter.mine))
+              ..._mine(gallery, layout, menu, enabled, card),
+            if (filter.shows(ThemeGalleryFilter.space))
+              ..._space(gallery, layout, card),
+            _box(SizedBox(height: SettingsSubPages.bottomInsetOf(context))),
+          ],
+        );
+      },
     );
   }
 
-  Widget _builtInCard() {
-    // With no Space default to follow, that choice paints as System.
-    final followsNothing =
-        ref.watch(themeControllerProvider) == AppThemeChoice.spaceDefault &&
-        ref.watch(spaceDefaultThemeProvider) == null;
-    final current = followsNothing
-        ? AppThemeChoice.system
-        : ref.watch(themeControllerProvider);
-    return SettingsSectionCard(
-      title: 'Built in',
-      children: [
-        for (final choice in _builtIn)
-          ThemeListRow(
-            key: Key('theme-builtin-${choice.name}'),
-            label: themeLabel(choice),
-            preview: ThemeSwatch(choice: choice),
-            selected: current == choice,
-            menu: _builtInMenu(choice),
-            onApply: () => unawaited(applyThemeChoice(ref, choice)),
-          ),
-      ],
-    );
+  VoidCallback? _customise(ThemeGalleryEntry entry) {
+    if (entry.kind != ThemeGalleryKind.builtIn) return null;
+    final seed = customiseSeed(entry.choice!);
+    return seed == null ? null : () => _openEditor(seed);
   }
 
-  Widget _spaceCard(AsyncValue<api.SpaceThemeList> store, bool storeFailed) {
-    final defaultId = store.valueOrNull?.defaultThemeId;
-    final themes = store.valueOrNull?.themes ?? const <api.SpaceTheme>[];
-    final followed = ref.watch(spaceDefaultThemeProvider);
-    final current = ref.watch(themeControllerProvider);
-    return SettingsSectionCard(
-      title: 'Space',
-      children: [
-        if (storeFailed)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: AppErrorState(
-              key: const Key('themes-store-error'),
-              message: 'Could not load the Space themes.',
-              onRetry: () => ref.invalidate(spaceThemesProvider),
-            ),
-          ),
-        if (store.hasValue && themes.isEmpty)
-          const SettingsEmptyLine(
-            'No shared themes yet.',
-            key: Key('theme-store-empty'),
-          ),
-        if (followed != null)
-          ThemeListRow(
-            key: const Key('theme-follow-space'),
-            label: themeLabel(AppThemeChoice.spaceDefault),
-            preview: ThemePreview(colours: themeStrip(followed)),
-            selected: current == AppThemeChoice.spaceDefault,
-            onApply: () =>
-                unawaited(applyThemeChoice(ref, AppThemeChoice.spaceDefault)),
-          ),
-        for (final theme in themes)
-          _storeRow(
-            theme,
-            theme.id == defaultId,
-            reserveThumbnail: themes.any((t) => t.hasPicture),
-          ),
-      ],
-    );
-  }
+  Widget _box(Widget child) => SliverToBoxAdapter(child: child);
 
-  Widget _storeRow(
-    api.SpaceTheme theme,
-    bool isDefault, {
-    required bool reserveThumbnail,
-  }) {
-    final document = parseThemeJson(theme.theme).document;
-    return ThemeListRow(
-      key: Key('theme-store-${theme.id}'),
-      label: theme.name,
-      preview: document == null
-          ? SizedBox(
-              width: reserveThumbnail ? themePreviewWidth : themeSwatchWidth,
+  Widget _filter(ThemeGalleryFilter filter, {required bool wide}) {
+    final options = [
+      for (final label in _filters.values) AppSegmentedOption(label: label),
+    ];
+    final index = _filters.keys.toList().indexOf(filter);
+    void select(int i) => ref
+        .read(themeGalleryFilterProvider.notifier)
+        .select(_filters.keys.elementAt(i));
+    return Padding(
+      padding: EdgeInsets.only(top: wide ? AppSpacing.s8 : 0),
+      child: wide
+          ? Align(
+              alignment: Alignment.centerLeft,
+              child: AppSegmentedControl.inline(
+                key: const Key('themes-filter'),
+                options: options,
+                selectedIndex: index,
+                onSegmentSelected: select,
+                semanticLabel: 'Show themes',
+              ),
             )
-          : ThemePreview(
-              colours: themeStrip(document),
-              pictureId: theme.hasPicture ? theme.id : null,
-              reserveThumbnail: reserveThumbnail,
+          : AppSegmentedControl.fill(
+              key: const Key('themes-filter'),
+              options: options,
+              selectedIndex: index,
+              onSegmentSelected: select,
+              semanticLabel: 'Show themes',
             ),
-      selected: false,
-      isSpaceDefault: isDefault,
-      onApply: document == null || _busy
-          ? () {}
-          : () => unawaited(
-              _run('apply the theme', () => applyStoreTheme(ref, theme)),
-            ),
-      menu: _rowMenu(theme, isDefault: isDefault),
     );
   }
+
+  Widget _grid(
+    ThemeGalleryLayout layout,
+    List<ThemeGalleryEntry> entries,
+    Widget Function(ThemeGalleryEntry) build,
+  ) => SliverGrid.builder(
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: layout.columns,
+      mainAxisSpacing: kThemeGalleryGap,
+      crossAxisSpacing: kThemeGalleryGap,
+      mainAxisExtent: layout.cardHeight,
+    ),
+    itemCount: entries.length,
+    itemBuilder: (context, i) => build(entries[i]),
+  );
+
+  List<Widget> _mine(
+    ThemeGallery gallery,
+    ThemeGalleryLayout layout,
+    ThemeGalleryMenu menu,
+    bool enabled,
+    _CardBuilder card,
+  ) {
+    final size = AppTouchTargets.of(context)
+        ? AppButtonSize.md
+        : AppButtonSize.sm;
+    final unsaved = gallery.unsaved;
+    return [
+      _box(
+        ThemeGallerySectionHeader(
+          title: 'Mine',
+          count: '${gallery.mine.length} of $myThemesMax',
+          actions: [
+            AppButton(
+              key: const Key('theme-import'),
+              label: 'Import',
+              icon: AppIcons.upload,
+              size: size,
+              disabled: !enabled,
+              onPressed: () => unawaited(_actions.importFile()),
+            ),
+            AppButton(
+              key: const Key('theme-new'),
+              label: 'New',
+              icon: AppIcons.add,
+              size: size,
+              disabled: !enabled,
+              onPressed: () => _openEditor(null),
+            ),
+          ],
+        ),
+      ),
+      if (unsaved != null)
+        _box(
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: gallery.mine.isEmpty ? 0 : kThemeGalleryGap,
+            ),
+            child: ThemeGalleryUnsavedCard(
+              key: const Key('theme-mine'),
+              entry: unsaved,
+              miniatureWidth: layout.cardWidth,
+              wide: layout.columns == 3,
+              enabled: enabled,
+              onSave: () => unawaited(_actions.saveToMine(unsaved.document!)),
+              menuItems: menu.itemsFor(unsaved)!,
+              sheetHeader: (context) => menu.sheetHeader(context, unsaved),
+            ),
+          ),
+        ),
+      if (gallery.mine.isEmpty && unsaved == null)
+        _box(
+          const ThemeGalleryEmptyTile(
+            key: Key('theme-mine-empty'),
+            title: 'No themes of your own yet.',
+            next: 'Use New, or the pencil on a built-in theme.',
+          ),
+        )
+      else
+        _grid(
+          layout,
+          gallery.mine,
+          (e) => card(
+            e,
+            Key('theme-mine-${e.id}'),
+            menuKey: Key('theme-mine-${e.id}-menu'),
+          ),
+        ),
+    ];
+  }
+
+  List<Widget> _space(
+    ThemeGallery gallery,
+    ThemeGalleryLayout layout,
+    _CardBuilder card,
+  ) => [
+    _box(
+      const ThemeGallerySectionHeader(
+        title: 'Space',
+        count: 'Shared by members',
+      ),
+    ),
+    switch (gallery.spaceState) {
+      ThemeGallerySpaceState.failed => _box(
+        AppErrorState(
+          key: const Key('themes-store-error'),
+          message: 'Could not load the Space themes.',
+          onRetry: () => ref.invalidate(spaceThemesProvider),
+        ),
+      ),
+      ThemeGallerySpaceState.loading => _box(
+        const Padding(
+          padding: EdgeInsets.all(AppSpacing.s16),
+          child: Center(child: AppSpinner()),
+        ),
+      ),
+      ThemeGallerySpaceState.loaded when gallery.space.isEmpty => _box(
+        const ThemeGalleryEmptyTile(
+          key: Key('theme-store-empty'),
+          title: 'No shared themes yet.',
+          next: 'Publish one from Mine to share it here.',
+        ),
+      ),
+      ThemeGallerySpaceState.loaded => _grid(
+        layout,
+        gallery.space,
+        (e) => card(
+          e,
+          Key('theme-store-${e.id}'),
+          menuKey: Key('theme-menu-${e.id}'),
+        ),
+      ),
+    },
+  ];
 }
