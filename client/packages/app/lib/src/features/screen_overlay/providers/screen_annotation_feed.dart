@@ -12,21 +12,30 @@ import '../../members/providers/blocks_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
+import 'stamp_content.dart';
+import 'stamp_images.dart';
 
 bool _nobody(String userId) => false;
+
+Future<void> _readyAtOnce(StampContent content) => Future.value();
 
 class ScreenAnnotationFeed extends ChangeNotifier {
   ScreenAnnotationFeed({
     required String? Function() selfId,
     bool Function(String userId)? isBlocked,
     DateTime Function()? clock,
+    Future<void> Function(StampContent content)? loadStamp,
   }) : _selfId = selfId,
        _isBlocked = isBlocked ?? _nobody,
-       _clock = clock ?? annotationNow;
+       _clock = clock ?? annotationNow,
+       _loadStamp = loadStamp ?? _readyAtOnce;
 
   final String? Function() _selfId;
   final bool Function(String userId) _isBlocked;
   final DateTime Function() _clock;
+
+  /// Fetches and bakes a stamp's picture; the stamp's clock starts when it is done.
+  final Future<void> Function(StampContent content) _loadStamp;
   final _consent = ScreenAnnotationConsent();
   final Map<String, ScreenAnnotationBoard> _boards = {};
 
@@ -46,11 +55,39 @@ class ScreenAnnotationFeed extends ChangeNotifier {
     final now = _clock();
     if (frame.kind == 'consent') {
       _consent.apply(frame, now);
+      // A sharer who stops allowing drawing takes every mark off their screen at once.
+      if (!frame.allowed && frame.userId != _selfId()) {
+        _boards.remove(frame.userId);
+      }
     } else if (!_applyMark(frame, now)) {
       return;
     }
     _boards.removeWhere((_, board) => board.pruneAt(now));
     notifyListeners();
+    if (frame.kind == 'stamp') _load(frame);
+  }
+
+  void _load(api.CanvasScreenAnnotation frame) {
+    final content = StampContent.of(frame);
+    final id = frame.annotationId;
+    if (content == null || id == null) return;
+    _loadStamp(content).then(
+      (_) {
+        final board = _boards[frame.targetUserId];
+        if (board != null && board.markReady(id, _clock())) notifyListeners();
+      },
+      onError: (Object error, StackTrace stack) => api.AppLog.swallowed(
+        api.LogTag.media,
+        'A stamp on a shared screen would not load; it is not shown',
+        error,
+        stack,
+      ),
+    );
+  }
+
+  /// Takes a stamp off [sharerId]'s screen at once, as when the server refused it.
+  void remove(String sharerId, String id) {
+    if (_boards[sharerId]?.remove(id) ?? false) notifyListeners();
   }
 
   /// A board exists only for my own screen or a sharer who allowed drawing, so a relayed mark aimed at anyone else costs nothing.
@@ -87,6 +124,7 @@ final screenAnnotationFeedProvider = Provider<ScreenAnnotationFeed>((ref) {
         .firstOrNull
         ?.identity,
     isBlocked: (userId) => ref.read(blocksProvider).contains(userId),
+    loadStamp: (content) => ref.read(stampImageCacheProvider).load(content),
   );
   final sub = ref
       .read(syncControllerProvider.notifier)

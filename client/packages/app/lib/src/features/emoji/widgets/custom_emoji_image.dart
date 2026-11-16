@@ -13,21 +13,7 @@ import '../../../widgets/animation_gate.dart';
 import '../providers/emoji_catalog_provider.dart';
 import '../../../widgets/image_decode.dart';
 
-/// The emoji id a `:shortcode:` names, or null when [token] names none of the
-/// deployment's own. [index] is `customEmojiIndexProvider`'s name-to-id map.
-///
-/// The one place that reads the colon delimiters back off a token, so a
-/// message body and a reaction chip cannot drift apart about what resolves.
-/// A miss is the normal case (most colon runs name nothing) and returns null
-/// rather than throwing, which leaves the caller showing the text it had. It
-/// judges the token alone: whether the text around one reads as an emoji at
-/// all is the caller's, since only a message body has text around it.
-String? customEmojiIdFor(String token, Map<String, String> index) {
-  if (token.length < 3 || !token.startsWith(':') || !token.endsWith(':')) {
-    return null;
-  }
-  return index[token.substring(1, token.length - 1).toLowerCase()];
-}
+export '../providers/emoji_keys.dart' show customEmojiIdFor;
 
 /// While the image is queued or in flight this draws a static tinted tile,
 /// the same shape `AttachmentPlaceholder` already uses for a pending

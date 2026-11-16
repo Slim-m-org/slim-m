@@ -54,6 +54,7 @@ class ScreenMarksPainter extends CustomPainter {
             drawEllipse(canvas, Rect.fromPoints(a, b), paint);
           }
         case ScreenAnnotationKind.note:
+        case ScreenAnnotationKind.stamp:
           break;
       }
     }

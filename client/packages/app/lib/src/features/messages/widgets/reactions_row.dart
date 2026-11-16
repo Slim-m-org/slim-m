@@ -12,7 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../emoji/widgets/custom_emoji_image.dart';
 import 'reaction_chip_who.dart';
-import '../../emoji/widgets/standard_emoji.dart';
+import '../../emoji/providers/standard_emoji.dart';
 
 /// 16, not the 13 the chip's text glyph uses: 13 is a font size, and an emoji
 /// face draws well inside its em box while an image fills whatever box it gets.

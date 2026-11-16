@@ -16,11 +16,18 @@ const consentHeartbeat = Duration(seconds: 5);
 const consentLifetime = Duration(seconds: 15);
 
 class SharerConsent {
-  const SharerConsent({required this.aspect, required this.seenAt});
+  const SharerConsent({
+    required this.aspect,
+    required this.seenAt,
+    this.stamps = false,
+  });
 
   /// The shared screen's width over its height.
   final double? aspect;
   final DateTime seenAt;
+
+  /// Whether the sharer's client can show stamps (decision 0121); an older one cannot.
+  final bool stamps;
 }
 
 class ScreenAnnotationConsent {
@@ -33,7 +40,11 @@ class ScreenAnnotationConsent {
       _bySharer.remove(frame.userId);
       return;
     }
-    _bySharer[frame.userId] = SharerConsent(aspect: frame.aspect, seenAt: now);
+    _bySharer[frame.userId] = SharerConsent(
+      aspect: frame.aspect,
+      seenAt: now,
+      stamps: frame.stamps,
+    );
   }
 
   /// The sharer's live consent at [now], or null when they have not allowed drawing.

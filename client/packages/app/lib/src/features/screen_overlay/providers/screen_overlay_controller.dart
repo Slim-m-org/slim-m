@@ -29,11 +29,14 @@ import '../../voice/providers/voice_flags.dart';
 import '../../voice/providers/voice_settings_controller.dart';
 import 'call_overlay_avatar.dart';
 import 'call_overlay_panel.dart';
-import 'overlay_draw_queue.dart';
+import 'overlay_marks.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
 import 'screen_annotation_mapping.dart';
 import 'screen_overlay_frame.dart';
+import 'stamp_images.dart';
+
+export 'overlay_marks.dart' show overlayFrameInterval;
 
 /// The native overlay behind its seam; a test supplies a fake.
 final screenOverlayProvider = Provider<ScreenOverlay>(
@@ -78,9 +81,6 @@ class ScreenOverlayState {
       );
 }
 
-/// Interval between repaints while a mark is alive.
-const overlayFrameInterval = Duration(milliseconds: 33);
-
 /// Whether this host is Windows, where the overlay windows are excluded from capture; a provider so a test can switch it.
 final overlayHostIsWindowsProvider = Provider<bool>((ref) => isWindowsHost);
 
@@ -114,13 +114,15 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   final SyncController _sync;
   final ScreenOverlay _window;
   final DateTime Function() _clock;
-  final _board = ScreenAnnotationBoard();
-  late final _draws = OverlayDrawQueue(_window);
+  late final _marks = OverlayMarks(
+    _window,
+    clock: _clock,
+    stamps: () => _ref.read(stampImageCacheProvider),
+  );
   StreamSubscription<api.ServerEvent>? _events;
   StreamSubscription<void>? _displays;
   bool _relayout = false;
   Timer? _heartbeat;
-  Timer? _frames;
   bool _busy = false;
   bool _again = false;
   String? _channelId;
@@ -335,14 +337,14 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final covered = preferChosenScreen(candidates, chosen);
     // On Linux showing replaces the panel window, which is why the panel is forgotten rather than hidden.
     if (!_windows) _forgetPanel();
-    _draws.reset();
+    _marks.reset();
     if (!await _window.show(covered)) return false;
     _overlayAspect = sharedAspect(monitors, covered);
     return mounted;
   }
 
   Future<bool> _showOverWindow(int window) async {
-    _draws.reset();
+    _marks.reset();
     final shown = await _window.show(const [0], window: window);
     api.AppLog.info(
       api.LogTag.platform,
@@ -375,10 +377,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       _ref.read(portalSharedMonitorProvider)();
 
   Future<void> _hideOverlay() async {
-    _frames?.cancel();
-    _frames = null;
-    _board.clear();
-    _draws.reset();
+    _marks.reset();
     _followedWindow = null;
     await _window.hide();
   }
@@ -480,6 +479,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       'consent',
       allowed: allowed,
       aspect: allowed ? state.aspect : null,
+      stamps: allowed,
     );
   }
 
@@ -492,28 +492,16 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       callChannelId: _channelId,
     );
     if (!accepted || _ref.read(blocksProvider).contains(event.userId)) return;
-    _board.apply(event, _clock());
-    _frames ??= Timer.periodic(overlayFrameInterval, (_) => _paint());
-  }
-
-  void _paint() {
-    final now = _clock();
-    final live = _board.liveAt(now);
-    _draws.draw(overlayShapesFor(live, now));
-    if (live.isEmpty) {
-      _frames?.cancel();
-      _frames = null;
-    }
+    _marks.add(event);
   }
 
   @override
   void dispose() {
     localShareCapturedSize.removeListener(_onCapturedSize);
     _heartbeat?.cancel();
-    _frames?.cancel();
     unawaited(_events?.cancel());
     unawaited(_displays?.cancel());
-    _draws.reset();
+    _marks.dispose();
     if (state.consenting) _sendConsent(allowed: false);
     if (state.active || (_panelUp && !_windows)) {
       unawaited(_window.hide());

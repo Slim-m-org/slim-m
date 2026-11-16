@@ -33,6 +33,7 @@ class _Sync extends NoopSyncController {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) => frames.add((kind: kind, target: targetUserId, points: points));
 }
 

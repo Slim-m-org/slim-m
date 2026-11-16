@@ -8,14 +8,18 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/call_overlay_avatar.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
+import 'package:slimm_app/src/features/screen_overlay/providers/stamp_content.dart';
+import 'package:slimm_app/src/features/screen_overlay/providers/stamp_images.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_blocks.dart';
 import '../../support/fake_sync.dart';
 import '../voice/voice_controller_harness.dart';
 
@@ -23,7 +27,16 @@ class RigSync extends NoopSyncController {
   RigSync(super.ref);
 
   final events = StreamController<api.ServerEvent>.broadcast();
-  final sent = <({String kind, bool allowed, double? aspect, String target})>[];
+  final sent =
+      <
+        ({
+          String kind,
+          bool allowed,
+          double? aspect,
+          String target,
+          bool stamps,
+        })
+      >[];
 
   @override
   Stream<api.ServerEvent> get liveEvents => events.stream;
@@ -40,11 +53,13 @@ class RigSync extends NoopSyncController {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) => sent.add((
     kind: kind,
     allowed: allowed,
     aspect: aspect,
     target: targetUserId,
+    stamps: stamps,
   ));
 }
 
@@ -103,6 +118,28 @@ class FakeOverlay implements ScreenOverlay {
   Stream<void> get displaysChanged => displays.stream;
 }
 
+/// Stamp pictures that bake at once into a PNG naming their key, and never touch the network.
+class RigStampImages extends StampImageCache {
+  RigStampImages()
+    : super(
+        fetchStill: (_) => throw UnimplementedError(),
+        fetchOriginal: (_) => throw UnimplementedError(),
+        customEmojiBytes: (_) => throw UnimplementedError(),
+        customIndex: () => const {},
+      );
+
+  final baked = <String>[];
+
+  @override
+  Future<void> load(StampContent content) async {}
+
+  @override
+  Future<Uint8List> png(StampContent content) async {
+    baked.add(keyOf(content));
+    return Uint8List.fromList(keyOf(content).codeUnits);
+  }
+}
+
 VoiceParticipant rigMe() => const VoiceParticipant(
   identity: 'me',
   name: 'me',
@@ -137,6 +174,7 @@ class OverlayRig {
     ScreenShareSource? source,
     PortalMonitor? portal,
     bool windows = false,
+    Set<String>? blocked,
     this.monitors = rigMonitors,
   }) {
     SharedPreferences.setMockInitialValues({
@@ -165,6 +203,11 @@ class OverlayRig {
           (ref) => voice = FixedVoiceController(ref, initial ?? rigSharing),
         ),
         syncControllerProvider.overrideWith((ref) => sync = RigSync(ref)),
+        stampImageCacheProvider.overrideWithValue(stamps),
+        if (blocked != null)
+          blocksProvider.overrideWith(
+            (ref) => FixedBlocksController(ref, BlocksState(ids: blocked)),
+          ),
       ],
     );
     container.read(voiceSettingsControllerProvider);
@@ -175,6 +218,7 @@ class OverlayRig {
   }
 
   final overlay = FakeOverlay();
+  final stamps = RigStampImages();
 
   /// What the desktop reports when asked; a test changes it to plug in a monitor.
   List<OverlayMonitor> monitors;
@@ -195,6 +239,27 @@ class OverlayRig {
         ...container.read(rigAvatarVersions),
         id: version,
       };
+
+  void stamp({
+    String id = 's1',
+    String user = 'viewer',
+    String emoji = '\u{1F389}',
+    String? attachment,
+  }) => sync.events.add(
+    api.CanvasScreenAnnotation(
+      channelId: 'call',
+      userId: user,
+      targetUserId: 'me',
+      kind: 'stamp',
+      annotationId: id,
+      points: const [0.4, 0.3],
+      size: 0.12,
+      emoji: attachment == null ? emoji : null,
+      attachment: attachment,
+      ended: true,
+      allowed: false,
+    ),
+  );
 
   void annotate({
     String target = 'me',

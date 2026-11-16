@@ -11,7 +11,7 @@ library;
 
 import '../../messages/widgets/message_fences.dart';
 import '../../messages/widgets/message_inline.dart';
-import '../../emoji/widgets/standard_emoji.dart';
+import '../../emoji/providers/standard_emoji.dart';
 
 final RegExp _nameChar = RegExp(r'[A-Za-z0-9_]');
 final RegExp _fenceMarker = RegExp(r'^```[A-Za-z0-9_+#-]*\s*$');
