@@ -20,6 +20,7 @@ class UserProfile {
     this.bannerUpdatedAt,
     this.roles = const [],
     this.roleIds = const [],
+    this.roleColors = const [],
     this.hoistedRoleId,
     this.hoistedRolePosition,
     this.timedOutUntil,
@@ -61,9 +62,8 @@ class UserProfile {
   /// colour. A cache key beside [SlimmApi.fetchBanner]; null means do not ask.
   final int? bannerUpdatedAt;
 
-  /// Role names, for a badge beside the member. Excludes `@everyone`, which
-  /// every member holds, so an empty list means "no badge" rather than "no
-  /// data".
+  /// Role names, highest position first. Excludes `@everyone`, which every
+  /// member holds, so an empty list means "no roles" rather than "no data".
   final List<String> roles;
 
   /// The same roles as ids, positionally matching [roles].
@@ -73,6 +73,10 @@ class UserProfile {
   /// both. Empty on a server older than the field, which is why the roles
   /// sheet treats an id it cannot resolve as unknown rather than as unheld.
   final List<String> roleIds;
+
+  /// The same roles' palette colours, positionally matching [roles], null for
+  /// a role nobody gave one. Empty on a server older than the field.
+  final List<int?> roleColors;
 
   /// The hoisted role the member pane lists this member under, or null when
   /// none of theirs is hoisted (or the server predates the field). One of
@@ -150,6 +154,10 @@ class UserProfile {
         roles: (json['roles'] as List<dynamic>?)?.cast<String>() ?? const [],
         roleIds:
             (json['role_ids'] as List<dynamic>?)?.cast<String>() ?? const [],
+        roleColors: [
+          for (final colour in json['role_colors'] as List<dynamic>? ?? [])
+            colour is int ? colour : null,
+        ],
         hoistedRoleId: json['hoisted_role_id'] as String?,
         hoistedRolePosition: json['hoisted_role_position'] as int?,
         timedOutUntil: json['timed_out_until'] as int?,
@@ -188,7 +196,8 @@ class UserProfile {
           profileColorRgb == other.profileColorRgb &&
           inviteCode == other.inviteCode &&
           _listEquals(roles, other.roles) &&
-          _listEquals(roleIds, other.roleIds));
+          _listEquals(roleIds, other.roleIds) &&
+          _listEquals(roleColors, other.roleColors));
 
   @override
   int get hashCode => Object.hash(
@@ -210,13 +219,14 @@ class UserProfile {
         inviteCode,
         Object.hashAll(roles),
         Object.hashAll(roleIds),
+        Object.hashAll(roleColors),
       );
 }
 
 /// Element-wise list equality, since `List` itself only compares by
 /// reference; kept minimal here rather than pulling in `package:collection`
 /// for one call site.
-bool _listEquals(List<String> a, List<String> b) {
+bool _listEquals<T>(List<T> a, List<T> b) {
   if (identical(a, b)) return true;
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {

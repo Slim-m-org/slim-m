@@ -80,5 +80,22 @@ void main() {
 
       expect(a, isNot(equals(b)));
     });
+
+    test('a role colour change breaks equality, so a name repaints', () {
+      UserProfile coloured(int? colour) => UserProfile(
+            id: 'user-1',
+            username: 'nick',
+            displayName: 'Nick',
+            createdAt: 1000,
+            roles: const ['Admin'],
+            roleIds: const ['role-1'],
+            roleColors: [colour],
+          );
+
+      expect(coloured(3), equals(coloured(3)));
+      expect(coloured(3).hashCode, equals(coloured(3).hashCode));
+      expect(coloured(3), isNot(equals(coloured(4))));
+      expect(coloured(3), isNot(equals(coloured(null))));
+    });
   });
 }
