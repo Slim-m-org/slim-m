@@ -66,7 +66,11 @@ pub fn routes() -> Router<AppState> {
         )
         .route(
             "/channels/{channel_id}/messages/{message_id}",
-            get(get_message).patch(edit).delete(delete),
+            get(get_message).merge(
+                axum::routing::patch(edit)
+                    .delete(delete)
+                    .layer(from_fn(run_to_completion)),
+            ),
         )
         .route(
             "/channels/{channel_id}/messages/{message_id}/history",

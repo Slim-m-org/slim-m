@@ -8,14 +8,15 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 
-/// Middleware for a route that stores a message: the request runs to its end
+/// Middleware for a route that writes a message: the request runs to its end
 /// even when the connection that made it closes or its timeout fires.
 ///
 /// Either drops the handler wherever it is waiting, which can be between the
-/// commit and the fan-out. The message is then stored, and the sender's retry
-/// of that id is not fresh, so it publishes nothing and wakes nobody: the
-/// other members would only see the message on their next catch-up. Run on a
-/// task of its own, the write finishes whoever is still listening.
+/// commit and the fan-out. The write is then stored, and the caller's retry
+/// finds nothing left to do, so it publishes nothing and wakes nobody: the
+/// other members would only learn of the send, edit or delete on their next
+/// catch-up. Run on a task of its own, the write finishes whoever is still
+/// listening.
 pub(super) async fn run_to_completion(request: Request, next: Next) -> Response {
     to_completion(next.run(request)).await
 }
