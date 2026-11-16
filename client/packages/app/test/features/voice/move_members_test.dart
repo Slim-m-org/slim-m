@@ -23,6 +23,7 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -104,20 +105,24 @@ Future<void> _pump(
   _Wire wire, {
   required int permissions,
   Widget? beside,
+  RoleLadder? ladder,
+  api.UserProfile bob = _bobProfile,
+  api.Me? me,
 }) async {
   tester.view.physicalSize = const Size(1280, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
+      key: UniqueKey(),
       overrides: [
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         mockApiOverride(wire.handle),
-        userProfileProvider(
-          'user-bob',
-        ).overrideWith((ref) async => _bobProfile),
-        membersProvider.overrideWith((ref) async => [_bobProfile]),
+        userProfileProvider('user-bob').overrideWith((ref) async => bob),
+        membersProvider.overrideWith((ref) async => [bob]),
         myPermissionsProvider.overrideWithValue(permissions),
+        if (ladder != null) roleLadderProvider.overrideWithValue(ladder),
+        if (me != null) meProvider.overrideWith((ref) async => me),
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         voiceControllerProvider.overrideWith(
           (ref) => VoiceController(ref, session: FakeSession()),
@@ -143,6 +148,30 @@ Future<void> _pump(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+const _gamesKey = Key('games-drop');
+
+const _games = RailMoveDropTarget(
+  key: _gamesKey,
+  channelId: 'voice-2',
+  child: SizedBox(width: 200, height: 60),
+);
+
+/// Carries Bob with a mouse from his rail row onto [_games].
+Future<void> _dragBobOntoGames(WidgetTester tester) async {
+  final target = tester.getCenter(find.byKey(_gamesKey));
+  final bob = tester.getCenter(find.text('Bob'));
+  final drag = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await drag.addPointer(location: bob);
+  await tester.pump();
+  await drag.down(bob);
+  await drag.moveTo(target - const Offset(20, 0));
+  await tester.pump();
+  await drag.moveTo(target);
+  await drag.up();
+  await tester.pumpAndSettle();
+  await drag.removePointer();
 }
 
 void main() {
@@ -187,29 +216,47 @@ void main() {
     tester,
   ) async {
     final wire = _Wire();
-    await _pump(
-      tester,
-      wire,
-      permissions: Perm.moveMembers,
-      beside: const RailMoveDropTarget(
-        channelId: 'voice-2',
-        child: SizedBox(width: 200, height: 60),
-      ),
-    );
-    final target = tester.getCenter(find.byType(RailMoveDropTarget));
-    final bob = tester.getCenter(find.text('Bob'));
-    final drag = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await drag.addPointer(location: bob);
-    await tester.pump();
-    await drag.down(bob);
-    await drag.moveTo(target - const Offset(20, 0));
-    await tester.pump();
-    await drag.moveTo(target);
-    await drag.up();
-    await tester.pumpAndSettle();
+    await _pump(tester, wire, permissions: Perm.moveMembers, beside: _games);
+    await _dragBobOntoGames(tester);
 
     expect(wire.posts, hasLength(1));
     expect(jsonDecode(wire.posts.single.body), {'to_channel_id': 'voice-2'});
+  });
+
+  testWidgets('only a person below you on the role ladder can be dragged', (
+    tester,
+  ) async {
+    const ladder = RoleLadder(permissions: Perm.moveMembers, topPosition: 5);
+    for (final (top, owner, moved) in [
+      (4, false, true),
+      (5, false, false),
+      (8, false, false),
+      (1, true, false),
+    ]) {
+      final wire = _Wire();
+      final bob = api.UserProfile(
+        id: _bobProfile.id,
+        username: _bobProfile.username,
+        displayName: _bobProfile.displayName,
+        createdAt: 0,
+        topRolePosition: top,
+        isOwner: owner,
+      );
+      await _pump(
+        tester,
+        wire,
+        permissions: Perm.moveMembers,
+        beside: _games,
+        ladder: ladder,
+        bob: bob,
+      );
+      await _dragBobOntoGames(tester);
+      expect(
+        wire.posts,
+        hasLength(moved ? 1 : 0),
+        reason: 'top $top, owner $owner',
+      );
+    }
   });
 
   testWidgets('a finger dragging a person moves nobody', (tester) async {
@@ -230,28 +277,39 @@ void main() {
     expect(wire.posts, isEmpty);
   });
 
-  testWidgets('without the permission a person cannot be dragged', (
-    tester,
-  ) async {
+  testWidgets('you can drag yourself whatever your rank', (tester) async {
     final wire = _Wire();
     await _pump(
       tester,
       wire,
-      permissions: 0,
-      beside: const RailMoveDropTarget(
-        channelId: 'voice-2',
-        child: SizedBox(width: 200, height: 60),
+      permissions: Perm.moveMembers,
+      beside: _games,
+      ladder: const RoleLadder(permissions: Perm.moveMembers, topPosition: 1),
+      bob: const api.UserProfile(
+        id: 'user-bob',
+        username: 'bob',
+        displayName: 'Bob',
+        createdAt: 0,
+        topRolePosition: 1,
+      ),
+      me: const api.Me(
+        id: 'user-bob',
+        username: 'bob',
+        displayName: 'Bob',
+        createdAt: 0,
+        permissions: Perm.moveMembers,
       ),
     );
-    final target = tester.getCenter(find.byType(RailMoveDropTarget));
-    final bob = tester.getCenter(find.text('Bob'));
-    final drag = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await drag.addPointer(location: bob);
-    await tester.pump();
-    await drag.down(bob);
-    await drag.moveTo(target);
-    await drag.up();
-    await tester.pumpAndSettle();
+    await _dragBobOntoGames(tester);
+    expect(wire.posts, hasLength(1));
+  });
+
+  testWidgets('without the permission a person cannot be dragged', (
+    tester,
+  ) async {
+    final wire = _Wire();
+    await _pump(tester, wire, permissions: 0, beside: _games);
+    await _dragBobOntoGames(tester);
     expect(wire.posts, isEmpty);
   });
 

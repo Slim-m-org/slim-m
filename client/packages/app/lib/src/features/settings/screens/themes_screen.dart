@@ -116,7 +116,8 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
 
   Widget _rowMenu(api.SpaceTheme theme, {required bool isDefault}) {
     final me = ref.read(meProvider).valueOrNull;
-    final isAdmin = me?.permissions.hasPermission(Perm.manageServer) ?? false;
+    final isAdmin =
+        me?.heldPermissions.hasPermission(Perm.manageServer) ?? false;
     final canRemove = isAdmin || (me != null && theme.authorId == me.id);
     return ThemeMenuButton<ThemeRowAction>(
       key: Key('theme-menu-${theme.id}'),

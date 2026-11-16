@@ -805,7 +805,7 @@ client/packages/app/test/features/voice/media_capability_section_test.dart 1 4
 client/packages/app/test/features/voice/mic_failure_advice_test.dart 1 0
 client/packages/app/test/features/voice/mic_preview_meter_test.dart 5 0
 client/packages/app/test/features/voice/modal_page_test.dart 5 3
-client/packages/app/test/features/voice/move_members_test.dart 3 7
+client/packages/app/test/features/voice/move_members_test.dart 1 6
 client/packages/app/test/features/voice/move_participant_popover_test.dart 0 1
 client/packages/app/test/features/voice/participant_actions_parity_test.dart 1 1
 client/packages/app/test/features/voice/participant_audio_controls_test.dart 3 0

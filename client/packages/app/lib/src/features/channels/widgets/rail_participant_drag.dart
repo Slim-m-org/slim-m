@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Dragging a person from one voice channel onto another in the rail, for
-/// anyone who may move members. Pointer only: a finger scrolls the rail, and
-/// the participant menu's "Move to..." row is the touch route.
+/// anyone who may move members and outranks the person on the role ladder,
+/// the same two checks the server makes. Pointer only: a finger scrolls the
+/// rail, and the participant menu's "Move to..." row is the touch route.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
-import '../../../providers/admin_providers.dart' show myPermissionsProvider;
+import '../../../providers/admin_providers.dart'
+    show myPermissionsProvider, roleLadderProvider;
+import '../../../providers/providers.dart' show meProvider;
 import '../../../widgets/run_guarded.dart';
 import '../../voice/providers/voice_actions.dart';
 
@@ -51,15 +55,19 @@ Future<void> moveByDrag(
   }
 }
 
-/// Makes [child] draggable with a mouse when the viewer may move members.
+/// Makes [child] draggable with a mouse when the viewer may move [member].
 class RailParticipantDraggable extends ConsumerStatefulWidget {
   const RailParticipantDraggable({
     super.key,
     required this.data,
+    required this.member,
     required this.child,
   });
 
   final ParticipantDragData data;
+
+  /// Whom [data] carries; moving anyone but yourself needs a rank above them.
+  final api.UserProfile member;
   final Widget child;
 
   @override
@@ -73,10 +81,15 @@ class _RailParticipantDraggableState
 
   @override
   Widget build(BuildContext context) {
-    final canMove = ref.watch(
+    final mayMove = ref.watch(
       myPermissionsProvider.select((p) => p.hasPermission(Perm.moveMembers)),
     );
-    if (!canMove) return widget.child;
+    final isSelf =
+        ref.watch(meProvider.select((me) => me.valueOrNull?.id)) ==
+        widget.member.id;
+    final reaches =
+        isSelf || ref.watch(roleLadderProvider).outranks(widget.member);
+    if (!mayMove || !reaches) return widget.child;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // Hover precedes the press, which is the only time a pointer's kind is known before the drag recognizer is built.
     return MouseRegion(

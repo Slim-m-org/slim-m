@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../features/channels/providers/channel_permissions.dart';
+import '../permissions.dart';
 import '../role_ladder.dart';
 import '../features/settings/providers/join_gate_providers.dart';
 import 'live_events.dart';
@@ -27,11 +28,12 @@ import '../features/members/providers/member_presence.dart'
     show channelMembersProvider;
 import 'providers.dart';
 
-/// The caller's own base (deployment-level) permission bitmask, or 0 while
-/// [meProvider] is loading or failed: every gate here reads as "show
-/// nothing" rather than "show everything" until proven otherwise.
+/// The caller's own base (deployment-level) permission bitmask, every bit for
+/// the Space owner, or 0 while [meProvider] is loading or failed: every gate
+/// here reads as "show nothing" rather than "show everything" until proven
+/// otherwise.
 final myPermissionsProvider = Provider<int>(
-  (ref) => ref.watch(meProvider).valueOrNull?.permissions ?? 0,
+  (ref) => ref.watch(meProvider).valueOrNull?.heldPermissions ?? 0,
 );
 
 /// Where the caller stands on the role ladder; see [RoleLadder.of].

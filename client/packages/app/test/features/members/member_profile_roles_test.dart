@@ -317,7 +317,7 @@ void main() {
     expect(_remove('Regulars'), findsNothing);
   });
 
-  testWidgets('the owner keeps their roles: no cross, though a grant is open', (
+  testWidgets('the owner\'s roles are theirs alone: no cross and no grant', (
     tester,
   ) async {
     await _pump(
@@ -326,7 +326,11 @@ void main() {
       manager: true,
     );
     expect(_remove('Regulars'), findsNothing);
-    expect(_add(), findsOneWidget);
+    expect(
+      _add(),
+      findsNothing,
+      reason: 'the server refuses giving the owner a role',
+    );
   });
 
   testWidgets('the owner reaches every role, the ones above them too', (
