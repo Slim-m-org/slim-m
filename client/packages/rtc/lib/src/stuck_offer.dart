@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// How long an offer may stay unanswered over a live signal connection.
 const kStuckOfferGrace = Duration(seconds: 5);
@@ -18,8 +19,13 @@ Future<String?> pendingOffer(rtc.RTCPeerConnection? pc) async {
       return null;
     }
     return offerIdentity((await pc.getLocalDescription())?.sdp ?? '');
-  } on Object {
-    // A closed connection has no offer out.
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'Read no pending offer; the connection is likely closed',
+      error,
+      stack,
+    );
     return null;
   }
 }
