@@ -31,6 +31,7 @@ The controls on the right of Appearance share one 280 px column, and slider valu
 ## The editor
 
 The editor opens inside the pane, with the draft preview pinned above one column and a Save footer pinned below that says why Save is off.
+The pinned preview shows every sample at the top and folds to a short strip as the column scrolls, so the colours keep most of the page.
 Accent, Background, Text and Warning text carry linked colours that follow them until changed, and the links belong to the editor session, not the theme file.
 The colour picker checks contrast while dragging.
 
