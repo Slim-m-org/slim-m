@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,8 +21,12 @@ class FakeCapture implements VoiceCaptureBackend {
 
   bool failsToStart = false;
 
+  /// When set, start waits on it, the way a permission prompt does.
+  Future<void>? opening;
+
   @override
   Future<bool> start() async {
+    await opening;
     if (failsToStart) throw StateError('ffmpeg: not found');
     return started = allowed;
   }
@@ -110,6 +116,41 @@ void main() {
     await rig.recorder.start();
     return rig;
   }
+
+  test(
+    'cancelling while the microphone opens closes it once it is open',
+    () async {
+      rig = Rig()..listen();
+      addTearDown(rig.container.dispose);
+      final prompt = Completer<void>();
+      rig.capture.opening = prompt.future;
+      final starting = rig.recorder.start();
+      expect(rig.state.phase, VoicePhase.starting);
+      await rig.recorder.cancel();
+      prompt.complete();
+      await starting;
+      expect(rig.capture.cancelled, isTrue);
+      expect(
+        rig.state.phase,
+        VoicePhase.idle,
+        reason: 'no recording comes back',
+      );
+    },
+  );
+
+  test('leaving the composer while the microphone opens closes it', () async {
+    final rig = Rig();
+    final sub = rig.container.listen(voiceRecorderProvider('c1'), (_, _) {});
+    final prompt = Completer<void>();
+    rig.capture.opening = prompt.future;
+    final starting = rig.recorder.start();
+    sub.close();
+    await Future<void>.delayed(Duration.zero);
+    prompt.complete();
+    await starting;
+    expect(rig.capture.cancelled, isTrue, reason: 'nothing else owns it now');
+    rig.container.dispose();
+  });
 
   test('a denied microphone leaves an inline error and no recording', () async {
     await started(allowed: false);

@@ -115,6 +115,9 @@ List<int> buildWaveform(List<double> levels) {
 class VoiceRecorder
     extends AutoDisposeFamilyNotifier<VoiceRecordingState, String> {
   VoiceCaptureBackend? _backend;
+
+  /// Bumped by every start, cancel and disposal; a start that returns to a newer number lets go.
+  int _attempt = 0;
   Timer? _timer;
   DateTime? _startedAt;
   final List<double> _samples = [];
@@ -127,6 +130,7 @@ class VoiceRecorder
   @override
   VoiceRecordingState build(String channelId) {
     ref.onDispose(() {
+      _attempt++;
       _timer?.cancel();
       unawaited(_backend?.cancel());
     });
@@ -138,18 +142,14 @@ class VoiceRecorder
       return;
     }
     state = const VoiceRecordingState(phase: VoicePhase.starting);
+    final attempt = ++_attempt;
     final backend = ref.read(voiceCaptureFactoryProvider)();
+    final needsTools = ref.read(voiceRecordingNeedsToolsProvider);
+    bool opened;
     try {
-      if (!await backend.start()) {
-        state = const VoiceRecordingState(
-          phase: VoicePhase.failed,
-          error:
-              'Microphone access is off. Allow it in your device settings '
-              'to record a voice message.',
-        );
-        return;
-      }
+      opened = await backend.start();
     } on Object catch (error, stack) {
+      if (_superseded(attempt, backend)) return;
       AppLog.swallowed(
         LogTag.voice,
         'The microphone could not start',
@@ -158,10 +158,20 @@ class VoiceRecorder
       );
       state = VoiceRecordingState(
         phase: VoicePhase.failed,
-        error: ref.read(voiceRecordingNeedsToolsProvider)
+        error: needsTools
             ? 'Could not record. On Linux this needs ffmpeg and parecord '
                   '(pulseaudio-utils) installed.'
             : 'The microphone could not be opened.',
+      );
+      return;
+    }
+    if (_superseded(attempt, backend)) return;
+    if (!opened) {
+      state = const VoiceRecordingState(
+        phase: VoicePhase.failed,
+        error:
+            'Microphone access is off. Allow it in your device settings '
+            'to record a voice message.',
       );
       return;
     }
@@ -170,6 +180,13 @@ class VoiceRecorder
     _startedAt = now();
     state = const VoiceRecordingState(phase: VoicePhase.recording);
     _timer = Timer.periodic(kVoiceTick, (_) => unawaited(tick()));
+  }
+
+  /// Whether a cancel or disposal overtook the start of [attempt]; if so its microphone is closed here.
+  bool _superseded(int attempt, VoiceCaptureBackend backend) {
+    if (attempt == _attempt) return false;
+    unawaited(backend.cancel());
+    return true;
   }
 
   /// One sample of the level and the clock; the timer calls it.
@@ -228,6 +245,7 @@ class VoiceRecorder
 
   /// Throws the recording away, whether it is still running or already stopped.
   Future<void> cancel() async {
+    _attempt++;
     _timer?.cancel();
     final backend = _backend;
     _backend = null;
