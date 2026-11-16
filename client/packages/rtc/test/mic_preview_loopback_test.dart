@@ -73,7 +73,11 @@ void _mockWebRtcChannel() {
   messenger.setMockMethodCallHandler(
     channel,
     (call) async => call.method == 'getUserMedia'
-        ? {'streamId': 'preview', 'audioTracks': [], 'videoTracks': []}
+        ? {
+            'streamId': 'preview',
+            'audioTracks': <Object>[],
+            'videoTracks': <Object>[]
+          }
         : null,
   );
   addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
