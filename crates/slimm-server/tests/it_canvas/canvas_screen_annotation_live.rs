@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Live screen-annotation relay: a call member's mark reaches the sharer, consent is believed only from the sharer, and the canvas gates still apply.
+//! Live screen-annotation relay: a mark reaches the sharer only from someone in the sharer's call, consent is believed only from the sharer, and the canvas gates still apply.
 
 use std::net::SocketAddr;
 
@@ -10,13 +10,13 @@ use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
-use slimm_server::voice::VoiceService;
+use slimm_server::voice::{VoiceService, room_for_channel};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use crate::support;
 use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 use support::ws::{
-    Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, user_ticket_and_id,
+    Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, settle, user_ticket_and_id,
 };
 
 const KIND: &str = "canvas.screen_annotation.updated";
@@ -266,4 +266,31 @@ async fn a_sharer_who_left_the_call_can_still_withdraw_consent() {
     let frame = read_frame_of_type(&mut bob_ws, KIND).await;
     assert_eq!(frame["kind"], "consent");
     assert_eq!(frame["allowed"], false);
+}
+
+#[tokio::test]
+async fn a_member_in_another_call_cannot_draw_on_the_sharers_screen() {
+    let (store, _guard) = support::new_store("slimm-screen-annotation").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let call_a = store.create_channel("call-a", "voice").await.unwrap().id;
+    let call_b = store.create_channel("call-b", "voice").await.unwrap().id;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
+    let (carol_ticket, carol_id) = user_ticket_and_id(&store, "carol").await;
+
+    let (addr, _state, room) = serve_with_call(&store, &[]).await;
+    room.seat_in(&room_for_channel(call_a), &[alice_id, carol_id]);
+    room.seat_in(&room_for_channel(call_b), &[bob_id]);
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let mut carol_ws = connect(addr, &carol_ticket).await;
+
+    send_stroke(&mut bob_ws, call_b, alice_id, json!([0.2, 0.2])).await;
+    settle(&mut bob_ws).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
+    assert_no_frame_of_type(&mut carol_ws, KIND).await;
+
+    send_stroke(&mut carol_ws, call_a, alice_id, json!([0.4, 0.4])).await;
+    let frame = read_frame_of_type(&mut alice_ws, KIND).await;
+    assert_eq!(frame["user_id"], carol_id.to_string());
 }

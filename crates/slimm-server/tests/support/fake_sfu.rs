@@ -2,6 +2,7 @@
 //! A LiveKit room service that records the calls it receives, so a test proves a request reached the SFU,
 //! and lists whoever a test seated in the room.
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::State;
@@ -21,15 +22,21 @@ pub struct RecordingRoomService {
     pub deleted: Arc<Mutex<Vec<Value>>>,
     pub bearers: Arc<Mutex<Vec<String>>>,
     roster: Arc<Mutex<Vec<Value>>>,
+    rooms: Arc<Mutex<HashMap<String, Vec<Value>>>>,
 }
 
 impl RecordingRoomService {
     /// Makes these users the room's participants, each with a session id derived from its user id.
     pub fn seat(&self, users: &[UserId]) {
-        *self.roster.lock().unwrap() = users
-            .iter()
-            .map(|user| json!({ "identity": user.to_string(), "sid": format!("PA_{user}") }))
-            .collect();
+        *self.roster.lock().unwrap() = participants(users);
+    }
+
+    /// Seats these users in `room` alone; a room never seated this way answers with [`Self::seat`]'s list.
+    pub fn seat_in(&self, room: &str, users: &[UserId]) {
+        self.rooms
+            .lock()
+            .unwrap()
+            .insert(room.to_owned(), participants(users));
     }
 
     /// Like [`Self::seat`], with the unix millisecond each user joined at.
@@ -43,8 +50,21 @@ impl RecordingRoomService {
     }
 }
 
-async fn list_participants(State(recorder): State<RecordingRoomService>) -> Json<Value> {
-    Json(json!({ "participants": *recorder.roster.lock().unwrap() }))
+fn participants(users: &[UserId]) -> Vec<Value> {
+    users
+        .iter()
+        .map(|user| json!({ "identity": user.to_string(), "sid": format!("PA_{user}") }))
+        .collect()
+}
+
+async fn list_participants(
+    State(recorder): State<RecordingRoomService>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    let room = body["room"].as_str().unwrap_or_default();
+    let seated = recorder.rooms.lock().unwrap().get(room).cloned();
+    let present = seated.unwrap_or_else(|| recorder.roster.lock().unwrap().clone());
+    Json(json!({ "participants": present }))
 }
 
 async fn remove_participant(

@@ -100,7 +100,7 @@ Nothing is persisted and there is no migration.
 
 - Kinds: `consent`, `stroke` (a delta of x/y pairs, at most 24 pairs a frame), `shape` (an ellipse, `[x0, y0, x1, y1]`), `note` (`[x, y]` plus up to 80 characters).
 - Gated like ink: canvas access and not timed out.
-  A mark is also only relayed from someone in that channel's call, read from the same shared roster the soundboard trusts (2026-11-16); before that, a member with canvas access who was not in the call could draw on the sharer's screen.
+  A mark is also only relayed when its sender and the sharer it targets are both in that channel's call, read from the same shared roster the soundboard trusts (2026-11-16); before that, a member with canvas access who was not in the call, or was in another call, could draw on the sharer's screen.
   Consent skips that check, so a withdrawal sent while leaving the call still lands.
   Charged by wire size against the stroke-preview budget, so a drawing viewer cannot flood a call.
   Any coordinate outside 0 to 1, a malformed id, or an unknown kind drops the frame silently.
@@ -114,6 +114,7 @@ Nothing is persisted and there is no migration.
 
 - Only the sharer's own screen, only while they share it, only a mark a call member drew.
   A mark from someone the sharer has blocked is dropped before it is painted, on the sharer's overlay and on a viewer's tile alike.
+  So is a mark sent in another call, or drawn by or over someone not in this one, on every surface (2026-11-16).
 - Off by default, per user, and the setting survives a restart but the overlay never starts without a live share.
 - There is no banner while the overlay is up (owner decision, 2026-11-02).
   A short info toast says viewers can draw when it opens, and the share menu keeps the toggle.
@@ -183,7 +184,7 @@ The consent frame carries the shape of what is shared: the covered monitor when 
 
 The marks viewers draw also show over the sharer's own preview of their share (the local tile on the call stage and the canvas), read-only and on the same fade clock.
 That preview is the one place a window share, a GNOME sharer or a phone sees the marks, since only a whole-screen share on a capable desktop gets the overlay window.
-It is gated the same way as the overlay: it paints nothing unless the sharer's own consent is live, and a mark from a blocked viewer is dropped before it reaches either.
+It is gated the same way as the overlay: it paints nothing unless the sharer's own consent is live, and a mark from a blocked viewer, or from anyone outside the sharer's call, is dropped before it reaches either.
 The toast "Viewers can draw on your screen." now comes with consent, not with the overlay window.
 
 On a whole-screen share with the overlay up, viewers' marks therefore appear on the real screen and in the preview.
