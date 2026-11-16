@@ -6,6 +6,7 @@
 //! cannot claim to be shorter than it is.
 
 pub mod duration;
+pub mod starter;
 
 use sha2::{Digest, Sha256};
 
@@ -46,17 +47,18 @@ pub fn normalize_name(raw: &str) -> Option<String> {
     usable.then(|| name.to_owned())
 }
 
-/// Stores `bytes` and records a clip named `raw_name`.
-///
-/// Every check that costs no I/O runs first, then the name and cap, then the
-/// bytes, then the row: the order `emoji::add_emoji` uses, for the same reason.
-pub async fn add_clip(
-    store: &Store,
-    media: &Media,
-    raw_name: &str,
-    bytes: Vec<u8>,
-    uploader: UserId,
-) -> Result<SoundClip, AddError> {
+/// A clip that passed every check that needs no I/O.
+#[derive(Debug)]
+pub struct ValidatedClip {
+    pub name: String,
+    pub content_type: &'static str,
+    pub duration_ms: i64,
+    pub sha256: Vec<u8>,
+    pub bytes: Vec<u8>,
+}
+
+/// The name, size, type and length checks every clip passes, uploaded or bundled.
+pub fn validate(raw_name: &str, bytes: Vec<u8>) -> Result<ValidatedClip, AddError> {
     let name = normalize_name(raw_name).ok_or(AddError::UnusableName)?;
     if bytes.is_empty() {
         return Err(AddError::Empty);
@@ -72,45 +74,71 @@ pub async fn add_clip(
     if duration_ms > MAX_CLIP_MS {
         return Err(AddError::TooLong);
     }
+    Ok(ValidatedClip {
+        name,
+        content_type,
+        duration_ms,
+        sha256: Sha256::digest(&bytes).to_vec(),
+        bytes,
+    })
+}
 
+/// Stores `bytes` and records a clip named `raw_name`.
+///
+/// Every check that costs no I/O runs first, then the name and cap, then the
+/// bytes, then the row: the order `emoji::add_emoji` uses, for the same reason.
+pub async fn add_clip(
+    store: &Store,
+    media: &Media,
+    raw_name: &str,
+    bytes: Vec<u8>,
+    uploader: UserId,
+) -> Result<SoundClip, AddError> {
+    let clip = validate(raw_name, bytes)?;
     if let Some(refusal) = store
-        .sound_clip_refusal(&name)
+        .sound_clip_refusal(&clip.name)
         .await
         .map_err(AddError::Storage)?
     {
         return Err(refused(refusal));
     }
-
-    let sha256 = Sha256::digest(&bytes).to_vec();
-    let size = bytes.len() as i64;
-    let placing = media.blob_guard().await;
-    media
-        .write_attachment(&media::to_hex(&sha256), bytes)
-        .await
-        .map_err(|err| AddError::Storage(err.into()))?;
-    store
-        .store_attachment(
-            &sha256,
-            size,
-            content_type,
-            &format!("{name}.clip"),
-            Some(uploader),
-        )
+    store_bytes(store, media, &clip, Some(uploader))
         .await
         .map_err(AddError::Storage)?;
-    drop(placing);
-
     store
         .create_sound_clip(
             SoundClipId::generate(),
-            &name,
-            &sha256,
-            duration_ms,
+            &clip.name,
+            &clip.sha256,
+            clip.duration_ms,
             uploader,
         )
         .await
         .map_err(AddError::Storage)?
         .map_err(refused)
+}
+
+/// Writes a clip's bytes and their `attachments` row under the blob guard, so
+/// the orphan sweep cannot unlink them between the two.
+pub(crate) async fn store_bytes(
+    store: &Store,
+    media: &Media,
+    clip: &ValidatedClip,
+    uploader: Option<UserId>,
+) -> anyhow::Result<()> {
+    let _placing = media.blob_guard().await;
+    media
+        .write_attachment(&media::to_hex(&clip.sha256), clip.bytes.clone())
+        .await?;
+    store
+        .store_attachment(
+            &clip.sha256,
+            clip.bytes.len() as i64,
+            clip.content_type,
+            &format!("{}.clip", clip.name),
+            uploader,
+        )
+        .await
 }
 
 /// The one place a store-level refusal becomes an [`AddError`].

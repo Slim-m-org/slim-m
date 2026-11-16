@@ -12736,7 +12736,7 @@ components:
         uploader_id:
           type: string
           nullable: true
-          description: Null once the uploader's account has been deleted.
+          description: Null for a starter clip, or once the uploader's account has been deleted.
         created_at:
           type: integer
           format: int64

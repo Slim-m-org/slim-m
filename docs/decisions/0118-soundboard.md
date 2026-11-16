@@ -40,6 +40,20 @@ Owner's answers on 2026-11-13:
 - Reading the list and the audio is open to every member.
   Clips are not per channel, for the same reason emoji are not.
 
+## Starter clips
+
+The owner asked for "some default soundboard items for spaces".
+
+- The server ships 12 short CC0 clips (airhorn, ba dum tss, applause, crickets, sad trombone, quack, drumroll, ding, wrong buzzer, whoosh, laugh track, tada) and offers them to the Space once, at startup, so an existing Space and a fresh one both have a working soundboard.
+- Each becomes an ordinary Space clip with no uploader: it counts toward the 48, and an admin renames or removes it like any other.
+- Migration 0190's `soundboard_starter_offered` ledger records each clip's key when it is offered, so a removed starter clip stays removed and a later release can add one more.
+- A clip whose name is already taken, or that would pass 48, is skipped and still recorded, so it never turns up later.
+- When the storage ceiling has no room for them, nothing is recorded and the next start tries again.
+- They pass the same checks as an upload; a test runs every bundled file through them.
+- No audit row is written, because nobody acted.
+- Unlike Discord's global default sounds, these are the Space's own clips, which keeps one list, one cap and one management screen.
+- Sources and licences are in `crates/slimm-server/src/soundboard/starter/CREDITS.md`.
+
 ## Playing
 
 - `POST /channels/{id}/voice/soundboard/{clip}/play` needs `VIEW_CHANNEL`, `CONNECT`, `SPEAK` and `USE_SOUNDBOARD` in the channel, so a channel overwrite can take it away and a listen-only member cannot play, and the caller must be in the call.

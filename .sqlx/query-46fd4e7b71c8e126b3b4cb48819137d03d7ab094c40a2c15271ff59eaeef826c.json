@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO soundboard_starter_offered (key, offered_at) VALUES (?, ?)\n                 ON CONFLICT (key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "46fd4e7b71c8e126b3b4cb48819137d03d7ab094c40a2c15271ff59eaeef826c"
+}

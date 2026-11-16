@@ -6,6 +6,9 @@ from the listener's own browser: bob's page must start a media element on the
 clip's bytes and actually advance through them. Deafening bob must keep it
 silent for him while alice still hears her own clip, and the server's refusals
 (the per-person rate, a deleted clip) are read back as statuses.
+
+The dock plays a starter clip the server seeded at startup, which sits at the
+top of the picker; the clip alice uploads is played through the API.
 """
 import io
 import json
@@ -19,6 +22,7 @@ import e2e_voice_ui as ui
 from e2e_voice import join_call
 
 CLIP_NAME = "e2e-honk"
+STARTER_CLIP = "airhorn"
 PLAY_TIMEOUT = 8.0
 RATE_WINDOW = 3.2
 
@@ -74,7 +78,7 @@ def _wait_for_plays(client, count, timeout=PLAY_TIMEOUT):
 
 def _play_from_the_dock(client):
     client.click("Soundboard", settle=1.5)
-    client.click(CLIP_NAME, settle=0.5)
+    client.click(STARTER_CLIP, settle=0.5)
     client.dismiss_overlay()
 
 
@@ -86,6 +90,11 @@ def clip_plays_for_everyone_in_the_call(a, b, admin, member, room_id):
     try:
         assert clip["duration_ms"] == 1000, clip
         print(f"  alice uploaded {CLIP_NAME!r}, {clip['duration_ms']} ms")
+        starter = next((c for c in admin.call("GET", "/soundboard")
+                        if c["name"] == STARTER_CLIP), None)
+        assert starter and starter["uploader_id"] is None, \
+            f"the server did not seed the starter {STARTER_CLIP!r}: {starter}"
+        print(f"  the server seeded the starter {STARTER_CLIP!r}, with no uploader")
         assert member.status("POST", play_path) == 403, \
             "bob played a clip into a call he is not in"
         join_call(a, b, room_id)

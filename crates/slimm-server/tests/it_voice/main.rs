@@ -19,6 +19,7 @@ mod member_moderation_evicts_dm_calls;
 mod screen_share_cap;
 mod soundboard;
 mod soundboard_migration;
+mod soundboard_starter;
 mod strong_noise_suppression;
 mod uplink_test;
 mod voice;

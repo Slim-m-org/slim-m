@@ -20,7 +20,7 @@ class SoundClip {
   /// The length the server read from the bytes at upload.
   final int durationMs;
 
-  /// Null once the uploader's account has been deleted.
+  /// Null for a starter clip, or once the uploader's account has been deleted.
   final String? uploaderId;
 
   /// When it was added, unix milliseconds.
