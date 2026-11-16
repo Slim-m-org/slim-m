@@ -215,6 +215,41 @@ void main() {
     expect(tester.getTopLeft(find.text('Ada')).dx, 104 + 12);
   });
 
+  testWidgets('the hero names the Space and centres each channel in its row', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const ThemeMiniature(
+        tokens: AppTokens.forest,
+        detail: ThemeMiniatureDetail.hero,
+      ),
+      width: 600,
+    );
+
+    final space = tester.getRect(find.text('slim-m'));
+    final rows = [
+      for (final name in ['general', 'design', 'music'])
+        (
+          name: tester.getRect(find.text(name)),
+          row: tester.getRect(
+            find
+                .ancestor(
+                  of: find.text(name),
+                  matching: find.byWidgetPredicate(
+                    (w) => w is SizedBox && w.height == AppSizes.rowPointer,
+                  ),
+                )
+                .first,
+          ),
+        ),
+    ];
+    expect(rows.first.row.top, greaterThanOrEqualTo(space.bottom + 8));
+    for (final r in rows) {
+      expect(r.name.center.dy, moreOrLessEquals(r.row.center.dy, epsilon: 1));
+    }
+  });
+
   testWidgets('the draft lists channels from 400 wide; the strip is short', (
     tester,
   ) async {

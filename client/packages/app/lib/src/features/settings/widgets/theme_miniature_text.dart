@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'theme_miniature_channels.dart';
+
 /// Below this the hero's channel list narrows and the picture gets shorter.
 const _heroNarrow = 480.0;
 
@@ -30,9 +32,10 @@ class ThemeMiniatureHero extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ChannelList(
+                ThemeMiniatureChannels(
                   tokens: tokens,
                   width: narrow ? 104 : 152,
+                  space: 'slim-m',
                   channels: const ['general', 'design', 'music'],
                 ),
                 Expanded(child: _heroChat(narrow: narrow)),
@@ -117,7 +120,7 @@ class ThemeMiniatureDraft extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (rail)
-                  _ChannelList(
+                  ThemeMiniatureChannels(
                     tokens: tokens,
                     width: 104,
                     channels: const ['general', 'music', 'builds'],
@@ -252,98 +255,6 @@ class _Sample extends StatelessWidget {
       child: child,
     ),
   );
-}
-
-class _ChannelList extends StatelessWidget {
-  const _ChannelList({
-    required this.tokens,
-    required this.width,
-    required this.channels,
-    this.muted,
-  });
-
-  final AppTokens tokens;
-  final double width;
-
-  /// The first is the selected channel.
-  final List<String> channels;
-  final String? muted;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: width,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surfaceSunken,
-        border: Border(right: BorderSide(color: tokens.borderSubtle)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s4,
-          vertical: AppSpacing.s8,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 2,
-          children: [
-            for (final (i, name) in channels.indexed)
-              _channel(name, selected: i == 0, muted: name == muted),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  Widget _channel(String name, {required bool selected, required bool muted}) {
-    final colour = selected
-        ? tokens.textPrimary
-        : muted
-        ? tokens.textDisabled
-        : tokens.textSecondary;
-    return SizedBox(
-      height: AppSizes.rowPointer,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: selected ? tokens.accentSoft : null,
-          borderRadius: BorderRadius.circular(AppRadii.control),
-        ),
-        child: Stack(
-          children: [
-            if (selected)
-              Positioned(
-                left: 0,
-                top: 6,
-                bottom: 6,
-                width: 2,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: tokens.accent,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-              child: Row(
-                spacing: AppSpacing.s4,
-                children: [
-                  Icon(AppIcons.hash, size: AppSizes.icon16, color: colour),
-                  Flexible(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.ui.copyWith(color: colour),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _Message extends StatelessWidget {
