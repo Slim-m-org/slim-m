@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/background/providers/app_background_controller.dart';
 import 'package:slimm_app/src/features/background/providers/background_image_store.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_store_actions.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_source.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 ThemeDocument get _document => ThemeDocument.of(
@@ -57,6 +58,7 @@ void main() {
         () => applyThemeDocument(
           ref,
           _document,
+          source: const FileThemeSource(),
           pictureBytes: Uint8List.fromList([1, 2, 3, 4]),
         ),
       );

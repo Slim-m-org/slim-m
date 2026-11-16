@@ -1,33 +1,32 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Settings > Appearance > Themes: built-in, personal and Space themes
-/// (decision 0106).
+/// Settings > Appearance > Themes, a page inside the Appearance pane:
+/// built-in, personal and Space themes (decision 0106).
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../permissions.dart';
 import '../../../providers/providers.dart';
-import '../../../routing/routes.dart';
 import '../providers/stored_theme.dart';
 import '../providers/theme_draft.dart';
 import '../providers/theme_store.dart';
 import '../providers/theme_store_actions.dart';
-import '../widgets/settings_empty.dart';
-import '../widgets/settings_section_header.dart';
-import '../widgets/my_themes_card.dart';
-import '../widgets/theme_list_row.dart';
-import '../widgets/theme_menu_button.dart';
-import '../widgets/theme_menus.dart';
-import '../widgets/theme_preview.dart';
-import '../widgets/theme_swatch.dart';
-import 'settings_screen_scaffold.dart';
+import 'my_themes_card.dart';
+import 'settings_empty.dart';
+import 'settings_section_header.dart';
+import 'settings_sub_pages.dart';
+import 'theme_editor_page.dart';
+import 'theme_list_row.dart';
+import 'theme_menu_button.dart';
+import 'theme_menus.dart';
+import 'theme_preview.dart';
+import 'theme_swatch.dart';
 
 const _builtIn = [
   AppThemeChoice.system,
@@ -40,14 +39,23 @@ const _builtIn = [
   AppThemeChoice.halloween,
 ];
 
-class ThemesScreen extends ConsumerStatefulWidget {
-  const ThemesScreen({super.key});
+/// The Themes page, opened from Appearance's Color theme row or `?page=themes`.
+SettingsSubPage themesSubPage() => SettingsSubPage(
+  id: 'themes',
+  title: 'Themes',
+  backLabel: 'Back to Appearance',
+  urlId: 'themes',
+  builder: (_) => const ThemeGallery(),
+);
+
+class ThemeGallery extends ConsumerStatefulWidget {
+  const ThemeGallery({super.key});
 
   @override
-  ConsumerState<ThemesScreen> createState() => _ThemesScreenState();
+  ConsumerState<ThemeGallery> createState() => _ThemeGalleryState();
 }
 
-class _ThemesScreenState extends ConsumerState<ThemesScreen> {
+class _ThemeGalleryState extends ConsumerState<ThemeGallery> {
   String? _error;
   bool _busy = false;
 
@@ -89,15 +97,14 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
   void _editCopyOf(api.SpaceTheme theme) {
     final document = parseThemeJson(theme.theme).document;
     if (document == null) return;
-    unawaited(_openEditor(document, theme.name));
+    _openEditor(document, theme.name);
   }
 
-  Future<void> _openEditor(ThemeDocument source, String name) {
+  void _openEditor(ThemeDocument source, String name) {
     final copy = source.copyWith(name: themeCopyName(name), author: '');
-    return context.push(
-      Routes.personalThemeEditor,
-      extra: ThemeEditorSeed(copy),
-    );
+    SettingsSubPages.of(
+      context,
+    ).push(themeEditorSubPage(ThemeEditorSeed(copy)));
   }
 
   Widget? _builtInMenu(AppThemeChoice choice) {
@@ -108,7 +115,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
       semanticLabel: 'More for ${themeLabel(choice)}',
       onSelected: (_) {
         final source = ThemeEditorSeed.fromBase(base).document;
-        unawaited(_openEditor(source, themeLabel(choice)));
+        _openEditor(source, themeLabel(choice));
       },
       items: (pick) => themeRowMenuItems(pick, copyLabel: 'Customise'),
     );
@@ -139,29 +146,25 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
     final storeFailed = store.hasError && !store.hasValue;
     // Watched so the first menu already knows who may remove and set the default.
     ref.watch(meProvider);
-    return SettingsScreenScaffold(
-      title: 'Themes',
-      backTooltip: 'Back to Appearance',
-      backFallback: Routes.personalSettingsPane('appearance'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s8),
-              child: AppErrorState(
-                message: _error!,
-                onDismiss: () => setState(() => _error = null),
-              ),
+    return ListView(
+      key: const Key('themes-page-list'),
+      padding: EdgeInsets.only(bottom: SettingsSubPages.bottomInsetOf(context)),
+      children: [
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.s8),
+            child: AppErrorState(
+              message: _error!,
+              onDismiss: () => setState(() => _error = null),
             ),
-          _builtInCard(),
-          MyThemesCard(
-            onError: (message) => setState(() => _error = message),
-            busy: _busy,
           ),
-          _spaceCard(store, storeFailed),
-        ],
-      ),
+        _builtInCard(),
+        MyThemesCard(
+          onError: (message) => setState(() => _error = message),
+          busy: _busy,
+        ),
+        _spaceCard(store, storeFailed),
+      ],
     );
   }
 
@@ -175,7 +178,6 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
         : ref.watch(themeControllerProvider);
     return SettingsSectionCard(
       title: 'Built in',
-      topGap: _error == null ? 0 : kSettingsSectionTopGap,
       children: [
         for (final choice in _builtIn)
           ThemeListRow(
@@ -184,9 +186,7 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
             preview: ThemeSwatch(choice: choice),
             selected: current == choice,
             menu: _builtInMenu(choice),
-            onApply: () => unawaited(
-              ref.read(themeControllerProvider.notifier).select(choice),
-            ),
+            onApply: () => unawaited(applyThemeChoice(ref, choice)),
           ),
       ],
     );
@@ -220,11 +220,8 @@ class _ThemesScreenState extends ConsumerState<ThemesScreen> {
             label: themeLabel(AppThemeChoice.spaceDefault),
             preview: ThemePreview(colours: themeStrip(followed)),
             selected: current == AppThemeChoice.spaceDefault,
-            onApply: () => unawaited(
-              ref
-                  .read(themeControllerProvider.notifier)
-                  .select(AppThemeChoice.spaceDefault),
-            ),
+            onApply: () =>
+                unawaited(applyThemeChoice(ref, AppThemeChoice.spaceDefault)),
           ),
         for (final theme in themes)
           _storeRow(

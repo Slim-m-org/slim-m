@@ -12,7 +12,6 @@ import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_labels.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'theme_editor_harness.dart';
@@ -37,7 +36,7 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
 
 Future<EditorRig> _page(WidgetTester tester, {EditorRig? rig}) async {
   final r = rig ?? EditorRig();
-  await r.pump(tester, location: Routes.personalThemes);
+  await r.pump(tester, editor: false);
   return r;
 }
 

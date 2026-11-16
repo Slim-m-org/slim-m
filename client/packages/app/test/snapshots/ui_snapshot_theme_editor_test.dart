@@ -32,7 +32,7 @@ void main() {
     testWidgets('theme editor at $viewport', (tester) async {
       await renderSurface(
         tester,
-        '/settings/themes/edit',
+        '/settings?pane=appearance&page=new-theme',
         viewport,
         darkAndLight,
         'settings-theme-editor-$viewport-$darkAndLight',
@@ -43,7 +43,7 @@ void main() {
     ) async {
       await renderSurface(
         tester,
-        '/settings/themes/edit',
+        '/settings?pane=appearance&page=new-theme',
         viewport,
         'dark',
         'settings-theme-editor-failing-$viewport-dark',

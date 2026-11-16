@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The two routes that show a nav beside a pane, with the open pane carried
-/// in the location so a reload or a pasted link lands on it.
+/// The two routes that show a nav beside a pane, with the open pane and any
+/// page inside it carried in the location so a reload or a pasted link lands
+/// on it.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -25,12 +26,18 @@ Page<void> personalSettingsPage(BuildContext context, GoRouterState state) =>
       context,
       PersonalSettingsScreen(
         initialPaneId: state.uri.queryParameters[settingsPaneQuery],
+        initialPageId: state.uri.queryParameters[settingsPageQuery],
         focusAbout:
             state.uri.queryParameters[settingsFocusQuery] == settingsFocusAbout,
         onPaneChanged: (id) => context.replace(
           id == null
               ? Routes.personalSettings
               : Routes.personalSettingsPane(id),
+        ),
+        onPageChanged: (pane, page) => context.replace(
+          page == null
+              ? Routes.personalSettingsPane(pane)
+              : Routes.personalSettingsPage(pane, page),
         ),
       ),
     );

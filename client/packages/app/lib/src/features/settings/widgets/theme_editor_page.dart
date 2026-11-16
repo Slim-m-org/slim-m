@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The theme editor (decision 0106): a colour picker per token, a live preview
-/// and the contrast floors, side by side on a wide window and stacked on a phone.
+/// The theme editor (decision 0106), a page above Themes in the Appearance
+/// pane: a colour picker per token, a live preview and the contrast floors,
+/// side by side on a wide window and stacked on a phone.
 library;
 
 import 'dart:async';
@@ -11,45 +12,66 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../routing/close_screen.dart';
-import '../../../routing/routes.dart';
+import '../../../routing/breakpoints.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/my_themes.dart';
 import '../providers/theme_draft.dart';
 import '../providers/theme_file_io.dart';
+import '../providers/theme_source.dart';
 import '../providers/theme_store.dart';
 import '../providers/theme_store_actions.dart';
 import '../providers/stored_theme.dart';
-import '../widgets/settings_info_line.dart';
-import '../widgets/settings_section_header.dart';
-import '../widgets/settings_select_row.dart';
-import '../widgets/settings_segmented_row.dart';
-import '../widgets/settings_field.dart';
-import '../widgets/theme_contrast_panel.dart';
-import '../widgets/theme_editor_menu.dart';
-import '../widgets/theme_editor_preview.dart';
-import '../widgets/theme_menu_button.dart';
-import '../widgets/theme_token_group.dart';
-import 'settings_screen_scaffold.dart';
+import 'settings_field.dart';
+import 'settings_info_line.dart';
+import 'settings_pane_body.dart' show kSettingsWidePaneInset;
+import 'settings_section_header.dart';
+import 'settings_select_row.dart';
+import 'settings_segmented_row.dart';
+import 'settings_sub_pages.dart';
+import 'theme_contrast_panel.dart';
+import 'theme_editor_menu.dart';
+import 'theme_editor_preview.dart';
+import 'theme_menu_button.dart';
+import 'theme_token_group.dart';
 
 /// Wide enough for the tokens and the preview to sit side by side.
 const _sideBySideWidth = 640.0;
 
-class ThemeEditorScreen extends ConsumerStatefulWidget {
-  const ThemeEditorScreen({super.key, this.seed});
+/// The editor above Themes; a null [seed] is a new theme, the one
+/// `?page=new-theme` opens.
+SettingsSubPage themeEditorSubPage(ThemeEditorSeed? seed) => SettingsSubPage(
+  id: 'theme-editor',
+  title: seed?.mineId == null ? 'New theme' : 'Edit theme',
+  backLabel: 'Back to Themes',
+  urlId: seed == null ? 'new-theme' : null,
+  ownsHeader: true,
+  builder: (_) => ThemeEditorPage(seed: seed),
+);
+
+class ThemeEditorPage extends ConsumerStatefulWidget {
+  const ThemeEditorPage({super.key, this.seed});
 
   /// What to edit; a new theme that starts as a copy of Dark when null.
   final ThemeEditorSeed? seed;
 
   @override
-  ConsumerState<ThemeEditorScreen> createState() => _ThemeEditorScreenState();
+  ConsumerState<ThemeEditorPage> createState() => _ThemeEditorPageState();
 }
 
-class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
+class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   late final ThemeDraft _draft = ThemeDraft(
     widget.seed ?? ThemeEditorSeed.fromBase('dark'),
   );
   late final _name = TextEditingController(text: _draft.document.name);
+
+  @override
+  void initState() {
+    super.initState();
+    SettingsSubPages.of(
+      context,
+    ).setGuard(_DiscardGuard(_draft, _confirmDiscard));
+  }
+
   String? _openToken;
   Color? _openInitial;
   String? _error;
@@ -100,6 +122,9 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
     final applied = ref.read(customThemeProvider);
     if (applied != null && applied.toJsonText() == before) {
       await ref.read(customThemeProvider.notifier).set(_draft.document);
+      await ref
+          .read(customThemeSourceProvider.notifier)
+          .set(MineThemeSource(id));
     }
     _draft.markSaved(id);
     return true;
@@ -111,7 +136,11 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
 
   Future<void> _apply() async {
     if (!await _persist() || !mounted) return;
-    await applyThemeDocument(ref, _draft.document);
+    await applyThemeDocument(
+      ref,
+      _draft.document,
+      source: MineThemeSource(_draft.mineId!),
+    );
     if (mounted) _say(notice: 'Applied.');
   }
 
@@ -151,20 +180,20 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
     );
     if (sure != true || !mounted) return;
     await ref.read(myThemesProvider.notifier).remove(id);
-    if (mounted) closeScreen(context, Routes.personalThemes);
+    if (!mounted) return;
+    final stack = SettingsSubPages.of(context)..setGuard(null);
+    await stack.pop();
   }
 
-  Future<void> _leave() async {
-    final sure =
-        !_draft.dirty ||
-        await confirmThemeEditorSheet(
-              context,
-              title: 'Discard your changes?',
-              action: 'Discard',
-            ) ==
-            true;
-    if (sure && mounted) closeScreen(context, Routes.personalThemes);
-  }
+  Future<bool> _confirmDiscard() async =>
+      await confirmThemeEditorSheet(
+        context,
+        title: 'Discard your changes?',
+        action: 'Discard',
+      ) ==
+      true;
+
+  Future<void> _leave() => SettingsSubPages.of(context).pop();
 
   Future<void> _tapToken(String token, {required bool inline}) async {
     final before = _draft.document.colours[token]!;
@@ -328,24 +357,53 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _draft,
-    builder: (context, _) => PopScope(
-      canPop: !_draft.dirty,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_leave());
-      },
-      child: SettingsScreenScaffold(
+    builder: (context, _) {
+      final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
+      final header = SettingsSubPageHeader(
         title: _draft.mineId == null ? 'New theme' : 'Edit theme',
-        backTooltip: 'Back to Themes',
-        backFallback: Routes.personalThemes,
+        backLabel: 'Back to Themes',
         onBack: () => unawaited(_leave()),
         actions: _actions(),
-        scrollable: false,
-        child: LayoutBuilder(
-          builder: (context, box) =>
-              box.maxWidth >= _sideBySideWidth ? _sideBySide() : _stacked(),
+        onClose: SettingsSubPages.closeOf(context),
+      );
+      final body = LayoutBuilder(
+        builder: (context, box) =>
+            box.maxWidth >= _sideBySideWidth ? _sideBySide() : _stacked(),
+      );
+      final inset = wide
+          ? kSettingsWidePaneInset
+          : const EdgeInsets.all(AppSpacing.s16);
+      final padding = EdgeInsets.fromLTRB(
+        inset.left,
+        inset.top,
+        inset.right,
+        SettingsSubPages.bottomInsetOf(context),
+      );
+      if (!wide) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            Expanded(
+              child: AppContentColumn(
+                child: Padding(padding: padding, child: body),
+              ),
+            ),
+          ],
+        );
+      }
+      return Padding(
+        padding: padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: AppSpacing.s16,
+          children: [
+            header,
+            Expanded(child: body),
+          ],
         ),
-      ),
-    ),
+      );
+    },
   );
 
   Widget _sideBySide() => Row(
@@ -391,4 +449,24 @@ class _ThemeEditorScreenState extends ConsumerState<ThemeEditorScreen> {
       ),
     ],
   );
+}
+
+/// Asks before an edited theme is left; the stack listens through the draft.
+class _DiscardGuard implements SettingsLeaveGuard, Listenable {
+  _DiscardGuard(this._draft, this._confirm);
+
+  final ThemeDraft _draft;
+  final Future<bool> Function() _confirm;
+
+  @override
+  bool get blocking => _draft.dirty;
+
+  @override
+  Future<bool> confirmLeave() => _confirm();
+
+  @override
+  void addListener(VoidCallback listener) => _draft.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => _draft.removeListener(listener);
 }

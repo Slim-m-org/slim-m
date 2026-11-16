@@ -5,6 +5,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'settings_sub_pages.dart';
+
 /// How wide a [SettingsPane.wide] pane may get, matching the room a Space
 /// settings panel leaves beside the nav (decision 0061).
 const double kSettingsWideContentMax = 880;
@@ -23,6 +25,7 @@ class SettingsPane {
     this.actions,
     this.wide = false,
     this.headingBuilder,
+    this.subPages = const {},
   });
 
   /// Stable across rebuilds, so the selection survives a pane's own setState.
@@ -65,6 +68,9 @@ class SettingsPane {
   /// Replaces the heading row beside the nav, for a pane that swaps to an inner page and names it itself (a breadcrumb).
   final Widget Function(BuildContext context, VoidCallback? onClose)?
   headingBuilder;
+
+  /// The pages a `?page=` value opens, bottom first, keyed by that value.
+  final Map<String, List<SettingsSubPage> Function()> subPages;
 }
 
 /// A run of panes, usually under a heading: `You`, `Safety`.

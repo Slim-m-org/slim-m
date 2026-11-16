@@ -10,20 +10,34 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../background/providers/app_background_controller.dart';
 import '../../../providers/providers.dart';
+import 'recent_themes.dart';
 import 'stored_theme.dart';
+import 'theme_source.dart';
 import 'theme_store.dart';
 
-/// Makes [document] the theme in use here; its picture, when [pictureBytes]
-/// are given, becomes the personal background with the file's settings.
+/// Makes a built-in [choice], or following the Space default, the theme in use.
+Future<void> applyThemeChoice(WidgetRef ref, AppThemeChoice choice) async {
+  await ref.read(themeControllerProvider.notifier).select(choice);
+  await ref
+      .read(recentThemesProvider.notifier)
+      .record(BuiltInThemeSource(choice));
+}
+
+/// Makes [document] the theme in use here, recorded as coming from [source];
+/// its picture, when [pictureBytes] are given, becomes the personal background
+/// with the file's settings.
 Future<void> applyThemeDocument(
   WidgetRef ref,
   ThemeDocument document, {
+  required ThemeSource source,
   Uint8List? pictureBytes,
 }) async {
   await ref.read(customThemeProvider.notifier).set(document);
+  await ref.read(customThemeSourceProvider.notifier).set(source);
   await ref
       .read(themeControllerProvider.notifier)
       .select(AppThemeChoice.custom);
+  await ref.read(recentThemesProvider.notifier).record(source, theme: document);
   final picture = document.picture;
   if (picture == null) return;
   final background = ref.read(appBackgroundControllerProvider.notifier);
@@ -43,7 +57,12 @@ Future<void> applyStoreTheme(WidgetRef ref, api.SpaceTheme theme) async {
   if (theme.hasPicture) {
     bytes = await ref.read(spaceThemePictureProvider(theme.id).future);
   }
-  await applyThemeDocument(ref, document, pictureBytes: bytes);
+  await applyThemeDocument(
+    ref,
+    document,
+    source: SpaceThemeSource(theme.id),
+    pictureBytes: bytes,
+  );
 }
 
 /// Publishes [document] to the Space under the signed-in member's name.

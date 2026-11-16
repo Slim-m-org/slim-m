@@ -74,7 +74,7 @@ void main() {
     testWidgets('themes page populated at $viewport', (tester) async {
       await renderSurface(
         tester,
-        '/settings/themes',
+        '/settings?pane=appearance&page=themes',
         viewport,
         darkAndLight,
         'settings-themes-populated-$viewport-$darkAndLight',
@@ -84,7 +84,7 @@ void main() {
     testWidgets('themes page row menu at $viewport', (tester) async {
       await renderSurface(
         tester,
-        '/settings/themes',
+        '/settings?pane=appearance&page=themes',
         viewport,
         'dark',
         'settings-themes-row-menu-$viewport-dark',
@@ -104,7 +104,7 @@ void main() {
     testWidgets('themes page store error at $viewport', (tester) async {
       await renderSurface(
         tester,
-        '/settings/themes',
+        '/settings?pane=appearance&page=themes',
         viewport,
         darkAndLight,
         'settings-themes-error-$viewport-$darkAndLight',

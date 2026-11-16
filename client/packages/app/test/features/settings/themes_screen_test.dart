@@ -12,13 +12,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/providers/resolved_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
-import 'package:slimm_app/src/features/settings/screens/themes_screen.dart';
+import 'package:slimm_app/src/features/settings/widgets/theme_gallery.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_list_row.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+
+import 'settings_sub_page_host.dart';
 
 const _pixelPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -124,7 +126,7 @@ Future<void> _pump(WidgetTester tester, _Rig rig) async {
       container: rig.container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const ThemesScreen(),
+        home: settingsSubPageHost(() => [themesSubPage()]),
       ),
     ),
   );

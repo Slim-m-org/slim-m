@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A rig that mounts the theme editor in a router, with the network, the
-/// file picker and the file saver replaced.
+/// A rig that mounts the theme editor above Themes in the Appearance pane,
+/// with the network, the file picker and the file saver replaced.
 library;
 
 import 'dart:convert';
@@ -8,19 +8,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/providers/theme_draft.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
-import 'package:slimm_app/src/features/settings/screens/theme_editor_screen.dart';
-import 'package:slimm_app/src/features/settings/screens/themes_screen.dart';
+import 'package:slimm_app/src/features/settings/widgets/theme_editor_page.dart';
+import 'package:slimm_app/src/features/settings/widgets/theme_gallery.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+
+import 'settings_sub_page_host.dart';
 
 class EditorRig {
   EditorRig({
@@ -85,39 +85,26 @@ class EditorRig {
     ],
   );
 
+  /// [editor] false opens Themes alone, the page the editor sits above.
   Future<void> pump(
     WidgetTester tester, {
     ThemeEditorSeed? seed,
     Size size = const Size(1000, 900),
-    String location = Routes.personalThemeEditor,
+    bool editor = true,
   }) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     addTearDown(container.dispose);
-    final router = GoRouter(
-      initialLocation: location,
-      initialExtra: seed,
-      routes: [
-        GoRoute(
-          path: Routes.personalThemes,
-          builder: (_, _) => const ThemesScreen(),
-        ),
-        GoRoute(
-          path: Routes.personalThemeEditor,
-          builder: (_, state) =>
-              ThemeEditorScreen(seed: state.extra as ThemeEditorSeed?),
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(
+        child: MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
-          routerConfig: router,
+          home: settingsSubPageHost(
+            () => [themesSubPage(), if (editor) themeEditorSubPage(seed)],
+          ),
         ),
       ),
     );

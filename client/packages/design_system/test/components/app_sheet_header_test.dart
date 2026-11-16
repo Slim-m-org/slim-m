@@ -55,4 +55,26 @@ void main() {
       greaterThan(tester.getTopRight(find.text('Inbox')).dx),
     );
   });
+
+  testWidgets('leading sits before the title, centred on the text', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const AppSheetHeader(
+        'Midnight',
+        caption: 'Space · by Kai',
+        leading: SizedBox(key: Key('thumb'), width: 48, height: 30),
+      ),
+    );
+
+    final thumb = tester.getRect(find.byKey(const Key('thumb')));
+    final title = tester.getRect(find.text('Midnight'));
+    final caption = tester.getRect(find.text('Space · by Kai'));
+    expect(thumb.left, 16);
+    expect(title.left, thumb.right + 12);
+    expect(caption.left, title.left);
+    final textMid = (title.top + caption.bottom) / 2;
+    expect((thumb.center.dy - textMid).abs(), lessThan(1));
+  });
 }

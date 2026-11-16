@@ -79,7 +79,7 @@ The caps bound it, and the store is the only place a member can add one.
 
 The theme editor finishes what the file format promised: you can now make a theme, not just move one around.
 
-- Route `/settings/themes/edit`, a `modalPage` (rule 5).
+- A page above Themes inside the Appearance pane (`/settings?pane=appearance&page=new-theme`; the old `/settings/themes/edit` redirects there), so the settings nav stays beside it (rule 5).
   It is side by side from 640 wide inside the panel (tokens left, preview and contrast right) and stacked below it, with a fixed preview strip on top and the colour picker as a sheet.
 - It starts from any built-in ("Customise"), any Space theme ("Edit a copy"), a Mine entry ("Edit") or the "Start from" row inside the editor.
 - The 19 tokens are grouped as Surfaces, Text, Accent, Borders, Status and Other.

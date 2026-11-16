@@ -4,15 +4,11 @@
 ///
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
-import '../../../routing/routes.dart';
 import '../providers/display_density.dart';
 import '../providers/display_preferences.dart';
 import '../providers/stored_theme.dart';
@@ -22,7 +18,9 @@ import 'settings_section_header.dart';
 import 'settings_segmented_row.dart';
 import 'settings_select_row.dart';
 import 'settings_slider_row.dart';
+import 'settings_sub_pages.dart';
 import 'settings_toggle_row.dart';
+import 'theme_gallery.dart';
 import 'theme_swatch.dart';
 
 class AppearanceSettingsSection extends ConsumerWidget {
@@ -61,7 +59,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
             size: AppSizes.icon16,
             color: tokens.textSecondary,
           ),
-          onTap: () => unawaited(context.push(Routes.personalThemes)),
+          onTap: () => SettingsSubPages.of(context).push(themesSubPage()),
         ),
         SettingsToggleRow(
           label: 'High contrast',

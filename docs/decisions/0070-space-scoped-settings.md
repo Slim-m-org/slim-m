@@ -41,6 +41,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | --- | --- | --- | --- |
 | Theme | `slimm.appearance.theme` | Space | appearance |
 | Copy of the Space default theme | `slimm.appearance.space_default_theme` | Space | each server has its own default |
+| Recent themes | `slimm.appearance.recent_themes` | Space | a recent Space theme is one of that server's |
 | Time format | `slimm.appearance.time_format` | Space | appearance |
 | Message density | `slimm.appearance.message_density` | Space | message preference |
 | Group spacing | `slimm.appearance.group_spacing` | Space | message preference |
@@ -67,6 +68,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Dock hints already shown | `slimm.voice.mic_cue_device`, `slimm.voice.share_hint_seen` | Device | the microphone and the screen size it was shown on |
 | Screen share quality, audio, receive quality, pause video | `slimm.voice.*` | Device | bandwidth and the machine |
 | Participant volumes | `slimm.voice.participant_*volumes` | Device | already keyed by server-issued user ids |
+| Custom theme, where it came from, Mine | `slimm.appearance.custom_theme`, `.custom_theme_source`, `.my_themes` | Device | one copy of each theme file on this device, and its source must match it |
 | UI scale | `slimm.appearance.ui_scale` | Device | the display |
 | Background picture, dim, vignette, blur, tone | `slimm.appearance.background.*` | Device | the picture's bytes live on this device |
 | Motion, high contrast | `slimm.appearance.motion`, `.high_contrast` | Device | accessibility needs follow the person's eyes and OS, not the community |

@@ -62,11 +62,15 @@ class NavHeader extends StatelessWidget {
     required this.title,
     required this.backTooltip,
     required this.backFallback,
+    this.onBack,
   });
 
   final String title;
   final String backTooltip;
   final String backFallback;
+
+  /// Runs instead of closing straight away, for a page that asks first.
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +85,7 @@ class NavHeader extends StatelessWidget {
             icon: AppIcons.back,
             semanticLabel: backTooltip,
             tooltip: backTooltip,
-            onPressed: () => closeScreen(context, backFallback),
+            onPressed: onBack ?? () => closeScreen(context, backFallback),
           ),
           Expanded(
             child: Semantics(

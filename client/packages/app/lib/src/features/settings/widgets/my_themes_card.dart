@@ -8,21 +8,22 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart'
     show AppThemeChoice, themeControllerProvider;
-import '../../../routing/routes.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/my_themes.dart';
 import '../providers/stored_theme.dart';
 import '../providers/theme_draft.dart';
 import '../providers/theme_file_io.dart';
+import '../providers/theme_source.dart';
 import '../providers/theme_store_actions.dart';
 import 'settings_empty.dart';
 import 'settings_section_header.dart';
+import 'settings_sub_pages.dart';
+import 'theme_editor_page.dart';
 import 'theme_list_row.dart';
 import 'theme_menu_button.dart';
 import 'theme_preview.dart';
@@ -99,12 +100,9 @@ class MyThemesCard extends ConsumerWidget {
   ) async {
     switch (action) {
       case MyThemeAction.edit:
-        unawaited(
-          context.push(
-            Routes.personalThemeEditor,
-            extra: ThemeEditorSeed(document, mineId: id),
-          ),
-        );
+        SettingsSubPages.of(
+          context,
+        ).push(themeEditorSubPage(ThemeEditorSeed(document, mineId: id)));
       case MyThemeAction.saveToMine:
         final saved = await ref.read(myThemesProvider.notifier).save(document);
         if (saved == null) {
@@ -152,7 +150,15 @@ class MyThemesCard extends ConsumerWidget {
     label: document.name,
     preview: ThemePreview(colours: themeStrip(document)),
     selected: selected,
-    onApply: () => unawaited(applyThemeDocument(ref, document)),
+    onApply: () => unawaited(
+      applyThemeDocument(
+        ref,
+        document,
+        source: id == null
+            ? ref.read(customThemeSourceProvider) ?? const FileThemeSource()
+            : MineThemeSource(id),
+      ),
+    ),
     menu: ThemeMenuButton<MyThemeAction>(
       key: Key('theme-mine$keyId-menu'),
       semanticLabel: 'More for ${document.name}',
@@ -192,7 +198,7 @@ class MyThemesCard extends ConsumerWidget {
             variant: AppButtonVariant.secondary,
             size: AppButtonSize.sm,
             onPressed: () =>
-                unawaited(context.push(Routes.personalThemeEditor)),
+                SettingsSubPages.of(context).push(themeEditorSubPage(null)),
           ),
         ],
       ),
