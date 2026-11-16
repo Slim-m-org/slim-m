@@ -133,9 +133,19 @@ async fn a_voice_flag_on_something_that_is_not_audio_is_refused() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
-#[tokio::test]
-async fn someone_else_cannot_turn_your_audio_file_into_a_voice_message() {
-    let (store, _guard) = new_store().await;
+struct Two {
+    store: slimm_server::store::Store,
+    app: Router,
+    alice: String,
+    alice_id: slimm_server::ids::UserId,
+    bob: String,
+    channel: String,
+    _guard: crate::support::TestDbGuard,
+}
+
+/// Bob administers the deployment, so alice is free to leave it.
+async fn two_members() -> Two {
+    let (store, guard) = new_store().await;
     store
         .create_role(
             "everyone",
@@ -152,44 +162,104 @@ async fn someone_else_cannot_turn_your_audio_file_into_a_voice_message() {
         .unwrap()
         .id
         .to_string();
-    let app = app(store.clone());
-    let (alice, _) = register(&store, "alice").await;
-    let (bob, _) = register(&store, "bob").await;
-
-    let (_, song) = post(&app, &alice, "", ogg(9)).await;
-    let message_id = Uuid::now_v7().to_string();
-    app.clone()
-        .oneshot(request_json(
-            "POST",
-            &format!("/channels/{channel}/messages"),
-            &alice,
-            json!({ "id": message_id, "content": "", "attachment_ids": [song["id"]] }),
-        ))
+    let (alice, alice_id) = register(&store, "alice").await;
+    let (bob, bob_id) = register(&store, "bob").await;
+    let admin = store
+        .create_role("admin", Permissions::ADMINISTRATOR, false)
         .await
         .unwrap();
+    store.assign_role(bob_id, admin).await.unwrap();
+    Two {
+        app: app(store.clone()),
+        store,
+        alice,
+        alice_id,
+        bob,
+        channel,
+        _guard: guard,
+    }
+}
+
+impl Two {
+    async fn send(&self, token: &str, attachment: &Value) -> String {
+        let message_id = Uuid::now_v7().to_string();
+        let sent = self
+            .app
+            .clone()
+            .oneshot(request_json(
+                "POST",
+                &format!("/channels/{}/messages", self.channel),
+                token,
+                json!({ "id": message_id, "content": "", "attachment_ids": [attachment] }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(sent.status(), StatusCode::OK);
+        message_id
+    }
+
+    async fn attachment_of(&self, message_id: &str) -> Value {
+        let listed = self
+            .app
+            .clone()
+            .oneshot(request_plain(
+                "GET",
+                &format!("/channels/{}/messages", self.channel),
+                &self.bob,
+            ))
+            .await
+            .unwrap();
+        let list = json_body(listed).await;
+        let messages = list
+            .as_array()
+            .cloned()
+            .unwrap_or_else(|| list["messages"].as_array().unwrap().clone());
+        let message = messages.iter().find(|m| m["id"] == message_id).unwrap();
+        message["attachments"][0].clone()
+    }
+}
+
+#[tokio::test]
+async fn someone_else_cannot_turn_your_audio_file_into_a_voice_message() {
+    let two = two_members().await;
+    let (_, song) = post(&two.app, &two.alice, "", ogg(9)).await;
+    let message_id = two.send(&two.alice, &song["id"]).await;
 
     let query = format!("voice=true&duration_ms=4200&waveform={}", waveform_hex());
-    let (status, _) = post(&app, &bob, &query, ogg(9)).await;
+    let (status, refused) = post(&two.app, &two.bob, &query, ogg(9)).await;
     assert_eq!(status, StatusCode::CREATED);
-
-    let listed = app
-        .clone()
-        .oneshot(request_plain(
-            "GET",
-            &format!("/channels/{channel}/messages"),
-            &alice,
-        ))
-        .await
-        .unwrap();
-    let list = json_body(listed).await;
-    let messages = list
-        .as_array()
-        .cloned()
-        .unwrap_or_else(|| list["messages"].as_array().unwrap().clone());
-    let alices = messages.iter().find(|m| m["id"] == message_id).unwrap();
+    assert_eq!(refused.get("voice"), None, "nothing was stored: {refused}");
+    let alices = two.attachment_of(&message_id).await;
     assert_eq!(
-        alices["attachments"][0].get("voice"),
+        alices.get("voice"),
         None,
         "bob's upload of the same bytes must not relabel alice's file: {alices}"
     );
+}
+
+#[tokio::test]
+async fn a_file_left_by_a_deleted_account_cannot_be_turned_into_a_voice_message() {
+    let two = two_members().await;
+    let (_, song) = post(&two.app, &two.alice, "", ogg(10)).await;
+    let message_id = two.send(&two.alice, &song["id"]).await;
+    two.store.delete_account(two.alice_id).await.unwrap();
+
+    let query = format!("voice=true&duration_ms=1&waveform={}", waveform_hex());
+    let (status, refused) = post(&two.app, &two.bob, &query, ogg(10)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let left = two.attachment_of(&message_id).await;
+    assert_eq!(left.get("voice"), None, "{left}");
+    assert_eq!(refused.get("voice"), None, "{refused}");
+}
+
+#[tokio::test]
+async fn uploading_a_voice_message_again_answers_with_what_was_kept() {
+    let two = two_members().await;
+    let first = format!("voice=true&duration_ms=4200&waveform={}", waveform_hex());
+    post(&two.app, &two.alice, &first, ogg(11)).await;
+    let again = format!("voice=true&duration_ms=1000&waveform={}", "00".repeat(64));
+    let (status, uploaded) = post(&two.app, &two.alice, &again, ogg(11)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(uploaded["duration_ms"], 4200, "{uploaded}");
+    assert_eq!(uploaded["waveform"][5], 5);
 }

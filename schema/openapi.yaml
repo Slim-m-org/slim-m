@@ -4507,7 +4507,9 @@ paths:
           description: >
             `true` marks the upload as a voice message. It must then be audio
             and carry `duration_ms` (1 millisecond up to 5 minutes and 10
-            seconds) and `waveform`, or the request is a 400.
+            seconds) and `waveform`, or the request is a 400. Bytes someone
+            else uploaded, or that someone else's message already carries, stay
+            as they were; the response carries the voice data the bytes have.
           schema:
             type: boolean
         - name: duration_ms
