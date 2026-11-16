@@ -10,7 +10,9 @@
 //! The response is bounded three ways: each scope is capped, the whole response
 //! is capped, and a scope whose cursor is very far behind returns `reset` rather
 //! than a long backlog, telling the client to discard local state and re-fetch
-//! that channel fresh over REST.
+//! that channel fresh over REST. The gap is measured to the newest message still
+//! standing, not to the seq counter: a reset leaves the client at that message,
+//! so a run of deleted ones past it would otherwise reset it again every time.
 
 use std::collections::HashMap;
 
@@ -263,12 +265,18 @@ async fn sync(
             ops_for_scope(&state, channel_id, cursor.after_op_seq, op_head, &mut bytes).await?;
 
         let latest = head.message;
+        // Deleted seqs stay allocated, so a far head is re-measured against what still stands.
+        let newest = if latest.saturating_sub(cursor.after_seq) > SNAPSHOT_GAP {
+            state.store.newest_live_message_seq(channel_id).await?
+        } else {
+            latest
+        };
         let (messages, has_more, message_reset) = if cursor.after_seq > latest {
             // A cursor past the head is what a Litestream restore produces; see `sync_ops`.
             (Vec::new(), false, true)
-        } else if cursor.after_seq == latest {
+        } else if cursor.after_seq >= newest {
             (Vec::new(), false, false)
-        } else if latest.saturating_sub(cursor.after_seq) > SNAPSHOT_GAP {
+        } else if newest.saturating_sub(cursor.after_seq) > SNAPSHOT_GAP {
             (Vec::new(), true, true)
         } else {
             let limit = PER_SCOPE_LIMIT.min(budget);

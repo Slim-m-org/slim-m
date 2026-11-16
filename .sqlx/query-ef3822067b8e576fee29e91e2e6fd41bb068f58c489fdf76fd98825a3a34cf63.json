@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT MAX(seq) AS \"seq: i64\" FROM messages\n               WHERE channel_id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "seq: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "ef3822067b8e576fee29e91e2e6fd41bb068f58c489fdf76fd98825a3a34cf63"
+}

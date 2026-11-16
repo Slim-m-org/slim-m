@@ -253,6 +253,22 @@ impl Store {
         Ok(seq.unwrap_or(0))
     }
 
+    /// The seq of the newest message still standing in a channel, or 0 if none is.
+    ///
+    /// Below [`Self::latest_message_seq`] whenever the newest messages were
+    /// deleted: a deleted seq stays allocated, so the counter cannot say how
+    /// far behind a cursor really is.
+    pub async fn newest_live_message_seq(&self, channel_id: ChannelId) -> anyhow::Result<i64> {
+        let seq = sqlx::query_scalar!(
+            r#"SELECT MAX(seq) AS "seq: i64" FROM messages
+               WHERE channel_id = ? AND deleted_at IS NULL"#,
+            channel_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(seq.unwrap_or(0))
+    }
+
     /// [`Self::latest_message_seq`] and [`Self::latest_message_op_seq`] for many channels in one read.
     ///
     /// A channel with no counter yet is absent from the map; callers read it as zero heads.
