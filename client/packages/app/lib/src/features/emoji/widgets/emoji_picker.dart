@@ -31,8 +31,9 @@ export 'emoji_picker_sheets.dart'
 /// `CompositedTransformFollower` offset used to leave.
 const Offset _buttonDrop = Offset(0, 4);
 
-/// The add-reaction glyph, anchored so its picker opens beneath it and
-/// closes on an outside tap, an escape, or a pick.
+/// The add-reaction glyph, anchored so its picker opens beneath it (above it
+/// when the window has no room below) and closes on an outside tap, an
+/// escape, or a pick.
 class EmojiPickerButton extends StatefulWidget {
   const EmojiPickerButton({
     super.key,
@@ -114,6 +115,9 @@ class EmojiPickerAnchor extends StatefulWidget {
 class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
   final _controller = AnimatedMenuController();
   Offset _anchor = Offset.zero;
+
+  /// The child's top edge, when the panel hangs from the child rather than a point.
+  double? _flipAbove;
   ScrollPosition? _watched;
 
   bool get isOpen => _controller.isShowing;
@@ -130,7 +134,9 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
       unawaited(showEmojiPickerSheet(context, onSelect: widget.onSelect));
       return;
     }
-    _anchor = at ?? _belowChild();
+    final child = at == null ? _childEdges() : null;
+    _anchor = at ?? child?.below ?? Offset.zero;
+    _flipAbove = child?.above;
     _setOpen(true);
   }
 
@@ -145,15 +151,18 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
     open ? _controller.show() : _controller.hide();
   }
 
-  Offset _belowChild() {
+  /// Where the panel hangs under the child, and the line it rises to above
+  /// the child when there is no room below, both [_buttonDrop] clear of it.
+  ({Offset below, double above})? _childEdges() {
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox?;
     final box = context.findRenderObject() as RenderBox?;
-    if (overlay == null || box == null) return Offset.zero;
-    return box.localToGlobal(
-      Offset(widget.alignEnd ? box.size.width : 0, box.size.height) +
-          _buttonDrop,
-      ancestor: overlay,
+    if (overlay == null || box == null) return null;
+    final x = widget.alignEnd ? box.size.width : 0.0;
+    Offset global(Offset local) => box.localToGlobal(local, ancestor: overlay);
+    return (
+      below: global(Offset(x, box.size.height) + _buttonDrop),
+      above: global(Offset(x, 0) - _buttonDrop).dy,
     );
   }
 
@@ -183,6 +192,7 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
           delegate: MessageMenuLayout(
             anchor: _anchor,
             alignEnd: widget.alignEnd,
+            flipAbove: _flipAbove,
             padding:
                 MediaQuery.paddingOf(context) +
                 const EdgeInsets.all(menuScreenMargin),
