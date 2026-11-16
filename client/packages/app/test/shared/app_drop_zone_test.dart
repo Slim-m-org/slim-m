@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The generic drop-target overlay: shown only while a drag is genuinely
-/// over the target, and gone the moment it exits or the drop lands. A zone
-/// inside another takes the drops that land on it, and only it shows.
+/// over the target, and gone the moment it exits or the drop lands. Only the
+/// zone a tap there would reach takes a drop and shows: one inside another,
+/// not one clipped under a sibling, not one under a pushed page.
 ///
 /// `desktop_drop`'s `DropTarget` has no platform implementation under
 /// test, so these drive it the same way `flutter test`'s own widget probes
@@ -13,6 +14,8 @@
 /// every debug var is back to null before the next test starts, and that
 /// check runs before a `tearDown` callback would.
 library;
+
+import 'dart:async';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart';
@@ -50,13 +53,18 @@ Widget _harness({
   ),
 );
 
-/// Each enabled target under [global], as the plugin finds them, with its own local point.
+/// Every target the plugin tells, offstage under another route or not.
+final _everyTarget = find.byWidgetPredicate(
+  (w) => w is DropTarget,
+  skipOffstage: false,
+);
+
+/// Each enabled target whose box holds [global], as the plugin finds them, with its own local point.
 Iterable<(DropTarget, Offset)> _targetsAt(
   WidgetTester tester,
   Offset global,
 ) sync* {
-  for (final element
-      in find.byWidgetPredicate((w) => w is DropTarget).evaluate()) {
+  for (final element in _everyTarget.evaluate()) {
     final target = element.widget as DropTarget;
     final box = element.renderObject! as RenderBox;
     final local = box.globalToLocal(global);
@@ -80,8 +88,7 @@ void _dropAt(WidgetTester tester, Offset global) {
 /// A drag over [global]: every target under it hears it, and every other one hears it leave.
 void _dragAt(WidgetTester tester, Offset global) {
   final under = _targetsAt(tester, global).map((t) => t.$1).toSet();
-  for (final element
-      in find.byWidgetPredicate((w) => w is DropTarget).evaluate()) {
+  for (final element in _everyTarget.evaluate()) {
     final target = element.widget as DropTarget;
     final details = DropEventDetails(
       localPosition: Offset.zero,
@@ -132,6 +139,102 @@ Widget _nested({required bool tileTakesDrops, required List<String> landed}) =>
         ),
       ),
     );
+
+/// A 400 wide board docked beside a 200 wide chat, as a voice channel lays them out, with a
+/// zoomed tile on the board whose box runs from x 300 to 500, under the chat.
+Widget _besideChat(List<String> landed) => MaterialApp(
+  theme: buildTheme(Brightness.light, AppTokens.light),
+  home: Scaffold(
+    body: Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(
+        width: 600,
+        height: 400,
+        child: Row(
+          children: [
+            Expanded(
+              child: AppDropZone(
+                enabled: true,
+                label: 'Drop on the board',
+                icon: AppIcons.image,
+                onDrop: (_, _) => landed.add('board'),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 300,
+                      top: 50,
+                      width: 200,
+                      height: 100,
+                      child: ClipRect(
+                        child: AppDropZone(
+                          enabled: true,
+                          label: 'Drop on the tile',
+                          icon: AppIcons.stamp,
+                          onDrop: (_, _) => landed.add('tile'),
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 200,
+              child: AppDropZone(
+                enabled: true,
+                label: 'Drop to attach',
+                icon: AppIcons.attachFile,
+                onDrop: (_, _) => landed.add('chat'),
+                child: const Center(child: Text('composer')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
+);
+
+/// A call-sized zone under a pushed page that has a small zone of its own at (100, 100).
+Widget _underPushedPage(
+  GlobalKey<NavigatorState> navigator,
+  List<String> landed,
+) => MaterialApp(
+  navigatorKey: navigator,
+  theme: buildTheme(Brightness.light, AppTokens.light),
+  home: Scaffold(
+    body: AppDropZone(
+      enabled: true,
+      label: 'Drop on the call',
+      icon: AppIcons.stamp,
+      onDrop: (_, _) => landed.add('call'),
+      child: const SizedBox.expand(),
+    ),
+  ),
+);
+
+Route<void> _avatarPage(List<String> landed) => MaterialPageRoute<void>(
+  builder: (_) => Scaffold(
+    body: Stack(
+      children: [
+        Positioned(
+          left: 100,
+          top: 100,
+          width: 100,
+          height: 100,
+          child: AppDropZone(
+            enabled: true,
+            label: 'Drop a new avatar',
+            icon: AppIcons.image,
+            onDrop: (_, _) => landed.add('avatar'),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
 
 void main() {
   testWidgets('the overlay is absent until a drag enters', (tester) async {
@@ -292,6 +395,56 @@ void main() {
     expect(overTile, (1, 0));
     expect(find.text('Drop on the tile'), findsNothing);
     expect(find.text('Drop on the board'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets(
+    'a tile reaching under the chat beside it takes only what lands on the board',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      final landed = <String>[];
+      await tester.pumpWidget(_besideChat(landed));
+      final origin = boardOrigin(tester);
+
+      _dropAt(tester, origin + const Offset(450, 100));
+      final underChat = [...landed];
+      _dropAt(tester, origin + const Offset(350, 100));
+
+      expect(underChat, ['chat'], reason: 'the chat covers the tile there');
+      expect(landed, ['chat', 'tile']);
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
+
+  testWidgets('a drag over the chat never shows the tile under it', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    await tester.pumpWidget(_besideChat([]));
+
+    _dragAt(tester, boardOrigin(tester) + const Offset(450, 100));
+    await tester.pump();
+
+    expect(find.text('Drop on the tile'), findsNothing);
+    expect(find.text('Drop to attach'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a zone under a pushed page takes nothing dropped on that page', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    final landed = <String>[];
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_underPushedPage(navigator, landed));
+    unawaited(navigator.currentState!.push(_avatarPage(landed)));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    _dropAt(tester, const Offset(150, 150));
+    _dropAt(tester, const Offset(300, 300));
+
+    expect(landed, ['avatar']);
     debugDefaultTargetPlatformOverride = null;
   });
 }

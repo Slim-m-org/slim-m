@@ -4,8 +4,9 @@
 /// the emoji card, `ImageDropZone`, a shared screen's tile) never invent their
 /// own drag handling; they only decide what a drop means for them.
 ///
-/// The plugin tells every target under the pointer, so a zone inside another
-/// takes the drops that land on it and the outer one leaves them alone.
+/// The plugin tells every enabled target whose box holds the pointer, even one
+/// clipped away, under a sibling or under a pushed page. So a zone takes a drop
+/// only when it is the first zone a hit test at that point reaches.
 ///
 /// See `docs/dependencies.md` for why `desktop_drop` over
 /// `super_drag_and_drop`, and why this needs no `dart.library.*` conditional
@@ -15,7 +16,9 @@ library;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/gestures.dart' show HitTestResult;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderMetaData;
 import 'package:slimm_design_system/design_system.dart';
 
 /// Whether this platform delivers OS drag-and-drop events at all: every
@@ -71,41 +74,37 @@ class AppDropZone extends StatefulWidget {
 
 class _AppDropZoneState extends State<AppDropZone> {
   bool _dragging = false;
-  _AppDropZoneState? _outer;
-  final _inner = <_AppDropZoneState>{};
+  int? _viewId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final outer = context
-        .dependOnInheritedWidgetOfExactType<_DropZoneScope>()
-        ?.zone;
-    if (outer == _outer) return;
-    _outer?._inner.remove(this);
-    _outer = outer?.._inner.add(this);
+    _viewId = View.of(context).viewId;
   }
 
-  @override
-  void dispose() {
-    _outer?._inner.remove(this);
-    super.dispose();
-  }
-
-  /// Whether a drop at [global] is this zone's to take.
+  /// Whether a drop at [global] is this zone's: the first enabled zone a hit test there reaches.
   bool _takes(Offset global) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (!widget.enabled || box == null || !box.attached) return false;
-    return box.paintBounds.contains(box.globalToLocal(global));
+    final viewId = _viewId;
+    if (!widget.enabled || viewId == null) return false;
+    final hits = HitTestResult();
+    WidgetsBinding.instance.hitTestInView(hits, global, viewId);
+    for (final entry in hits.path) {
+      final target = entry.target;
+      if (target is! RenderMetaData) continue;
+      final zone = target.metaData;
+      if (zone is _AppDropZoneState && zone.widget.enabled) {
+        return identical(zone, this);
+      }
+    }
+    return false;
   }
-
-  bool _innerTakes(Offset global) => _inner.any((zone) => zone._takes(global));
 
   void _setDragging(bool value) {
     if (_dragging != value) setState(() => _dragging = value);
   }
 
   void _hover(DropEventDetails details) =>
-      _setDragging(!_innerTakes(details.globalPosition));
+      _setDragging(_takes(details.globalPosition));
 
   @override
   Widget build(BuildContext context) {
@@ -117,11 +116,13 @@ class _AppDropZoneState extends State<AppDropZone> {
       onDragExited: (_) => _setDragging(false),
       onDragDone: (details) {
         _setDragging(false);
-        if (_innerTakes(details.globalPosition)) return;
+        if (!_takes(details.globalPosition)) return;
         widget.onDrop(details.files, details.localPosition);
       },
-      child: _DropZoneScope(
-        zone: this,
+      // Translucent: on the hit path wherever this zone is, while what is under it still gets taps.
+      child: MetaData(
+        metaData: this,
+        behavior: HitTestBehavior.translucent,
         child: Stack(
           children: [
             widget.child,
@@ -134,16 +135,6 @@ class _AppDropZoneState extends State<AppDropZone> {
       ),
     );
   }
-}
-
-/// Lets a zone find the one it sits inside, so the outer zone can leave it its drops.
-class _DropZoneScope extends InheritedWidget {
-  const _DropZoneScope({required this.zone, required super.child});
-
-  final _AppDropZoneState zone;
-
-  @override
-  bool updateShouldNotify(_DropZoneScope old) => old.zone != zone;
 }
 
 /// The least height the icon-above-label overlay fits in, with room to breathe.
