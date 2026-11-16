@@ -95,6 +95,8 @@ class _VoiceRecordingRowState extends ConsumerState<VoiceRecordingRow> {
                     Expanded(
                       child: _Line(channelId: widget.channelId, where: where),
                     ),
+                    // The rail's content edge, where the search box and unread dots end.
+                    const SizedBox(width: AppSpacing.s8),
                   ],
                 ),
               ),
@@ -105,6 +107,10 @@ class _VoiceRecordingRowState extends ConsumerState<VoiceRecordingRow> {
     );
   }
 }
+
+/// How far inside its touch target the call strip's Leave draws its box, so
+/// the strip's clock ends where that box does.
+const double _leaveBoxInset = (AppSizes.rowTouch - AppSizes.icon28) / 2;
 
 /// A phone's bottom strip, the call strip's twin, which it sits over.
 class VoiceRecordingStrip extends ConsumerWidget {
@@ -137,9 +143,11 @@ class VoiceRecordingStrip extends ConsumerWidget {
           ),
           IgnorePointer(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s12,
-                vertical: AppSpacing.s8,
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                AppSpacing.s12,
+                AppSpacing.s8,
+                AppSpacing.s12 + _leaveBoxInset,
+                AppSpacing.s8,
               ),
               child: Row(
                 children: [

@@ -15,10 +15,15 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart'
 import 'package:slimm_app/src/features/composer/providers/voice_recording.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_voice_bar.dart';
 import 'package:slimm_app/src/features/composer/widgets/voice_recording_marker.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart'
+    show voiceStripKey;
 import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../ui_snapshot_support.dart';
+import '../voice/voice_controller_harness.dart' show FixedVoiceController;
 import 'voice_recording_test.dart' show FakeCapture;
 
 final _marker = find.byKey(voiceRecordingMarkerKey);
@@ -80,8 +85,10 @@ class _Shell {
     await tester.pump();
   }
 
-  Future<void> go(String channelId) async {
-    router.go('/channels/$channelId');
+  Future<void> go(String channelId) => visit('/channels/$channelId');
+
+  Future<void> visit(String path) async {
+    router.go(path);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
   }
@@ -193,6 +200,62 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     expect(shell.path, '/channels/c-design');
     expect(_marker, findsNothing);
+    await shell.close();
+  });
+
+  for (final (size, path) in const [
+    (Size(1280, 900), '/channels/c-general'),
+    (Size(390, 844), '/channels'),
+  ]) {
+    testWidgets("the rail marker's clock ends where the search box does, "
+        '${size.width.toInt()} wide', (tester) async {
+      final shell = _Shell(tester);
+      await shell.open(size);
+      await shell.record('c-design');
+      await shell.visit(path);
+      await shell.elapse(const Duration(seconds: 12));
+
+      final search = find.byKey(const Key('rail-search-trigger'));
+      // AppInput draws its border inside the focus ring it always reserves.
+      expect(
+        tester.getTopRight(_inMarker('0:12')).dx,
+        tester.getTopRight(search).dx - AppSpacing.s4,
+      );
+      await shell.close();
+    });
+  }
+
+  testWidgets("a phone strip's clock ends over the call strip's Leave", (
+    tester,
+  ) async {
+    final shell = _Shell(tester);
+    await shell.open(
+      const Size(390, 844),
+      overrides: [
+        voiceControllerProvider.overrideWith(
+          (ref) => FixedVoiceController(
+            ref,
+            VoiceState(
+              state: VoiceSessionState.connected,
+              channelId: 'c-main',
+              connectedAt: DateTime(2026),
+            ),
+          ),
+        ),
+      ],
+    );
+    await shell.record('c-design');
+    await shell.go('c-general');
+    await shell.elapse(const Duration(seconds: 12));
+
+    final leave = find.descendant(
+      of: find.byKey(voiceStripKey),
+      matching: find.byTooltip('Leave call'),
+    );
+    expect(
+      tester.getTopRight(_inMarker('0:12')).dx,
+      tester.getCenter(leave).dx + AppSizes.icon28 / 2,
+    );
     await shell.close();
   });
 
