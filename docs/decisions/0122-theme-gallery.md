@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
-# 0120 - Theme gallery: themes as live miniatures inside Settings
+# 0122 - Theme gallery: themes as live miniatures inside Settings
 
 Status: accepted
 Date: 2026-11-16

@@ -102,7 +102,7 @@ The theme editor finishes what the file format promised: you can now make a them
 
 ## The gallery (built 2026-11-16)
 
-The owner's choice of this design, and what it changed across Themes, Appearance and the editor, is [0120](0120-theme-gallery.md).
+The owner's choice of this design, and what it changed across Themes, Appearance and the editor, is [0122](0122-theme-gallery.md).
 
 - Themes is a grid of small copies of the app, each painted in its own theme's tokens: three across beside the nav, two on a phone, and one tap applies.
 - The card in use carries the accent ring and "In use" whatever its source, read from the source stored with the custom slot (`slimm.appearance.custom_theme_source`).
