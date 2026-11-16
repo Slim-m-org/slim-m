@@ -163,7 +163,10 @@ class VoiceRecorder
     ref.listen(accountActiveProvider, (_, onScreen) {
       if (!onScreen) unawaited(_giveWay(forCall: false));
     });
-    listenSelf((_, next) => _holdWhile(next.holdsAudio));
+    listenSelf((_, next) {
+      _holdWhile(next.holdsAudio);
+      _claimWhile(next.phase == VoicePhase.recording);
+    });
     ref.onDispose(() {
       unregister();
       unawaited(signIns.cancel());
@@ -190,6 +193,10 @@ class VoiceRecorder
     }
     state = const VoiceRecordingState(phase: VoicePhase.starting);
     final attempt = ++_attempt;
+    if (_otherRecording() case final other?) {
+      await other.stop();
+      if (attempt != _attempt) return;
+    }
     final backend = ref.read(voiceCaptureFactoryProvider)();
     final needsTools = ref.read(voiceRecordingNeedsToolsProvider);
     bool opened;
@@ -270,6 +277,25 @@ class VoiceRecorder
       _hold?.close();
       _hold = null;
     }
+  }
+
+  /// Names this channel in [recordingVoiceChannelProvider] while it records.
+  void _claimWhile(bool recording) {
+    final live = ref.read(recordingVoiceChannelProvider.notifier);
+    if (recording && live.state != arg) {
+      final other = _otherRecording();
+      live.state = arg;
+      if (other != null) unawaited(other.stop());
+    } else if (!recording && live.state == arg) {
+      live.state = null;
+    }
+  }
+
+  /// Another channel's recording, which stops and keeps its clip: one records at a time.
+  VoiceRecorder? _otherRecording() {
+    final other = ref.read(recordingVoiceChannelProvider);
+    if (other == null || other == arg) return null;
+    return ref.read(voiceRecorderProvider(other).notifier);
   }
 
   /// Another account's audio is never kept for this one, the boundary the drafts keep.
@@ -403,6 +429,9 @@ class VoiceRecorder
 
 final voiceRecorderProvider = NotifierProvider.autoDispose
     .family<VoiceRecorder, VoiceRecordingState, String>(VoiceRecorder.new);
+
+/// The channel whose voice message is recording now, if any.
+final recordingVoiceChannelProvider = StateProvider<String?>((ref) => null);
 
 /// Linux records through the ffmpeg and parecord programs, so a failed start
 /// there is most often one of them missing. Replaced in tests.
