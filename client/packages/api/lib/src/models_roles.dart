@@ -43,7 +43,7 @@ class Role {
   /// heading. Defaults false, also on a server older than the field.
   final bool hoist;
 
-  /// An index into the role palette, or null for the colour derived from the id.
+  /// An index into the role palette, or null for no colour.
   final int? color;
 
   /// Unix milliseconds.

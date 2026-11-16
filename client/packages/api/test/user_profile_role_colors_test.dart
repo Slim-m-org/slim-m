@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// `role_colors` parses positionally beside `roles`, and an older server
-/// that sends none reads as no colours rather than failing the profile.
+/// that sends none reads as no colours rather than failing the profile. The
+/// role ladder's `top_role_position` and `is_owner` read the same way.
 library;
 
 import 'package:slimm_api/api.dart';
@@ -29,5 +30,19 @@ void main() {
   test('a malformed entry reads as no colour instead of throwing', () {
     final profile = UserProfile.fromJson(_json(['gold', 6, 1.5]));
     expect(profile.roleColors, [null, 6, null]);
+  });
+
+  test('the ladder fields read through, and absent on an older server', () {
+    final current = UserProfile.fromJson({
+      ..._json(),
+      'top_role_position': 5,
+      'is_owner': true,
+    });
+    expect(current.topRolePosition, 5);
+    expect(current.isOwner, isTrue);
+    final older = UserProfile.fromJson(_json());
+    expect(older.topRolePosition, isNull);
+    expect(older.isOwner, isFalse);
+    expect(current == older, isFalse, reason: 'they take part in equality');
   });
 }

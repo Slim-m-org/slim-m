@@ -23,6 +23,8 @@ class UserProfile {
     this.roleColors = const [],
     this.hoistedRoleId,
     this.hoistedRolePosition,
+    this.topRolePosition,
+    this.isOwner = false,
     this.timedOutUntil,
     this.statusText,
     this.pronouns,
@@ -86,6 +88,14 @@ class UserProfile {
   /// [hoistedRoleId]'s hierarchy position, higher first, so sections order
   /// exactly without `GET /roles`, which needs MANAGE_ROLES.
   final int? hoistedRolePosition;
+
+  /// The position of this member's highest role, or null for none (and on a
+  /// server older than the field): where the server's role ladder stands them.
+  final int? topRolePosition;
+
+  /// Whether this member is the Space owner, whom nobody else can moderate or
+  /// take roles from. Never drawn; it only hides what the server would refuse.
+  final bool isOwner;
 
   /// When this member's timeout lifts, in Unix milliseconds, or null if they
   /// are not timed out. Already resolved against the clock server-side, so an
@@ -160,6 +170,8 @@ class UserProfile {
         ],
         hoistedRoleId: json['hoisted_role_id'] as String?,
         hoistedRolePosition: json['hoisted_role_position'] as int?,
+        topRolePosition: json['top_role_position'] as int?,
+        isOwner: json['is_owner'] as bool? ?? false,
         timedOutUntil: json['timed_out_until'] as int?,
         statusText: json['status_text'] as String?,
         pronouns: json['pronouns'] as String?,
@@ -188,6 +200,8 @@ class UserProfile {
           bannerUpdatedAt == other.bannerUpdatedAt &&
           hoistedRoleId == other.hoistedRoleId &&
           hoistedRolePosition == other.hoistedRolePosition &&
+          topRolePosition == other.topRolePosition &&
+          isOwner == other.isOwner &&
           timedOutUntil == other.timedOutUntil &&
           statusText == other.statusText &&
           pronouns == other.pronouns &&
@@ -220,6 +234,7 @@ class UserProfile {
         Object.hashAll(roles),
         Object.hashAll(roleIds),
         Object.hashAll(roleColors),
+        Object.hash(topRolePosition, isOwner),
       );
 }
 
@@ -258,6 +273,9 @@ class Me {
     this.profileColor,
     this.profileColorRgb,
     this.presenceVisibility,
+    this.isOwner = false,
+    this.topRolePosition,
+    this.reportsRoleLadder = false,
   });
 
   final String id;
@@ -308,6 +326,17 @@ class Me {
   /// Null from a server that predates the field. Self-view only.
   final String? presenceVisibility;
 
+  /// Whether the caller is the Space owner, who stands above every role.
+  final bool isOwner;
+
+  /// The position of the caller's highest role, or null for none: where the
+  /// server's role ladder stands them. Null too on a server older than it.
+  final int? topRolePosition;
+
+  /// Whether the server reports the role ladder at all; false from one older
+  /// than it, which enforces none.
+  final bool reportsRoleLadder;
+
   factory Me.fromJson(Map<String, dynamic> json) => Me(
         id: json['id'] as String,
         username: json['username'] as String,
@@ -324,5 +353,8 @@ class Me {
         profileColor: json['profile_color'] as int?,
         profileColorRgb: json['profile_color_rgb'] as int?,
         presenceVisibility: json['presence_visibility'] as String?,
+        isOwner: json['is_owner'] as bool? ?? false,
+        topRolePosition: json['top_role_position'] as int?,
+        reportsRoleLadder: json.containsKey('is_owner'),
       );
 }
