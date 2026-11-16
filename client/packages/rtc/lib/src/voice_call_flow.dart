@@ -86,12 +86,16 @@ class VoiceCallFlow {
   /// Leaves the call and resets deafen and mutes with it. Safe to call when not in one.
   ///
   /// A leave a newer join already superseded resets nothing: [_teardown] clears `room` before it awaits.
-  Future<void> leave() async {
+  Future<void> leave() => _end(replaced: false);
+
+  /// [replaced] is a join taking over a call nobody left, which stays deafened:
+  /// a rejoin after a drop, or a switch, must not start playing a call its listener silenced.
+  Future<void> _end({required bool replaced}) async {
     final generation = ++_generation;
     await _teardown();
     if (generation != _generation) return;
     _core.roster.set(const []);
-    _core.listener.resetForNewCall();
+    _core.listener.resetForNewCall(keepDeafened: replaced);
     // Gain deliberately survives: somebody you turned down stays turned down.
     lastDisconnect = null;
     droppedWhileSharing = false;
@@ -128,7 +132,7 @@ class VoiceCallFlow {
   }) async {
     if (disposed) return;
     _core.readiness.mayPublish = canPublish;
-    if (room != null) await leave();
+    if (room != null) await _end(replaced: true);
     // Claims the session past the leave above, whose own guard has run by now.
     _generation++;
     // A leave this join superseded never reached idle, which is what ends the old call's health.

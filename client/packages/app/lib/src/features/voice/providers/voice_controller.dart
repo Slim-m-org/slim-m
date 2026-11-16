@@ -116,6 +116,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       shareResume: _shareResume,
       input: input,
       cameras: cameras,
+      republishDeafened: () => unawaited(devices.publishDeafenedState(true)),
       log: _log,
     );
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {

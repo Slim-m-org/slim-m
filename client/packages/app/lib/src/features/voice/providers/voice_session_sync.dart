@@ -32,6 +32,7 @@ class VoiceSessionSync {
     required this.shareResume,
     required this.input,
     required this.cameras,
+    required this.republishDeafened,
     required this.log,
   });
 
@@ -46,6 +47,9 @@ class VoiceSessionSync {
   final VoiceShareResume shareResume;
   final VoiceInputSettings input;
   final VoiceCameraHiding cameras;
+
+  /// Tells a call this client just connected to that it is still deafened.
+  final void Function() republishDeafened;
   final void Function(String message, {Object? detail}) log;
 
   VoiceState get _current => access.state;
@@ -79,6 +83,8 @@ class VoiceSessionSync {
     };
     if (s == VoiceSessionState.connected) {
       cameras.pushBlocked();
+      // The attribute lived on the participant the last connection had.
+      if (_current.deafened) republishDeafened();
       unawaited(callClock.adoptServerStart(access));
       unawaited(shareResume.onConnected());
     }
