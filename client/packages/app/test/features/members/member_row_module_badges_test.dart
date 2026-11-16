@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// In a narrow member row the name never truncates and no badge is a clipped
-/// stub: module badges drop first, the role chip last, the rest fold into +N.
+/// stub: module badges drop first, the Bot tag last, the rest fold into +N.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,13 +17,14 @@ import 'package:slimm_design_system/design_system.dart';
 
 const _name = 'Ada';
 
-api.UserProfile _member(String role) => api.UserProfile(
+const _bot = api.UserProfile(
   id: 'ada',
   username: 'ada',
   displayName: _name,
   createdAt: 0,
-  roleIds: const ['r-admin'],
-  roles: [role],
+  roleIds: ['r-admin'],
+  roles: ['Administrator'],
+  isBot: true,
 );
 
 api.ModuleBadge _badge(String text, [String tone = 'normal']) =>
@@ -50,7 +51,6 @@ Future<void> _pump(
   WidgetTester tester,
   double width,
   List<api.ModuleBadge> badges, {
-  String role = 'Mod',
   bool shown = true,
 }) async {
   // A fresh scope each time: an override change keeps the old notifier.
@@ -74,7 +74,7 @@ Future<void> _pump(
             alignment: Alignment.topLeft,
             child: SizedBox(
               width: width,
-              child: MemberRow(profile: _member(role), isSelf: false),
+              child: const MemberRow(profile: _bot, isSelf: false),
             ),
           ),
         ),
@@ -88,13 +88,11 @@ Future<void> _pump(
 /// Badges the row actually draws; the ones it hid stay built but not hittable.
 Finder _drawn() => find.byType(AppBadge).hitTestable();
 
-Finder _roleChip() => find
-    .byWidgetPredicate(
-      (w) => w is AppBadge && w.variant == AppBadgeVariant.role,
-    )
+Finder _tag() => find
+    .byWidgetPredicate((w) => w is AppBadge && w.variant == AppBadgeVariant.tag)
     .hitTestable();
 
-Size _role(WidgetTester tester) => tester.getSize(_roleChip());
+Size _tagSize(WidgetTester tester) => tester.getSize(_tag());
 
 double _natural(Text text) => (TextPainter(
   text: TextSpan(text: text.data, style: text.style),
@@ -124,7 +122,7 @@ void _expectWhole(WidgetTester tester) {
 
 int _modules(WidgetTester tester) => tester
     .widgetList<AppBadge>(_drawn())
-    .where((b) => b.variant != AppBadgeVariant.role && !b.label.startsWith('+'))
+    .where((b) => b.variant != AppBadgeVariant.tag && !b.label.startsWith('+'))
     .length;
 
 Finder _moreChip() => find.byType(MemberRowMoreChip).hitTestable();
@@ -132,7 +130,7 @@ Finder _moreChip() => find.byType(MemberRowMoreChip).hitTestable();
 void main() {
   final two = [_badge('Lv 12'), _badge('Streak 4', 'accent')];
 
-  testWidgets('a wide row shows the role and every module badge whole', (
+  testWidgets('a wide row shows the tag and every module badge whole', (
     tester,
   ) async {
     await _pump(tester, 390, two);
@@ -143,17 +141,12 @@ void main() {
     expect(find.text('Streak 4'), findsOneWidget);
   });
 
-  testWidgets('a long role chip is not squeezed by module badges', (
-    tester,
-  ) async {
-    await _pump(tester, 300, const [], role: 'Administrator');
-    final alone = _role(tester);
-    await _pump(tester, 300, [
-      _badge('Streak 4'),
-      _badge('LV 12'),
-    ], role: 'Administrator');
+  testWidgets('the tag is not squeezed by module badges', (tester) async {
+    await _pump(tester, 300, const []);
+    final alone = _tagSize(tester);
+    await _pump(tester, 300, [_badge('Streak 4'), _badge('LV 12')]);
 
-    expect(_role(tester), alone);
+    expect(_tagSize(tester), alone);
     _expectWhole(tester);
   });
 
@@ -163,17 +156,17 @@ void main() {
     final states = <String>{};
     for (var width = 150.0; width <= 480; width += 2) {
       await _pump(tester, width, const []);
-      final alone = _roleChip().evaluate().isNotEmpty;
+      final alone = _tag().evaluate().isNotEmpty;
       await _pump(tester, width, two);
 
       _expectWhole(tester);
-      final role = _roleChip();
-      if (alone) expect(role, findsOneWidget, reason: 'width $width');
+      final tag = _tag();
+      if (alone) expect(tag, findsOneWidget, reason: 'width $width');
       if (_modules(tester) > 0) {
-        expect(role, findsOneWidget, reason: 'role first at $width');
+        expect(tag, findsOneWidget, reason: 'tag first at $width');
       }
       states.add(
-        '${role.evaluate().length}/${_modules(tester)}/'
+        '${tag.evaluate().length}/${_modules(tester)}/'
         '${_moreChip().evaluate().length}',
       );
     }
@@ -181,25 +174,25 @@ void main() {
     expect(states.any((s) => s.endsWith('/1')), isTrue);
   });
 
-  testWidgets('the role chip is the same size with and without modules', (
+  testWidgets('the tag is the same size with and without modules', (
     tester,
   ) async {
     await _pump(tester, 236, const []);
-    final alone = _role(tester);
+    final alone = _tagSize(tester);
     await _pump(tester, 236, two);
 
-    expect(_role(tester), alone);
+    expect(_tagSize(tester), alone);
     _expectWhole(tester);
   });
 
-  testWidgets('a row too narrow for module badges keeps the role chip', (
+  testWidgets('a row too narrow for module badges keeps the tag', (
     tester,
   ) async {
     await _pump(tester, 190, const []);
-    final alone = _role(tester);
+    final alone = _tagSize(tester);
     await _pump(tester, 190, two);
 
-    expect(_role(tester), alone);
+    expect(_tagSize(tester), alone);
     expect(_modules(tester), 0);
     _expectWhole(tester);
   });
@@ -237,7 +230,7 @@ void main() {
 
     final badge = tester.widget<AppBadge>(
       find.byWidgetPredicate(
-        (w) => w is AppBadge && w.variant != AppBadgeVariant.role,
+        (w) => w is AppBadge && w.variant != AppBadgeVariant.tag,
       ),
     );
     expect(badge.compact, isTrue);

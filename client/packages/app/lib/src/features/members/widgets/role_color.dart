@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A role's display colour: the palette entry a role manager chose, or one
-/// hashed from the role's id when nobody has chosen yet.
+/// hashed from the role's id when nobody has chosen yet. Member surfaces use
+/// only a chosen colour, the way Discord leaves an uncoloured role grey.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:slimm_design_system/design_system.dart' show stableIndexFor;
+import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_design_system/design_system.dart'
+    show nudgeForContrast, stableIndexFor;
 
 /// A colour a role can wear, with the name a screen reader says for it.
 typedef RolePaletteEntry = ({Color color, String name});
@@ -38,3 +41,24 @@ int rolePaletteIndex(String roleId, int? color) =>
 
 Color roleColor(String roleId, {int? color}) =>
     rolePalette[rolePaletteIndex(roleId, color)].color;
+
+/// WCAG AA for body text, which a coloured name still is.
+const double _nameTextRatio = 4.5;
+
+/// The colour a role manager chose for a role, or null when nobody has.
+Color? chosenRoleColor(int? color) =>
+    color != null && color >= 0 && color < rolePalette.length
+    ? rolePalette[color].color
+    : null;
+
+/// [member]'s name colour on [surface]: their highest role with a chosen
+/// colour, moved just far enough to read; null keeps the default text colour.
+Color? memberNameColor(api.UserProfile? member, Color surface) {
+  for (final color in member?.roleColors ?? const <int?>[]) {
+    final chosen = chosenRoleColor(color);
+    if (chosen != null) {
+      return nudgeForContrast(chosen, surface, minRatio: _nameTextRatio);
+    }
+  }
+  return null;
+}

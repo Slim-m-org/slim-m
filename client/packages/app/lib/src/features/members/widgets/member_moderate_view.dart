@@ -33,7 +33,6 @@ import 'member_rename_sheet.dart';
 import 'reset_code_sheet.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../action_labels.dart';
-import '../providers/member_actions.dart';
 
 class MemberModerateView extends ConsumerStatefulWidget {
   const MemberModerateView({
@@ -85,16 +84,13 @@ class MemberModerateView extends ConsumerStatefulWidget {
 
 class _MemberModerateViewState extends ConsumerState<MemberModerateView>
     with GuardedActionState<MemberModerateView> {
-  Future<void> _toggleRole(api.Role role, bool grant) async {
-    final client = ref.read(memberActionsProvider);
-    final ok = await guard(
-      whatFailed: grant ? 'grant "${role.name}"' : 'take away "${role.name}"',
-      action: () => grant
-          ? client.assignRole(userId: widget.profile.id, roleId: role.id)
-          : client.unassignRole(userId: widget.profile.id, roleId: role.id),
-    );
-    if (ok && mounted) ref.invalidate(membersProvider);
-  }
+  Future<void> _toggleRole(api.Role role, bool grant) => setMemberRole(
+    ref,
+    guard,
+    memberId: widget.profile.id,
+    role: role,
+    grant: grant,
+  );
 
   @override
   Widget build(BuildContext context) {

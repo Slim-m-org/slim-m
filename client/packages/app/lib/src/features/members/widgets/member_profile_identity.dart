@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The profile-first content between the header and the actions: an about
-/// line, role badges, and a join date. Split out of `member_profile_sections
-/// .dart` to keep that file under the review budget.
+/// line and a join date; the roles are `member_profile_roles.dart`'s. Split
+/// out of `member_profile_sections.dart` to keep that file under the budget.
 ///
 /// Each piece is *absent* rather than present-and-empty, the same rule the
 /// rest of the card follows: an account with no about line shows no about
@@ -81,19 +81,17 @@ class MemberProfileAbout extends StatelessWidget {
   }
 }
 
-/// Role badges on the left, the join date on the right, one line each.
+/// The join date, one line.
 ///
 /// The invite code a moderator can see rides in the date's tooltip rather than
 /// a second line that pushes the card around.
 class MemberProfileRolesAndJoin extends StatelessWidget {
   const MemberProfileRolesAndJoin({
     super.key,
-    required this.roles,
     required this.createdAt,
     this.inviteCode,
   });
 
-  final List<String> roles;
   final int createdAt;
 
   /// Present only for a viewer who can manage roles; see `UserProfile.inviteCode`.
@@ -118,17 +116,6 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
-            child: Wrap(
-              spacing: AppSpacing.s4,
-              runSpacing: AppSpacing.s4,
-              children: [
-                for (final role in roles)
-                  AppBadge(variant: AppBadgeVariant.tag, label: role),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.s8),
           if (inviteCode case final code?)
             Tooltip(message: 'Joined with invite $code', child: joined)
           else

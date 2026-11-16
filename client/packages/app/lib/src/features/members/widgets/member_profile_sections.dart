@@ -22,6 +22,7 @@ import 'member_moderation_gates.dart' show timeoutActive;
 import 'member_profile_status_line.dart';
 import 'user_avatar.dart';
 import 'profile_colour.dart';
+import 'role_color.dart';
 
 /// Avatar, name, handle, and the presence word beside its dot - never the
 /// dot alone, which is the rule every surface in this app follows.
@@ -95,7 +96,9 @@ class MemberProfileHeader extends ConsumerWidget {
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: AppText.body.copyWith(
-        color: tokens.textPrimary,
+        color:
+            memberNameColor(profile, tokens.surfaceRaised) ??
+            tokens.textPrimary,
         fontWeight: AppWeights.semi,
       ),
     );

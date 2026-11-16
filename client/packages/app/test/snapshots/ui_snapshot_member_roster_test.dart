@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The docked member pane sectioned by role, with people online and offline
-/// and a few bots, at desktop in both themes. The pane only docks where it
+/// The docked member pane sectioned by role, with people online and offline,
+/// names in their top coloured role's colour beside uncoloured ones, and a
+/// few bots, at desktop in both themes. The pane only docks where it
 /// fits (`LayoutClass.fitsMemberPane`), so there is no phone render of it.
 library;
 
@@ -31,6 +32,7 @@ Map<String, Object?> _member(
     'is_bot': bot,
     'role_ids': [for (final r in roles) r[0]],
     'roles': [for (final r in roles) r[1]],
+    'role_colors': [for (final r in roles) _colours[r[0]]],
     'hoisted_role_id': hoisted.firstOrNull?[0],
     'hoisted_role_position': hoisted.isEmpty
         ? null
@@ -40,6 +42,9 @@ Map<String, Object?> _member(
 
 // Helper is deliberately not hoisted, so it never gets a heading.
 const _hoistedPositions = {'r-admin': 9, 'r-mod': 5};
+
+// Helper has no colour, so its holders keep the default name colour.
+const _colours = {'r-admin': 0, 'r-mod': 3};
 
 const _admin = ['r-admin', 'Admin'];
 const _mod = ['r-mod', 'Moderator'];

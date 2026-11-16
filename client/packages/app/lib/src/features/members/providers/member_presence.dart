@@ -175,7 +175,21 @@ class MemberProfileOverridesController
     extends StateNotifier<Map<String, api.UserProfile>> {
   MemberProfileOverridesController(this._ref) : super(const {}) {
     _sub = _ref.read(liveEventsProvider).listen((event) {
-      if (event is api.ProfileChanged) unawaited(_refetch(event.userId));
+      // An override outranks the refetched roster, so a role event refreshes it too.
+      final ids = switch (event) {
+        api.ProfileChanged(:final userId) => [userId],
+        api.MemberRoleChanged(:final userId) when state.containsKey(userId) => [
+          userId,
+        ],
+        api.RoleChanged(:final roleId) => [
+          for (final entry in state.entries)
+            if (entry.value.roleIds.contains(roleId)) entry.key,
+        ],
+        _ => const <String>[],
+      };
+      for (final id in ids) {
+        unawaited(_refetch(id));
+      }
     });
   }
 

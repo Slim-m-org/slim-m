@@ -127,13 +127,15 @@ void main() {
     expect(message.dy, greaterThan(handle.dy));
   });
 
-  testWidgets('roles show as chips, beside the join date, for everyone', (
+  testWidgets('roles show as pills in their own case, for everyone', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(_body(_other)));
     await tester.pump();
 
-    expect(find.text('MOD'), findsOneWidget);
+    expect(find.text('ROLES'), findsOneWidget);
+    expect(find.text('mod'), findsOneWidget);
+    expect(find.text('MOD'), findsNothing);
     expect(find.textContaining('Joined'), findsOneWidget);
   });
 

@@ -44,6 +44,7 @@ class AppListRow extends StatefulWidget {
   const AppListRow({
     super.key,
     required this.label,
+    this.labelColor,
     this.leading,
     this.meta,
     this.trailing,
@@ -64,6 +65,10 @@ class AppListRow extends StatefulWidget {
   });
 
   final String label;
+
+  /// Wins over the state-driven label colour, for a name that wears its
+  /// role's colour; the caller keeps it readable on the row's surface.
+  final Color? labelColor;
   final Widget? leading;
 
   /// A short secondary caption (a timestamp, a role name), rendered in
@@ -282,9 +287,10 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
     final emphasised =
         widget.selected || widget.mentioned || (widget.unread && !widget.muted);
     return AppText.ui.copyWith(
-      color: emphasised || AppStrongLabelScope.of(context)
-          ? tokens.textPrimary
-          : tokens.textSecondary,
+      color: widget.labelColor ??
+          (emphasised || AppStrongLabelScope.of(context)
+              ? tokens.textPrimary
+              : tokens.textSecondary),
       fontWeight: emphasised ? AppWeights.medium : AppWeights.regular,
     );
   }

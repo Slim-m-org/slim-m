@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The role chip and module badges of a member row, whole or not at all.
+/// The Bot tag and module badges of a member row, whole or not at all.
 library;
 
 import 'package:flutter/material.dart';
@@ -25,25 +25,27 @@ String moduleBadgeLabel(api.ModuleBadge badge) {
   return texts.isEmpty ? (badge.item.fallback ?? badge.name) : texts.join(' ');
 }
 
-/// The role chip first, then module badges; whatever does not fit whole folds into a "+N" chip.
+/// The tag first, then module badges; whatever does not fit whole folds into a "+N" chip.
 class MemberRowBadges extends StatelessWidget {
   const MemberRowBadges({
     required this.maxWidth,
     required this.moduleBadges,
-    this.roleChip,
-    this.roleLabel,
+    this.tag,
+    this.tagLabel,
     super.key,
   });
 
   final double maxWidth;
-  final Widget? roleChip;
-  final String? roleLabel;
+
+  /// What marks the account, such as "Bot"; never folded away before a module badge.
+  final Widget? tag;
+  final String? tagLabel;
   final List<api.ModuleBadge> moduleBadges;
 
   @override
   Widget build(BuildContext context) {
     final items = <Widget>[
-      ?roleChip,
+      ?tag,
       for (final badge in moduleBadges)
         ModuleSlotView(
           badge.item,
@@ -52,7 +54,7 @@ class MemberRowBadges extends StatelessWidget {
           compact: true,
         ),
     ];
-    final labels = [?roleLabel, ...moduleBadges.map(moduleBadgeLabel)];
+    final labels = [?tagLabel, ...moduleBadges.map(moduleBadgeLabel)];
     if (items.isEmpty || maxWidth <= 0) return const SizedBox.shrink();
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),

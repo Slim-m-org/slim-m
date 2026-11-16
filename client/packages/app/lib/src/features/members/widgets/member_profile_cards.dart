@@ -27,6 +27,7 @@ import 'member_profile_activity.dart';
 import 'member_profile_identity.dart';
 import 'member_profile_links.dart';
 import 'member_profile_note_field.dart';
+import 'member_profile_roles.dart';
 import 'member_profile_sections.dart';
 import 'module_profile_slots.dart';
 import 'profile_banner.dart';
@@ -106,10 +107,8 @@ class SelfMemberCard extends ConsumerWidget {
         ),
         MemberProfileActivity(userId: profile.id),
         MemberProfileLinks(userId: profile.id),
-        MemberProfileRolesAndJoin(
-          roles: profile.roles,
-          createdAt: profile.createdAt,
-        ),
+        MemberProfileRolesAndJoin(createdAt: profile.createdAt),
+        MemberProfileRoles(profile: profile),
         ModuleProfileSlots(profile.id),
         const _Rule(),
         _Section([
@@ -211,9 +210,12 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         MemberProfileVoice(userId: profile.id, onOpened: widget.onDone),
         MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(
-          roles: profile.roles,
           createdAt: profile.createdAt,
           inviteCode: _inviteCode(ref, profile, gates),
+        ),
+        MemberProfileRoles(
+          profile: profile,
+          canManageRoles: gates.canManageRoles,
         ),
         if (timeoutActive(profile.timedOutUntil))
           MemberTimeoutBadge(
