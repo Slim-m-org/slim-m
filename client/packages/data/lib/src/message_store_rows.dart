@@ -31,6 +31,7 @@ MessagesCompanion rowFor(api.Message message) {
     pending: const Value(false),
     failed: const Value(false),
     replyToId: Value(message.replyToId),
+    mentionsMe: Value(message.mentionsMe),
   );
   final withPreviews = message.linkPreviewsRemoved
       ? row.copyWith(linkPreviewsRemoved: const Value(true))

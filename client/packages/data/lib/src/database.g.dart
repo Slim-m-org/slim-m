@@ -445,9 +445,10 @@ class Channel extends DataClass implements Insertable<Channel> {
 
   /// The highest `seq` of a message in this channel that mentioned the
   /// caller: advanced by [MessageStore.applyMessage] whenever an applied
-  /// `api.Message` carries `mentionsMe`, and cleared when that message is
-  /// deleted. `mentionedSeq > lastReadSeq` is the rail's unread-mention flag,
-  /// beside `standingSeq > lastReadSeq` for the plain dot - see `rail_channel.dart`.
+  /// `api.Message` carries `mentionsMe`, and walked back to the newest mention
+  /// still held when that message is deleted. `mentionedSeq > lastReadSeq` is
+  /// the rail's unread-mention flag, beside `standingSeq > lastReadSeq` for the
+  /// plain dot - see `rail_channel.dart`.
   final int mentionedSeq;
 
   /// The reader asked to see this channel as unread even though they have
@@ -1392,6 +1393,16 @@ class $MessagesTable extends Messages
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("link_previews_removed" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _mentionsMeMeta =
+      const VerificationMeta('mentionsMe');
+  @override
+  late final GeneratedColumn<bool> mentionsMe = GeneratedColumn<bool>(
+      'mentions_me', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("mentions_me" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _pendingMeta =
       const VerificationMeta('pending');
   @override
@@ -1437,6 +1448,7 @@ class $MessagesTable extends Messages
         forwardedContent,
         forwardedRemoved,
         linkPreviewsRemoved,
+        mentionsMe,
         pending,
         failed,
         failureReason
@@ -1554,6 +1566,12 @@ class $MessagesTable extends Messages
           linkPreviewsRemoved.isAcceptableOrUnknown(
               data['link_previews_removed']!, _linkPreviewsRemovedMeta));
     }
+    if (data.containsKey('mentions_me')) {
+      context.handle(
+          _mentionsMeMeta,
+          mentionsMe.isAcceptableOrUnknown(
+              data['mentions_me']!, _mentionsMeMeta));
+    }
     if (data.containsKey('pending')) {
       context.handle(_pendingMeta,
           pending.isAcceptableOrUnknown(data['pending']!, _pendingMeta));
@@ -1615,6 +1633,8 @@ class $MessagesTable extends Messages
           DriftSqlType.bool, data['${effectivePrefix}forwarded_removed'])!,
       linkPreviewsRemoved: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}link_previews_removed'])!,
+      mentionsMe: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}mentions_me'])!,
       pending: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}pending'])!,
       failed: attachedDatabase.typeMapping
@@ -1674,6 +1694,10 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   /// Stored so a cold start hides them without a REST read; nothing clears it.
   final bool linkPreviewsRemoved;
 
+  /// Whether this message mentions the reader, as the server last said.
+  /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
+  final bool mentionsMe;
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   final bool pending;
@@ -1704,6 +1728,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       this.forwardedContent,
       required this.forwardedRemoved,
       required this.linkPreviewsRemoved,
+      required this.mentionsMe,
       required this.pending,
       required this.failed,
       this.failureReason});
@@ -1752,6 +1777,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     }
     map['forwarded_removed'] = Variable<bool>(forwardedRemoved);
     map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved);
+    map['mentions_me'] = Variable<bool>(mentionsMe);
     map['pending'] = Variable<bool>(pending);
     map['failed'] = Variable<bool>(failed);
     if (!nullToAbsent || failureReason != null) {
@@ -1804,6 +1830,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           : Value(forwardedContent),
       forwardedRemoved: Value(forwardedRemoved),
       linkPreviewsRemoved: Value(linkPreviewsRemoved),
+      mentionsMe: Value(mentionsMe),
       pending: Value(pending),
       failed: Value(failed),
       failureReason: failureReason == null && nullToAbsent
@@ -1841,6 +1868,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       forwardedRemoved: serializer.fromJson<bool>(json['forwardedRemoved']),
       linkPreviewsRemoved:
           serializer.fromJson<bool>(json['linkPreviewsRemoved']),
+      mentionsMe: serializer.fromJson<bool>(json['mentionsMe']),
       pending: serializer.fromJson<bool>(json['pending']),
       failed: serializer.fromJson<bool>(json['failed']),
       failureReason: serializer.fromJson<String?>(json['failureReason']),
@@ -1870,6 +1898,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'forwardedContent': serializer.toJson<String?>(forwardedContent),
       'forwardedRemoved': serializer.toJson<bool>(forwardedRemoved),
       'linkPreviewsRemoved': serializer.toJson<bool>(linkPreviewsRemoved),
+      'mentionsMe': serializer.toJson<bool>(mentionsMe),
       'pending': serializer.toJson<bool>(pending),
       'failed': serializer.toJson<bool>(failed),
       'failureReason': serializer.toJson<String?>(failureReason),
@@ -1895,6 +1924,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           Value<String?> forwardedContent = const Value.absent(),
           bool? forwardedRemoved,
           bool? linkPreviewsRemoved,
+          bool? mentionsMe,
           bool? pending,
           bool? failed,
           Value<String?> failureReason = const Value.absent()}) =>
@@ -1933,6 +1963,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
             : this.forwardedContent,
         forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
         linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
+        mentionsMe: mentionsMe ?? this.mentionsMe,
         pending: pending ?? this.pending,
         failed: failed ?? this.failed,
         failureReason:
@@ -1979,6 +2010,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       linkPreviewsRemoved: data.linkPreviewsRemoved.present
           ? data.linkPreviewsRemoved.value
           : this.linkPreviewsRemoved,
+      mentionsMe:
+          data.mentionsMe.present ? data.mentionsMe.value : this.mentionsMe,
       pending: data.pending.present ? data.pending.value : this.pending,
       failed: data.failed.present ? data.failed.value : this.failed,
       failureReason: data.failureReason.present
@@ -2009,6 +2042,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
           ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
+          ..write('mentionsMe: $mentionsMe, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
           ..write('failureReason: $failureReason')
@@ -2036,6 +2070,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
         forwardedContent,
         forwardedRemoved,
         linkPreviewsRemoved,
+        mentionsMe,
         pending,
         failed,
         failureReason
@@ -2063,6 +2098,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.forwardedContent == this.forwardedContent &&
           other.forwardedRemoved == this.forwardedRemoved &&
           other.linkPreviewsRemoved == this.linkPreviewsRemoved &&
+          other.mentionsMe == this.mentionsMe &&
           other.pending == this.pending &&
           other.failed == this.failed &&
           other.failureReason == this.failureReason);
@@ -2087,6 +2123,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
   final Value<String?> forwardedContent;
   final Value<bool> forwardedRemoved;
   final Value<bool> linkPreviewsRemoved;
+  final Value<bool> mentionsMe;
   final Value<bool> pending;
   final Value<bool> failed;
   final Value<String?> failureReason;
@@ -2110,6 +2147,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
     this.linkPreviewsRemoved = const Value.absent(),
+    this.mentionsMe = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
     this.failureReason = const Value.absent(),
@@ -2134,6 +2172,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
     this.linkPreviewsRemoved = const Value.absent(),
+    this.mentionsMe = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
     this.failureReason = const Value.absent(),
@@ -2161,6 +2200,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     Expression<String>? forwardedContent,
     Expression<bool>? forwardedRemoved,
     Expression<bool>? linkPreviewsRemoved,
+    Expression<bool>? mentionsMe,
     Expression<bool>? pending,
     Expression<bool>? failed,
     Expression<String>? failureReason,
@@ -2191,6 +2231,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       if (forwardedRemoved != null) 'forwarded_removed': forwardedRemoved,
       if (linkPreviewsRemoved != null)
         'link_previews_removed': linkPreviewsRemoved,
+      if (mentionsMe != null) 'mentions_me': mentionsMe,
       if (pending != null) 'pending': pending,
       if (failed != null) 'failed': failed,
       if (failureReason != null) 'failure_reason': failureReason,
@@ -2217,6 +2258,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       Value<String?>? forwardedContent,
       Value<bool>? forwardedRemoved,
       Value<bool>? linkPreviewsRemoved,
+      Value<bool>? mentionsMe,
       Value<bool>? pending,
       Value<bool>? failed,
       Value<String?>? failureReason,
@@ -2242,6 +2284,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       forwardedContent: forwardedContent ?? this.forwardedContent,
       forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
       linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
+      mentionsMe: mentionsMe ?? this.mentionsMe,
       pending: pending ?? this.pending,
       failed: failed ?? this.failed,
       failureReason: failureReason ?? this.failureReason,
@@ -2308,6 +2351,9 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     if (linkPreviewsRemoved.present) {
       map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved.value);
     }
+    if (mentionsMe.present) {
+      map['mentions_me'] = Variable<bool>(mentionsMe.value);
+    }
     if (pending.present) {
       map['pending'] = Variable<bool>(pending.value);
     }
@@ -2345,6 +2391,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
           ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
+          ..write('mentionsMe: $mentionsMe, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
           ..write('failureReason: $failureReason, ')
@@ -3865,6 +3912,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
   Value<bool> linkPreviewsRemoved,
+  Value<bool> mentionsMe,
   Value<bool> pending,
   Value<bool> failed,
   Value<String?> failureReason,
@@ -3889,6 +3937,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
   Value<bool> linkPreviewsRemoved,
+  Value<bool> mentionsMe,
   Value<bool> pending,
   Value<bool> failed,
   Value<String?> failureReason,
@@ -3967,6 +4016,9 @@ class $$MessagesTableFilterComposer
   ColumnFilters<bool> get linkPreviewsRemoved => $composableBuilder(
       column: $table.linkPreviewsRemoved,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get mentionsMe => $composableBuilder(
+      column: $table.mentionsMe, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get pending => $composableBuilder(
       column: $table.pending, builder: (column) => ColumnFilters(column));
@@ -4051,6 +4103,9 @@ class $$MessagesTableOrderingComposer
       column: $table.linkPreviewsRemoved,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get mentionsMe => $composableBuilder(
+      column: $table.mentionsMe, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get pending => $composableBuilder(
       column: $table.pending, builder: (column) => ColumnOrderings(column));
 
@@ -4126,6 +4181,9 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<bool> get linkPreviewsRemoved => $composableBuilder(
       column: $table.linkPreviewsRemoved, builder: (column) => column);
 
+  GeneratedColumn<bool> get mentionsMe => $composableBuilder(
+      column: $table.mentionsMe, builder: (column) => column);
+
   GeneratedColumn<bool> get pending =>
       $composableBuilder(column: $table.pending, builder: (column) => column);
 
@@ -4177,6 +4235,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
             Value<bool> linkPreviewsRemoved = const Value.absent(),
+            Value<bool> mentionsMe = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
             Value<String?> failureReason = const Value.absent(),
@@ -4201,6 +4260,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
             linkPreviewsRemoved: linkPreviewsRemoved,
+            mentionsMe: mentionsMe,
             pending: pending,
             failed: failed,
             failureReason: failureReason,
@@ -4225,6 +4285,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
             Value<bool> linkPreviewsRemoved = const Value.absent(),
+            Value<bool> mentionsMe = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
             Value<String?> failureReason = const Value.absent(),
@@ -4249,6 +4310,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
             linkPreviewsRemoved: linkPreviewsRemoved,
+            mentionsMe: mentionsMe,
             pending: pending,
             failed: failed,
             failureReason: failureReason,

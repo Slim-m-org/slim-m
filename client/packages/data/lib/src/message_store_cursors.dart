@@ -76,7 +76,7 @@ Future<void> advanceCursorHelper(
       .write(ChannelsCompanion(cursor: Value(newest)));
 }
 
-/// Drops one message row, walking the channel's standing seq back to the newest row left and clearing a mention that was this one.
+/// Drops one message row, walking the channel's standing seq and mention cursor back to the newest row left of each.
 /// A delivered or unheld message is remembered as deleted, so a late copy of it is not stored again.
 Future<void> discardRowHelper(MessageStore store, String id) async {
   final db = store.db;
@@ -96,15 +96,22 @@ Future<void> discardRowHelper(MessageStore store, String id) async {
     await (db.update(db.channels)..where((c) => c.id.equals(gone.channelId)))
         .write(ChannelsCompanion(
       liveSeq: Value(newest),
-      mentionedSeq:
-          row.mentionedSeq == gone.seq ? const Value(0) : const Value.absent(),
+      mentionedSeq: row.mentionedSeq == gone.seq
+          ? Value(await _newestHeldSeq(db, gone.channelId, mentionsOnly: true))
+          : const Value.absent(),
     ));
   });
 }
 
-Future<int> _newestHeldSeq(SlimmDatabase db, String channelId) async {
+Future<int> _newestHeldSeq(
+  SlimmDatabase db,
+  String channelId, {
+  bool mentionsOnly = false,
+}) async {
+  final mentions = mentionsOnly ? ' AND mentions_me = 1' : '';
   final got = await db.customSelect(
-    'SELECT MAX(seq) AS newest FROM messages WHERE channel_id = ? AND seq > 0',
+    'SELECT MAX(seq) AS newest FROM messages '
+    'WHERE channel_id = ? AND seq > 0$mentions',
     variables: [Variable.withString(channelId)],
     readsFrom: {db.messages},
   ).getSingle();
