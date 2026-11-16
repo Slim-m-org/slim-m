@@ -117,6 +117,12 @@ A `profile.changed` for the heir comes with it so every client re-reads their `i
 Both ways a hand-off happens announce it: an account deletion, and a read (`/me`, or any act checked against the ladder) that finds the stored owner gone.
 Profile reads never hand ownership on themselves; they report the live owner, if there is one.
 
+A hand-off is also written into the moderation log, under the system actor: a row with a null actor, which only the server writes.
+`owner_handoff` records that ownership passed to the heir.
+`owner_timeout_ended` is written beside it when the heir's timeout ended, so the log never shows a timeout set and then left hanging.
+A null actor otherwise means the actor's account was deleted, so a client tells the system actor apart by these two actions, whose actor is always null.
+Migration 0197's one-time pick writes no row.
+
 ### Bot roles
 
 A bot's own role and the shared Bots role follow their bots, so nobody grants or revokes either by hand, the owner included.

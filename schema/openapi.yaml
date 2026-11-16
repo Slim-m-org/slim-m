@@ -15891,7 +15891,10 @@ components:
         actor_id:
           type: [string, "null"]
           format: uuid
-          description: Null once the actor's account has been anonymized.
+          description: >
+            Null once the actor's account has been anonymized, and always null
+            for `owner_handoff` and `owner_timeout_ended`, which the server
+            does on its own when ownership passes on (decision 0092).
         subject_id:
           type: string
           format: uuid
@@ -15916,6 +15919,12 @@ components:
             - nickname_set
             - nickname_clear
             - voice_move
+            - owner_handoff
+            - owner_timeout_ended
+          description: >
+            `owner_handoff` means ownership passed to the subject, and
+            `owner_timeout_ended` that the subject's timeout ended because
+            they became the owner.
         reason:
           type: [string, "null"]
         until:

@@ -129,6 +129,44 @@ void main() {
     );
   });
 
+  for (final (wire, sentence, badge) in [
+    ('owner_handoff', 'Ownership passed to Heir User', 'BECAME OWNER'),
+    (
+      'owner_timeout_ended',
+      'Timeout ended because Heir User became the owner',
+      'TIMEOUT ENDED',
+    ),
+  ]) {
+    testWidgets('an $wire row says what the server did, not a deleted actor', (
+      tester,
+    ) async {
+      await _pumpRow(
+        tester,
+        api.AuditLogHistoryEntry.fromJson({
+          'kind': 'audit_log',
+          'id': '7',
+          'actor_id': null,
+          'subject_id': 'heir-1',
+          'action': wire,
+          'created_at': 0,
+        }),
+        {'heir-1': 'Heir User'},
+      );
+
+      expect(find.text(badge), findsOneWidget, reason: 'action badge');
+      expect(
+        find.text(sentence),
+        findsOneWidget,
+        reason: 'in place of an actor',
+      );
+      expect(
+        find.textContaining(RegExp(r'^\d{4}-\d{2}-\d{2}')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('deleted account'), findsNothing);
+    });
+  }
+
   testWidgets(
     'a resolved report shows the resolving moderator, its resolution, the '
     'subject and a timestamp',

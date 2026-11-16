@@ -40,7 +40,7 @@ use crate::ids::{ChannelId, UserId};
 #[derive(Debug, Clone)]
 pub struct AuditLogEntry {
     pub id: i64,
-    /// Null once the actor's account has been anonymized.
+    /// Null once the actor's account has been anonymized, and for an act the server did itself.
     pub actor_id: Option<UserId>,
     pub subject_id: UserId,
     pub action: String,

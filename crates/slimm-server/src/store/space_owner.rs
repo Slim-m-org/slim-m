@@ -4,6 +4,7 @@
 
 use sqlx::SqliteConnection;
 
+use super::moderation_audit::{ModerationAction, record_system_moderation_audit};
 use super::{Store, now_ms};
 use crate::ids::UserId;
 use crate::permissions::Permissions;
@@ -75,15 +76,28 @@ pub(super) async fn hand_on_owner(conn: &mut SqliteConnection) -> sqlx::Result<O
         .execute(&mut *conn)
         .await?;
     let handoff = match heir {
-        Some(heir) => Some(Handoff {
-            heir,
-            lifted_timeout: end_timeout(conn, heir).await?,
-        }),
+        Some(heir) => Some(pass_to(conn, heir).await?),
         None => None,
     };
     Ok(Ownership {
         owner: heir,
         handoff,
+    })
+}
+
+/// Ends `heir`'s timeout and writes both down under the system actor, so the moderation log
+/// never shows a timeout set and then left hanging.
+async fn pass_to(conn: &mut SqliteConnection, heir: UserId) -> sqlx::Result<Handoff> {
+    let now = now_ms();
+    let lifted_timeout = end_timeout(conn, heir).await?;
+    record_system_moderation_audit(conn, heir, ModerationAction::OwnerHandoff, now).await?;
+    if lifted_timeout {
+        let action = ModerationAction::OwnerTimeoutEnded;
+        record_system_moderation_audit(conn, heir, action, now).await?;
+    }
+    Ok(Handoff {
+        heir,
+        lifted_timeout,
     })
 }
 

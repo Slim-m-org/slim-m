@@ -92,6 +92,30 @@ impl World {
         let (status, body) = call_as(&self.app, "DELETE", "/account", token, Some(body)).await;
         assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
     }
+
+    /// Every moderation log row about `subject`, newest first, as (action, actor).
+    async fn logged_about(&self, subject: UserId) -> Vec<(String, Value)> {
+        let history = ok(&self.app, &self.bob.token, "GET", "/reports/history", None).await;
+        let subject = subject.to_string();
+        history
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|row| row["kind"] == "audit_log" && row["subject_id"] == subject.as_str())
+            .map(|row| {
+                (
+                    row["action"].as_str().unwrap().to_owned(),
+                    row["actor_id"].clone(),
+                )
+            })
+            .collect()
+    }
+}
+
+fn logged(rows: &[(&str, Value)]) -> Vec<(String, Value)> {
+    rows.iter()
+        .map(|(action, actor)| ((*action).to_owned(), actor.clone()))
+        .collect()
 }
 
 #[tokio::test]
@@ -164,4 +188,39 @@ async fn a_read_that_finds_the_owner_gone_hands_on_and_says_so_once() {
 
     ok(&w.app, &w.bob.token, "GET", "/me", None).await;
     assert_eq!(told(&mut rx, w.bob.id), Told::default(), "told twice");
+}
+
+#[tokio::test]
+async fn a_handoff_that_ends_a_timeout_writes_both_down_under_the_system_actor() {
+    let w = world("slimm-owner-handoff-audit").await;
+    let timeout = json!({ "duration_seconds": 3600 });
+    let uri = format!("/members/{}/timeout", w.bob.id);
+    ok(&w.app, &w.alice.token, "PUT", &uri, Some(timeout)).await;
+
+    w.delete_alice().await;
+
+    // alice's own row lost its actor with her account; the two hand-off rows never had one.
+    let expected = logged(&[
+        ("owner_timeout_ended", Value::Null),
+        ("owner_handoff", Value::Null),
+        ("timeout", Value::Null),
+    ]);
+    assert_eq!(w.logged_about(w.bob.id).await, expected);
+}
+
+#[tokio::test]
+async fn a_lazy_handoff_without_a_timeout_writes_down_only_the_handoff_and_only_once() {
+    let w = world("slimm-owner-handoff-audit-lazy").await;
+    sqlx::query("INSERT INTO space_removals (user_id, removed_by, removed_at) VALUES (?, ?, 0)")
+        .bind(w.alice.id)
+        .bind(w.alice.id)
+        .execute(&w.pool)
+        .await
+        .unwrap();
+
+    ok(&w.app, &w.bob.token, "GET", "/me", None).await;
+    ok(&w.app, &w.bob.token, "GET", "/me", None).await;
+
+    let expected = logged(&[("owner_handoff", Value::Null)]);
+    assert_eq!(w.logged_about(w.bob.id).await, expected);
 }
