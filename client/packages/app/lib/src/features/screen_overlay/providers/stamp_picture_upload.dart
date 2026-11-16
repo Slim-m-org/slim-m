@@ -14,6 +14,9 @@ import 'stamp_images.dart';
 /// The largest picture the server takes as a stamp.
 const stampPictureMaxBytes = 8 * 1024 * 1024;
 
+/// The file extensions of the picture types the server takes as a stamp.
+const stampPictureExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
 /// Why a picture did not become a stamp, in a sentence for the person.
 class StampPictureRefused implements Exception {
   const StampPictureRefused(this.message);

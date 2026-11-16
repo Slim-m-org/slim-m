@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A generic OS-file drop target: a visible overlay while a drag is over it,
-/// and one callback with whatever landed. Callers (the channel view, the
-/// emoji card, `ImageDropZone`) never invent their own drag handling; they
-/// only decide what a drop means for them.
+/// and one callback with whatever landed and where. Callers (the channel view,
+/// the emoji card, `ImageDropZone`, a shared screen's tile) never invent their
+/// own drag handling; they only decide what a drop means for them.
+///
+/// The plugin tells every target under the pointer, so a zone inside another
+/// takes the drops that land on it and the outer one leaves them alone.
 ///
 /// See `docs/dependencies.md` for why `desktop_drop` over
 /// `super_drag_and_drop`, and why this needs no `dart.library.*` conditional
@@ -57,7 +60,9 @@ class AppDropZone extends StatefulWidget {
   /// progress: "Drop to attach", "Drop to import emoji".
   final String label;
   final IconData icon;
-  final ValueChanged<List<DropItem>> onDrop;
+
+  /// What landed, and where in this zone's own coordinates.
+  final void Function(List<DropItem> items, Offset at) onDrop;
   final Widget child;
 
   @override
@@ -66,33 +71,79 @@ class AppDropZone extends StatefulWidget {
 
 class _AppDropZoneState extends State<AppDropZone> {
   bool _dragging = false;
+  _AppDropZoneState? _outer;
+  final _inner = <_AppDropZoneState>{};
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final outer = context
+        .dependOnInheritedWidgetOfExactType<_DropZoneScope>()
+        ?.zone;
+    if (outer == _outer) return;
+    _outer?._inner.remove(this);
+    _outer = outer?.._inner.add(this);
+  }
+
+  @override
+  void dispose() {
+    _outer?._inner.remove(this);
+    super.dispose();
+  }
+
+  /// Whether a drop at [global] is this zone's to take.
+  bool _takes(Offset global) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (!widget.enabled || box == null || !box.attached) return false;
+    return box.paintBounds.contains(box.globalToLocal(global));
+  }
+
+  bool _innerTakes(Offset global) => _inner.any((zone) => zone._takes(global));
 
   void _setDragging(bool value) {
     if (_dragging != value) setState(() => _dragging = value);
   }
+
+  void _hover(DropEventDetails details) =>
+      _setDragging(!_innerTakes(details.globalPosition));
 
   @override
   Widget build(BuildContext context) {
     if (!dropZoneSupported()) return widget.child;
     return DropTarget(
       enable: widget.enabled,
-      onDragEntered: (_) => _setDragging(true),
+      onDragEntered: _hover,
+      onDragUpdated: _hover,
       onDragExited: (_) => _setDragging(false),
       onDragDone: (details) {
         _setDragging(false);
-        widget.onDrop(details.files);
+        if (_innerTakes(details.globalPosition)) return;
+        widget.onDrop(details.files, details.localPosition);
       },
-      child: Stack(
-        children: [
-          widget.child,
-          if (_dragging)
-            Positioned.fill(
-              child: AppDropOverlay(label: widget.label, icon: widget.icon),
-            ),
-        ],
+      child: _DropZoneScope(
+        zone: this,
+        child: Stack(
+          children: [
+            widget.child,
+            if (_dragging)
+              Positioned.fill(
+                child: AppDropOverlay(label: widget.label, icon: widget.icon),
+              ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Lets a zone find the one it sits inside, so the outer zone can leave it its drops.
+class _DropZoneScope extends InheritedWidget {
+  const _DropZoneScope({required this.zone, required super.child});
+
+  final _AppDropZoneState zone;
+
+  @override
+  bool updateShouldNotify(_DropZoneScope old) => old.zone != zone;
 }
 
 /// The least height the icon-above-label overlay fits in, with room to breathe.

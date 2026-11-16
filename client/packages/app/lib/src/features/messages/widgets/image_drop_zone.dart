@@ -32,18 +32,21 @@ final class RefusedDrop extends ImageDrop {
   final String message;
 }
 
-/// Reads [items] as one still picture, judged by its extension before any
-/// bytes are read, so a dropped video is refused without loading it.
-Future<ImageDrop> readDroppedImage(List<DropItem> items) async {
+/// Reads [items] as one picture with one of [extensions], judged by its
+/// extension before any bytes are read, so a dropped video is refused without
+/// loading it; [refusal] says why otherwise.
+Future<ImageDrop> readDroppedImage(
+  List<DropItem> items, {
+  List<String> extensions = stillImageExtensions,
+  String refusal = _refusal,
+}) async {
   if (items.length != 1 || items.single is DropItemDirectory) {
-    return const RefusedDrop(_refusal);
+    return RefusedDrop(refusal);
   }
   final item = items.single;
   final dot = item.name.lastIndexOf('.');
   final extension = dot < 0 ? '' : item.name.substring(dot + 1).toLowerCase();
-  if (!stillImageExtensions.contains(extension)) {
-    return const RefusedDrop(_refusal);
-  }
+  if (!extensions.contains(extension)) return RefusedDrop(refusal);
   return DroppedImage(await item.readAsBytes(), item.name);
 }
 
@@ -77,7 +80,7 @@ class ImageDropZone extends StatelessWidget {
     enabled: enabled,
     label: label,
     icon: AppIcons.image,
-    onDrop: (items) => unawaited(_handle(items)),
+    onDrop: (items, _) => unawaited(_handle(items)),
     child: child,
   );
 }

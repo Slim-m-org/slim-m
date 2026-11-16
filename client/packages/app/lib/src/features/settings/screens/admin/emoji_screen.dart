@@ -93,7 +93,7 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
       enabled: !ref.watch(emojiAddOpenProvider),
       label: 'Drop to add emoji',
       icon: AppIcons.image,
-      onDrop: (files) => unawaited(_dropped(files)),
+      onDrop: (files, _) => unawaited(_dropped(files)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

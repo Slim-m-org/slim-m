@@ -3,8 +3,11 @@
 ///
 /// Offered only while that sharer allows it (`ScreenAnnotationFeed`). Marks
 /// are ephemeral: they go to the sharer, whose overlay shows them on their
-/// real screen, and fade here a few seconds later. Nothing is stored.
+/// real screen, and fade here a few seconds later. Nothing is stored. A
+/// picture file dropped on a screen that takes stamps is stamped where it lands.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart' show CanvasTool;
 
 import '../../../providers/sync_controller.dart';
+import '../../../widgets/app_drop_zone.dart';
 import '../../screen_overlay/providers/screen_annotation_board.dart';
 import '../../screen_overlay/providers/screen_annotation_feed.dart';
 import '../../screen_overlay/providers/screen_annotation_mapping.dart';
@@ -276,76 +280,83 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
       rect: widget.tileRect,
       child: ClipRect(
         clipBehavior: zoomed ? Clip.hardEdge : Clip.none,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size.infinite,
-                painter: ScreenMarksPainter(
-                  marks: () => _feed.marksFor(widget.sharerId),
-                  content: content,
-                  now: () => _feed.now,
-                  repaint: _frame,
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: ValueListenableBuilder<int>(
-                valueListenable: _frame,
-                builder: (_, _, _) => Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    ..._notes(content),
-                    ...screenStampMarks(
-                      marks: _feed.marksFor(widget.sharerId),
-                      content: content,
-                      now: _feed.now,
-                      aspectOf: cache.aspectOf,
-                      reduceMotion: MediaQuery.disableAnimationsOf(context),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (stamping && stamps && armed != null)
-              Positioned.fill(
-                child: Listener(
-                  onPointerSignal: _wheel,
-                  child: ScreenStampPlacer(
+        child: AppDropZone(
+          enabled: stamps,
+          label: 'Drop a picture to stamp it',
+          icon: AppIcons.stamp,
+          onDrop: (items, at) =>
+              unawaited(_stamps.drop(items, toNormalised(at, _content()))),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IgnorePointer(
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: ScreenMarksPainter(
+                    marks: () => _feed.marksFor(widget.sharerId),
                     content: content,
-                    armed: armed,
-                    aspectOf: cache.aspectOf,
-                    onPlace: _stamps.place,
-                    onPaste: _stamps.paste,
-                    onCancel: () => _setTool(null),
-                  ),
-                ),
-              )
-            else if (_active != null && !stamping && consent != null)
-              Positioned.fill(child: _catcher()),
-            if (_refusal case final refusal?)
-              ScreenStampRefusal(
-                message: refusal,
-                onDismiss: () => setState(() => _refusal = null),
-              ),
-            if (_pendingNote != null) _noteField(),
-            if (showToolbar)
-              Positioned(
-                bottom: AppSpacing.s8,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ScreenAnnotateToolbar(
-                    sharerName: widget.sharerName,
-                    tool: _tool,
-                    onChanged: _setTool,
-                    onStamp: stamps ? _pressStamp : null,
-                    onChooseStamp: _chooseStamp,
+                    now: () => _feed.now,
+                    repaint: _frame,
                   ),
                 ),
               ),
-          ],
+              IgnorePointer(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _frame,
+                  builder: (_, _, _) => Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ..._notes(content),
+                      ...screenStampMarks(
+                        marks: _feed.marksFor(widget.sharerId),
+                        content: content,
+                        now: _feed.now,
+                        aspectOf: cache.aspectOf,
+                        reduceMotion: MediaQuery.disableAnimationsOf(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (stamping && stamps && armed != null)
+                Positioned.fill(
+                  child: Listener(
+                    onPointerSignal: _wheel,
+                    child: ScreenStampPlacer(
+                      content: content,
+                      armed: armed,
+                      aspectOf: cache.aspectOf,
+                      onPlace: _stamps.place,
+                      onPaste: _stamps.paste,
+                      onCancel: () => _setTool(null),
+                    ),
+                  ),
+                )
+              else if (_active != null && !stamping && consent != null)
+                Positioned.fill(child: _catcher()),
+              if (_refusal case final refusal?)
+                ScreenStampRefusal(
+                  message: refusal,
+                  onDismiss: () => setState(() => _refusal = null),
+                ),
+              if (_pendingNote != null) _noteField(),
+              if (showToolbar)
+                Positioned(
+                  bottom: AppSpacing.s8,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ScreenAnnotateToolbar(
+                      sharerName: widget.sharerName,
+                      tool: _tool,
+                      onChanged: _setTool,
+                      onStamp: stamps ? _pressStamp : null,
+                      onChooseStamp: _chooseStamp,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

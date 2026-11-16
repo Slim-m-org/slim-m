@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The Stamp tool on a shared screen's tile (decision 0121): offered only when
 /// the server and the sharer's client both take stamps, a tap places the
-/// default size, a drag sizes it, nothing is sent mid-drag, and a refusal
-/// takes the stamp back off with its reason on the tile.
+/// default size, a drag sizes it, nothing is sent mid-drag, a dropped picture
+/// lands where it was dropped, and a refusal takes the stamp back off with its
+/// reason on the tile.
 library;
 
 import 'dart:convert';
 
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,12 +20,14 @@ import 'package:slimm_app/src/features/canvas/widgets/screen_annotate_layer.dart
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_board.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_annotation_feed.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_stamp_timing.dart';
+import 'package:slimm_app/src/features/screen_overlay/providers/stamp_actions.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/stamp_content.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/stamp_images.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/widgets/app_drop_zone.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -49,6 +54,24 @@ const _sharer = VoiceParticipant(
 
 const _party = EmojiStamp('\u{1F389}');
 const _tile = Rect.fromLTWH(100, 100, 640, 360);
+final _picture = 'ab' * 32;
+
+/// The picker's upload, recording what it was given instead of sending it.
+class _Uploads extends StampActions {
+  _Uploads(super.ref);
+
+  final names = <String>[];
+
+  @override
+  Future<PictureStamp> uploadPicture(
+    Uint8List bytes, {
+    required String filename,
+    String? channelId,
+  }) async {
+    names.add(filename);
+    return PictureStamp(_picture);
+  }
+}
 
 class _Rig {
   _Rig(this.tester);
@@ -60,6 +83,10 @@ class _Rig {
   final paths = <String>[];
   http.Response Function() answer = () => http.Response('', 204);
   late ProviderContainer container;
+  late _Uploads uploads;
+
+  /// What the board under the tile took, as the canvas pane's own drop zone would.
+  final boardDrops = <Offset>[];
 
   void allow({bool stamps = true}) => feed.handle(
     api.CanvasScreenAnnotation(
@@ -99,6 +126,7 @@ class _Rig {
         ),
         syncControllerProvider.overrideWith(NoopSyncController.new),
         stampImageCacheProvider.overrideWithValue(cache),
+        stampActionsProvider.overrideWith((ref) => uploads = _Uploads(ref)),
         serverInfoProvider.overrideWith(
           (ref) async => api.Version.fromJson({
             'name': 'slim-m',
@@ -141,18 +169,24 @@ class _Rig {
             debugShowCheckedModeBanner: false,
             theme: buildTheme(brightness, tokens),
             home: Scaffold(
-              body: Stack(
-                children: [
-                  Positioned.fromRect(
-                    rect: _tile,
-                    child: const ColoredBox(color: Color(0xFF20252B)),
-                  ),
-                  const ScreenAnnotateLayer(
-                    sharerId: 'sharer',
-                    sharerName: 'Ada',
-                    tileRect: _tile,
-                  ),
-                ],
+              body: AppDropZone(
+                enabled: true,
+                label: 'Drop an image to place it',
+                icon: AppIcons.image,
+                onDrop: (_, at) => boardDrops.add(at),
+                child: Stack(
+                  children: [
+                    Positioned.fromRect(
+                      rect: _tile,
+                      child: const ColoredBox(color: Color(0xFF20252B)),
+                    ),
+                    const ScreenAnnotateLayer(
+                      sharerId: 'sharer',
+                      sharerName: 'Ada',
+                      tileRect: _tile,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -164,6 +198,30 @@ class _Rig {
   }
 
   void arm() => container.read(armedStampProvider.notifier).arm(_party);
+
+  /// Drops a file named [name] at [global], told to every drop target under it as the plugin tells them.
+  Future<void> drop(String name, Offset global) async {
+    // Builds the fake upload, so a test reads it even when no drop reached the tile.
+    container.read(stampActionsProvider);
+    final file = DropItemFile.fromData(Uint8List(8), path: name);
+    for (final element
+        in find.byWidgetPredicate((w) => w is DropTarget).evaluate().toList()) {
+      final target = element.widget as DropTarget;
+      final box = element.renderObject! as RenderBox;
+      final local = box.globalToLocal(global);
+      if (!target.enable || !box.paintBounds.contains(local)) continue;
+      target.onDragDone!(
+        DropDoneDetails(
+          files: [file],
+          localPosition: local,
+          globalPosition: global,
+        ),
+      );
+    }
+    for (var i = 0; i < 4; i++) {
+      await tester.pump();
+    }
+  }
 
   Finder get stampButton => find.bySemanticsLabel("Stamp on Ada's screen");
 }
@@ -334,5 +392,62 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(rig.feed.marksFor('sharer'), isEmpty);
     expect(find.byKey(const ValueKey('s9')), findsNothing);
+  });
+
+  testWidgets('a picture dropped on the screen is stamped where it lands', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    final rig = _Rig(tester)..allow();
+    await rig.pump();
+
+    await rig.drop('cat.gif', _tile.topLeft + const Offset(160, 90));
+
+    expect(rig.uploads.names, ['cat.gif']);
+    final body = rig.posts.single;
+    expect(body['x'], closeTo(0.25, 1e-9));
+    expect(body['y'], closeTo(0.25, 1e-9));
+    expect(body['size'], stampDefaultSize);
+    expect(body['attachment_id'], _picture);
+    expect(
+      rig.container.read(armedStampProvider).content,
+      PictureStamp(_picture),
+    );
+    expect(rig.boardDrops, isEmpty, reason: 'nothing lands on the board');
+    await tester.pump(const Duration(seconds: 10));
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a screen that takes no stamps leaves a drop to the board', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    final rig = _Rig(tester)..allow(stamps: false);
+    await rig.pump();
+
+    await rig.drop('cat.png', _tile.center);
+
+    expect(rig.posts, isEmpty);
+    expect(rig.boardDrops, [_tile.center]);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a dropped file that is no picture is refused on the tile', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    final rig = _Rig(tester)..allow();
+    await rig.pump();
+
+    await rig.drop('notes.txt', _tile.center);
+
+    expect(rig.uploads.names, isEmpty);
+    expect(rig.posts, isEmpty);
+    expect(
+      find.text('Drop one PNG, JPEG, GIF or WebP picture.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 20));
+    debugDefaultTargetPlatformOverride = null;
   });
 }

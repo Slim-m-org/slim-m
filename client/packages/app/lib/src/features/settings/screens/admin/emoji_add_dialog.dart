@@ -310,7 +310,7 @@ class _EmojiAddDialogState extends ConsumerState<EmojiAddDialog> {
         enabled: !_running,
         label: 'Drop to add emoji',
         icon: AppIcons.image,
-        onDrop: (files) => unawaited(_drop(files)),
+        onDrop: (files, _) => unawaited(_drop(files)),
         child: Focus(
           autofocus: true,
           onKeyEvent: _onKey,

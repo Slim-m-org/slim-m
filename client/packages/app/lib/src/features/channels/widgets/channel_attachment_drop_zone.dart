@@ -87,7 +87,7 @@ class ChannelAttachmentDropZone extends ConsumerWidget {
         ),
         label: 'Drop to attach',
         icon: AppIcons.attachFile,
-        onDrop: (files) => unawaited(
+        onDrop: (files, _) => unawaited(
           handleComposerDrop(
             files,
             ref.read(composerAttachmentDropProvider(channelId)),

@@ -367,7 +367,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 enabled: canDraw,
                 label: 'Drop an image to place it',
                 icon: AppIcons.image,
-                onDrop: (items) => unawaited(_dropImage(items)),
+                onDrop: (items, _) => unawaited(_dropImage(items)),
                 child: CanvasPaneBody(
                   channelId: widget.channelId,
                   boardFocusNode: _boardFocusNode,
