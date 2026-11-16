@@ -26,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../settings/providers/display_density.dart';
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
+import '../providers/voice_transcripts.dart';
 import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/breakpoints.dart';
 
@@ -159,6 +160,7 @@ class MessageRow extends ConsumerWidget {
     final inlineTime =
         marked && !_unsent && !editing && message.content.isNotEmpty;
     final quote = _replyQuote(ref);
+    final copyText = _copyText(ref);
     return HoverReveal(
       enterDelay: kRowHoverIntent,
       calmWhileScrolling: true,
@@ -185,7 +187,7 @@ class MessageRow extends ConsumerWidget {
             SwipeToReply(
               enabled: compact && actions.canReply && !editing && !_unsent,
               onReply: actions.onReply,
-              child: _contextRegion(context, view),
+              child: _contextRegion(context, view, copyText),
             ),
           ],
         );
@@ -211,9 +213,20 @@ class MessageRow extends ConsumerWidget {
     );
   }
 
-  Widget _contextRegion(BuildContext context, _RowView v) {
+  /// The message's text, or for a voice message the words it was heard saying.
+  String _copyText(WidgetRef ref) {
+    if (message.content.isNotEmpty) return message.content;
+    final voice = extras.attachments.where((a) => a.voice != null).firstOrNull;
+    if (voice == null) return '';
+    final live = ref.watch(
+      voiceTranscriptsProvider.select((all) => all[voice.id]),
+    );
+    return voiceTranscriptWords(voice, live) ?? '';
+  }
+
+  Widget _contextRegion(BuildContext context, _RowView v, String copyText) {
     return MessageContextMenuRegion(
-      content: message.content,
+      content: copyText,
       actions: actions,
       onAddReaction: () =>
           showEmojiPickerSheet(context, onSelect: callbacks.onPickReaction),
