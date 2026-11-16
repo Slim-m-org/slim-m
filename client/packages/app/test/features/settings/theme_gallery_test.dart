@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/settings/providers/my_themes.dart';
 import 'package:slimm_app/src/features/settings/providers/resolved_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_source.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_store.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_gallery_menu.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -298,6 +299,43 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a picture is fetched once while the gallery is open, '
+      'however often its card scrolls away', (tester) async {
+    final rig = GalleryRig(
+      themes: [
+        for (final n in [1, 2, 3, 4]) stored('t$n', 'Plain $n', author: 'ren'),
+        stored('p1', 'Photo', author: 'ren', picture: true),
+      ],
+    );
+    await rig.pump(tester, size: const Size(390, 400));
+    final card = find.byKey(const Key('theme-store-p1'), skipOffstage: false);
+    int fetches() =>
+        rig.calls.where((c) => c == 'GET /space/themes/p1/picture').length;
+
+    for (var pass = 0; pass < 2; pass++) {
+      await revealInGallery(tester, card);
+      await settleGallery(tester);
+      expect(fetches(), 1, reason: 'pass $pass');
+      final list = find.byKey(const Key('themes-page-list'));
+      tester
+          .state<ScrollableState>(
+            find
+                .descendant(
+                  of: list,
+                  matching: find.byWidgetPredicate((w) => w is Scrollable),
+                )
+                .first,
+          )
+          .position
+          .jumpTo(0);
+      await settleGallery(tester);
+      expect(card, findsNothing, reason: 'the card was let go');
+    }
+
+    await tapAndSettle(tester, find.byTooltip('Back to Appearance'));
+    expect(rig.container.exists(spaceThemePictureProvider('p1')), isFalse);
   });
 
   testWidgets('the filter shows one section at a time', (tester) async {

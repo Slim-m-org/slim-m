@@ -80,6 +80,7 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
   @override
   Widget build(BuildContext context) {
     final gallery = ref.watch(themeGalleryProvider);
+    ref.watch(spaceThemePictureHoldProvider);
     final status = ref.watch(themeGalleryStatusProvider);
     ref.listen(themeGalleryStatusProvider, _showError);
     final filter = ref.watch(themeGalleryFilterProvider);
