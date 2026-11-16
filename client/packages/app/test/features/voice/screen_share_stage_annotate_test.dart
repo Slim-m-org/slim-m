@@ -53,7 +53,11 @@ Future<_Sync> _pump(
   required bool allowed,
   String? sharerId = 'sharer',
 }) async {
-  final feed = ScreenAnnotationFeed(selfId: () => 'me');
+  final feed = ScreenAnnotationFeed(
+    selfId: () => 'me',
+    callChannelId: () => 'call',
+    callMembers: () => const ['me', 'sharer'],
+  );
   if (allowed) {
     feed.handle(
       const api.CanvasScreenAnnotation(

@@ -9,6 +9,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../../canvas/providers/canvas_pen_style.dart';
 import 'screen_annotation_board.dart';
+import 'screen_annotation_call.dart';
 
 /// Stroke width on the sharer's screen, in logical pixels.
 const overlayInkWidth = 4.0;
@@ -82,5 +83,4 @@ bool overlayAccepts(
     frame.kind != 'consent' &&
     selfId != null &&
     frame.targetUserId == selfId &&
-    frame.channelId == callChannelId &&
-    callMembers.contains(frame.userId);
+    markInCall(frame, callChannelId: callChannelId, callMembers: callMembers);

@@ -55,7 +55,11 @@ class _Rig {
   _Rig(this.tester);
 
   final WidgetTester tester;
-  final feed = ScreenAnnotationFeed(selfId: () => 'me');
+  final feed = ScreenAnnotationFeed(
+    selfId: () => 'me',
+    callChannelId: () => 'call',
+    callMembers: () => const ['me', 'sharer', 'viewer'],
+  );
   final zoom = ShareZoomController();
   late _Sync sync;
 

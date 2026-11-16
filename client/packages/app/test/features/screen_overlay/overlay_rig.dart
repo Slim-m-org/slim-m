@@ -186,11 +186,12 @@ class OverlayRig {
   void annotate({
     String target = 'me',
     String from = 'viewer',
+    String channel = 'call',
     List<double> points = const [0.1, 0.1, 0.5, 0.5],
     bool ended = true,
   }) => sync.events.add(
     api.CanvasScreenAnnotation(
-      channelId: 'call',
+      channelId: channel,
       userId: from,
       targetUserId: target,
       kind: 'stroke',

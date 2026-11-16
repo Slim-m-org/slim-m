@@ -85,7 +85,12 @@ class _Rig {
 
   final WidgetTester tester;
   var now = DateTime(2026, 10, 28, 12);
-  late final feed = ScreenAnnotationFeed(selfId: () => 'me', clock: () => now);
+  late final feed = ScreenAnnotationFeed(
+    selfId: () => 'me',
+    callChannelId: () => 'call',
+    callMembers: () => const ['me', 'sharer', 'viewer-2'],
+    clock: () => now,
+  );
   late _Sync sync;
 
   void allow({double? aspect = 16 / 9}) => feed.handle(
