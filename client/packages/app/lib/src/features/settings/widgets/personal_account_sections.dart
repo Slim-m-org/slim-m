@@ -23,6 +23,7 @@ import '../../members/providers/user_profiles.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../auth/widgets/reauth_sheet.dart';
+import '../../../widgets/load_error_block.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_danger_card.dart';
 import 'settings_detail_row.dart';
@@ -57,12 +58,9 @@ class BlockedSection extends ConsumerWidget {
             child: LinearProgressIndicator(),
           )
         else if (blocks.error case final error?)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: AppErrorState(
-              message: error,
-              onRetry: () => ref.read(blocksProvider.notifier).refresh(),
-            ),
+          LoadErrorBlock(
+            message: error,
+            onRetry: () => ref.read(blocksProvider.notifier).refresh(),
           )
         else if (blocks.ids.isEmpty)
           const SettingsEmptyState(

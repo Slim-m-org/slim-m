@@ -7,7 +7,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show SlimmApiSpace;
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../preset_options.dart';
 import '../../../../providers/admin_providers.dart';
@@ -18,6 +17,7 @@ import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_segmented_block.dart';
+import '../../../../widgets/load_error_block.dart';
 
 const _mib = 1024 * 1024;
 const _gib = 1024 * _mib;
@@ -113,13 +113,9 @@ class _AttachmentLimitSectionState extends ConsumerState<AttachmentLimitSection>
                 onSelected: (i) => _setLimit(options[i].$2),
               ),
             if (limit.hasError && served == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load the current limit.',
-                    onRetry: () => ref.invalidate(spaceAttachmentLimitProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load the current limit.',
+                onRetry: () => ref.invalidate(spaceAttachmentLimitProvider),
               ),
           ],
         ),

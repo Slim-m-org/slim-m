@@ -15,6 +15,7 @@ import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
 import '../providers/settings_actions.dart';
+import '../../../widgets/load_error_block.dart';
 
 /// The rules channel choice for "none".
 const _noChannel = '';
@@ -30,13 +31,9 @@ class JoinGateSection extends ConsumerWidget {
       error: (e, _) => SettingsSectionCard(
         title: 'Join gate',
         children: [
-          SettingsCardBlock(
-            children: [
-              AppErrorState(
-                message: 'Could not load the join gate.',
-                onRetry: () => ref.invalidate(joinGateProvider),
-              ),
-            ],
+          LoadErrorBlock(
+            message: 'Could not load the join gate.',
+            onRetry: () => ref.invalidate(joinGateProvider),
           ),
         ],
       ),

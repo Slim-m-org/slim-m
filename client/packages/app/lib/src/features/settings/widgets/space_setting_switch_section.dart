@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/server_info.dart';
 import '../../../widgets/optimistic_setting_state.dart';
@@ -16,6 +15,7 @@ import '../providers/space_settings.dart';
 import 'settings_save_feedback.dart';
 import 'settings_section_header.dart';
 import 'settings_toggle_row.dart';
+import '../../../widgets/load_error_block.dart';
 
 class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
   const SpaceSettingSwitchSection({
@@ -98,13 +98,9 @@ class _SpaceSettingSwitchSectionState
             if (!available && widget.unavailableReason != null)
               SettingsSubRow(label: widget.unavailableReason!),
             if (settings.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load this setting.',
-                    onRetry: () => ref.invalidate(spaceSettingsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load this setting.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
           ],
         ),

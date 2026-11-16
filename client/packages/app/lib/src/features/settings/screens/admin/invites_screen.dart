@@ -33,6 +33,7 @@ import 'invite_role_grant_picker.dart';
 import 'member_invites_section.dart';
 import '../../../members/widgets/invite_friend.dart' show watchCanInviteFriend;
 import '../../../../action_labels.dart';
+import '../../../../widgets/load_error_block.dart';
 
 const _expiryOptions = <(String, Duration?)>[
   ('Never', null),
@@ -108,13 +109,9 @@ class _InviteList extends ConsumerWidget {
             for (final invite in page.items)
               _InviteRow(key: ValueKey(invite.code), invite: invite),
           if (page.moreFailed)
-            SettingsCardBlock(
-              children: [
-                AppErrorState(
-                  message: 'Could not load more invites.',
-                  onRetry: () => ref.read(invitesProvider.notifier).loadMore(),
-                ),
-              ],
+            LoadErrorBlock(
+              message: 'Could not load more invites.',
+              onRetry: () => ref.read(invitesProvider.notifier).loadMore(),
             )
           else if (page.hasMore)
             SettingsCardBlock(

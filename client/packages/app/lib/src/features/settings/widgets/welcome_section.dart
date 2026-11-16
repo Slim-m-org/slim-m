@@ -15,6 +15,7 @@ import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
 import '../providers/settings_actions.dart';
+import '../../../widgets/load_error_block.dart';
 
 const _sectionLabel = 'Welcome message';
 
@@ -32,13 +33,9 @@ class WelcomeSection extends ConsumerWidget {
       error: (e, _) => SettingsSectionCard(
         title: _sectionLabel,
         children: [
-          SettingsCardBlock(
-            children: [
-              AppErrorState(
-                message: 'Could not load the welcome message.',
-                onRetry: () => ref.invalidate(spaceSettingsProvider),
-              ),
-            ],
+          LoadErrorBlock(
+            message: 'Could not load the welcome message.',
+            onRetry: () => ref.invalidate(spaceSettingsProvider),
           ),
         ],
       ),

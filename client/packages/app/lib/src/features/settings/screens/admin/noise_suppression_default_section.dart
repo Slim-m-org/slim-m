@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/providers.dart';
 import '../../providers/space_settings.dart';
@@ -15,6 +14,7 @@ import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+import '../../../../widgets/load_error_block.dart';
 
 class NoiseSuppressionDefaultSection extends ConsumerStatefulWidget {
   const NoiseSuppressionDefaultSection({super.key});
@@ -59,13 +59,9 @@ class _NoiseSuppressionDefaultSectionState
               onChanged: current == null || saving ? null : _set,
             ),
             if (settings.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load the current default.',
-                    onRetry: () => ref.invalidate(spaceSettingsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load the current default.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
           ],
         ),
