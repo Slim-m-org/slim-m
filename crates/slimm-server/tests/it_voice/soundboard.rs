@@ -37,7 +37,7 @@ fn wav(data_len: usize) -> Vec<u8> {
 }
 
 /// A clip body that is unique per `n`, so the 48-clip test does not dedupe into one blob.
-fn tone(n: usize) -> Vec<u8> {
+pub(crate) fn tone(n: usize) -> Vec<u8> {
     let mut bytes = wav(1600);
     bytes[44..48].copy_from_slice(&(n as u32).to_le_bytes());
     bytes

@@ -149,6 +149,7 @@ pub async fn run() -> anyhow::Result<()> {
     export::spawn_export_sweep(store.clone(), media.clone());
     sweeps::spawn_canvas_op_sweep(store.clone());
     forward_backfill::spawn_forward_backfill(store.clone(), media.clone());
+    soundboard::starter::spawn_seed(store.clone(), media.clone());
     attachment_text::spawn_attachment_text_sweep(store.clone(), media.clone());
     let auth = auth::Auth::new(config.hash_concurrency)?;
     let hub = hub::Hub::new();

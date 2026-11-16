@@ -4,6 +4,8 @@
 //! Shaped like `store/emoji.rs`: the bytes are an `attachments` row by sha256,
 //! and this table adds the name, the validated duration and the cap.
 
+use std::collections::HashSet;
+
 use super::{Store, now_ms};
 use crate::ids::{SoundClipId, UserId};
 use crate::media::to_hex;
@@ -18,7 +20,7 @@ pub struct SoundClip {
     pub name: String,
     pub sha256: String,
     pub duration_ms: i64,
-    /// Null once the uploader's account has been deleted.
+    /// Null for a starter clip, or once the uploader's account has been deleted.
     pub uploader_id: Option<String>,
     pub created_at: i64,
 }
@@ -30,6 +32,25 @@ pub enum SoundClipError {
     NameTaken,
     /// The Space is at [`MAX_SOUNDBOARD_CLIPS`].
     Full,
+}
+
+/// One starter clip to offer, its bytes already stored.
+#[derive(Debug, Clone, Copy)]
+pub struct StarterClipRow<'a> {
+    pub key: &'a str,
+    pub id: SoundClipId,
+    pub name: &'a str,
+    pub sha256: &'a [u8],
+    pub duration_ms: i64,
+}
+
+/// The keys one seeding pass offered for the first time.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct StarterSeeded {
+    /// Added as clips.
+    pub added: Vec<String>,
+    /// Recorded without a clip, because the name was taken or the Space was full.
+    pub skipped: Vec<String>,
 }
 
 impl Store {
@@ -179,5 +200,66 @@ impl Store {
             .execute(&self.pool)
             .await?;
         Ok(result.rows_affected() > 0)
+    }
+
+    /// The starter keys this Space has been offered, whether or not they became clips.
+    pub async fn offered_starter_clips(&self) -> anyhow::Result<HashSet<String>> {
+        let keys = sqlx::query_scalar!(r#"SELECT key AS "key!" FROM soundboard_starter_offered"#)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(keys.into_iter().collect())
+    }
+
+    /// Offers each row whose key is not in the ledger yet: added when its name is
+    /// free and the Space has room, recorded either way, all in one transaction.
+    pub async fn seed_sound_clips(
+        &self,
+        rows: &[StarterClipRow<'_>],
+    ) -> anyhow::Result<StarterSeeded> {
+        let mut tx = self.begin_write().await?;
+        let now = now_ms();
+        let mut count = sqlx::query_scalar!("SELECT COUNT(*) FROM soundboard_clips")
+            .fetch_one(&mut *tx)
+            .await?;
+        let mut seeded = StarterSeeded::default();
+        for row in rows {
+            let recorded = sqlx::query!(
+                "INSERT INTO soundboard_starter_offered (key, offered_at) VALUES (?, ?)
+                 ON CONFLICT (key) DO NOTHING",
+                row.key,
+                now
+            )
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
+            if recorded == 0 {
+                continue;
+            }
+            let taken = sqlx::query_scalar!(
+                "SELECT COUNT(*) FROM soundboard_clips WHERE name = ?",
+                row.name
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+            if taken > 0 || count >= MAX_SOUNDBOARD_CLIPS {
+                seeded.skipped.push(row.key.to_owned());
+                continue;
+            }
+            sqlx::query!(
+                "INSERT INTO soundboard_clips (id, name, sha256, duration_ms, uploader_id, created_at)
+                 VALUES (?, ?, ?, ?, NULL, ?)",
+                row.id,
+                row.name,
+                row.sha256,
+                row.duration_ms,
+                now
+            )
+            .execute(&mut *tx)
+            .await?;
+            count += 1;
+            seeded.added.push(row.key.to_owned());
+        }
+        tx.commit().await?;
+        Ok(seeded)
     }
 }
