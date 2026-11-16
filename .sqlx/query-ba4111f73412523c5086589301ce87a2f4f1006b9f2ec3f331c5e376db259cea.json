@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE soundboard_clips\n             SET name = COALESCE(?, name), emoji = CASE WHEN ? THEN ? ELSE emoji END\n             WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "ba4111f73412523c5086589301ce87a2f4f1006b9f2ec3f331c5e376db259cea"
+}

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Soundboard calls: add a clip, list it, rename it, fetch its audio, remove it.
+//! Soundboard calls: add a clip with an emoji, list it, rename it and clear its
+//! emoji, fetch its audio, remove it.
 
 use serde_json::json;
 
@@ -28,21 +29,24 @@ pub(super) async fn soundboard_calls(c: &mut Contract, root: &str) {
         .call(
             "uploadSoundboardClip",
             "POST",
-            "/soundboard?name=airhorn",
+            "/soundboard?name=airhorn&emoji=%F0%9F%93%AF",
             Some(root),
             Payload::Bytes(wav()),
         )
         .await;
     let id = text(&created, "id");
+    assert_eq!(text(&created, "emoji"), "\u{1F4EF}");
     c.get("listSoundboardClips", "/soundboard", root).await;
-    c.json(
-        "renameSoundboardClip",
-        "PATCH",
-        &format!("/soundboard/{id}"),
-        root,
-        json!({ "name": "honk" }),
-    )
-    .await;
+    let renamed = c
+        .json(
+            "renameSoundboardClip",
+            "PATCH",
+            &format!("/soundboard/{id}"),
+            root,
+            json!({ "name": "honk", "emoji": null }),
+        )
+        .await;
+    assert!(renamed["emoji"].is_null(), "{renamed}");
     c.call(
         "fetchSoundboardClipAudio",
         "GET",

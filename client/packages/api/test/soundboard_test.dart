@@ -12,6 +12,8 @@ import 'package:test/test.dart';
 
 Uri get _base => Uri.parse('http://localhost:8080');
 
+const _horn = '\u{1F4EF}';
+
 const _clip = {
   'id': 'clip-1',
   'name': 'Air horn',
@@ -51,6 +53,14 @@ void main() {
         SoundClip.fromJson({..._clip, 'uploader_id': null}).uploaderId, isNull);
   });
 
+  test(
+      'a clip carries its emoji, and one without, or from an older server, has none',
+      () {
+    expect(SoundClip.fromJson({..._clip, 'emoji': _horn}).emoji, _horn);
+    expect(SoundClip.fromJson({..._clip, 'emoji': null}).emoji, isNull);
+    expect(SoundClip.fromJson(_clip).emoji, isNull);
+  });
+
   test('listing reads GET /soundboard', () async {
     String? path;
     final api = _api((request) async {
@@ -72,7 +82,42 @@ void main() {
     expect(seen.url.path, '/soundboard');
     expect(seen.url.queryParameters['name'], 'Air horn');
     expect(seen.bodyBytes, [1, 2, 3]);
+    expect(seen.url.queryParameters.containsKey('emoji'), isFalse);
     expect(clip.id, 'clip-1');
+  });
+
+  test('uploading with an emoji puts it in the query beside the name',
+      () async {
+    late http.Request seen;
+    final api = _api((request) async {
+      seen = request;
+      return http.Response(
+        jsonEncode({..._clip, 'emoji': _horn}),
+        201,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
+    final clip =
+        await api.uploadSoundClip(const [1], name: 'Air horn', emoji: _horn);
+    expect(seen.url.queryParameters['emoji'], _horn);
+    expect(clip.emoji, _horn);
+  });
+
+  test('an update sends only what changes, and clearing sends a null emoji',
+      () async {
+    final bodies = <Object?>[];
+    final api = _api((request) async {
+      bodies.add(jsonDecode(request.body));
+      return http.Response(jsonEncode(_clip), 200);
+    });
+    await api.renameSoundClip('clip-1', emoji: ':honk:');
+    await api.renameSoundClip('clip-1', clearEmoji: true);
+    await api.renameSoundClip('clip-1', name: 'Honk', emoji: _horn);
+    expect(bodies, [
+      {'emoji': ':honk:'},
+      {'emoji': null},
+      {'name': 'Honk', 'emoji': _horn},
+    ]);
   });
 
   test('renaming patches the clip, deleting removes it, playing posts',

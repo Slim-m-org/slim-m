@@ -234,6 +234,7 @@ async fn a_space_holds_at_most_48_clips() {
             &rig.store,
             &media,
             &format!("clip{n}"),
+            None,
             tone(n),
             rig.admin.id,
         )

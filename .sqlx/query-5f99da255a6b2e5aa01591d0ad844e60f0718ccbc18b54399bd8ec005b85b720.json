@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: SoundClipId\", name AS \"name!\", sha256 AS \"sha256!\",\n                      duration_ms AS \"duration_ms!\", uploader_id AS \"uploader_id?: UserId\",\n                      created_at AS \"created_at!\"\n               FROM soundboard_clips\n               ORDER BY created_at ASC, rowid ASC",
+  "query": "SELECT id AS \"id!: SoundClipId\", name AS \"name!\", sha256 AS \"sha256!\",\n                      duration_ms AS \"duration_ms!\", uploader_id AS \"uploader_id?: UserId\",\n                      created_at AS \"created_at!\", emoji\n               FROM soundboard_clips\n               ORDER BY created_at ASC, rowid ASC",
   "describe": {
     "columns": [
       {
@@ -32,6 +32,11 @@
         "name": "created_at!",
         "ordinal": 5,
         "type_info": "Integer"
+      },
+      {
+        "name": "emoji",
+        "ordinal": 6,
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -43,8 +48,9 @@
       false,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "4e436ceddc8d6511b5add8ddf2c450949d9272cc2043f73398e83b1bc958b4a7"
+  "hash": "5f99da255a6b2e5aa01591d0ad844e60f0718ccbc18b54399bd8ec005b85b720"
 }

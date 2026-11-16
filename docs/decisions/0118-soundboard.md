@@ -41,6 +41,17 @@ Owner's answers on 2026-11-13:
 - Reading the list and the audio is open to every member.
   Clips are not per channel, for the same reason emoji are not.
 
+## Emoji
+
+The owner, 2026-11-16: "treat them like custom emojis where we upload them and such and perhaps we can attach an emoji with them".
+
+- A clip may carry one emoji, shown beside its name, in the encoding reactions use: one standard emoji, or a custom emoji's id.
+- It is set at upload or on the update route, which also clears it with a null; a `:shortcode:` is stored as that custom emoji's id.
+- The value goes through the reaction route's own validator, and a custom emoji is looked up inside the write, so a clip never names an emoji that does not exist.
+- Deleting a custom emoji clears it from every clip showing it.
+- An emoji change is recorded on the `soundboard.rename` entry, with `emoji` among its fields.
+- Each starter clip ships with an emoji of its own.
+
 ## Starter clips
 
 The owner asked for "some default soundboard items for spaces".

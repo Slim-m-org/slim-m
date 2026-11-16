@@ -13,14 +13,17 @@ use crate::store::{StarterClipRow, StarterSeeded, Store, now_ms};
 pub struct StarterClip {
     pub key: &'static str,
     pub name: &'static str,
+    /// One standard emoji, shown beside the name.
+    pub emoji: &'static str,
     pub bytes: &'static [u8],
 }
 
 macro_rules! starter {
-    ($key:literal, $name:literal) => {
+    ($key:literal, $name:literal, $emoji:literal) => {
         StarterClip {
             key: $key,
             name: $name,
+            emoji: $emoji,
             bytes: include_bytes!(concat!("starter/", $key, ".mp3")),
         }
     };
@@ -28,28 +31,28 @@ macro_rules! starter {
 
 /// The starter set, in the order a fresh Space lists it.
 pub const STARTER_CLIPS: &[StarterClip] = &[
-    starter!("airhorn", "airhorn"),
-    starter!("ba_dum_tss", "ba dum tss"),
-    starter!("applause", "applause"),
-    starter!("crickets", "crickets"),
-    starter!("sad_trombone", "sad trombone"),
-    starter!("quack", "quack"),
-    starter!("drumroll", "drumroll"),
-    starter!("ding", "ding"),
-    starter!("wrong_buzzer", "wrong buzzer"),
-    starter!("whoosh", "whoosh"),
-    starter!("laugh_track", "laugh track"),
-    starter!("tada", "tada"),
+    starter!("airhorn", "airhorn", "\u{1F4EF}"),
+    starter!("ba_dum_tss", "ba dum tss", "\u{1F941}"),
+    starter!("applause", "applause", "\u{1F44F}"),
+    starter!("crickets", "crickets", "\u{1F997}"),
+    starter!("sad_trombone", "sad trombone", "\u{1F3BA}"),
+    starter!("quack", "quack", "\u{1F986}"),
+    starter!("drumroll", "drumroll", "\u{1FA98}"),
+    starter!("ding", "ding", "\u{1F514}"),
+    starter!("wrong_buzzer", "wrong buzzer", "\u{274C}"),
+    starter!("whoosh", "whoosh", "\u{1F4A8}"),
+    starter!("laugh_track", "laugh track", "\u{1F602}"),
+    starter!("tada", "tada", "\u{1F389}"),
 ];
 
 /// Offers every starter clip this Space has not been offered yet, decided in one
 /// write transaction so concurrent or interrupted passes offer each exactly once.
 pub async fn seed(store: &Store, media: &Media) -> anyhow::Result<StarterSeeded> {
     let offered = store.offered_starter_clips().await?;
-    let mut pending: Vec<(&'static str, ValidatedClip)> = Vec::new();
+    let mut pending: Vec<(&'static StarterClip, ValidatedClip)> = Vec::new();
     for clip in STARTER_CLIPS.iter().filter(|c| !offered.contains(c.key)) {
         match validate(clip.name, clip.bytes.to_vec()) {
-            Ok(valid) => pending.push((clip.key, valid)),
+            Ok(valid) => pending.push((clip, valid)),
             Err(err) => {
                 tracing::warn!(key = clip.key, error = ?err, "a starter clip failed validation")
             }
@@ -68,12 +71,13 @@ pub async fn seed(store: &Store, media: &Media) -> anyhow::Result<StarterSeeded>
     }
     let rows: Vec<StarterClipRow<'_>> = pending
         .iter()
-        .map(|(key, clip)| StarterClipRow {
-            key,
+        .map(|(starter, clip)| StarterClipRow {
+            key: starter.key,
             id: SoundClipId::generate(),
             name: &clip.name,
             sha256: &clip.sha256,
             duration_ms: clip.duration_ms,
+            emoji: starter.emoji,
         })
         .collect();
     store.seed_sound_clips(&rows).await
