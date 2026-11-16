@@ -43,7 +43,13 @@ async fn the_attachment_match_probes_message_text_per_row_instead_of_materialisi
     let (_store, pool, _guard) = support::new_store_with_pool("slimm-attachment-text-plan").await;
     let source = read_source("src/store/attachment_text.rs");
     let template = plain_literal_containing(&source, "AND ma.message_id IN ({ids})");
-    let sql = template.replace("{ids}", "?2, ?3");
+    let shown = plain_literal_containing(
+        &read_source("src/store/voice_transcripts.rs"),
+        "FROM attachment_transcripts vt",
+    );
+    let sql = template
+        .replace("{ids}", "?2, ?3")
+        .replace("{shown}", &shown);
 
     let plan: Vec<String> = sqlx::query(&format!("EXPLAIN QUERY PLAN {sql}"))
         .bind("hello")
