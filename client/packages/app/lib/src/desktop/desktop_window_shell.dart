@@ -386,20 +386,25 @@ class DesktopWindowShell {
     screen.read(firstRunTrayNoticeCloseActionProvider.notifier).state = action;
   }
 
-  /// A deliberate quit, so the call it leaves does not come back on the next start.
+  /// A deliberate quit, so no call it leaves, in any Space, comes back on the next start.
   Future<void> _forgetCall() async {
-    final container = _accounts?.active?.container;
-    if (container == null) return;
-    try {
-      final restore = await container.read(callRestoreProvider.future);
-      await restore.markQuit();
-    } catch (error, stack) {
-      AppLog.warning(
-        LogTag.platform,
-        'Could not forget the call on quit',
-        error: error,
-        stack: stack,
-      );
+    final containers = {
+      for (final space in _accounts?.accounts ?? const <AccountRuntime>[])
+        space.container,
+      ?_accounts?.active?.container,
+    };
+    for (final container in containers) {
+      try {
+        final restore = await container.read(callRestoreProvider.future);
+        await restore.markQuit();
+      } catch (error, stack) {
+        AppLog.warning(
+          LogTag.platform,
+          'Could not forget the call on quit',
+          error: error,
+          stack: stack,
+        );
+      }
     }
   }
 

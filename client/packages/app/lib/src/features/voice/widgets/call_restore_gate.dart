@@ -10,8 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/call_restore.dart';
-import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import 'transcription_notice.dart';
 
 const callRestoreRejoinKey = Key('call-restore-rejoin');
 const callRestoreDismissKey = Key('call-restore-dismiss');
@@ -36,14 +36,11 @@ class _CallRestoreGateState extends ConsumerState<CallRestoreGate> {
     final found = await ref.read(callToRestoreProvider)();
     if (found == null || !mounted) return;
     final (:call, :channelName) = found;
-    if (!call.restart) {
-      if (!await _askToRejoin(channelName) || !mounted) return;
-      if (ref.read(voiceFlagsProvider).channelId != null) return;
-    }
-    final voice = ref.read(voiceControllerProvider.notifier);
-    await (call.muted
-        ? voice.joinMuted(call.channelId)
-        : voice.join(call.channelId));
+    if (!call.restart && !await _askToRejoin(channelName)) return;
+    if (!mounted) return;
+    if (!await confirmTranscriptionNotice(context, ref)) return;
+    if (!mounted || ref.read(voiceFlagsProvider).channelId != null) return;
+    await ref.read(rejoinRestoredCallProvider)(call);
   }
 
   Future<bool> _askToRejoin(String channelName) => confirmChoice(

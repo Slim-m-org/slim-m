@@ -16,11 +16,12 @@ import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../features/accounts/providers/account_providers.dart';
 import '../providers/auto_update_preference.dart';
 import '../providers/providers.dart';
 import '../providers/windows_adopt.dart';
 import '../features/voice/providers/call_restore.dart';
-import '../features/voice/providers/voice_controller.dart';
+import '../features/voice/providers/voice_flags.dart';
 import 'desktop_window_port.dart';
 import 'self_update/self_update_controller.dart';
 import 'update_check.dart';
@@ -112,7 +113,7 @@ String updateActionLabel(
 };
 
 /// Performs [action]. A tarball install restarts straight away unless a call
-/// is live; then the action turns into "Restart to update" and waits.
+/// is live in any Space; then the action turns into "Restart to update" and waits.
 Future<void> runUpdateAction(
   WidgetRef ref, {
   required DesktopWindowPort port,
@@ -136,11 +137,10 @@ Future<void> runUpdateAction(
             )
           : await controller.install(currentVersion: info.version);
       if (version == null || !isMounted()) return;
-      if (ref.read(voiceControllerProvider).channelId != null) return;
+      if (_inACall(ref)) return;
       await port.relaunch();
     case UpdateMenuAction.restartToUpdate:
-      final restore = await ref.read(callRestoreProvider.future);
-      await restore.relaunchKeepingCall(port.relaunch);
+      await restartKeepingCall(ref, port);
     case UpdateMenuAction.packageManager:
       await showUpdatePackageView(context, update: update);
     case UpdateMenuAction.openRelease:
@@ -148,4 +148,22 @@ Future<void> runUpdateAction(
       if (uri == null) return;
       await ref.read(releaseLauncherProvider)(uri);
   }
+}
+
+/// Relaunches through [port], and the call this app is in, in whichever Space, comes back on its own.
+Future<void> restartKeepingCall(WidgetRef ref, DesktopWindowPort port) async {
+  final callSpace = ref.read(accountHostProvider)?.callRuntime?.container;
+  final restore =
+      await (callSpace?.read(callRestoreProvider.future) ??
+          ref.read(callRestoreProvider.future));
+  await restore.relaunchKeepingCall(port.relaunch);
+}
+
+/// Whether a call is open in any Space, on screen or not.
+bool _inACall(WidgetRef ref) {
+  if (ref.read(voiceFlagsProvider).channelId != null) return true;
+  final spaces = ref.read(accountHostProvider)?.accounts ?? const [];
+  return spaces.any(
+    (space) => space.container.read(voiceFlagsProvider).channelId != null,
+  );
 }
