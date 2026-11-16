@@ -95,7 +95,8 @@ A success, and a replay of the same stamp, both answer 204.
 The server relays the stamp as `canvas.screen_annotation.updated` with `kind: "stamp"`.
 `annotation_id` is the stamp id, `points` is `[x, y]`, `size` is the size, and `ended` is always true.
 The frame carries `emoji`, or it carries `attachment` (the attachment id) together with `animated`.
-`animated` is decided by the server from the stored row: a GIF of at most 4 MiB.
+`animated` is decided by the server from the stored picture: a GIF of at most 4 MiB on a canvas at most 1024 pixels a side.
+A codec decodes every frame of an animation at the full canvas, so the byte cap alone does not bound what a tile holds.
 
 A sharer's consent frame gains `stamps: true`, which says the sharer's client can show stamps.
 The server relays it with the rest of the consent frame.
@@ -115,6 +116,7 @@ In order:
 4. The target must be someone other than the sender.
 5. For a picture, the sender must be allowed to use the attachment, by the same rule a message uses (they uploaded it, or can see a channel that has it).
    It must be a PNG, JPEG, GIF or WebP of at most 8 MiB.
+   Its header, read the way the server reads it to derive a still, must show at most 40 megapixels.
 6. The SFU roster must show both people in the channel's call and the target sharing a screen.
 7. The target's consent must be live.
    The server keeps each sharer's last relayed consent frame in memory and believes it for 15 seconds, as a viewer does.
@@ -136,12 +138,14 @@ The sender's client removes its local copy of a refused stamp and says why in a 
 - The attachment fetch route gains one rule, checked after its existing one.
   A caller may fetch a picture named by a `screen_stamps` row that is less than 24 hours old if they are its target, or if they are in that channel's call now and can view the channel.
   A moderator who holds MANAGE_MESSAGES and VIEW_CHANNEL there may also fetch the picture of a reported row.
+  Each grant is asked of every row for the picture, so newer stamps of the same picture elsewhere never hide an older one.
 - The new rule applies to fetching only.
   It is not part of the rule that lets someone attach a picture to a message, so seeing a stamp never lets anyone post it.
 - Knowing an attachment id grants nothing, as before.
 - Clients fetch the bounded still preview the server already derives (`?w=640&still=true`).
-  It keeps transparency as WebP and is capped at 40 megapixels.
-- An in-app tile fetches the original only when the relay says `animated`.
+  It keeps transparency as WebP.
+  Step 5 refuses any picture the server would not derive a still from, so the route falls back to the original only when deriving fails or memory is short, and that original holds at most 40 megapixels.
+- An in-app tile fetches the original only when the relay says `animated`, and reads the GIF's canvas from its header again before it animates it.
 - Clients keep stamp pictures in memory only, never in the persistent image cache, and drop them when the call ends.
 - The hourly attachment sweep deletes stamp rows older than 24 hours that no open report holds.
   In the same pass, the orphan sweep reclaims any picture nothing else holds, because `screen_stamps` joins the tables that keep an attachment alive.

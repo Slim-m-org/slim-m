@@ -5,6 +5,7 @@
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::run_attachment_sweep_pass;
+use slimm_server::store::NewScreenStamp;
 
 use super::{Rig, rig};
 
@@ -315,4 +316,67 @@ async fn the_sharer_lists_the_last_days_pictures_newest_first() {
         (json!(false), json!(true))
     );
     assert!(viewers["stamps"].as_array().unwrap().is_empty());
+}
+
+/// Stamps `attachment_id` `times` over in another channel, carol onto dave, each newer than any before.
+async fn flood_elsewhere(rig: &Rig, attachment_id: &str, times: usize) {
+    let other = rig
+        .store
+        .create_channel("elsewhere", "voice")
+        .await
+        .unwrap();
+    let sha256 = slimm_server::media::from_hex(attachment_id).unwrap();
+    sqlx::query("UPDATE screen_stamps SET created_at = created_at - 60000")
+        .execute(&rig.pool)
+        .await
+        .unwrap();
+    for _ in 0..times {
+        let stamp = NewScreenStamp {
+            id: uuid::Uuid::now_v7(),
+            channel_id: other.id,
+            sender_id: rig.carol.id,
+            target_id: rig.dave.id,
+            sha256: &sha256,
+        };
+        rig.store.insert_screen_stamp(&stamp).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn newer_stamps_of_the_same_picture_elsewhere_never_hide_it_from_its_target() {
+    let rig = rig().await;
+    rig.consent(true, true);
+    let png = rig.viewer_png(b"flooded").await;
+    placed(&rig, &png).await;
+    rig.seat(&[rig.carol.id], &[]);
+
+    flood_elsewhere(&rig, &png, 51).await;
+
+    assert_eq!(
+        rig.fetch_status(&rig.sharer.token, &png).await,
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn newer_stamps_of_the_same_picture_elsewhere_never_hide_a_reported_one_from_its_moderator() {
+    let rig = rig().await;
+    rig.consent(true, true);
+    let png = rig.viewer_png(b"buried").await;
+    let stamp_id = placed(&rig, &png).await;
+    let (status, filed) = report(&rig, &rig.sharer.token, &stamp_id).await;
+    assert_eq!(status, StatusCode::OK, "{filed}");
+    rig.age_a_day().await;
+
+    flood_elsewhere(&rig, &png, 51).await;
+
+    assert_eq!(
+        rig.fetch_status(&rig.admin.token, &png).await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        rig.fetch_status(&rig.dave.token, &png).await,
+        StatusCode::OK,
+        "the flood's own target still sees it"
+    );
 }

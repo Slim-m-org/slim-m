@@ -19,9 +19,6 @@ const SWEEP_BATCH: i64 = 500;
 /// Most batches one sweep pass runs; the next hourly pass takes the rest.
 const SWEEP_MAX_BATCHES: usize = 20;
 
-/// Most rows read for one picture when deciding a fetch.
-const ROWS_PER_PICTURE: i64 = 50;
-
 /// One stored picture stamp.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScreenStamp {
@@ -145,22 +142,55 @@ impl Store {
         Ok(rows)
     }
 
-    /// The stored stamps that show this picture, newest first, for deciding a fetch.
-    pub async fn screen_stamps_for_sha(&self, sha256: &[u8]) -> anyhow::Result<Vec<ScreenStamp>> {
-        let rows = sqlx::query_as!(
-            ScreenStamp,
-            r#"SELECT id AS "id!: Uuid", channel_id AS "channel_id!: ChannelId",
-                      sender_id AS "sender_id!: UserId", target_id AS "target_id!: UserId",
-                      sha256 AS "sha256!: Vec<u8>", report_id AS "report_id?: Uuid",
-                      created_at AS "created_at!"
-               FROM screen_stamps WHERE sha256 = ?
-               ORDER BY created_at DESC LIMIT ?"#,
+    /// Whether `user` sent or received a stamp of this picture made since `since`.
+    pub async fn stamp_party_since(
+        &self,
+        sha256: &[u8],
+        user: UserId,
+        since: i64,
+    ) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS(
+                   SELECT 1 FROM screen_stamps
+                   WHERE sha256 = ? AND created_at >= ? AND (target_id = ? OR sender_id = ?)
+               ) AS "found!: bool""#,
             sha256,
-            ROWS_PER_PICTURE
+            since,
+            user,
+            user
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(found)
+    }
+
+    /// The channels where a stamp of this picture is linked to a report.
+    pub async fn reported_stamp_channels(&self, sha256: &[u8]) -> anyhow::Result<Vec<ChannelId>> {
+        let channels = sqlx::query_scalar!(
+            r#"SELECT DISTINCT channel_id AS "channel_id!: ChannelId" FROM screen_stamps
+               WHERE sha256 = ? AND report_id IS NOT NULL"#,
+            sha256
         )
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows)
+        Ok(channels)
+    }
+
+    /// The channels where this picture was stamped since `since`.
+    pub async fn stamp_channels_since(
+        &self,
+        sha256: &[u8],
+        since: i64,
+    ) -> anyhow::Result<Vec<ChannelId>> {
+        let channels = sqlx::query_scalar!(
+            r#"SELECT DISTINCT channel_id AS "channel_id!: ChannelId" FROM screen_stamps
+               WHERE sha256 = ? AND created_at >= ?"#,
+            sha256,
+            since
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(channels)
     }
 
     /// The hex ids of the pictures each of these reports carries, oldest stamp first.
