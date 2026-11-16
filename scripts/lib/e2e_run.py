@@ -29,6 +29,7 @@ import e2e_invite_landing
 import e2e_media_slots
 import e2e_messaging
 import e2e_password
+import e2e_message_edit
 import e2e_private_channel
 import e2e_markdown
 import e2e_composer
@@ -233,6 +234,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("permissions: a private channel follows who was added, live",
          lambda: e2e_private_channel.private_channel_follows_who_was_added(
              a, b, admin, member)),
+        ("messaging: editing and deleting your own message from its menu",
+         lambda: e2e_message_edit.edit_then_delete_own_message(a, b, admin)),
         ("messaging: a group message reaches everyone in it, and leaving ends it",
          lambda: e2e_group_dm.group_message_reaches_everyone_and_leaving_ends_it(
              a, b, admin, member, server)),
