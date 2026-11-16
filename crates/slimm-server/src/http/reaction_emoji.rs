@@ -9,26 +9,44 @@
 /// Longer than a custom emoji's name may be: the standard set runs to 67.
 const MAX_SHORTCODE_LEN: usize = 80;
 
+/// Which of the three accepted forms a string is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ReactionEmoji<'a> {
+    /// One emoji grapheme, as sent.
+    Single(&'a str),
+    /// The name between a `:shortcode:`'s colons.
+    Shortcode(&'a str),
+    /// A custom emoji's id.
+    Id(uuid::Uuid),
+}
+
 /// True when `text` is a single emoji, a `:shortcode:` or an emoji id.
+pub(super) fn is_reaction(text: &str) -> bool {
+    parse(text).is_some()
+}
+
+/// Reads `text` as one of the forms [`is_reaction`] accepts.
 ///
 /// A shortcode may hold `+` and `-` as well as what a custom emoji name may:
 /// bots send the standard ones, and `:+1:`, `:t-rex:` and `:piñata:` are among them.
-pub(super) fn is_reaction(text: &str) -> bool {
-    is_shortcode(text) || uuid::Uuid::parse_str(text).is_ok() || is_single_emoji(text)
+pub(super) fn parse(text: &str) -> Option<ReactionEmoji<'_>> {
+    if let Some(name) = shortcode_name(text) {
+        return Some(ReactionEmoji::Shortcode(name));
+    }
+    if let Ok(id) = uuid::Uuid::parse_str(text) {
+        return Some(ReactionEmoji::Id(id));
+    }
+    is_single_emoji(text).then_some(ReactionEmoji::Single(text))
 }
 
-fn is_shortcode(text: &str) -> bool {
-    let Some(name) = text
-        .strip_prefix(':')
-        .and_then(|rest| rest.strip_suffix(':'))
-    else {
-        return false;
-    };
-    !name.is_empty()
+fn shortcode_name(text: &str) -> Option<&str> {
+    let name = text.strip_prefix(':')?.strip_suffix(':')?;
+    let usable = !name.is_empty()
         && name.len() <= MAX_SHORTCODE_LEN
         && name
             .chars()
-            .all(|c| c.is_alphanumeric() || matches!(c, '_' | '+' | '-'))
+            .all(|c| c.is_alphanumeric() || matches!(c, '_' | '+' | '-'));
+    usable.then_some(name)
 }
 
 fn is_single_emoji(text: &str) -> bool {
@@ -123,7 +141,19 @@ fn is_pictographic(c: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_reaction;
+    use super::{ReactionEmoji, is_reaction, parse};
+
+    #[test]
+    fn each_form_reads_as_its_kind() {
+        let id = "0190f1c2-7a3b-7c3e-8f00-1234567890ab";
+        assert_eq!(parse("\u{1F44D}"), Some(ReactionEmoji::Single("\u{1F44D}")));
+        assert_eq!(
+            parse(":party_parrot:"),
+            Some(ReactionEmoji::Shortcode("party_parrot"))
+        );
+        assert_eq!(parse(id), Some(ReactionEmoji::Id(id.parse().unwrap())));
+        assert_eq!(parse("hello"), None);
+    }
 
     #[test]
     fn single_emoji_shortcodes_and_ids_pass() {
