@@ -8,7 +8,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Music-grade and unprocessed, unlike the speech-tuned [microphonePublishOptions].
-/// Stereo at 128 kbps, declared stereo to the server by `StereoShareEngine`; it does not go lower, since 48 kbps scored 20 dB offline against 26 dB at 96.
+/// Stereo at 128 kbps, declared stereo to the server by `CallEngine`; it does not go lower, since 48 kbps scored 20 dB offline against 26 dB at 96.
 /// `red: true` turns redundant audio OFF (inverted in livekit_client 2.13.1): RED would double the stream for little gain.
 lk.AudioPublishOptions screenShareAudioPublishOptions() =>
     const lk.AudioPublishOptions(

@@ -6,12 +6,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'start_bitrate_peer_connection.dart';
-import 'stereo_share_engine.dart';
+import 'call_engine.dart';
 
 /// Native libwebrtc already seeds its estimator from the offer's hint, so only the browser needs the mirror.
 lk.Room buildRoomWithStartBitrate(lk.RoomOptions roomOptions) => lk.Room(
       roomOptions: roomOptions,
-      engine: StereoShareEngine(
+      engine: CallEngine(
         roomOptions: roomOptions,
         peerConnectionCreate: kIsWeb ? createStartBitratePeerConnection : null,
       ),

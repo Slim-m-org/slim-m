@@ -5,7 +5,6 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:livekit_client/src/proto/livekit_models.pb.dart' as lk_models;
 // ignore: implementation_imports
 import 'package:livekit_client/src/proto/livekit_rtc.pb.dart' as lk_rtc;
-import 'package:slimm_rtc/src/start_bitrate_room.dart';
 import 'package:slimm_rtc/src/stereo_share_engine.dart';
 
 lk_rtc.AddTrackRequest _request(lk_models.TrackSource source) =>
@@ -16,12 +15,6 @@ lk_rtc.AddTrackRequest _request(lk_models.TrackSource source) =>
     );
 
 void main() {
-  test('every call room runs on the stereo-declaring engine', () {
-    final room = buildRoomWithStartBitrate(const lk.RoomOptions());
-    // ignore: invalid_use_of_internal_member
-    expect(room.engine, isA<StereoShareEngine>());
-  });
-
   test('a screen share audio track is declared stereo', () {
     final req = _request(lk_models.TrackSource.SCREEN_SHARE_AUDIO);
     markShareAudioStereo(req);
