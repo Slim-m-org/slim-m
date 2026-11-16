@@ -49,11 +49,11 @@ class _SoundboardButtonState extends State<SoundboardButton> {
       ownsFocusNode: false,
       enableLongPress: false,
       opensAbove: true,
-      menuWidth: 280,
+      menuWidth: soundboardMenuWidth,
       tapRegionGroupId: _group,
       onOpenChanged: (open) => reveal?.pin(open),
+      // No heading: the button's own tooltip already names it.
       itemsBuilder: (context, close) => [
-        const AppMenuLabel('Soundboard'),
         SoundboardPicker(channelId: widget.channelId),
       ],
       child: TapRegion(

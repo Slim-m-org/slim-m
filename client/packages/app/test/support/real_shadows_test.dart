@@ -19,7 +19,26 @@ const _boundaryKey = Key('probe');
 /// (0, 24)), inside a padded grey field wide enough for the shadow's own
 /// blur radius to land fully inside the capture rather than being clipped
 /// by the boundary's own bounds.
-Future<RenderRepaintBoundary> _pumpCard(WidgetTester tester) async {
+///
+/// [nested] puts the card behind a repaint boundary of its own, as an
+/// overlay's popover is, so only a repaint that reaches it shows the blur.
+Future<RenderRepaintBoundary> _pumpCard(
+  WidgetTester tester, {
+  bool nested = false,
+}) async {
+  const card = DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Color(0x85000000),
+          blurRadius: 64,
+          offset: Offset(0, 24),
+        ),
+      ],
+    ),
+    child: SizedBox(width: 100, height: 60),
+  );
   await tester.pumpWidget(
     Directionality(
       textDirection: TextDirection.ltr,
@@ -31,20 +50,7 @@ Future<RenderRepaintBoundary> _pumpCard(WidgetTester tester) async {
             height: 260,
             color: Colors.grey.shade200,
             padding: const EdgeInsets.all(100),
-            child: Container(
-              width: 100,
-              height: 60,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x85000000),
-                    blurRadius: 64,
-                    offset: Offset(0, 24),
-                  ),
-                ],
-              ),
-            ),
+            child: nested ? const RepaintBoundary(child: card) : card,
           ),
         ),
       ),
@@ -93,6 +99,19 @@ void main() {
         greaterThan(10),
         reason: 'a hard step has only two distinct values',
       );
+      expect(_isGradient(row), isTrue, reason: 'row: $row');
+    },
+  );
+
+  testWidgets(
+    'a shadow behind a nested repaint boundary is captured blurred too',
+    (tester) async {
+      final boundary = await _pumpCard(tester, nested: true);
+      late List<int> row;
+      await withRealShadows(tester, boundary, () async {
+        row = (await tester.runAsync(() => _shadowRow(boundary)))!;
+      });
+
       expect(_isGradient(row), isTrue, reason: 'row: $row');
     },
   );

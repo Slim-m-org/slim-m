@@ -16,10 +16,14 @@ class EmojiFieldPicker extends StatefulWidget {
     required this.semanticLabel,
     required this.onSelect,
     required this.builder,
+    this.tooltip = 'Insert emoji',
   });
 
   /// The button's name, saying which field it inserts into.
   final String semanticLabel;
+
+  /// Shown on hover, where the field takes an emoji rather than inserting one.
+  final String tooltip;
   final ValueChanged<String> onSelect;
 
   /// Lays the field out with [button] wherever it belongs; the inline panel
@@ -43,7 +47,7 @@ class _EmojiFieldPickerState extends State<EmojiFieldPicker> {
   Widget _glyph(VoidCallback onPressed, {bool? active}) => AppIconButton(
     icon: AppIcons.smile,
     semanticLabel: widget.semanticLabel,
-    tooltip: active == null ? 'Insert emoji' : null,
+    tooltip: active == null ? widget.tooltip : null,
     active: active,
     onPressed: onPressed,
   );
