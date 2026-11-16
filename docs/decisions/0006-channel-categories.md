@@ -92,3 +92,4 @@ Adding a route means the matching `schema/openapi.yaml` edit and a `tests/respon
 ## What this does not do
 
 Nested categories, collapsing a category (a client-side preference, separate), per-category permission overwrites, and a default category for newly created channels beyond "uncategorised".
+Since then, [0064](0064-category-permissions.md) added per-category permission overwrites and [0120](0120-nested-categories.md) nested categories two levels deep.

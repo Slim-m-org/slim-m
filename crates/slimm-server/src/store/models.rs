@@ -79,11 +79,12 @@ impl ChannelRoom {
 pub struct ChannelCategory {
     pub id: ChannelCategoryId,
     pub name: String,
-    /// Sort key among the deployment's live categories: lower sorts first.
-    /// Uncategorised channels render above every named category regardless
-    /// of this value, since they carry no category row to hold one.
+    /// Sort key among its siblings, lower first: the top-level categories, or one parent's
+    /// sub-categories. Uncategorised channels render above every category regardless.
     pub position: i64,
     pub created_at: i64,
+    /// The top-level category this one sits in, or `None` for a top-level one (decision 0120).
+    pub parent_id: Option<ChannelCategoryId>,
 }
 
 /// A user account's public profile. Deliberately narrow: id, username,

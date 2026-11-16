@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_categories\n                 (id, name, position, created_at, parent_id, permissions_synced)\n             VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "a36a7279310eceaa81be3b9ee87b135eb1d577543e00f85f683695246062ea1d"
+}

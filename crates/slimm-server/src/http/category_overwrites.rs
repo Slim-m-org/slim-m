@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Category permissions (decision 0064): a category's own overwrites, and
-//! syncing a channel back to them. The checks are the channel batch's own,
-//! with the caller's deployment-wide permissions as the ceiling.
+//! Category permissions (decisions 0064 and 0120): a category's overwrites, and syncing a channel
+//! or sub-category back to its parent's, with the caller's deployment-wide permissions as the ceiling.
 
 use std::sync::Arc;
 
@@ -22,7 +21,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::OverwriteBatchEntry;
+use crate::store::{ChannelCategory, OverwriteBatchEntry};
 
 const BODY_LIMIT: usize = 16 * 1024;
 
@@ -33,27 +32,28 @@ pub fn routes() -> Router<AppState> {
             get(list).put(batch_set),
         )
         .route("/channels/{channel_id}/overwrites/sync", post(sync))
+        .route(
+            "/categories/{category_id}/overwrites/sync",
+            post(sync_category),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
-async fn live_category(state: &AppState, raw: &str) -> Result<ChannelCategoryId, ApiError> {
+async fn live_category(state: &AppState, raw: &str) -> Result<ChannelCategory, ApiError> {
     let id = ChannelCategoryId(parse_uuid(raw)?);
-    let exists = state
+    state
         .store
-        .list_categories()
+        .category(id)
         .await?
-        .iter()
-        .any(|c| c.id == id);
-    exists
-        .then_some(id)
         .ok_or(ApiError::NotFound("category not found"))
 }
 
+/// The category's overwrites; `synced` says whether a sub-category follows its parent.
 async fn category_dto(state: &AppState, id: ChannelCategoryId) -> Result<OverwritesDto, ApiError> {
     let overwrites = state.store.category_overwrites(id).await?;
     Ok(OverwritesDto {
         overwrites: overwrites.into_iter().map(OverwriteDto::from).collect(),
-        synced: None,
+        synced: state.store.category_sync_state(id).await?.flatten(),
     })
 }
 
@@ -63,7 +63,7 @@ async fn list(
     State(state): State<AppState>,
 ) -> Result<Json<OverwritesDto>, ApiError> {
     require_manage_roles(&state, ctx.user_id).await?;
-    let id = live_category(&state, &category_id).await?;
+    let id = live_category(&state, &category_id).await?.id;
     Ok(Json(category_dto(&state, id).await?))
 }
 
@@ -87,9 +87,8 @@ async fn visible_before(
     Ok(out)
 }
 
-/// Applies the entries to the category and copies the result into its synced
-/// channels. An all-zero pair removes that target. Every entry is checked
-/// before any writes, as the channel batch does.
+/// Applies the entries and copies the result into everything synced beneath. Every entry is
+/// checked first; a synced sub-category held the parent's old rows, so the copy adds only what passed.
 async fn batch_set(
     Authed(ctx): Authed,
     parts: Parts,
@@ -99,7 +98,7 @@ async fn batch_set(
 ) -> Result<Json<OverwritesDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let caller = require_manage_roles(&state, ctx.user_id).await?;
-    let id = live_category(&state, &category_id).await?;
+    let id = live_category(&state, &category_id).await?.id;
     if req.overwrites.len() > MAX_BATCH_ENTRIES {
         return Err(ApiError::BadRequest("too many overwrites in one batch"));
     }
@@ -145,16 +144,50 @@ async fn batch_set(
         });
     }
 
-    let synced = state.store.synced_channels_in(id).await?;
+    let synced = state.store.synced_channels_beneath(id).await?;
     let before = visible_before(&state, &synced, &targets).await?;
     state.store.set_category_overwrites(id, &entries).await?;
+    publish_changed(&state, before);
+    Ok(Json(category_dto(&state, id).await?))
+}
+
+fn publish_changed(state: &AppState, before: Vec<(ChannelId, Vec<UserId>)>) {
     for (channel_id, previously_visible_to) in before {
         state.hub.publish(Event::OverwriteChanged {
             channel_id,
             previously_visible_to: Arc::new(previously_visible_to),
         });
     }
-    Ok(Json(category_dto(&state, id).await?))
+}
+
+/// Makes a sub-category follow its parent again (decision 0120), adopting
+/// the parent's overwrites and copying them into its own synced channels.
+async fn sync_category(
+    Authed(ctx): Authed,
+    parts: Parts,
+    Path(category_id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<OverwritesDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let caller = require_manage_roles(&state, ctx.user_id).await?;
+    let category = live_category(&state, &category_id).await?;
+    let parent = category.parent_id.ok_or(ApiError::Conflict(
+        "a top-level category has no parent to follow",
+    ))?;
+    // Syncing can grant what the parent grants, so the caller must hold all of it.
+    let mut targets = Vec::new();
+    for o in state.store.category_overwrites(parent).await? {
+        refuse_ungrantable(caller, o.allow)?;
+        targets.push(target_of(&o.target_type, o.target_id));
+    }
+    for o in state.store.category_overwrites(category.id).await? {
+        targets.push(target_of(&o.target_type, o.target_id));
+    }
+    let channels = state.store.synced_channels_beneath(category.id).await?;
+    let before = visible_before(&state, &channels, &targets).await?;
+    state.store.sync_category_permissions(category.id).await?;
+    publish_changed(&state, before);
+    Ok(Json(category_dto(&state, category.id).await?))
 }
 
 /// Makes a channel follow its category again, adopting its overwrites.
@@ -190,12 +223,7 @@ async fn sync(
     }
     let before = visible_before(&state, &[channel_id], &targets).await?;
     state.store.sync_channel_permissions(channel_id).await?;
-    for (channel_id, previously_visible_to) in before {
-        state.hub.publish(Event::OverwriteChanged {
-            channel_id,
-            previously_visible_to: Arc::new(previously_visible_to),
-        });
-    }
+    publish_changed(&state, before);
     let overwrites = state.store.channel_overwrites(channel_id).await?;
     Ok(Json(OverwritesDto {
         overwrites: overwrites.into_iter().map(OverwriteDto::from).collect(),

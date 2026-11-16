@@ -53,7 +53,7 @@ export 'client_module_settings.dart' show SlimmApiModuleSettings;
 export 'client_module_slots.dart' show SlimmApiModuleSlots;
 export 'client_bots.dart' show Bot, NewBot, SlimmApiBots;
 export 'client_category_permissions.dart'
-    show ChannelOverwriteSet, SlimmApiCategoryPermissions;
+    show CategoryOverwriteSet, ChannelOverwriteSet, SlimmApiCategoryPermissions;
 export 'client_linked_accounts.dart' show SlimmApiLinkedAccounts;
 export 'client_notification_schedule.dart' show SlimmApiNotificationSchedule;
 export 'client_presence.dart' show SlimmApiPresence;

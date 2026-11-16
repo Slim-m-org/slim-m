@@ -183,6 +183,13 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "category.overwrites",
         CAT,
     ),
+    route(
+        Method::POST,
+        "/categories/{category_id}/overwrites/sync",
+        "category.overwrites_sync",
+        CAT,
+    ),
+    route(Method::PUT, "/categories/order", "category.reorder", None),
     route(Method::POST, "/invites", "invite.create", None),
     route(
         Method::DELETE,

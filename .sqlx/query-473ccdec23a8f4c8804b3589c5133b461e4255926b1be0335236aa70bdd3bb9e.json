@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT parent_id IS NOT NULL AS \"nested!: bool\"\n               FROM channel_categories WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "nested!: bool",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "473ccdec23a8f4c8804b3589c5133b461e4255926b1be0335236aa70bdd3bb9e"
+}

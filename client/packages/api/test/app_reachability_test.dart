@@ -61,6 +61,14 @@ const Map<String, String> _allowlist = {
       'uploadAttachmentAuto, which is what the composer calls: it picks this '
       'for small files and for servers without upload sessions, so the app '
       'reaches it only through that method (2026-10-15)',
+  'moveCategory': 'nested categories (decision 0120): the header menu\'s '
+      '"Move into" lands with the client half of the same change (2026-11-16)',
+  'reorderCategories': 'nested categories (decision 0120): the rail drag '
+      'switches to it with the client half of the same change (2026-11-16)',
+  'getCategoryOverwriteSet': 'nested categories (decision 0120): the '
+      'sub-category sync line lands with the client half (2026-11-16)',
+  'syncCategoryOverwrites': 'nested categories (decision 0120): "Sync with '
+      'parent" lands with the client half of the same change (2026-11-16)',
 };
 
 /// Names that are not API surface, so their absence proves nothing.

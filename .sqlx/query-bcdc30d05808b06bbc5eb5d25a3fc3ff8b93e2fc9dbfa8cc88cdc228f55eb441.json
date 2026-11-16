@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channels SET category_id = ?, permissions_synced = 0,\n             position = COALESCE(\n                 (SELECT l.position FROM channels l WHERE l.id = channels.room_lobby_id),\n                 position)\n         WHERE category_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bcdc30d05808b06bbc5eb5d25a3fc3ff8b93e2fc9dbfa8cc88cdc228f55eb441"
+}

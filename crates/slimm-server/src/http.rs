@@ -42,6 +42,7 @@ pub mod uplink_test;
 use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;
 mod categories;
+mod category_order;
 mod category_overwrites;
 mod channels;
 use channels::{
@@ -309,6 +310,7 @@ pub fn router(state: AppState) -> Router {
         .merge(canvas_object_locks::routes())
         .merge(canvas_purge::routes())
         .merge(categories::routes())
+        .merge(category_order::routes())
         .merge(category_overwrites::routes())
         .merge(channel_notification_prefs::routes())
         .merge(channels::routes())

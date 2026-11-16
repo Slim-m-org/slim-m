@@ -159,22 +159,32 @@ class Channel {
       );
 }
 
-/// A rail section a channel of any kind may be filed under. Carries no
-/// permission of its own - see docs/decisions/0006-channel-categories.md.
+/// A rail section a channel of any kind may be filed under, nesting two
+/// levels deep - see docs/decisions/0006-channel-categories.md and 0120.
 class ChannelCategory {
   const ChannelCategory({
     required this.id,
     required this.name,
     required this.position,
     required this.createdAt,
+    this.parentId,
+    this.serverNests = false,
   });
 
   final String id;
   final String name;
 
-  /// Sort key among the deployment's live categories: lower sorts first.
+  /// Sort key among its siblings, lower first: the top-level categories, or
+  /// one parent's sub-categories.
   final int position;
   final int createdAt;
+
+  /// The top-level category this one sits in, or null for a top-level one.
+  final String? parentId;
+
+  /// False when the server predates nested categories and sent no
+  /// `parent_id` at all, so it must not be asked for a sub-category.
+  final bool serverNests;
 
   factory ChannelCategory.fromJson(Map<String, dynamic> json) =>
       ChannelCategory(
@@ -182,6 +192,8 @@ class ChannelCategory {
         name: json['name'] as String,
         position: json['position'] as int,
         createdAt: json['created_at'] as int,
+        parentId: json['parent_id'] as String?,
+        serverNests: json.containsKey('parent_id'),
       );
 }
 
@@ -306,5 +318,19 @@ class ChannelOrderGroup {
   Map<String, dynamic> toJson() => {
         'category_id': categoryId,
         'channel_ids': channelIds,
+      };
+}
+
+/// One sibling group in display order, the top level when [parentId] is null;
+/// the request shape [SlimmApiChannelAdmin.reorderCategories] sends.
+class CategoryOrderGroup {
+  const CategoryOrderGroup({required this.parentId, required this.categoryIds});
+
+  final String? parentId;
+  final List<String> categoryIds;
+
+  Map<String, dynamic> toJson() => {
+        'parent_id': parentId,
+        'category_ids': categoryIds,
       };
 }
