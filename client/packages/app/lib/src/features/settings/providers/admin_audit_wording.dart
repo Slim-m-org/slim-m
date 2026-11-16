@@ -176,6 +176,9 @@ class _Describer {
     'category.update' => _update(_category()),
     'category.delete' => 'deleted ${_category()}',
     'category.overwrites' => 'changed permissions on ${_category()}',
+    'category.overwrites_sync' =>
+      'synced permissions on ${_category()} with its parent category',
+    'category.reorder' => 'reordered categories',
     'invite.create' => 'created an invite',
     'invite.revoke' =>
       _target == null ? 'revoked an invite' : 'revoked invite $_target',

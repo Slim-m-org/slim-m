@@ -4,7 +4,9 @@
 /// cs-only member who is shown gamers as a heading over cs2 alone.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +14,9 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/collapsed_categories_preference.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_reorder.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_rail_section_label.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_drag_lift.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -122,6 +126,14 @@ bool _dotBeside(WidgetTester tester, String header) {
     return y >= line.top && y <= line.bottom;
   });
 }
+
+bool _addRevealed(WidgetTester tester, String categoryId) => tester
+    .widget<AddChannelGlyph>(
+      find.byWidgetPredicate(
+        (w) => w is AddChannelGlyph && w.categoryId == categoryId,
+      ),
+    )
+    .revealed;
 
 final _all = [
   _channel('lobby', 'gamers'),
@@ -283,5 +295,55 @@ void main() {
     ];
     expect(dots, hasLength(2), reason: 'the header and the surfaced row');
     expect(dots.first.dx, closeTo(dots.last.dx, 0.5));
+  });
+
+  testWidgets('at pointer width a sub-category header reveals its + on hover '
+      'and lifts on a held press, as a top-level one does', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(
+      tester,
+      channels: _all,
+      categories: const [_gamers, _minecraft, _cs2],
+      canManage: true,
+    );
+    final hover = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(hover.removePointer);
+
+    for (final (hovered, other) in [('cs2', 'gamers'), ('gamers', 'cs2')]) {
+      await hover.moveTo(tester.getCenter(find.text(hovered)));
+      await pumpFrames(tester);
+      expect(_addRevealed(tester, hovered), isTrue, reason: hovered);
+      expect(_addRevealed(tester, other), isFalse, reason: hovered);
+    }
+    expect(
+      tester
+          .getRect(find.bySemanticsLabel('Create a channel in gamers / cs2'))
+          .right,
+      closeTo(
+        tester
+            .getRect(find.bySemanticsLabel('Create a channel in gamers'))
+            .right,
+        0.5,
+      ),
+    );
+
+    final start = tester.getCenter(find.text('cs2'));
+    final press = await tester.startGesture(
+      start,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await press.moveTo(start + const Offset(0, 24));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(
+      find.byWidgetPredicate((w) => w is RailDragLift),
+      findsOneWidget,
+      reason: 'the held sub-category is carried',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await press.up();
+    await pumpFrames(tester);
   });
 }
