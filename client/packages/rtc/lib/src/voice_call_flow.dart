@@ -19,6 +19,14 @@ import 'voice_reconnect_tracker.dart';
 import 'voice_roster_snapshot.dart';
 import 'voice_session_core.dart';
 
+/// How long a hang-up waits for the SFU to acknowledge the leave it was sent.
+///
+/// livekit waits 10 s for its engine to report the disconnect and misses the
+/// report when a reconnect attempt is running, so without a bound of its own
+/// a hang-up during an outage stayed on screen for those 10 s. The room is
+/// disposed either way, which is what closes the connections.
+const kLeaveGoodbyeWait = Duration(seconds: 2);
+
 /// Owns the room, the call's state and its generation, and orders the
 /// teardown; every other part of the call is reached through [VoiceSessionCore].
 class VoiceCallFlow {
@@ -349,7 +357,7 @@ class VoiceCallFlow {
     await _step(_core.share.control.stopActiveBroadcast);
     await _step(_core.share.control.dispose);
     if (leaving != null) {
-      await _step(leaving.disconnect);
+      await _step(() => leaving.disconnect().timeout(kLeaveGoodbyeWait));
       await _step(leaving.dispose);
     }
   }

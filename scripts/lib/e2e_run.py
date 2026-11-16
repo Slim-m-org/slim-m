@@ -74,6 +74,7 @@ import e2e_voice_experience
 import e2e_voice_latency
 import e2e_voice_quality
 import e2e_voice_volume
+import e2e_voice_hangup
 import e2e_voice_network
 import e2e_voice_signal_drop
 import e2e_video_quality
@@ -361,6 +362,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: a client that loses its network rejoins on its own",
          lambda: e2e_voice_network.rejoins_after_a_network_drop(
              a, b, room_id)),
+        ("voice: hanging up with the network down ends the call at once",
+         lambda: e2e_voice_hangup.hanging_up_offline_ends_the_call_at_once(
+             a, room_id)),
         ("voice: a signal socket dropped while the microphone publishes leaves "
          "one microphone that Mute reaches",
          lambda: e2e_voice_signal_drop.a_signal_drop_mid_publish_converges(
