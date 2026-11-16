@@ -12,6 +12,9 @@ import 'voice_health_summary.dart';
 /// How many finished share summaries one call keeps.
 const int kDiagnosticsSummaryCap = 12;
 
+/// How many timeline lines one call keeps; the oldest go first.
+const int kDiagnosticsTimelineCap = 80;
+
 class CallDiagnostics {
   CallDiagnostics({DateTime Function()? clock})
       : _clock = clock ?? DateTime.now;
@@ -25,6 +28,8 @@ class CallDiagnostics {
   final _healthSummary = <String>[];
   final _statsLines = <String, String>{};
   final _trackSummaries = <String>[];
+  final _timeline = <String>[];
+  ({int seconds, List<String> lines})? _previous;
 
   /// Whether a call is up right now.
   bool get active => _startedAt != null && _endedAt == null;
@@ -35,6 +40,7 @@ class CallDiagnostics {
   /// Starts a call; a reconnect inside the same call keeps what it has.
   void begin() {
     if (active) return;
+    _keepPrevious();
     _startedAt = _clock();
     _endedAt = null;
     _minuteLine = null;
@@ -43,6 +49,18 @@ class CallDiagnostics {
     _healthSummary.clear();
     _statsLines.clear();
     _trackSummaries.clear();
+    _timeline.clear();
+  }
+
+  /// A rejoin replaces the call that went wrong, so its timeline is kept beside the new one.
+  void _keepPrevious() {
+    final started = _startedAt;
+    final ended = _endedAt;
+    if (started == null || ended == null) return;
+    _previous = (
+      seconds: ended.difference(started).inSeconds,
+      lines: List.of(_timeline),
+    );
   }
 
   /// Ends the call but keeps its numbers until the next one begins.
@@ -73,6 +91,15 @@ class CallDiagnostics {
     _transport = transport ?? _transport;
   }
 
+  /// Files [line] at its time since the join; an event after the call ended
+  /// still belongs to it, and one before any call is dropped.
+  void noteEvent(String line) {
+    final started = _startedAt;
+    if (started == null) return;
+    if (_timeline.length >= kDiagnosticsTimelineCap) _timeline.removeAt(0);
+    _timeline.add('${_sinceJoin(_clock().difference(started))} $line');
+  }
+
   void noteTrackSummary(String line) {
     if (_trackSummaries.length >= kDiagnosticsSummaryCap) {
       _trackSummaries.removeAt(0);
@@ -97,6 +124,16 @@ class CallDiagnostics {
       _minuteLine ?? 'No once-a-minute audio line yet.',
       ..._healthSummary,
       '',
+      'Timeline, from the join',
+      if (_timeline.isEmpty) 'Nothing recorded yet.',
+      ..._timeline,
+      if (_previous case final previous?) ...[
+        '',
+        'Previous call, which ran ${previous.seconds}s',
+        if (previous.lines.isEmpty) 'Nothing recorded.',
+        ...previous.lines,
+      ],
+      '',
       'Video',
       if (_statsLines.isEmpty && _trackSummaries.isEmpty)
         'No video was sampled.',
@@ -117,6 +154,9 @@ class CallDiagnostics {
     return 'No call is active. Showing the last call, which ran ${length}s.';
   }
 }
+
+String _sinceJoin(Duration elapsed) =>
+    '+${(elapsed.inMilliseconds / 1000).toStringAsFixed(1)}s';
 
 String _path(TransportStats t) {
   final rtt = t.rttMs == null ? '' : ' rtt=${t.rttMs!.round()}ms';

@@ -108,6 +108,7 @@ class VoiceCallFlow {
     await _core.stats.sampler.dispose();
     _core.healthWatch.health.dispose();
     _core.joinTimings.finish();
+    _core.joinProbe.dispose();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     await _core.camera.dispose();
@@ -153,6 +154,9 @@ class VoiceCallFlow {
       final micFailed =
           microphoneEnabled && !await _core.micRecovery.setEnabled(true);
       if (!identical(room, joining)) return;
+      if (microphoneEnabled) {
+        _core.joinProbe.noteEvent(micFailed ? 'Mic did not open' : 'Mic open');
+      }
       _core.refresh();
       _setState(VoiceSessionState.connected);
       // A slow webcam must not hold "connected" back; see CameraJoin.
@@ -252,7 +256,11 @@ class VoiceCallFlow {
   /// Pauses what a half-repaired transport would only mislead, and rebuilds the roster from the live room once it is back.
   void _onReconnectingChanged() {
     if (disposed) return;
-    if (_core.healthWatch.health.reconnect.restarting.value) {
+    final restarting = _core.healthWatch.health.reconnect.restarting.value;
+    if (room != null) {
+      _core.joinProbe.noteEvent(restarting ? 'Reconnecting' : 'Reconnected');
+    }
+    if (restarting) {
       _core.healthWatch.stop();
       // Tracks are forgotten so the grace period starts again once frames can flow.
       _core.stall.watchdog.observe(const []);
@@ -345,6 +353,7 @@ class VoiceCallFlow {
     _core.micRecovery.syncWatch(next);
     _core.healthWatch.sync(next);
     _core.stats.syncDiagnostics(next);
+    _core.joinProbe.sync(next);
     final gate = _core.micGate;
     if (next == VoiceSessionState.connected) {
       unawaited(gate.apply());

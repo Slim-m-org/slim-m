@@ -162,5 +162,9 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<bool> setDeafened(bool value) async => true;
   @override
+  Future<String?> Function()? audioSessionReader;
+  @override
+  void noteCallSystemEvent(String line) => diagnostics.noteEvent(line);
+  @override
   Future<void> dispose() async {}
 }

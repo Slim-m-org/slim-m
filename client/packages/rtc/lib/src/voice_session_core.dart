@@ -12,11 +12,13 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 
 import 'audio_devices.dart';
+import 'audio_engine_line.dart';
 import 'broadcast_bridge.dart';
 import 'camera_devices.dart';
 import 'camera_join.dart';
 import 'desktop_sources.dart';
 import 'input_gate.dart';
+import 'join_audio_probe.dart';
 import 'join_timings.dart';
 import 'livekit_setup_log.dart';
 import 'mic_failure.dart';
@@ -225,6 +227,24 @@ class VoiceSessionCore {
   late final VoiceCamera camera;
   late final VoiceRoster roster;
   late final setupLog = LiveKitSetupLog(diag);
+
+  /// The first seconds of each call and every audio event after; see [JoinAudioProbe].
+  late final joinProbe = JoinAudioProbe(
+    JoinAudioProbeHost(
+      local: healthWatch.localVoiceStats,
+      remotes: healthWatch.remoteVoiceProbes,
+      micWanted: () => micRecovery.micWanted,
+      deafened: () => listener.deafened,
+      engine: currentEngineLine,
+      note: _noteJoin,
+    ),
+    engineChanges: engineChangeLines(),
+  );
+
+  void _noteJoin(String line, {LogLevel level = LogLevel.info}) {
+    healthWatch.diagnostics.noteEvent(line);
+    diag('[call-join] $line', level: level);
+  }
 
   late final processing = VoiceProcessingControl(
     switching: devices.switching,

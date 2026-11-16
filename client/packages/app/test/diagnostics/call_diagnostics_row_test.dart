@@ -100,6 +100,21 @@ void main() {
     _clearToasts(container);
   });
 
+  testWidgets('a short call still copies its join timeline', (tester) async {
+    String? copied;
+    _captureClipboard(tester, (text) => copied = text);
+    final container = await _open(tester);
+    container.read(voiceControllerProvider.notifier).diagnostics
+      ..begin()
+      ..noteEvent('CallKit start request: ok');
+
+    await _tapCopy(tester);
+
+    expect(copied, contains('Timeline, from the join'));
+    expect(copied, contains('s CallKit start request: ok'));
+    _clearToasts(container);
+  });
+
   testWidgets('the copy is redacted like the debug log', (tester) async {
     String? copied;
     _captureClipboard(tester, (text) => copied = text);
