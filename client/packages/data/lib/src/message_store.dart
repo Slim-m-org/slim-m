@@ -14,6 +14,7 @@ import 'message_store_channels.dart' as channels_impl;
 import 'message_store_cursors.dart' as cursors_impl;
 import 'message_store_drafts.dart' as drafts_impl;
 import 'message_store_pending_attachments.dart' as pending_impl;
+import 'message_store_recent_ops.dart';
 import 'message_store_retention.dart' as retention_impl;
 import 'message_store_rows.dart' as rows_impl;
 import 'message_store_cursors.dart' show CursorAdvance, ReadMarker;
@@ -34,6 +35,9 @@ class MessageStore {
   MessageStore(this.db);
 
   final SlimmDatabase db;
+
+  /// The edits and deletes applied so far, which an older copy must not undo.
+  final recentOps = RecentOps();
 
   // --- Reads ---
 
@@ -253,36 +257,17 @@ class MessageStore {
   /// Applies one message from the server, whichever route it arrived by.
   ///
   /// Idempotent and order-safe: re-applying the same message changes nothing,
-  /// and an older version of a message can never overwrite a newer one. This is
-  /// the single place those two rules live.
+  /// and an older copy of a message can never overwrite a newer one, nor bring
+  /// back one the server deleted. `message_store_batch.dart` is the single
+  /// place those rules live.
   ///
   /// The sync cursor moves as [advance] says; by default only when the message
   /// follows it directly, so a REST answer cannot skip a gap catch-up still owes.
   Future<void> applyMessage(
     api.Message message, {
     CursorAdvance advance = CursorAdvance.whenContiguous,
-  }) async {
-    await db.transaction(() async {
-      final existing = await (db.select(db.messages)
-            ..where((m) => m.id.equals(message.id)))
-          .getSingleOrNull();
-
-      // A stale copy of something already stored: ignore it. Pending rows are
-      // always replaced, since the server's version is authoritative.
-      if (existing != null && !existing.pending && existing.seq > message.seq) {
-        return;
-      }
-
-      await db
-          .into(db.messages)
-          .insertOnConflictUpdate(rows_impl.rowFor(message));
-
-      await advanceCursor(message.channelId, [message.seq], advance);
-      if (message.mentionsMe) {
-        await advanceMentionCursor(message.channelId, message.seq);
-      }
-    });
-  }
+  }) =>
+      batch_impl.applyMessagesBatched(this, [message], advance);
 
   /// Applies a batch, for catch-up and scroll-back, in one transaction and with
   /// far fewer round trips than a call to [applyMessage] per message. The body
@@ -343,6 +328,7 @@ class MessageStore {
       await db.delete(db.canvasPersonalLayouts).go();
       await db.delete(db.pendingAttachments).go();
     });
+    recentOps.clear();
   }
 
   /// Every channel's unsent composer text, as a map. See
@@ -431,11 +417,21 @@ class MessageStore {
   /// the message cursor, which would skip whatever sits between.
   Future<void> applyEdit(
       String messageId, String content, int? editedAt) async {
+    recentOps.edited(messageId, content, editedAt);
     await (db.update(db.messages)..where((m) => m.id.equals(messageId)))
         .write(MessagesCompanion(
       content: Value(content),
       editedAt: Value(editedAt),
     ));
+  }
+
+  /// Applies a live edit: written over a row already held, and only remembered
+  /// for one that is not, so the copy that later brings the row carries it.
+  /// Inserting instead would leave a lone old row for history to page from.
+  Future<void> applyEdited(api.Message message) async {
+    recentOps.edited(message.id, message.content, message.editedAt);
+    if (!await rows_impl.hasRow(db, message.id)) return;
+    await applyMessage(message);
   }
 
   /// Clears a forward's snapshot once its original was removed; the note stays.

@@ -70,6 +70,14 @@ Future<bool> hasChannel(SlimmDatabase db, String channelId) async {
   return row != null;
 }
 
+/// Whether any row is held under [messageId], delivered or not.
+Future<bool> hasRow(SlimmDatabase db, String messageId) async {
+  final row = await (db.select(db.messages)
+        ..where((m) => m.id.equals(messageId)))
+      .getSingleOrNull();
+  return row != null;
+}
+
 /// Whether [messageId] is held for [channelId], however far outside the watched window.
 Future<bool> hasMessage(
   SlimmDatabase db,

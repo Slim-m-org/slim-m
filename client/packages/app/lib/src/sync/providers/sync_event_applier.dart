@@ -55,7 +55,7 @@ class SyncEventApplier {
         if (!await _placeLiveOp(message.channelId, opSeq, store, isCurrent)) {
           return;
         }
-        await store.applyMessage(message);
+        await store.applyEdited(message);
       case MessageLinkPreviewsRemoved(
         :final channelId,
         :final messageId,
