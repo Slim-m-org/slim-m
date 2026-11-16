@@ -26,7 +26,7 @@ use super::super::error::ApiError;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{MessageId, UserId};
 use crate::permissions::Permissions;
-use crate::store::{ForwardCascade, ForwardOrigin, ForwardSummary};
+use crate::store::{ForwardCascade, ForwardSource, ForwardSummary};
 
 /// What a message was forwarded from, or absent on a message that forwards
 /// nothing.
@@ -91,7 +91,7 @@ pub(crate) async fn resolve(
     state: &AppState,
     sender: UserId,
     named_id: MessageId,
-) -> Result<ForwardOrigin, ApiError> {
+) -> Result<ForwardSource, ApiError> {
     let invalid = ApiError::BadRequest("forwarded_from_id must name a live message you can see");
     let Some(source) = state.store.forward_source(named_id).await? else {
         return Err(invalid);
@@ -103,7 +103,7 @@ pub(crate) async fn resolve(
     {
         return Err(invalid);
     }
-    Ok(source.origin)
+    Ok(source)
 }
 
 /// Batch-loads the forward carried by each message on a page, keyed by the

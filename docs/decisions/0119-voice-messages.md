@@ -7,7 +7,8 @@ Builds on [0113](0113-call-transcripts.md) and `docs/research/voice-messages-pla
 ## Decision
 
 A voice message is an ordinary audio attachment recorded in the composer and marked at upload with its length and a 64 bucket waveform.
-The marks live in a side table keyed by the blob, so a message read carries them without a new column on any hot table.
+The marks belong to the message, not the bytes: each uploader's claim keeps what they marked, a send copies it onto that message's attachment link, and a forward copies its original's link.
+Attachments are shared by content, so marks keyed by the blob (as first built) let whoever uploaded some bytes first decide how every message carrying them rendered; migration 0194 moved them, 2026-11-16.
 
 Transcripts are made by the speech listener that already transcribes calls, not by a second engine in the server.
 The listener gains `POST /v1/transcribe`, which takes WAV or Ogg Opus bytes under the same bearer secret, decodes them in memory to 16 kHz mono, and runs them through the engine pool the calls use.
@@ -44,6 +45,7 @@ Playing a voice message on iPhone during a call is refused for the same reason.
 - Audio never leaves the deployment.
 - Encrypted messages are never offered to the worker.
 - A transcript is a row per blob with a cascade, and its words are indexed in `attachment_text_fts`, so it follows message delete and retention and is found by search.
+  Only a link that is a voice message shows it or is found by it; a plain file with the same bytes never is.
 - Turning the setting off stops new work and hides transcripts from readers; they are kept until the message goes.
 - A `message.voice_transcript` frame, ephemeral and lossy, tells readers when a transcript starts, finishes or fails; reading the message is the catch-up.
 

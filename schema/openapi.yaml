@@ -4507,9 +4507,9 @@ paths:
           description: >
             `true` marks the upload as a voice message. It must then be audio
             and carry `duration_ms` (1 millisecond up to 5 minutes and 10
-            seconds) and `waveform`, or the request is a 400. Bytes someone
-            else uploaded, or that someone else's message already carries, stay
-            as they were; the response carries the voice data the bytes have.
+            seconds) and `waveform`, or the request is a 400. The mark is the
+            caller's own: their next message with these bytes is a voice
+            message, and nobody else's is. An upload without it clears it.
           schema:
             type: boolean
         - name: duration_ms
@@ -18445,9 +18445,9 @@ components:
         filename:
           type: string
           description: >
-            Sanitized display name. Content-addressed storage means this is a
-            property of the bytes, not of any one message attaching them: the
-            first upload of a given hash sets it.
+            Sanitized display name. A property of the message, as its sender
+            uploaded the bytes, else the first upload's; a forward keeps its
+            original's.
         content_type:
           type: string
           description: >
@@ -18461,7 +18461,8 @@ components:
           type: boolean
           description: >-
             Shown behind a spoiler on this message. A property of the message
-            carrying the bytes, not of the bytes; omitted when false.
+            carrying the bytes, not of the bytes, and a forward of a hidden
+            file stays hidden; omitted when false.
         original:
           type: object
           description: >-
@@ -18480,7 +18481,8 @@ components:
           description: >-
             True for a voice message recorded in the composer, which then
             carries `duration_ms` and `waveform`; omitted when false. A property
-            of the bytes: the first upload of a given hash decides.
+            of the message, as its sender uploaded the bytes; a forward keeps
+            its original's.
         duration_ms:
           type: integer
           format: int64
@@ -18497,7 +18499,8 @@ components:
           required: [status, text]
           description: >-
             What was heard in a voice message, while the Space transcribes
-            them; omitted otherwise. Also sent live as `message.voice_transcript`.
+            them; omitted otherwise, and on a plain file with the same bytes.
+            Also sent live as `message.voice_transcript`.
           properties:
             status:
               type: string
@@ -18988,7 +18991,8 @@ components:
           type: array
           description: >-
             The subset of `attachment_ids` shown behind a spoiler. An id not
-            among `attachment_ids` is a 400.
+            among `attachment_ids` is a 400. A forward also hides whatever its
+            original hid.
           items:
             type: string
         reply_to_id:

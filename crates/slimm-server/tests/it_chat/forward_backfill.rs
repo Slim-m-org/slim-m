@@ -38,7 +38,7 @@ async fn forward(
             attachment_ids: &[],
             spoiler_ids: &[],
             reply_to_id: None,
-            forward: Some(source.origin),
+            forward: Some(source),
         })
         .await
         .unwrap();

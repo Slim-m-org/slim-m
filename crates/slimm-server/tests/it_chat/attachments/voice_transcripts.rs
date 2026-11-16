@@ -18,13 +18,13 @@ use uuid::Uuid;
 use crate::attachments::fixtures::*;
 use crate::attachments::text_search::{World, world};
 
-struct Fake {
+pub(super) struct Fake {
     answer: Mutex<Result<Heard, Failure>>,
     calls: AtomicUsize,
 }
 
 impl Fake {
-    fn saying(text: &str) -> Self {
+    pub(super) fn saying(text: &str) -> Self {
         Self {
             answer: Mutex::new(Ok(Heard {
                 text: text.into(),

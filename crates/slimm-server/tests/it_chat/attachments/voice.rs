@@ -220,15 +220,15 @@ impl Two {
 }
 
 #[tokio::test]
-async fn someone_else_cannot_turn_your_audio_file_into_a_voice_message() {
+async fn someone_else_uploading_your_audio_file_as_a_voice_message_leaves_yours_a_file() {
     let two = two_members().await;
     let (_, song) = post(&two.app, &two.alice, "", ogg(9)).await;
     let message_id = two.send(&two.alice, &song["id"]).await;
 
     let query = format!("voice=true&duration_ms=4200&waveform={}", waveform_hex());
-    let (status, refused) = post(&two.app, &two.bob, &query, ogg(9)).await;
+    let (status, bobs) = post(&two.app, &two.bob, &query, ogg(9)).await;
     assert_eq!(status, StatusCode::CREATED);
-    assert_eq!(refused.get("voice"), None, "nothing was stored: {refused}");
+    assert_eq!(bobs["voice"], true, "bob's own upload is his: {bobs}");
     let alices = two.attachment_of(&message_id).await;
     assert_eq!(
         alices.get("voice"),
@@ -238,28 +238,15 @@ async fn someone_else_cannot_turn_your_audio_file_into_a_voice_message() {
 }
 
 #[tokio::test]
-async fn a_file_left_by_a_deleted_account_cannot_be_turned_into_a_voice_message() {
+async fn a_file_left_by_a_deleted_account_stays_a_file() {
     let two = two_members().await;
     let (_, song) = post(&two.app, &two.alice, "", ogg(10)).await;
     let message_id = two.send(&two.alice, &song["id"]).await;
     two.store.delete_account(two.alice_id).await.unwrap();
 
     let query = format!("voice=true&duration_ms=1&waveform={}", waveform_hex());
-    let (status, refused) = post(&two.app, &two.bob, &query, ogg(10)).await;
+    let (status, _) = post(&two.app, &two.bob, &query, ogg(10)).await;
     assert_eq!(status, StatusCode::CREATED);
     let left = two.attachment_of(&message_id).await;
     assert_eq!(left.get("voice"), None, "{left}");
-    assert_eq!(refused.get("voice"), None, "{refused}");
-}
-
-#[tokio::test]
-async fn uploading_a_voice_message_again_answers_with_what_was_kept() {
-    let two = two_members().await;
-    let first = format!("voice=true&duration_ms=4200&waveform={}", waveform_hex());
-    post(&two.app, &two.alice, &first, ogg(11)).await;
-    let again = format!("voice=true&duration_ms=1000&waveform={}", "00".repeat(64));
-    let (status, uploaded) = post(&two.app, &two.alice, &again, ogg(11)).await;
-    assert_eq!(status, StatusCode::CREATED);
-    assert_eq!(uploaded["duration_ms"], 4200, "{uploaded}");
-    assert_eq!(uploaded["waveform"][5], 5);
 }

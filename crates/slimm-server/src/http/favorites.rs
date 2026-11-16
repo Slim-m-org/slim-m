@@ -314,11 +314,13 @@ async fn select(
             viewable_message(&state, ctx.user_id, message_id)
                 .await
                 .map_err(|_| ApiError::Conflict(UNAVAILABLE))?;
-            let summary = state
+            let mut summary = state
                 .store
                 .attachment_summary(&sha256)
                 .await?
                 .ok_or(ApiError::Conflict(UNAVAILABLE))?;
+            // What the caller's own send of these bytes would carry.
+            summary.voice = state.store.uploaded_voice(&sha256, ctx.user_id).await?;
             Ok((StatusCode::OK, Json(AttachmentDto::from(summary))))
         }
     }

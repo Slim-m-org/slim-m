@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT voice_duration_ms AS \"duration_ms?: i64\",\n                      voice_waveform AS \"waveform?: Vec<u8>\"\n               FROM attachment_uploaders WHERE sha256 = ? AND uploaded_by = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "duration_ms?: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "waveform?: Vec<u8>",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "6a0c42e283e4728e93317e4b8c34a3204cce51929e7578c3c2f2c9931a2db9b9"
+}

@@ -179,6 +179,7 @@ async fn send_ephemeral(
 /// Summaries of `ids`, each of which the bot and the recipient can both fetch
 /// already. An ephemeral message is never stored, so it cannot make a file
 /// fetchable; anything else is one 400 that does not say which side failed.
+/// Each carries the bot's own voice mark, as a stored send would.
 async fn fetchable_by_both(
     state: &AppState,
     bot_id: UserId,
@@ -191,7 +192,10 @@ async fn fetchable_by_both(
             && state.store.can_fetch_attachment(recipient_id, id).await?;
         let summary = state.store.attachment_summary(id).await?;
         match summary {
-            Some(summary) if allowed => summaries.push(summary),
+            Some(mut summary) if allowed => {
+                summary.voice = state.store.uploaded_voice(id, bot_id).await?;
+                summaries.push(summary);
+            }
             _ => {
                 return Err(ApiError::BadRequest(
                     "an attachment must already be visible to the member",
