@@ -3,7 +3,7 @@
 /// none - see `widgets/role_color.dart`), and the mentionable flag. `@everyone` cannot be renamed, mentioned as `@[Role Name]` (it wakes
 /// through the reserved `@everyone`/`@here` words instead) or deleted, so
 /// those controls are simply absent for it rather than disabled and unclear
-/// why.
+/// why. A role out of the viewer's reach shows its settings without letting them change.
 library;
 
 import 'package:flutter/material.dart';
@@ -23,9 +23,12 @@ import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
 
 class RoleDisplayTab extends ConsumerStatefulWidget {
-  const RoleDisplayTab({super.key, required this.role});
+  const RoleDisplayTab({super.key, required this.role, this.locked = false});
 
   final api.Role role;
+
+  /// The role is not below the viewer's highest; see `role_detail.dart`.
+  final bool locked;
 
   @override
   ConsumerState<RoleDisplayTab> createState() => _RoleDisplayTabState();
@@ -124,6 +127,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
   @override
   Widget build(BuildContext context) {
     final role = widget.role;
+    final locked = widget.locked;
     final unchanged =
         _name.text.trim().isEmpty || _name.text.trim() == role.name;
 
@@ -133,7 +137,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
         SettingsSectionCard(
           title: 'Name',
           children: [
-            if (role.isEveryone)
+            if (role.isEveryone || locked)
               SettingsDetailRow(title: role.name)
             else
               SettingsCardBlock(
@@ -167,17 +171,21 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
           children: [
             SettingsCardBlock(
               children: [
-                ColorSwatchRow(
-                  label: 'Role colour',
-                  colors: [for (final entry in rolePalette) entry.color],
-                  names: [for (final entry in rolePalette) entry.name],
-                  selected: chosenRoleIndex(role.color),
-                  onSelect: _setColor,
-                  leading: SwatchTile(
-                    icon: AppIcons.revoke,
-                    label: 'Role colour: No colour',
-                    selected: chosenRoleIndex(role.color) == null,
-                    onTap: () => _setColor(null),
+                Opacity(
+                  // Dimmed like the locked toggles below it.
+                  opacity: locked ? 0.6 : 1,
+                  child: ColorSwatchRow(
+                    label: 'Role colour',
+                    colors: [for (final entry in rolePalette) entry.color],
+                    names: [for (final entry in rolePalette) entry.name],
+                    selected: chosenRoleIndex(role.color),
+                    onSelect: locked ? null : _setColor,
+                    leading: SwatchTile(
+                      icon: AppIcons.revoke,
+                      label: 'Role colour: No colour',
+                      selected: chosenRoleIndex(role.color) == null,
+                      onTap: locked ? null : () => _setColor(null),
+                    ),
                   ),
                 ),
               ],
@@ -193,14 +201,14 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
                 description: 'Whatever their permissions.',
                 semanticLabel: 'Anyone can @mention this role',
                 value: role.mentionable,
-                onChanged: _setMentionable,
+                onChanged: locked ? null : _setMentionable,
               ),
               SettingsToggleRow(
                 label: 'Display role members separately',
                 description: 'Gives this role its own heading above Online.',
                 semanticLabel: 'Display role members separately',
                 value: role.hoist,
-                onChanged: _setHoist,
+                onChanged: locked ? null : _setHoist,
               ),
             ],
           ),
@@ -208,7 +216,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
           const SizedBox(height: AppSpacing.s12),
           AppErrorState(message: error, onDismiss: clearActionError),
         ],
-        if (!role.isEveryone && !role.isBotsRole)
+        if (!role.isEveryone && !role.isBotsRole && !locked)
           SettingsSectionCard(
             title: 'Danger zone',
             children: [

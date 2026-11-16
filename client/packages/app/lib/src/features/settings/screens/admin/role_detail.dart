@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The selected role's own surface: a header naming it, and its
-/// Permissions/Members/Display tabs. See `roles_screen.dart` for the pane
-/// this sits in.
+/// Permissions/Members/Display tabs, read-only for a role not below the
+/// viewer's highest. See `roles_screen.dart` for the pane this sits in.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +17,9 @@ import 'role_members_tab.dart';
 import 'role_permissions_tab.dart';
 
 enum _RoleDetailTab { permissions, members, display }
+
+/// Says why a role's controls are absent, once, under its name.
+const lockedRoleCaption = 'Only roles below your highest role can be changed.';
 
 class RoleDetail extends ConsumerStatefulWidget {
   const RoleDetail({super.key, required this.role});
@@ -46,6 +49,7 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
     final roles = ref.watch(rolesProvider).valueOrNull;
     final role =
         roles?.where((r) => r.id == widget.role.id).firstOrNull ?? widget.role;
+    final locked = !ref.watch(roleLadderProvider).reachesRole(role);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,26 +61,37 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             AppSpacing.s24,
             AppSpacing.s12,
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: AppSpacing.s4,
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: roleDotColor(role.color, tokens),
-                  shape: BoxShape.circle,
-                ),
-                child: const SizedBox(width: 14, height: 14),
-              ),
-              const SizedBox(width: AppSpacing.s12),
-              Expanded(
-                child: Text(
-                  role.name,
-                  style: AppText.heading.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
+              Row(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: roleDotColor(role.color, tokens),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const SizedBox(width: 14, height: 14),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  const SizedBox(width: AppSpacing.s12),
+                  Expanded(
+                    child: Text(
+                      role.name,
+                      style: AppText.heading.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: AppWeights.semi,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
+              if (locked)
+                Text(
+                  lockedRoleCaption,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
             ],
           ),
         ),
@@ -95,9 +110,18 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             duration: AppMotion.fast,
             offset: 0,
             child: switch (_tab) {
-              _RoleDetailTab.permissions => RolePermissionsTab(role: role),
-              _RoleDetailTab.members => RoleMembersTab(role: role),
-              _RoleDetailTab.display => RoleDisplayTab(role: role),
+              _RoleDetailTab.permissions => RolePermissionsTab(
+                role: role,
+                locked: locked,
+              ),
+              _RoleDetailTab.members => RoleMembersTab(
+                role: role,
+                locked: locked,
+              ),
+              _RoleDetailTab.display => RoleDisplayTab(
+                role: role,
+                locked: locked,
+              ),
             },
           ),
         ),

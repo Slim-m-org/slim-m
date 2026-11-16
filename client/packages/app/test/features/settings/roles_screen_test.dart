@@ -15,12 +15,15 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_app/src/routing/routes.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/role_detail.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_detail_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
 import 'package:slimm_app/src/features/members/widgets/role_color.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
@@ -52,6 +55,7 @@ Future<void> _pump(
   WidgetTester tester,
   List<api.Role> roles, {
   Size size = const Size(900, 800),
+  RoleLadder? ladder,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -65,6 +69,7 @@ Future<void> _pump(
       rolesProvider.overrideWith((ref) async => roles),
       myPermissionsProvider.overrideWithValue(Perm.manageRoles),
       membersProvider.overrideWith((ref) async => const []),
+      if (ladder != null) roleLadderProvider.overrideWithValue(ladder),
     ],
   );
   addTearDown(container.dispose);
@@ -276,5 +281,68 @@ void main() {
     expect(find.byTooltip(ActionLabels.createRole), findsOneWidget);
     final button = tester.getRect(find.byTooltip(ActionLabels.createRole));
     expect(button.right, closeTo(400 - AppSpacing.s16 - AppSpacing.s8, 1));
+  });
+
+  group('the role ladder', () {
+    final roles = [
+      _role('role-admin', 'admin', position: 3),
+      _role('role-mod', 'mod', position: 2),
+      _role('role-junior', 'junior', position: 1),
+      _role('role-everyone', 'everyone', everyone: true),
+    ];
+    const moderator = RoleLadder(permissions: Perm.manageRoles, topPosition: 2);
+
+    testWidgets(
+      'a role not below yours is shown but offers nothing to change',
+      (tester) async {
+        await _pump(tester, roles, ladder: moderator);
+        expect(find.text(lockedRoleCaption), findsOneWidget);
+        final toggles = tester.widgetList<AppToggle>(
+          find.byWidgetPredicate((w) => w is AppToggle),
+        );
+        expect(toggles.every((t) => t.onChanged == null), isTrue);
+
+        await tester.tap(find.text('Display'));
+        await pumpFrames(tester);
+        expect(find.text('Delete role'), findsNothing);
+        expect(find.text('Save name'), findsNothing);
+
+        await tester.tap(find.text('junior'));
+        await pumpFrames(tester);
+        expect(find.text(lockedRoleCaption), findsNothing);
+        await tester.tap(find.text('Display'));
+        await pumpFrames(tester);
+        expect(find.text('Delete role'), findsOneWidget);
+      },
+    );
+
+    testWidgets('only roles below yours carry a drag handle', (tester) async {
+      await _pump(tester, roles, ladder: moderator);
+      final handles = find.byIcon(AppIcons.dragHandle);
+      expect(handles, findsOneWidget);
+      final junior = find.ancestor(
+        of: find.text('junior'),
+        matching: find.byWidgetPredicate((w) => w is AppListRow),
+      );
+      expect(find.descendant(of: junior, matching: handles), findsOneWidget);
+      expect(find.byTooltip(ActionLabels.createRole), findsOneWidget);
+    });
+
+    testWidgets(
+      'holding no role above the bottom offers no create and no drag',
+      (tester) async {
+        await _pump(
+          tester,
+          roles,
+          ladder: const RoleLadder(
+            permissions: Perm.manageRoles,
+            topPosition: 0,
+          ),
+        );
+        expect(find.byTooltip(ActionLabels.createRole), findsNothing);
+        expect(find.byIcon(AppIcons.dragHandle), findsNothing);
+        expect(find.text('Drag to reorder.'), findsNothing);
+      },
+    );
   });
 }

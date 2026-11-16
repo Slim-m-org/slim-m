@@ -127,7 +127,9 @@ MemberModerationGates memberModerationGates(
   final canRemove =
       !isSelf && !outranked && mine.hasPermission(Perm.banMembers);
   final canManageRoles = mine.hasPermission(Perm.manageRoles);
-  final canIssueReset = !isSelf && mine.hasPermission(Perm.administrator);
+  // A reset code or a cleared second factor takes the account over, so it follows the ladder.
+  final canIssueReset =
+      !isSelf && !aboveOnLadder && mine.hasPermission(Perm.administrator);
   // The voice kick handler checks KICK_MEMBERS in this call's own channel, since an overwrite may grant it there alone.
   final voiceChannelPermissions = voiceChannelId != null
       ? get(myChannelPermissionsProvider(voiceChannelId))

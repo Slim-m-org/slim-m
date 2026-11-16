@@ -41,6 +41,14 @@ void main() {
     expect(none.reachesRole(_role(0)), isFalse, reason: 'holding none');
   });
 
+  test('only a viewer above the bottom, or the owner, reaches a new role', () {
+    expect(_at5.reachesPosition(0), isTrue);
+    const bottom = RoleLadder(permissions: Perm.manageRoles, topPosition: 0);
+    expect(bottom.reachesPosition(0), isFalse);
+    const owner = RoleLadder(permissions: Perm.manageRoles, isOwner: true);
+    expect(owner.reachesPosition(0), isTrue);
+  });
+
   test('a member with no role ranks below any role; a tie is refused', () {
     expect(_at5.outranks(_member()), isTrue);
     expect(_at5.outranks(_member(top: 4)), isTrue);
@@ -56,35 +64,35 @@ void main() {
     expect(_at5.outranks(_member(owner: true)), isFalse);
   });
 
-  test(
-    'every lock names why, bot roles and the owner\'s held roles included',
-    () {
-      final member = _member();
-      final owner = _member(owner: true);
-      expect(_at5.lockOf(_role(1), member: member, held: true), isNull);
-      expect(
-        _at5.lockOf(_role(1, bot: true), member: member, held: false),
-        RoleLock.followsBot,
-      );
-      expect(
-        _at5.lockOf(_role(5), member: member, held: false),
-        RoleLock.notBelowYou,
-      );
-      expect(
-        _at5.lockOf(
-          _role(1, permissions: Perm.banMembers),
-          member: member,
-          held: false,
-        ),
-        RoleLock.missingPermissions,
-      );
-      expect(
-        _at5.lockOf(_role(1), member: owner, held: true),
-        RoleLock.memberAboveYou,
-      );
-      expect(_at5.lockOf(_role(1), member: owner, held: false), isNull);
-    },
-  );
+  test('every lock names why, bot roles and the owner\'s roles included', () {
+    final member = _member();
+    final owner = _member(owner: true);
+    expect(_at5.lockOf(_role(1), member: member, held: true), isNull);
+    expect(
+      _at5.lockOf(_role(1, bot: true), member: member, held: false),
+      RoleLock.followsBot,
+    );
+    expect(
+      _at5.lockOf(_role(5), member: member, held: false),
+      RoleLock.notBelowYou,
+    );
+    expect(
+      _at5.lockOf(
+        _role(1, permissions: Perm.banMembers),
+        member: member,
+        held: false,
+      ),
+      RoleLock.missingPermissions,
+    );
+    expect(
+      _at5.lockOf(_role(1), member: owner, held: true),
+      RoleLock.memberAboveYou,
+    );
+    expect(
+      _at5.lockOf(_role(1), member: owner, held: false),
+      RoleLock.memberAboveYou,
+    );
+  });
 
   test('an older server, or a /me not yet known, ranks nobody', () {
     const older = api.Me(

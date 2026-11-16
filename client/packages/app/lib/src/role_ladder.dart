@@ -22,7 +22,7 @@ enum RoleLock {
   /// The role is level with or above the viewer's highest role.
   notBelowYou,
 
-  /// The member ranks above the viewer, so their roles are not the viewer's to take.
+  /// The member is the Space owner, whose roles only they give or take away.
   memberAboveYou,
 }
 
@@ -55,9 +55,13 @@ class RoleLadder {
   bool get _exempt => isOwner || !ranked;
 
   /// Whether [role] sits strictly below the viewer's highest role.
-  bool reachesRole(api.Role role) {
+  bool reachesRole(api.Role role) => reachesPosition(role.position);
+
+  /// Whether a role at [position] would sit strictly below the viewer's highest role; a new
+  /// role starts at 0.
+  bool reachesPosition(int position) {
     final top = topPosition;
-    return _exempt || (top != null && role.position < top);
+    return _exempt || (top != null && position < top);
   }
 
   /// Whether [member] ranks strictly below the viewer, which every moderation act needs.
@@ -77,7 +81,7 @@ class RoleLadder {
   }) {
     if (role.isEveryone) return RoleLock.always;
     if (role.isManagedByBot || role.isBotsRole) return RoleLock.followsBot;
-    if (held && member.isOwner && !_exempt) return RoleLock.memberAboveYou;
+    if (member.isOwner && !_exempt) return RoleLock.memberAboveYou;
     if (!reachesRole(role)) return RoleLock.notBelowYou;
     if (!permissions.hasPermission(role.permissions)) {
       return RoleLock.missingPermissions;

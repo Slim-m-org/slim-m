@@ -324,6 +324,39 @@ void main() {
     }
   });
 
+  testWidgets('a reset code is never offered on a card at or above yours', (
+    tester,
+  ) async {
+    api.UserProfile at(int? top, {bool owner = false}) => api.UserProfile(
+      id: _other.id,
+      username: _other.username,
+      displayName: _other.displayName,
+      createdAt: 0,
+      topRolePosition: top,
+      isOwner: owner,
+    );
+    const ladder = RoleLadder(permissions: Perm.administrator, topPosition: 5);
+    for (final (member, shown) in [
+      (at(4), true),
+      (at(5), false),
+      (at(1, owner: true), false),
+    ]) {
+      await tester.pumpWidget(
+        _harness(
+          _body(member),
+          permissions: Perm.administrator,
+          ladder: ladder,
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.text('Moderate...'),
+        shown ? findsOneWidget : findsNothing,
+        reason: 'top ${member.topRolePosition}, owner ${member.isOwner}',
+      );
+    }
+  });
+
   testWidgets('your own card offers your roles below your highest', (
     tester,
   ) async {
