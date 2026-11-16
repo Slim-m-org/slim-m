@@ -31,7 +31,8 @@ class VoiceJoinMuted {
 
   /// [call] with the mic shown off, remembering the preference it replaces.
   VoiceState showMuted(VoiceState call) {
-    _restoreOn = call.microphoneEnabled;
+    // Kept when already set: a call that comes back muted is shown muted a second time.
+    _restoreOn = _restoreOn || call.microphoneEnabled;
     return call.copyWith(microphoneEnabled: false, joinedMuted: true);
   }
 

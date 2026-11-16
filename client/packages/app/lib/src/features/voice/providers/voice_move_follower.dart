@@ -27,7 +27,7 @@ class VoiceMoveFollower {
     if (_ref.read(voiceControllerProvider).channelId != event.fromChannelId) {
       return;
     }
-    unawaited(controller.join(event.toChannelId));
+    unawaited(controller.joinMoved(event.toChannelId));
     _ref
         .read(toastsProvider.notifier)
         .show('${event.movedByName} moved you to ${event.toChannelName}.');

@@ -221,6 +221,14 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   bool _muteNextJoin = false;
 
+  /// [join] for a move somebody else made: it never opens a microphone that is closed in this call.
+  Future<void> joinMoved(String channelId) {
+    _keepMicNextJoin = true;
+    return join(channelId);
+  }
+
+  bool _keepMicNextJoin = false;
+
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:
   /// reproduced without it, an abandoned join's belated failure landed as
@@ -229,6 +237,9 @@ class VoiceController extends StateNotifier<VoiceState> {
   Future<void> join(String channelId) async {
     final mutedByCaller = _muteNextJoin;
     _muteNextJoin = false;
+    // The same call coming back (a retry, a rejoin) or a move keeps the microphone as it is.
+    final keepMic = _keepMicNextJoin || state.channelId == channelId;
+    _keepMicNextJoin = false;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
     if (state.channelId != channelId) _shareResume.forget();
@@ -242,13 +253,17 @@ class VoiceController extends StateNotifier<VoiceState> {
     // Set before the first await, so an arrival elsewhere reads this as busy (VoiceState.joining); clearJustLeft because any real join attempt is never a stale rejoin to suppress.
     state = state.copyWith(
       channelId: channelId,
-      microphoneEnabled: _joinMuted.preferenceAtJoin(state.microphoneEnabled),
+      microphoneEnabled: keepMic
+          ? state.microphoneEnabled
+          : _joinMuted.preferenceAtJoin(state.microphoneEnabled),
       clearError: true,
       clearRecap: true,
       joining: true,
       rejoining: _rejoin.autoAttemptChannel == channelId,
       clearJustLeft: true,
     );
+    // Before the token round trip, so a muted join that fails there is retried muted.
+    if (mutedByCaller) state = _joinMuted.showMuted(state);
     // Awaited before the connect: a ring stopping later would deactivate the call's audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;
