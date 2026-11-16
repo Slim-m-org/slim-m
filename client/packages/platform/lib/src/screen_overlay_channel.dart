@@ -4,11 +4,31 @@
 /// unsupported, so the setting never offers what cannot work.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 import 'screen_overlay.dart';
 
 const screenOverlayChannelName = 'slimm/screen_overlay';
+
+/// What the runner calls when the monitor layout changed under an open overlay window.
+const screenOverlayDisplaysChanged = 'displaysChanged';
+
+// One per channel for every instance: a second method call handler would replace the first.
+final _displayNotices = <String, StreamController<void>>{};
+
+StreamController<void> _displayNoticesOf(MethodChannel channel) =>
+    _displayNotices.putIfAbsent(channel.name, () {
+      late final StreamController<void> notices;
+      notices = StreamController<void>.broadcast(
+        onListen: () => channel.setMethodCallHandler((call) async {
+          if (call.method == screenOverlayDisplaysChanged) notices.add(null);
+        }),
+        onCancel: () => channel.setMethodCallHandler(null),
+      );
+      return notices;
+    });
 
 class ChannelScreenOverlay implements ScreenOverlay {
   const ChannelScreenOverlay({
@@ -80,6 +100,9 @@ class ChannelScreenOverlay implements ScreenOverlay {
       return;
     }
   }
+
+  @override
+  Stream<void> get displaysChanged => _displayNoticesOf(_channel).stream;
 
   @override
   Future<int?> appMonitor() async {

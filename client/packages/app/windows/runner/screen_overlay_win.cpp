@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <utility>
 
 // gdiplus.h needs the min and max macros the runner turns off.
 using std::max;
@@ -28,6 +29,8 @@ constexpr wchar_t kWindowTitle[] = L"slim-m screen overlay";
 constexpr double kNoteRadius = 6;
 constexpr double kNotePad = 8;
 constexpr double kNoteMaxWidth = 260;
+// Adding a monitor sends a burst of changes; Dart hears once the burst is over.
+constexpr UINT kDisplaysSettleMs = 250;
 
 // One click-through window over one monitor, with its own surface: the drawing overlay and the call panel are separate so each can sit on its own monitor.
 struct Layer {
@@ -51,6 +54,8 @@ Panel g_panel;
 // The shared window the drawing overlay follows, or null when it covers a monitor.
 HWND g_target = nullptr;
 std::vector<HWINEVENTHOOK> g_hooks;
+std::function<void()> g_displays_changed;
+UINT_PTR g_displays_timer = 0;
 
 bool BuildSupportsExclude() {
   using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
@@ -231,8 +236,23 @@ void Present(Layer& layer, Content content) {
   ReleaseDC(nullptr, screen);
 }
 
+void CALLBACK OnDisplaysSettled(HWND, UINT, UINT_PTR, DWORD) {
+  KillTimer(nullptr, g_displays_timer);
+  g_displays_timer = 0;
+  if (g_displays_changed) g_displays_changed();
+}
+
+void ScheduleDisplaysChanged() {
+  if (g_displays_timer != 0) KillTimer(nullptr, g_displays_timer);
+  g_displays_timer = SetTimer(nullptr, 0, kDisplaysSettleMs, OnDisplaysSettled);
+}
+
 LRESULT CALLBACK OverlayProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
   switch (message) {
+    case WM_DISPLAYCHANGE:
+    case WM_DPICHANGED:
+      ScheduleDisplaysChanged();
+      return DefWindowProcW(hwnd, message, wparam, lparam);
     case WM_NCHITTEST:
       return HTTRANSPARENT;
     case WM_MOUSEACTIVATE:
@@ -451,6 +471,10 @@ int AppMonitor() {
     }
   }
   return -1;
+}
+
+void SetDisplaysChangedHandler(std::function<void()> handler) {
+  g_displays_changed = std::move(handler);
 }
 
 void Hide() {

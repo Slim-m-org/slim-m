@@ -73,6 +73,11 @@ class FakeOverlay implements ScreenOverlay {
   Future<void> panel(OverlayPanel? panel) async => panels.add(panel);
   @override
   Future<int?> appMonitor() async => appMonitorIndex;
+
+  /// What the runner reports when the monitor layout changes.
+  final displays = StreamController<void>.broadcast();
+  @override
+  Stream<void> get displaysChanged => displays.stream;
 }
 
 VoiceParticipant rigMe() => const VoiceParticipant(
@@ -155,6 +160,12 @@ class OverlayRig {
   late final RigSync sync;
 
   bool get active => container.read(screenOverlayControllerProvider).active;
+
+  /// The desktop now reports [now], and the runner says so as it does after a monitor is plugged in or rescaled.
+  void changeDisplays(List<OverlayMonitor> now) {
+    monitors = now;
+    overlay.displays.add(null);
+  }
 
   void setAvatar(String id, int version) =>
       container.read(rigAvatarVersions.notifier).state = {

@@ -39,6 +39,8 @@ class _SlowOverlay implements ScreenOverlay {
   Future<void> panel(OverlayPanel? panel) async {}
   @override
   Future<int?> appMonitor() async => null;
+  @override
+  Stream<void> get displaysChanged => const Stream.empty();
 }
 
 OverlayShape _stroke(double end, {double alpha = 1}) => OverlayStroke(

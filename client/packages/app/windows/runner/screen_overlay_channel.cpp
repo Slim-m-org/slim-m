@@ -164,6 +164,8 @@ void RegisterScreenOverlayChannel(flutter::BinaryMessenger* messenger) {
   channel = std::make_unique<flutter::MethodChannel<EncodableValue>>(
       messenger, "slimm/screen_overlay",
       &flutter::StandardMethodCodec::GetInstance());
+  slimm_overlay::SetDisplaysChangedHandler(
+      [] { channel->InvokeMethod("displaysChanged", nullptr); });
   channel->SetMethodCallHandler(
       [](const flutter::MethodCall<EncodableValue>& call,
          std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {

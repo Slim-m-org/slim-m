@@ -104,6 +104,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     localShareCapturedSize.addListener(_onCapturedSize);
     _ref.listen(voiceParticipantsProvider, (_, _) => _syncPanel());
     _events = _sync.liveEvents.listen(_onEvent);
+    _displays = _window.displaysChanged.listen((_) => _onDisplaysChanged());
     _reconcile();
   }
 
@@ -116,6 +117,8 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   final _board = ScreenAnnotationBoard();
   late final _draws = OverlayDrawQueue(_window);
   StreamSubscription<api.ServerEvent>? _events;
+  StreamSubscription<void>? _displays;
+  bool _relayout = false;
   Timer? _heartbeat;
   Timer? _frames;
   bool _busy = false;
@@ -202,6 +205,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       do {
         _again = false;
         if (!mounted) return;
+        if (_relayout) await _leaveOldLayout();
         if (!_consentWanted && state.consenting) await _stop();
         if (_consentWanted && !state.consenting) await _begin();
         if (_consentWanted && state.consenting) await _syncOverlay();
@@ -213,6 +217,29 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     } finally {
       _busy = false;
     }
+  }
+
+  void _onDisplaysChanged() {
+    _relayout = true;
+    unawaited(_reconcile());
+  }
+
+  /// Closes what was opened for the old monitor layout, for the passes after it to open again on the new one.
+  Future<void> _leaveOldLayout() async {
+    _relayout = false;
+    await _freshSupport();
+    if (!mounted) return;
+    api.AppLog.info(
+      api.LogTag.platform,
+      'Monitor layout changed: overlay up=${state.active}, following a window=${_followedWindow != null}, panel up=$_panelUp',
+    );
+    // A followed window is moved by the desktop itself, and the runner follows it.
+    if (state.active && _followedWindow == null) {
+      await _hideOverlay();
+      if (!mounted) return;
+      state = state.copyWith(active: false, aspect: _capturedAspect);
+    }
+    if (_panelUp) await _stopPanel();
   }
 
   Future<void> _begin() async {
@@ -485,6 +512,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _heartbeat?.cancel();
     _frames?.cancel();
     unawaited(_events?.cancel());
+    unawaited(_displays?.cancel());
     _draws.reset();
     if (state.consenting) _sendConsent(allowed: false);
     if (state.active || (_panelUp && !_windows)) {

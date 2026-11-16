@@ -373,4 +373,8 @@ abstract class ScreenOverlay {
 
   /// The monitor the app's own window is on, or null when the runner cannot tell.
   Future<int?> appMonitor();
+
+  /// Fires when the monitors are added, removed, moved or rescaled while an
+  /// overlay window is open, since that window still covers the old layout.
+  Stream<void> get displaysChanged;
 }

@@ -2,6 +2,7 @@
 #define RUNNER_SCREEN_OVERLAY_WIN_H_
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -86,6 +87,9 @@ void SetPanel(Panel panel);
 
 // The index of the monitor the app's own window is on, or -1 when that cannot be told.
 int AppMonitor();
+
+// Runs [handler] once a monitor layout or scale change settles, since open overlay windows still cover the old layout.
+void SetDisplaysChangedHandler(std::function<void()> handler);
 
 }  // namespace slimm_overlay
 

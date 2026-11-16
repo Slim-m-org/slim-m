@@ -334,5 +334,27 @@ void main() {
       await const ChannelScreenOverlay().hide();
       expect(calls.single.method, 'hide');
     });
+
+    test('a layout change from the runner reaches every listener', () async {
+      final heard = <String>[];
+      final first = const ChannelScreenOverlay().displaysChanged.listen(
+            (_) => heard.add('first'),
+          );
+      final second = const ChannelScreenOverlay().displaysChanged.listen(
+            (_) => heard.add('second'),
+          );
+      addTearDown(first.cancel);
+      addTearDown(second.cancel);
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+        channel.name,
+        channel.codec.encodeMethodCall(
+          const MethodCall(screenOverlayDisplaysChanged),
+        ),
+        (_) {},
+      );
+      await pumpEventQueue();
+      expect(heard, ['first', 'second']);
+    });
   });
 }
