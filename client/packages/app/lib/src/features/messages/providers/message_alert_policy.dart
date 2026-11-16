@@ -91,6 +91,8 @@ class MessageAlertPolicy {
     }
 
     final channel = await _channelRow(message.channelId);
+    // A lobby's chat is never on screen, so the server pushes nothing for it either.
+    if (channel?.createsRooms == true) return null;
     final isDm = channel?.kind == 'dm';
     // The server resolves this per viewer, including role and broadcast rights the client cannot see.
     final mentionsSelf = !isDm && message.mentionsMe;

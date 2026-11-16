@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A tester on an iPhone (2026-11-15): "how I get rid of the little indicator that looks like I'm missing a chat in the voice channel?"
 /// Opening a voice channel joins its call with the chat closed, so the chat toggle has to say the unread text is in there.
+/// It follows the rail: a voice chat is mentions only until the member asks for every message.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/unread_indicator_rules.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_chat_unread_dot.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -92,9 +94,28 @@ void main() {
     final semantics = tester.ensureSemantics();
     final s = await pumpCallScreen(tester, const Size(1280, 800));
 
-    await _arrive(tester, s, [_message(1)]);
+    await _arrive(tester, s, [_message(1, mentionsMe: true)]);
 
     expect(_unreadToggle, findsOneWidget);
+    _expectDotOnToggle(tester);
+
+    semantics.dispose();
+    await teardown(tester, s.container, s.db);
+  });
+
+  testWidgets('a plain message marks the toggle only once all are asked for', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final s = await pumpCallScreen(tester, _phone);
+
+    await _arrive(tester, s, [_message(1)]);
+    expect(find.byKey(voiceChatUnreadKey), findsNothing, reason: 'mentions');
+
+    s.container
+        .read(channelNotificationOverridesProvider.notifier)
+        .applyRemote(callChannelId, api.NotificationPreference.everything);
+    await pumpFrames(tester);
     _expectDotOnToggle(tester);
 
     semantics.dispose();

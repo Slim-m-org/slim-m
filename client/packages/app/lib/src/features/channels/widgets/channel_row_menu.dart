@@ -36,7 +36,8 @@ import 'row_menu_notifications.dart';
 import '../../voice/widgets/voice_room_settings_sheet.dart';
 import 'channel_notifications_menu.dart';
 
-/// Marking it read or unread, its Notifications submenu (tapping the active
+/// "Open chat" on a voice channel other than a lobby, to read it without
+/// joining. Marking it read or unread, its Notifications submenu (tapping the active
 /// choice clears back to the account default), and "Channel
 /// settings" for a caller who holds [canManage], the deployment-wide
 /// MANAGE_ROLES bit, or both - the settings screen itself decides which
@@ -69,16 +70,19 @@ List<Widget> channelRowMenuItems(
     canManage: canManage,
   );
 
-  final markRead = markReadStateMenuItem(
-    context,
-    container,
-    channel,
-    close,
-    isDm: false,
-  );
+  // A lobby's own chat is never shown, so there is nothing to open or mark.
+  final isLobby = channel.createsRooms == true;
+  final markRead = isLobby
+      ? null
+      : markReadStateMenuItem(context, container, channel, close, isDm: false);
+  final lead = [
+    if (channel.kind == 'voice' && !isLobby)
+      _openChatItem(context, channel, close),
+    ?markRead,
+  ];
 
   return [
-    if (markRead != null) ...[markRead, const AppMenuDivider()],
+    if (lead.isNotEmpty) ...[...lead, const AppMenuDivider()],
     notificationsMenuItem(
       context,
       container,
@@ -137,3 +141,17 @@ List<Widget> channelRowMenuItems(
     ],
   ];
 }
+
+/// Reads a voice channel's chat without joining its call, at every width.
+AppMenuItem _openChatItem(
+  BuildContext context,
+  Channel channel,
+  VoidCallback close,
+) => AppMenuItem(
+  label: 'Open chat',
+  leading: AppIcons.chat,
+  onTap: () {
+    close();
+    context.go(Routes.channel(channel.id, openChat: true));
+  },
+);

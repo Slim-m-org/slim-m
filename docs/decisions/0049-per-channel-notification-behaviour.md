@@ -42,6 +42,18 @@ through a mute.
 It is a note somebody left themselves, not a notification an override was asked
 to silence.
 
+## Voice channel chats are mentions only by default
+
+Added 2026-11-16.
+The owner: "I can't clear a notification easily or read a chat on mobile/desktop of a voice chat without joining the voice channel ... maybe it would be better if those chats were mention only or something ... don't count lobby text is fine".
+
+- A voice channel's chat, and a thread off one, reads as mentions only for a member with no choice of their own: no lit row, no chime, no push for a plain message, a mention as anywhere else.
+  The rule is resolved at read time on both sides (`channelDefaultOf` on the client, `channel_notification_choices` on the server), so nothing stored or sent on the wire changed.
+- A member's own choice for the channel still wins, "All messages" included, and a channel default of muted still mutes.
+  A channel manager cannot make a voice channel's default louder than mentions, so its settings row offers only Mentions only and Muted.
+- A lobby (`creates_rooms`, decision 0065) lights nothing, chimes for nothing and pushes nothing, a mention or an own choice included: opening it moves to a room, so its chat is never on screen to read.
+- The row menu's "Open chat" reads a voice channel's chat without joining its call, at every width, and reading there clears it like any channel.
+
 ## Hiding an indicator is not marking anything read
 
 The rule decides only what is drawn.
