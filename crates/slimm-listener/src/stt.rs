@@ -99,12 +99,22 @@ fn worker(queue: &Mutex<Receiver<Work>>, transcriber: &dyn Transcriber) {
     }
 }
 
-/// Text whisper emits for silence or noise, which is not something anyone said.
+/// Text whisper emits for silence or noise, which is not something anyone said: nothing but
+/// `[...]` and `(...)` markers.
 pub fn is_noise_marker(text: &str) -> bool {
-    let text = text.trim();
-    text.is_empty()
-        || (text.starts_with('[') && text.ends_with(']'))
-        || (text.starts_with('(') && text.ends_with(')'))
+    let mut rest = text.trim();
+    while let Some(first) = rest.chars().next() {
+        let close = match first {
+            '[' => ']',
+            '(' => ')',
+            _ => return false,
+        };
+        let Some(end) = rest.find(close) else {
+            return false;
+        };
+        rest = rest[end + 1..].trim_start();
+    }
+    true
 }
 
 #[cfg(feature = "whisper")]
@@ -229,9 +239,22 @@ mod tests {
 
     #[test]
     fn silence_markers_are_not_speech() {
-        for marker in ["", "  ", "[BLANK_AUDIO]", "(music)", " [ Silence ] "] {
+        for marker in [
+            "",
+            "  ",
+            "[BLANK_AUDIO]",
+            "(music)",
+            " [ Silence ] ",
+            "[Music] (applause)",
+        ] {
             assert!(is_noise_marker(marker), "{marker:?}");
         }
-        assert!(!is_noise_marker("hello [there]"));
+        for speech in [
+            "hello [there]",
+            "[BLANK_AUDIO] hello [BLANK_AUDIO]",
+            "[unclosed",
+        ] {
+            assert!(!is_noise_marker(speech), "{speech:?}");
+        }
     }
 }

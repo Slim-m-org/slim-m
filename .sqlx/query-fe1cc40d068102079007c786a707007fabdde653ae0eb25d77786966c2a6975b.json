@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT duration_ms AS \"duration_ms!\", waveform AS \"waveform!: Vec<u8>\"\n               FROM attachment_voice WHERE sha256 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "duration_ms!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "waveform!: Vec<u8>",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "fe1cc40d068102079007c786a707007fabdde653ae0eb25d77786966c2a6975b"
+}

@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde_json::{Value, json};
 use slimm_server::hub::{Event, Hub, MessageEvent};
+use slimm_server::ids::MessageId;
 use slimm_server::voice_transcripts::{
     EngineFuture, Failure, Heard, MAX_ATTEMPTS, SpeechEngine, VoiceTranscriber,
 };
@@ -180,16 +181,30 @@ async fn turning_the_setting_off_hides_what_was_made() {
     let (message, _) = send_voice(&world, 3).await;
     pass(&world, &Fake::saying("secret plans"), &Hub::new()).await;
     assert_eq!(transcript_of(&world, &message).await["status"], "ready");
+    assert_eq!(world.search("plans").await.len(), 1);
+    let ids = [MessageId(Uuid::parse_str(&message).unwrap())];
+    let matched = || world.store.attachments_matching_text(&ids, "plans");
+    assert_eq!(matched().await.unwrap().len(), 1);
+
     world
         .store
         .set_transcribe_voice_messages(false)
         .await
         .unwrap();
     assert_eq!(transcript_of(&world, &message).await, Value::Null);
+    assert!(world.search("plans").await.is_empty(), "search arm");
+    assert!(matched().await.unwrap().is_empty(), "found-in label");
+
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    assert_eq!(world.search("plans").await.len(), 1, "back when turned on");
 }
 
 #[tokio::test]
-async fn an_unreachable_engine_leaves_it_pending_and_a_refusal_fails_it() {
+async fn a_failing_engine_leaves_it_pending_and_a_refusal_fails_it_for_good() {
     let world = world().await;
     world
         .store
@@ -207,15 +222,22 @@ async fn an_unreachable_engine_leaves_it_pending_and_a_refusal_fails_it() {
     let refusing = Fake::failing(Failure::Permanent);
     assert_eq!(pass(&world, &refusing, &Hub::new()).await, 1);
     assert_eq!(transcript_of(&world, &message).await["status"], "failed");
-    assert_eq!(
-        pass(&world, &refusing, &Hub::new()).await,
-        0,
-        "not tried again"
-    );
+    the_retry_time_comes(&world).await;
+    let healthy = Fake::saying("never asked");
+    assert_eq!(pass(&world, &healthy, &Hub::new()).await, 0);
+    assert_eq!(healthy.calls.load(Ordering::SeqCst), 0, "not tried again");
+}
+
+/// What a day does to every transcript the worker gave up on.
+async fn the_retry_time_comes(world: &World) {
+    sqlx::query("UPDATE attachment_transcripts SET retry_at = 0 WHERE retry_at IS NOT NULL")
+        .execute(&world.pool)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
-async fn a_clip_the_listener_never_takes_ends_failed_instead_of_pending_forever() {
+async fn a_clip_the_listener_keeps_failing_ends_failed_then_is_tried_again() {
     let world = world().await;
     world
         .store
@@ -242,6 +264,37 @@ async fn a_clip_the_listener_never_takes_ends_failed_instead_of_pending_forever(
         .await;
     assert_eq!(transcript_of(&world, &message).await["status"], "failed");
     assert_eq!(broken.calls.load(Ordering::SeqCst), MAX_ATTEMPTS as usize);
+
+    let fixed = Fake::saying("worth the wait");
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &fixed)
+        .await;
+    assert_eq!(fixed.calls.load(Ordering::SeqCst), 0, "not before its time");
+    the_retry_time_comes(&world).await;
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &broken)
+        .await;
+    assert_eq!(
+        broken.calls.load(Ordering::SeqCst),
+        MAX_ATTEMPTS as usize + 1,
+        "a retry is one try"
+    );
+    assert_eq!(transcript_of(&world, &message).await["status"], "failed");
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &fixed)
+        .await;
+    assert_eq!(fixed.calls.load(Ordering::SeqCst), 0, "then waits again");
+    the_retry_time_comes(&world).await;
+    assert_eq!(
+        transcriber
+            .run_pass(&world.store, &world.media, &Hub::new(), &fixed)
+            .await,
+        1
+    );
+    assert_eq!(
+        transcript_of(&world, &message).await["text"],
+        "worth the wait"
+    );
 }
 
 #[tokio::test]
@@ -256,8 +309,80 @@ async fn a_listener_without_the_route_stops_the_pass_at_the_first_clip() {
         send_voice(&world, tail).await;
     }
     let old = Fake::failing(Failure::Unavailable);
-    assert_eq!(pass(&world, &old, &Hub::new()).await, 0);
+    let (transcriber, hub) = (
+        VoiceTranscriber::with_backoff(std::time::Duration::from_secs(60)),
+        Hub::new(),
+    );
+    let run = || transcriber.run_pass(&world.store, &world.media, &hub, &old);
+    assert_eq!(run().await, 0);
     assert_eq!(old.calls.load(Ordering::SeqCst), 1, "the others wait");
+    assert_eq!(run().await, 0);
+    assert_eq!(
+        old.calls.load(Ordering::SeqCst),
+        1,
+        "the next pass waits for the listener too"
+    );
+}
+
+#[tokio::test]
+async fn a_listener_outage_costs_no_clip_an_attempt_and_its_clips_follow_when_it_returns() {
+    let world = world().await;
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    let (first, _) = send_voice(&world, 12).await;
+    let (second, _) = send_voice(&world, 13).await;
+    let step = std::time::Duration::from_micros(200);
+    let transcriber = VoiceTranscriber::with_backoff(step);
+    let down = Fake::failing(Failure::Unavailable);
+    let passes = MAX_ATTEMPTS + 2;
+    for attempt in 0..passes {
+        transcriber
+            .run_pass(&world.store, &world.media, &Hub::new(), &down)
+            .await;
+        // The listener's backoff doubles from one step, so wait it out before the next pass.
+        tokio::time::sleep(step * (2 << attempt)).await;
+    }
+    assert_eq!(down.calls.load(Ordering::SeqCst), passes as usize);
+    let statuses = sqlx::query_scalar::<_, String>("SELECT status FROM attachment_transcripts")
+        .fetch_all(&world.pool)
+        .await
+        .unwrap();
+    assert!(!statuses.contains(&"failed".to_owned()), "{statuses:?}");
+
+    let back = Fake::saying("the listener is back");
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &back)
+        .await;
+    assert_eq!(back.calls.load(Ordering::SeqCst), 2, "both clips follow");
+    for message in [first, second] {
+        assert_eq!(transcript_of(&world, &message).await["status"], "ready");
+    }
+}
+
+#[tokio::test]
+async fn a_clip_sent_while_the_listener_is_down_is_not_shown_transcribing() {
+    let world = world().await;
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    send_voice(&world, 14).await;
+    let transcriber = VoiceTranscriber::with_backoff(std::time::Duration::from_millis(1));
+    let down = Fake::failing(Failure::Unavailable);
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &down)
+        .await;
+    let (later, _) = send_voice(&world, 15).await;
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &down)
+        .await;
+    assert_eq!(down.calls.load(Ordering::SeqCst), 2, "the new clip probed");
+    assert_eq!(transcript_of(&world, &later).await, Value::Null);
 }
 
 #[tokio::test]

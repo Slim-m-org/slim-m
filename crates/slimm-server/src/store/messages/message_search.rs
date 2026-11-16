@@ -16,6 +16,7 @@
 
 use sqlx::{QueryBuilder, Row};
 
+use super::super::voice_transcripts::TRANSCRIPT_TEXT_SHOWN;
 use super::super::{Message, Store};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
 
@@ -248,7 +249,11 @@ impl Store {
                 " UNION ALL SELECT am.fts_rowid FROM attachment_text t \
                  JOIN message_attachments ma ON ma.sha256 = t.sha256 \
                  JOIN messages am ON am.id = ma.message_id \
-                 WHERE am.is_encrypted = 0 AND t.fts_rowid IN \
+                 WHERE am.is_encrypted = 0 AND ",
+            );
+            builder.push(TRANSCRIPT_TEXT_SHOWN);
+            builder.push(
+                " AND t.fts_rowid IN \
                  (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
             );
             builder.push_bind(q.to_owned());

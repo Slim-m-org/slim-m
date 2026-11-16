@@ -55,7 +55,8 @@ fn decode_hex(raw: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-/// Stores the voice data once the bytes are placed, returning what the response carries.
+/// Stores the voice data once the bytes are placed, returning what the blob carries now, which
+/// is nothing when the mark was refused.
 ///
 /// A voice upload that is not audio is refused here, after the bytes are stored: they are an
 /// ordinary orphan the sweep reclaims, the same as any upload never attached.
@@ -72,11 +73,10 @@ pub(super) async fn record(
     if !content_type.starts_with("audio/") {
         return Err(ApiError::BadRequest("a voice message must be audio"));
     }
-    state
+    Ok(state
         .store
         .set_attachment_voice(sha256, &voice, uploader)
-        .await?;
-    Ok(Some(voice))
+        .await?)
 }
 
 #[cfg(test)]
