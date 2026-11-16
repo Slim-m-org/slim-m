@@ -92,7 +92,7 @@ class ThemeEditorDetails extends ConsumerWidget {
           SettingsChoice(
             value: s.key,
             label: s.label,
-            leading: ThemeMiniatureThumb(document: s.document),
+            leading: ThemeMiniatureThumb.forDocument(s.document),
           ),
       ],
       onChanged: (key) {

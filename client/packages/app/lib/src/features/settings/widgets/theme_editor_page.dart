@@ -30,6 +30,7 @@ import 'theme_contrast_panel.dart';
 import 'theme_editor_details.dart';
 import 'theme_editor_footer.dart';
 import 'theme_editor_menu.dart';
+import 'theme_gallery_menu.dart';
 import 'theme_main_colours.dart';
 import 'theme_miniature.dart';
 import 'theme_token_grid.dart';
@@ -210,11 +211,9 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   Future<void> _delete() async {
     final id = _draft.mineId;
     if (id == null) return;
-    final sure = await confirmDangerousAction(
+    final sure = await confirmDeleteMyTheme(
       context,
-      title: 'Delete ${_draft.document.name.trim()}?',
-      message: 'This device holds the only copy.',
-      confirmLabel: 'Delete',
+      _draft.document.name.trim(),
     );
     if (!sure || !mounted) return;
     await ref.read(myThemesProvider.notifier).remove(id);

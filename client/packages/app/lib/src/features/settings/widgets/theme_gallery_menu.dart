@@ -17,6 +17,18 @@ import '../providers/theme_gallery.dart';
 import '../providers/theme_gallery_actions.dart';
 import 'theme_gallery_frame.dart';
 import 'theme_miniature.dart';
+import 'theme_sheet_title.dart';
+
+/// Asks before a Mine theme is deleted, from its card or from the editor.
+Future<bool> confirmDeleteMyTheme(BuildContext context, String name) =>
+    confirmChoice(
+      context,
+      title: 'Delete $name?',
+      message: 'This device holds the only copy.',
+      confirmLabel: 'Delete',
+      confirmVariant: AppButtonVariant.danger,
+      confirmKey: ThemeGalleryMenu.confirmKey,
+    );
 
 /// Builds each card's menu items and sheet title.
 class ThemeGalleryMenu {
@@ -83,15 +95,9 @@ class ThemeGalleryMenu {
       ),
       const AppMenuDivider(),
       _item('Delete', AppIcons.delete, close, danger: true, () async {
-        final sure = await confirmChoice(
-          context,
-          title: 'Delete ${entry.name}?',
-          message: 'It is removed from this device.',
-          confirmLabel: 'Delete',
-          confirmVariant: AppButtonVariant.danger,
-          confirmKey: confirmKey,
-        );
-        if (sure) await actions.delete(entry.id!);
+        if (await confirmDeleteMyTheme(context, entry.name)) {
+          await actions.delete(entry.id!);
+        }
       }),
     ];
   }
@@ -179,62 +185,29 @@ class ThemeGalleryMenu {
   );
 
   /// What a phone's sheet names: a thumbnail, the theme, where it is from.
-  Widget sheetHeader(BuildContext context, ThemeGalleryEntry entry) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
+  Widget sheetHeader(ThemeGalleryEntry entry) {
     final author = entry.author == null ? '' : ' · by ${entry.author}';
-    final caption = switch (entry.kind) {
-      ThemeGalleryKind.builtIn => 'Built in',
-      ThemeGalleryKind.mine => 'Mine',
-      ThemeGalleryKind.unsaved => 'Not saved',
-      ThemeGalleryKind.space =>
-        '${entry.isSpaceDefault ? 'Space default' : 'Space'}$author',
-    };
-    final miniature = entry.tokens;
+    final tokens = entry.tokens;
     final broken = entry.broken;
-    final header = AppSheetHeader(
-      entry.name,
-      caption: caption,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        AppSpacing.s8,
-        AppSpacing.s16,
-        AppSpacing.s12,
-      ),
-      leading: SizedBox(
-        width: 48,
-        child: DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            border: Border.all(color: tokens.borderSubtle),
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: broken != null || miniature == null
-                ? ThemeBrokenPlaceholder(
-                    broken: broken ?? ThemeBroken.unreadable,
-                    compact: true,
-                  )
-                : ThemeMiniature(
-                    tokens: miniature,
-                    brightness: entry.brightness,
-                    split: entry.split,
-                  ),
-          ),
-        ),
-      ),
-    );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        header,
-        ColoredBox(
-          color: tokens.borderSubtle,
-          child: const SizedBox(height: 1),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-      ],
+    return ThemeSheetTitle(
+      name: entry.name,
+      caption: switch (entry.kind) {
+        ThemeGalleryKind.builtIn => 'Built in',
+        ThemeGalleryKind.mine => 'Mine',
+        ThemeGalleryKind.unsaved => 'Not saved',
+        ThemeGalleryKind.space =>
+          '${entry.isSpaceDefault ? 'Space default' : 'Space'}$author',
+      },
+      miniature: broken != null || tokens == null
+          ? ThemeBrokenPlaceholder(
+              broken: broken ?? ThemeBroken.unreadable,
+              compact: true,
+            )
+          : ThemeMiniature(
+              tokens: tokens,
+              brightness: entry.brightness,
+              split: entry.split,
+            ),
     );
   }
 }

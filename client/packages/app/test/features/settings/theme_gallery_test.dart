@@ -185,7 +185,7 @@ void main() {
     await _openMenu(tester, 'theme-mine-$id-menu');
     await tapAndSettle(tester, find.text('Delete'));
     expect(find.text('Delete Harbour?'), findsOneWidget);
-    expect(find.text('It is removed from this device.'), findsOneWidget);
+    expect(find.text('This device holds the only copy.'), findsOneWidget);
     await tapAndSettle(tester, find.text('Cancel'));
     expect(rig.container.read(myThemesProvider), hasLength(1));
 

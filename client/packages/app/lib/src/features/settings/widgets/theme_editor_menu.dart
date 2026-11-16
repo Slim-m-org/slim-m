@@ -14,7 +14,8 @@ import '../providers/theme_draft.dart';
 import 'settings_pane_body.dart' show kSettingsWidePaneInset;
 import 'settings_sub_pages.dart';
 import 'theme_menu_button.dart';
-import 'theme_miniature_thumb.dart';
+import 'theme_miniature.dart';
+import 'theme_sheet_title.dart';
 
 enum ThemeEditorAction { publish, export, delete }
 
@@ -85,10 +86,10 @@ class ThemeEditorHeader extends StatelessWidget {
       key: const Key('theme-editor-menu'),
       semanticLabel: 'More for this theme',
       enabled: !busy,
-      sheetTitle: AppSheetHeader(
-        name.isEmpty ? 'This theme' : name,
+      sheetTitle: ThemeSheetTitle(
+        name: name.isEmpty ? 'This theme' : name,
         caption: draft.mineId == null ? 'Not saved' : 'Mine',
-        leading: ThemeMiniatureThumb(document: doc, width: 48),
+        miniature: ThemeMiniature.forDocument(doc),
       ),
       onSelected: onAction,
       items: (pick) =>

@@ -102,7 +102,7 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
               onApply: () => unawaited(_actions.apply(entry)),
               onCustomise: _customise(entry),
               menuItems: menu.itemsFor(entry),
-              sheetHeader: (context) => menu.sheetHeader(context, entry),
+              sheetHeader: (_) => menu.sheetHeader(entry),
               menuKey: menuKey,
             );
         return CustomScrollView(
@@ -247,7 +247,7 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
               enabled: enabled,
               onSave: () => unawaited(_actions.saveToMine(unsaved.document!)),
               menuItems: menu.itemsFor(unsaved)!,
-              sheetHeader: (context) => menu.sheetHeader(context, unsaved),
+              sheetHeader: (_) => menu.sheetHeader(unsaved),
             ),
           ),
         ),
