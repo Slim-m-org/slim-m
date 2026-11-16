@@ -16,11 +16,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../api_failure.dart';
 import '../../../entity_name.dart';
 import '../providers/channel_order_controller.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/name_sheet.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/channel_actions.dart';
 
@@ -111,106 +111,14 @@ Future<void> moveCategoryAndReport(
 Future<void> showRenameCategorySheet(
   BuildContext context,
   ChannelCategoryRow category,
-) {
-  return showAppSheet<void>(
-    context,
-    builder: (context) => _RenameCategorySheet(category: category),
-  );
-}
-
-class _RenameCategorySheet extends ConsumerStatefulWidget {
-  const _RenameCategorySheet({required this.category});
-
-  final ChannelCategoryRow category;
-
-  @override
-  ConsumerState<_RenameCategorySheet> createState() =>
-      _RenameCategorySheetState();
-}
-
-class _RenameCategorySheetState extends ConsumerState<_RenameCategorySheet> {
-  late final _name = TextEditingController(text: widget.category.name);
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  bool get _dirty => _name.text.trim() != widget.category.name;
-
-  bool get _nameValid => entityNameValid(_name.text);
-
-  bool get _canSave => !_saving && _dirty && _nameValid;
-
-  Future<void> _save() async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref
-          .read(channelActionsProvider)
-          .renameCategory(widget.category.id, _name.text.trim());
-      if (mounted) Navigator.of(context).pop();
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save the category', e, stack);
-      if (mounted) {
-        setState(() => _error = describeApiFailure('rename the category', e));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Rename category',
-              style: AppText.body.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s12),
-            AppInput(
-              counterMax: entityNameMaxChars,
-              controller: _name,
-              placeholder: 'Category name',
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => _canSave ? _save() : null,
-              semanticLabel: 'Category name',
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: AppSpacing.s8),
-              AppErrorState(message: _error!),
-            ],
-            const SizedBox(height: AppSpacing.s12),
-            AppButton(
-              label: _saving ? 'Saving...' : 'Save changes',
-              variant: AppButtonVariant.primary,
-              full: true,
-              disabled: !_canSave,
-              onPressed: _save,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+) => showNameSheet(
+  context,
+  title: 'Rename category',
+  fieldLabel: 'Category name',
+  placeholder: 'Category name',
+  initial: category.name,
+  maxChars: entityNameMaxChars,
+  whatFailed: 'rename the category',
+  onSave: (ref, name) =>
+      ref.read(channelActionsProvider).renameCategory(category.id, name),
+);

@@ -2,7 +2,9 @@
 /// The clips a call member can play, listed inside the soundboard menu.
 ///
 /// Playing only asks the server to tell the call; the sound comes back as an
-/// event every client in the call, this one included, plays for itself.
+/// event every client in the call, this one included, plays for itself. The
+/// server's one play per person every 3 seconds shows as the rows resting,
+/// the way slow mode rests Send, never as an error.
 library;
 
 import 'dart:async';
@@ -12,12 +14,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../format.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/soundboard_actions.dart';
 import '../providers/soundboard_clips.dart';
 
 /// The tallest the clip list grows before it scrolls.
 const double soundboardListMaxHeight = 288;
+
+/// How long the server makes one person wait between plays (decision 0118).
+const soundboardPlayCooldown = Duration(seconds: 3);
 
 class SoundboardPicker extends ConsumerStatefulWidget {
   const SoundboardPicker({super.key, required this.channelId});
@@ -30,11 +36,43 @@ class SoundboardPicker extends ConsumerStatefulWidget {
 
 class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
     with GuardedActionState<SoundboardPicker> {
-  Future<void> _play(api.SoundClip clip) => guard(
-    whatFailed: 'play ${clip.name}',
-    action: () =>
-        ref.read(soundboardActionsProvider).play(widget.channelId, clip.id),
-  );
+  Timer? _cooldown;
+
+  bool get _resting => _cooldown?.isActive ?? false;
+
+  void _rest(Duration wait) {
+    _cooldown?.cancel();
+    setState(() {
+      _cooldown = Timer(wait, () {
+        if (mounted) setState(() {});
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _cooldown?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _play(api.SoundClip clip) async {
+    if (_resting) return;
+    _rest(soundboardPlayCooldown);
+    final ok = await guard(
+      whatFailed: 'play ${clip.name}',
+      action: () async {
+        try {
+          await ref
+              .read(soundboardActionsProvider)
+              .play(widget.channelId, clip.id);
+        } on api.RateLimitedException catch (e) {
+          // The server is still counting an earlier play: that is the rest already shown.
+          if (mounted) _rest(e.retryAfter ?? soundboardPlayCooldown);
+        }
+      },
+    );
+    if (!ok && mounted) setState(() => _cooldown?.cancel());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,9 +117,9 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
                         label: clip.name,
                         leading: AppIcons.play,
                         trailing: AppMenuValue(
-                          '${(clip.durationMs / 1000).toStringAsFixed(1)} s',
+                          formatClipLength(clip.durationMs),
                         ),
-                        onTap: () => unawaited(_play(clip)),
+                        onTap: _resting ? null : () => unawaited(_play(clip)),
                       ),
                   ],
                 ),

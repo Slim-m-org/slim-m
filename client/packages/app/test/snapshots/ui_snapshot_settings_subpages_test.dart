@@ -64,7 +64,7 @@ void main() {
         settleNestedResolve: true,
         afterSettle: (tester) async {
           await _openPane(tester, 'Emoji');
-          await tester.tap(find.text('Add').first);
+          await tester.tap(find.text('Create emoji').first);
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 400));
         },

@@ -146,27 +146,28 @@ void main() {
   for (final size in const [_desktop, _phone]) {
     final width = size.width.toInt();
 
-    testWidgets('Add keeps the emoji list on screen behind it at $width', (
-      tester,
-    ) async {
-      await _pumpEmoji(tester, size);
-      expect(find.text('Emoji (1)'), findsOneWidget);
+    testWidgets(
+      'Create emoji keeps the emoji list on screen behind it at $width',
+      (tester) async {
+        await _pumpEmoji(tester, size);
+        expect(find.text('Custom emoji'), findsOneWidget);
 
-      await tester.tap(find.text('Add'));
-      await _frames(tester);
+        await tester.tap(find.text('Create emoji'));
+        await _frames(tester);
 
-      expect(find.text('Choose files'), findsOneWidget);
-      expect(
-        find.text('Emoji (1)'),
-        findsOneWidget,
-        reason: 'a dialog or sheet leaves the pane painted behind it',
-      );
-    });
+        expect(find.text('Choose files'), findsOneWidget);
+        expect(
+          find.text('Custom emoji'),
+          findsOneWidget,
+          reason: 'a dialog or sheet leaves the pane painted behind it',
+        );
+      },
+    );
 
     testWidgets('a click outside the Create emoji surface closes only it at '
         '$width', (tester) async {
       await _pumpEmoji(tester, size);
-      await tester.tap(find.text('Add'));
+      await tester.tap(find.text('Create emoji'));
       await _frames(tester);
       expect(find.text('Choose files'), findsOneWidget);
 
@@ -174,21 +175,21 @@ void main() {
       await _frames(tester);
 
       expect(find.text('Choose files'), findsNothing);
-      expect(find.text('Emoji (1)'), findsOneWidget);
+      expect(find.text('Custom emoji'), findsOneWidget);
     });
 
     testWidgets('Escape closes Create emoji and leaves the pane at $width', (
       tester,
     ) async {
       await _pumpEmoji(tester, size);
-      await tester.tap(find.text('Add'));
+      await tester.tap(find.text('Create emoji'));
       await _frames(tester);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await _frames(tester);
 
       expect(find.text('Choose files'), findsNothing);
-      expect(find.text('Emoji (1)'), findsOneWidget);
+      expect(find.text('Custom emoji'), findsOneWidget);
     });
   }
 
@@ -196,10 +197,10 @@ void main() {
     tester,
   ) async {
     await _pumpEmoji(tester, _desktop);
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Create emoji'));
     await _frames(tester);
 
-    final title = tester.getRect(find.text('Create emoji'));
+    final title = tester.getRect(find.text('Create emoji').last);
     final choose = tester.getRect(find.text('Choose files'));
     final centre = _desktop.width / 2;
     expect(title.left, greaterThan(centre - kSheetMaxWidth / 2));
@@ -210,11 +211,11 @@ void main() {
     tester,
   ) async {
     await _pumpEmoji(tester, _phone);
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Create emoji'));
     await _frames(tester);
 
     final choose = tester.getRect(find.text('Choose files'));
-    final title = tester.getRect(find.text('Create emoji'));
+    final title = tester.getRect(find.text('Create emoji').last);
     expect(
       title.top,
       greaterThan(_phone.height / 2),

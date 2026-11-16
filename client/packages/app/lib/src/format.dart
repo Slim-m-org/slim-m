@@ -83,3 +83,8 @@ String formatPlaybackTime(Duration d) {
   if (parts.hours == 0) return '${parts.minutes}:$ss';
   return '${parts.hours}:${parts.minutes.toString().padLeft(2, '0')}:$ss';
 }
+
+/// A soundboard clip's length to a tenth of a second, `1.5 s`: clips are at
+/// most 5 s, where [formatPlaybackTime]'s whole seconds would read `0:01`.
+String formatClipLength(int durationMs) =>
+    '${((durationMs < 0 ? 0 : durationMs) / 1000).toStringAsFixed(1)} s';

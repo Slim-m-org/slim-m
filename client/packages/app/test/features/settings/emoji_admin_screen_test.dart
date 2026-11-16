@@ -167,27 +167,27 @@ void main() {
     );
   });
 
-  testWidgets(
-    'the screen opens the add dialog from a button and counts in the list header',
-    (tester) async {
-      await _pump(
-        tester,
-        _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]),
-      );
+  testWidgets('the title bar opens the add dialog and the list header counts', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]),
+    );
 
-      expect(find.text('New emoji'), findsNothing);
-      expect(find.text('Choose files'), findsNothing);
-      expect(find.text('Add'), findsOneWidget);
+    expect(find.text('New emoji'), findsNothing);
+    expect(find.text('Choose files'), findsNothing);
+    expect(find.text('Create emoji'), findsOneWidget);
 
-      await tester.tap(find.text('Add'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(find.text('Choose files'), findsOneWidget);
+    await tester.tap(find.text('Create emoji'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Choose files'), findsOneWidget);
 
-      expect(find.text('Bulk import from a zip'), findsNothing);
-      expect(find.text('Emoji (1)'), findsOneWidget);
-    },
-  );
+    expect(find.text('Bulk import from a zip'), findsNothing);
+    expect(find.text('Custom emoji'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+  });
 
   testWidgets('a picked image uploads with its normalised name', (
     tester,
@@ -195,7 +195,7 @@ void main() {
     final server = _Server();
     await _pump(tester, server, picked: _png);
 
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Create emoji'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Choose files'));
@@ -217,7 +217,7 @@ void main() {
     final server = _Server(emoji: [_emojiJson('emoji-1', 'party_parrot')]);
     await _pump(tester, server, picked: _png);
 
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Create emoji'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Choose files'));

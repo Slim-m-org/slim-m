@@ -207,7 +207,8 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Rename sonarr'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'radarr');
-    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Save name'));
     await tester.pumpAndSettle();
 
     expect(method, 'PATCH');
