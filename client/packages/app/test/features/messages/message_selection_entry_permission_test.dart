@@ -149,7 +149,6 @@ void main() {
                       onReply: (_) {},
                       onEdit: (_) {},
                     ),
-                    onAddReaction: () {},
                     onPickReaction: (_) {},
                     child: const SizedBox(height: 40, width: 200),
                   );

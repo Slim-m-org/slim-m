@@ -67,7 +67,6 @@ Future<SemanticsHandle> _pump(WidgetTester tester) async {
           child: MessageContextMenuRegion(
             content: 'hello',
             actions: _reportAndBlockOnly(),
-            onAddReaction: () {},
             onPickReaction: (_) {},
             child: const SizedBox(
               key: _anchor,
@@ -122,7 +121,6 @@ Future<void> _pumpMessage(
           child: MessageContextMenuRegion(
             content: 'hello',
             actions: _editOnly(onEdit),
-            onAddReaction: () {},
             onPickReaction: (_) {},
             child: const SizedBox(
               key: _anchor,

@@ -42,7 +42,6 @@ Future<Rect> _pumpAndOpen(
       MessageContextMenuRegion(
         content: 'hello',
         actions: noActions,
-        onAddReaction: () {},
         onPickReaction: (_) {},
         child: _tallRegion(),
       ),

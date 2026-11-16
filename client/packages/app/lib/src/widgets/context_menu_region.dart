@@ -182,6 +182,10 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// Whether the anchored menu or the sheet is showing.
   bool get isOpen => _controller.isShowing || _sheetOpen;
 
+  /// Where the anchored menu last opened, in the overlay's coordinates, for a
+  /// surface that one of its items opens in the same place.
+  Offset get anchor => _anchor;
+
   /// Closes the menu when it is open and opens it otherwise, for a trigger that owns both.
   void toggle({Offset? at}) => isOpen ? close() : open(at: at);
 
