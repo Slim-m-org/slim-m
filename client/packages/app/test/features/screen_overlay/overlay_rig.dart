@@ -89,11 +89,21 @@ VoiceParticipant rigMe() => const VoiceParticipant(
   isScreenSharing: true,
 );
 
+/// Someone else in the call, whose marks the rig sends by default.
+VoiceParticipant rigViewer() => const VoiceParticipant(
+  identity: 'viewer',
+  name: 'viewer',
+  isSpeaking: false,
+  isMuted: false,
+  isLocal: false,
+  isScreenSharing: false,
+);
+
 final rigSharing = VoiceState(
   channelId: 'call',
   state: VoiceSessionState.connected,
   screenSharing: true,
-  participants: [rigMe()],
+  participants: [rigMe(), rigViewer()],
 );
 
 const rigMonitors = [
@@ -175,12 +185,13 @@ class OverlayRig {
 
   void annotate({
     String target = 'me',
+    String from = 'viewer',
     List<double> points = const [0.1, 0.1, 0.5, 0.5],
     bool ended = true,
   }) => sync.events.add(
     api.CanvasScreenAnnotation(
       channelId: 'call',
-      userId: 'viewer',
+      userId: from,
       targetUserId: target,
       kind: 'stroke',
       annotationId: 'a1',

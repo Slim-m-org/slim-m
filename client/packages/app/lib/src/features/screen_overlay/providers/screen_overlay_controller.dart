@@ -490,6 +490,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
       overlayActive: state.active,
       selfId: _selfId,
       callChannelId: _channelId,
+      callMembers: _ref.read(voiceParticipantsProvider).map((p) => p.identity),
     );
     if (!accepted || _ref.read(blocksProvider).contains(event.userId)) return;
     _board.apply(event, _clock());
