@@ -6,9 +6,11 @@ alice or bob: the rest of the run holds their API sessions and browsers. Each
 registers an account of its own, and a browser it signs out is signed back in as
 bob before it returns, so the next scenario finds the state it expects.
 """
+import json
 import secrets
 import time
 
+import e2e_api
 from e2e_api import Api
 
 
@@ -24,9 +26,34 @@ def register_member(server, admin, password):
     return username, display
 
 
+def _shared_workers(port):
+    with e2e_api.urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as res:
+        return [t for t in json.load(res) if t.get("type") == "shared_worker"]
+
+
+def _end_shared_workers(client, timeout=20):
+    """Closes the database worker, which the back/forward cache can keep alive past its page."""
+    deadline = time.time() + timeout
+    while workers := _shared_workers(client.port):
+        for worker in workers:
+            with e2e_api.urlopen(
+                    f"http://127.0.0.1:{client.port}/json/close/{worker['id']}", timeout=5):
+                pass
+        assert time.time() < deadline, \
+            f"{client.name}: the database worker would not close for {timeout}s"
+        time.sleep(0.25)
+
+
 def sign_out(client):
-    """Wipes the browser's storage and lands on the signed-out flow."""
+    """Wipes the browser's storage and lands on the signed-out flow.
+
+    The page leaves and its database worker is closed before the wipe: a wipe under
+    a live worker deletes its IndexedDB beneath an open transaction, and the next
+    page inherits the stuck worker.
+    """
     origin = client.ev("location.origin")
+    client.send("Page.navigate", {"url": "about:blank"})
+    _end_shared_workers(client)
     client.send("Storage.clearDataForOrigin",
                 {"origin": origin, "storageTypes": "all"})
     client.send("Page.navigate", {"url": f"{origin}/"})
