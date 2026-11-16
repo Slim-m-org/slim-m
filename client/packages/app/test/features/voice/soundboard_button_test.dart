@@ -119,8 +119,41 @@ void main() {
     final button = tester.getRect(find.byTooltip('Soundboard'));
     expect(row.bottom, lessThan(button.top), reason: 'above the dock');
     expect(tester.getRect(find.text('Sad trombone')).width, lessThan(280));
-    expect(find.text('1.5 s'), findsOneWidget);
-    expect(find.text('3.2 s'), findsOneWidget);
+    expect(find.bySemanticsLabel('Air horn, 1.5 s'), findsOneWidget);
+    expect(find.bySemanticsLabel('Sad trombone, 3.2 s'), findsOneWidget);
+  });
+
+  testWidgets('12 clips fit the desktop popover without scrolling', (
+    tester,
+  ) async {
+    final clips = [
+      for (var i = 0; i < 12; i++)
+        {'id': 'c$i', 'name': 'Clip $i', 'duration_ms': 1000, 'created_at': i},
+    ];
+    await _pump(tester, _Wire(clips: clips));
+    await _open(tester);
+
+    final scroll = Scrollable.of(tester.element(find.text('Clip 0')));
+    expect(scroll.position.maxScrollExtent, 0);
+    final first = tester.getRect(find.text('Clip 0'));
+    final second = tester.getRect(find.text('Clip 1'));
+    expect(second.top, first.top, reason: 'two clips share a row');
+    expect(
+      tester.getRect(find.text('Clip 11')).bottom,
+      lessThan(tester.getRect(find.byTooltip('Soundboard')).top),
+    );
+  });
+
+  testWidgets('48 clips scroll inside the popover', (tester) async {
+    final clips = [
+      for (var i = 0; i < 48; i++)
+        {'id': 'c$i', 'name': 'Clip $i', 'duration_ms': 1000, 'created_at': i},
+    ];
+    await _pump(tester, _Wire(clips: clips));
+    await _open(tester);
+
+    final scroll = Scrollable.of(tester.element(find.text('Clip 0')));
+    expect(scroll.position.maxScrollExtent, greaterThan(0));
   });
 
   testWidgets('on a phone the same rows open as a bottom sheet', (
@@ -129,11 +162,13 @@ void main() {
     await _pump(tester, _Wire(), width: 390);
     await _open(tester);
 
-    expect(find.text('Air horn'), findsOneWidget);
+    final air = tester.getRect(find.text('Air horn'));
+    final sad = tester.getRect(find.text('Sad trombone'));
+    expect(sad.top, air.top, reason: 'a sheet fits clips side by side');
     expect(
-      tester.getRect(find.text('1.5 s')).right,
-      greaterThan(340),
-      reason: 'the duration sits at the far edge of a full-width row',
+      tester.getRect(find.byKey(const ValueKey('clip-1'))).height,
+      greaterThanOrEqualTo(44),
+      reason: 'a touch target',
     );
   });
 
