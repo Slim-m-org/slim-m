@@ -126,6 +126,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::JoinGateChanged { .. }
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
+        | Event::OwnerChanged(_)
         | Event::OverwriteChanged { .. }
         | Event::ChannelCreated(..)
         | Event::ChannelUpdated(..)
@@ -269,6 +270,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
         | Event::OverwriteChanged { .. }
         | Event::ChannelCreated(..)
         | Event::ChannelUpdated(..)

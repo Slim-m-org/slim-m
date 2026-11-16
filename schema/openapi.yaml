@@ -20245,6 +20245,7 @@ components:
         - $ref: "#/components/schemas/MemberRemoved"
         - $ref: "#/components/schemas/MemberRestored"
         - $ref: "#/components/schemas/MemberJoined"
+        - $ref: "#/components/schemas/OwnerChanged"
         - $ref: "#/components/schemas/ProfileChanged"
         - $ref: "#/components/schemas/BotUiChanged"
         - $ref: "#/components/schemas/TypingStarted"
@@ -21360,6 +21361,26 @@ components:
         type:
           type: string
           enum: [member.joined]
+        user_id:
+          type: string
+          format: uuid
+
+    OwnerChanged:
+      type: object
+      required: [type, user_id]
+      description: >
+        Space ownership passed to this member, because the owner's account was
+        deleted or the owner is no longer a member. They now hold every
+        permission, so their own client re-reads `/me`, its channel
+        permissions and the channel list. A `profile.changed` for the same id
+        comes with it, so every client re-reads their profile's `is_owner`,
+        and a `member.timeout` lifting any timeout on them, since nobody can
+        act on the owner. Broadcast to every connection like
+        `member.joined`.
+      properties:
+        type:
+          type: string
+          enum: [owner.changed]
         user_id:
           type: string
           format: uuid

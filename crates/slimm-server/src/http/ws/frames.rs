@@ -198,6 +198,8 @@ pub(super) enum ServerFrame {
     },
     #[serde(rename = "member.joined")]
     MemberJoined { user_id: String },
+    #[serde(rename = "owner.changed")]
+    OwnerChanged { user_id: String },
     #[serde(rename = "profile.changed")]
     ProfileChanged { user_id: String },
     #[serde(rename = "bot_ui.changed")]

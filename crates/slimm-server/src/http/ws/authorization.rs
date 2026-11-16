@@ -508,6 +508,7 @@ async fn channel_frame(
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
         | Event::ProfileChanged(_)
         | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }

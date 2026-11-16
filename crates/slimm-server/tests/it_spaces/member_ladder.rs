@@ -262,5 +262,6 @@ async fn ownership_passes_to_the_earliest_administrator_then_the_earliest_member
     ] {
         sqlx::query(sql).bind(erin).execute(&w.pool).await.unwrap();
     }
-    assert_eq!(w.store.space_owner().await.unwrap(), Some(bob));
+    let settled = w.store.settle_space_owner().await.unwrap();
+    assert_eq!(settled.owner, Some(bob));
 }

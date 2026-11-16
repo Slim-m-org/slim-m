@@ -206,3 +206,44 @@ async fn without_a_live_claimer_the_space_owner_is_the_first_human_member() {
     assert_eq!(owner_after_0197(None).await, Some(vec![4u8; 16]));
     assert_eq!(owner_after_0197(Some(3)).await, Some(vec![4u8; 16]));
 }
+
+/// Without a live claimer an administrator is preferred over an earlier plain member, as a
+/// hand-off chooses, and the owner keeps no timeout, since nobody could lift it.
+#[tokio::test]
+async fn without_a_live_claimer_the_space_owner_is_the_first_administrator_and_not_timed_out() {
+    let (pool, full, _guard) = pool_before(197).await;
+    let (member, admin, later, role) = (id(4), id(5), id(6), id(9));
+    let admin_bit = slimm_server::permissions::Permissions::ADMINISTRATOR.bits();
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at, is_bot) VALUES
+               ({member}, 'member', 'Member', 'h', 4, 0),
+               ({admin}, 'admin', 'Admin', 'h', 5, 0),
+               ({later}, 'later', 'Later', 'h', 6, 0);
+             INSERT INTO roles (id, name, permissions, position, created_at)
+               VALUES ({role}, 'admin', {admin_bit}, 100, 1);
+             INSERT INTO member_roles (user_id, role_id) VALUES ({admin}, {role}), ({later}, {role});
+             INSERT INTO member_timeouts (user_id, until, issued_by, issued_at)
+               VALUES ({admin}, 9000000000000, {later}, 1), ({later}, 9000000000000, {admin}, 1)"
+        ),
+    )
+    .await;
+    full.run(&pool).await.unwrap();
+
+    let owner: Option<Vec<u8>> =
+        sqlx::query_scalar("SELECT owner_id FROM space_settings WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(owner, Some(vec![5u8; 16]));
+    let timed_out: Vec<Vec<u8>> = sqlx::query_scalar("SELECT user_id FROM member_timeouts")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        timed_out,
+        vec![vec![6u8; 16]],
+        "only the owner's timeout ends"
+    );
+}

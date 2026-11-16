@@ -117,7 +117,7 @@ impl Store {
         }
 
         let (everyone_id, everyone_perms) = self.everyone_role().await?;
-        let owner = self.live_space_owner().await?;
+        let owner = self.space_owner().await?;
 
         // One built query (no array binding in SQLite), joined from `users` so a webhook is recognised too.
         let mut builder = sqlx::QueryBuilder::new(

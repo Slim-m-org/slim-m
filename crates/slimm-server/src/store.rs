@@ -130,7 +130,7 @@ mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
 
-pub use account_deletion::DeleteAccountError;
+pub use account_deletion::{DeleteAccountError, DeletedAccount};
 pub use admin_alerts::{AdminAlert, Raised, ResolvedAlert};
 pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
@@ -261,6 +261,7 @@ pub use soundboard::{
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;
+pub use space_owner::{Handoff, Ownership};
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};

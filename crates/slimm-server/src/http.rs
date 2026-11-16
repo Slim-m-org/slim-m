@@ -147,6 +147,7 @@ mod space;
 mod space_banner;
 mod space_icon;
 mod space_link_previews;
+mod space_owner;
 mod space_setup;
 mod space_themes;
 mod still_picture;

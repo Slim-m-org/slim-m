@@ -89,7 +89,7 @@ The last-administrator guard counts only people the owner could pass to, so the 
 The owner is not shown anywhere in the interface; profiles and `/me` carry `is_owner` only so a client can leave out what the server would refuse.
 
 The owner is the account that claimed the deployment.
-Where that was never recorded (a deployment claimed before migration 0155) or the account is gone, migration 0197 makes it the first human member who joined.
+Where that was never recorded (a deployment claimed before migration 0155) or the account is gone, migration 0197 picks the heir a hand-off would: the earliest-joined human administrator, else the earliest-joined human member.
 When the owner's account is deleted, or the owner is no longer a member, ownership passes to the earliest-joined remaining administrator, else the earliest-joined member.
 There is no way to transfer ownership yet.
 
@@ -99,10 +99,23 @@ The owner holds every permission whatever roles they hold, exactly like Discord'
 The permission evaluator answers every bit for the owner, at the base and in every channel, so no channel or category overwrite can deny the owner anything, the way ADMINISTRATOR already bypasses them.
 Every path that works out a principal's permissions agrees: single and batched checks, the channel list, push fan-out, live delivery, search, admin alerts, an invite's role re-check, and the bot and module paths.
 The owner also holds every permission an installed module declares, which an administrator holds only by a grant.
-A direct message stays outside the role model for the owner too, and a timeout in force still takes away what it takes.
+A direct message stays outside the role model for the owner too.
 Ownership counts only while the stored owner is a live human member: an owner id that points at a bot or a removed account grants nothing, and ownership passes on as above.
 The last-administrator guard counts the owner, so the owner may drop or delete the last administrator role; the owner's own account deletion is still refused while nobody else could administer.
 The earlier rule that nobody but the owner takes bits from or deletes a role the owner holds is gone, since the owner keeps every permission either way.
+
+#### Hand-offs (review follow-up, 2026-11-16)
+
+The owner is never timed out, like Discord's server owner.
+The ladder already refuses timing out the owner, so the only way a timeout could reach one was ownership passing to a member who was timed out.
+That member would have been stuck: the owner cannot moderate themselves, and nobody may act on the owner.
+So passing ownership on ends any timeout on the heir, and migration 0197 ends any timeout on the owner it picks.
+The timeout ends rather than the evaluator skipping it, so the canvas and code-run checks that read a timeout directly agree with the permissions.
+
+A hand-off tells every client: `owner.changed` names the heir, whose own client then re-reads `/me`, its channel permissions and the channel list.
+A `profile.changed` for the heir comes with it so every client re-reads their `is_owner`, and a `member.timeout` when a timeout ended.
+Both ways a hand-off happens announce it: an account deletion, and a read (`/me`, or any act checked against the ladder) that finds the stored owner gone.
+Profile reads never hand ownership on themselves; they report the live owner, if there is one.
 
 ### Bot roles
 

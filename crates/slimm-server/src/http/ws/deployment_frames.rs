@@ -129,6 +129,9 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         Event::MemberJoined(user_id) => ServerFrame::MemberJoined {
             user_id: user_id.to_string(),
         },
+        Event::OwnerChanged(user_id) => ServerFrame::OwnerChanged {
+            user_id: user_id.to_string(),
+        },
         Event::RoleChanged { role_id, change } => ServerFrame::RoleChanged {
             seq: None,
             role_id: role_id.to_string(),

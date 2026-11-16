@@ -40,13 +40,15 @@ fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Bod
 
 /// Grants ADMINISTRATOR to a user so every test below can create, rename, and
 /// delete channels and set or clear overwrites without wiring up every bit
-/// each verb happens to need.
+/// each verb happens to need. Settles the Space owner too, before any
+/// socket connects, as a claimed deployment already has one.
 async fn make_admin(store: &Store, user_id: slimm_server::ids::UserId) {
     let role = store
         .create_role("admin", Permissions::ADMINISTRATOR, false)
         .await
         .unwrap();
     store.assign_role(user_id, role).await.unwrap();
+    store.settle_space_owner().await.unwrap();
 }
 
 #[tokio::test]

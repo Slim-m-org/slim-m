@@ -41,7 +41,7 @@ impl Ladder {
     pub(in crate::http) async fn of(state: &AppState, caller: UserId) -> Result<Self, ApiError> {
         Ok(Self {
             caller,
-            owner: state.store.space_owner().await?,
+            owner: super::space_owner::settled_owner(state).await?,
             top: top_position(state, caller).await?,
         })
     }

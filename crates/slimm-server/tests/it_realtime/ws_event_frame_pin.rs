@@ -107,6 +107,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
         Event::MemberRemoved(UserId(id(6))),
         Event::MemberRestored(UserId(id(7))),
         Event::MemberJoined(UserId(id(8))),
+        Event::OwnerChanged(bob),
         Event::ProfileChanged(bob),
         Event::BotUiChanged(bob),
         Event::TypingStarted {

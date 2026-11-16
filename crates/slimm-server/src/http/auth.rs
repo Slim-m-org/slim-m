@@ -409,8 +409,8 @@ async fn delete_account(
 ) -> Result<StatusCode, ApiError> {
     super::reauth::require_password(&state, ctx.user_id, req.password.as_deref()).await?;
     super::reauth::require_current_code(&state, ctx.user_id, req.code.as_deref()).await?;
-    let revoked = match state.store.delete_account(ctx.user_id).await {
-        Ok(revoked) => revoked,
+    let deleted = match state.store.delete_account(ctx.user_id).await {
+        Ok(deleted) => deleted,
         // A refusal is the caller's situation, not a server fault, so it must
         // not surface as a 500.
         Err(DeleteAccountError::WouldStrandDeployment) => {
@@ -421,7 +421,7 @@ async fn delete_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such account")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    for session_id in revoked {
+    for session_id in deleted.revoked {
         state.hub.publish(Event::SessionRevoked(session_id));
     }
     if let Err(err) = state.media.delete_avatar(&ctx.user_id.to_string()).await {
@@ -437,6 +437,7 @@ async fn delete_account(
     super::linked_accounts::purge_avatar_files(&state, ctx.user_id).await;
     super::dock::purge_module_member_data(&state, ctx.user_id).await;
     super::members::announce_member_gone(&state, ctx.user_id).await;
+    super::space_owner::announce_handoff(&state, deleted.handoff);
     Ok(StatusCode::NO_CONTENT)
 }
 

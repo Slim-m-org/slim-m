@@ -17,7 +17,17 @@ mod anonymize;
 use crate::ids::{SessionId, UserId};
 
 use super::moderation_audit::{ModerationAction, ModerationAudit, record_moderation_audit};
+use super::space_owner::Handoff;
 use super::{Store, now_ms};
+
+/// What a deletion leaves the caller to announce.
+#[derive(Debug)]
+pub struct DeletedAccount {
+    /// Every session the account had, so their sockets close.
+    pub revoked: Vec<SessionId>,
+    /// Set when the account owned the Space and ownership passed on.
+    pub handoff: Option<Handoff>,
+}
 
 /// Why deleting an account was refused.
 #[derive(Debug)]
@@ -48,7 +58,8 @@ impl Store {
     /// scopes (messages, canvas) is kept but its authorship is cleared; and the
     /// user row is tombstoned and anonymized (name and profile fields cleared)
     /// so the username frees up and login is impossible. Returns the sessions
-    /// that were revoked so the caller can close their live sockets.
+    /// that were revoked so the caller can close their live sockets, and any
+    /// ownership hand-off for it to announce.
     ///
     /// Concurrency: the first statement is a write, so the transaction takes the
     /// write lock immediately (no stale-snapshot race) and a login racing this
@@ -84,7 +95,7 @@ impl Store {
     pub async fn delete_account(
         &self,
         user_id: UserId,
-    ) -> Result<Vec<SessionId>, DeleteAccountError> {
+    ) -> Result<DeletedAccount, DeleteAccountError> {
         self.purge_account(user_id, None).await
     }
 
@@ -95,7 +106,7 @@ impl Store {
         &self,
         user_id: UserId,
         deleted_by: UserId,
-    ) -> Result<Vec<SessionId>, DeleteAccountError> {
+    ) -> Result<DeletedAccount, DeleteAccountError> {
         self.purge_account(user_id, Some(deleted_by)).await
     }
 
@@ -103,7 +114,7 @@ impl Store {
         &self,
         user_id: UserId,
         audited_by: Option<UserId>,
-    ) -> Result<Vec<SessionId>, DeleteAccountError> {
+    ) -> Result<DeletedAccount, DeleteAccountError> {
         let now = now_ms();
         let mut tx = self.begin_write().await?;
 
@@ -371,7 +382,7 @@ impl Store {
             }
         }
 
-        super::space_owner::hand_on_owner(&mut tx).await?;
+        let handoff = super::space_owner::hand_on_owner(&mut tx).await?.handoff;
 
         if let Some(actor_id) = audited_by {
             record_moderation_audit(
@@ -389,6 +400,6 @@ impl Store {
         }
 
         tx.commit().await?;
-        Ok(revoked)
+        Ok(DeletedAccount { revoked, handoff })
     }
 }

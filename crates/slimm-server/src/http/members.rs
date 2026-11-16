@@ -304,12 +304,12 @@ async fn delete_member_account(
         .reach_member(&state, target)
         .await?;
 
-    let revoked = match state
+    let deleted = match state
         .store
         .delete_account_by_admin(target, ctx.user_id)
         .await
     {
-        Ok(revoked) => revoked,
+        Ok(deleted) => deleted,
         Err(DeleteAccountError::WouldStrandDeployment) => {
             return Err(ApiError::Conflict(
                 "that is the only administrator; appoint another before deleting it",
@@ -318,7 +318,7 @@ async fn delete_member_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    for session_id in revoked {
+    for session_id in deleted.revoked {
         state.hub.publish(Event::SessionRevoked(session_id));
     }
     if let Err(err) = state.media.delete_avatar(&target.to_string()).await {
@@ -330,6 +330,7 @@ async fn delete_member_account(
     super::linked_accounts::purge_avatar_files(&state, target).await;
     super::dock::purge_module_member_data(&state, target).await;
     announce_member_gone(&state, target).await;
+    super::space_owner::announce_handoff(&state, deleted.handoff);
     Ok(StatusCode::NO_CONTENT)
 }
 

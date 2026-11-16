@@ -329,7 +329,7 @@ impl Store {
         }
 
         let (everyone_id, everyone_perms) = self.everyone_role().await?;
-        let owner = self.live_space_owner().await? == Some(user_id);
+        let owner = self.space_owner().await? == Some(user_id);
 
         let rows = sqlx::query!(
             r#"SELECT r.id AS "id!: RoleId", r.permissions AS "permissions!: Permissions"

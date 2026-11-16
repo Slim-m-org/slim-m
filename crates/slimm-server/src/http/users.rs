@@ -345,7 +345,7 @@ async fn get_me(
         .await?
         .ok_or(ApiError::Unauthorized)?;
     // First, so an owner handed on just now already holds everything in `permissions`.
-    let is_owner = state.store.space_owner().await? == Some(ctx.user_id);
+    let is_owner = super::space_owner::settled_owner(&state).await? == Some(ctx.user_id);
     let permissions = state.store.base_permissions(ctx.user_id).await?;
     let timeout = state.store.member_timeout(ctx.user_id).await?;
     let visibility = state.store.presence_visibility(ctx.user_id).await?;

@@ -206,7 +206,7 @@ async fn a_deleted_accounts_departure_announces_nothing() {
     let online = next_presence_for(&mut bob_ws, &alice_id_str).await;
     assert_eq!(online["status"], "online");
 
-    for session_id in store.delete_account(alice_id).await.unwrap() {
+    for session_id in store.delete_account(alice_id).await.unwrap().revoked {
         hub.publish(Event::SessionRevoked(session_id));
     }
     support::wait::wait_until_async("alice's socket to close", || async {
