@@ -48,7 +48,7 @@ class VoiceSessionSync {
   final VoiceInputSettings input;
   final VoiceCameraHiding cameras;
 
-  /// Tells a call this client just connected to that it is still deafened.
+  /// Tells a call this client just connected or reconnected to that it is still deafened.
   final void Function() republishDeafened;
   final void Function(String message, {Object? detail}) log;
 
@@ -88,6 +88,11 @@ class VoiceSessionSync {
       unawaited(callClock.adoptServerStart(access));
       unawaited(shareResume.onConnected());
     }
+  }
+
+  /// livekit rebuilt the connection, which rejoined this client as a participant with no deafened mark.
+  void onTransportRestarted() {
+    if (_current.deafened) republishDeafened();
   }
 
   /// A drop the SFU decided on: the reason is the only thing that can tell

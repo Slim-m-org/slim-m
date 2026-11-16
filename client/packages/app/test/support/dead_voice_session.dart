@@ -16,6 +16,8 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
   @override
   Stream<VoiceSessionState> get states => const Stream.empty();
   @override
+  Stream<void> get transportRestarts => const Stream.empty();
+  @override
   Stream<List<VoiceParticipant>> get participantChanges => const Stream.empty();
   @override
   List<VoiceParticipant> get participants => const [];

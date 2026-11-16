@@ -145,6 +145,10 @@ class VoiceSession {
   /// Per-person quality and the last call's summary; see [VoiceHealth].
   VoiceHealth get health => _core.healthWatch.health;
 
+  /// Fires when livekit rebuilt the connection of the call still in progress,
+  /// which rejoins this client as a new participant with none of its attributes.
+  Stream<void> get transportRestarts => _core.flow.restarts;
+
   /// What a call report needs, kept apart from the debug log; see [CallDiagnostics].
   CallDiagnostics get diagnostics => _core.healthWatch.diagnostics;
 

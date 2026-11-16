@@ -31,6 +31,13 @@ class _RejoiningSession extends FakeSession {
   }
 }
 
+class _RestartingSession extends FakeSession {
+  final restarts = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get transportRestarts => restarts.stream;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final harness = VoiceHarness();
@@ -97,6 +104,64 @@ void main() {
       async.flushMicrotasks();
 
       expect(controller.state.state, VoiceSessionState.connected);
+      expect(told, isEmpty);
+    });
+  });
+
+  test(
+    'a deafened call says so again after livekit restarts its connection',
+    () {
+      fakeAsync((async) {
+        final told = <String>[];
+        final session = _RestartingSession();
+        final controller = harness.controllerWith(
+          session,
+          voiceApi(
+            onRequest: (request) {
+              if (request.url.path.endsWith('/voice/deafened')) {
+                told.add(request.body);
+              }
+            },
+          ),
+        );
+
+        unawaited(controller.join('channel-1'));
+        async.flushMicrotasks();
+        unawaited(controller.toggleDeafen());
+        async.flushMicrotasks();
+        expect(told, hasLength(1));
+
+        session.restarts.add(null);
+        async.flushMicrotasks();
+
+        expect(
+          told,
+          hasLength(2),
+          reason: 'the restart rejoined as a participant with no mark',
+        );
+        expect(told.last, contains('true'));
+      });
+    },
+  );
+
+  test('a restart says nothing for a call that was never deafened', () {
+    fakeAsync((async) {
+      final told = <String>[];
+      final session = _RestartingSession();
+      harness.controllerWith(
+        session,
+        voiceApi(
+          onRequest: (request) {
+            if (request.url.path.endsWith('/voice/deafened')) {
+              told.add(request.body);
+            }
+          },
+        ),
+      );
+
+      session.restarts.add(null);
+      async.flushMicrotasks();
+
       expect(told, isEmpty);
     });
   });
