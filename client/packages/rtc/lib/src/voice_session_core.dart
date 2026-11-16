@@ -139,6 +139,7 @@ class VoiceSessionCore {
         selectInput: (device) => devices.selectInput(device, remember: false),
         selectOutput: (device) => devices.selectOutput(device, remember: false),
         micPublished: () => this.joinTimings.mark(JoinStage.micPublished),
+        reconnecting: () => healthWatch.health.reconnect.restarting.value,
       ),
       mic: mic,
       gate: gate,

@@ -14,6 +14,10 @@ import 'package:slimm_test_support/slimm_test_support.dart' show pollUntil;
 import 'support/no_audio_devices.dart';
 import 'support/session_fakes.dart';
 
+class _Room extends ConnectlessRoom {
+  void emit(lk.RoomEvent event) => events.streamCtrl.add(event);
+}
+
 class _Mic implements MicPort {
   bool published = false;
   bool muted = true;
@@ -81,14 +85,16 @@ Future<void> _settle() =>
 
 void main() {
   late _Mic mic;
+  late _Room room;
   late VoiceSession session;
   late List<MicStatus> statuses;
 
   setUp(() {
     mic = _Mic();
+    room = _Room();
     statuses = [];
     session = VoiceSession(
-      roomFactory: ConnectlessRoom.new,
+      roomFactory: () => room,
       micPort: mic,
       audioDevices: const NoAudioDevices(),
       micRecoveryTiming: _timing,
@@ -139,6 +145,38 @@ void main() {
     await _settle();
 
     expect(statuses, [MicStatus.reconnecting, MicStatus.unavailable]);
+  });
+
+  test('a microphone a full restart is still republishing is left to livekit',
+      () async {
+    await join();
+    room.emit(const lk.RoomReconnectingEvent());
+    mic.published = false;
+    await _settle();
+
+    expect(mic.enables, 1,
+        reason: 'a publish of its own would leave two microphones live');
+    expect(statuses, isEmpty);
+
+    mic.published = true;
+    room.emit(const lk.RoomReconnectedEvent());
+    await _settle();
+
+    expect(mic.enables, 1);
+    expect(statuses, isEmpty);
+  });
+
+  test('a restart that never reports its end brings the microphone back',
+      () async {
+    await join();
+    room.emit(const lk.RoomReconnectingEvent());
+    mic.published = false;
+    await _settle();
+
+    session.health.reconnect.ended('no reconnect event');
+    await pollUntil(() => mic.enables == 2);
+
+    expect(mic.open, isTrue);
   });
 
   test('a muted microphone with no publication is left alone', () async {
