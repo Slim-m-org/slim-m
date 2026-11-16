@@ -107,9 +107,7 @@ class _CommunityStrip extends StatelessWidget {
     return _StripFrame(
       atTop: atTop,
       press: CallStripPressArea(
-        semanticLabel: channel == null
-            ? 'Return to call on ${call.community}'
-            : 'Return to call, $channel on ${call.community}',
+        semanticLabel: call.returnLabel,
         onPressed: () => unawaited(call.open()),
       ),
       summary: _Summary(

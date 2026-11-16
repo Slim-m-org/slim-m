@@ -129,10 +129,12 @@ It now hides wherever something else on screen already names the same call:
 - The rail's call row, on a wide window and in a phone's drawer (decision 0111).
 - The phone's call strip, at the bottom of a conversation or of a full-window page.
   With no call in this community, the strip shows the other community's call the way the rail's row does: its channel, the community's name leading the second line, mute, deafen and Leave acting on that call, and a tap that switches to the community and opens the call there.
+- The composer's slim call pill, which takes the strip's place in a phone conversation while the keyboard is up.
+  With no call in this community it shows the other community's call the same way, in one line: the community's name ahead of the timer, mute and Leave acting on that call, and the same tap.
 
 Each of these counts itself in `callElsewhereShownProvider` while it is on screen, and the pill hides while any is counted.
 A place under a pushed route stays mounted but is not on screen, so it does not count.
-The pill still shows where neither is on screen: a full-screen canvas on a wide window, a route pushed over the shell that has no strip of its own, and a phone conversation while typing, where the strip gives way to the composer.
+The pill still shows where none is on screen: a full-screen canvas on a wide window, and a route pushed over the shell that has no strip of its own.
 
 ## Adding and signing out
 

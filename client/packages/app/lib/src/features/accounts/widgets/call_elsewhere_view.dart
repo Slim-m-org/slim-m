@@ -38,6 +38,12 @@ class CallElsewhere {
 
   /// Switches to the community, then opens the call's channel there.
   final Future<void> Function() open;
+
+  /// What a screen reader hears for the press that runs [open].
+  String get returnLabel => switch (channelName) {
+    final channel? => 'Return to call, $channel on $community',
+    null => 'Return to call on $community',
+  };
 }
 
 /// [builder] over [entry]'s call. While it is on screen it counts as a place

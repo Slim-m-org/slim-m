@@ -14,7 +14,8 @@ import 'account_server_label.dart';
 
 /// Mounted once by `appChromeBuilder`, top-centre like the web update pill and
 /// below the app bar on a narrow window. Tapping it returns to the call. It
-/// steps aside while the rail's call row or the phone's strip shows the call.
+/// steps aside while the rail's call row, or the phone's strip or its keyboard
+/// pill, shows the call.
 class AccountCallPill extends ConsumerWidget {
   const AccountCallPill({super.key});
 
