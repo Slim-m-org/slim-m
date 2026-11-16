@@ -69,6 +69,7 @@ class _EmojiFieldPickerState extends State<EmojiFieldPicker> {
                   child: LayoutBuilder(
                     builder: (context, constraints) => EmojiPickerPanel(
                       autofocusSearch: false,
+                      floating: false,
                       width: constraints.maxWidth,
                       onSelect: _pickInline,
                       onClose: () => _setInline(false),

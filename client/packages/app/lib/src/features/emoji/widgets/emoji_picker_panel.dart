@@ -33,6 +33,7 @@ class EmojiPickerPanel extends ConsumerStatefulWidget {
     required this.onClose,
     this.autofocusSearch = true,
     this.width = pickerWidth,
+    this.floating = true,
   });
 
   /// Exposed so a test can find this exact node rather than any other
@@ -51,6 +52,9 @@ class EmojiPickerPanel extends ConsumerStatefulWidget {
   /// Overridable so the panel can shrink to a narrow phone rather than
   /// overflow its sheet.
   final double width;
+
+  /// False for a panel laid inline under a field, which sits flush rather than lifted.
+  final bool floating;
 
   @override
   ConsumerState<EmojiPickerPanel> createState() => _EmojiPickerPanelState();
@@ -168,6 +172,7 @@ class _EmojiPickerPanelState extends ConsumerState<EmojiPickerPanel> {
         type: MaterialType.transparency,
         child: AppMenu(
           width: widget.width,
+          floating: widget.floating,
           children: [
             // Invisible live region: announces a category switch or a search's result count / "no matches", which the silently-repainting grid below never voices on its own.
             Semantics(
