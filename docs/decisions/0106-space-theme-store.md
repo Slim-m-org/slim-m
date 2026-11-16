@@ -80,13 +80,18 @@ The caps bound it, and the store is the only place a member can add one.
 The theme editor finishes what the file format promised: you can now make a theme, not just move one around.
 
 - A page above Themes inside the Appearance pane (`/settings?pane=appearance&page=new-theme`; the old `/settings/themes/edit` redirects there), so the settings nav stays beside it (rule 5).
-  It is side by side from 640 wide inside the panel (tokens left, preview and contrast right) and stacked below it, with a fixed preview strip on top and the colour picker as a sheet.
+  The draft's preview is pinned under the header (the short strip below 480 of content), one column of cards scrolls under it (Details, Main colours, Contrast, All colours), and one pinned footer holds Save and the primary Save and apply at every width.
+  A window too short for the pin lets the preview scroll away instead.
+  While checks fail, the footer says how many, links to Contrast and offers Fix all.
 - It starts from any built-in ("Customise"), any Space theme ("Edit a copy"), a Mine entry ("Edit") or the "Start from" row inside the editor.
-- The 19 tokens are grouped as Surfaces, Text, Accent, Borders, Status and Other.
-  The picker is the design system's `AppColourPicker`, inline on a wide window and in `showAppColourPicker` on a phone, both previewing live through a new `onChanged`.
-  The three tokens that may carry alpha also get an opacity slider.
+- Main colours are Background, Accent and Text.
+  The colours linked to each (sunken and raised; fill, ring and focus; secondary and disabled), and the warning tint to Warning text, follow by the same HSL change until they are edited themselves.
+  Links live only in the editor session, every session starts with all of them on and Start from turns them back on; the file never stores them, since the format refuses unknown keys.
+- The 19 tokens are grouped as Surfaces, Text, Accent, Borders, Status and Other: a two-column grid of tiles from 480 of content, and six collapsible groups with each opacity slider under its colour below it.
+  The picker is the design system's `AppColourPicker`, inline from 480 of content and in `showAppColourPicker` below it, both previewing live through `onChanged`, committing with Done and reverting with Cancel.
+  It says what a colour also sets and checks contrast live as it moves; the three tokens that may carry alpha get their opacity slider inside it.
 - The contrast floors are data (`themeContrastChecks`) and the parser reports the same sentences.
-  Each failing floor shows what to change and a Fix button, "Fix all" covers several, and Save, Publish and Export refuse while any fails.
+  Failing floors are grouped by the colour to change, each with what to do and a Fix that clears all of that colour's checks; "Fix all" covers every one, and Save, Publish and Export refuse while any fails.
 - "Mine" is a list kept on the device (`slimm.appearance.my_themes`, at most 50), apart from the theme in use.
   Pictures are not kept in Mine: the editor does not edit them, and a picture only travels with a theme applied from the store.
   Importing a file with a picture saves the colours and drops the picture.

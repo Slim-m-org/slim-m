@@ -85,4 +85,48 @@ void main() {
     expect(parsed.problems, isEmpty);
     expect(parsed.document!.toJson(), draft.document.toJson());
   });
+
+  test('a fix on a main colour moves the colours that follow it', () {
+    final draft = _draft()..setColour('accent', const Color(0xFF1E6F68));
+    expect(draft.document.colours['focusRing'], const Color(0xFF1E6F68));
+    final check = draft.failing.firstWhere((c) => c.fg == 'accent');
+    draft.applyFix(check);
+    final accent = draft.document.colours['accent']!;
+    expect(accent, isNot(const Color(0xFF1E6F68)));
+    expect(draft.document.colours['accentFill'], accent);
+    expect(draft.document.colours['focusRing'], accent);
+    expect(draft.document.colours['accentRing']!.withValues(alpha: 1), accent);
+  });
+
+  test("one colour's Fix clears every check on that colour", () {
+    final draft = _draft()..setColour('accent', const Color(0xFF1E6F68));
+    expect(draft.failing.where((c) => c.fg == 'accent').length, greaterThan(1));
+    draft.fixColour('accent');
+    expect(draft.failing.where((c) => c.fg == 'accent'), isEmpty);
+    expect(draft.failingColours, isNot(contains('accent')));
+  });
+
+  test('Fix all clears checks a linked fix uncovers', () {
+    final base = themeBases['dark']!;
+    final draft = _draft()
+      ..setColour('textPrimary', base.surfaceBase)
+      ..setColour('accent', const Color(0xFF1D2B33));
+    expect(draft.failingColours, containsAll(['textPrimary', 'accent']));
+    draft.applyAllFixes();
+    expect(draft.failing, isEmpty);
+    expect(draft.canSave, isTrue);
+  });
+
+  test('a seed names what it started from, or its preset', () {
+    expect(_draft('forest').startedFrom, 'base:forest');
+    final doc = ThemeEditorSeed.fromBase('light').document;
+    expect(
+      ThemeDraft(ThemeEditorSeed(doc, mineId: 'm')).startedFrom,
+      'base:light',
+    );
+    expect(
+      ThemeDraft(ThemeEditorSeed(doc, startedFrom: 'space:s1')).startedFrom,
+      'space:s1',
+    );
+  });
 }

@@ -18,6 +18,7 @@ class ThemeMenuButton<T> extends StatefulWidget {
     required this.items,
     required this.onSelected,
     this.enabled = true,
+    this.sheetTitle,
   });
 
   final String semanticLabel;
@@ -26,6 +27,10 @@ class ThemeMenuButton<T> extends StatefulWidget {
   final List<Widget> Function(void Function(T)) items;
   final ValueChanged<T> onSelected;
   final bool enabled;
+
+  /// Heads the phone sheet, naming what the menu acts on; the anchored menu
+  /// stays untitled because it opens from the thing itself.
+  final Widget? sheetTitle;
 
   @override
   State<ThemeMenuButton<T>> createState() => _ThemeMenuButtonState<T>();
@@ -45,8 +50,15 @@ class _ThemeMenuButtonState<T> extends State<ThemeMenuButton<T>> {
       bare: true,
       builder: (sheetContext) => SafeArea(
         top: false,
-        child: AppSheetMenu(
-          children: widget.items((v) => Navigator.of(sheetContext).pop(v)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ?widget.sheetTitle,
+            AppSheetMenu(
+              children: widget.items((v) => Navigator.of(sheetContext).pop(v)),
+            ),
+          ],
         ),
       ),
     );

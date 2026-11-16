@@ -170,7 +170,14 @@ class ThemeMiniatureDraft extends StatelessWidget {
           if (!strip)
             inset(Align(alignment: Alignment.centerLeft, child: _warn())),
           inset(_Composer(tokens: tokens, sendLabel: 'Send')),
-          if (!strip) ...[inset(_error()), inset(_focus())],
+          if (!strip)
+            inset(
+              Wrap(
+                spacing: AppSpacing.s12,
+                runSpacing: AppSpacing.s12,
+                children: [_error(), _focus()],
+              ),
+            ),
         ],
       ),
     );

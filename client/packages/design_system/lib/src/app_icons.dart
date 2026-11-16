@@ -371,6 +371,12 @@ abstract final class AppIcons {
   /// an invite link carries its server too, where [copy] takes the code alone.
   static const IconData link = LucideIcons.link300;
 
+  /// A theme colour that follows its main colour until it is changed itself.
+  static const IconData linkedColour = LucideIcons.link2300;
+
+  /// Every check passed, where a bare [check] would read as a selection.
+  static const IconData allPassed = LucideIcons.circleCheck300;
+
   /// A fourth, distinct shape for "not known", never to be confused with
   /// [danger]'s "known not to work".
   static const IconData unknown = LucideIcons.circleHelp300;

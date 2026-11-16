@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A rig that mounts the theme editor above Themes in the Appearance pane,
-/// with the network, the file picker and the file saver replaced.
+/// with the network, the file picker and the file saver replaced; [EditorRig.open]
+/// puts it in the real settings modal with a second pane and search.
 library;
 
 import 'dart:convert';
@@ -8,14 +9,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/settings/providers/settings_index.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_draft.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_editor_page.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_gallery.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
@@ -85,6 +90,51 @@ class EditorRig {
     ],
   );
 
+  /// Opens settings as the app does, a modal over a channel, on Appearance
+  /// with Themes and the editor pushed; a second pane and a search entry for
+  /// it sit in the nav.
+  Future<void> open(
+    WidgetTester tester, {
+    ThemeEditorSeed? seed,
+    Size size = laptop,
+  }) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    addTearDown(container.dispose);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, _) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.push('/settings'),
+              child: const Text('channel'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/settings',
+          pageBuilder: (context, _) => modalPage(context, _settings(seed)),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.text('channel'));
+    await settle(tester);
+  }
+
   /// [editor] false opens Themes alone, the page the editor sits above.
   Future<void> pump(
     WidgetTester tester, {
@@ -111,6 +161,63 @@ class EditorRig {
     await settle(tester);
   }
 }
+
+/// The laptop the editor is judged at, and the phone.
+const laptop = Size(1280, 900);
+const phone = Size(390, 844);
+
+const _editorPage = 'editor';
+
+Widget _settings(ThemeEditorSeed? seed) => SettingsPanesScaffold(
+  title: 'Settings',
+  backTooltip: 'Back to channels',
+  backFallback: '/',
+  initialPaneId: 'appearance',
+  initialPageId: _editorPage,
+  searchEntries: const [SettingsEntry('other', 'Other setting')],
+  groups: [
+    SettingsPaneGroup(
+      label: 'App',
+      panes: [
+        SettingsPane(
+          id: 'appearance',
+          label: 'Appearance',
+          builder: (_) => const Text('appearance pane'),
+          subPages: {
+            _editorPage: () => [themesSubPage(), themeEditorSubPage(seed)],
+          },
+        ),
+        SettingsPane(
+          id: 'other',
+          label: 'Other',
+          builder: (_) => const Text('other pane'),
+        ),
+      ],
+    ),
+  ],
+);
+
+Finder byKey(String key) => find.byKey(Key(key));
+
+/// Brings [finder] into view, then taps it and lets the result land.
+Future<void> tapIn(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.tap(finder);
+  await settle(tester);
+}
+
+/// Picks [label] from the editor's kebab, anchored or as a sheet.
+Future<void> pickFromMenu(WidgetTester tester, String label) async {
+  await tapIn(tester, byKey('theme-editor-menu'));
+  await tester.tap(find.text(label));
+  await settle(tester);
+}
+
+/// The footer's buttons are on and the draft can be saved.
+bool saveEnabled(WidgetTester tester) =>
+    !tester.widget<AppButton>(byKey('theme-editor-save')).disabled &&
+    !tester.widget<AppButton>(byKey('theme-editor-apply')).disabled;
 
 Future<void> settle(WidgetTester tester) async {
   await tester.pump();
