@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -29,6 +30,20 @@ const stampMaxSourcePixels = 40000000;
 /// Original GIFs kept for tiles to animate, and the largest one that animates at all.
 const _originalsKept = 4;
 const stampAnimatedMaxBytes = 4 * 1024 * 1024;
+
+/// The longest GIF canvas side that animates, since every frame decodes at the full canvas.
+const stampAnimatedMaxSide = 1024;
+
+/// Whether [bytes] are a GIF small enough for a tile to animate, its canvas read from the header
+/// since a codec decodes every frame of an animation at the full canvas.
+bool _gifAnimates(Uint8List bytes) {
+  if (bytes.length > stampAnimatedMaxBytes || bytes.length < 10) return false;
+  if (String.fromCharCodes(bytes, 0, 4) != 'GIF8') return false;
+  final header = ByteData.sublistView(bytes, 6, 10);
+  final width = header.getUint16(0, Endian.little);
+  final height = header.getUint16(2, Endian.little);
+  return math.max(width, height) <= stampAnimatedMaxSide;
+}
 
 class StampImageCache {
   StampImageCache({
@@ -116,7 +131,7 @@ class StampImageCache {
     final generation = _generation;
     return _originalLoads[attachmentId] ??= _fetchOriginal(attachmentId)
         .then((bytes) {
-          if (bytes.length > stampAnimatedMaxBytes) return null;
+          if (!_gifAnimates(bytes)) return null;
           if (generation == _generation) _keepOriginal(attachmentId, bytes);
           return bytes;
         })

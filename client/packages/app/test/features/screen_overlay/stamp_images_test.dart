@@ -32,6 +32,19 @@ Future<Uint8List> _solidPng(int width, int height) async {
   return data!.buffer.asUint8List();
 }
 
+/// The header of a GIF on a [width] x [height] canvas, all a tile reads before it animates one.
+Uint8List _gifOn(int width, int height) => Uint8List.fromList([
+  ...'GIF89a'.codeUnits,
+  width & 0xFF,
+  width >> 8,
+  height & 0xFF,
+  height >> 8,
+  0,
+  0,
+  0,
+  0x3B,
+]);
+
 /// A runner whose putImage answers only when the test says.
 class _SlowPuts extends FakeOverlay {
   final reply = Completer<bool>();
@@ -97,7 +110,11 @@ void main() {
           fetched.add(id);
           return _solidPng(40, 40);
         },
-        fetchOriginal: (id) async => Uint8List(stampAnimatedMaxBytes + 1),
+        fetchOriginal: (id) async => switch (id) {
+          'small' => _gifOn(16, 16),
+          'wide' => _gifOn(stampAnimatedMaxSide + 1, 16),
+          _ => Uint8List(stampAnimatedMaxBytes + 1),
+        },
         customEmojiBytes: (_) => throw UnimplementedError(),
         customIndex: () => const {},
       );
@@ -148,6 +165,11 @@ void main() {
 
     test('a GIF over 4 MiB never animates', () async {
       expect(await cache.original('big'), isNull);
+    });
+
+    test('a GIF on a canvas over 1024 px a side never animates', () async {
+      expect(await cache.original('small'), isNotNull);
+      expect(await cache.original('wide'), isNull);
     });
   });
 

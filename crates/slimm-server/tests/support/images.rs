@@ -31,7 +31,15 @@ pub fn small_png() -> Vec<u8> {
 
 /// A two-frame GIF: the shape a profile picture must refuse.
 pub fn animated_gif() -> Vec<u8> {
-    let mut out = b"GIF89a\x10\x00\x10\x00\x80\x00\x00".to_vec();
+    animated_gif_on(16, 16)
+}
+
+/// A two-frame GIF of 16 px frames on a `width` x `height` canvas.
+pub fn animated_gif_on(width: u16, height: u16) -> Vec<u8> {
+    let mut out = b"GIF89a".to_vec();
+    out.extend_from_slice(&width.to_le_bytes());
+    out.extend_from_slice(&height.to_le_bytes());
+    out.extend_from_slice(&[0x80, 0x00, 0x00]);
     out.extend_from_slice(&[0; 6]);
     for _ in 0..2 {
         out.extend_from_slice(&[0x21, 0xF9, 4, 0, 0, 0, 0, 0]);

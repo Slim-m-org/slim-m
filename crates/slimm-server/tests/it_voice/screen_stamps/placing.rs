@@ -392,3 +392,68 @@ async fn a_stamp_sent_over_the_socket_never_reaches_the_sharer() {
 
     assert_no_frame_of_type(&mut sharer_ws, KIND).await;
 }
+
+#[tokio::test]
+async fn a_gif_on_a_large_canvas_is_stamped_as_its_still() {
+    let rig = rig().await;
+    rig.consent(true, true);
+    let mut sharer_ws = rig.socket(&rig.sharer).await;
+    let edge = rig
+        .upload(
+            &rig.viewer.token,
+            "edge.gif",
+            crate::support::images::animated_gif_on(1024, 768),
+        )
+        .await;
+    let wide = rig
+        .upload(
+            &rig.viewer.token,
+            "wide.gif",
+            crate::support::images::animated_gif_on(6300, 6300),
+        )
+        .await;
+
+    rig.stamp(&rig.viewer.token, rig.picture(&edge)).await;
+    let at_the_cap = read_stamp(&mut sharer_ws).await;
+    let (status, error) = rig.stamp(&rig.viewer.token, rig.picture(&wide)).await;
+    let past_it = read_stamp(&mut sharer_ws).await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT, "{error}");
+    assert_eq!(at_the_cap["animated"], true);
+    assert_eq!(past_it["attachment"], wide);
+    assert!(
+        past_it.get("animated").is_none(),
+        "a tile would decode every frame at the full canvas"
+    );
+}
+
+#[tokio::test]
+async fn a_picture_whose_header_declares_too_many_pixels_is_refused() {
+    let rig = rig().await;
+    rig.consent(true, true);
+    let huge = rig
+        .upload(
+            &rig.viewer.token,
+            "huge.png",
+            crate::support::images::png(20_000, 20_000, b"tiny file"),
+        )
+        .await;
+    let largest = rig
+        .upload(
+            &rig.viewer.token,
+            "largest.png",
+            crate::support::images::png(8_000, 5_000, b"at the cap"),
+        )
+        .await;
+
+    let (status, body) = rig.stamp(&rig.viewer.token, rig.picture(&huge)).await;
+    let (at_the_cap, error) = rig.stamp(&rig.viewer.token, rig.picture(&largest)).await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body["error"],
+        "a stamp picture must be at most 40 megapixels"
+    );
+    assert_eq!(at_the_cap, StatusCode::NO_CONTENT, "{error}");
+    assert_eq!(rig.count("SELECT COUNT(*) FROM screen_stamps").await, 1);
+}

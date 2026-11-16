@@ -24,7 +24,7 @@ use crate::hub::{
     CanvasEvent, Event, ScreenAnnotationEvent, ScreenAnnotationKind, Stamp, StampContent,
 };
 use crate::ids::{ChannelId, UserId};
-use crate::media;
+use crate::media::{self, ImageHeader};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{NewScreenStamp, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, now_ms};
@@ -41,6 +41,11 @@ const MAX_STAMP_PICTURE_BYTES: i64 = 8 * 1024 * 1024;
 
 /// The largest GIF an in-app tile animates; a bigger one shows its still frame.
 const MAX_ANIMATED_BYTES: i64 = 4 * 1024 * 1024;
+
+/// The longest GIF canvas side a tile animates, since every frame decodes at the full canvas.
+const MAX_ANIMATED_SIDE: u32 = 1024;
+
+const NOT_A_PICTURE: &str = "a stamp must be a PNG, JPEG, GIF or WebP picture";
 
 /// The picture types a stamp may show, as upload sniffing names them.
 const STAMP_PICTURE_TYPES: [&str; 4] = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -130,16 +135,36 @@ async fn usable_picture(state: &AppState, sender: UserId, sha256: &[u8]) -> Resu
         .await?
         .ok_or(missing)?;
     if !STAMP_PICTURE_TYPES.contains(&meta.content_type.as_str()) {
-        return Err(ApiError::BadRequest(
-            "a stamp must be a PNG, JPEG, GIF or WebP picture",
-        ));
+        return Err(ApiError::BadRequest(NOT_A_PICTURE));
     }
     if meta.size > MAX_STAMP_PICTURE_BYTES {
         return Err(ApiError::BadRequest(
             "a stamp picture must be at most 8 MiB",
         ));
     }
-    Ok(meta.content_type == "image/gif" && meta.size <= MAX_ANIMATED_BYTES)
+    let header = stillable_header(state, sha256).await?;
+    Ok(meta.content_type == "image/gif"
+        && meta.size <= MAX_ANIMATED_BYTES
+        && header.width.max(header.height) <= MAX_ANIMATED_SIDE)
+}
+
+/// The picture's header, read the way its still is planned, so every stamp has a still the
+/// server derives rather than an original of any pixel size.
+async fn stillable_header(state: &AppState, sha256: &[u8]) -> Result<ImageHeader, ApiError> {
+    let original = state.media.attachment_file(&media::to_hex(sha256));
+    let header = state
+        .media
+        .previews()
+        .header_for(&original)
+        .await
+        .filter(|header| header.width > 0 && header.height > 0)
+        .ok_or(ApiError::BadRequest(NOT_A_PICTURE))?;
+    if u64::from(header.width) * u64::from(header.height) > media::MAX_IMAGE_PIXELS {
+        return Err(ApiError::BadRequest(
+            "a stamp picture must be at most 40 megapixels",
+        ));
+    }
+    Ok(header)
 }
 
 /// Both people in this channel's call, and the target sharing a screen there.
