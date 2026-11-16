@@ -11,7 +11,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_miniature.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_miniature_painter.dart';
-import 'package:slimm_app/src/providers/providers.dart' show AppThemeChoice;
 import 'package:slimm_design_system/design_system.dart';
 
 const _boundary = Key('mini-boundary');
@@ -101,7 +100,14 @@ void main() {
   testWidgets('System paints light with dark across the lower right', (
     tester,
   ) async {
-    await _pump(tester, ThemeMiniature.forChoice(AppThemeChoice.system));
+    await _pump(
+      tester,
+      const ThemeMiniature(
+        tokens: AppTokens.light,
+        brightness: Brightness.light,
+        split: AppTokens.dark,
+      ),
+    );
 
     final colours = await _pixels(tester, [
       const Offset(2, 2),
@@ -167,22 +173,25 @@ void main() {
     expect(image.right, _bars.width);
   });
 
-  testWidgets('a label names it to a screen reader; none leaves it out', (
+  testWidgets('it stays out of semantics; the card around it names it', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
     await _pump(
       tester,
-      Column(
-        children: [
-          ThemeMiniature.forChoice(AppThemeChoice.forest, label: 'Forest'),
-          ThemeMiniature.forChoice(AppThemeChoice.dark),
-        ],
+      Semantics(
+        label: 'Forest',
+        container: true,
+        child: const ThemeMiniature(
+          tokens: AppTokens.forest,
+          detail: ThemeMiniatureDetail.hero,
+        ),
       ),
+      width: 600,
     );
 
     expect(find.bySemanticsLabel('Forest'), findsOneWidget);
-    expect(find.bySemanticsLabel('Dark'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('general')), findsNothing);
     handle.dispose();
   });
 

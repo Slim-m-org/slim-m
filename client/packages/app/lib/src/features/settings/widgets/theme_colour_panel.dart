@@ -28,7 +28,7 @@ Future<void> showThemeColourSheet(
     confirmLabel: 'Done',
     onChanged: (c) => draft.setColour(token, c),
     extraBuilder: (context, colour) =>
-        ThemeColourExtras(draft: draft, token: token, colour: colour),
+        _ThemeColourExtras(draft: draft, token: token, colour: colour),
   );
   if (picked == null) {
     draft.restore(mark);
@@ -65,7 +65,7 @@ class ThemeColourPanel extends StatelessWidget {
     confirmLabel: 'Done',
     confirmVariant: AppButtonVariant.secondary,
     onChanged: (c) => draft.setColour(token, c),
-    extraBuilder: (context, colour) => ThemeColourExtras(
+    extraBuilder: (context, colour) => _ThemeColourExtras(
       draft: draft,
       token: token,
       colour: colour,
@@ -81,9 +81,8 @@ class ThemeColourPanel extends StatelessWidget {
 
 /// The lines under or beside the picker: the live contrast verdict, the
 /// linked note, and the opacity slider of a see-through colour.
-class ThemeColourExtras extends StatelessWidget {
-  const ThemeColourExtras({
-    super.key,
+class _ThemeColourExtras extends StatelessWidget {
+  const _ThemeColourExtras({
     required this.draft,
     required this.token,
     required this.colour,

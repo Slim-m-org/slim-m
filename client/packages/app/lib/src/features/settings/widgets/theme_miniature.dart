@@ -9,8 +9,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart' show AppThemeChoice;
-import '../providers/resolved_theme.dart';
 import 'theme_miniature_painter.dart';
 import 'theme_miniature_text.dart';
 
@@ -38,36 +36,14 @@ class ThemeMiniature extends StatelessWidget {
     this.detail = ThemeMiniatureDetail.bars,
     this.split,
     this.picture,
-    this.label,
     this.open = 1,
   });
-
-  /// A built-in choice; System paints light with the dark half beside it.
-  factory ThemeMiniature.forChoice(
-    AppThemeChoice choice, {
-    Key? key,
-    ThemeMiniatureDetail detail = ThemeMiniatureDetail.bars,
-    String? label,
-  }) {
-    final system = choice == AppThemeChoice.system;
-    return ThemeMiniature(
-      key: key,
-      tokens: builtInThemeTokens(choice) ?? AppTokens.light,
-      brightness: choice == AppThemeChoice.light || system
-          ? Brightness.light
-          : Brightness.dark,
-      split: system ? AppTokens.dark : null,
-      detail: detail,
-      label: label,
-    );
-  }
 
   factory ThemeMiniature.forDocument(
     ThemeDocument document, {
     Key? key,
     ThemeMiniatureDetail detail = ThemeMiniatureDetail.bars,
     ImageProvider? picture,
-    String? label,
     double open = 1,
   }) => ThemeMiniature(
     key: key,
@@ -75,7 +51,6 @@ class ThemeMiniature extends StatelessWidget {
     brightness: document.brightness,
     detail: detail,
     picture: picture,
-    label: label,
     open: open,
   );
 
@@ -91,9 +66,6 @@ class ThemeMiniature extends StatelessWidget {
   /// Shown under the chat column, faded to the base surface; the caller sizes
   /// it to the drawn width with a [ResizeImage].
   final ImageProvider? picture;
-
-  /// What a screen reader hears; null leaves the miniature out of semantics.
-  final String? label;
 
   /// How much of the draft's foldable rows shows; see [ThemeMiniatureDraft.open].
   final double open;
@@ -113,15 +85,7 @@ class ThemeMiniature extends StatelessWidget {
         open: open,
       ),
     };
-    final painted = RepaintBoundary(child: body);
-    final label = this.label;
-    if (label == null) return ExcludeSemantics(child: painted);
-    return Semantics(
-      label: label,
-      image: true,
-      excludeSemantics: true,
-      child: painted,
-    );
+    return ExcludeSemantics(child: RepaintBoundary(child: body));
   }
 
   Widget _hero() {

@@ -14,7 +14,6 @@ class ThemeGallerySectionHeader extends StatelessWidget {
     required this.title,
     this.count,
     this.actions = const [],
-    this.first = false,
   });
 
   final String title;
@@ -23,17 +22,11 @@ class ThemeGallerySectionHeader extends StatelessWidget {
   final String? count;
   final List<Widget> actions;
 
-  /// The first section sits closer to the filter above it.
-  final bool first;
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
-      padding: EdgeInsets.only(
-        top: first ? AppSpacing.s16 : AppSpacing.s24,
-        bottom: 10,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.s24, bottom: 10),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AppSizes.controlMd),
         child: Row(
