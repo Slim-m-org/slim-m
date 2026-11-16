@@ -91,8 +91,12 @@ class RecordVoiceCapture implements VoiceCaptureBackend {
 
   @override
   Future<VoiceCapture?> stop() async {
-    final path = await _recorder.stop();
-    await _recorder.dispose();
+    final String? path;
+    try {
+      path = await _recorder.stop();
+    } finally {
+      await _recorder.dispose();
+    }
     if (path == null || path.isEmpty) return null;
     final bytes = await _read(path);
     return VoiceCapture(bytes: bytes, filename: 'voice-message.wav');

@@ -27,6 +27,8 @@ class FakeRecordPlatform extends RecordPlatform {
   final bool listingFails;
   RecordConfig? config;
   String? path;
+  bool stopFails = false;
+  int disposals = 0;
 
   @override
   Future<void> create(String recorderId) async {}
@@ -54,6 +56,18 @@ class FakeRecordPlatform extends RecordPlatform {
     this.config = config;
     this.path = path;
   }
+
+  @override
+  Future<String?> stop(String recorderId) async {
+    if (stopFails) throw PlatformException(code: 'record');
+    return null;
+  }
+
+  @override
+  Future<bool> isRecording(String recorderId) async => false;
+
+  @override
+  Future<void> dispose(String recorderId) async => disposals++;
 
   @override
   Stream<RecordState> onStateChanged(String recorderId) => const Stream.empty();
@@ -123,6 +137,15 @@ void main() {
           const MethodChannel('plugins.flutter.io/path_provider'),
           null,
         );
+  });
+
+  test('a stop the plugin refuses still releases the recorder', () async {
+    final platform = FakeRecordPlatform()..stopFails = true;
+    RecordPlatform.instance = platform;
+    final capture = RecordVoiceCapture();
+    expect(await capture.start(), isTrue);
+    await expectLater(capture.stop(), throwsA(isA<PlatformException>()));
+    expect(platform.disposals, 1);
   });
 
   Future<FakeRecordPlatform> startWith({

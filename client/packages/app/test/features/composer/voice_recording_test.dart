@@ -23,6 +23,7 @@ class FakeCapture implements VoiceCaptureBackend {
   bool stopped = false;
 
   bool failsToStart = false;
+  bool failsToStop = false;
 
   /// When set, start waits on it, the way a permission prompt does.
   Future<void>? opening;
@@ -45,6 +46,7 @@ class FakeCapture implements VoiceCaptureBackend {
   Future<VoiceCapture?> stop() async {
     stops++;
     await finishing;
+    if (failsToStop) throw StateError('ffmpeg exited with 1');
     stopped = true;
     return VoiceCapture(
       bytes: Uint8List.fromList([1, 2, 3]),
@@ -320,6 +322,18 @@ void main() {
       expect(rig.state.phase, VoicePhase.idle);
     },
   );
+
+  test('a clip that cannot be finished says so and sends nothing', () async {
+    await started();
+    await rig.advance(const Duration(seconds: 3));
+    rig.capture.failsToStop = true;
+    expect(await rig.recorder.send(), isNull);
+    expect(rig.state.phase, VoicePhase.failed);
+    expect(rig.state.error, 'The recording could not be finished.');
+    expect(rig.actions.uploads, isEmpty);
+    await rig.recorder.cancel();
+    expect(rig.state.phase, VoicePhase.idle);
+  });
 
   test('send uploads the clip as a voice message in its channel', () async {
     await started();
