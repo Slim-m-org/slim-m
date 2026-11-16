@@ -19,12 +19,13 @@ import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_handle_line.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
+import 'member_profile_identity.dart';
 import 'member_profile_status_line.dart';
 import 'user_avatar.dart';
 import 'profile_colour.dart';
 
-/// Avatar, name, handle, and the presence word beside its dot - never the
-/// dot alone, which is the rule every surface in this app follows.
+/// Avatar, name, handle, the presence word beside its dot (never the dot alone), and the
+/// join date. Someone whose display name is only their username shows it once.
 class MemberProfileHeader extends ConsumerWidget {
   const MemberProfileHeader({
     super.key,
@@ -32,11 +33,15 @@ class MemberProfileHeader extends ConsumerWidget {
     required this.isSelf,
     required this.inCallTogether,
     this.callChannelName,
+    this.inviteCode,
   });
 
   final api.UserProfile profile;
   final bool isSelf;
   final bool inCallTogether;
+
+  /// The invite they joined with, shown to a moderator in the join date's tooltip.
+  final String? inviteCode;
 
   /// Refines the shared-call line to name the room. Absent where the caller
   /// does not have the name to hand - the voice screen reads its channel from
@@ -57,10 +62,16 @@ class MemberProfileHeader extends ConsumerWidget {
       ?profile.pronouns,
     ];
 
+    final nameStyle = AppText.body.copyWith(
+      color: tokens.textPrimary,
+      fontWeight: AppWeights.semi,
+    );
+    final handleOnly = _namedByHandle(profile);
     final handleLine = MemberHandleLine(
       username: profile.username,
       extras: extras,
       style: secondary,
+      nameStyle: handleOnly ? nameStyle : null,
     );
 
     final statusLine = inCallTogether
@@ -90,15 +101,14 @@ class MemberProfileHeader extends ConsumerWidget {
             editable: isSelf,
           );
 
-    final name = Text(
-      profile.displayName,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: AppText.body.copyWith(
-        color: tokens.textPrimary,
-        fontWeight: AppWeights.semi,
-      ),
-    );
+    final name = handleOnly
+        ? handleLine
+        : Text(
+            profile.displayName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: nameStyle,
+          );
 
     final avatar = Opacity(
       // The avatar only, never the text, which would cost its contrast.
@@ -114,6 +124,7 @@ class MemberProfileHeader extends ConsumerWidget {
           child: UserAvatar.known(
             userId: profile.id,
             avatarUpdatedAt: profile.avatarUpdatedAt,
+            profileColour: profileColourOfUser(profile),
             name: profile.displayName,
             size: AppAvatarSize.s56,
             // The status line below carries presence, once, with its word.
@@ -168,13 +179,21 @@ class MemberProfileHeader extends ConsumerWidget {
             )
           else
             name,
-          handleLine,
+          if (!handleOnly) handleLine,
           Padding(padding: const EdgeInsets.only(top: 2), child: statusLine),
+          MemberProfileJoined(
+            createdAt: profile.createdAt,
+            inviteCode: inviteCode,
+          ),
         ],
       ),
     );
   }
 }
+
+/// No display name of their own: the server fills it with the username.
+bool _namedByHandle(api.UserProfile profile) =>
+    profile.displayName.trim().toLowerCase() == profile.username.toLowerCase();
 
 /// The sheet-coloured border that separates the avatar from the banner behind it.
 const double _avatarGap = 3;

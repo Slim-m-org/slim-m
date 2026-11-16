@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/dm_call_ring_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../../members/widgets/profile_colour.dart';
 
 /// Below `kCompactWidth`: a full-screen takeover, the same shape a phone's
 /// own incoming-call screen already uses - desktop-vs-mobile.md rule 7's
@@ -40,6 +41,9 @@ class CompactIncomingCall extends ConsumerWidget {
                   name: name,
                   userId: profile?.id,
                   avatarUpdatedAt: profile?.avatarUpdatedAt,
+                  profileColour: profile == null
+                      ? null
+                      : profileColourOfUser(profile),
                   size: AppAvatarSize.s96,
                 ),
                 const SizedBox(height: AppSpacing.s16),

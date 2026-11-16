@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The `@username` line of a member card, with a copy button after the handle.
+/// The `@username` line of a member card, with a copy button after the handle;
+/// for someone with no display name of their own, the name line itself.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,9 +18,14 @@ class MemberHandleLine extends ConsumerStatefulWidget {
     required this.username,
     required this.extras,
     required this.style,
+    this.nameStyle,
   });
 
   final String username;
+
+  /// Draws the bare username in this style, as the card's name, for someone
+  /// whose display name is only their username; null draws the `@handle`.
+  final TextStyle? nameStyle;
 
   /// Pronouns and the like, drawn after the copy button.
   final List<String> extras;
@@ -60,12 +66,16 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
         children: [
           Flexible(
             child: Text(
-              '@${widget.username}',
+              widget.nameStyle == null
+                  ? '@${widget.username}'
+                  : widget.username,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: widget.style.merge(
-                AppText.code.copyWith(fontSize: AppText.caption.fontSize),
-              ),
+              style:
+                  widget.nameStyle ??
+                  widget.style.merge(
+                    AppText.code.copyWith(fontSize: AppText.caption.fontSize),
+                  ),
             ),
           ),
           Focus(

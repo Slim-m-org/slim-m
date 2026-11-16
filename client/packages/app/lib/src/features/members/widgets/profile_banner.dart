@@ -4,6 +4,8 @@
 /// window is unfocused or covered, like every other animation here.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -23,6 +25,56 @@ const double kProfileBannerAspect = 300 / kProfileBannerHeight;
 
 /// The widest a banner is decoded for, in logical pixels: a card is never wider.
 const double _decodeWidth = 520;
+
+/// How a band with no image is drawn; both stay selectable until the owner picks one.
+enum ProfileBandLook {
+  /// A diagonal from the colour, muted, to a darker shade of it.
+  gradient,
+
+  /// The colour washed over the card's own surface, fading down.
+  tonal,
+}
+
+/// The look every band draws; a test overrides it to render the other one.
+final profileBandLookProvider = Provider<ProfileBandLook>(
+  (ref) => ProfileBandLook.gradient,
+);
+
+/// The no-image band for [colour] in [look], on a card of [surface].
+Decoration profileBandDecoration(
+  Color colour,
+  ProfileBandLook look,
+  Color surface,
+) => switch (look) {
+  ProfileBandLook.gradient => _gradientBand(colour),
+  ProfileBandLook.tonal => _tonalBand(
+    nudgeForContrast(colour, surface, minRatio: 2),
+  ),
+};
+
+Decoration _gradientBand(Color colour) {
+  final hsl = HSLColor.fromColor(colour);
+  final light = hsl.withSaturation(math.min(hsl.saturation, 0.55));
+  return BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        light.toColor(),
+        light.withLightness(light.lightness * 0.6).toColor(),
+      ],
+    ),
+  );
+}
+
+/// Translucent rather than blended with a token, so it takes whatever surface the card is.
+Decoration _tonalBand(Color colour) => BoxDecoration(
+  gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [colour.withValues(alpha: 0.45), colour.withValues(alpha: 0.3)],
+  ),
+);
 
 class ProfileBanner extends ConsumerWidget {
   const ProfileBanner({
@@ -47,7 +99,14 @@ class ProfileBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final fill = ColoredBox(color: colour ?? tokens.surfaceSunken);
+    final look = ref.watch(profileBandLookProvider);
+    final fill = switch (colour) {
+      final colour? => DecoratedBox(
+        decoration: profileBandDecoration(colour, look, tokens.surfaceRaised),
+        child: const SizedBox.expand(),
+      ),
+      null => ColoredBox(color: tokens.surfaceSunken),
+    };
     final updatedAt = bannerUpdatedAt;
     final bytes = updatedAt == null
         ? null
@@ -77,7 +136,8 @@ class ProfileBanner extends ConsumerWidget {
   }
 }
 
-/// The band for a member's card, in their profile colour until they set an image.
+/// The band for a member's card, in their profile colour (or the preset their
+/// disc falls back to) until they set an image.
 ///
 /// Reads the live profile edits first: the roster snapshot a card is opened
 /// from never refetches on a banner or colour change.
@@ -96,10 +156,7 @@ class MemberProfileBanner extends ConsumerWidget {
     return ProfileBanner(
       userId: live.id,
       bannerUpdatedAt: live.bannerUpdatedAt,
-      colour: profileColourOf(
-        index: live.profileColor,
-        rgb: live.profileColorRgb,
-      ),
+      colour: profileColourOfUser(live) ?? defaultProfileColour(live.id),
     );
   }
 }

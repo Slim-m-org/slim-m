@@ -80,8 +80,17 @@ void main() {
 
       expect(find.byType(Image), findsNothing);
       expect(fetched, isFalse);
-      final fill = tester.widget<ColoredBox>(find.byType(ColoredBox).last);
-      expect(fill.color, const Color(0xFF336699));
+      final band = profileBandDecoration(
+        const Color(0xFF336699),
+        ProfileBandLook.gradient,
+        AppTokens.light.surfaceRaised,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is DecoratedBox && w.decoration == band,
+        ),
+        findsOneWidget,
+      );
     },
   );
 

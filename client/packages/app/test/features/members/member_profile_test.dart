@@ -81,7 +81,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('maya'), findsOneWidget);
-    expect(find.text('@maya'), findsOneWidget);
+    expect(
+      find.text('@maya'),
+      findsNothing,
+      reason: 'with no display name of her own, the username shows once',
+    );
     expect(find.text('Online'), findsOneWidget);
     expect(find.text('Message'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
@@ -121,13 +125,13 @@ void main() {
     await tester.pump();
 
     final name = tester.getTopLeft(find.text('maya'));
-    final handle = tester.getTopLeft(find.text('@maya'));
+    final presence = tester.getTopLeft(find.text('Online'));
     final message = tester.getTopLeft(find.text('Message'));
-    expect(handle.dy, greaterThan(name.dy));
-    expect(message.dy, greaterThan(handle.dy));
+    expect(presence.dy, greaterThan(name.dy));
+    expect(message.dy, greaterThan(presence.dy));
   });
 
-  testWidgets('roles show as chips, beside the join date, for everyone', (
+  testWidgets('roles show as chips, with the join date, for everyone', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(_body(_other)));
