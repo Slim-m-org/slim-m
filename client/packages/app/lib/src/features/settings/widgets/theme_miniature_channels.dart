@@ -14,10 +14,15 @@ class ThemeMiniatureChannels extends StatelessWidget {
     required this.channels,
     this.space,
     this.muted,
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: AppSpacing.s4,
+      vertical: AppSpacing.s8,
+    ),
   });
 
   final AppTokens tokens;
   final double width;
+  final EdgeInsets padding;
 
   /// The Space's name over the channels, as the app's own list has it.
   final String? space;
@@ -35,10 +40,7 @@ class ThemeMiniatureChannels extends StatelessWidget {
         border: Border(right: BorderSide(color: tokens.borderSubtle)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s4,
-          vertical: AppSpacing.s8,
-        ),
+        padding: padding,
         child: ClipRect(
           child: OverflowBox(
             alignment: Alignment.topCenter,

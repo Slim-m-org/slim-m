@@ -1,41 +1,46 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The theme editor (decision 0106), a page above Themes in the Appearance
-/// pane: a colour picker per token, a live preview and the contrast floors,
-/// side by side on a wide window and stacked on a phone.
+/// pane at every width: the draft's preview pinned under the header, one
+/// column of cards, and one pinned footer that saves.
 library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../providers/toasts.dart';
 import '../../../routing/breakpoints.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/my_themes.dart';
+import '../providers/stored_theme.dart';
 import '../providers/theme_draft.dart';
 import '../providers/theme_file_io.dart';
+import '../providers/theme_links.dart';
 import '../providers/theme_source.dart';
-import '../providers/theme_store.dart';
 import '../providers/theme_store_actions.dart';
-import '../providers/stored_theme.dart';
-import 'settings_field.dart';
-import 'settings_info_line.dart';
-import 'settings_pane_body.dart' show kSettingsWidePaneInset;
-import 'settings_section_header.dart';
-import 'settings_select_row.dart';
-import 'settings_segmented_row.dart';
 import 'settings_sub_pages.dart';
+import 'theme_colour_panel.dart';
 import 'theme_contrast_panel.dart';
+import 'theme_editor_details.dart';
+import 'theme_editor_footer.dart';
 import 'theme_editor_menu.dart';
-import 'theme_editor_preview.dart';
-import 'theme_menu_button.dart';
-import 'theme_token_group.dart';
+import 'theme_main_colours.dart';
+import 'theme_miniature.dart';
+import 'theme_token_grid.dart';
+import 'theme_token_groups_compact.dart';
 
-/// Wide enough for the tokens and the preview to sit side by side.
-const _sideBySideWidth = 640.0;
+/// Content this wide opens pickers inline and lays All colours out in tiles.
+const _roomyFrom = 480.0;
+
+/// A page this tall keeps the preview pinned; a shorter one scrolls it away
+/// so the colours keep room.
+const _pinFrom = 600.0;
 
 /// The editor above Themes; a null [seed] is a new theme, the one
 /// `?page=new-theme` opens.
@@ -58,11 +63,27 @@ class ThemeEditorPage extends ConsumerStatefulWidget {
   ConsumerState<ThemeEditorPage> createState() => _ThemeEditorPageState();
 }
 
+/// Which card an inline picker opened in: Accent is in both.
+enum _Place { main, grid }
+
+typedef _OpenPicker = ({
+  String token,
+  _Place place,
+  ThemeDraftMark mark,
+  String? note,
+});
+
 class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   late final ThemeDraft _draft = ThemeDraft(
     widget.seed ?? ThemeEditorSeed.fromBase('dark'),
   );
   late final _name = TextEditingController(text: _draft.document.name);
+  final _contrastKey = GlobalKey();
+  final _pickerKey = GlobalKey();
+  final _scroll = ScrollController();
+  _OpenPicker? _open;
+  String? _error;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -72,23 +93,37 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     ).setGuard(_DiscardGuard(_draft, _confirmDiscard));
   }
 
-  String? _openToken;
-  Color? _openInitial;
-  String? _error;
-  String? _notice;
-  bool _busy = false;
-
   @override
   void dispose() {
+    _scroll.dispose();
     _name.dispose();
     _draft.dispose();
     super.dispose();
   }
 
-  void _say({String? error, String? notice}) => setState(() {
-    _error = error;
-    _notice = notice;
-  });
+  /// Says a finished action as a toast, so the pinned preview never moves.
+  void _confirm(String notice) {
+    if (!mounted) return;
+    setState(() => _error = null);
+    ref
+        .read(toastsProvider.notifier)
+        .show(notice, severity: AppToastSeverity.success);
+  }
+
+  /// Shows [error] under the preview, scrolling back to it.
+  void _fail(String error) {
+    setState(() => _error = error);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      unawaited(
+        _scroll.animateTo(
+          0,
+          duration: AppMotion.reduced(context, AppMotion.base),
+          curve: AppMotion.entrance,
+        ),
+      );
+    });
+  }
 
   Future<void> _run(String whatFailed, Future<void> Function() action) async {
     if (_busy) return;
@@ -96,13 +131,13 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     final failure = await runGuarded(whatFailed: whatFailed, action: action);
     if (!mounted) return;
     setState(() => _busy = false);
-    if (failure != null) _say(error: failure);
+    if (failure != null) _fail(failure);
   }
 
   bool _requireValid() {
     if (_draft.canSave) return true;
-    _say(
-      error: _draft.nameValid
+    _fail(
+      _draft.nameValid
           ? 'Fix the failing contrast checks first.'
           : 'Give the theme a name of 1 to $themeNameMaxChars characters.',
     );
@@ -116,7 +151,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
         .read(myThemesProvider.notifier)
         .save(_draft.document, id: _draft.mineId);
     if (id == null) {
-      _say(error: 'This device holds $myThemesMax themes. Delete one first.');
+      _fail('This device holds $myThemesMax themes. Delete one first.');
       return false;
     }
     final applied = ref.read(customThemeProvider);
@@ -131,24 +166,26 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   }
 
   Future<void> _save() async {
-    if (await _persist() && mounted) _say(notice: 'Saved to Mine.');
+    _closePicker();
+    if (await _persist() && mounted) _confirm('Saved to Mine.');
   }
 
-  Future<void> _apply() async {
+  Future<void> _saveAndApply() async {
+    _closePicker();
     if (!await _persist() || !mounted) return;
     await applyThemeDocument(
       ref,
       _draft.document,
       source: MineThemeSource(_draft.mineId!),
     );
-    if (mounted) _say(notice: 'Applied.');
+    if (mounted) _confirm('Saved to Mine and applied.');
   }
 
   Future<void> _publish() async {
     if (!_requireValid()) return;
     await _run('publish the theme', () async {
       await publishTheme(ref, _draft.document);
-      _say(notice: 'Published to the Space.');
+      _confirm('Published to the Space.');
     });
   }
 
@@ -158,7 +195,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     final name = themeFileName(_draft.document.name);
     try {
       final saved = await ref.read(themeFileSaverProvider)(name, bytes);
-      if (saved && mounted) _say(notice: 'Exported $name.');
+      if (saved && mounted) _confirm('Exported $name.');
     } on Object catch (error, stack) {
       api.reportFailure(
         api.LogTag.platform,
@@ -166,288 +203,240 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
         error,
         stack,
       );
-      _say(error: 'Could not save the file.');
+      _fail('Could not save the file.');
     }
   }
 
   Future<void> _delete() async {
     final id = _draft.mineId;
     if (id == null) return;
-    final sure = await confirmThemeEditorSheet(
+    final sure = await confirmDangerousAction(
       context,
-      title: 'Delete this theme?',
-      action: 'Delete',
+      title: 'Delete ${_draft.document.name.trim()}?',
+      message: 'This device holds the only copy.',
+      confirmLabel: 'Delete',
     );
-    if (sure != true || !mounted) return;
+    if (!sure || !mounted) return;
     await ref.read(myThemesProvider.notifier).remove(id);
     if (!mounted) return;
     final stack = SettingsSubPages.of(context)..setGuard(null);
     await stack.pop();
   }
 
-  Future<bool> _confirmDiscard() async =>
-      await confirmThemeEditorSheet(
-        context,
-        title: 'Discard your changes?',
-        action: 'Discard',
-      ) ==
-      true;
-
-  Future<void> _leave() => SettingsSubPages.of(context).pop();
-
-  Future<void> _tapToken(String token, {required bool inline}) async {
-    final before = _draft.document.colours[token]!;
-    if (inline) {
-      setState(() {
-        _openToken = _openToken == token ? null : token;
-        _openInitial = before;
-      });
-      return;
-    }
-    final picked = await showAppColourPicker(
-      context,
-      initial: before.withValues(alpha: 1),
-      title: themeTokenLabels[token]!,
-      onChanged: (c) => _draft.setColour(token, c),
-    );
-    _draft.setColour(token, picked ?? before);
-  }
-
-  void _closePicker({required bool revert}) {
-    final token = _openToken;
-    if (token != null && revert) _draft.setColour(token, _openInitial!);
-    setState(() => _openToken = null);
-  }
-
-  Widget _details() {
-    final doc = _draft.document;
-    return SettingsSectionCard(
-      title: 'Details',
-      topGap: 0,
-      children: [
-        SettingsCardBlock(
-          children: [
-            SettingsField(
-              label: 'Name',
-              child: AppInput(
-                key: const Key('theme-editor-name'),
-                controller: _name,
-                semanticLabel: 'Theme name',
-                counterMax: themeNameMaxChars,
-                errorText: _draft.nameValid
-                    ? null
-                    : 'Use 1 to $themeNameMaxChars characters.',
-                onChanged: _draft.setName,
-              ),
-            ),
-          ],
-        ),
-        SettingsSegmentedRow<Brightness>(
-          label: 'Mode',
-          value: doc.brightness,
-          choices: const [
-            SettingsChoice(value: Brightness.dark, label: 'Dark'),
-            SettingsChoice(value: Brightness.light, label: 'Light'),
-          ],
-          onChanged: _draft.setBrightness,
-        ),
-        _startFrom(),
-      ],
-    );
-  }
-
-  Widget _startFrom() {
-    final mine = ref.watch(myThemesProvider);
-    final space =
-        ref.watch(spaceThemesProvider).valueOrNull?.themes ?? const [];
-    final sources = themeEditorSources(mine: mine, space: space);
-    return SettingsSelectRow<String>(
-      key: const Key('theme-editor-start-from'),
-      label: 'Start from',
-      description: 'Keeps your name.',
-      value: null,
-      unknownLabel: 'Choose a theme',
-      choices: [
-        for (final s in sources) SettingsChoice(value: s.key, label: s.label),
-      ],
-      onChanged: (key) {
-        final source = sources.firstWhere((s) => s.key == key);
-        _closePicker(revert: false);
-        _draft.startFrom(source.document);
-      },
-    );
-  }
-
-  Widget _tokens({required bool inline}) {
-    final failing = {
-      for (final c in _draft.failing) ...[c.fg, if (!c.quieter) c.bg],
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final group in themeTokenGroups)
-          ThemeTokenGroupCard(
-            group: group,
-            colours: _draft.document.colours,
-            failing: failing,
-            openToken: inline ? _openToken : null,
-            onTap: (t) => unawaited(_tapToken(t, inline: inline)),
-            onPreview: _draft.setColour,
-            onSave: (t, c) {
-              _draft.setColour(t, c);
-              _closePicker(revert: false);
-            },
-            onCancel: (_) => _closePicker(revert: true),
-            onOpacity: _draft.setOpacity,
-          ),
-      ],
-    );
-  }
-
-  Widget _contrast() => ThemeContrastPanel(
-    checks: _draft.checks,
-    colours: _draft.document.colours,
-    onFix: _draft.applyFix,
-    onFixAll: _draft.applyAllFixes,
+  Future<bool> _confirmDiscard() => confirmChoice(
+    context,
+    title: 'Discard your changes?',
+    message: 'What you changed since the last save is lost.',
+    confirmLabel: 'Discard',
+    cancelLabel: 'Keep editing',
+    confirmVariant: AppButtonVariant.danger,
+    confirmKey: const Key('theme-editor-confirm'),
   );
 
-  List<Widget> _messages() => [
-    if (_error != null)
-      Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.s8),
-        child: AppErrorState(
-          key: const Key('theme-editor-error'),
-          message: _error!,
-          onDismiss: () => setState(() => _error = null),
+  /// Opens [token]'s picker, inline where there is room and as a sheet below.
+  Future<void> _tapColour(String token, _Place place, {required bool roomy}) {
+    if (!roomy) return showThemeColourSheet(context, _draft, token);
+    final open = _open;
+    setState(() {
+      _open = open?.token == token && open?.place == place
+          ? null
+          : (
+              token: token,
+              place: place,
+              mark: _draft.mark(),
+              note: themeLinkNote(_draft.links, token),
+            );
+    });
+    if (_open != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _reveal(_pickerKey));
+    }
+    return Future.value();
+  }
+
+  /// Closes an inline picker, keeping its colour unless [revert].
+  void _closePicker({bool revert = false}) {
+    final open = _open;
+    if (open == null) return;
+    if (revert) _draft.restore(open.mark);
+    setState(() => _open = null);
+  }
+
+  void _fix(VoidCallback fix) {
+    _closePicker();
+    fix();
+  }
+
+  /// Scrolls [key]'s card into view; [atEnd] scrolls only until its end shows.
+  void _reveal(GlobalKey key, {bool atEnd = true}) {
+    final target = key.currentContext;
+    if (target == null || !mounted) return;
+    unawaited(
+      Scrollable.ensureVisible(
+        target,
+        duration: AppMotion.reduced(context, AppMotion.base),
+        curve: AppMotion.entrance,
+        alignmentPolicy: atEnd
+            ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+            : ScrollPositionAlignmentPolicy.explicit,
+      ),
+    );
+  }
+
+  Widget _picker(String token) => ThemeColourPanel(
+    key: _pickerKey,
+    draft: _draft,
+    token: token,
+    note: _open?.note,
+    onDone: _closePicker,
+    onCancel: () => _closePicker(revert: true),
+  );
+
+  String? _openIn(_Place place) => _open?.place == place ? _open?.token : null;
+
+  List<Widget> _cards({required bool roomy}) {
+    final failing = _draft.failingColours;
+    return [
+      ThemeEditorDetails(draft: _draft, name: _name, onStartFrom: _closePicker),
+      ThemeMainColours(
+        colours: _draft.document.colours,
+        links: _draft.links,
+        failing: failing,
+        openToken: _openIn(_Place.main),
+        onTap: (t) => unawaited(_tapColour(t, _Place.main, roomy: roomy)),
+        picker: _picker,
+      ),
+      KeyedSubtree(
+        key: _contrastKey,
+        child: ThemeContrastPanel(
+          checks: _draft.checks,
+          colours: _draft.document.colours,
+          onFixColour: (t) => _fix(() => _draft.fixColour(t)),
+          onFixAll: () => _fix(_draft.applyAllFixes),
         ),
       ),
-    if (_notice != null)
-      SettingsInfoLine(
-        _notice!,
-        key: const Key('theme-editor-notice'),
-        padding: const EdgeInsets.only(top: AppSpacing.s8),
+      if (roomy)
+        ThemeTokenGrid(
+          colours: _draft.document.colours,
+          links: _draft.links,
+          failing: failing,
+          openToken: _openIn(_Place.grid),
+          onTap: (t) => unawaited(_tapColour(t, _Place.grid, roomy: true)),
+          picker: _picker,
+        )
+      else
+        ThemeTokenGroupsCompact(
+          draft: _draft,
+          onTap: (t) => unawaited(_tapColour(t, _Place.grid, roomy: false)),
+        ),
+    ];
+  }
+
+  List<Widget> _errorLines() => [
+    if (_error case final error?) ...[
+      AppErrorState(
+        key: const Key('theme-editor-error'),
+        message: error,
+        onDismiss: () => setState(() => _error = null),
       ),
+      const SizedBox(height: AppSpacing.s24),
+    ],
   ];
 
-  List<Widget> _actions() => [
-    AppButton(
-      key: const Key('theme-editor-save'),
-      label: 'Save',
-      variant: AppButtonVariant.primary,
-      size: AppButtonSize.sm,
-      disabled: _busy || !_draft.canSave,
-      onPressed: () => unawaited(_save()),
-    ),
-    ThemeMenuButton<ThemeEditorAction>(
-      key: const Key('theme-editor-menu'),
-      semanticLabel: 'More for this theme',
-      enabled: !_busy,
-      onSelected: (a) => unawaited(switch (a) {
-        ThemeEditorAction.apply => _apply(),
-        ThemeEditorAction.publish => _publish(),
-        ThemeEditorAction.export => _export(),
-        ThemeEditorAction.delete => _delete(),
-      }),
-      items: (pick) =>
-          themeEditorMenuItems(pick, canDelete: _draft.mineId != null),
-    ),
-    const SizedBox(width: AppSpacing.s8),
-  ];
+  Widget _preview({required double inset, required bool roomy}) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final wide = inset > AppSpacing.s16;
+    final vertical = wide ? AppSpacing.s16 : AppSpacing.s12;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.surfaceBase,
+        border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(inset, vertical, inset, vertical),
+        child: AppContentColumn(
+          child: ThemeMiniature.forDocument(
+            _draft.document,
+            key: const Key('theme-editor-preview'),
+            detail: roomy
+                ? ThemeMiniatureDetail.draft
+                : ThemeMiniatureDetail.draftStrip,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _draft,
-    builder: (context, _) {
-      final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
-      final header = SettingsSubPageHeader(
-        title: _draft.mineId == null ? 'New theme' : 'Edit theme',
-        backLabel: 'Back to Themes',
-        onBack: () => unawaited(_leave()),
-        actions: _actions(),
-        onClose: SettingsSubPages.closeOf(context),
-      );
-      final body = LayoutBuilder(
-        builder: (context, box) =>
-            box.maxWidth >= _sideBySideWidth ? _sideBySide() : _stacked(),
-      );
-      final inset = wide
-          ? kSettingsWidePaneInset
-          : const EdgeInsets.all(AppSpacing.s16);
-      final padding = EdgeInsets.fromLTRB(
-        inset.left,
-        inset.top,
-        inset.right,
-        SettingsSubPages.bottomInsetOf(context),
-      );
-      if (!wide) {
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, box) {
+        final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
+        final inset = wide ? AppSpacing.s32 : AppSpacing.s16;
+        final content = math.min(box.maxWidth - 2 * inset, kContentColumnMax);
+        final roomy = content >= _roomyFrom;
+        final pin =
+            box.maxHeight >= MediaQuery.textScalerOf(context).scale(_pinFrom);
+        final preview = _preview(inset: inset, roomy: roomy);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            header,
+            ThemeEditorHeader(
+              draft: _draft,
+              busy: _busy,
+              onAction: (a) => unawaited(switch (a) {
+                ThemeEditorAction.publish => _publish(),
+                ThemeEditorAction.export => _export(),
+                ThemeEditorAction.delete => _delete(),
+              }),
+            ),
             Expanded(
-              child: AppContentColumn(
-                child: Padding(padding: padding, child: body),
+              child: CustomScrollView(
+                key: const Key('theme-editor-tokens'),
+                controller: _scroll,
+                slivers: [
+                  if (pin)
+                    PinnedHeaderSliver(child: preview)
+                  else
+                    SliverToBoxAdapter(child: preview),
+                  // Not lazy: the footer scrolls to Contrast, which must be built to be found.
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      inset,
+                      AppSpacing.s24,
+                      inset,
+                      AppSpacing.s24,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: AppContentColumn(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ..._errorLines(),
+                            ..._cards(roomy: roomy),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+            ThemeEditorFooter(
+              failingChecks: _draft.failing.length,
+              nameValid: _draft.nameValid,
+              busy: _busy,
+              compact: !roomy,
+              inset: inset,
+              onSave: () => unawaited(_save()),
+              onSaveAndApply: () => unawaited(_saveAndApply()),
+              onFixAll: () => _fix(_draft.applyAllFixes),
+              onShowContrast: () => _reveal(_contrastKey, atEnd: false),
             ),
           ],
         );
-      }
-      return Padding(
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: AppSpacing.s16,
-          children: [
-            header,
-            Expanded(child: body),
-          ],
-        ),
-      );
-    },
-  );
-
-  Widget _sideBySide() => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        flex: 5,
-        child: ListView(
-          key: const Key('theme-editor-tokens'),
-          children: [..._messages(), _details(), _tokens(inline: true)],
-        ),
-      ),
-      Expanded(
-        flex: 4,
-        child: Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.s16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ThemeEditorPreview(document: _draft.document),
-              Expanded(child: ListView(children: [_contrast()])),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-
-  Widget _stacked() => Column(
-    children: [
-      ThemeEditorPreview(document: _draft.document, compact: true),
-      const SizedBox(height: AppSpacing.s8),
-      Expanded(
-        child: ListView(
-          key: const Key('theme-editor-tokens'),
-          children: [
-            ..._messages(),
-            _details(),
-            _contrast(),
-            _tokens(inline: false),
-          ],
-        ),
-      ),
-    ],
+      },
+    ),
   );
 }
 

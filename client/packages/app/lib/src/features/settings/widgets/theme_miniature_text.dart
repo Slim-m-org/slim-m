@@ -14,6 +14,9 @@ const _heroNarrow = 480.0;
 /// The draft shows its channel list from this width.
 const _draftRailFrom = 400.0;
 
+/// The focused sample's ring, drawn inside its box, so its padding counts it.
+const _focusWidth = 2.0;
+
 /// The theme in use, as a short stretch of a real channel.
 class ThemeMiniatureHero extends StatelessWidget {
   const ThemeMiniatureHero({super.key, required this.tokens});
@@ -122,7 +125,8 @@ class ThemeMiniatureDraft extends StatelessWidget {
                 if (rail)
                   ThemeMiniatureChannels(
                     tokens: tokens,
-                    width: 104,
+                    width: 128,
+                    padding: const EdgeInsets.all(AppSpacing.s8),
                     channels: const ['general', 'music', 'builds'],
                     muted: 'builds',
                   ),
@@ -149,11 +153,14 @@ class ThemeMiniatureDraft extends StatelessWidget {
       style: AppText.ui.copyWith(color: tokens.dangerText),
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s12),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.s8,
+        bottom: AppSpacing.s12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        spacing: AppSpacing.s12,
+        spacing: AppSpacing.s8,
         children: [
           inset(
             _Message(
@@ -169,13 +176,18 @@ class ThemeMiniatureDraft extends StatelessWidget {
               spacing: AppSpacing.s12,
               runSpacing: AppSpacing.s8,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: [link, danger, if (strip) _warn()],
+              children: [link, danger, _warn()],
             ),
           ),
-          if (!strip)
-            inset(Align(alignment: Alignment.centerLeft, child: _warn())),
           inset(_Composer(tokens: tokens, sendLabel: 'Send')),
-          if (!strip) ...[inset(_error()), inset(_focus())],
+          if (!strip)
+            inset(
+              Wrap(
+                spacing: AppSpacing.s8,
+                runSpacing: AppSpacing.s8,
+                children: [_error(), _focus()],
+              ),
+            ),
         ],
       ),
     );
@@ -190,7 +202,10 @@ class ThemeMiniatureDraft extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s8,
+          vertical: AppSpacing.s4,
+        ),
         child: _Message(
           tokens: tokens,
           who: 'Kai',
@@ -227,7 +242,7 @@ class ThemeMiniatureDraft extends StatelessWidget {
   );
 
   Widget _focus() => _Sample(
-    border: Border.all(color: tokens.focusRing, width: 2),
+    border: Border.all(color: tokens.focusRing, width: _focusWidth),
     child: Text(
       'Focused control',
       style: AppText.caption.copyWith(color: tokens.textSecondary),
@@ -250,7 +265,7 @@ class _Sample extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s12,
-        vertical: AppSpacing.s8,
+        vertical: AppSpacing.s4 + _focusWidth,
       ),
       child: child,
     ),
