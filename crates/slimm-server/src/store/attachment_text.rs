@@ -9,6 +9,7 @@ use std::sync::atomic::Ordering;
 
 use sqlx::Row;
 
+use super::voice_transcripts::TRANSCRIPT_TEXT_SHOWN;
 use super::{Store, now_ms};
 use crate::ids::MessageId;
 use crate::media::to_hex;
@@ -24,14 +25,16 @@ pub struct TextCandidate {
     pub filename: Option<String>,
 }
 
-/// `?1` is the search text and `{ids}` the message ids to check. The messages' own text is probed per
-/// candidate row with `NOT EXISTS` rather than `NOT IN`, which would build the whole corpus's hit set first.
+/// `?1` is the search text, `{ids}` the message ids to check and `{shown}` [`TRANSCRIPT_TEXT_SHOWN`].
+/// The messages' own text is probed per candidate row with `NOT EXISTS` rather than `NOT IN`, which
+/// would build the whole corpus's hit set first.
 const MATCHING_TEXT_SQL: &str = "SELECT ma.message_id AS message_id, ma.sha256 AS sha256 \
     FROM message_attachments ma \
     LEFT JOIN attachment_text t ON t.sha256 = ma.sha256 \
     JOIN messages m ON m.id = ma.message_id \
     WHERE m.is_encrypted = 0 \
-      AND (t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ?1) \
+      AND ((t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ?1) \
+            AND {shown}) \
            OR EXISTS (SELECT 1 FROM attachment_name_index n \
                       WHERE n.message_id = ma.message_id AND n.sha256 = ma.sha256 \
                         AND n.fts_rowid IN (SELECT rowid FROM attachment_name_fts \
@@ -147,7 +150,9 @@ impl Store {
             .map(|n| format!("?{n}"))
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = MATCHING_TEXT_SQL.replace("{ids}", &placeholders);
+        let sql = MATCHING_TEXT_SQL
+            .replace("{ids}", &placeholders)
+            .replace("{shown}", TRANSCRIPT_TEXT_SHOWN);
         let mut matching = sqlx::query(&sql).bind(query.to_owned());
         for id in message_ids {
             matching = matching.bind(*id);
