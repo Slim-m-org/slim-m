@@ -71,6 +71,44 @@ List<String> _inUse(ThemeGallery g) => [
 ];
 
 void main() {
+  test(
+    'applying a theme reads no Space file again; a changed one is read',
+    () async {
+      var themes = [stored('t1', 'Pine'), stored('t2', 'Fern')];
+      SharedPreferences.setMockInitialValues({});
+      final c = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          spaceThemesProvider.overrideWith(
+            (ref) async => api.SpaceThemeList.fromJson({
+              'themes': themes,
+              'default_theme_id': null,
+            }),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      c.listen(themeGalleryProvider, (_, _) {});
+      final before = (await _gallery(c)).space;
+
+      await _apply(c, galleryDoc('Lilac'), const FileThemeSource());
+      final applied = (await _gallery(c)).space;
+      expect(applied.map((e) => e.name), ['Pine', 'Fern']);
+      for (final i in [0, 1]) {
+        expect(identical(applied[i].document, before[i].document), isTrue);
+      }
+
+      themes = [
+        stored('t1', 'Pine'),
+        stored('t2', 'Fern', file: galleryDoc('Fern', base: 'dark').toJson()),
+      ];
+      c.invalidate(spaceThemesProvider);
+      final refetched = (await _gallery(c)).space;
+      expect(identical(refetched[0].document, before[0].document), isTrue);
+      expect(refetched[1].document!.base, 'dark');
+    },
+  );
+
   test('built-ins come in the gallery order, the chosen one in use', () async {
     final c = _container();
     await c.read(themeControllerProvider.notifier).select(AppThemeChoice.dark);

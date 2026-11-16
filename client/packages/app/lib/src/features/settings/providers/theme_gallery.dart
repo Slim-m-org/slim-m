@@ -3,6 +3,7 @@
 /// its card shows, the one in use, and the source filter.
 library;
 
+import 'dart:convert';
 import 'dart:ui' show Brightness;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,10 +113,42 @@ class ThemeGallery {
   final ThemeGallerySpaceState spaceState;
 }
 
+/// A Space theme's file as a card needs it: the document, and why it cannot
+/// be applied when it cannot.
+typedef _SpaceRead = ({ThemeDocument? document, ThemeBroken? broken});
+
+/// Each Space theme's file, read once per id and text: applying a theme
+/// rebuilds the gallery, and only a file that changed is read again.
+class _SpaceReads {
+  final _byId = <String, ({String text, _SpaceRead read})>{};
+
+  _SpaceRead of(api.SpaceTheme theme) {
+    final text = jsonEncode(theme.theme);
+    final kept = _byId[theme.id];
+    if (kept != null && kept.text == text) return kept.read;
+    final strict = parseThemeJson(theme.theme).document;
+    final document =
+        strict ?? parseThemeJson(theme.theme, checkContrast: false).document;
+    final read = (
+      document: document,
+      broken: strict != null
+          ? null
+          : document == null
+          ? ThemeBroken.unreadable
+          : ThemeBroken.contrast,
+    );
+    _byId[theme.id] = (text: text, read: read);
+    return read;
+  }
+}
+
+final _spaceReadsProvider = Provider.autoDispose((ref) => _SpaceReads());
+
 final themeGalleryProvider = Provider.autoDispose<ThemeGallery>((ref) {
   final applied = ref.watch(appliedThemeProvider);
   final store = ref.watch(spaceThemesProvider);
   final list = store.valueOrNull;
+  final reads = ref.watch(_spaceReadsProvider);
   return ThemeGallery(
     builtIn: [for (final choice in themeGalleryBuiltIns) _builtIn(choice)],
     unsaved: _unsaved(applied),
@@ -125,7 +158,7 @@ final themeGalleryProvider = Provider.autoDispose<ThemeGallery>((ref) {
     ],
     space: [
       for (final t in list?.themes ?? const <api.SpaceTheme>[])
-        _space(t, isDefault: t.id == list?.defaultThemeId),
+        _space(t, reads.of(t), isDefault: t.id == list?.defaultThemeId),
     ],
     spaceState: store.hasValue
         ? ThemeGallerySpaceState.loaded
@@ -166,15 +199,12 @@ ThemeGalleryEntry _document(
   lost: lost,
 );
 
-ThemeGalleryEntry _space(api.SpaceTheme theme, {required bool isDefault}) {
-  final strict = parseThemeJson(theme.theme).document;
-  final document =
-      strict ?? parseThemeJson(theme.theme, checkContrast: false).document;
-  final broken = strict != null
-      ? null
-      : document == null
-      ? ThemeBroken.unreadable
-      : ThemeBroken.contrast;
+ThemeGalleryEntry _space(
+  api.SpaceTheme theme,
+  _SpaceRead read, {
+  required bool isDefault,
+}) {
+  final (:document, :broken) = read;
   final author = theme.authorName.trim().isNotEmpty
       ? theme.authorName.trim()
       : document?.author.trim();
