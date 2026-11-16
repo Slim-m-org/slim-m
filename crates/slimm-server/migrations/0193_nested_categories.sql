@@ -62,3 +62,17 @@ BEGIN
           AND c.deleted_at IS NULL
     );
 END;
+
+-- A temporary room now follows its lobby's rows on every write (decision 0065);
+-- this is the same copy for the live rooms that drifted before it did.
+DELETE FROM channel_overwrites
+WHERE channel_id IN (
+    SELECT id FROM channels
+    WHERE room_lobby_id IS NOT NULL AND deleted_at IS NULL
+);
+
+INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)
+SELECT r.id, o.target_type, o.target_id, o.allow, o.deny
+FROM channels r
+JOIN channel_overwrites o ON o.channel_id = r.room_lobby_id
+WHERE r.room_lobby_id IS NOT NULL AND r.deleted_at IS NULL;

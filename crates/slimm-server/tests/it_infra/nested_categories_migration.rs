@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Migration 0193's triggers, driven straight at the database as a writer that
-//! skipped the store would: every way to make a third level is refused.
+//! skipped the store would, and its rewrite of the temporary rooms that drifted from their lobby.
+
+use std::path::Path;
+use std::time::Duration;
 
 use sqlx::SqlitePool;
+use sqlx::migrate::Migrator;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 use crate::support;
 
@@ -118,4 +123,84 @@ async fn a_category_with_live_sub_categories_cannot_be_deleted() {
     );
     exec(&pool, &promote).await.unwrap();
     exec(&pool, &delete).await.unwrap();
+}
+
+/// A database migrated up to just before 0193, and the full migrator to finish it.
+async fn pool_before_0193() -> (SqlitePool, Migrator, support::TestDbGuard) {
+    let (path, guard) = support::TestDbGuard::empty("slimm-nested-migration-rooms");
+    let options = SqliteConnectOptions::new()
+        .filename(&path)
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(Duration::from_secs(5))
+        .foreign_keys(true);
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await
+        .unwrap();
+    let full = Migrator::new(Path::new("./migrations")).await.unwrap();
+    let mut before = Migrator::new(Path::new("./migrations")).await.unwrap();
+    before.migrations = full.iter().filter(|m| m.version < 193).cloned().collect();
+    before.run(&pool).await.unwrap();
+    (pool, full, guard)
+}
+
+async fn rows_of(pool: &SqlitePool, channel: u8) -> Vec<(String, Vec<u8>, i64, i64)> {
+    sqlx::query_as(&format!(
+        "SELECT target_type, target_id, allow, deny FROM channel_overwrites
+         WHERE channel_id = {} ORDER BY target_type, target_id",
+        id(channel)
+    ))
+    .fetch_all(pool)
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_live_room_that_drifted_from_its_lobby_is_rewritten_from_it() {
+    let (pool, full, _guard) = pool_before_0193().await;
+    let seed = format!(
+        "INSERT INTO users (id, username, display_name, password_hash, created_at)
+           VALUES ({owner}, 'owner', 'Owner', 'h', 1);
+         INSERT INTO roles (id, name, permissions, position, is_everyone, created_at) VALUES
+           ({gamer}, 'gamer', 0, 1, 0, 1),
+           ({guest}, 'guest', 0, 2, 0, 1);
+         INSERT INTO channels (id, name, kind, created_at, creates_rooms) VALUES
+           ({lobby}, 'lobby', 'voice', 1, 1),
+           ({other}, 'other', 'text', 1, 0);
+         INSERT INTO channels (id, name, kind, created_at, room_owner_id, room_lobby_id, deleted_at)
+           VALUES ({room}, 'room', 'voice', 2, {owner}, {lobby}, NULL),
+                  ({gone}, 'gone', 'voice', 2, {owner}, {lobby}, 3),
+                  ({bare}, 'bare', 'voice', 2, {owner}, {lobby}, NULL);
+         INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny) VALUES
+           ({lobby}, 'role', {gamer}, 0, 1024),
+           ({lobby}, 'member', {owner}, 1024, 0),
+           ({room}, 'role', {gamer}, 1024, 0),
+           ({room}, 'role', {guest}, 1024, 0),
+           ({gone}, 'role', {guest}, 1024, 0),
+           ({other}, 'role', {guest}, 1024, 0)",
+        owner = id(1),
+        gamer = id(2),
+        guest = id(3),
+        lobby = id(4),
+        room = id(5),
+        gone = id(6),
+        other = id(7),
+        bare = id(8),
+    );
+    for statement in seed.split(';') {
+        sqlx::query(statement).execute(&pool).await.unwrap();
+    }
+    let gone_before = rows_of(&pool, 6).await;
+    let other_before = rows_of(&pool, 7).await;
+
+    full.run(&pool).await.unwrap();
+
+    let lobby = rows_of(&pool, 4).await;
+    assert_eq!(lobby.len(), 2, "{lobby:?}");
+    assert_eq!(rows_of(&pool, 5).await, lobby, "the drifted room");
+    assert_eq!(rows_of(&pool, 8).await, lobby, "a room that held nothing");
+    assert_eq!(rows_of(&pool, 6).await, gone_before, "a deleted room");
+    assert_eq!(rows_of(&pool, 7).await, other_before, "an ordinary channel");
 }
