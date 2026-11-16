@@ -53,7 +53,7 @@ import '../providers/call_dock_hint.dart' show DockHintTarget;
 import 'call_dock_button.dart';
 import 'share_options_menu.dart';
 import 'soundboard_button.dart';
-import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
+import '../../../widgets/shortcut_label.dart';
 
 export 'call_dock_button.dart';
 

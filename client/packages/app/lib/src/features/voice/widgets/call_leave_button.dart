@@ -10,18 +10,9 @@ import 'package:flutter/widgets.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../../widgets/shortcut_label.dart';
 import '../providers/voice_controller.dart';
 import 'call_dock_button.dart';
-
-/// `' (Ctrl+Shift+S)'`, or empty on mobile/touch or once unbound - a hint naming a shortcut that cannot fire here would be worse than none.
-String shortcutSuffix(AppAction action) {
-  if (!isDesktopHost) return '';
-  final keys = describeAppAction(action);
-  return keys.isEmpty ? '' : ' (${keys.join('+')})';
-}
-
-String labelWithShortcut(String label, AppAction action) =>
-    '$label${shortcutSuffix(action)}';
 
 class CallLeaveButton extends StatelessWidget {
   const CallLeaveButton({super.key, required this.controller});

@@ -12,7 +12,7 @@
 /// the shortcut - the manual "check a report by id" field stays as the
 /// fallback.
 ///
-/// Keyed per account like `personal_space_visibility.dart`: the local
+/// Keyed per account: the local
 /// `SharedPreferences` store is one file for the whole device, not one per
 /// account, so an unkeyed list would show the next signed-in account the
 /// previous one's filed reports.

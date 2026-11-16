@@ -152,7 +152,7 @@ final _shellStateSurfaces =
           channelRailExpandedProvider.overrideWith((ref) => false),
         ],
       ),
-      // A call live in another channel: the footer stays one bar, the call's name and timer in the name line's place.
+      // A call live in another channel: its own row above the user bar, Leave last over the gear (decision 0111, 2026-11-16).
       'rail-in-call': (
         route: '/channels/c-general',
         viewports: const ['desktop-narrow', 'desktop'],

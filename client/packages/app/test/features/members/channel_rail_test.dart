@@ -307,8 +307,8 @@ void main() {
   });
 
   // Padding may shrink, but the settings hit target must not; out of a call it is the only control.
-  testWidgets('out of a call the footer shows only settings, at the '
-      'pointer-density hit target', (tester) async {
+  testWidgets('out of a call the footer shows only Notes and settings, at '
+      'the pointer-density hit target', (tester) async {
     final setup = _setup(SyncStatus.live);
     addTearDown(setup.container.dispose);
     await _pumpFooter(tester, setup.container, width: 1400);
@@ -319,8 +319,8 @@ void main() {
     );
     expect(
       buttons,
-      findsNWidgets(1),
-      reason: 'settings only, no idle mic or deafen',
+      findsNWidgets(2),
+      reason: 'Notes and settings only, no idle mic or deafen',
     );
     for (final element in buttons.evaluate()) {
       final size = tester.getSize(find.byWidget(element.widget));

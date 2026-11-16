@@ -40,7 +40,6 @@ features/screen_overlay/providers/screen_overlay_controller.dart 1
 features/settings/providers/admin_audit_log_controller.dart 1
 features/settings/providers/connection_test_controller.dart 1
 features/settings/providers/notification_sound_settings.dart 1
-features/settings/providers/personal_space_visibility.dart 1
 features/settings/providers/ui_sound_settings.dart 1
 features/voice/providers/dm_call_activity.dart 1
 features/voice/providers/dm_call_ring_controller.dart 1

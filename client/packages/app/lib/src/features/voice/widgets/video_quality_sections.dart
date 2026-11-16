@@ -16,7 +16,7 @@ import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../providers/camera_reach.dart';
-import 'call_leave_button.dart' show shortcutSuffix;
+import '../../../widgets/shortcut_label.dart';
 import 'camera_on_join_section.dart';
 import 'overlay_screen_row.dart';
 import 'pause_video_section.dart';

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The status, personal space and window menus went through a raw
+/// The status and window menus went through a raw
 /// `OverlayPortalController` and appeared and vanished in one frame, unlike
 /// the Space menu. Each now plays its exit before it unmounts.
 library;
@@ -13,7 +13,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/window_menu_button.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/animated_menu_portal.dart';
-import 'package:slimm_app/src/features/settings/widgets/personal_space_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -84,20 +83,6 @@ void main() {
       tester,
       trigger: find.byType(PresenceMenuButton),
       item: 'Do not disturb',
-    );
-  });
-
-  testWidgets('the personal space kebab fades out before it unmounts', (
-    tester,
-  ) async {
-    await _mount(
-      tester,
-      PersonalSpaceKebab(visible: true, onFocusChange: (_) {}),
-    );
-    await _expectAnimatedExit(
-      tester,
-      trigger: find.bySemanticsLabel('Personal space options'),
-      item: 'Remove from list',
     );
   });
 

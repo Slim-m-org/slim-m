@@ -31,7 +31,6 @@ import 'channel_rail_selection_marker.dart';
 import '../../../widgets/context_menu_region.dart' show ContextMenuRegionState;
 import 'dm_row.dart';
 import 'new_group_dm_sheet.dart';
-import '../../settings/widgets/personal_space_row.dart';
 import '../providers/channel_latest_message_at.dart';
 
 /// A DM is stored locally as an ordinary [Channel] under `kind == 'dm'` (see
@@ -41,14 +40,8 @@ import '../providers/channel_latest_message_at.dart';
 /// member's row in [AppMemberPane], which is where a person already is when
 /// they decide to message someone.
 ///
-/// A DM with yourself - your personal space - is the one exception: it gets
-/// its own always-present [PersonalSpaceRow] rather than being something you
-/// find by searching your own name in the member list. [splitPersonalSpace]
-/// reads [Channel.isPersonalSpace], not [Channel.name]: another member can
-/// freely set their own display name to [personalSpaceName], and their DM
-/// must still render, and open, as an ordinary row rather than as this one.
-/// `orderedChannels` (`channel_grouping.dart`) calls the same function, so
-/// the next/previous-channel shortcuts cycle in the order shown here.
+/// Notes, the DM with yourself, is the footer's button and not a row here.
+/// [railDirectMessages] is shared with `orderedChannels`, so cycling matches.
 class DirectMessagesSection extends ConsumerWidget {
   const DirectMessagesSection({
     super.key,
@@ -63,9 +56,7 @@ class DirectMessagesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Seeds every DM peer's presence dot.
     ref.watch(presenceSeedProvider(null));
-    final split = splitPersonalSpace(channels);
-    final personal = split.personal;
-    final others = split.others;
+    final others = railDirectMessages(channels);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,13 +68,6 @@ class DirectMessagesSection extends ConsumerWidget {
             onFocusChange: onFocusChange,
             semanticLabel: 'New group message',
             onPressed: () => showNewGroupDmSheet(context),
-          ),
-        ),
-        SelectionMarkerTarget(
-          selected: personal != null && personal.id == selectedId,
-          child: PersonalSpaceRow(
-            channel: personal,
-            selected: personal != null && personal.id == selectedId,
           ),
         ),
         for (final channel in others)

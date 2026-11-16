@@ -66,7 +66,7 @@ class ChannelHeader extends ConsumerWidget {
   final bool isVoice;
 
   /// The self-DM. Its name is "Notes" (`personalSpaceName`), so it takes the
-  /// same notebook glyph the rail's `PersonalSpaceRow` shows rather than an
+  /// same notebook glyph the rail's `RailNotesButton` shows rather than an
   /// avatar of those initials. Defaults false; a real DM sets [isDm] instead.
   final bool isPersonalSpace;
 
