@@ -38,6 +38,7 @@ class VoiceCallFlow {
 
   final VoiceSessionCore _core;
   final _states = StreamController<VoiceSessionState>.broadcast();
+  final _restarts = StreamController<void>.broadcast();
 
   /// The room of the call in progress; cleared synchronously when one ends.
   lk.Room? room;
@@ -62,6 +63,9 @@ class VoiceCallFlow {
   int _generation = 0;
 
   Stream<VoiceSessionState> get states => _states.stream;
+
+  /// A full restart the call came back from; see [VoiceSession.transportRestarts].
+  Stream<void> get restarts => _restarts.stream;
 
   /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
   /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
@@ -129,6 +133,7 @@ class VoiceCallFlow {
     await _core.micGate.gate.dispose();
     await _core.roster.dispose();
     await _states.close();
+    await _restarts.close();
   }
 
   Future<void> _join({
@@ -284,6 +289,7 @@ class VoiceCallFlow {
     if (room == null || state != VoiceSessionState.connected) return;
     _core.healthWatch.glitchWatch.start();
     _core.refresh();
+    if (!_restarts.isClosed) _restarts.add(null);
   }
 
   /// A disconnect this client did not ask for: the SFU removed this

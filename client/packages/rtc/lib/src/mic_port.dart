@@ -8,7 +8,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:livekit_client/livekit_client.dart' as lk;
-import 'package:slimm_api/api.dart' show AppLog, LogTag;
+import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 
 import 'mic_recovery.dart' show senderLevelToDb;
 
@@ -19,6 +19,7 @@ abstract interface class MicPort {
   /// Whether that track is published and not muted.
   bool get open;
 
+  /// Calls take effect in the order they are made; livekit's publish queue keeps that order.
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options);
 
   /// The capture's level in dBFS from the sender's own stats, or null when the
@@ -87,37 +88,60 @@ class LiveKitMicPort implements MicPort {
         event.publication.source == lk.TrackSource.microphone) {
       _lost.add(null);
     }
+    if (event is lk.LocalTrackPublishedEvent &&
+        event.publication.source == lk.TrackSource.microphone) {
+      unawaited(_dropDuplicates());
+    }
+  }
+
+  /// Keeps the publication livekit's own lookups return, so every later mute reaches the one left.
+  Future<void> _dropDuplicates() async {
+    final extras = _publications.skip(1).toList();
+    if (extras.isEmpty) return;
+    AppLog.at(LogLevel.warning, LogTag.voice,
+        'A second microphone was published; removing it');
+    try {
+      for (final extra in extras) {
+        await _room()
+            ?.localParticipant
+            ?.removePublishedTrack(extra.sid, notify: false);
+      }
+    } on Object catch (e, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'Could not remove a second microphone', e, stack);
+    }
   }
 
   @override
   Future<void> discard() async {
-    final publication = _publication;
-    if (publication == null) return;
-    await _room()
-        ?.localParticipant
-        ?.removePublishedTrack(publication.sid, notify: false);
-  }
-
-  lk.LocalTrackPublication<lk.LocalAudioTrack>? get _publication {
-    final all = _room()?.localParticipant?.audioTrackPublications;
-    for (final p in all ?? <lk.LocalTrackPublication<lk.LocalAudioTrack>>[]) {
-      if (p.source == lk.TrackSource.microphone) return p;
+    for (final publication in _publications) {
+      await _room()
+          ?.localParticipant
+          ?.removePublishedTrack(publication.sid, notify: false);
     }
-    return null;
   }
 
-  @override
-  bool get hasTrack => _publication != null;
+  /// Every microphone publication: a restart's republish racing a recovery can leave two.
+  List<lk.LocalTrackPublication<lk.LocalAudioTrack>> get _publications => [
+        for (final p in _room()?.localParticipant?.audioTrackPublications ??
+            const <lk.LocalTrackPublication<lk.LocalAudioTrack>>[])
+          if (p.source == lk.TrackSource.microphone) p,
+      ];
+
+  lk.LocalTrackPublication<lk.LocalAudioTrack>? get _publication =>
+      _publications.firstOrNull;
 
   @override
-  bool get open {
-    final pub = _publication;
-    return pub != null && !pub.muted;
-  }
+  bool get hasTrack => _publications.isNotEmpty;
+
+  @override
+  bool get open => _publications.any((p) => !p.muted);
 
   @override
   Future<void> release() async {
-    await _publication?.track?.stop();
+    for (final publication in _publications) {
+      await publication.track?.stop();
+    }
     if (!_recordsUntilToldToStop) return;
     try {
       await _nativeChannel
@@ -160,6 +184,13 @@ class LiveKitMicPort implements MicPort {
           enabled,
           audioCaptureOptions: options,
         );
+    if (enabled) return;
+    // livekit mutes only the first microphone publication it finds.
+    for (final publication in _publications) {
+      await publication.mute(
+        stopOnMute: options?.stopAudioCaptureOnMute ?? true,
+      );
+    }
   }
 
   @override

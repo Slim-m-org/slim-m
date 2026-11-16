@@ -132,6 +132,9 @@ class VoiceController extends StateNotifier<VoiceState> {
       access,
     );
     _states = _session.states.listen(_sync.onSessionState);
+    _transportRestarts = _session.transportRestarts.listen(
+      (_) => _sync.onTransportRestarted(),
+    );
     _shareSourceLost = _session.screenShareSourceLost.listen(
       (_) => share.reportShareSourceLost(),
     );
@@ -191,6 +194,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   final DateTime Function() _now;
   final CallActivityTracker _activity;
   late final StreamSubscription<VoiceSessionState> _states;
+  late final StreamSubscription<void> _transportRestarts;
   late final StreamSubscription<List<VoiceParticipant>> _participants;
   late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<CameraJoinOpen> _cameraJoinOpens;
@@ -427,6 +431,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     _autoRejoin.reset();
     _reconnectDisplay.dispose();
     unawaited(_states.cancel());
+    unawaited(_transportRestarts.cancel());
     unawaited(_participants.cancel());
     unawaited(_shareSourceLost.cancel());
     unawaited(_cameraJoinOpens.cancel());

@@ -313,6 +313,41 @@ void main() {
     });
   });
 
+  group('the end of a full restart', () {
+    test('is announced once the call is back, a resume never is', () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      var restarts = 0;
+      final sub = call.session.transportRestarts.listen((_) => restarts++);
+      addTearDown(sub.cancel);
+
+      call.room.emit(const lk.RoomResumingEvent());
+      call.room.emit(const lk.RoomReconnectedEvent());
+      await pumpEventQueue();
+      expect(restarts, 0, reason: 'a resume keeps the same participant');
+
+      call.room.emit(const lk.RoomReconnectingEvent());
+      call.room.emit(const lk.RoomReconnectedEvent());
+      await pumpEventQueue();
+      expect(restarts, 1);
+    });
+
+    test('is not announced for a call left mid-restart', () async {
+      final call = await JoinedCall.join();
+      addTearDown(call.session.dispose);
+      var restarts = 0;
+      final sub = call.session.transportRestarts.listen((_) => restarts++);
+      addTearDown(sub.cancel);
+      call.room.emit(const lk.RoomReconnectingEvent());
+      await pumpEventQueue();
+
+      await call.session.leave();
+      await pumpEventQueue();
+
+      expect(restarts, 0);
+    });
+  });
+
   group('the stall watchdog during a reconnect', () {
     test('a frozen camera is not recovered while the transport repairs itself',
         () async {
