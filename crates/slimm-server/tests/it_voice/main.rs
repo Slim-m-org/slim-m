@@ -10,6 +10,7 @@ mod call_audio_privacy;
 mod call_records;
 mod call_transcripts;
 mod call_transcripts_export;
+mod call_transcripts_live;
 mod call_transcripts_migration;
 mod call_transcripts_read;
 mod delete_channel_ends_call;

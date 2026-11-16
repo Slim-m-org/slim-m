@@ -398,7 +398,7 @@ class VoiceCallAudioChanged extends ServerEvent {
 }
 
 /// A transcript of [channelId]'s call started or ended, so an open call view
-/// reads it again. Lines are not pushed.
+/// reads it again. Lines come as [CallTranscriptLineAdded].
 class CallTranscriptChanged extends ServerEvent {
   const CallTranscriptChanged({
     required this.channelId,

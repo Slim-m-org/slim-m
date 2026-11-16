@@ -133,9 +133,9 @@ const CALL_EVENTS: &str = concat!(
     " ORDER BY e.at"
 );
 
-// What the member said on calls, with the call's channel and the line's time.
+// What the member said on calls, with the call's channel, the line's times and its language.
 const TRANSCRIPT_LINES: &str = concat!(
-    "SELECT t.id AS transcript_id, t.channel_id, l.seq, l.at, l.text
+    "SELECT t.id AS transcript_id, t.channel_id, l.seq, l.at, l.end_at, l.language, l.text
      FROM call_transcript_lines l
      JOIN call_transcripts t ON t.id = l.transcript_id
      JOIN channels c ON c.id = t.channel_id ",

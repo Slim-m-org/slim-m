@@ -153,7 +153,7 @@ pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use call_transcripts::{
     CallTranscript, HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN, MAX_TRANSCRIPT_RETENTION_DAYS, NewTranscript,
-    TranscriptHit, TranscriptLine, TranscriptionMode,
+    NewTranscriptLine, TranscriptHit, TranscriptLine, TranscriptionMode,
 };
 pub use calls::CallRecord;
 pub use canvas::canvas_batch::{BatchError, BatchItem};

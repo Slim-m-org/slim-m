@@ -34,11 +34,14 @@ pub fn routes() -> Router<AppState> {
         .route("/search/transcripts", get(search))
 }
 
+/// One line as a reader sees it, read back or sent live.
 #[derive(Serialize)]
-struct LineDto {
+pub(in crate::http) struct LineDto {
     seq: i64,
     speaker_id: String,
     at: i64,
+    end_at: Option<i64>,
+    language: Option<String>,
     text: String,
 }
 
@@ -48,6 +51,8 @@ impl From<TranscriptLine> for LineDto {
             seq: line.seq,
             speaker_id: line.speaker_id.to_string(),
             at: line.at,
+            end_at: line.end_at,
+            language: line.language,
             text: line.text,
         }
     }
@@ -78,6 +83,8 @@ struct HitDto {
     seq: i64,
     speaker_id: String,
     at: i64,
+    end_at: Option<i64>,
+    language: Option<String>,
     text: String,
     /// `text` with each match between U+E000 and U+E001.
     highlight: String,
@@ -212,6 +219,8 @@ async fn search(
                 seq: h.line.seq,
                 speaker_id: h.line.speaker_id.to_string(),
                 at: h.line.at,
+                end_at: h.line.end_at,
+                language: h.line.language,
                 text: h.line.text,
                 highlight: h.highlight,
             })

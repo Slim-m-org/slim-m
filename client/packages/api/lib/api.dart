@@ -164,6 +164,7 @@ export 'src/events.dart'
         VoiceActivityChanged,
         VoiceCallAudioChanged,
         CallTranscriptChanged,
+        CallTranscriptLineAdded,
         VoiceActivity,
         VoiceMoved,
         VoiceNotice,

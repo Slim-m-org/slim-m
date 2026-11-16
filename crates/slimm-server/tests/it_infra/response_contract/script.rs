@@ -408,7 +408,16 @@ pub async fn run(c: &mut Contract) {
         .unwrap();
     c.state
         .store
-        .append_call_transcript_line(transcript, caller, now - 4000, "hello transcript")
+        .append_call_transcript_line(
+            transcript,
+            &slimm_server::store::NewTranscriptLine {
+                speaker: caller,
+                at: now - 4000,
+                end_at: Some(now - 3000),
+                language: Some("en"),
+                text: "hello transcript",
+            },
+        )
         .await
         .unwrap();
     c.get(

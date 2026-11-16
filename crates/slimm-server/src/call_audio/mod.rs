@@ -413,7 +413,7 @@ impl CallAudio {
             start_ms: started + start_ms,
             end_ms: started + end_ms,
             text,
-            language: language.clone(),
+            language: language.as_deref().and_then(filter::language_tag),
             segment_id,
             ids: live.ids.clone(),
         })

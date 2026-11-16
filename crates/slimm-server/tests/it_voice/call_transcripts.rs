@@ -5,6 +5,7 @@
 
 use axum::http::StatusCode;
 use serde_json::json;
+use slimm_server::hub::Event;
 use slimm_server::ids::CallTranscriptId;
 use slimm_server::store::TranscriptionMode;
 
@@ -93,6 +94,12 @@ async fn always_mode_starts_at_the_first_join_writes_lines_and_ends_with_the_cal
     assert_eq!(wait_lines(&rig, id, 2).await.len(), 2);
     let lines = rig.store.call_transcript_lines(id, 0, 10).await.unwrap();
     assert_eq!((lines[0].seq, lines[1].seq), (1, 2));
+    assert_eq!(
+        lines[0].end_at,
+        Some(lines[0].at + 1500),
+        "the listener's end time is kept"
+    );
+    assert_eq!(lines[0].language.as_deref(), Some("en"));
 
     rig.leave(a).await;
     rig.leave(b).await;
@@ -100,14 +107,20 @@ async fn always_mode_starts_at_the_first_join_writes_lines_and_ends_with_the_cal
     wait_ended(&rig, id).await;
 
     let mut kinds = Vec::new();
+    let mut live = Vec::new();
     while let Ok(event) = events.try_recv() {
-        let shown = format!("{event:?}");
-        assert!(
-            !shown.contains("hello everyone"),
-            "a line was published: {shown}"
-        );
-        kinds.push(shown);
+        if let Event::CallTranscriptLine { audience, line, .. } = &event {
+            live.push((line.seq, audience.to_vec()));
+        }
+        kinds.push(format!("{event:?}"));
     }
+    let mut in_call = vec![a.id, b.id];
+    in_call.sort_by_key(ToString::to_string);
+    assert_eq!(
+        live,
+        vec![(1, in_call.clone()), (2, in_call)],
+        "each line goes live to the people in the call, and only them"
+    );
     assert!(
         kinds
             .iter()

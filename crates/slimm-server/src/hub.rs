@@ -177,6 +177,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::WatchTick { .. }
         | Event::CallAudioChanged { .. }
         | Event::CallTranscriptChanged { .. }
+        | Event::CallTranscriptLine { .. }
         // Ringing, and how a ring ended, changes no permission's answer either.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
@@ -291,6 +292,8 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::VoiceScreenShareChanged { .. }
         | Event::CallAudioChanged { .. }
         | Event::CallTranscriptChanged { .. }
+        // Durable so a lagging reader resyncs; the client fills a gap in `seq` over REST.
+        | Event::CallTranscriptLine { .. }
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
         | Event::DmChanged { .. }
