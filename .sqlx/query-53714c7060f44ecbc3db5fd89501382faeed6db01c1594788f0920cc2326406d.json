@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\", sender_id AS \"sender_id!: UserId\",\n                      target_id AS \"target_id!: UserId\"\n               FROM screen_stamps WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sender_id!: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "target_id!: UserId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "53714c7060f44ecbc3db5fd89501382faeed6db01c1594788f0920cc2326406d"
+}

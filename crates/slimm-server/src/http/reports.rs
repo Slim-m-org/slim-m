@@ -25,6 +25,7 @@ use axum::routing::{get, patch};
 use serde::{Deserialize, Serialize};
 
 use self::reports_cursor::parse_history_cursor;
+pub(in crate::http) use self::reports_guards::report_visible_in;
 use self::reports_guards::{missing_or_closed, require_manage_messages};
 use self::reports_mine::my_report_status;
 use super::AppState;
@@ -40,6 +41,7 @@ use crate::store::{ModerationHistoryItem, Report};
 pub(super) mod reports_cursor;
 pub(super) mod reports_guards;
 pub(super) mod reports_mine;
+mod reports_pictures;
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -89,6 +91,9 @@ struct ReportDto {
     /// answer - a DM report's own bitmask structurally never carries
     /// MANAGE_MESSAGES, since a DM has no such permission for anyone.
     channel_permissions: Option<i64>,
+    /// A `screen_stamp` report's pictures, as attachment ids, while they are kept.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    picture_ids: Option<Vec<String>>,
 }
 
 impl From<Report> for ReportDto {
@@ -104,6 +109,7 @@ impl From<Report> for ReportDto {
             subject_author_id: report.subject_author_id.map(|id| id.to_string()),
             created_at: report.created_at,
             channel_permissions: None,
+            picture_ids: None,
         }
     }
 }
@@ -191,7 +197,7 @@ async fn list(
         .permissions_in_channels(ctx.user_id, &channel_ids)
         .await?;
 
-    let dtos = reports
+    let mut dtos: Vec<ReportDto> = reports
         .into_iter()
         .map(|report| {
             let permissions = report.channel_id.map(|id| {
@@ -207,6 +213,7 @@ async fn list(
             }
         })
         .collect();
+    reports_pictures::fill_reports(&state, &mut dtos).await?;
     Ok(Json(dtos))
 }
 
@@ -245,6 +252,8 @@ enum ModerationHistoryItemDto {
         resolved_at: i64,
         resolved_by: Option<String>,
         resolution: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        picture_ids: Option<Vec<String>>,
     },
     #[serde(rename = "audit_log")]
     AuditLog {
@@ -277,6 +286,7 @@ impl From<ModerationHistoryItem> for ModerationHistoryItemDto {
                     .expect("the history feed only ever carries resolved reports"),
                 resolved_by: report.resolved_by.map(|id| id.to_string()),
                 resolution: report.resolution,
+                picture_ids: None,
             },
             ModerationHistoryItem::Audit(entry) => Self::AuditLog {
                 id: entry.id.to_string(),
@@ -330,12 +340,12 @@ async fn history(
         .moderation_history(after, &hidden, limit)
         .await?;
 
-    Ok(Json(
-        items
-            .into_iter()
-            .map(ModerationHistoryItemDto::from)
-            .collect(),
-    ))
+    let mut dtos: Vec<_> = items
+        .into_iter()
+        .map(ModerationHistoryItemDto::from)
+        .collect();
+    reports_pictures::fill_history(&state, &mut dtos).await?;
+    Ok(Json(dtos))
 }
 
 /// The channels this caller may not read reports from: every live non-DM
@@ -461,25 +471,4 @@ async fn require_history_access(
         return Err(ApiError::Forbidden);
     }
     Ok(base)
-}
-
-/// Whether a base-level moderator may see or act on a report in this channel.
-///
-/// The caller has already passed the deployment-wide `MANAGE_MESSAGES` check.
-/// A report in a live text or voice channel is further restricted to that
-/// channel's own moderators, so a moderator excluded from one channel cannot
-/// reach into it. A report in a DM or a since-deleted channel has no such
-/// moderators to defer to, so it stays with the deployment moderators rather
-/// than falling into a per-channel check that grants it to nobody. That hole
-/// was accepting DM harassment reports and hiding them forever.
-async fn report_visible_in(state: &AppState, user_id: UserId, channel_id: ChannelId) -> bool {
-    match state.store.channel_scopes_moderation(channel_id).await {
-        Ok(false) => true,
-        Ok(true) => state
-            .store
-            .has_permission(user_id, channel_id, MODERATES_CHANNEL)
-            .await
-            .unwrap_or(false),
-        Err(_) => false,
-    }
 }

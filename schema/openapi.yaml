@@ -4747,7 +4747,11 @@ paths:
         channel that has a live message or a canvas object attaching it,
         including a canvas object that was erased and can still be restored -
         the same permission reading that message already requires, not a
-        bare "the id is hard to guess". An id nothing attaches (or already
+        bare "the id is hard to guess". A picture stamped on a shared screen
+        (`placeScreenStamp`) is also readable for 24 hours by its sharer and
+        by anyone in that call who can view the channel, and by a moderator
+        of a report it is part of; that grant is fetch-only and never lets
+        anyone attach the picture to a message. An id nothing attaches (or already
         reclaimed) answers 404 for everyone but its uploader. The response always carries
         `X-Content-Type-Options: nosniff` and a Content-Disposition that
         forces a download for every content type except the handful of
@@ -12328,6 +12332,85 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/Unavailable"
+  /channels/{channelId}/voice/screen-stamps:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: placeScreenStamp
+      tags: [voice]
+      summary: Stamp an emoji or a picture on someone's shared screen.
+      description: >
+        Decision 0121. The stamp is relayed to the channel's canvas as a
+        `canvas.screen_annotation.updated` frame of kind `stamp`, faded by
+        each receiver like any other screen mark, and never written to the
+        board. Needs VIEW_CHANNEL and USE_CANVAS in the channel with no
+        timeout in force, and ATTACH_FILES as well for a picture. Both people
+        must be in the channel's call, the target must be sharing a screen,
+        and the target's own consent frame from the last 15 seconds must say
+        both `allowed` and `stamps`; otherwise 403 or 409. A picture must be
+        a PNG, JPEG, GIF or WebP of at most 8 MiB that the caller could
+        attach to a message, or the answer is 404; it is then kept for 24
+        hours so the sharer and the call can fetch it and the sharer can
+        report it. Idempotent by `id` for a picture: a replay answers 204 and
+        relays nothing, and the same id with a different picture or target is
+        409. If the target has blocked the caller, the answer is still 204
+        and nothing is stored or relayed. Three stamps at once per caller,
+        then one every 2 seconds; a faster caller gets 429 with
+        `retry_after_seconds`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenStampRequest"
+      responses:
+        "204":
+          description: Placed, replayed, or silently dropped for a block.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /voice/screen-stamps/received:
+    get:
+      operationId: listReceivedScreenStamps
+      tags: [voice]
+      summary: The pictures stamped on the caller's screen in the last day.
+      description: >
+        Decision 0121. Newest first, at most 100, so a sharer can report a
+        picture after it faded. Emoji stamps are never stored and never
+        listed.
+      responses:
+        "200":
+          description: The pictures.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceivedScreenStamps"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /emoji/bulk:
     post:
       operationId: bulkUploadCustomEmoji
@@ -12764,6 +12847,81 @@ components:
             Shown beside the name, in the encoding reactions use: one emoji, or a
             custom emoji's id. Null when the clip has none, or once its custom
             emoji was deleted.
+    ScreenStampRequest:
+      type: object
+      description: >-
+        An emoji or a picture to place on `target_user_id`'s shared screen.
+        Exactly one of `emoji` or `attachment_id` is present.
+      required: [id, target_user_id, x, y, size]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client-generated UUIDv7; keys the stamp everywhere.
+        target_user_id:
+          type: string
+          format: uuid
+          description: The sharer whose screen it goes on.
+        x:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: The centre, 0 to 1 across the shared screen.
+        y:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: The centre, 0 to 1 down the shared screen.
+        size:
+          type: number
+          format: double
+          description: >-
+            The longest side as a fraction of the shared screen's height;
+            clamped to 0.04 to 0.30.
+        emoji:
+          type: string
+          description: >-
+            One emoji, a `:shortcode:`, or the id of one of this Space's
+            custom emoji.
+        attachment_id:
+          type: string
+          description: The hex id of a PNG, JPEG, GIF or WebP attachment.
+    ReceivedScreenStamps:
+      type: object
+      required: [stamps]
+      properties:
+        stamps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReceivedScreenStamp"
+    ReceivedScreenStamp:
+      type: object
+      description: >-
+        A picture stamped on the caller's screen. Its `id` is what a
+        `screen_stamp` report names.
+      required: [id, channel_id, sender_id, attachment_id, created_at, reported]
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        attachment_id:
+          type: string
+          description: Fetched with `getAttachment`, by the caller, for a day.
+        created_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds.
+        reported:
+          type: boolean
+          description: Whether the caller has reported it.
     CustomEmoji:
       type: object
       description: >-
@@ -12979,7 +13137,7 @@ components:
           type: array
           items:
             type: string
-            enum: [block, report, webhooks, upload_sessions]
+            enum: [block, report, webhooks, upload_sessions, screen_stamps]
           description: >
             The optional features this build serves, read off the router at
             runtime rather than declared, so the list cannot drift from what
@@ -13960,7 +14118,7 @@ components:
           type: string
           description: >
             Stable snake_case identifier, for example `token`, `attachments`,
-            `canvas_ops`, `message_retention`.
+            `screen_stamps`, `canvas_ops`, `message_retention`.
         last_run_at:
           type: integer
           description: Unix milliseconds of the sweep's most recent pass.
@@ -15602,12 +15760,16 @@ components:
             retry cannot be told apart from a second report.
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
           description: >-
-            For `ephemeral_message`, the private message's own id.
+            For `ephemeral_message`, the private message's own id. For
+            `screen_stamp`, the id of a picture stamped on the reporter's
+            own screen in the last day (`listReceivedScreenStamps`); the
+            report is then about whoever sent it, and a later picture from
+            them joins the reporter's open report, whose id is answered.
         reason:
           type: string
           minLength: 1
@@ -15655,7 +15817,7 @@ components:
           description: Null once the reporter's account has been anonymized.
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
@@ -15696,6 +15858,13 @@ components:
             since no one holds that permission in a DM. Absent on servers
             older than this field, which a client must treat as unknown
             rather than assuming zero.
+        picture_ids:
+          type: array
+          items: { type: string }
+          description: >
+            Only on a `screen_stamp` report: the attachment ids of the
+            pictures it carries, oldest first, which a moderator may fetch.
+            Empty once they are swept.
 
     MyReportStatus:
       type: object
@@ -15712,7 +15881,7 @@ components:
           format: uuid
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
@@ -15767,7 +15936,7 @@ components:
           description: Null once the reporter's account has been anonymized.
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
@@ -15799,6 +15968,13 @@ components:
         resolution:
           type: [string, "null"]
           enum: [resolved, dismissed, null]
+        picture_ids:
+          type: array
+          items: { type: string }
+          description: >
+            Only on a `screen_stamp` report: its pictures, as on `Report`.
+            Empty once they are swept, the first sweep after the report
+            closed.
 
     AuditLogHistoryEntry:
       type: object
@@ -17613,7 +17789,12 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [stroke, image, note, shape, text]
+          enum: [stroke, image, note, shape, text, emoji]
+          description: >
+            `emoji` is a stamp on the board (decision 0121): its
+            `props.emoji` must be one emoji, a `:shortcode:` or a custom
+            emoji id, and anything else is a 400. Offered when `/version`
+            lists `screen_stamps`.
         x:
           type: number
           format: double
@@ -17824,7 +18005,7 @@ components:
             canvas `seq` is removed.
         kinds:
           type: array
-          items: { type: string, enum: [stroke, image, note, shape, text] }
+          items: { type: string, enum: [stroke, image, note, shape, text, emoji] }
           description: >-
             `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
@@ -20029,7 +20210,8 @@ components:
         cannot know whether the sharer allowed drawing: the sharer's own
         client drops every annotation it did not allow. Gated like ink
         (canvas access, not timed out) and charged by wire size against the
-        stroke-preview budget.
+        stroke-preview budget. A `stamp` never enters here; it goes through
+        `placeScreenStamp`, and a socket frame of that kind is dropped.
       properties:
         type:
           type: string
@@ -20071,6 +20253,13 @@ components:
           description: >
             Consent only - the shared screen's width over its height, so
             viewers can map their marks past a letterbox.
+        stamps:
+          type: boolean
+          default: false
+          description: >
+            Consent only - whether this sharer's client can show stamps. The
+            server remembers it for 15 seconds, and `placeScreenStamp` needs
+            it true together with `allowed`.
 
     ClientCanvasMediaSlotPreview:
       type: object
@@ -20526,7 +20715,10 @@ components:
         A viewer's mark over a shared screen, or the sharer's consent for
         marks, on a channel's canvas, gated the same way
         `canvas.stroke_preview.updated` is. Carries no `seq` and is never
-        stored. Clients that do not know this frame ignore it.
+        stored. Clients that do not know this frame ignore it. A `stamp` is
+        published only by the server, from `placeScreenStamp`: `points` is
+        its centre, `ended` is true, and it carries `size` with either
+        `emoji` or `attachment`; clients that do not know the kind ignore it.
       properties:
         type:
           type: string
@@ -20543,7 +20735,7 @@ components:
           format: uuid
         kind:
           type: string
-          enum: [consent, stroke, shape, note]
+          enum: [consent, stroke, shape, note, stamp]
         annotation_id:
           type: string
           format: uuid
@@ -20561,6 +20753,29 @@ components:
         aspect:
           type: number
           format: double
+        size:
+          type: number
+          format: double
+          description: >
+            Stamp only - its longest side as a fraction of the shared
+            screen's height, between 0.04 and 0.30.
+        emoji:
+          type: string
+          description: >
+            Stamp only - one emoji, a `:shortcode:` or a custom emoji id.
+        attachment:
+          type: string
+          description: >
+            Stamp only - the attachment id of a picture, fetched with
+            `getAttachment` (`w=640&still=true` for a still).
+        animated:
+          type: boolean
+          description: >
+            Stamp only - a GIF of at most 4 MiB, which an in-app tile may
+            animate. Decided by the server; absent means false.
+        stamps:
+          type: boolean
+          description: Consent only - the sharer's client can show stamps.
 
     CanvasObjectPreviewUpdated:
       type: object

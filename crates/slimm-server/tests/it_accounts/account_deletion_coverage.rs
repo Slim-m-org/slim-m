@@ -42,6 +42,9 @@ enum OnDelete {
     CascadesFrom(&'static str),
 }
 
+const STAMP_ROW: &str =
+    "swept 24 h after it is made; a reported row stays while its report is open";
+
 /// The decision for every column in the schema that references `users`.
 ///
 /// Adding a table with a user reference and not adding it here fails the
@@ -81,6 +84,8 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("custom_emoji", "uploader_id", OnDelete::Anonymize),
     ("soundboard_clips", "uploader_id", OnDelete::Anonymize),
+    ("screen_stamps", "sender_id", OnDelete::Keep(STAMP_ROW)),
+    ("screen_stamps", "target_id", OnDelete::Keep(STAMP_ROW)),
     ("data_exports", "user_id", OnDelete::Purge),
     ("debug_logs", "user_id", OnDelete::Purge),
     ("space_themes", "author_id", OnDelete::Anonymize),

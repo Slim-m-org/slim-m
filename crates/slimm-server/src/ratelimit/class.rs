@@ -383,6 +383,11 @@ classes! {
     /// makes every client in the call make a noise, so the limit is about the
     /// room's ears, not the server's CPU.
     Soundboard,
+    /// Placing a stamp on someone's shared screen (decision 0121), charged per sender.
+    ///
+    /// Three at once, then one every two seconds: a person has at most three live stamps on a
+    /// screen, so a faster rate would only replace their own.
+    ScreenStamp,
 }
 
 impl Class {
@@ -410,6 +415,7 @@ impl Class {
             Class::Gif => (10.0, 1.0),
             Class::LinkPreview => (10.0, 1.0),
             Class::Soundboard => (1.0, 1.0 / 3.0),
+            Class::ScreenStamp => (3.0, 0.5),
             // See this variant's own doc comment for how these were sized.
             Class::Ring => (5.0, 1.0 / 5.0),
             // See this variant's own doc comment for the roster and reconnect math.

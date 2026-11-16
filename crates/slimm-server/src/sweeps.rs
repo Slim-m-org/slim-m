@@ -26,9 +26,10 @@ use crate::{hub, media, store};
 ///
 /// Lives beside the intervals so the admin alerts, which read a missed run as a failing sweep,
 /// cannot drift from the schedule.
-pub(crate) const RECORDED_SWEEPS: [(&str, std::time::Duration); 4] = [
+pub(crate) const RECORDED_SWEEPS: [(&str, std::time::Duration); 5] = [
     ("token", TOKEN_SWEEP_INTERVAL),
     ("attachments", ATTACHMENT_SWEEP_INTERVAL),
+    ("screen_stamps", ATTACHMENT_SWEEP_INTERVAL),
     ("canvas_ops", CANVAS_OP_SWEEP_INTERVAL),
     ("message_retention", MESSAGE_RETENTION_SWEEP_INTERVAL),
 ];
@@ -153,7 +154,19 @@ pub(crate) fn spawn_attachment_sweep(store: store::Store, media: media::Media) {
 }
 
 /// One pass of the orphaned-attachment sweep, callable without the timer.
+///
+/// Expired screen stamps go first, so the orphan sweep in the same pass reclaims their pictures.
 pub async fn run_attachment_sweep_pass(store: &store::Store, media: &media::Media) {
+    let stamp_cutoff = store::now_ms() - store::SCREEN_STAMP_TTL_MS;
+    match store.sweep_screen_stamps(stamp_cutoff).await {
+        Ok(swept) => {
+            if swept > 0 {
+                tracing::info!(count = swept, "swept expired screen stamps");
+            }
+            record_sweep_run(store, "screen_stamps", swept as i64).await;
+        }
+        Err(err) => tracing::warn!(error = %err, "screen stamp sweep failed"),
+    }
     match store.sweep_orphaned_attachments().await {
         Ok(freed) => {
             if !freed.is_empty() {

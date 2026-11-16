@@ -267,11 +267,17 @@ async fn fetch(
 
     // The uploader may always fetch what they uploaded, even before it is on any message
     // (previewing a just-picked GIF needs it); everyone else needs VIEW_CHANNEL on a
-    // referencing channel. `may_link` shares this rule.
+    // referencing channel, a rule `may_link` shares; a screen stamp adds a fetch-only grant.
     let allowed = state
         .store
         .can_fetch_attachment(ctx.user_id, &sha256)
-        .await?;
+        .await?
+        || super::screen_stamps::stamp_access::may_fetch_stamp_picture(
+            &state,
+            ctx.user_id,
+            &sha256,
+        )
+        .await;
     if !allowed {
         // 404, not 403, and the difference is the whole point. An attachment id
         // is the content's sha256, so anyone holding a candidate file can

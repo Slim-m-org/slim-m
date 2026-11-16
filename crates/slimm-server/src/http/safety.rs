@@ -22,7 +22,9 @@ use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::{DeviceId, MessageId, UserId};
 use crate::ratelimit::Class;
-use crate::store::{Device, EPHEMERAL_KIND, FiledReport, ReportError, ReportSubject};
+use crate::store::{
+    Device, EPHEMERAL_KIND, FiledReport, ReportError, ReportSubject, SCREEN_STAMP_KIND,
+};
 use crate::voice::VoiceError;
 
 const BODY_LIMIT: usize = 32 * 1024;
@@ -112,7 +114,7 @@ struct ReportRequest {
     /// server-minted id and the pre-existing 409-on-retry behaviour.
     #[serde(default)]
     id: Option<String>,
-    /// "message" or "user".
+    /// "message", "user", "ephemeral_message" or "screen_stamp".
     subject_kind: String,
     subject_id: String,
     reason: String,
@@ -265,12 +267,20 @@ async fn file_report(
         ));
     }
     let id = parse_uuid(&req.subject_id)?;
+    if req.subject_kind == SCREEN_STAMP_KIND {
+        let report_id = report_id.unwrap_or_else(uuid::Uuid::now_v7);
+        let filed = state
+            .store
+            .file_stamp_report(report_id, ctx.user_id, id, &reason)
+            .await;
+        return filed_response(&state, filed);
+    }
     let subject = match req.subject_kind.as_str() {
         "message" => ReportSubject::Message(MessageId(id)),
         "user" => ReportSubject::User(UserId(id)),
         _ => {
             return Err(ApiError::BadRequest(
-                "subject_kind must be message, user or ephemeral_message",
+                "subject_kind must be message, user, ephemeral_message or screen_stamp",
             ));
         }
     };

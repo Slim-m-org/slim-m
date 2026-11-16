@@ -32,6 +32,21 @@ impl RecordingRoomService {
             .collect();
     }
 
+    /// Like [`Self::seat`], with `sharers` publishing a screen share.
+    pub fn seat_sharing(&self, users: &[UserId], sharers: &[UserId]) {
+        *self.roster.lock().unwrap() = users
+            .iter()
+            .map(|user| {
+                let tracks = if sharers.contains(user) {
+                    json!([{ "source": "SCREEN_SHARE", "type": "VIDEO" }])
+                } else {
+                    json!([])
+                };
+                json!({ "identity": user.to_string(), "sid": format!("PA_{user}"), "tracks": tracks })
+            })
+            .collect();
+    }
+
     /// Like [`Self::seat`], with the unix millisecond each user joined at.
     pub fn seat_joined(&self, users: &[(UserId, i64)]) {
         *self.roster.lock().unwrap() = users

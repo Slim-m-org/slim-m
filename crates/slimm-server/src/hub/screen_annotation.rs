@@ -14,6 +14,8 @@ pub enum ScreenAnnotationKind {
     Shape,
     /// A sticky note; `points` is the normalised `[x, y]` of its corner.
     Note,
+    /// An emoji or picture (decision 0121); `points` is its normalised centre.
+    Stamp,
 }
 
 impl ScreenAnnotationKind {
@@ -23,6 +25,7 @@ impl ScreenAnnotationKind {
             "stroke" => Self::Stroke,
             "shape" => Self::Shape,
             "note" => Self::Note,
+            // A stamp enters only through POST /channels/{id}/voice/screen-stamps.
             _ => return None,
         })
     }
@@ -33,6 +36,7 @@ impl ScreenAnnotationKind {
             Self::Stroke => "stroke",
             Self::Shape => "shape",
             Self::Note => "note",
+            Self::Stamp => "stamp",
         }
     }
 }
@@ -56,4 +60,25 @@ pub struct ScreenAnnotationEvent {
     pub allowed: bool,
     /// Consent frames only: the shared screen's width over its height.
     pub aspect: Option<f64>,
+    /// Stamp frames only: what was stamped and how big.
+    pub stamp: Option<Stamp>,
+    /// Consent frames only: whether the sharer's client can show stamps.
+    pub stamps: bool,
+}
+
+/// A stamp's size and content, carried by a [`ScreenAnnotationKind::Stamp`] event.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Stamp {
+    /// The longest side, as a fraction of the shared screen's height.
+    pub size: f64,
+    pub content: StampContent,
+}
+
+/// What a stamp shows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StampContent {
+    /// A reaction key: one emoji, a `:shortcode:` or a custom emoji id.
+    Emoji(String),
+    /// An attachment, by hex id; `animated` is decided by the server from the stored row.
+    Picture { attachment: String, animated: bool },
 }

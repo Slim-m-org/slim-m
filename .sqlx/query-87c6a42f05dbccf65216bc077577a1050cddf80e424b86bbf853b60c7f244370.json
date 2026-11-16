@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: Uuid\" FROM reports\n               WHERE reporter_id = ? AND subject_kind = ? AND subject_id = ?\n                 AND resolved_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "87c6a42f05dbccf65216bc077577a1050cddf80e424b86bbf853b60c7f244370"
+}

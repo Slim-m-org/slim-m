@@ -104,6 +104,7 @@ mod login_throttle;
 mod media_compression;
 mod safety;
 mod saved_messages;
+mod screen_stamps;
 mod sessions;
 mod sign_in_alert;
 mod space;
@@ -113,6 +114,7 @@ mod space_module_display;
 mod space_setup;
 mod space_themes;
 mod space_welcome;
+mod stamp_reports;
 mod storage;
 mod thread_listing;
 mod threads;
@@ -253,6 +255,7 @@ pub use role_update::RoleChanges;
 pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardError};
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
+pub use screen_stamps::{NewScreenStamp, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use soundboard::{
     ClipEmoji, MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipChange, SoundClipError, StarterClipRow,
@@ -264,6 +267,7 @@ pub use space_module_display::ModuleDisplay;
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
+pub use stamp_reports::SCREEN_STAMP_KIND;
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{

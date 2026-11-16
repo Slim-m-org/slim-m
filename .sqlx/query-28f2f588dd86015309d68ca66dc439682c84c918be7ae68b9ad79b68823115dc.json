@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO screen_stamps (id, channel_id, sender_id, target_id, sha256, created_at)\n             VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "28f2f588dd86015309d68ca66dc439682c84c918be7ae68b9ad79b68823115dc"
+}

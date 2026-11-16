@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE screen_stamps SET report_id = ? WHERE id = ? AND report_id IS NOT ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f5900485a934949787e21580ff206dc8183d5f0775bc8629c85a37dfc297beef"
+}

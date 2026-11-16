@@ -23,6 +23,7 @@ pub(super) struct ScreenAnnotationFrame {
     pub(super) ended: bool,
     pub(super) allowed: bool,
     pub(super) aspect: Option<f64>,
+    pub(super) stamps: bool,
 }
 
 /// Most coordinate pairs one annotation frame may carry.
@@ -41,7 +42,7 @@ const ASPECT_RANGE: std::ops::RangeInclusive<f64> = 0.2..=10.0;
 /// the sharer it speaks for. The server cannot know whether the sharer opted
 /// in: the sharer's own client drops every annotation it did not allow, which
 /// is the gate that matters because the overlay lives on that machine.
-/// Silent on every rejection.
+/// A relayed consent is also remembered for the stamp route. Silent on every rejection.
 pub(super) async fn handle_canvas_screen_annotation(
     store: &Store,
     hub: &Hub,
@@ -62,6 +63,12 @@ pub(super) async fn handle_canvas_screen_annotation(
     if !may_relay(store, hub, ctx, cache, event.channel_id, Frame::Ink).await {
         return;
     }
+    if event.kind == ScreenAnnotationKind::Consent {
+        let said = (event.allowed, event.stamps);
+        let now = std::time::Instant::now();
+        hub.screen_consent()
+            .record(event.channel_id, event.user_id, said, now);
+    }
     hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Arc::new(
         event,
     ))));
@@ -75,6 +82,9 @@ fn checked_annotation(
     let channel_id = ChannelId(uuid::Uuid::parse_str(&frame.channel_id).ok()?);
     let target_user_id = UserId(uuid::Uuid::parse_str(&frame.target_user_id).ok()?);
     let kind = ScreenAnnotationKind::parse(&frame.kind)?;
+    if kind == ScreenAnnotationKind::Stamp {
+        return None;
+    }
     let annotation_id = match &frame.annotation_id {
         Some(raw) => Some(uuid::Uuid::parse_str(raw).ok()?),
         None => None,
@@ -106,6 +116,8 @@ fn checked_annotation(
         ended: frame.ended,
         allowed: consent && frame.allowed,
         aspect: if consent { aspect } else { None },
+        stamp: None,
+        stamps: consent && frame.stamps,
     })
 }
 
@@ -114,7 +126,7 @@ fn points_fit_kind(kind: ScreenAnnotationKind, len: usize) -> bool {
         ScreenAnnotationKind::Consent => len == 0,
         ScreenAnnotationKind::Stroke => len.is_multiple_of(2),
         ScreenAnnotationKind::Shape => len == 4 || len == 0,
-        ScreenAnnotationKind::Note => len == 2,
+        ScreenAnnotationKind::Note | ScreenAnnotationKind::Stamp => len == 2,
     }
 }
 
@@ -134,6 +146,7 @@ mod screen_annotation_tests {
             ended: false,
             allowed: false,
             aspect: None,
+            stamps: false,
         }
     }
 
@@ -186,6 +199,28 @@ mod screen_annotation_tests {
     }
 
     #[test]
+    fn a_stamp_never_enters_through_the_socket() {
+        let mut f = frame("stamp");
+        f.points = vec![0.5, 0.5];
+        assert!(checked_annotation(sender(), f).is_none());
+    }
+
+    #[test]
+    fn the_stamps_flag_survives_only_on_consent() {
+        let who = sender();
+        let mut consent = frame("consent");
+        consent.annotation_id = None;
+        consent.points = vec![];
+        consent.target_user_id = who.to_string();
+        consent.allowed = true;
+        consent.stamps = true;
+        assert!(checked_annotation(who, consent).unwrap().stamps);
+        let mut stroke = frame("stroke");
+        stroke.stamps = true;
+        assert!(!checked_annotation(sender(), stroke).unwrap().stamps);
+    }
+
+    #[test]
     fn too_many_points_are_refused() {
         let mut f = frame("stroke");
         f.points = vec![0.5; MAX_ANNOTATION_POINTS * 2 + 2];
@@ -212,6 +247,7 @@ mod screen_annotation_tests {
             ended: f.ended,
             allowed: f.allowed,
             aspect: f.aspect,
+            stamps: f.stamps,
         }
     }
 }

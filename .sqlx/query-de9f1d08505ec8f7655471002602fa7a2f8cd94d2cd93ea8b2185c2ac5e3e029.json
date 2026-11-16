@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: Uuid\", channel_id AS \"channel_id!: ChannelId\",\n                      sender_id AS \"sender_id!: UserId\", target_id AS \"target_id!: UserId\",\n                      sha256 AS \"sha256!: Vec<u8>\", report_id AS \"report_id?: Uuid\",\n                      created_at AS \"created_at!\"\n               FROM screen_stamps WHERE sha256 = ?\n               ORDER BY created_at DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sender_id!: UserId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "target_id!: UserId",
+        "ordinal": 3,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sha256!: Vec<u8>",
+        "ordinal": 4,
+        "type_info": "Blob"
+      },
+      {
+        "name": "report_id?: Uuid",
+        "ordinal": 5,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "de9f1d08505ec8f7655471002602fa7a2f8cd94d2cd93ea8b2185c2ac5e3e029"
+}
