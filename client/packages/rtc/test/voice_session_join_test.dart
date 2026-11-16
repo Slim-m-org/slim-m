@@ -40,9 +40,18 @@ class _Mic implements MicPort {
 
   @override
   Future<double?> capturedSeconds() async => null;
+
+  /// Holds an open until completed, then fails it when [enableFails].
+  Completer<void>? enableGate;
+  bool enableFails = false;
+
   @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
-    if (enabled) published.add(options);
+    if (enabled) {
+      await enableGate?.future;
+      if (enableFails) throw StateError('the publish got no answer');
+      published.add(options);
+    }
     hasTrackNow = enabled;
   }
 
@@ -129,6 +138,79 @@ void main() {
     await joined;
 
     expect(mic.published, isEmpty);
+  });
+
+  test('a mute asked while the call connects is what the join opens with',
+      () async {
+    final joined = join();
+    await pumpEventQueue();
+    expect(session.state, VoiceSessionState.connecting);
+
+    expect(await session.setMicrophoneEnabled(false), isTrue);
+    gate.complete();
+    await joined;
+
+    expect(mic.published, isEmpty,
+        reason: 'the person muted, so the join must not open the microphone');
+    expect(mic.open, isFalse);
+  });
+
+  test('an unmute asked while a muted call connects opens the microphone',
+      () async {
+    final joined = join(micOn: false);
+    await pumpEventQueue();
+
+    expect(await session.setMicrophoneEnabled(true), isTrue);
+    mic.hasTrackNow = false;
+    gate.complete();
+    await joined;
+
+    expect(mic.open, isTrue);
+  });
+
+  test('a mute asked while the join\'s own open is failing is not retried open',
+      () async {
+    final slow = VoiceSession(
+      roomFactory: () => _GatedRoom(gate),
+      micPort: mic,
+      audioDevices: _Devices(),
+      liveOutput: (room, device) async {},
+      inputGate: InputGateMonitor.disabled(),
+      micRecoveryTiming: const MicRecoveryTiming(
+        retryBase: Duration(milliseconds: 10),
+      ),
+    );
+    addTearDown(slow.dispose);
+    mic
+      ..enableGate = Completer<void>()
+      ..enableFails = true;
+    final joined = slow.join(url: 'wss://a.invalid', token: 't');
+    gate.complete();
+    await pumpEventQueue();
+
+    await slow.setMicrophoneEnabled(false);
+    mic.enableGate!.complete();
+    await joined;
+    mic.enableFails = false;
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(mic.published, isEmpty);
+    expect(slow.micStatus, MicStatus.ok);
+  });
+
+  test('a mute from an earlier call does not carry into the next join',
+      () async {
+    final joined = join();
+    await pumpEventQueue();
+    await session.setMicrophoneEnabled(false);
+    gate.complete();
+    await joined;
+    await session.leave();
+
+    gate = Completer<void>()..complete();
+    await join();
+
+    expect(mic.open, isTrue);
   });
 
   test('the stages are stamped in the order the join reaches them', () async {

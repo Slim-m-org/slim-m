@@ -203,11 +203,21 @@ class VoiceMicRecovery {
     if (!_statuses.isClosed) _statuses.add(next);
   }
 
+  bool? _askedWhileConnecting;
+
+  /// Whether the join opens the microphone: a mute or unmute asked while it
+  /// was connecting wins over [asked], what the join was started with.
+  bool wantedAtJoin(bool asked) => _askedWhileConnecting ?? asked;
+
   /// Mutes or unmutes the local microphone; returns whether it ended in the
   /// requested state, since a token without SPEAK or a denied OS permission
   /// mean no and the UI must show what happened.
   Future<bool> setEnabled(bool enabled) async {
     if (_host.room() == null) return false;
+    // Nothing can be published before the connect, so the join applies this once it has.
+    if (_host.state() == VoiceSessionState.connecting) {
+      _askedWhileConnecting = enabled;
+    }
     final intent = _wanted;
     _wanted = enabled;
     // A chosen microphone that came back since the last open is used again, not the default.
@@ -335,6 +345,7 @@ class VoiceMicRecovery {
 
   void stopWatch() {
     _wanted = false;
+    _askedWhileConnecting = null;
     _senderPoll?.cancel();
     _senderPoll = null;
     _captureProbe?.cancel();

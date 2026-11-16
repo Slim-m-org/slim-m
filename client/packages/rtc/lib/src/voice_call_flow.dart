@@ -155,8 +155,8 @@ class VoiceCallFlow {
       if (!identical(room, joining)) return;
       _core.joinTimings.mark(JoinStage.connected);
       // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
-      final micFailed =
-          microphoneEnabled && !await _core.micRecovery.setEnabled(true);
+      final wantMic = _core.micRecovery.wantedAtJoin(microphoneEnabled);
+      final micFailed = wantMic && !await _core.micRecovery.setEnabled(true);
       if (!identical(room, joining)) return;
       if (microphoneEnabled) {
         _core.joinProbe.noteEvent(micFailed ? 'Mic did not open' : 'Mic open');
@@ -176,8 +176,11 @@ class VoiceCallFlow {
           ),
         );
       }
-      if (micFailed) _core.micRecovery.retryAfterJoin();
-      if (!microphoneEnabled) await _core.readiness.primeMuted();
+      // Read again: a mute asked while that open was failing must not be retried open.
+      if (micFailed && _core.micRecovery.wantedAtJoin(true)) {
+        _core.micRecovery.retryAfterJoin();
+      }
+      if (!wantMic) await _core.readiness.primeMuted();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(room, joining)) return;
