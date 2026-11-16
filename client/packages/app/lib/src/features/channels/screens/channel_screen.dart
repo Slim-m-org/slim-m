@@ -273,6 +273,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     // A staged file is a message on its own, so only a send carrying neither
     // text nor attachment is the one to drop.
     if (text.isEmpty && attachmentIds.isEmpty) return;
+    // The sent row lands in the live window, so a context window would hide it.
+    leaveContextWindow(ref, widget.channelId, _scrollTracker);
     _composer.clear();
     _drafts.clear(widget.channelId);
     // Read and cleared before the first await, same as the composer text.
