@@ -68,18 +68,22 @@ class _WaveformPainter extends CustomPainter {
   /// Bars never spread wider than this, so a wide row keeps a dense meter.
   static const _maxSlot = 5.0;
 
+  /// Bars never pack tighter than this, so a narrow row merges values, not bars.
+  static const _minSlot = 3.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
-    final slot = math.min(size.width / values.length, _maxSlot);
+    final bars = _fit(values, math.max(1, size.width ~/ _minSlot));
+    final slot = math.min(size.width / bars.length, _maxSlot);
     final paint = Paint();
-    for (var i = 0; i < values.length; i++) {
-      final barHeight = (values[i].clamp(0.0, 1.0) * size.height).clamp(
+    for (var i = 0; i < bars.length; i++) {
+      final barHeight = (bars[i].clamp(0.0, 1.0) * size.height).clamp(
         _minBar,
         size.height,
       );
       final x = i * slot + (slot - _barWidth) / 2;
-      paint.color = (i + 0.5) / values.length <= progress
+      paint.color = (i + 0.5) / bars.length <= progress
           ? playedColor
           : restColor;
       canvas.drawRRect(
@@ -90,6 +94,23 @@ class _WaveformPainter extends CustomPainter {
         paint,
       );
     }
+  }
+
+  /// [values] as at most [count] bars, each the loudest value it covers.
+  static List<double> _fit(List<double> values, int count) {
+    if (values.length <= count) return values;
+    return [
+      for (var i = 0; i < count; i++)
+        values
+            .sublist(
+              i * values.length ~/ count,
+              math.max(
+                (i + 1) * values.length ~/ count,
+                i * values.length ~/ count + 1,
+              ),
+            )
+            .reduce(math.max),
+    ];
   }
 
   @override

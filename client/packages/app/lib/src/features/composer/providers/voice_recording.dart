@@ -15,6 +15,7 @@ import 'package:slimm_platform/platform.dart'
 import 'package:slimm_rtc/rtc.dart' show AudioDevice, resolveAudioDevice;
 
 import '../../../api_failure.dart';
+import '../../../audio/call_start_yields.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_settings_storage.dart';
 import 'composer_actions.dart';
@@ -88,6 +89,7 @@ class VoiceRecordingState {
     this.levels = const [],
     this.clip,
     this.error,
+    this.stoppedForCall = false,
   });
 
   final VoicePhase phase;
@@ -99,6 +101,9 @@ class VoiceRecordingState {
   /// Held once the recording has stopped, so a failed upload can be retried.
   final VoiceClip? clip;
   final String? error;
+
+  /// Whether a call starting ended this recording, which the bar says.
+  final bool stoppedForCall;
 
   bool get isActive => phase != VoicePhase.idle;
 
@@ -142,7 +147,9 @@ class VoiceRecorder
 
   @override
   VoiceRecordingState build(String channelId) {
+    final unregister = ref.read(callStartYieldsProvider).add(_yieldToCall);
     ref.onDispose(() {
+      unregister();
       _attempt++;
       _timer?.cancel();
       unawaited(_backend?.cancel());
@@ -238,8 +245,16 @@ class VoiceRecorder
     }
   }
 
+  /// A call starting stops a recording and keeps the clip; one still opening is dropped.
+  Future<void> _yieldToCall() async {
+    if (state.phase == VoicePhase.starting) return cancel();
+    if (state.phase == VoicePhase.recording) await _finish(forCall: true);
+  }
+
   /// Ends the recording and keeps the clip for [send]; a stray tap is dropped.
-  Future<void> stop() async {
+  Future<void> stop() => _finish(forCall: false);
+
+  Future<void> _finish({required bool forCall}) async {
     final backend = _backend;
     if (state.phase != VoicePhase.recording || backend == null) return;
     _timer?.cancel();
@@ -286,6 +301,7 @@ class VoiceRecorder
         duration: duration,
         waveform: buildWaveform(_samples),
       ),
+      stoppedForCall: forCall,
     );
   }
 
