@@ -6,10 +6,12 @@ use std::sync::Arc;
 use super::canvas_gate::{Frame, may_relay};
 use super::permission_cache::PermissionCache;
 use super::signals_canvas::valid_preview_color;
-use crate::hub::{CanvasEvent, Event, Hub, ScreenAnnotationEvent, ScreenAnnotationKind};
+use crate::http::AppState;
+use crate::hub::{CanvasEvent, Event, ScreenAnnotationEvent, ScreenAnnotationKind};
 use crate::ids::{ChannelId, UserId};
-use crate::ratelimit::{Class, RateLimiter};
-use crate::store::{SessionContext, Store};
+use crate::ratelimit::Class;
+use crate::store::SessionContext;
+use crate::voice::VoiceService;
 
 /// One `canvas.screen_annotation` frame's fields.
 pub(super) struct ScreenAnnotationFrame {
@@ -37,20 +39,25 @@ const ASPECT_RANGE: std::ops::RangeInclusive<f64> = 0.2..=10.0;
 /// Relays a screen annotation, or a sharer's consent, on a channel's canvas.
 ///
 /// Gated like ink (canvas access and not timed out) and charged by wire size
-/// against the stroke-preview budget. A consent frame is only believed from
-/// the sharer it speaks for. The server cannot know whether the sharer opted
-/// in: the sharer's own client drops every annotation it did not allow, which
-/// is the gate that matters because the overlay lives on that machine.
-/// Silent on every rejection.
+/// against the stroke-preview budget. A mark is only relayed from someone in
+/// that channel's call, and a consent frame only from the sharer it speaks
+/// for. The server cannot know whether the sharer opted in: the sharer's own
+/// client drops every annotation it did not allow, which is the gate that
+/// matters because the overlay lives on that machine. Silent on every rejection.
 pub(super) async fn handle_canvas_screen_annotation(
-    store: &Store,
-    hub: &Hub,
-    limiter: &RateLimiter,
+    state: &AppState,
     ctx: &SessionContext,
     cache: &mut PermissionCache,
     frame: ScreenAnnotationFrame,
     frame_bytes: usize,
 ) {
+    let AppState {
+        store,
+        hub,
+        limiter,
+        voice,
+        ..
+    } = state;
     let Some(event) = checked_annotation(ctx.user_id, frame) else {
         return;
     };
@@ -62,9 +69,23 @@ pub(super) async fn handle_canvas_screen_annotation(
     if !may_relay(store, hub, ctx, cache, event.channel_id, Frame::Ink).await {
         return;
     }
+    // Consent skips the roster, so a withdrawal sent while leaving the call still lands.
+    if event.kind != ScreenAnnotationKind::Consent
+        && !in_call(voice, event.channel_id, ctx.user_id).await
+    {
+        return;
+    }
     hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Arc::new(
         event,
     ))));
+}
+
+/// Whether `user_id` is connected to the channel's call, from the shared roster read the soundboard trusts; fails closed.
+async fn in_call(voice: &VoiceService, channel_id: ChannelId, user_id: UserId) -> bool {
+    voice
+        .list_participants_shared(channel_id)
+        .await
+        .is_ok_and(|present| present.iter().any(|p| p.user_id == user_id))
 }
 
 /// The relayed event for a well-formed frame from `sender`, or none.

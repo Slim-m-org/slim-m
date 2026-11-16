@@ -100,12 +100,14 @@ Nothing is persisted and there is no migration.
 
 - Kinds: `consent`, `stroke` (a delta of x/y pairs, at most 24 pairs a frame), `shape` (an ellipse, `[x0, y0, x1, y1]`), `note` (`[x, y]` plus up to 80 characters).
 - Gated like ink: canvas access and not timed out.
+  A mark is also only relayed from someone in that channel's call, read from the same shared roster the soundboard trusts (2026-11-16); before that, a member with canvas access who was not in the call could draw on the sharer's screen.
+  Consent skips that check, so a withdrawal sent while leaving the call still lands.
   Charged by wire size against the stroke-preview budget, so a drawing viewer cannot flood a call.
   Any coordinate outside 0 to 1, a malformed id, or an unknown kind drops the frame silently.
 - A consent frame is only relayed when its sender is the sharer it speaks for.
   The sharer repeats consent every 5 seconds while the overlay is up and a viewer believes it for 15, so a sharer who vanishes stops being believed and a missed frame can only remove the pen, never grant it.
 - The server cannot know whether the sharer opted in, and does not try.
-  The gate that matters is the sharer's own client, which paints nothing unless the setting is on, a screen is shared, and the mark is over its own screen in the call it is in.
+  The gate that matters is the sharer's own client, which paints nothing unless the setting is on, a screen is shared, and the mark is over its own screen in the call it is in, drawn by someone in that call's roster.
   The overlay lives on that machine, so that is where the decision is kept.
 
 ## Privacy

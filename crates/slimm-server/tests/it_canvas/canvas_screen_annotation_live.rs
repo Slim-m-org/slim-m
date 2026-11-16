@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Live screen-annotation relay: a viewer's mark reaches the sharer, consent is believed only from the sharer, and the canvas gates still apply.
+//! Live screen-annotation relay: a call member's mark reaches the sharer, consent is believed only from the sharer, and the canvas gates still apply.
+
+use std::net::SocketAddr;
 
 use futures_util::SinkExt;
 use serde_json::{Value, json};
+use slimm_server::http::AppState;
 use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
+use slimm_server::store::Store;
+use slimm_server::voice::VoiceService;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use crate::support;
+use support::fake_sfu::{RecordingRoomService, spawn_sfu};
 use support::ws::{
     Client, assert_no_frame_of_type, connect, read_frame_of_type, serve, user_ticket_and_id,
 };
@@ -33,15 +39,35 @@ async fn send_stroke(ws: &mut Client, channel: ChannelId, sharer: UserId, points
 }
 
 async fn send_consent(ws: &mut Client, channel: ChannelId, sharer: UserId) {
+    send_consent_allowed(ws, channel, sharer, true).await;
+}
+
+async fn send_consent_allowed(ws: &mut Client, channel: ChannelId, sharer: UserId, allowed: bool) {
     send(
         ws,
         json!({
             "type": "canvas.screen_annotation", "channel_id": channel.to_string(),
             "target_user_id": sharer.to_string(), "kind": "consent",
-            "allowed": true, "aspect": 1.7778,
+            "allowed": allowed, "aspect": 1.7778,
         }),
     )
     .await;
+}
+
+/// Serves the app with a call that seats `seated`; the room service can seat others later.
+async fn serve_with_call(
+    store: &Store,
+    seated: &[UserId],
+) -> (SocketAddr, AppState, RecordingRoomService) {
+    let room = RecordingRoomService::default();
+    room.seat(seated);
+    let sfu = spawn_sfu(room.clone()).await;
+    let voice = VoiceService::for_test(&sfu, "key", "a-secret-at-least-32-chars-long!");
+    let state = support::app::builder(store.clone())
+        .hub(Hub::new())
+        .voice(voice)
+        .build();
+    (serve(state.clone()).await, state, room)
 }
 
 #[tokio::test]
@@ -52,8 +78,7 @@ async fn a_viewers_stroke_reaches_the_sharer_in_normalised_coordinates() {
     let channel = store.list_channels().await.unwrap()[0].id;
     let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
-    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
-    let addr = serve(state).await;
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, bob_id]).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
 
@@ -80,10 +105,9 @@ async fn consent_from_the_sharer_is_relayed_with_the_screen_shape() {
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
-    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
-    let addr = serve(state).await;
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, bob_id]).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
 
@@ -101,10 +125,9 @@ async fn a_viewer_cannot_speak_consent_for_the_sharer() {
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
-    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
-    let addr = serve(state).await;
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, bob_id]).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
 
@@ -119,10 +142,9 @@ async fn a_mark_outside_the_screen_is_dropped() {
     let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
-    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
-    let addr = serve(state).await;
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, bob_id]).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
 
@@ -148,8 +170,7 @@ async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
         .await
         .unwrap();
 
-    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
-    let addr = serve(state).await;
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, carol_id]).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut carol_ws = connect(addr, &carol_ticket).await;
 
@@ -178,12 +199,71 @@ async fn a_timed_out_member_cannot_annotate() {
         .await
         .unwrap();
 
-    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
-    let addr = serve(state).await;
+    let (addr, _state, _room) = serve_with_call(&store, &[alice_id, bob_id]).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
 
     send_stroke(&mut bob_ws, channel, alice_id, json!([0.3, 0.3])).await;
 
     assert_no_frame_of_type(&mut alice_ws, KIND).await;
+}
+
+#[tokio::test]
+async fn a_member_outside_the_call_cannot_draw_on_the_sharers_screen() {
+    let (store, _guard) = support::new_store("slimm-screen-annotation").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
+
+    let (addr, state, room) = serve_with_call(&store, &[alice_id]).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    send_stroke(&mut bob_ws, channel, alice_id, json!([0.2, 0.2])).await;
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
+
+    room.seat(&[alice_id, bob_id]);
+    state.voice.roster_cache().invalidate(channel);
+    send_stroke(&mut bob_ws, channel, alice_id, json!([0.4, 0.4])).await;
+    let frame = read_frame_of_type(&mut alice_ws, KIND).await;
+    assert_eq!(frame["user_id"], bob_id.to_string());
+    assert_eq!(frame["points"], json!([0.4, 0.4]));
+}
+
+#[tokio::test]
+async fn a_deployment_without_voice_relays_no_marks() {
+    let (store, _guard) = support::new_store("slimm-screen-annotation").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    send_stroke(&mut bob_ws, channel, alice_id, json!([0.2, 0.2])).await;
+
+    assert_no_frame_of_type(&mut alice_ws, KIND).await;
+}
+
+#[tokio::test]
+async fn a_sharer_who_left_the_call_can_still_withdraw_consent() {
+    let (store, _guard) = support::new_store("slimm-screen-annotation").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
+
+    let (addr, _state, _room) = serve_with_call(&store, &[bob_id]).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    send_consent_allowed(&mut alice_ws, channel, alice_id, false).await;
+
+    let frame = read_frame_of_type(&mut bob_ws, KIND).await;
+    assert_eq!(frame["kind"], "consent");
+    assert_eq!(frame["allowed"], false);
 }

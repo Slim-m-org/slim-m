@@ -20006,8 +20006,9 @@ components:
         is only relayed when `target_user_id` is the sender. The server
         cannot know whether the sharer allowed drawing: the sharer's own
         client drops every annotation it did not allow. Gated like ink
-        (canvas access, not timed out) and charged by wire size against the
-        stroke-preview budget.
+        (canvas access, not timed out), and a mark (not `consent`) is only
+        relayed from someone connected to that channel's call. Charged by
+        wire size against the stroke-preview budget.
       properties:
         type:
           type: string
