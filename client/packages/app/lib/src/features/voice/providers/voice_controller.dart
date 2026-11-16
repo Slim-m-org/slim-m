@@ -121,6 +121,10 @@ class VoiceController extends StateNotifier<VoiceState> {
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
+    _session.audioSessionReader = _callLifecycle.audioSessionLine;
+    _callSystemEvents = _callLifecycle.systemEvents.listen(
+      _session.noteCallSystemEvent,
+    );
     listenLevelDisplayed(_ref, _session.setLevelDisplayed);
     _reconnectDisplay = VoiceReconnectDisplay(
       _session.health.reconnect.active,
@@ -190,6 +194,7 @@ class VoiceController extends StateNotifier<VoiceState> {
   late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<CameraJoinOpen> _cameraJoinOpens;
   late final StreamSubscription<void> _endCallRequests;
+  late final StreamSubscription<String> _callSystemEvents;
 
   /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
   int _callGeneration = 0;
@@ -410,6 +415,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     unawaited(_shareSourceLost.cancel());
     unawaited(_cameraJoinOpens.cancel());
     unawaited(_endCallRequests.cancel());
+    unawaited(_callSystemEvents.cancel());
     unawaited(_session.dispose());
     _callLifecycle.dispose();
     super.dispose();

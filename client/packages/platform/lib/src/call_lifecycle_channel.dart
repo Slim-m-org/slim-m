@@ -23,6 +23,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import 'call_system_event.dart';
 import 'host_platform.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -41,6 +42,7 @@ class CallLifecycleChannel {
   final MethodChannel _channel;
   final bool _isIOS;
   final _endCalls = StreamController<void>.broadcast();
+  final _systemEvents = StreamController<String>.broadcast();
 
   /// Fires whenever the system call UI ends this call (Dynamic Island, the
   /// lock screen, and so on). CallKit has already told the native side and
@@ -48,8 +50,37 @@ class CallLifecycleChannel {
   /// is only to leave the room, never to decide whether the hangup happens.
   Stream<void> get endCallRequests => _endCalls.stream;
 
+  /// Each CallKit step and its result, and every interruption or route
+  /// change of the shared audio session, as a line for the call's
+  /// diagnostics; see [describeCallSystemEvent]. Only records, never acts.
+  Stream<String> get systemEvents => _systemEvents.stream;
+
   Future<void> _onCall(MethodCall call) async {
-    if (call.method == 'endCall') _endCalls.add(null);
+    switch (call.method) {
+      case 'endCall':
+        _endCalls.add(null);
+      case 'callEvent':
+        final args = call.arguments;
+        final line = args is Map ? describeCallSystemEvent(args) : null;
+        if (line != null && !_systemEvents.isClosed) _systemEvents.add(line);
+    }
+  }
+
+  /// The shared audio session right now as one phrase, or null off iOS or
+  /// on a build whose native side cannot read it; see [describeAudioSession].
+  Future<String?> audioSessionLine() async {
+    if (!_isIOS) return null;
+    try {
+      final session = await _channel.invokeMethod<Map<Object?, Object?>>(
+        'audioSession',
+      );
+      return session == null ? null : describeAudioSession(session);
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice, 'No audio session read', error, stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice, 'No audio session reader', error, stack);
+    }
+    return null;
   }
 
   /// Reports a call this app's own UI joined, so CallKit grants it the same
@@ -119,5 +150,6 @@ class CallLifecycleChannel {
 
   void dispose() {
     unawaited(_endCalls.close());
+    unawaited(_systemEvents.close());
   }
 }

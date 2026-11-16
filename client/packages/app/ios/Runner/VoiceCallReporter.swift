@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import AVFoundation
 import CallKit
 import Flutter
 import Foundation
@@ -82,16 +83,24 @@ final class OutgoingCallLifecycle {
   /// CallKit's own idea of the call and leave the room connected underneath.
   var onHangUp: (() -> Void)?
 
+  /// Each CallKit step and its result, for the call report only; see
+  /// `call_system_event.dart` for the shape and the words.
+  var onEvent: (([String: Any]) -> Void)?
+
   /// Asks CallKit to start reporting [id] as an outgoing call. A second call
   /// while one is already active is a no-op: this app holds one call at a
   /// time (`voice_controller.dart`'s own doc comment says so), so a repeat
   /// request here would ask CallKit to track a call it already tracks.
   func callStarted(id: UUID, displayName: String) {
-    guard activeCallId == nil else { return }
+    guard activeCallId == nil else {
+      report("start", result: "skipped")
+      return
+    }
     activeCallId = id
     let action = CXStartCallAction(call: id, handle: CXHandle(type: .generic, value: displayName))
     action.isVideo = false
     controller.requestStart(action) { [weak self] error in
+      self?.report("start", error: error)
       // CallKit refused the request (Do Not Disturb, another call already
       // up); nothing was reported, so nothing should still look active.
       if error != nil, self?.activeCallId == id {
@@ -104,12 +113,17 @@ final class OutgoingCallLifecycle {
   func handleStartAction(_ action: CallActionFulfilling) {
     provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
     action.fulfill()
+    report("startAction")
   }
 
   /// The room actually connected.
   func callConnected() {
-    guard let id = activeCallId else { return }
+    guard let id = activeCallId else {
+      report("connected", result: "noCall")
+      return
+    }
     provider.reportOutgoingCall(with: id, connectedAt: Date())
+    report("connected")
   }
 
   /// This side ended the call. Safe to call with nothing active.
@@ -122,6 +136,7 @@ final class OutgoingCallLifecycle {
     activeCallId = nil
     endingLocally.insert(id)
     controller.requestEnd(CXEndCallAction(call: id)) { [weak self] error in
+      self?.report("end", error: error)
       // CallKit refused; report it ended anyway so no dead call lingers in the system UI.
       guard error != nil, let self, self.endingLocally.remove(id) != nil else { return }
       self.provider.reportCall(with: id, endedAt: Date(), reason: .remoteEnded)
@@ -131,11 +146,73 @@ final class OutgoingCallLifecycle {
   /// CallKit delivers an end action, for this side's own request or because
   /// the system call UI hung up; only the latter must tell Dart to leave.
   func handleEndAction(_ action: CallActionFulfilling) {
-    if endingLocally.remove(action.callUUID) == nil {
+    let fromSystem = endingLocally.remove(action.callUUID) == nil
+    if fromSystem {
       activeCallId = nil
       onHangUp?()
     }
     action.fulfill()
+    report("endAction", result: fromSystem ? "system" : "ok")
+  }
+
+  private func report(_ step: String, error: Error? = nil, result: String? = nil) {
+    var event: [String: Any] = [
+      "kind": "callKit", "step": step, "result": result ?? (error == nil ? "ok" : "failed"),
+    ]
+    if let error = error as NSError? {
+      event["domain"] = error.domain
+      event["code"] = error.code
+    }
+    onEvent?(event)
+  }
+}
+
+/// Reads the shared `AVAudioSession` and forwards its interruptions, route
+/// changes and media services resets, for the call report only: it never
+/// changes the session. Ports go by type, never by the device's own name.
+final class AudioSessionObserver {
+  var onEvent: (([String: Any]) -> Void)?
+  private var observers: [NSObjectProtocol] = []
+
+  func start() {
+    guard observers.isEmpty else { return }
+    observe(AVAudioSession.interruptionNotification) { info in
+      var event: [String: Any] = ["kind": "interruption"]
+      if let type = info[AVAudioSessionInterruptionTypeKey] as? UInt { event["type"] = Int(type) }
+      if let options = info[AVAudioSessionInterruptionOptionKey] as? UInt { event["options"] = Int(options) }
+      if let reason = info[AVAudioSessionInterruptionReasonKey] as? UInt { event["reason"] = Int(reason) }
+      return event
+    }
+    observe(AVAudioSession.routeChangeNotification) { info in
+      var event = AudioSessionObserver.snapshot()
+      event["kind"] = "routeChange"
+      if let reason = info[AVAudioSessionRouteChangeReasonKey] as? UInt { event["reason"] = Int(reason) }
+      return event
+    }
+    observe(AVAudioSession.mediaServicesWereLostNotification) { _ in ["kind": "mediaServicesLost"] }
+    observe(AVAudioSession.mediaServicesWereResetNotification) { _ in ["kind": "mediaServicesReset"] }
+  }
+
+  static func snapshot() -> [String: Any] {
+    let session = AVAudioSession.sharedInstance()
+    let route = session.currentRoute
+    return [
+      "category": session.category.rawValue,
+      "mode": session.mode.rawValue,
+      "inputs": route.inputs.map { $0.portType.rawValue },
+      "outputs": route.outputs.map { $0.portType.rawValue },
+      "otherAudioPlaying": session.isOtherAudioPlaying,
+      "inputAvailable": session.isInputAvailable,
+    ]
+  }
+
+  private func observe(_ name: Notification.Name, _ describe: @escaping ([AnyHashable: Any]) -> [String: Any]) {
+    let observer = NotificationCenter.default.addObserver(
+      forName: name, object: AVAudioSession.sharedInstance(), queue: .main
+    ) { [weak self] note in
+      self?.onEvent?(describe(note.userInfo ?? [:]))
+    }
+    observers.append(observer)
   }
 }
 
@@ -161,6 +238,7 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
   static let name = "top.npcserver.slimm/call_lifecycle"
 
   private let lifecycle: OutgoingCallLifecycle
+  private let audioSession = AudioSessionObserver()
   private var flutterChannel: FlutterMethodChannel?
 
   init(provider: CXProvider = VoiceCallChannel.makeProvider()) {
@@ -170,6 +248,11 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
     lifecycle.onHangUp = { [weak self] in
       self?.flutterChannel?.invokeMethod("endCall", arguments: nil)
     }
+    let sendEvent: ([String: Any]) -> Void = { [weak self] event in
+      self?.flutterChannel?.invokeMethod("callEvent", arguments: event)
+    }
+    lifecycle.onEvent = sendEvent
+    audioSession.onEvent = sendEvent
   }
 
   /// `ringtoneSound` is set here too though never actually played - this
@@ -191,6 +274,7 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
       self?.handle(call, result: result)
     }
     flutterChannel = channel
+    audioSession.start()
   }
 
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -203,6 +287,8 @@ final class VoiceCallChannel: NSObject, CXProviderDelegate {
     case "callEnded":
       lifecycle.callEnded()
       result(nil)
+    case "audioSession":
+      result(AudioSessionObserver.snapshot())
     default:
       result(FlutterMethodNotImplemented)
     }
