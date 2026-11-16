@@ -10,9 +10,13 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_platform/platform.dart' show isLinuxHost;
+import 'package:slimm_platform/platform.dart'
+    show isAndroidHost, isIOSHost, isLinuxHost;
+import 'package:slimm_rtc/rtc.dart' show AudioDevice, resolveAudioDevice;
 
 import '../../../api_failure.dart';
+import '../../voice/providers/voice_controller.dart';
+import '../../voice/providers/voice_settings_storage.dart';
 import 'composer_actions.dart';
 import 'voice_capture_record.dart';
 
@@ -66,7 +70,16 @@ class VoiceClip {
   final List<int> waveform;
 }
 
-enum VoicePhase { idle, starting, recording, stopped, uploading, failed }
+/// [stopping] is the encoder finishing the file, which a Discard still overtakes.
+enum VoicePhase {
+  idle,
+  starting,
+  recording,
+  stopping,
+  stopped,
+  uploading,
+  failed,
+}
 
 class VoiceRecordingState {
   const VoiceRecordingState({
@@ -116,7 +129,7 @@ class VoiceRecorder
     extends AutoDisposeFamilyNotifier<VoiceRecordingState, String> {
   VoiceCaptureBackend? _backend;
 
-  /// Bumped by every start, cancel and disposal; a start that returns to a newer number lets go.
+  /// Bumped by every start, cancel and disposal; a start or stop that returns to a newer number lets go.
   int _attempt = 0;
   Timer? _timer;
   DateTime? _startedAt;
@@ -139,6 +152,15 @@ class VoiceRecorder
 
   Future<void> start() async {
     if (state.phase != VoicePhase.idle && state.phase != VoicePhase.failed) {
+      return;
+    }
+    // On a phone the call holds the one audio session, which the recorder would reconfigure.
+    if (ref.read(voiceRecordingYieldsToCallProvider) &&
+        ref.read(voiceControllerProvider).channelId != null) {
+      state = const VoiceRecordingState(
+        phase: VoicePhase.failed,
+        error: 'Leave the call to record a voice message.',
+      );
       return;
     }
     state = const VoiceRecordingState(phase: VoicePhase.starting);
@@ -221,13 +243,37 @@ class VoiceRecorder
     final backend = _backend;
     if (state.phase != VoicePhase.recording || backend == null) return;
     _timer?.cancel();
+    _backend = null;
+    final attempt = _attempt;
     final elapsed = math.min(
       now().difference(_startedAt!).inMilliseconds,
       kVoiceMaxDuration.inMilliseconds,
     );
     final duration = Duration(milliseconds: elapsed);
-    final capture = await backend.stop();
-    _backend = null;
+    state = VoiceRecordingState(
+      phase: VoicePhase.stopping,
+      elapsed: duration,
+      levels: state.levels,
+    );
+    final VoiceCapture? capture;
+    try {
+      capture = await backend.stop();
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.voice,
+        'A recording could not be finished',
+        error,
+        stack,
+      );
+      if (attempt == _attempt) {
+        state = const VoiceRecordingState(
+          phase: VoicePhase.failed,
+          error: 'The recording could not be finished.',
+        );
+      }
+      return;
+    }
+    if (attempt != _attempt) return;
     if (capture == null || duration < kVoiceMinDuration) {
       state = const VoiceRecordingState();
       return;
@@ -307,8 +353,25 @@ final voiceRecorderProvider = NotifierProvider.autoDispose
 /// there is most often one of them missing. Replaced in tests.
 final voiceRecordingNeedsToolsProvider = Provider<bool>((ref) => isLinuxHost);
 
+/// Whether a call rules out recording: on iPhone and Android both share one
+/// audio session. Replaced in tests.
+final voiceRecordingYieldsToCallProvider = Provider<bool>(
+  (ref) => isIOSHost || isAndroidHost,
+);
+
 /// Builds the microphone only when a recording starts, so nothing native is
 /// touched by a composer that never records. Replaced in tests.
 final voiceCaptureFactoryProvider = Provider<VoiceCaptureBackend Function()>(
-  (ref) => RecordVoiceCapture.new,
+  (ref) =>
+      () => RecordVoiceCapture(chosenInput: () => chosenVoiceInput(ref)),
 );
+
+/// The microphone picked in Voice settings, wherever a call honours the pick;
+/// null for the system default.
+Future<AudioDevice?> chosenVoiceInput(Ref ref) async {
+  final (id, _) = await loadAudioDevicePreferences(ref);
+  final devices = ref.read(voiceControllerProvider.notifier).devices;
+  if (id == null || !devices.supportsAudioInputSelection) return null;
+  return resolveAudioDevice(await devices.audioInputDevices(), id) ??
+      AudioDevice(id: id, label: '');
+}

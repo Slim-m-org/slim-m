@@ -4,18 +4,18 @@
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show Attachment;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/voice_waveform.dart';
 import '../providers/voice_recording.dart';
+import 'composer_attachments.dart';
 
-/// Called with the stored voice message and the bytes it was recorded as.
-typedef VoiceSent = void Function(Attachment attachment, Uint8List bytes);
+/// Called with the staging of the channel the voice message was recorded in,
+/// which now holds it, uploaded.
+typedef VoiceSent = void Function(AttachmentStagingController staging);
 
 /// The mic that stands in for Send. It wakes a moment after it appears, so the
 /// second click of a double-click on Send cannot land on it and start recording.
@@ -97,15 +97,19 @@ class ComposerVoiceBar extends ConsumerWidget {
           icon: AppIcons.send,
           semanticLabel: 'Send voice message',
           tooltip: 'Send voice message',
-          onPressed: canSend ? () => _send(recorder) : null,
+          onPressed: canSend ? () => _send(ref, recorder) : null,
         ),
       ],
     );
   }
 
-  Future<void> _send(VoiceRecorder recorder) async {
+  Future<void> _send(WidgetRef ref, VoiceRecorder recorder) async {
+    // Read before the upload, which a channel switch can outlast.
+    final staging = ref.read(attachmentStagingProvider(channelId));
     final sent = await recorder.send();
-    if (sent != null) onSent(sent.$1, sent.$2);
+    if (sent == null) return;
+    staging.addResolved(sent.$1, sent.$2);
+    onSent(staging);
   }
 }
 

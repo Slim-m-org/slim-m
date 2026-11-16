@@ -4,7 +4,6 @@
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,9 +164,9 @@ class _ComposerState extends ConsumerState<Composer> {
     slowModeRemaining: _slowModeRemaining,
   );
 
-  void _sendVoice(Attachment voice, Uint8List bytes) {
-    _attachments.addResolved(voice, bytes);
-    unawaited(_send());
+  /// Sends only from the channel it was recorded in; after a switch it waits there.
+  void _sendVoice(AttachmentStagingController staging) {
+    if (mounted && identical(staging, _attachments)) unawaited(_send());
   }
 
   @override
