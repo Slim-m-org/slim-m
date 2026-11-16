@@ -32,10 +32,23 @@ Future<void> silenceLoopbackTrack(rtc.MediaStreamTrack track) async {
   }
 }
 
+/// Both ends are in this process, so TCP candidates add nothing but a listening
+/// socket, and on Windows that socket raises the firewall's allow prompt.
+const loopbackPeerConfiguration = <String, dynamic>{
+  'tcpCandidatePolicy': 'disabled',
+};
+
+/// Opens one end of the loopback; replaced in tests.
+typedef LoopbackPeerFactory = Future<rtc.RTCPeerConnection> Function(
+  Map<String, dynamic> configuration,
+);
+
 class LoopbackMicSource implements MicPreviewSource {
-  LoopbackMicSource(this._switching);
+  LoopbackMicSource(this._switching, {LoopbackPeerFactory? createPeer})
+      : _createPeer = createPeer ?? rtc.createPeerConnection;
 
   final AudioDeviceSwitching _switching;
+  final LoopbackPeerFactory _createPeer;
   rtc.MediaStream? _stream;
   rtc.RTCPeerConnection? _sender;
   rtc.RTCPeerConnection? _receiver;
@@ -67,8 +80,8 @@ class LoopbackMicSource implements MicPreviewSource {
       'audio': constraints.toMediaConstraintsMap(),
       'video': false,
     });
-    final sender = _sender = await rtc.createPeerConnection({});
-    final receiver = _receiver = await rtc.createPeerConnection({});
+    final sender = _sender = await _createPeer(loopbackPeerConfiguration);
+    final receiver = _receiver = await _createPeer(loopbackPeerConfiguration);
     sender.onIceCandidate = (c) => unawaited(receiver.addCandidate(c));
     receiver.onIceCandidate = (c) => unawaited(sender.addCandidate(c));
     receiver.onTrack = (event) {
