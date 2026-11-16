@@ -84,9 +84,9 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'transcripts in Space settings, under Voice.',
       ),
       WhatsNewPoint(
-        'Calls have a soundboard. Admins add short clips in Space settings, '
-        'and anyone in the call can play one. Turn off Soundboard sounds in '
-        'Notifications to stop hearing them.',
+        'Calls have a soundboard with a dozen starter clips. Admins add more '
+        'in Space settings, and anyone in the call can play one. Turn off '
+        'Soundboard sounds in Notifications to stop hearing them.',
       ),
       WhatsNewPoint(
         'A mention reads as the name people use in this Space. Hover it to '
