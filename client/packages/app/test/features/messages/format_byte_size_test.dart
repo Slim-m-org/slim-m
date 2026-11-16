@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// `formatByteSize` labels an attachment's size. It had no test, yet it holds
-/// two things that break quietly: bytes show as a whole number while every
-/// larger unit shows one decimal, and the unit climb stops at GB - a value
-/// large enough to reach the next unit must stay GB rather than index off the
-/// end of the unit list and throw.
+/// `formatByteSize` is the app's one byte-size label, for an attachment, a
+/// backup, a server's disk or a module's store alike: bytes are a whole
+/// number, every larger unit carries one decimal, and the climb stops at TB.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/attachment_format.dart';
+import 'package:slimm_app/src/format.dart';
 
 const _kb = 1024;
 const _mb = 1024 * 1024;
@@ -27,10 +25,12 @@ void main() {
     expect(formatByteSize(_gb), '1.0 GB');
   });
 
-  test(
-    'past a terabyte the unit stays GB rather than running off the list',
-    () {
-      expect(formatByteSize(1024 * _gb), '1024.0 GB');
-    },
-  );
+  test('a terabyte climbs to TB, and past that the unit stays TB', () {
+    expect(formatByteSize(1024 * _gb), '1.0 TB');
+    expect(formatByteSize(2048 * 1024 * _gb), '2048.0 TB');
+  });
+
+  test('a module store reads in the same unit as everything else', () {
+    expect(formatByteSize(5 * _mb), '5.0 MB');
+  });
 }

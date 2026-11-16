@@ -7,7 +7,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
-import '../../../widgets/attachment_format.dart' show formatByteSize;
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_section_header.dart';
 

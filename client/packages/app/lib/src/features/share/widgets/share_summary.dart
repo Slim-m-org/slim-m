@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/attachment_format.dart';
+import '../../../format.dart';
 import '../providers/incoming_share.dart';
 
 /// How many photo thumbnails the summary draws before the rest are only counted.

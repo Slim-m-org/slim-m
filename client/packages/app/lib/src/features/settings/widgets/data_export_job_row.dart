@@ -9,7 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/run_guarded.dart';
-import '../../../widgets/attachment_format.dart' show formatByteSize;
+import '../../../format.dart' show formatByteSize;
 import '../providers/data_export_download.dart';
 import '../providers/data_exports.dart';
 import 'data_export_copy.dart';

@@ -83,3 +83,17 @@ String formatPlaybackTime(Duration d) {
   if (parts.hours == 0) return '${parts.minutes}:$ss';
   return '${parts.hours}:${parts.minutes.toString().padLeft(2, '0')}:$ss';
 }
+
+/// `1.2 MB`: whole bytes, one decimal from KB up, in binary steps to TB. The
+/// one byte-size label, so a size reads the same on every screen.
+String formatByteSize(int bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  final digits = unit == 0 ? 0 : 1;
+  return '${value.toStringAsFixed(digits)} ${units[unit]}';
+}

@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../../providers/admin_providers.dart';
 import '../../../../preset_options.dart';
 import '../../../../providers/providers.dart';
-import '../../../../widgets/attachment_format.dart' show formatByteSize;
+import '../../../../format.dart' show formatByteSize;
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/optimistic_setting_state.dart';
 import '../../../../widgets/run_guarded.dart';

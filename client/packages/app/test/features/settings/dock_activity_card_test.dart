@@ -142,10 +142,4 @@ void main() {
     );
     expect(_badge('Failing'), findsOneWidget);
   });
-
-  test('bytes read in the coarsest true unit', () {
-    expect(dockBytes(12), '12 bytes');
-    expect(dockBytes(3100), '3.0 KB');
-    expect(dockBytes(65536), '64 KB');
-  });
 }
