@@ -135,6 +135,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'On Windows, the call panel and drawing overlay move with your '
         'screens when a monitor is plugged in or changed during a call.',
       ),
+      WhatsNewPoint(
+        'Windows no longer asks to let slim-m through the firewall after '
+        'an update or when you test your microphone.',
+      ),
     ],
   ),
 ];
