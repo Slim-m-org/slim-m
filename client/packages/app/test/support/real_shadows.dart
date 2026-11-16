@@ -58,9 +58,9 @@ Future<void> withRealShadows(
   await tester.pump();
 }
 
-/// Every node, not only [root]: a popover or sheet sits in a repaint boundary of its own
-/// whose cached picture would keep its flat shadow.
+/// Every repaint boundary under [root] keeps its own cached picture, so an
+/// overlay's popover painted flat stays flat unless it is marked as well.
 void _repaintAll(RenderObject root) {
-  root.markNeedsPaint();
+  if (root.isRepaintBoundary) root.markNeedsPaint();
   root.visitChildren(_repaintAll);
 }

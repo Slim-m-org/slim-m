@@ -72,9 +72,16 @@ impl Rig {
     }
 
     async fn add(&self, name: &str, n: usize) {
-        soundboard::add_clip(&self.store, &self.state.media, name, tone(n), self.admin.id)
-            .await
-            .unwrap_or_else(|err| panic!("{name}: {err:?}"));
+        soundboard::add_clip(
+            &self.store,
+            &self.state.media,
+            name,
+            None,
+            tone(n),
+            self.admin.id,
+        )
+        .await
+        .unwrap_or_else(|err| panic!("{name}: {err:?}"));
     }
 }
 
@@ -105,6 +112,7 @@ async fn a_fresh_space_gets_every_starter_clip_with_no_uploader_and_its_audio() 
     assert_eq!(clips.len(), STARTER_COUNT);
     for (clip, bundled) in clips.iter().zip(starter::STARTER_CLIPS) {
         assert_eq!(clip["name"], bundled.name);
+        assert_eq!(clip["emoji"], bundled.emoji, "{}", bundled.key);
         assert!(clip["uploader_id"].is_null(), "{clip}");
         let uri = format!("/soundboard/{}/audio", clip["id"].as_str().unwrap());
         let response = rig

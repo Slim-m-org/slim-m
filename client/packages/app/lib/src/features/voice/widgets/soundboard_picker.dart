@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The clips a call member can play, listed inside the soundboard menu.
+/// The clips a call member can play, as a grid of small tiles in the
+/// soundboard menu: each clip's emoji over its name, like an emoji picker.
 ///
 /// Playing only asks the server to tell the call; the sound comes back as an
 /// event every client in the call, this one included, plays for itself. The
-/// server's one play per person every 3 seconds shows as the buttons resting,
+/// server's one play per person every 3 seconds shows as the tiles resting,
 /// the way slow mode rests Send, never as an error.
 library;
 
@@ -15,15 +16,50 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
+import '../../emoji/widgets/stored_emoji.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/soundboard_actions.dart';
 import '../providers/soundboard_clips.dart';
 
-/// The tallest the clip grid grows before it scrolls; 12 starter clips fit under it.
-const double soundboardListMaxHeight = 288;
+/// The popover's width: three tiles across, each wide enough for a starter
+/// clip's name.
+const double soundboardMenuWidth = 288;
 
 /// How long the server makes one person wait between plays (decision 0118).
 const soundboardPlayCooldown = Duration(seconds: 3);
+
+/// Tiles in a popover row; a sheet fits as many as [_tileMinWidth] allows.
+const _popoverColumns = 3;
+
+const double _gap = AppSpacing.s4;
+
+/// A tile's padding on every side, and the space between its emoji and name.
+const double _inset = AppSpacing.s4;
+
+/// A tile at the default text size: its emoji, its name's line and the insets around them.
+final double _tileHeight =
+    _inset * 3 +
+    AppSizes.icon20 +
+    AppText.caption.fontSize! * AppText.caption.height!;
+
+/// Five rows and half a sixth, so a longer list shows that it scrolls.
+final double _maxGridHeight = 5.5 * (_tileHeight + _gap);
+
+/// The narrowest tile a sheet gives a name, measured on a long starter one.
+double _tileMinWidth(BuildContext context) {
+  final name = TextPainter(
+    text: TextSpan(
+      text: 'wrong buzzer',
+      style: DefaultTextStyle.of(context).style.merge(AppText.caption),
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  )..layout();
+  final width = name.width;
+  name.dispose();
+  return width.ceilToDouble() + _inset * 2;
+}
 
 class SoundboardPicker extends ConsumerStatefulWidget {
   const SoundboardPicker({super.key, required this.channelId});
@@ -104,9 +140,7 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
                 ),
               ),
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxHeight: soundboardListMaxHeight,
-              ),
+              constraints: BoxConstraints(maxHeight: _maxGridHeight),
               child: SingleChildScrollView(
                 child: _ClipGrid(
                   clips: list,
@@ -121,51 +155,145 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
   }
 }
 
-/// The least width a clip button gets; the grid fits as many columns as that allows.
-/// A touch button is taller and its label larger, so it gets a wider column.
-double _clipMinWidth(BuildContext context) =>
-    AppTouchTargets.of(context) ? 150 : 112;
-
-/// Clip buttons in as many equal columns as the menu is wide enough for.
+/// Tiles in equal columns: three in the popover, and on a touch sheet as many
+/// as fit a name like "wrong buzzer" whole.
 class _ClipGrid extends StatelessWidget {
   const _ClipGrid({required this.clips, required this.onPlay});
 
   final List<api.SoundClip> clips;
 
-  /// Null while the buttons rest.
+  /// Null while the tiles rest.
   final void Function(api.SoundClip clip)? onPlay;
+
+  int _columns(BuildContext context, double width) {
+    if (!AppTouchTargets.of(context)) return _popoverColumns;
+    final fit = (width + _gap) ~/ (_tileMinWidth(context) + _gap);
+    return fit < 1 ? 1 : fit;
+  }
 
   @override
   Widget build(BuildContext context) {
-    const gap = AppSpacing.s4;
-    final minWidth = _clipMinWidth(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = (constraints.maxWidth + gap) ~/ (minWidth + gap);
-          final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (final clip in clips)
-                SizedBox(
-                  width: width,
-                  child: AppButton(
-                    key: ValueKey(clip.id),
-                    label: clip.name,
-                    icon: AppIcons.play,
-                    size: AppButtonSize.sm,
-                    full: true,
-                    semanticLabel:
-                        '${clip.name}, ${formatClipLength(clip.durationMs)}',
-                    onPressed: onPlay == null ? null : () => onPlay!(clip),
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = _columns(context, constraints.maxWidth);
+        final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: _gap,
+          runSpacing: _gap,
+          children: [
+            for (final clip in clips)
+              SizedBox(
+                width: width,
+                child: _ClipTile(
+                  key: ValueKey(clip.id),
+                  clip: clip,
+                  label: '${clip.name}, ${formatClipLength(clip.durationMs)}',
+                  onTap: onPlay == null ? null : () => onPlay!(clip),
                 ),
-            ],
-          );
-        },
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// One clip: its emoji, or the music icon for none, over its name. Hover,
+/// press and keyboard focus draw as an emoji picker cell does.
+class _ClipTile extends StatefulWidget {
+  const _ClipTile({
+    super.key,
+    required this.clip,
+    required this.label,
+    required this.onTap,
+  });
+
+  final api.SoundClip clip;
+
+  /// The clip's name and length, for the tooltip and a screen reader.
+  final String label;
+
+  /// Null while the tiles rest.
+  final VoidCallback? onTap;
+
+  @override
+  State<_ClipTile> createState() => _ClipTileState();
+}
+
+class _ClipTileState extends State<_ClipTile> {
+  bool _hovered = false;
+  bool _focused = false;
+  bool _pressed = false;
+
+  void _press(bool pressed) {
+    if (_pressed != pressed) setState(() => _pressed = pressed);
+  }
+
+  Color _fill(AppTokens tokens) {
+    if (widget.onTap == null) return Colors.transparent;
+    if (_pressed) return tokens.accentSoft;
+    return _hovered ? tokens.surfaceSunken : Colors.transparent;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final enabled = widget.onTap != null;
+    final radius = BorderRadius.circular(AppRadii.control);
+    final body = Container(
+      padding: const EdgeInsets.all(_inset),
+      decoration: BoxDecoration(color: _fill(tokens), borderRadius: radius),
+      foregroundDecoration: _focused
+          ? BoxDecoration(
+              border: Border.all(color: tokens.focusRing, width: 2),
+              borderRadius: radius,
+            )
+          : null,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: _inset,
+          children: [
+            StoredEmoji(widget.clip.emoji, placeholder: AppIcons.music),
+            Text(
+              widget.clip.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppText.caption.copyWith(color: tokens.textPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+    return Tooltip(
+      message: widget.label,
+      excludeFromSemantics: true,
+      child: Semantics(
+        label: widget.label,
+        button: true,
+        enabled: enabled,
+        child: FocusableActionDetector(
+          enabled: enabled,
+          mouseCursor: enabled
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
+          onShowHoverHighlight: (v) => setState(() => _hovered = v),
+          onShowFocusHighlight: (v) => setState(() => _focused = v),
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) => widget.onTap?.call(),
+            ),
+          },
+          child: GestureDetector(
+            onTap: widget.onTap,
+            onTapDown: enabled ? (_) => _press(true) : null,
+            onTapUp: (_) => _press(false),
+            onTapCancel: () => _press(false),
+            child: ExcludeSemantics(child: body),
+          ),
+        ),
       ),
     );
   }

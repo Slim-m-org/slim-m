@@ -11,7 +11,10 @@ import 'emoji_grid_navigator.dart';
 
 /// The row of category tabs above the grid. Hidden by the panel while a
 /// search is active, since a query already narrows the whole catalog.
-class EmojiCategoryTabs extends StatelessWidget {
+///
+/// Scrolls sideways when the tabs outrun the panel, fading whichever edge has
+/// more tabs past it so a cut-off icon reads as more, not as a broken row.
+class EmojiCategoryTabs extends StatefulWidget {
   const EmojiCategoryTabs({
     super.key,
     required this.categories,
@@ -19,31 +22,92 @@ class EmojiCategoryTabs extends StatelessWidget {
     required this.onSelect,
   });
 
+  /// The fades, so a test can say which edge shows more.
+  static const leadingFadeKey = Key('emoji_tabs_leading_fade');
+  static const trailingFadeKey = Key('emoji_tabs_trailing_fade');
+
   final List<EmojiCategory> categories;
   final EmojiCategory selected;
   final ValueChanged<EmojiCategory> onSelect;
 
   @override
+  State<EmojiCategoryTabs> createState() => _EmojiCategoryTabsState();
+}
+
+class _EmojiCategoryTabsState extends State<EmojiCategoryTabs> {
+  bool _fadeLeading = false;
+  bool _fadeTrailing = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    final leading = metrics.pixels > metrics.minScrollExtent;
+    final trailing = metrics.pixels < metrics.maxScrollExtent;
+    if (leading != _fadeLeading || trailing != _fadeTrailing) {
+      setState(() {
+        _fadeLeading = leading;
+        _fadeTrailing = trailing;
+      });
+    }
+    return false;
+  }
+
+  Widget _fade(AppTokens tokens, {required bool leading}) => Positioned(
+    top: 0,
+    bottom: 0,
+    left: leading ? 0 : null,
+    right: leading ? null : 0,
+    child: IgnorePointer(
+      child: Container(
+        key: leading
+            ? EmojiCategoryTabs.leadingFadeKey
+            : EmojiCategoryTabs.trailingFadeKey,
+        width: AppSpacing.s24,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: leading ? Alignment.centerLeft : Alignment.centerRight,
+            end: leading ? Alignment.centerRight : Alignment.centerLeft,
+            colors: [tokens.surfaceRaised, tokens.surfaceRaised.withAlpha(0)],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final category in categories)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-              child: AppIconButton(
-                icon: category.icon,
-                semanticLabel: category.label,
-                tooltip: category.label,
-                size: AppIconButtonSize.sm,
-                iconSize: AppSizes.icon16,
-                active: category == selected,
-                onPressed: () => onSelect(category),
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Stack(
+      children: [
+        NotificationListener<ScrollMetricsNotification>(
+          onNotification: (n) => _onMetrics(n.metrics),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (n) => _onMetrics(n.metrics),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final category in widget.categories)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.s4,
+                      ),
+                      child: AppIconButton(
+                        icon: category.icon,
+                        semanticLabel: category.label,
+                        tooltip: category.label,
+                        size: AppIconButtonSize.sm,
+                        iconSize: AppSizes.icon16,
+                        active: category == widget.selected,
+                        onPressed: () => widget.onSelect(category),
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
-      ),
+          ),
+        ),
+        if (_fadeLeading) _fade(tokens, leading: true),
+        if (_fadeTrailing) _fade(tokens, leading: false),
+      ],
     );
   }
 }

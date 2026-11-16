@@ -29,6 +29,10 @@ class SoundClipPick {
   }
 }
 
+/// The type a player needs for [fileName], one of the two a clip may be.
+String soundClipMimeType(String fileName) =>
+    fileName.toLowerCase().endsWith('.wav') ? 'audio/wav' : 'audio/mpeg';
+
 /// Why [pick] cannot become a clip whatever it is named, or null.
 String? soundClipFileProblem(SoundClipPick pick) {
   final name = pick.fileName.toLowerCase();
