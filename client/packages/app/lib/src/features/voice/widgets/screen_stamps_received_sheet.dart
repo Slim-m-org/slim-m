@@ -27,18 +27,19 @@ const _popoverWidth = 360.0;
 /// A picture's square in its row.
 const _thumbSide = AppSizes.controlLg;
 
-/// Opens the list beside [anchor].
-Future<void> showScreenStampsReceived(BuildContext anchor) =>
-    showAnchoredPopoverOrSheet<void>(
-      anchor,
-      semanticLabel: 'Pictures on your screen',
-      popoverBuilder: (context) => const AppMenu(
-        width: _popoverWidth,
-        children: [ScreenStampsReceived()],
-      ),
-      sheetBuilder: (context) =>
-          const SafeArea(top: false, child: ScreenStampsReceived()),
-    );
+/// Opens the list beside [anchor], or [above] it for a control in the call dock.
+Future<void> showScreenStampsReceived(
+  BuildContext anchor, {
+  bool above = false,
+}) => showAnchoredPopoverOrSheet<void>(
+  anchor,
+  above: above,
+  semanticLabel: 'Pictures on your screen',
+  popoverBuilder: (context) =>
+      const AppMenu(width: _popoverWidth, children: [ScreenStampsReceived()]),
+  sheetBuilder: (context) =>
+      const SafeArea(top: false, child: ScreenStampsReceived()),
+);
 
 class ScreenStampsReceived extends ConsumerWidget {
   const ScreenStampsReceived({super.key});

@@ -390,7 +390,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
             unawaited(_startShare(context, stopFirst: true, preset: source));
           },
           onPicturesOnScreen: _stampsKept
-              ? () => unawaited(showScreenStampsReceived(context))
+              ? () => unawaited(
+                  showScreenStampsReceived(
+                    _shareButtonKey.currentContext ?? context,
+                    above: true,
+                  ),
+                )
               : null,
         ),
       );

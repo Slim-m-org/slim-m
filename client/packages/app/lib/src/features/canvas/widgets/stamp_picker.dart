@@ -68,6 +68,15 @@ class StampPicker extends ConsumerStatefulWidget {
 
 class _StampPickerState extends ConsumerState<StampPicker> {
   _StampTab _tab = _StampTab.emoji;
+  final _body = GlobalKey();
+
+  /// The first tab's height, which every tab of a popover keeps so the popover never moves.
+  double? _bodyHeight;
+
+  void _select(_StampTab tab) {
+    if (!widget.sheet) _bodyHeight ??= _body.currentContext?.size?.height;
+    setState(() => _tab = tab);
+  }
 
   void _pick(StampContent content) {
     ref.read(armedStampProvider.notifier).arm(content);
@@ -103,29 +112,36 @@ class _StampPickerState extends ConsumerState<StampPicker> {
               for (final t in tabs) AppSegmentedOption(label: _label(t)),
             ],
             selectedIndex: tabs.indexOf(tab),
-            onSegmentSelected: (i) => setState(() => _tab = tabs[i]),
+            onSegmentSelected: (i) => _select(tabs[i]),
             semanticLabel: 'What to stamp',
           ),
         ),
-        switch (tab) {
-          _StampTab.emoji => ComposerEmojiPicker(
-            onSelect: (token) => _pick(
-              EmojiStamp(
-                storableEmoji(token, ref.read(customEmojiIndexProvider)),
+        SizedBox(
+          height: _bodyHeight,
+          child: KeyedSubtree(
+            key: _body,
+            child: switch (tab) {
+              _StampTab.emoji => ComposerEmojiPicker(
+                onSelect: (token) => _pick(
+                  EmojiStamp(
+                    storableEmoji(token, ref.read(customEmojiIndexProvider)),
+                  ),
+                ),
+                onClose: () => Navigator.of(context).maybePop(),
               ),
-            ),
-            onClose: () => Navigator.of(context).maybePop(),
+              _StampTab.gifs => GifPickerBody(
+                channelId: widget.channelId,
+                focusSearch: !widget.sheet,
+                fill: _bodyHeight != null,
+                onPicked: _pickGif,
+              ),
+              _StampTab.picture => StampPictureTab(
+                channelId: widget.channelId,
+                onPicked: _pick,
+              ),
+            },
           ),
-          _StampTab.gifs => GifPickerBody(
-            channelId: widget.channelId,
-            focusSearch: !widget.sheet,
-            onPicked: _pickGif,
-          ),
-          _StampTab.picture => StampPictureTab(
-            channelId: widget.channelId,
-            onPicked: _pick,
-          ),
-        },
+        ),
       ],
     );
   }

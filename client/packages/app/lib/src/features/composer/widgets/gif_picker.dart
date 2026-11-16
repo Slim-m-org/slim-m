@@ -143,6 +143,7 @@ class GifPickerBody extends ConsumerStatefulWidget {
     this.channelId,
     this.initialQuery = '',
     this.focusSearch = true,
+    this.fill = false,
   });
 
   static const favoritesToggleKey = Key('gif-picker-favorites');
@@ -157,6 +158,9 @@ class GifPickerBody extends ConsumerStatefulWidget {
 
   /// Off on a phone that opened the tab to browse: a focused field raises the keyboard over the GIFs.
   final bool focusSearch;
+
+  /// The grid takes all the height its parent gives, for a picker that keeps one size across its tabs.
+  final bool fill;
 
   @override
   ConsumerState<GifPickerBody> createState() => _GifPickerBodyState();
@@ -324,7 +328,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.s12),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: widget.fill ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -373,9 +377,8 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
           ),
           const SizedBox(height: AppSpacing.s12),
           if (tab == _PickerTab.favorites)
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
-              child: FavoritesGrid(
+            _grid(
+              FavoritesGrid(
                 channelId: widget.channelId,
                 onPicked: widget.onPicked,
               ),
@@ -391,15 +394,19 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
               ),
               const SizedBox(height: AppSpacing.s12),
             ],
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
-              child: _content(tokens, trending),
-            ),
+            _grid(_content(tokens, trending)),
           ],
         ],
       ),
     );
   }
+
+  Widget _grid(Widget grid) => widget.fill
+      ? Expanded(child: grid)
+      : ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: gifGridCeiling(context)),
+          child: grid,
+        );
 
   Widget _content(AppTokens tokens, AsyncValue<List<api.GifResult>> trending) {
     if (_loading || (_results == null && trending.isLoading)) {
