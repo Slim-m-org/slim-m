@@ -28,6 +28,8 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::Canvas(CanvasEvent::ObjectEdited { .. })
         | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
         | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => Some(Permissions::USE_CANVAS),
+        // The bit the transcript read route needs, so a live line reaches no one it would 404.
+        Event::CallTranscriptLine { .. } => Some(Permissions::VIEW_TRANSCRIPTS),
         Event::Message(MessageEvent::Created { .. })
         | Event::Message(MessageEvent::Edited { .. })
         | Event::Message(MessageEvent::Deleted { .. })

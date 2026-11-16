@@ -61,7 +61,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('PR'), findsOneWidget);
+    expect(find.text('PS'), findsOneWidget);
     expect(find.byType(AppShapedImage), findsNothing);
     expect(requested, isFalse);
   });
@@ -193,7 +193,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('PR'), findsOneWidget);
+    expect(find.text('PS'), findsOneWidget);
     expect(find.byType(AppShapedImage), findsNothing);
   });
 
@@ -250,6 +250,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('DE'), findsOneWidget);
+    expect(find.text('DU'), findsOneWidget);
   });
 }

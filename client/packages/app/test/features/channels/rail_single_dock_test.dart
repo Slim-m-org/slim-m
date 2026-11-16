@@ -4,6 +4,7 @@
 /// its own mic and headset toggle. This is what fails if that regresses.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +13,9 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_call_summary.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart';
+import 'package:slimm_app/src/widgets/shortcut_label.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../ui_snapshot_support.dart';
@@ -125,53 +128,163 @@ void main() {
     },
   );
 
-  for (final width in [ChannelRail.compactWidth, 240.0, 264.0, 320.0]) {
-    testWidgets('a call elsewhere keeps the footer one bar at $width wide', (
-      tester,
-    ) async {
-      Future<double> footerHeight(VoiceState voice) async {
-        final fixture = await fixtureContainer(
-          extraOverrides: [
-            voiceControllerProvider.overrideWith(
-              (ref) => FixedVoiceController(ref, voice),
-            ),
-          ],
-        );
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: fixture.container,
-            child: MaterialApp(
-              theme: buildTheme(Brightness.dark, AppTokens.dark),
-              home: Scaffold(
-                body: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: SizedBox(
-                    width: width,
-                    child: const RailUserFooter(activeChannelId: 'c-other'),
-                  ),
-                ),
+  /// Pumps the footer alone, runs [body], then tears the fixture down.
+  Future<void> withFooter(
+    WidgetTester tester,
+    VoiceState voice,
+    Future<void> Function() body, {
+    required double width,
+    String activeChannelId = 'c-other',
+  }) async {
+    final fixture = await fixtureContainer(
+      extraOverrides: [
+        voiceControllerProvider.overrideWith(
+          (ref) => FixedVoiceController(ref, voice),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: fixture.container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomLeft,
+              child: SizedBox(
+                width: width,
+                child: RailUserFooter(activeChannelId: activeChannelId),
               ),
             ),
           ),
-        );
-        await tester.pump(const Duration(milliseconds: 350));
-        final height = tester.getSize(find.byType(RailUserFooter)).height;
-        if (voice.state == VoiceSessionState.connected) {
-          expect(find.bySemanticsLabel('Leave call'), findsOneWidget);
-          expect(
-            find.byType(RailCallSummary),
-            width == ChannelRail.compactWidth ? findsNothing : findsOneWidget,
-            reason: 'the name line is where the call summary goes',
-          );
-        }
-        await teardownFixture(tester, fixture.container, fixture.db);
-        return height;
-      }
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    await withFixtureTeardown(tester, fixture, body);
+  }
 
-      final idle = await footerHeight(const VoiceState());
-      final inCall = await footerHeight(timedCall);
-      expect(tester.takeException(), isNull, reason: 'no overflow');
-      expect(inCall, idle, reason: 'a call must not grow the footer');
+  final bar = find.byKey(const Key('rail-footer-padding'));
+
+  for (final width in [ChannelRail.compactWidth, 240.0, 264.0, 320.0]) {
+    testWidgets('a call elsewhere takes its own row directly above an '
+        'unchanged user bar at $width wide, Leave last over the gear', (
+      tester,
+    ) async {
+      late double idleBar;
+      await withFooter(tester, const VoiceState(), width: width, () async {
+        idleBar = tester.getSize(bar).height;
+        expect(find.byKey(railCallRowKey), findsNothing);
+      });
+
+      await withFooter(tester, timedCall, width: width, () async {
+        expect(tester.takeException(), isNull, reason: 'no overflow');
+        expect(tester.getSize(bar).height, idleBar, reason: 'same user bar');
+
+        final row = tester.getRect(find.byKey(railCallRowKey));
+        expect(
+          tester.getRect(bar).top - row.bottom,
+          moreOrLessEquals(AppSpacing.s4 + 1),
+          reason:
+              "the row sits directly on the bar: its own padding, the bar's "
+              'border',
+        );
+        final leave = tester.getRect(find.bySemanticsLabel('Leave call'));
+        expect(
+          leave.center.dx,
+          greaterThan(tester.getRect(find.byKey(railCallSummaryKey)).right),
+          reason: 'Leave last',
+        );
+        expect(
+          leave.center.dx,
+          moreOrLessEquals(
+            tester.getCenter(find.bySemanticsLabel('Personal settings')).dx,
+          ),
+          reason: 'Leave sits over the gear',
+        );
+        expect(
+          tester.getCenter(find.byIcon(AppIcons.voice)).dx,
+          moreOrLessEquals(
+            tester.getCenter(find.bySemanticsLabel('Change your status')).dx,
+          ),
+          reason: 'the speaker glyph sits over the avatar',
+        );
+      });
     });
   }
+
+  testWidgets('no call row for a call in the channel on screen', (
+    tester,
+  ) async {
+    await withFooter(
+      tester,
+      timedCall,
+      width: 264,
+      activeChannelId: 'c-main',
+      () async {
+        expect(find.byKey(railCallRowKey), findsNothing);
+        expect(find.bySemanticsLabel('Mute'), findsOneWidget);
+      },
+    );
+  });
+
+  testWidgets('the call row says where it goes and what Leave does', (
+    tester,
+  ) async {
+    await withFooter(tester, timedCall, width: 264, () async {
+      expect(find.byTooltip('Go to main'), findsOneWidget);
+      expect(
+        find.byTooltip(labelWithShortcut('Leave call', AppAction.leaveCall)),
+        findsOneWidget,
+      );
+      for (final (label, action) in [
+        ('Mute', AppAction.toggleMuteCall),
+        ('Deafen', AppAction.toggleDeafenCall),
+        ('Notes', AppAction.openNotes),
+        ('Settings', AppAction.openSettings),
+      ]) {
+        expect(
+          find.byTooltip(labelWithShortcut(label, action)),
+          findsOneWidget,
+          reason: label,
+        );
+      }
+    });
+  });
+
+  testWidgets("a bar control's tooltip opens above the call row, never over "
+      'its Leave', (tester) async {
+    await withFooter(tester, timedCall, width: 264, () async {
+      await tester.pump();
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      for (final (label, action) in [
+        ('Settings', AppAction.openSettings),
+        ('Notes', AppAction.openNotes),
+        ('Mute', AppAction.toggleMuteCall),
+      ]) {
+        final message = labelWithShortcut(label, action);
+        await gesture.moveTo(tester.getCenter(find.byTooltip(message)));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        // The tip's own box, not its padded text.
+        final tip = tester.getRect(
+          find
+              .ancestor(
+                of: find.text(message),
+                matching: find.byWidgetPredicate((w) => w is DecoratedBox),
+              )
+              .first,
+        );
+        final row = tester.getRect(find.byKey(railCallRowKey));
+        expect(
+          tip.bottom,
+          lessThanOrEqualTo(row.top - AppSpacing.s4 - 1),
+          reason: "$label's tooltip must clear the call row and its border",
+        );
+        await gesture.moveTo(Offset.zero);
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await gesture.removePointer();
+    });
+  });
 }

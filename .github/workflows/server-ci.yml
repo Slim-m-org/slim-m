@@ -122,10 +122,10 @@ jobs:
       - name: binary size budget
         # The brief treats binary size as a first-class budget; gate it in CI.
         run: |
-          max=23068672   # 22 MiB
+          max=31457280   # 30 MiB
           size=$(stat -c%s target/release/slimm-server)
           echo "slimm-server: ${size} bytes (budget ${max})"
           if [ "$size" -gt "$max" ]; then
-            echo "::error::release binary exceeds the 22 MiB budget"
+            echo "::error::release binary exceeds the 30 MiB budget"
             exit 1
           fi

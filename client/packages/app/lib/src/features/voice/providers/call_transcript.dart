@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A call's transcript for the idle voice pane (decision 0113): the lines read
-/// a page at a time, read again when the server says it started or ended, and
-/// the one delete.
+/// A call's transcript (decision 0113): the lines read a page at a time, live
+/// lines appended in `seq` order with a read to fill any gap, and the one delete.
 library;
 
 import 'dart:async';
@@ -12,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../api_failure.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 const transcriptPageSize = 50;
 
@@ -66,22 +66,68 @@ class CallTranscriptController
   late String transcriptId;
   bool _disposed = false;
 
+  /// Live lines that came in while a page was being read, applied once it lands.
+  final _held = <api.TranscriptLine>[];
+
   api.SlimmApi get _api => ref.read(apiProvider);
 
   @override
   CallTranscriptModel build(String arg) {
     transcriptId = arg;
-    final events = ref.read(liveEventsProvider).listen((event) {
-      if (event is api.CallTranscriptChanged && event.transcriptId == arg) {
-        unawaited(loadMore());
-      }
-    });
+    final events = ref.read(liveEventsProvider).listen(_onEvent);
     ref.onDispose(() {
       _disposed = true;
       unawaited(events.cancel());
     });
+    // Lines sent while the socket was down never arrive; read what follows the last one held.
+    ref.listen(syncControllerProvider, (previous, next) {
+      if (next == SyncStatus.live && previous != SyncStatus.live) {
+        if (state.loaded && !state.hasMore) unawaited(loadMore());
+      }
+    });
     unawaited(Future<void>.microtask(loadMore));
     return const CallTranscriptModel();
+  }
+
+  void _onEvent(api.ServerEvent event) {
+    switch (event) {
+      case api.CallTranscriptChanged(:final transcriptId)
+          when transcriptId == this.transcriptId:
+        unawaited(loadMore());
+      case api.CallTranscriptLineAdded(:final transcriptId, :final line)
+          when transcriptId == this.transcriptId:
+        if (state.busy) {
+          _held.add(line);
+        } else {
+          _apply(line);
+        }
+      default:
+    }
+  }
+
+  /// Appends [line] when it is the next one; a gap reads the missing lines instead.
+  void _apply(api.TranscriptLine line) {
+    // Not shown yet, or past pages not read yet: reading on will reach it.
+    if (!state.loaded || state.hasMore || state.error != null) return;
+    final last = state.lines.isEmpty ? 0 : state.lines.last.seq;
+    if (line.seq <= last) return;
+    if (line.seq == last + 1) {
+      state = state.copyWith(lines: [...state.lines, line]);
+    } else {
+      unawaited(loadMore());
+    }
+  }
+
+  void _applyHeld() {
+    final held = [..._held]..sort((a, b) => a.seq.compareTo(b.seq));
+    _held.clear();
+    for (final line in held) {
+      if (state.busy) {
+        _held.add(line);
+      } else {
+        _apply(line);
+      }
+    }
   }
 
   /// Reads the page after the last loaded line, or the first page.
@@ -103,8 +149,10 @@ class CallTranscriptController
         loaded: true,
         busy: false,
       );
+      _applyHeld();
     } on api.ApiException catch (error, stack) {
       if (_disposed) return;
+      _held.clear();
       state = state.copyWith(
         busy: false,
         loaded: true,
@@ -149,6 +197,7 @@ class CallTranscriptController
           stack,
         ),
       );
+      _applyHeld();
       return false;
     }
   }

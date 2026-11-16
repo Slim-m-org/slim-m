@@ -61,7 +61,20 @@ pub struct TranscriptLine {
     pub seq: i64,
     pub speaker_id: UserId,
     pub at: i64,
+    /// When the segment ended; `None` on lines kept before 0195.
+    pub end_at: Option<i64>,
+    /// The language the listener heard, such as `en`; `None` when it did not say.
+    pub language: Option<String>,
     pub text: String,
+}
+
+/// One spoken line about to be appended; its `seq` is the store's to pick.
+pub struct NewTranscriptLine<'a> {
+    pub speaker: UserId,
+    pub at: i64,
+    pub end_at: Option<i64>,
+    pub language: Option<&'a str>,
+    pub text: &'a str,
 }
 
 #[derive(Debug, Clone)]
@@ -209,28 +222,36 @@ impl Store {
         .rows_affected())
     }
 
-    /// Appends one spoken line and returns its `seq`.
+    /// Appends one spoken line and returns it as stored.
     pub async fn append_call_transcript_line(
         &self,
         id: CallTranscriptId,
-        speaker: UserId,
-        at: i64,
-        text: &str,
-    ) -> anyhow::Result<i64> {
+        line: &NewTranscriptLine<'_>,
+    ) -> anyhow::Result<TranscriptLine> {
         let seq = sqlx::query_scalar!(
-            r#"INSERT INTO call_transcript_lines (transcript_id, seq, speaker_id, at, text)
+            r#"INSERT INTO call_transcript_lines
+                   (transcript_id, seq, speaker_id, at, end_at, language, text)
                VALUES (?1, COALESCE((SELECT MAX(seq) FROM call_transcript_lines
-                                      WHERE transcript_id = ?1), 0) + 1, ?2, ?3, ?4)
+                                      WHERE transcript_id = ?1), 0) + 1, ?2, ?3, ?4, ?5, ?6)
                RETURNING seq AS "seq!: i64""#,
             id,
-            speaker,
-            at,
-            text
+            line.speaker,
+            line.at,
+            line.end_at,
+            line.language,
+            line.text
         )
         .fetch_one(&self.pool)
         .await
         .context("append call transcript line")?;
-        Ok(seq)
+        Ok(TranscriptLine {
+            seq,
+            speaker_id: line.speaker,
+            at: line.at,
+            end_at: line.end_at,
+            language: line.language.map(str::to_owned),
+            text: line.text.to_owned(),
+        })
     }
 
     pub async fn call_transcript(
@@ -264,7 +285,7 @@ impl Store {
         limit: i64,
     ) -> anyhow::Result<Vec<TranscriptLine>> {
         let rows = sqlx::query!(
-            r#"SELECT seq, speaker_id AS "speaker_id!: UserId", at, text
+            r#"SELECT seq, speaker_id AS "speaker_id!: UserId", at, end_at, language, text
                FROM call_transcript_lines WHERE transcript_id = ? AND seq > ?
                ORDER BY seq LIMIT ?"#,
             id,
@@ -280,6 +301,8 @@ impl Store {
                 seq: r.seq,
                 speaker_id: r.speaker_id,
                 at: r.at,
+                end_at: r.end_at,
+                language: r.language,
                 text: r.text,
             })
             .collect())
@@ -357,7 +380,8 @@ impl Store {
             return Ok(Vec::new());
         }
         let mut builder = sqlx::QueryBuilder::new(
-            "SELECT l.transcript_id, t.channel_id, l.seq, l.speaker_id, l.at, l.text,
+            "SELECT l.transcript_id, t.channel_id, l.seq, l.speaker_id, l.at, l.end_at,
+                    l.language, l.text,
                     highlight(call_transcript_lines_fts, 0, ",
         );
         builder.push_bind(HIGHLIGHT_OPEN.to_string());
@@ -393,6 +417,8 @@ impl Store {
                         seq: row.try_get("seq")?,
                         speaker_id: row.try_get("speaker_id")?,
                         at: row.try_get("at")?,
+                        end_at: row.try_get("end_at")?,
+                        language: row.try_get("language")?,
                         text: row.try_get("text")?,
                     },
                     highlight: row.try_get("highlight")?,

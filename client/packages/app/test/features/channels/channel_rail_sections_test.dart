@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Tests for the rail's Direct messages section: real DM channels (stored
-/// locally under `kind == 'dm'`, see `providers/dms.dart`), and the
-/// always-present personal space row above them.
+/// locally under `kind == 'dm'`, see `providers/dms.dart`), and the footer's
+/// Notes button that replaced the personal space row above them (decision
+/// 0111's 2026-11-16 section).
 library;
 
 import 'dart:convert';
@@ -17,9 +18,11 @@ import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
+import 'package:slimm_app/src/features/channels/widgets/rail_notes_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -49,11 +52,13 @@ Channel _dm(
   isPersonalSpace: isPersonalSpace,
 );
 
-/// A container wired with a signed-in session and, when [onOpen] is given, an
-/// API client answering `POST /dms/self`. Tests that never tap the personal
-/// space row before it exists have nothing to answer, so [onOpen] stays null.
+/// A container wired with a signed-in session and an API client answering
+/// `POST /dms/self`, with [onOpen] seeing every request. [personal] is put in
+/// the local store first, as an account that has opened Notes before has it.
 ProviderContainer _container({
   void Function(http.Request request)? onOpen,
+  Channel? personal,
+  bool openFails = false,
 }) => ProviderContainer(
   overrides: [
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -63,10 +68,18 @@ ProviderContainer _container({
     databaseProvider.overrideWith((ref) async {
       final db = SlimmDatabase(NativeDatabase.memory());
       ref.onDispose(db.close);
+      if (personal != null) await db.into(db.channels).insert(personal);
       return db;
     }),
     mockApiOverride((request) async {
       onOpen?.call(request);
+      if (openFails && request.url.path == '/dms/self') {
+        return http.Response(
+          jsonEncode({'error': 'unavailable'}),
+          503,
+          headers: {'content-type': 'application/json'},
+        );
+      }
       if (request.url.path.endsWith('/voice/roster')) {
         return http.Response(
           jsonEncode({'participants': <Object>[]}),
@@ -115,65 +128,49 @@ Widget _harness({
 }
 
 void main() {
-  testWidgets(
-    'the personal space row is always present, even with no DMs at all',
-    (tester) async {
-      final container = _container();
-      await tester.pumpWidget(_harness(container: container, channels: []));
+  testWidgets('Direct messages has no Notes row, even with no DMs at all', (
+    tester,
+  ) async {
+    final container = _container();
+    await tester.pumpWidget(_harness(container: container, channels: []));
 
-      expect(
-        find.text(personalSpaceName),
-        findsOneWidget,
-        reason: 'it must be reachable before it has ever been opened',
-      );
-      expect(find.textContaining('Start one from'), findsNothing);
-      // Explicit: addTearDown runs after flutter_test's own pending-timer check.
-      await tester.pumpWidget(const SizedBox());
-      container.dispose();
-      await tester.pump(const Duration(milliseconds: 1));
-    },
-  );
+    expect(
+      find.text(personalSpaceName),
+      findsNothing,
+      reason: 'Notes is the button beside the gear now',
+    );
+    expect(find.textContaining('Start one from'), findsNothing);
+    // Explicit: addTearDown runs after flutter_test's own pending-timer check.
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
+  });
 
-  testWidgets('a real DM channel renders as a row', (tester) async {
+  testWidgets('a real DM channel renders as a row, and Notes never does', (
+    tester,
+  ) async {
     final container = _container();
     await tester.pumpWidget(
-      _harness(container: container, channels: [_dm('dm-1', 'Priya')]),
+      _harness(
+        container: container,
+        channels: [
+          _dm('dm-1', 'Priya'),
+          _dm('dm-self', personalSpaceName, isPersonalSpace: true),
+        ],
+      ),
     );
 
     expect(find.text('Priya'), findsOneWidget);
-    expect(find.text(personalSpaceName), findsOneWidget);
+    expect(find.text(personalSpaceName), findsNothing);
     expect(find.textContaining('Start one from the member list'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     container.dispose();
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets(
-    'the personal space channel renders once, as the pinned row, never '
-    'duplicated in the ordinary DM list',
-    (tester) async {
-      final container = _container();
-      await tester.pumpWidget(
-        _harness(
-          container: container,
-          channels: [
-            _dm('dm-1', 'Priya'),
-            _dm('dm-self', personalSpaceName, isPersonalSpace: true),
-          ],
-        ),
-      );
-
-      expect(find.text(personalSpaceName), findsOneWidget);
-      expect(find.text('Priya'), findsOneWidget);
-      await tester.pumpWidget(const SizedBox());
-      container.dispose();
-      await tester.pump(const Duration(milliseconds: 1));
-    },
-  );
-
   testWidgets('a DM whose other participant set their own display name to the '
-      'personal space sentinel is not rendered, or navigable, as the '
-      'personal space', (tester) async {
+      'personal space sentinel is still an ordinary row that opens their '
+      'channel', (tester) async {
     final container = _container();
 
     final router = GoRouter(
@@ -202,10 +199,7 @@ void main() {
       _harness(container: container, channels: [], router: router),
     );
 
-    // The always-present personal space row and the impostor's row both carry this label.
-    expect(find.text(personalSpaceName), findsNWidgets(2));
-
-    await tester.tap(find.text(personalSpaceName).last);
+    await tester.tap(find.text(personalSpaceName));
     await tester.pumpAndSettle();
 
     expect(
@@ -271,78 +265,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('tapping the personal space row before it exists opens it and '
-      'navigates straight there', (tester) async {
+  testWidgets('the Notes button opens Notes on the server the first time and '
+      'goes straight there', (tester) async {
     final requests = <http.Request>[];
     final container = _container(onOpen: requests.add);
+    await _pumpNotesButton(tester, container);
 
-    final router = GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const Scaffold(
-            body: DirectMessagesSection(channels: [], selectedId: null),
-          ),
-        ),
-        GoRoute(
-          path: '/channels/:channelId',
-          builder: (context, state) => Scaffold(
-            body: Text('channel:${state.pathParameters['channelId']}'),
-          ),
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      _harness(container: container, channels: [], router: router),
-    );
-
-    await tester.tap(find.text(personalSpaceName));
+    await tester.tap(find.bySemanticsLabel('Notes'));
     await tester.pumpAndSettle();
 
-    // Filtered past the presence seed's own GET /members.
-    final opens = requests.where((r) => r.url.path == '/dms/self');
-    expect(opens, hasLength(1));
+    expect(requests.where((r) => r.url.path == '/dms/self'), hasLength(1));
     expect(find.text('channel:dm-self'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     container.dispose();
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('tapping the personal space row once it already exists navigates '
-      'straight there without opening it again', (tester) async {
+  testWidgets('the Notes button goes straight to a Notes this account already '
+      'has, without asking the server again', (tester) async {
     final requests = <http.Request>[];
-    final container = _container(onOpen: requests.add);
-
-    final router = GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => Scaffold(
-            body: DirectMessagesSection(
-              channels: [
-                _dm('dm-self', personalSpaceName, isPersonalSpace: true),
-              ],
-              selectedId: null,
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/channels/:channelId',
-          builder: (context, state) => Scaffold(
-            body: Text('channel:${state.pathParameters['channelId']}'),
-          ),
-        ),
-      ],
+    final container = _container(
+      onOpen: requests.add,
+      personal: _dm('dm-self', personalSpaceName, isPersonalSpace: true),
     );
+    await _pumpNotesButton(tester, container);
 
-    await tester.pumpWidget(
-      _harness(container: container, channels: [], router: router),
-    );
-
-    await tester.tap(find.text(personalSpaceName));
+    await tester.tap(find.bySemanticsLabel('Notes'));
     await tester.pumpAndSettle();
 
     expect(
@@ -355,4 +303,54 @@ void main() {
     container.dispose();
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  testWidgets('a first open the server refuses stays put and leaves its '
+      'sentence for the rail to show', (tester) async {
+    final container = _container(openFails: true);
+    await _pumpNotesButtonThen(tester, container);
+
+    expect(find.textContaining('channel:'), findsNothing);
+    expect(
+      container.read(notesOpenFailureProvider),
+      startsWith('Could not open Notes'),
+    );
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+}
+
+Future<void> _pumpNotesButtonThen(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await _pumpNotesButton(tester, container);
+  await tester.tap(find.bySemanticsLabel('Notes'));
+  await pumpFrames(tester, frames: 20);
+}
+
+Future<void> _pumpNotesButton(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const Scaffold(
+          body: Center(child: RailNotesButton(activeChannelId: null)),
+        ),
+      ),
+      GoRoute(
+        path: '/channels/:channelId',
+        builder: (context, state) => Scaffold(
+          body: Text('channel:${state.pathParameters['channelId']}'),
+        ),
+      ),
+    ],
+  );
+  await tester.pumpWidget(
+    _harness(container: container, channels: [], router: router),
+  );
 }

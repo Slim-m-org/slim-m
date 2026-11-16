@@ -44,7 +44,7 @@ Future<Rect> _pumpAvatar(
           alignment: Alignment.topLeft,
           child: Padding(
             padding: const EdgeInsets.all(40),
-            child: AppAvatar(name: 'Nadia', size: size, status: status),
+            child: AppAvatar(name: 'Nadia Achebe', size: size, status: status),
           ),
         ),
       ),

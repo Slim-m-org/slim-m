@@ -21,11 +21,13 @@ import 'package:slimm_app/src/features/voice/screens/voice_idle/voice_channel_id
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 import '../../support/call_header_fixture.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'nick',
@@ -76,6 +78,7 @@ Future<_Rig> _pump(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       ...callPeople(const [], const {}),
       liveEventsProvider.overrideWithValue(events.stream),
+      syncControllerProvider.overrideWith(NoopSyncController.new),
       userProfileProvider.overrideWith(
         (ref, id) async => api.UserProfile(
           id: id,

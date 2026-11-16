@@ -73,7 +73,7 @@ VIEW_CHANNELS = "View channels"
 FROM_THIS_GRID = " from this grid"
 DISCARD = "Discard"
 
-# The personal space every account has in its Direct messages section.
+# The personal space every account has: the Notes button beside the rail's gear.
 NOTES = "Notes"
 
 # Group messages (new_group_dm_sheet.dart, group_dm_members_action.dart, group_dm_members_sheet.dart)

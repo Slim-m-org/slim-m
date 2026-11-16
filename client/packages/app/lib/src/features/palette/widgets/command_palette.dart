@@ -26,7 +26,6 @@ import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../messages/providers/message_search.dart';
 import '../../voice/providers/transcript_search.dart';
-import '../../settings/providers/personal_space_visibility.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
@@ -259,7 +258,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
     final members = ref.watch(membersProvider).valueOrNull ?? const [];
     final me = ref.watch(meProvider).valueOrNull;
     final permissions = ref.watch(myPermissionsProvider);
-    final personalSpaceHidden = ref.watch(personalSpaceVisibilityProvider);
     // Re-read every build, so a resize crossing it while open swaps shells live.
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
 
@@ -303,7 +301,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
               members: members,
               me: me,
               permissions: permissions,
-              personalSpaceHidden: personalSpaceHidden,
               compact: compact,
             )),
           );
@@ -384,7 +381,6 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             inputs.channels,
             query,
             selfDisplayName: inputs.me?.displayName,
-            personalSpaceHidden: inputs.personalSpaceHidden,
             categoryNames: inputs.categoryNames,
             currentChannelId: widget.currentChannelId,
           ),
@@ -521,6 +517,5 @@ typedef _ResultInputs = ({
   List<api.UserProfile> members,
   api.Me? me,
   int permissions,
-  bool personalSpaceHidden,
   bool compact,
 });

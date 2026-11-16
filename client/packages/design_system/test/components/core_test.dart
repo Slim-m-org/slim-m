@@ -300,16 +300,15 @@ void main() {
   });
 
   group('AppAvatar', () {
-    testWidgets('falls back to a stripped, uppercased two-character initial',
+    testWidgets('falls back to one initial per word, for two words',
         (tester) async {
       await _pump(tester, const AppAvatar(name: 'Ada Lovelace'));
-      expect(find.text('AD'), findsOneWidget);
+      expect(find.text('AL'), findsOneWidget);
     });
 
-    testWidgets('a single word still yields two characters, not one',
-        (tester) async {
+    testWidgets('a single word yields its one initial', (tester) async {
       await _pump(tester, const AppAvatar(name: 'Madonna'));
-      expect(find.text('MA'), findsOneWidget);
+      expect(find.text('M'), findsOneWidget);
     });
 
     testWidgets('never clips, so its edge stays anti-aliased under Impeller',

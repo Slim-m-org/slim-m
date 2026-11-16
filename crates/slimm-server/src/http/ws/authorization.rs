@@ -75,8 +75,8 @@ pub(super) async fn authorize(
 
 /// Filters an event down to a wire frame, or the reason it is not delivered.
 ///
-/// Events with no channel to check go first (`deployment_frames`); the rest
-/// pass the view check, the canvas bit and the presence rules, in that order.
+/// Events with no channel to check go first (`deployment_frames`); the rest pass
+/// the call roster, the view check, the extra bit and the presence rules, in that order.
 pub(super) async fn authorize_unstamped(
     store: &Store,
     hub: &Hub,
@@ -92,6 +92,11 @@ pub(super) async fn authorize_unstamped(
     let Some(channel_id) = super::channel_scope::channel_of(&event) else {
         return Authorization::Withhold;
     };
+    if let Event::CallTranscriptLine { audience, .. } = &event
+        && !audience.contains(&ctx.user_id)
+    {
+        return Authorization::Withhold;
+    }
     // The one event whose subject may have just lost this very view.
     let held_it_before = matches!(
         &event,
@@ -441,6 +446,16 @@ async fn channel_frame(
             channel_id: channel_id.to_string(),
             transcript_id: transcript_id.to_string(),
             ended,
+        },
+        Event::CallTranscriptLine {
+            channel_id,
+            transcript_id,
+            line,
+            ..
+        } => ServerFrame::CallTranscriptLine {
+            channel_id: channel_id.to_string(),
+            transcript_id: transcript_id.to_string(),
+            line: (*line).clone().into(),
         },
         Event::WatchTick {
             channel_id,

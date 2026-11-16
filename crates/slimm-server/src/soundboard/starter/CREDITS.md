@@ -3,7 +3,8 @@
 Every clip is dedicated to the public domain under CC0 1.0 by its author on freesound.org.
 No attribution is required; it is given here anyway.
 Each source page was read on 2026-11-16 and states "Creative Commons 0".
-Each clip was trimmed, loudness-normalised to about -16 LUFS (true peak under -1.5 dBTP) and encoded as CBR MP3 at 44.1 kHz.
+Each clip was trimmed, loudness-normalised to about -16 LUFS (drumroll and quack sit near -20, true peak under -1.5 dBTP) and encoded as mono CBR MP3 at 96 kbps, 44.1 kHz.
+They were 192 kbps stereo until 2026-11-16; mono at 96 kbps halved the set to about 460 KB, since the clips are compiled into the server binary.
 
 | File | Clip | Source title | Author | Source |
 | --- | --- | --- | --- | --- |

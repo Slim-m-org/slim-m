@@ -55,8 +55,8 @@ class SettingsEntityRow extends StatefulWidget {
     this.dense = false,
   });
 
-  /// Halves the vertical padding, for a list long enough that row height is
-  /// what makes it a scroll.
+  /// Tightens the vertical padding, in a card or out of one, for a list long
+  /// enough that row height is what makes it a scroll.
   final bool dense;
 
   /// Opens whatever the row is about, from anywhere on the row rather than
@@ -110,6 +110,10 @@ class SettingsEntityRow extends StatefulWidget {
   State<SettingsEntityRow> createState() => _SettingsEntityRowState();
 }
 
+/// The width an [AppIconButton] takes in the action cluster, its tap target.
+double _actionSlot(BuildContext context) =>
+    AppTouchTargets.of(context) ? AppSizes.rowTouch : AppSizes.rowPointer;
+
 /// Below this width and at this text scale the actions drop under the text instead of squeezing it.
 const _stackActionsBelowWidth = 600.0;
 const _stackActionsScale = 1.5;
@@ -118,8 +122,8 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
   bool _hovered = false;
 
   double _verticalPadding(bool carded) {
-    if (carded) return 10;
-    return widget.dense ? AppSpacing.s4 : AppSpacing.s8;
+    if (widget.dense) return AppSpacing.s4;
+    return carded ? 10 : AppSpacing.s8;
   }
 
   bool _stackActions(BoxConstraints constraints) =>
@@ -128,6 +132,9 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
       MediaQuery.textScalerOf(context).scale(1) >= _stackActionsScale;
 
   Widget _headlineRow(AppTokens tokens) => Row(
+    // A caption badge beside a body headline would otherwise sit off its line.
+    crossAxisAlignment: CrossAxisAlignment.baseline,
+    textBaseline: TextBaseline.alphabetic,
     children: [
       Flexible(
         child: Text(
@@ -185,11 +192,14 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
     final carded = AppCardRowScope.of(context);
+    final inset = carded ? AppCardRowScope.inset : AppSpacing.s8;
+    final vertical = _verticalPadding(carded);
+    // The last button's visible edge, not its wider tap slot, lines up with the row's inset.
+    final bleed = widget.actions.isEmpty
+        ? 0.0
+        : (_actionSlot(context) - AppSizes.icon28) / 2;
     final body = Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: carded ? AppCardRowScope.inset : AppSpacing.s8,
-        vertical: _verticalPadding(carded),
-      ),
+      padding: EdgeInsets.fromLTRB(inset, vertical, inset - bleed, vertical),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -200,10 +210,13 @@ class _SettingsEntityRowState extends State<SettingsEntityRow> {
           ),
           if (widget.error != null) ...[
             const SizedBox(height: AppSpacing.s8),
-            AppErrorState(
-              message: widget.error!,
-              onRetry: widget.onErrorRetry,
-              onDismiss: widget.onErrorDismiss,
+            Padding(
+              padding: EdgeInsets.only(right: bleed),
+              child: AppErrorState(
+                message: widget.error!,
+                onRetry: widget.onErrorRetry,
+                onDismiss: widget.onErrorDismiss,
+              ),
             ),
           ],
         ],
@@ -313,11 +326,11 @@ class _SettingsEntityActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final slot = AppTouchTargets.of(context)
-        ? AppSizes.rowTouch
-        : AppSizes.rowPointer;
+    final slot = _actionSlot(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
+      // A pointer slot is barely wider than its button, so neighbours would touch.
+      spacing: AppTouchTargets.of(context) ? 0 : AppSpacing.s4,
       children: [
         for (final child in children)
           child ?? SizedBox(width: slot, height: slot),

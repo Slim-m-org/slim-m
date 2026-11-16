@@ -35,6 +35,9 @@ enum AppAction {
   /// Open the inbox of mentions and unread channels.
   openInbox,
 
+  /// Open Notes, the personal space.
+  openNotes,
+
   /// Toggle this device's own microphone during a call.
   toggleMuteCall,
 
@@ -62,6 +65,7 @@ enum AppAction {
         AppAction.previousChannel => 'Previous channel',
         AppAction.openSettings => 'Open settings',
         AppAction.openInbox => 'Open the inbox',
+        AppAction.openNotes => 'Open Notes',
         AppAction.toggleMuteCall => 'Mute or unmute (in a call)',
         AppAction.toggleDeafenCall => 'Deafen or undeafen (in a call)',
         AppAction.toggleCameraCall => 'Turn camera on or off (in a call)',
@@ -99,6 +103,12 @@ SingleActivator _cycleChannelKeyWeb({bool previous = false}) => SingleActivator(
       alt: true,
     );
 
+/// Open Notes' key. Every browser keeps Ctrl+Shift+N (a private window) and
+/// never hands it to the page, so the web build takes Alt+Shift+N instead.
+SingleActivator _openNotesKey({required bool forWeb}) => forWeb
+    ? const SingleActivator(LogicalKeyboardKey.keyN, alt: true, shift: true)
+    : _primary(LogicalKeyboardKey.keyN, shift: true);
+
 /// Ctrl (Cmd on Apple) plus 1 to 9, jumping to the nth signed-in server.
 ///
 /// Not part of [AppAction]: nine near-identical actions would crowd a keybinding
@@ -127,6 +137,7 @@ Map<ShortcutActivator, AppAction> defaultBindings({bool forWeb = kIsWeb}) => {
       _primary(LogicalKeyboardKey.keyL): AppAction.focusComposer,
       _primary(LogicalKeyboardKey.comma): AppAction.openSettings,
       _primary(LogicalKeyboardKey.keyI, shift: true): AppAction.openInbox,
+      _openNotesKey(forWeb: forWeb): AppAction.openNotes,
       const SingleActivator(LogicalKeyboardKey.escape): AppAction.escape,
       (forWeb ? _cycleChannelKeyWeb : _cycleChannelKey)():
           AppAction.nextChannel,

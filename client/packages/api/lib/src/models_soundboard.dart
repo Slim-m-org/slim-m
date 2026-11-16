@@ -12,6 +12,7 @@ class SoundClip {
     required this.durationMs,
     required this.uploaderId,
     required this.createdAt,
+    this.emoji,
   });
 
   final String id;
@@ -26,11 +27,16 @@ class SoundClip {
   /// When it was added, unix milliseconds.
   final int createdAt;
 
+  /// Shown beside the name, in the encoding reactions use: one standard emoji
+  /// or a custom emoji's id. Null when the clip has none.
+  final String? emoji;
+
   factory SoundClip.fromJson(Map<String, dynamic> json) => SoundClip(
         id: json['id'] as String,
         name: json['name'] as String,
         durationMs: json['duration_ms'] as int,
         uploaderId: json['uploader_id'] as String?,
         createdAt: json['created_at'] as int,
+        emoji: json['emoji'] as String?,
       );
 }

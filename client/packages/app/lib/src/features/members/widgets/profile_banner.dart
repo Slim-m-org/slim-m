@@ -24,6 +24,20 @@ const double kProfileBannerAspect = 300 / kProfileBannerHeight;
 /// The widest a banner is decoded for, in logical pixels: a card is never wider.
 const double _decodeWidth = 520;
 
+/// The no-image band for [colour] on a card of [surface]: the colour washed
+/// over the surface, nudged off it when the two would read as one.
+Decoration profileBandDecoration(Color colour, Color surface) {
+  final tone = nudgeForContrast(colour, surface, minRatio: 2);
+  // Translucent rather than blended with a token, so it takes whatever surface the card is.
+  return BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [tone.withValues(alpha: 0.45), tone.withValues(alpha: 0.3)],
+    ),
+  );
+}
+
 class ProfileBanner extends ConsumerWidget {
   const ProfileBanner({
     super.key,
@@ -47,7 +61,13 @@ class ProfileBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final fill = ColoredBox(color: colour ?? tokens.surfaceSunken);
+    final fill = switch (colour) {
+      final colour? => DecoratedBox(
+        decoration: profileBandDecoration(colour, tokens.surfaceRaised),
+        child: const SizedBox.expand(),
+      ),
+      null => ColoredBox(color: tokens.surfaceSunken),
+    };
     final updatedAt = bannerUpdatedAt;
     final bytes = updatedAt == null
         ? null
@@ -77,7 +97,8 @@ class ProfileBanner extends ConsumerWidget {
   }
 }
 
-/// The band for a member's card, in their profile colour until they set an image.
+/// The band for a member's card, in their profile colour (or the preset their
+/// disc falls back to) until they set an image.
 ///
 /// Reads the live profile edits first: the roster snapshot a card is opened
 /// from never refetches on a banner or colour change.
@@ -96,10 +117,7 @@ class MemberProfileBanner extends ConsumerWidget {
     return ProfileBanner(
       userId: live.id,
       bannerUpdatedAt: live.bannerUpdatedAt,
-      colour: profileColourOf(
-        index: live.profileColor,
-        rgb: live.profileColorRgb,
-      ),
+      colour: profileColourOfUser(live) ?? defaultProfileColour(live.id),
     );
   }
 }

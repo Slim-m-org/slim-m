@@ -62,6 +62,7 @@ class AppIconButton extends StatefulWidget {
     this.touch,
     this.iconSize = AppSizes.icon20,
     this.tooltip,
+    this.excludeTooltipFromSemantics,
     this.focusNode,
     this.suppressOwnHoverFill = false,
     this.busy = false,
@@ -84,6 +85,11 @@ class AppIconButton extends StatefulWidget {
   final bool? touch;
   final double iconSize;
   final String? tooltip;
+
+  /// Keeps [tooltip] out of what a screen reader hears, for a label that
+  /// already says it. Null keeps it out only when it repeats [semanticLabel].
+  final bool? excludeTooltipFromSemantics;
+
   final FocusNode? focusNode;
 
   /// True when an enclosing control already paints its own hover tint that
@@ -170,7 +176,8 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode:
             joined ? TooltipTriggerMode.manual : TooltipTriggerMode.longPress,
-        excludeFromSemantics: widget.tooltip == widget.semanticLabel,
+        excludeFromSemantics: widget.excludeTooltipFromSemantics ??
+            widget.tooltip == widget.semanticLabel,
         child: control,
       );
     }

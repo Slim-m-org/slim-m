@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 use crate::ids::{SoundClipId, UserId};
 use crate::media::{self, Media};
-use crate::store::{SoundClip, SoundClipError, Store};
+use crate::store::{ClipEmoji, SoundClip, SoundClipError, Store};
 
 /// Largest clip upload, in bytes.
 pub const MAX_CLIP_BYTES: u64 = 512 * 1024;
@@ -35,6 +35,8 @@ pub enum AddError {
     TooLong,
     NameTaken,
     Full,
+    /// No custom emoji answers to the clip's emoji.
+    UnknownEmoji,
     Storage(anyhow::Error),
 }
 
@@ -83,20 +85,21 @@ pub fn validate(raw_name: &str, bytes: Vec<u8>) -> Result<ValidatedClip, AddErro
     })
 }
 
-/// Stores `bytes` and records a clip named `raw_name`.
+/// Stores `bytes` and records a clip named `raw_name`, shown with `emoji`.
 ///
-/// Every check that costs no I/O runs first, then the name and cap, then the
-/// bytes, then the row: the order `emoji::add_emoji` uses, for the same reason.
+/// Every check that costs no I/O runs first, then the name, cap and emoji, then
+/// the bytes, then the row: the order `emoji::add_emoji` uses, for the same reason.
 pub async fn add_clip(
     store: &Store,
     media: &Media,
     raw_name: &str,
+    emoji: Option<ClipEmoji<'_>>,
     bytes: Vec<u8>,
     uploader: UserId,
 ) -> Result<SoundClip, AddError> {
     let clip = validate(raw_name, bytes)?;
     if let Some(refusal) = store
-        .sound_clip_refusal(&clip.name)
+        .sound_clip_refusal(&clip.name, emoji)
         .await
         .map_err(AddError::Storage)?
     {
@@ -109,6 +112,7 @@ pub async fn add_clip(
         .create_sound_clip(
             SoundClipId::generate(),
             &clip.name,
+            emoji,
             &clip.sha256,
             clip.duration_ms,
             uploader,
@@ -146,6 +150,7 @@ pub(crate) fn refused(err: SoundClipError) -> AddError {
     match err {
         SoundClipError::NameTaken => AddError::NameTaken,
         SoundClipError::Full => AddError::Full,
+        SoundClipError::UnknownEmoji => AddError::UnknownEmoji,
     }
 }
 

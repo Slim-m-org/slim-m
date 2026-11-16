@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../members/widgets/user_avatar.dart';
+import '../../members/widgets/profile_colour.dart';
 import 'command_palette_items.dart' show PaletteReason;
 import 'palette_highlight.dart';
 
@@ -35,6 +36,7 @@ class PalettePersonBody extends StatelessWidget {
         UserAvatar.known(
           userId: member.id,
           avatarUpdatedAt: member.avatarUpdatedAt,
+          profileColour: profileColourOfUser(member),
           name: member.displayName,
           size: AppAvatarSize.s28,
           presence: true,

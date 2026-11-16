@@ -6,7 +6,9 @@ use axum::http::StatusCode;
 use serde_json::{Value, json};
 use slimm_server::ids::{CallTranscriptId, ChannelId, UserId};
 use slimm_server::permissions::Permissions;
-use slimm_server::store::{NewTranscript, Store, TranscriptionMode, VoiceEventKind};
+use slimm_server::store::{
+    NewTranscript, NewTranscriptLine, Store, TranscriptionMode, VoiceEventKind,
+};
 
 use crate::support;
 use support::call_audio_world::{Person, Rig, now_ms};
@@ -32,10 +34,14 @@ async fn keep(
     store.begin_call_transcript(&new).await.unwrap();
     for (n, (speaker, text)) in lines.iter().enumerate() {
         let at = started_at + 1000 * i64::try_from(n).unwrap();
-        store
-            .append_call_transcript_line(id, *speaker, at, text)
-            .await
-            .unwrap();
+        let line = NewTranscriptLine {
+            speaker: *speaker,
+            at,
+            end_at: Some(at + 500),
+            language: Some("en"),
+            text,
+        };
+        store.append_call_transcript_line(id, &line).await.unwrap();
     }
     if let Some(end) = ended_at {
         store.end_call_transcript(id, end).await.unwrap();

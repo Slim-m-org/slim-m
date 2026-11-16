@@ -103,11 +103,13 @@ struct UpdateSpaceSettingsDto {
     transcribe_voice_messages: Option<bool>,
 }
 
-fn present<'de, D>(deserializer: D) -> Result<Option<Option<i64>>, D::Error>
+/// Tells a null field from an absent one, which `#[serde(default)]` leaves as `None`.
+pub(super) fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
 {
-    Option::<i64>::deserialize(deserializer).map(Some)
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 /// Parses the two transcript settings before anything is written. Turning transcription on

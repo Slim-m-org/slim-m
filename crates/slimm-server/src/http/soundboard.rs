@@ -21,13 +21,14 @@ use super::attachments::serve;
 use super::error::ApiError;
 use super::extract::{ASSET, AUTHED_READ, Authed, AuthedLimited, Bytes, Json, Query};
 use super::extract::{enforce, require_manage_server};
+use super::reaction_emoji::{self, ReactionEmoji};
 use crate::hub::Event;
-use crate::ids::{ChannelId, SoundClipId};
+use crate::ids::{ChannelId, EmojiId, SoundClipId};
 use crate::media;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::soundboard::{self, AddError};
-use crate::store::SoundClip;
+use crate::store::{ClipEmoji, MAX_EMOJI_BYTES, SoundClip, SoundClipChange};
 use crate::voice::VoiceError;
 
 pub fn routes() -> Router<AppState> {
@@ -52,6 +53,7 @@ pub struct SoundClipDto {
     pub duration_ms: i64,
     pub uploader_id: Option<String>,
     pub created_at: i64,
+    pub emoji: Option<String>,
 }
 
 impl From<SoundClip> for SoundClipDto {
@@ -62,6 +64,7 @@ impl From<SoundClip> for SoundClipDto {
             duration_ms: clip.duration_ms,
             uploader_id: clip.uploader_id,
             created_at: clip.created_at,
+            emoji: clip.emoji,
         }
     }
 }
@@ -69,11 +72,16 @@ impl From<SoundClip> for SoundClipDto {
 #[derive(Debug, Deserialize)]
 struct UploadParams {
     name: String,
+    emoji: Option<String>,
 }
 
+/// Absent fields are left alone; an `emoji` of null clears it.
 #[derive(Debug, Deserialize)]
-struct RenameRequest {
-    name: String,
+struct UpdateRequest {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default, deserialize_with = "super::space::present")]
+    emoji: Option<Option<String>>,
 }
 
 async fn list(
@@ -93,11 +101,13 @@ async fn upload(
 ) -> Result<(StatusCode, Json<SoundClipDto>), ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Upload)?;
     require_manage_server(&state, ctx.user_id).await?;
+    let emoji = params.emoji.as_deref().map(clip_emoji).transpose()?;
     super::storage_room::room_for(&state, body.len() as i64).await?;
     let clip = soundboard::add_clip(
         &state.store,
         &state.media,
         &params.name,
+        emoji,
         body.to_vec(),
         ctx.user_id,
     )
@@ -106,18 +116,35 @@ async fn upload(
     Ok((StatusCode::CREATED, Json(clip.into())))
 }
 
+/// Renames a clip, sets or clears its emoji, or both.
 async fn rename(
     Authed(ctx): Authed,
     parts: Parts,
     Path(clip_id): Path<String>,
     State(state): State<AppState>,
-    Json(req): Json<RenameRequest>,
+    Json(req): Json<UpdateRequest>,
 ) -> Result<Json<SoundClipDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let id = parse_id(&clip_id)?;
-    let name = soundboard::normalize_name(&req.name).ok_or(ApiError::BadRequest(NAME_RULE))?;
-    match state.store.rename_sound_clip(id, &name).await? {
+    let name = req
+        .name
+        .as_deref()
+        .map(|raw| soundboard::normalize_name(raw).ok_or(ApiError::BadRequest(NAME_RULE)))
+        .transpose()?;
+    let emoji = req
+        .emoji
+        .as_ref()
+        .map(|emoji| emoji.as_deref().map(clip_emoji).transpose())
+        .transpose()?;
+    if name.is_none() && emoji.is_none() {
+        return Err(ApiError::BadRequest("nothing to update"));
+    }
+    let change = SoundClipChange {
+        name: name.as_deref(),
+        emoji,
+    };
+    match state.store.update_sound_clip(id, change).await? {
         None => Err(ApiError::NotFound("clip not found")),
         Some(Err(err)) => Err(refusal(soundboard::refused(err))),
         Some(Ok(clip)) => Ok(Json(clip.into())),
@@ -220,6 +247,21 @@ async fn play(
 }
 
 const NAME_RULE: &str = "clip name must be 1 to 32 characters";
+const EMOJI_RULE: &str = "clip emoji must be one emoji or a custom emoji";
+
+/// Reads a clip's emoji with the reactions route's own rules: one standard emoji,
+/// a custom emoji's id, or its `:shortcode:`.
+fn clip_emoji(raw: &str) -> Result<ClipEmoji<'_>, ApiError> {
+    let refused = ApiError::BadRequest(EMOJI_RULE);
+    if raw.len() > MAX_EMOJI_BYTES {
+        return Err(refused);
+    }
+    Ok(match reaction_emoji::parse(raw).ok_or(refused)? {
+        ReactionEmoji::Single(text) => ClipEmoji::Standard(text),
+        ReactionEmoji::Shortcode(name) => ClipEmoji::Named(name),
+        ReactionEmoji::Id(id) => ClipEmoji::Custom(EmojiId(id)),
+    })
+}
 
 fn refusal(err: AddError) -> ApiError {
     match err {
@@ -231,6 +273,7 @@ fn refusal(err: AddError) -> ApiError {
         AddError::TooLong => ApiError::BadRequest("clip must be at most 5 seconds"),
         AddError::NameTaken => ApiError::Conflict("a clip with that name already exists"),
         AddError::Full => ApiError::Conflict("this Space is at its soundboard limit"),
+        AddError::UnknownEmoji => ApiError::BadRequest("no custom emoji answers to that"),
         AddError::Storage(err) => {
             tracing::error!(error = %err, "failed to store a soundboard clip");
             ApiError::Internal
@@ -244,4 +287,34 @@ fn parse_id_uuid(raw: &str) -> Result<uuid::Uuid, ApiError> {
 
 fn parse_id(raw: &str) -> Result<SoundClipId, ApiError> {
     parse_id_uuid(raw).map(SoundClipId)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clip_emoji;
+    use crate::soundboard::starter::STARTER_CLIPS;
+    use crate::store::ClipEmoji;
+
+    #[test]
+    fn every_starter_emoji_is_one_the_routes_accept() {
+        for clip in STARTER_CLIPS {
+            assert!(
+                matches!(clip_emoji(clip.emoji), Ok(ClipEmoji::Standard(e)) if e == clip.emoji),
+                "{}",
+                clip.key
+            );
+        }
+    }
+
+    #[test]
+    fn a_shortcode_and_an_id_name_a_custom_emoji_and_text_is_refused() {
+        assert!(matches!(clip_emoji(":honk:"), Ok(ClipEmoji::Named("honk"))));
+        assert!(matches!(
+            clip_emoji("0190f1c2-7a3b-7c3e-8f00-1234567890ab"),
+            Ok(ClipEmoji::Custom(_))
+        ));
+        for bad in ["", "honk", "\u{1F4EF}\u{1F4EF}", ":a b:"] {
+            assert!(clip_emoji(bad).is_err(), "{bad:?}");
+        }
+    }
 }

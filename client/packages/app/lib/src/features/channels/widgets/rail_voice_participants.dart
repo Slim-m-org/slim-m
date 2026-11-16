@@ -26,8 +26,8 @@ import 'rail_participant_drag.dart';
 /// its icon: the row's own padding, its icon and the gap after it.
 const double _stripIndent = AppSpacing.s8 + AppSizes.icon16 + AppSpacing.s8;
 
-/// A participant row's height, so the avatar and caption share one 4dp-grid line.
-const double _rowHeight = AppSpacing.s24;
+/// A participant row's height with a pointer, so the avatar and caption share one 4dp-grid line.
+const double _pointerRowHeight = AppSpacing.s24;
 
 const double _glyphSize = 12;
 
@@ -112,8 +112,11 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
       if (participant.isMuted) AppIcons.micOff,
       if (participant.isDeafened) AppIcons.headphonesOff,
     ];
+    // On the face, not the tappable wrapper, so a row whose profile is still loading is as tall.
     final face = SizedBox(
-      height: _rowHeight,
+      height: AppTouchTargets.of(context)
+          ? AppSizes.rowTouch
+          : _pointerRowHeight,
       child: Row(
         children: [
           UserAvatar(
@@ -159,29 +162,23 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
           knownProfile: profile,
           channelId: widget.channelId,
         ),
-        child: ConstrainedBox(
-          // A finger needs the touch row height; a pointer keeps the dense rows.
-          constraints: BoxConstraints(
-            minHeight: AppTouchTargets.of(context) ? AppSizes.rowTouch : 0,
-          ),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            // The avatar's own label stays: it carries "<name>, speaking", which the e2e harness reads.
-            child: Semantics(
-              button: true,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          // The avatar's own label stays: it carries "<name>, speaking", which the e2e harness reads.
+          child: Semantics(
+            button: true,
+            onTap: () => _open(profile),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => _open(profile),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _open(profile),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: _hovered ? tokens.surfaceSunken : Colors.transparent,
-                    borderRadius: BorderRadius.circular(AppRadii.control),
-                  ),
-                  child: face,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: _hovered ? tokens.surfaceSunken : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadii.control),
                 ),
+                child: face,
               ),
             ),
           ),

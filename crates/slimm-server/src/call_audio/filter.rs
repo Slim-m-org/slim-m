@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! What the server enforces on text the listener sends back: its length and
-//! how fast it may arrive (decision 0105, limits).
+//! What the server enforces on text the listener sends back: its length, the
+//! shape of its language tag and how fast it may arrive (decision 0105, limits).
 
 use std::collections::VecDeque;
 
@@ -8,6 +8,8 @@ use std::collections::VecDeque;
 pub const MAX_TEXT_CHARS: usize = 1_000;
 /// Segments a session may deliver in any 60 seconds.
 pub const MAX_PER_MINUTE: usize = 120;
+/// Longest language tag kept; whisper's codes are two or three letters.
+pub const MAX_LANGUAGE_CHARS: usize = 16;
 
 /// `text` trimmed and, past [`MAX_TEXT_CHARS`], cut at a word boundary.
 /// `None` when nothing is left.
@@ -29,6 +31,16 @@ pub fn cut_text(text: &str) -> Option<String> {
     }
     let cut = head.rfind(char::is_whitespace).map_or(head, |i| &head[..i]);
     Some(cut.trim_end().to_owned())
+}
+
+/// `language` lowercased when it looks like a language tag (letters, digits and
+/// hyphens, starting with a letter); `None` for anything else.
+pub fn language_tag(language: &str) -> Option<String> {
+    let tag = language.trim();
+    let shaped = tag.len() <= MAX_LANGUAGE_CHARS
+        && tag.starts_with(|c: char| c.is_ascii_alphabetic())
+        && tag.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+    shaped.then(|| tag.to_ascii_lowercase())
 }
 
 /// A sliding minute of arrivals, counting what it turned away.
@@ -89,6 +101,16 @@ mod tests {
     fn text_with_no_spaces_is_cut_hard_on_a_character_boundary() {
         let text = "é".repeat(1_500);
         assert_eq!(cut_text(&text).unwrap().chars().count(), MAX_TEXT_CHARS);
+    }
+
+    #[test]
+    fn a_language_tag_is_kept_lowercased_and_anything_else_is_dropped() {
+        assert_eq!(language_tag("en").as_deref(), Some("en"));
+        assert_eq!(language_tag(" zh-Hant ").as_deref(), Some("zh-hant"));
+        assert_eq!(language_tag(""), None);
+        assert_eq!(language_tag("auto detect"), None);
+        assert_eq!(language_tag("-en"), None);
+        assert_eq!(language_tag(&"a".repeat(MAX_LANGUAGE_CHARS + 1)), None);
     }
 
     #[test]

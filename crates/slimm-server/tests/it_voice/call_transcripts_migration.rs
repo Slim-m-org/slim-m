@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Migration 0183 against real data: an existing `@everyone` gains
 //! VIEW_TRANSCRIPTS without losing what it had, other roles are left alone,
-//! and the Space starts with transcription off and a 30 day window.
+//! and the Space starts with transcription off and a 30 day window. Then 0195:
+//! a line kept before it reads back with no end time and no language.
 
 use std::path::Path;
 use std::time::Duration;
 
+use slimm_server::ids::CallTranscriptId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{Store, TranscriptionMode};
 use sqlx::migrate::Migrator;
@@ -13,6 +15,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 use crate::support;
 const VERSION: i64 = 183;
+const LINE_TIMES: i64 = 195;
 
 async fn migrator() -> Migrator {
     Migrator::new(Path::new("./migrations"))
@@ -88,5 +91,49 @@ async fn an_existing_everyone_role_gains_view_transcripts_and_nothing_else_chang
     assert_eq!(
         store.call_transcript_retention_days().await.unwrap(),
         Some(30)
+    );
+}
+
+#[tokio::test]
+async fn a_line_kept_before_0195_has_no_end_time_or_language() {
+    let (path, _guard) = support::TestDbGuard::empty("slimm-transcript-lines-migration");
+    let options = SqliteConnectOptions::new()
+        .filename(&path)
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(Duration::from_secs(5))
+        .foreign_keys(false);
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await
+        .expect("open pool");
+    let mut before = migrator().await;
+    before.migrations = before
+        .iter()
+        .filter(|m| m.version < LINE_TIMES)
+        .cloned()
+        .collect();
+    before.run(&pool).await.expect("migrate to 0194");
+    let transcript = CallTranscriptId::generate();
+    sqlx::query(
+        "INSERT INTO call_transcript_lines (transcript_id, seq, speaker_id, at, text)
+         VALUES (?1, 1, x'03030303030303030303030303030303', 10, 'said before')",
+    )
+    .bind(transcript)
+    .execute(&pool)
+    .await
+    .expect("seed a line");
+
+    migrator().await.run(&pool).await.expect("apply 0195");
+    let lines = Store::new(pool)
+        .call_transcript_lines(transcript, 0, 10)
+        .await
+        .unwrap();
+    assert_eq!(lines.len(), 1);
+    assert_eq!((lines[0].at, lines[0].text.as_str()), (10, "said before"));
+    assert_eq!(
+        (lines[0].end_at, lines[0].language.as_deref()),
+        (None, None)
     );
 }

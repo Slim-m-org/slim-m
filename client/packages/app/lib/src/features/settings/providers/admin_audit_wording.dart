@@ -130,6 +130,11 @@ class _Describer {
   String _update(String subject) =>
       _onlyName && change.name != null ? 'renamed $subject' : _changed(subject);
 
+  /// The clip update route also sets the emoji, which is not a rename.
+  String _soundClipUpdate() => change.fields.contains('emoji')
+      ? _changed('a soundboard clip')
+      : 'renamed a soundboard clip';
+
   String sentence() => switch (change.action) {
     'space.update' => _changed('space settings'),
     'space.join_gate' => 'changed who can join',
@@ -178,7 +183,7 @@ class _Describer {
     'emoji.bulk_create' => 'added several emoji',
     'emoji.delete' => 'deleted ${_emoji()}',
     'soundboard.create' => 'added a soundboard clip',
-    'soundboard.rename' => 'renamed a soundboard clip',
+    'soundboard.rename' => _soundClipUpdate(),
     'soundboard.delete' => 'removed a soundboard clip',
     'module.install' => _install(),
     'module.install_file' => 'installed a module from a file',

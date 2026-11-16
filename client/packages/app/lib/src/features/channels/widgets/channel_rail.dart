@@ -29,6 +29,7 @@ import '../../palette/widgets/command_palette.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
+import 'rail_notes_button.dart';
 import 'rail_participant_drag.dart';
 import '../../settings/widgets/personal_account_sections.dart';
 
@@ -97,8 +98,8 @@ class ChannelRail extends ConsumerStatefulWidget {
   static const double mediumWidth = 240;
 
   /// The compact rail: every channel name still fits beside its glyph at
-  /// this width, and [RailUserFooter] drops its name line to keep all three
-  /// controls. See [channelRailExpandedProvider].
+  /// this width, and [RailUserFooter] drops its name line to keep every
+  /// control. See [channelRailExpandedProvider].
   static const double compactWidth = 200;
 
   @override
@@ -209,6 +210,19 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                       message: failure,
                       onDismiss: () =>
                           ref.read(railMoveFailureProvider.notifier).state =
+                              null,
+                    ),
+                  )
+                else if (ref.watch(notesOpenFailureProvider)
+                    case final failure?)
+                  Positioned(
+                    left: AppSpacing.s8,
+                    right: AppSpacing.s8,
+                    bottom: AppSpacing.s8,
+                    child: AppErrorState(
+                      message: failure,
+                      onDismiss: () =>
+                          ref.read(notesOpenFailureProvider.notifier).state =
                               null,
                     ),
                   )

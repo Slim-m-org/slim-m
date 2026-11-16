@@ -12054,7 +12054,8 @@ paths:
         Requires MANAGE_SERVER. Idempotent: removing one already gone answers
         204, so a retry never has to tell "gone" from "never existed". The
         stored bytes are left for the orphan sweep, since another emoji or a
-        message may still reference the same hash.
+        message may still reference the same hash. A soundboard clip showing
+        this emoji is left with no emoji.
       parameters:
         - name: emoji_id
           in: path
@@ -12150,6 +12151,15 @@ paths:
           required: true
           schema:
             type: string
+        - name: emoji
+          in: query
+          required: false
+          description: >
+            The clip's emoji, URL-encoded, in the encoding reactions accept: one
+            emoji, a custom emoji's id, or its `:shortcode:`, which is stored as
+            that emoji's id. Anything else is refused with 400.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -12190,21 +12200,26 @@ paths:
     patch:
       operationId: renameSoundboardClip
       tags: [soundboard]
-      summary: Rename a soundboard clip.
-      description: Requires MANAGE_SERVER. The same name rules as an upload.
+      summary: Rename a soundboard clip or change its emoji.
+      description: >
+        Requires MANAGE_SERVER. The same name and emoji rules as an upload. An
+        absent field is left alone, and at least one must be present.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name]
               properties:
                 name:
                   type: string
+                emoji:
+                  type: string
+                  nullable: true
+                  description: Sets the clip's emoji; null clears it.
       responses:
         "200":
-          description: The renamed clip.
+          description: The updated clip.
           content:
             application/json:
               schema:
@@ -12742,6 +12757,13 @@ components:
         created_at:
           type: integer
           format: int64
+        emoji:
+          type: string
+          nullable: true
+          description: >-
+            Shown beside the name, in the encoding reactions use: one emoji, or a
+            custom emoji's id. Null when the clip has none, or once its custom
+            emoji was deleted.
     CustomEmoji:
       type: object
       description: >-
@@ -20172,6 +20194,7 @@ components:
         - $ref: "#/components/schemas/VoiceScreenShareChanged"
         - $ref: "#/components/schemas/VoiceCallAudioChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptChanged"
+        - $ref: "#/components/schemas/VoiceCallTranscriptLine"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -21860,6 +21883,13 @@ components:
           type: integer
           format: int64
           description: When the segment started, in epoch milliseconds.
+        end_at:
+          type: [integer, "null"]
+          format: int64
+          description: When the segment ended, in epoch milliseconds. Null on lines kept before the server recorded it.
+        language:
+          type: [string, "null"]
+          description: The language the listener heard, as a lowercase tag such as `en`. Null when it did not say.
         text:
           type: string
     VoiceTranscript:
@@ -21909,6 +21939,13 @@ components:
         at:
           type: integer
           format: int64
+        end_at:
+          type: [integer, "null"]
+          format: int64
+          description: As on `VoiceTranscriptLine`.
+        language:
+          type: [string, "null"]
+          description: As on `VoiceTranscriptLine`.
         text:
           type: string
         highlight:
@@ -21933,6 +21970,27 @@ components:
           format: uuid
         ended:
           type: boolean
+    VoiceCallTranscriptLine:
+      type: object
+      required: [type, channel_id, transcript_id, line]
+      description: >
+        A line the server just kept in a call's transcript (decision 0113).
+        Sent only to people in the call at that moment who hold `VIEW_CHANNEL`
+        and `VIEW_TRANSCRIPTS`; anyone else reads the transcript route. Apply
+        by `line.seq`: a gap means a line was missed, so read the transcript
+        with `after_seq` set to the last line held.
+      properties:
+        type:
+          type: string
+          enum: [call.transcript_line]
+        channel_id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        line:
+          $ref: "#/components/schemas/VoiceTranscriptLine"
 
     VoiceCallAudioChanged:
       type: object

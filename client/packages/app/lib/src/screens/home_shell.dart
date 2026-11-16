@@ -64,6 +64,7 @@ import '../features/admin_alerts/widgets/admin_alert_banner_host.dart';
 import '../features/auth/widgets/new_device_banner_host.dart';
 import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
+import '../features/channels/widgets/rail_notes_button.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
 import '../widgets/update_banner_host.dart';
@@ -412,6 +413,7 @@ class HomeShell extends ConsumerWidget {
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
     final openInbox = activatorFor(AppAction.openInbox);
+    final notes = activatorFor(AppAction.openNotes);
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
     final muteCall = activatorFor(AppAction.toggleMuteCall);
@@ -429,6 +431,13 @@ class HomeShell extends ConsumerWidget {
       if (openSettings != null)
         openSettings: () => context.push(Routes.personalSettings),
       if (openInbox != null) openInbox: () => showInboxSheet(context),
+      if (notes != null)
+        notes: () => unawaited(
+          openNotes(
+            ProviderScope.containerOf(context, listen: false),
+            GoRouter.of(context),
+          ),
+        ),
       if (nextChannel != null)
         nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
       if (previousChannel != null)
@@ -465,8 +474,9 @@ class HomeShell extends ConsumerWidget {
     if (ordered.isEmpty || !context.mounted) return;
     final current = selectedChannelId(context);
     final index = ordered.indexWhere((c) => c.id == current);
+    // From a channel the rail does not list (Notes), next starts at the top and previous at the bottom.
     final target = index == -1
-        ? ordered.first
+        ? (direction > 0 ? ordered.first : ordered.last)
         : ordered[(index + direction) % ordered.length];
     context.go(Routes.channel(target.id));
   }

@@ -55,7 +55,7 @@ It was 1,906,651 when the budget landed at 2,400,000 (2026-10-07), so the budget
 v121 (2026-11-02) reached 2,400,798 with no new dependency, about 97 KB of its own call, lounge and diagnostics code, and moved the budget to 2,600,000, which is the kind of raise the next paragraph describes.
 0.128.0 (2026-11-11) reached 2,620,603, up from 0.127.0's 2,585,611, again with no new dependency: its fit-to-box call stage, the shared call menus, transcripts and Steam linking.
 Its release run stopped at the web build, and the budget moved to 2,800,000 in the 0.128.1 fix.
-Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's binary budget (22 MiB since v123, see docs/dependencies.md).
+Raising it is a decision, made in the same pull request as the growth with the reason in its body, like the server's binary budget (30 MiB since 2026-11-16, see docs/dependencies.md).
 Run it locally after `flutter build web --release` in `client/packages/app`.
 
 ### Native build hooks are cached, and explain their own failures
@@ -331,7 +331,6 @@ Each of these shapes was added after a real file or a planted violation showed t
 
 `SHOWS_SNACKBAR` matches `showAppSnackbar(` as well as the raw `ScaffoldMessenger` and `SnackBar(`.
 At first it matched none of the real calls, because every site calls `showAppSnackbar`, so the gate reported zero offenders whether or not one existed (confirmed by mutating a fixed site back to its old shape).
-`personal_space_menu.dart`'s success notice also calls it, outside any catch block, and is not in scope.
 
 A `/* ... */` block comment is blanked out before any of this runs, string-aware so a quoted `'/*'` such as the `blockComment` tuple in `message_code_langs.dart` is left alone.
 The scan that finds where a catch block ends reads "the next line starting with `}` at or above this indent", and a block comment can contain a stray `}` at column zero.

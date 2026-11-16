@@ -19,6 +19,7 @@ import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../../members/widgets/user_avatar.dart';
+import '../../../members/widgets/profile_colour.dart';
 
 /// A group past this size collapses to this many rows plus a "+N more"
 /// summary, matching the design's own worked example.
@@ -220,6 +221,7 @@ Widget _avatar(BuildContext context, api.UserProfile member) =>
       name: member.displayName,
       userId: member.id,
       avatarUpdatedAt: member.avatarUpdatedAt,
+      profileColour: profileColourOfUser(member),
       size: AppAvatarSize.s28,
       shape: member.isBot ? AppAvatarShape.square : AppAvatarShape.circle,
       placeholder: member.isBot

@@ -55,3 +55,18 @@ class SoundboardPlayed extends ServerEvent {
   /// Whose per-person volume the clip plays at.
   final String playerId;
 }
+
+/// A line just kept in [transcriptId], sent only to the people in the call
+/// who may read it. Apply by [TranscriptLine.seq]; a gap means one was
+/// missed and the transcript route fills it.
+class CallTranscriptLineAdded extends ServerEvent {
+  const CallTranscriptLineAdded({
+    required this.channelId,
+    required this.transcriptId,
+    required this.line,
+  });
+
+  final String channelId;
+  final String transcriptId;
+  final TranscriptLine line;
+}

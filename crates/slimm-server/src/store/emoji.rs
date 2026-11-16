@@ -240,11 +240,20 @@ impl Store {
     ///
     /// The bytes are left behind deliberately: another emoji or a message may
     /// reference the same hash, and the orphan sweep is what reclaims a hash
-    /// nothing points at any more.
+    /// nothing points at any more. A soundboard clip showing it loses its emoji.
     pub async fn delete_custom_emoji(&self, id: EmojiId) -> anyhow::Result<bool> {
+        let mut tx = self.begin_write().await?;
         let result = sqlx::query!("DELETE FROM custom_emoji WHERE id = ?", id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
+        let shown_as = id.to_string();
+        sqlx::query!(
+            "UPDATE soundboard_clips SET emoji = NULL WHERE emoji = ?",
+            shown_as
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(result.rows_affected() > 0)
     }
 }

@@ -111,13 +111,15 @@ The image's builder stage gains `make`, which `tikv-jemalloc-sys` needs to build
 ## The release profile
 
 `opt-level = "z"`, LTO, one codegen unit, stripped, and `panic = "unwind"` so a request panic answers 500.
-The brief treats binary size as a budget for a self-host binary, and `server-ci` enforces it at 22 MiB.
+The brief treats binary size as a budget for a self-host binary, and `server-ci` enforces it at 30 MiB.
+The check is an early tripwire for an accidentally pulled-in heavy dependency; the product ceiling in docs/STRATEGY.md is far higher (under 60 MB, 80 MB at most).
+It moved from 22 to 30 MiB on 2026-11-16 (owner decision), when the soundboard's starter clips, compiled in, took the glibc build to 23,239,288 bytes; the clips were also re-encoded to 96 kbps mono, about 460 KB for all twelve.
 It was 20 MiB until v123 (2026-11-03), which reached 21,020,600 bytes with no new heavy dependency: about 450 KB of its own theme store, call audio, uplink test, canvas batch and module display code on top of 20,568,760 on main.
 
 ### Dependencies built for speed
 
 Size-optimised code runs the CPU-bound dependencies slower, so `[profile.release.package]` builds a few of them at `opt-level = 3`: `zune-jpeg`, `zune-core` and `image` (JPEG decode and the preview resize), `sha2` (attachment hashing) and `wasmi`, `wasmi_core` and `wasmi_ir` (the module interpreter).
-They cost 260,768 bytes, 21,441,904 to 21,702,672 on the glibc build `server-ci` gates, which leaves 1,366,000 bytes under the budget.
+They cost 260,768 bytes, 21,441,904 to 21,702,672 on the glibc build `server-ci` gates, which left 1,366,000 bytes under the 22 MiB budget of the time.
 
 Measured 2026-11-10 with a throwaway benchmark that called the server's own entry points on one thread: `media::compress` on a synthetic 12 MP JPEG, an `image` decode and 800 px resize, a 30 million iteration wasmi loop, SHA-256 over 128 MiB, `Auth::hash_password` and 100,000 sqlx point reads.
 Each build ran seven times, three rounds interleaved against the baseline; the box was shared, so absolute times moved about 25% between rounds, but every ratio below held.

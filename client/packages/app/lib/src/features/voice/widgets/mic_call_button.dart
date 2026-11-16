@@ -15,7 +15,7 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import 'call_availability.dart' show joinedMutedHint;
 import 'call_dock_button.dart';
-import 'call_leave_button.dart' show labelWithShortcut;
+import '../../../widgets/shortcut_label.dart';
 import 'level_display_hold.dart';
 
 /// The muted (or lost) danger outline, shared by the mic button and its caret.

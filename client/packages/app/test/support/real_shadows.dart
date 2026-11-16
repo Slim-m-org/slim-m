@@ -50,10 +50,17 @@ Future<void> withRealShadows(
   Future<void> Function() capture,
 ) async {
   debugDisableShadows = false;
-  boundary.markNeedsPaint();
+  _repaintAll(boundary);
   await tester.pump();
   await capture();
   debugDisableShadows = true;
-  boundary.markNeedsPaint();
+  _repaintAll(boundary);
   await tester.pump();
+}
+
+/// Every repaint boundary under [root] keeps its own cached picture, so an
+/// overlay's popover painted flat stays flat unless it is marked as well.
+void _repaintAll(RenderObject root) {
+  if (root.isRepaintBoundary) root.markNeedsPaint();
+  root.visitChildren(_repaintAll);
 }

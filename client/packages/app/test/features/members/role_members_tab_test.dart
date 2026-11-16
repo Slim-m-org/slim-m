@@ -85,8 +85,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // initialsFor strips symbols and uppercases the first two characters.
-      expect(find.text('SA'), findsOneWidget);
+      // One letter per word; a handle splits on its symbols.
+      expect(find.text('SB'), findsOneWidget);
     },
   );
 
@@ -101,7 +101,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'sample');
     await tester.pumpAndSettle();
 
-    expect(find.text('SA'), findsOneWidget);
+    expect(find.text('SB'), findsOneWidget);
   });
 
   testWidgets('the empty group shows its message', (tester) async {

@@ -23,6 +23,7 @@ import 'notification_schedule_write.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../../members/widgets/profile_colour.dart';
 
 /// "Always notify me about" - People: the member card's own shortcut
 /// (`member_card_notification_schedule_action.dart`) writes to the same
@@ -77,6 +78,10 @@ class _NotificationScheduleAllowedPeopleState
               name: byId[id]?.displayName ?? 'Former member',
               userId: id,
               avatarUpdatedAt: byId[id]?.avatarUpdatedAt,
+              profileColour: switch (byId[id]) {
+                final member? => profileColourOfUser(member),
+                null => null,
+              },
               size: AppAvatarSize.s28,
             ),
             label: byId[id]?.displayName ?? 'Former member',

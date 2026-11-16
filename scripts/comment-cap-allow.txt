@@ -47,7 +47,7 @@ client/packages/app/lib/src/features/members/widgets/avatar_settings_section.dar
 client/packages/app/lib/src/features/channels/widgets/channel_header.dart 3
 client/packages/app/lib/src/features/channels/widgets/channel_rail.dart 2
 client/packages/app/lib/src/features/channels/widgets/channel_rail_channel_rows.dart 1
-client/packages/app/lib/src/features/channels/widgets/channel_rail_frame.dart 4
+client/packages/app/lib/src/features/channels/widgets/channel_rail_frame.dart 3
 client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart 2
 client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
@@ -113,7 +113,7 @@ client/packages/design_system/lib/src/app_tokens.dart 3
 client/packages/design_system/lib/src/components/core/avatar.dart 1
 client/packages/design_system/lib/src/components/core/badge.dart 3
 client/packages/design_system/lib/src/components/core/button.dart 2
-client/packages/design_system/lib/src/components/core/status_dot.dart 4
+client/packages/design_system/lib/src/components/core/status_dot.dart 3
 client/packages/design_system/lib/src/components/forms/chip.dart 1
 client/packages/design_system/lib/src/components/forms/focusable_tap_target.dart 2
 client/packages/design_system/lib/src/components/forms/input.dart 3

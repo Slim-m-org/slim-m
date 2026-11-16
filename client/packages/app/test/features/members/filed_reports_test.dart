@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Tests for the "reports filed from this device" list: it persists per
 /// account, caps its length, and must never leak across a sign-out or
-/// between two accounts signed into the same running process, the same
-/// property `personal_space_visibility_test.dart` holds for its own
-/// per-account flag.
+/// between two accounts signed into the same running process.
 library;
 
 import 'dart:async';

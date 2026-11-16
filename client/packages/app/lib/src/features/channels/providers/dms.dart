@@ -26,7 +26,7 @@ const String dmChannelKind = 'dm';
 ///
 /// Cosmetic only: [api.Channel.isPersonalSpace] is what the rail matches on (see
 /// [channelFromDm]). The palette's `channelMatchesQuery` also matches the
-/// caller's own display name, the one way back after "Remove from list".
+/// caller's own display name.
 const String personalSpaceName = 'Notes';
 
 /// Turns a DM listing into the same [api.Channel] shape an ordinary channel
@@ -79,6 +79,18 @@ Future<String> openDirectMessage(
     channelFromDm(conversation, selfId: client.session.tokens?.userId),
   ]);
   return conversation.channelId;
+}
+
+/// The personal space's channel id, from the local store when it is there and
+/// opened on the server the first time this account has none.
+Future<String?> openPersonalSpace(ProviderContainer container) async {
+  final store = await container.read(storeProvider.future);
+  final channels = await store.allChannels();
+  final existing = channels.where((c) => c.isPersonalSpace).firstOrNull;
+  if (existing != null) return existing.id;
+  final selfId = container.read(sessionProvider).tokens?.userId;
+  if (selfId == null) return null;
+  return openDirectMessage(container, selfId);
 }
 
 /// Closes the DM with [userId] out of this device's own sidebar - a
