@@ -117,6 +117,14 @@ void main() {
       'That picture is too large to stamp.',
     );
     expect(
+      stampRefusal(
+        const api.BadRequestException(
+          'a stamped GIF must keep every frame inside its picture',
+        ),
+      ),
+      'That GIF cannot be stamped.',
+    );
+    expect(
       stampRefusal(const api.NotFoundException('attachment not found')),
       'That picture cannot be stamped.',
     );

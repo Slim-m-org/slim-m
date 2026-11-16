@@ -428,6 +428,30 @@ async fn a_gif_on_a_large_canvas_is_stamped_as_its_still() {
 }
 
 #[tokio::test]
+async fn a_gif_with_a_frame_past_its_canvas_is_refused() {
+    let rig = rig().await;
+    rig.consent(true, true);
+    let images = |widths: &[u16]| crate::support::images::gif_of_frames(16, 16, widths);
+    let grows = rig
+        .upload(&rig.viewer.token, "grow.gif", images(&[16, 60_000]))
+        .await;
+    let fits = rig
+        .upload(&rig.viewer.token, "fit.gif", images(&[16, 16]))
+        .await;
+
+    let (status, body) = rig.stamp(&rig.viewer.token, rig.picture(&grows)).await;
+    let (fitting, error) = rig.stamp(&rig.viewer.token, rig.picture(&fits)).await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(
+        body["error"],
+        "a stamped GIF must keep every frame inside its picture"
+    );
+    assert_eq!(fitting, StatusCode::NO_CONTENT, "{error}");
+    assert_eq!(rig.count("SELECT COUNT(*) FROM screen_stamps").await, 1);
+}
+
+#[tokio::test]
 async fn a_picture_whose_header_declares_too_many_pixels_is_refused() {
     let rig = rig().await;
     rig.consent(true, true);

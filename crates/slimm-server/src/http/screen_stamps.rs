@@ -159,6 +159,11 @@ async fn stillable_header(state: &AppState, sha256: &[u8]) -> Result<ImageHeader
         .await
         .filter(|header| header.width > 0 && header.height > 0)
         .ok_or(ApiError::BadRequest(NOT_A_PICTURE))?;
+    if header.content_type == "image/gif" && media::gif_file(&original).await.is_none() {
+        return Err(ApiError::BadRequest(
+            "a stamped GIF must keep every frame inside its picture",
+        ));
+    }
     if u64::from(header.width) * u64::from(header.height) > media::MAX_IMAGE_PIXELS {
         return Err(ApiError::BadRequest(
             "a stamp picture must be at most 40 megapixels",

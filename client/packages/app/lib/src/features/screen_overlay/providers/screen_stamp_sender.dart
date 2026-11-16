@@ -82,6 +82,8 @@ String stampRefusal(api.ApiException error) => switch (error) {
   api.BadRequestException(:final message)
       when message.contains('MiB') || message.contains('megapixels') =>
     'That picture is too large to stamp.',
+  api.BadRequestException(:final message) when message.contains('frame') =>
+    'That GIF cannot be stamped.',
   api.NotFoundException() => 'That picture cannot be stamped.',
   _ => 'That stamp did not go through.',
 };
