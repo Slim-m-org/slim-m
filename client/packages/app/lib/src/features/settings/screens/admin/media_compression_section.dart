@@ -19,6 +19,7 @@ import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_segmented_row.dart';
 import '../../widgets/settings_select_row.dart';
 import '../../widgets/settings_toggle_row.dart';
+import '../../../../widgets/load_error_block.dart';
 
 const _metadataChoices = <SettingsChoice<String>>[
   SettingsChoice(value: 'keep', label: 'Keep all'),
@@ -115,14 +116,9 @@ class _MediaCompressionSectionState
             ),
             if (current != null && current.enabled) ..._options(current),
             if (setting.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load the current setting.',
-                    onRetry: () =>
-                        ref.invalidate(spaceMediaCompressionProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load the current setting.',
+                onRetry: () => ref.invalidate(spaceMediaCompressionProvider),
               ),
           ],
         ),

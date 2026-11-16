@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../external_link.dart';
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_section_header.dart';
+import '../../../widgets/load_error_block.dart';
 import '../providers/admin_setup_controller.dart';
 import '../providers/capacity_guidance.dart';
 
@@ -27,13 +28,9 @@ class CapacityCard extends ConsumerWidget {
       error: (error, _) => SettingsSectionCard(
         title: 'This server',
         children: [
-          SettingsCardBlock(
-            children: [
-              AppErrorState(
-                message: 'Could not load this server\'s capacity.',
-                onRetry: () => ref.invalidate(spaceSetupProvider),
-              ),
-            ],
+          LoadErrorBlock(
+            message: 'Could not load this server\'s capacity.',
+            onRetry: () => ref.invalidate(spaceSetupProvider),
           ),
         ],
       ),

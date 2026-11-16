@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../preset_options.dart';
 import '../../../../widgets/confirm_dialog.dart';
@@ -18,6 +17,7 @@ import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_segmented_block.dart';
 import 'retention_section.dart' show retentionDeletesHistory;
+import '../../../../widgets/load_error_block.dart';
 
 const _modes = <(String, CallTranscriptionMode)>[
   ('Off', CallTranscriptionMode.off),
@@ -102,13 +102,9 @@ class _ModeCardState extends ConsumerState<_ModeCard>
             else if (current != null)
               SettingsSubRow(label: _modeConsequence(current)),
             if (settings.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load this setting.',
-                    onRetry: () => ref.invalidate(spaceSettingsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load this setting.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
           ],
         ),
@@ -185,13 +181,9 @@ class _RetentionCardState extends ConsumerState<_RetentionCard>
               onSelected: (i) => _set(options[i].$2, current: current!),
             ),
             if (settings.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load this setting.',
-                    onRetry: () => ref.invalidate(spaceSettingsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load this setting.',
+                onRetry: () => ref.invalidate(spaceSettingsProvider),
               ),
           ],
         ),

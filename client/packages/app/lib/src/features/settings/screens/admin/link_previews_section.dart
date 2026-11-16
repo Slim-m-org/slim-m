@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
@@ -16,6 +15,7 @@ import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_save_feedback.dart';
 import '../../widgets/settings_section_header.dart';
 import '../../widgets/settings_toggle_row.dart';
+import '../../../../widgets/load_error_block.dart';
 
 class LinkPreviewsSection extends ConsumerStatefulWidget {
   const LinkPreviewsSection({super.key});
@@ -63,13 +63,9 @@ class _LinkPreviewsSectionState extends ConsumerState<LinkPreviewsSection>
               onChanged: current == null || saving ? null : _set,
             ),
             if (setting.hasError && current == null)
-              SettingsCardBlock(
-                children: [
-                  AppErrorState(
-                    message: 'Could not load the current setting.',
-                    onRetry: () => ref.invalidate(spaceLinkPreviewsProvider),
-                  ),
-                ],
+              LoadErrorBlock(
+                message: 'Could not load the current setting.',
+                onRetry: () => ref.invalidate(spaceLinkPreviewsProvider),
               ),
           ],
         ),
