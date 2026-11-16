@@ -96,7 +96,7 @@ class _InviteList extends ConsumerWidget {
       errorMessage: 'Could not load invites.',
       onRetry: () => ref.invalidate(invitesProvider),
       data: (context, page) => SettingsSectionCard(
-        title: 'Invites',
+        title: 'Active invites',
         children: [
           if (page.items.isEmpty)
             const SettingsEmptyState(
@@ -256,7 +256,7 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
           children: [
             if (_error != null) AppErrorState(message: _error!),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: Alignment.centerLeft,
               child: AppButton(
                 label: _submitting ? 'Creating...' : ActionLabels.createInvite,
                 icon: AppIcons.invite,

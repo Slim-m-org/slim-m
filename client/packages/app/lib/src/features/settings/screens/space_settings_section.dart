@@ -33,6 +33,7 @@ import 'admin/bots_screen.dart';
 import 'admin/channel_permissions_screen.dart';
 import '../widgets/admin/channel_permissions_heading.dart';
 import 'admin/dock_screen.dart';
+import 'admin/emoji_create.dart';
 import 'admin/emoji_screen.dart';
 import 'admin/soundboard_create.dart';
 import 'admin/soundboard_screen.dart';
@@ -211,6 +212,10 @@ SettingsPaneGroup _configurationGroup(_SpaceAccess access) {
           label: 'Emoji',
           icon: AppIcons.smile,
           compactRoute: Routes.adminEmoji,
+          actions: const [
+            EmojiCreateButton(),
+            SizedBox(width: AppSpacing.s8),
+          ],
           builder: (_) => const EmojiPane(),
         ),
       if (access.canManageServer)

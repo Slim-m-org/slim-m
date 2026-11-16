@@ -12,7 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/settings/screens/admin/emoji_add_dialog.dart';
+import 'package:slimm_app/src/features/settings/screens/admin/emoji_create.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 

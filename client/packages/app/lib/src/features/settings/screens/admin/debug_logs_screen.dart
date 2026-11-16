@@ -49,7 +49,7 @@ class DebugLogsPane extends ConsumerWidget {
       data: (context, list) => ListView(
         children: [
           SettingsSectionCard(
-            title: 'Debug logs',
+            title: 'Received logs',
             description: 'Sent by members and kept for 30 days.',
             children: [
               if (list.isEmpty)

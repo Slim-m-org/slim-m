@@ -54,7 +54,7 @@ class RemovedMembersPane extends ConsumerWidget {
       errorMessage: 'Could not load the removals.',
       onRetry: () => ref.invalidate(removedMembersProvider),
       data: (context, list) => SettingsSectionCard(
-        title: 'Removed members',
+        title: 'Removals',
         description: 'Letting someone back in restores their access.',
         children: [
           if (list.isEmpty)
