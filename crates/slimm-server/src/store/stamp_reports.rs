@@ -16,6 +16,10 @@ impl Store {
     /// about them, and links the stamp and every other picture they stamped on the reporter's
     /// screen in the last day that no report holds yet.
     ///
+    /// The report keeps the stamp's channel while every picture it holds came from there, and
+    /// has none once they came from more, so the moderators of each channel see it; the queue
+    /// shows each of them only the pictures from channels they moderate.
+    ///
     /// Only the stamp's target may report it, and anyone else gets the same not-found as a
     /// stamp that never existed. Idempotent by the client's `id`, which names the report
     /// only when this call created it.
@@ -104,6 +108,15 @@ impl Store {
         .execute(&mut *tx)
         .await?
         .rows_affected();
+        sqlx::query!(
+            "UPDATE reports SET channel_id = NULL
+             WHERE id = ? AND channel_id IS NOT NULL
+               AND (SELECT COUNT(DISTINCT channel_id) FROM screen_stamps WHERE report_id = ?) > 1",
+            report_id,
+            report_id
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(FiledReport {
             id: report_id,

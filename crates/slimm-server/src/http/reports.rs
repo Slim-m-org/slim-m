@@ -28,6 +28,7 @@ use self::reports_cursor::parse_history_cursor;
 pub(in crate::http) use self::reports_guards::report_visible_in;
 use self::reports_guards::{missing_or_closed, require_manage_messages};
 use self::reports_mine::my_report_status;
+use self::reports_pictures::Viewer;
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
@@ -213,7 +214,8 @@ async fn list(
             }
         })
         .collect();
-    reports_pictures::fill_reports(&state, &mut dtos).await?;
+    let viewer = Viewer::Moderator(ctx.user_id);
+    reports_pictures::fill_reports(&state, viewer, &mut dtos).await?;
     Ok(Json(dtos))
 }
 
@@ -329,11 +331,12 @@ async fn history(
     };
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
 
-    let hidden = if base.contains(Permissions::VIEW_MODERATION_HISTORY) {
-        Vec::new()
+    let (hidden, viewer) = if base.contains(Permissions::VIEW_MODERATION_HISTORY) {
+        (Vec::new(), Viewer::Everything)
     } else {
         let report_channel_ids = state.store.report_channel_ids_including_resolved().await?;
-        hidden_channels(&state, ctx.user_id, &report_channel_ids).await?
+        let hidden = hidden_channels(&state, ctx.user_id, &report_channel_ids).await?;
+        (hidden, Viewer::Moderator(ctx.user_id))
     };
     let items = state
         .store
@@ -344,7 +347,7 @@ async fn history(
         .into_iter()
         .map(ModerationHistoryItemDto::from)
         .collect();
-    reports_pictures::fill_history(&state, &mut dtos).await?;
+    reports_pictures::fill_history(&state, viewer, &mut dtos).await?;
     Ok(Json(dtos))
 }
 

@@ -12397,10 +12397,11 @@ paths:
       tags: [voice]
       summary: Who stamped pictures on the caller's screen in the last day.
       description: >
-        Decision 0121. One entry per sender, by their latest picture, newest
-        first and at most 100, so a sharer can report someone after their
-        pictures faded and a flood from one sender never pushes another off
-        the list. `listReceivedScreenStampsFrom` lists one sender's pictures.
+        Decision 0121. One entry per sender, by their latest picture: those
+        with a picture no report holds yet first, then newest first. Every
+        sender of the day is listed, so a sharer can report someone after
+        their pictures faded and no number of senders pushes one off the
+        list. `listReceivedScreenStampsFrom` lists one sender's pictures.
         Emoji stamps are never stored and never listed.
       responses:
         "200":
@@ -15923,8 +15924,11 @@ components:
           items: { type: string }
           description: >
             Only on a `screen_stamp` report: the attachment ids of the
-            pictures it carries, oldest first, which a moderator may fetch.
-            Empty once they are swept.
+            pictures it carries from channels the caller may read reports
+            from, oldest first, which the caller may fetch. Empty once they
+            are swept. A report whose pictures came from more than one
+            channel has a null `channel_id`, so it reaches the moderators of
+            each.
 
     MyReportStatus:
       type: object

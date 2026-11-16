@@ -41,6 +41,13 @@ pub struct StampSender {
     pub unreported: i64,
 }
 
+/// A picture a report carries, and the channel it was stamped in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReportPicture {
+    pub attachment_id: String,
+    pub channel_id: ChannelId,
+}
+
 /// A picture stamp about to be stored.
 pub struct NewScreenStamp<'a> {
     pub id: Uuid,
@@ -128,13 +135,14 @@ impl Store {
         Ok(row)
     }
 
-    /// Everyone who stamped a picture on `target`'s screen since `since`, by their latest one,
-    /// newest first, so a flood from one sender never pushes another off the list.
+    /// Everyone who stamped a picture on `target`'s screen since `since`, by their latest one:
+    /// those with a picture no report holds first, then newest first.
+    ///
+    /// Uncapped, so no number of senders pushes one off; the community bounds how many there are.
     pub async fn screen_stamp_senders(
         &self,
         target: UserId,
         since: i64,
-        limit: i64,
     ) -> anyhow::Result<Vec<StampSender>> {
         let rows = sqlx::query!(
             r#"SELECT id AS "id!: Uuid", channel_id AS "channel_id!: ChannelId",
@@ -152,10 +160,9 @@ impl Store {
                    FROM screen_stamps WHERE target_id = ? AND created_at >= ?
                )
                WHERE place = 1
-               ORDER BY created_at DESC, id DESC LIMIT ?"#,
+               ORDER BY unreported = 0, created_at DESC, id DESC"#,
             target,
-            since,
-            limit
+            since
         )
         .fetch_all(&self.pool)
         .await?;
@@ -254,28 +261,33 @@ impl Store {
         Ok(channels)
     }
 
-    /// The hex ids of the pictures each of these reports carries, oldest stamp first.
-    pub async fn picture_ids_for_reports(
+    /// The pictures each of these reports carries, with where each was stamped, oldest first.
+    pub async fn pictures_for_reports(
         &self,
         report_ids: &[Uuid],
-    ) -> anyhow::Result<HashMap<Uuid, Vec<String>>> {
-        let mut out: HashMap<Uuid, Vec<String>> = HashMap::new();
+    ) -> anyhow::Result<HashMap<Uuid, Vec<ReportPicture>>> {
+        let mut out: HashMap<Uuid, Vec<ReportPicture>> = HashMap::new();
         if report_ids.is_empty() {
             return Ok(out);
         }
-        let mut query =
-            QueryBuilder::new("SELECT report_id, sha256 FROM screen_stamps WHERE report_id IN (");
+        let mut query = QueryBuilder::new(
+            "SELECT report_id, sha256, channel_id FROM screen_stamps WHERE report_id IN (",
+        );
         let mut ids = query.separated(", ");
         for id in report_ids {
             ids.push_bind(*id);
         }
         query.push(") ORDER BY created_at, id");
-        let rows: Vec<(Uuid, Vec<u8>)> = query.build_query_as().fetch_all(&self.pool).await?;
-        for (report_id, sha256) in rows {
-            let hex = crate::media::to_hex(&sha256);
+        let rows: Vec<(Uuid, Vec<u8>, ChannelId)> =
+            query.build_query_as().fetch_all(&self.pool).await?;
+        for (report_id, sha256, channel_id) in rows {
+            let picture = ReportPicture {
+                attachment_id: crate::media::to_hex(&sha256),
+                channel_id,
+            };
             let pictures = out.entry(report_id).or_default();
-            if !pictures.contains(&hex) {
-                pictures.push(hex);
+            if !pictures.contains(&picture) {
+                pictures.push(picture);
             }
         }
         Ok(out)

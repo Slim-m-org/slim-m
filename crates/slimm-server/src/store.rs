@@ -256,7 +256,7 @@ pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardE
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use screen_stamps::{
-    NewScreenStamp, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, StampSender,
+    NewScreenStamp, ReportPicture, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, StampSender,
 };
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use soundboard::{

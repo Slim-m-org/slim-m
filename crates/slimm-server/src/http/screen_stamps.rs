@@ -50,8 +50,8 @@ const NOT_A_PICTURE: &str = "a stamp must be a PNG, JPEG, GIF or WebP picture";
 /// The picture types a stamp may show, as upload sniffing names them.
 const STAMP_PICTURE_TYPES: [&str; 4] = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
-/// Most senders the sharer's list returns, and most pictures it shows of one sender.
-const RECEIVED_LIMIT: i64 = 100;
+/// Most pictures the sharer's list shows of one sender; a report still takes all of them.
+const PICTURES_OF_ONE_LIMIT: i64 = 100;
 
 const NOT_TAKING: &str = "Their screen is not taking stamps right now";
 
@@ -305,16 +305,14 @@ struct StampSenders {
     senders: Vec<StampSenderDto>,
 }
 
-/// Everyone who stamped a picture on the caller's screen in the last day, by their latest one.
+/// Everyone who stamped a picture on the caller's screen in the last day, by their latest one,
+/// those not yet reported first.
 async fn received(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<StampSenders>, ApiError> {
     let since = now_ms() - SCREEN_STAMP_TTL_MS;
-    let senders = state
-        .store
-        .screen_stamp_senders(ctx.user_id, since, RECEIVED_LIMIT)
-        .await?;
+    let senders = state.store.screen_stamp_senders(ctx.user_id, since).await?;
     Ok(Json(StampSenders {
         senders: senders
             .into_iter()
@@ -338,7 +336,7 @@ async fn received_from(
     let since = now_ms() - SCREEN_STAMP_TTL_MS;
     let stamps = state
         .store
-        .screen_stamps_from(ctx.user_id, sender, since, RECEIVED_LIMIT)
+        .screen_stamps_from(ctx.user_id, sender, since, PICTURES_OF_ONE_LIMIT)
         .await?;
     Ok(Json(ReceivedStamps {
         stamps: stamps.into_iter().map(ReceivedStampDto::from).collect(),

@@ -4,13 +4,13 @@
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::ids::UserId;
+use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::store::NewScreenStamp;
 
 use super::pictures::{open_reports, report};
 use super::{Rig, rig};
 
-async fn senders(rig: &Rig, token: &str) -> Vec<Value> {
+pub(super) async fn senders(rig: &Rig, token: &str) -> Vec<Value> {
     let uri = "/voice/screen-stamps/received";
     let (status, body) = rig.send("GET", uri, token, None).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -32,13 +32,24 @@ async fn pictures_from(rig: &Rig, token: &str, sender: UserId) -> Vec<String> {
 /// Stores `times` stamps of `attachment_id` from `sender` on the sharer's screen, past the
 /// route's rate limit, and returns the last one's id.
 async fn stamped(rig: &Rig, sender: UserId, attachment_id: &str, times: usize) -> String {
+    stamped_in(rig, rig.channel_id, sender, attachment_id, times).await
+}
+
+/// [`stamped`], in the call in `channel_id`.
+pub(super) async fn stamped_in(
+    rig: &Rig,
+    channel_id: ChannelId,
+    sender: UserId,
+    attachment_id: &str,
+    times: usize,
+) -> String {
     let sha256 = slimm_server::media::from_hex(attachment_id).unwrap();
     let mut last = None;
     for _ in 0..times {
         let id = uuid::Uuid::now_v7();
         let stamp = NewScreenStamp {
             id,
-            channel_id: rig.channel_id,
+            channel_id,
             sender_id: sender,
             target_id: rig.sharer.id,
             sha256: &sha256,
@@ -50,7 +61,7 @@ async fn stamped(rig: &Rig, sender: UserId, attachment_id: &str, times: usize) -
 }
 
 /// Moves every stamp so far a minute back, so the next ones are newer.
-async fn a_minute_passes(rig: &Rig) {
+pub(super) async fn a_minute_passes(rig: &Rig) {
     sqlx::query("UPDATE screen_stamps SET created_at = created_at - 60000")
         .execute(&rig.pool)
         .await
@@ -205,4 +216,51 @@ async fn reporting_a_sender_takes_every_picture_of_theirs_that_day() {
     let queue = open_reports(&rig).await;
     assert_eq!(queue.len(), 1);
     assert_eq!(queue[0]["picture_ids"], json!([pngs[0], pngs[1], pngs[2]]));
+}
+
+#[tokio::test]
+async fn everyone_who_stamped_that_day_is_listed_however_many_came_after() {
+    let rig = rig().await;
+    let png = rig.viewer_png(b"crowd").await;
+    stamped(&rig, rig.viewer.id, &png, 1).await;
+    a_minute_passes(&rig).await;
+    for i in 0..100 {
+        let user = rig
+            .store
+            .create_user(&format!("crowd{i}"), "Crowd")
+            .await
+            .unwrap();
+        stamped(&rig, user.id, &png, 1).await;
+    }
+
+    let listed = senders(&rig, &rig.sharer.token).await;
+
+    assert_eq!(listed.len(), 101);
+    assert_eq!(
+        listed[100]["sender_id"],
+        rig.viewer.id.to_string(),
+        "the first sender is still there, oldest last"
+    );
+}
+
+#[tokio::test]
+async fn senders_nobody_reported_yet_come_before_the_reported_ones() {
+    let rig = rig().await;
+    let quiet = rig.viewer_png(b"quiet").await;
+    let loud = rig.viewer_png(b"loud").await;
+    stamped(&rig, rig.carol.id, &quiet, 1).await;
+    a_minute_passes(&rig).await;
+    let latest = stamped(&rig, rig.viewer.id, &loud, 1).await;
+    let (status, filed) = report(&rig, &rig.sharer.token, &latest).await;
+    assert_eq!(status, StatusCode::OK, "{filed}");
+
+    let listed = senders(&rig, &rig.sharer.token).await;
+
+    assert_eq!(
+        rows(&listed),
+        vec![
+            (rig.carol.id.to_string(), 1, quiet),
+            (rig.viewer.id.to_string(), 1, loud),
+        ]
+    );
 }

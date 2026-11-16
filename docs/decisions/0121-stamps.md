@@ -84,6 +84,8 @@ The owner defined seamless for the canvas in 0017: "as an end user, i shouldnt e
 - Dropping a picture file on a share tile that takes stamps uploads it with the same checks as the Picture tab's Open file, arms it, and stamps it at the drop point at the default size.
   A drop is aimed at a spot on purpose, so unlike a paste it needs no tap.
   On the board, such a tile takes the drops that land on it, and the board places every other drop as a durable image, as it does today.
+- A drop goes only to the drop target a tap at that point would reach.
+  The plugin tells every target whose box holds the point, so a zoomed tile reaching under the docked chat, or a tile left under a pushed Settings page, would otherwise also stamp a picture dropped on the chat or on an avatar.
 - On a pointer, the armed stamp follows the pointer at the default size before it is placed, faint, so its size and spot are seen before anything is sent.
 - On the board a tap places an item 130 world units on its longest side (12% of the shared area's height), and a drag sizes it up to 324 (30%).
   After that it moves, resizes, layers, erases and undoes like any other item.
@@ -162,9 +164,11 @@ The sender's client removes its local copy of a refused stamp and says why in a 
 
 ## Reporting a picture after it fades
 
-- The sharer's "Pictures on your screen" sheet lists everyone who stamped a picture on their screen in the last 24 hours, one row each, newest first by their latest picture.
+- The sharer's "Pictures on your screen" sheet lists everyone who stamped a picture on their screen in the last 24 hours, one row each by their latest picture.
+  Senders with a picture no report holds yet come first, then the newest, so filing a report never pushes anyone else down.
   Each row shows that picture, who sent it, how many they sent and when, with Report and Block, and opens the list of that person's pictures, newest first.
   One row per sender means a flood from one person never pushes another off the list before they are reported.
+  The list has no cap, because the community bounds how many people can stamp, so no number of other senders pushes one off either.
 - The sheet opens from the share options menu while sharing, and from Voice settings at any time, with Review under the "Viewers draw on my screen" switch in the Screen share card.
   So a sharer who stopped sharing in a hurry can still report.
 - It follows surface rule 3: a popover on a pointer and a bottom sheet on touch.
@@ -172,6 +176,10 @@ The sender's client removes its local copy of a refused stamp and says why in a 
   A report has `subject_kind: "screen_stamp"` and names the sender's latest picture.
   The server checks that the reporter is the stamp's target and that the row still exists.
   It then files the report about the sender, with the stamp's channel, and links that row and every other picture the sender stamped on the reporter's screen in the last 24 hours to the report.
+- One reporter has one open report about one person, so a report can hold pictures from several calls.
+  While its pictures all came from one channel, the report keeps that channel and only that channel's moderators see it.
+  Once they came from more than one, the report has no channel, so the moderators of each see it.
+  Each moderator sees only the pictures from channels they may read reports from, by the same rule as the fetch grant, so a moderator kept out of a channel never learns what was stamped there.
 - A picture from the same person after the report offers Report again, and reporting it joins the same report while that report is open.
   So one report carries all of one person's pictures.
 - A linked row, and its picture, are kept past 24 hours while the report is open.

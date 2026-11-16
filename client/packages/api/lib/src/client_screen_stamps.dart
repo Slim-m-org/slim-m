@@ -41,7 +41,7 @@ extension SlimmApiScreenStamps on SlimmApi {
       );
 
   /// Everyone who stamped pictures on the caller's screen in the last day, by
-  /// their latest picture, newest first.
+  /// their latest picture: those not yet reported first, then newest first.
   Future<List<ScreenStampSender>> listReceivedScreenStamps() async {
     final json = await send('GET', '/voice/screen-stamps/received');
     final senders = (json as Map<String, dynamic>)['senders'] as List<dynamic>;
