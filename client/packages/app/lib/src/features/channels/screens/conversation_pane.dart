@@ -120,6 +120,7 @@ class ConversationPane extends ConsumerWidget {
           channelId: channelId,
           name: channel?.name ?? '',
           topic: channel?.topic,
+          restricted: channel?.restricted ?? false,
         ),
         Expanded(child: body),
       ],
@@ -207,11 +208,13 @@ class _VoiceConversationHeader extends ConsumerWidget {
     required this.channelId,
     required this.name,
     this.topic,
+    required this.restricted,
   });
 
   final String channelId;
   final String name;
   final String? topic;
+  final bool restricted;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -224,6 +227,7 @@ class _VoiceConversationHeader extends ConsumerWidget {
       name: name,
       topic: topic,
       isVoice: true,
+      restricted: restricted,
       searchOpen: search.open,
       // Search lives in the docked chat, so opening it opens the pane it searches.
       onToggleSearch: () {

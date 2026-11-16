@@ -12,6 +12,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_header.dart';
+import 'package:slimm_app/src/features/channels/widgets/channel_kind_icon.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -74,4 +75,30 @@ void main() {
       await teardown(tester, s.container, s.db);
     },
   );
+
+  testWidgets('a private voice channel keeps its lock in the wide header', (
+    tester,
+  ) async {
+    final s = setup(httpClient: quietClient(), signedIn: true);
+    await MessageStore(s.db).upsertChannels([
+      const api.Channel(
+        id: 'c1',
+        name: 'test-voice',
+        kind: 'voice',
+        createdAt: 0,
+        restricted: true,
+      ),
+    ]);
+    await pumpAtWidth(tester, s.container, 1400, location: '/channels/c1');
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byWidgetPredicate((w) => w is ChannelHeader),
+        matching: find.bySemanticsLabel(ChannelKindIcon.voiceLabel),
+      ),
+      findsOneWidget,
+    );
+    await teardown(tester, s.container, s.db);
+  });
 }
