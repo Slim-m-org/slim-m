@@ -14,7 +14,7 @@ use super::messages::parse_uuid;
 use super::overwrite_changes::{publish_changed, target_of, visible_before};
 use super::overwrites::{
     BatchSetRequest, MAX_BATCH_ENTRIES, OverwriteDto, OverwritesDto, Target, check_bits,
-    parse_target, refuse_ungrantable,
+    parse_target, refuse_ungrantable, require_writable_here,
 };
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
@@ -187,13 +187,7 @@ async fn sync(
 ) -> Result<Json<OverwritesDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller = state
-        .store
-        .permissions_in_channel(ctx.user_id, channel_id)
-        .await?;
-    if !caller.contains(Permissions::MANAGE_ROLES) {
-        return Err(ApiError::Forbidden);
-    }
+    let caller = require_writable_here(&state, ctx.user_id, channel_id).await?;
     let category = state
         .store
         .channel(channel_id)

@@ -203,7 +203,8 @@ An admin who files a public sub-category under a staff-only parent shows that pa
 `GET /channels` and every channel frame stay filtered per channel and carry `category_id` exactly as they do today.
 A temporary voice room counts as a channel for this rule, and it holds its lobby's overwrites, so it can never make a category visible to someone the lobby is hidden from.
 Every write to a lobby's rows, copied down from a category or edited on the lobby itself, rewrites its live rooms' rows in the same transaction and publishes `overwrite.changed` for each room.
-A room is never in a category save's synced set, even after a sync of its own, because it follows its lobby instead.
+A room is never in a category save's synced set, because it follows its lobby instead.
+A room's own rows take no write: setting, clearing or syncing them answers 409, since the lobby's next write would replace them and lift a deny set there.
 
 ## Wire changes
 

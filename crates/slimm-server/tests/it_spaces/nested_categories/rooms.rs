@@ -2,7 +2,9 @@
 //! A temporary room keeps its lobby's rows (decision 0065): every change that reaches
 //! a lobby in a synced sub-category, copied down or edited directly, reaches its rooms.
 
+use axum::http::StatusCode;
 use serde_json::{Value, json};
+use slimm_server::permissions::Permissions;
 
 use super::world::{NONE, VIEW, World, entry, has, overwrite_events, world};
 
@@ -123,17 +125,48 @@ async fn every_direct_edit_of_a_lobby_reaches_its_rooms() {
     assert_follows(&w, &room, true).await;
 }
 
+/// Every write a room's own rows could take, each of which a lobby write would undo.
+fn own_row_writes(w: &World, room: &Room) -> Vec<(&'static str, String, Option<Value>)> {
+    let quiet = Permissions::SEND_MESSAGES;
+    let rows = format!("/channels/{}/overwrites", room.id);
+    let row = |role: &str| format!("{rows}/role/{role}");
+    let deny = json!({"allow": 0, "deny": quiet.bits()});
+    let batch = json!({"overwrites": [entry("role", &w.cs_role, NONE, quiet)]});
+    vec![
+        ("PUT", row(&w.cs_role), Some(deny)),
+        ("DELETE", row(&w.gamer_role), None),
+        ("POST", format!("{rows}/sync"), None),
+        ("PUT", rows, Some(batch)),
+    ]
+}
+
 #[tokio::test]
-async fn a_room_synced_on_its_own_still_follows_its_lobby_and_not_the_category() {
+async fn a_room_takes_no_overwrite_of_its_own_since_its_lobby_s_next_write_would_lift_it() {
+    let mut w = world("slimm-nested-room-read-only").await;
+    let room = gamer_room(&mut w).await;
+    for (method, uri, body) in own_row_writes(&w, &room) {
+        let (status, body) = w.call(method, &uri, &w.admin, body).await;
+        assert_eq!(status, StatusCode::CONFLICT, "{method} {uri}: {body}");
+    }
+    let events = overwrite_events(&mut w);
+    assert!(events.is_empty(), "{events:?}");
+    assert_follows(&w, &room, true).await;
+}
+
+#[tokio::test]
+async fn syncing_a_room_to_its_category_is_refused_so_it_keeps_its_lobby_s_rows() {
     let mut w = world("slimm-nested-room-own-sync").await;
     let room = gamer_room(&mut w).await;
-    let sync = format!("/channels/{}/overwrites/sync", room.id);
-    w.ok("POST", &sync, &w.admin, None).await;
     let gamer_row = format!("/channels/{}/overwrites/role/{}", room.lobby, w.gamer_role);
     let deny = json!({"allow": 0, "deny": VIEW.bits()});
     w.ok("PUT", &gamer_row, &w.admin, Some(deny)).await;
     assert_follows(&w, &room, false).await;
     w.drain();
+
+    let sync = format!("/channels/{}/overwrites/sync", room.id);
+    let (status, body) = w.call("POST", &sync, &w.admin, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_follows(&w, &room, false).await;
 
     let neither = w.neither.id.to_string();
     let let_in = json!([entry("member", &neither, VIEW, NONE)]);

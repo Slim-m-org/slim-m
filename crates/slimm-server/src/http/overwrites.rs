@@ -158,6 +158,21 @@ async fn require_manage_roles_here(
     Ok(permissions)
 }
 
+/// [`require_manage_roles_here`] for a write, which a temporary room never takes: it holds its
+/// lobby's rows (decision 0065), and the lobby's next write would replace a row of its own.
+pub(super) async fn require_writable_here(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+) -> Result<Permissions, ApiError> {
+    let permissions = require_manage_roles_here(state, user_id, channel_id).await?;
+    let channel = state.store.channel(channel_id).await?;
+    if channel.is_some_and(|c| c.room.is_room()) {
+        return Err(ApiError::Conflict("a temporary room follows its lobby"));
+    }
+    Ok(permissions)
+}
+
 /// Refuses a write that hands out bits the caller lacks, naming them in the body.
 pub(super) fn refuse_ungrantable(
     caller: Permissions,
@@ -203,7 +218,7 @@ async fn set(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller_permissions = require_manage_roles_here(&state, ctx.user_id, channel_id).await?;
+    let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
     let target = parse_target(&kind, &id)?;
 
     let allow = Permissions::from_bits(req.allow);
@@ -285,7 +300,7 @@ async fn batch_set(
 ) -> Result<Json<OverwritesDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller_permissions = require_manage_roles_here(&state, ctx.user_id, channel_id).await?;
+    let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
 
     if req.overwrites.len() > MAX_BATCH_ENTRIES {
         return Err(ApiError::BadRequest("too many overwrites in one batch"));
@@ -377,7 +392,7 @@ async fn clear(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller_permissions = require_manage_roles_here(&state, ctx.user_id, channel_id).await?;
+    let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
     let target = parse_target(&kind, &id)?;
 
     // Checked against the bits being handed back; see the note on this

@@ -4116,6 +4116,8 @@ paths:
         so one entry failing refuses the whole request rather than partially
         applying it. An entry that allows and denies the same bit, and a
         request that names one role or member twice, are refused with 400.
+        409 on a temporary room, which holds its lobby's overwrites (decision
+        0065).
       requestBody:
         required: true
         content:
@@ -4137,6 +4139,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4151,7 +4155,8 @@ paths:
         Replaces the channel's overwrites with a copy of its category's and
         marks it synced (decision 0064). Requires MANAGE_ROLES in the channel,
         every bit the category allows, and every bit the sync would stop
-        denying. 409 when the channel is not in a category.
+        denying. 409 when the channel is not in a category, or is a temporary
+        room, which follows its lobby instead.
       responses:
         "200":
           description: The channel's overwrites after the sync.
@@ -4197,7 +4202,8 @@ paths:
         itself grant or deny MANAGE_ROLES there. `allow` is checked against
         the caller's own effective permissions in this channel and refused
         if it would force on a bit the caller does not hold; `deny` is a
-        restriction, not a grant, and carries no such check.
+        restriction, not a grant, and carries no such check. 409 on a
+        temporary room, which holds its lobby's overwrites (decision 0065).
       requestBody:
         required: true
         content:
@@ -4215,6 +4221,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4223,7 +4231,8 @@ paths:
       summary: Clear a channel permission overwrite.
       description: >
         Requires MANAGE_ROLES in this channel. Idempotent: clearing one that
-        was never set still succeeds.
+        was never set still succeeds. 409 on a temporary room, which holds its
+        lobby's overwrites (decision 0065).
       responses:
         "204":
           description: The overwrite is cleared (or never existed).
@@ -4233,6 +4242,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
