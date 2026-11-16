@@ -146,6 +146,18 @@ void main() {
     expect(find.text('#FFB000'), findsWidgets);
   });
 
+  for (final (name, size) in [('laptop', laptop), ('phone', phone)]) {
+    testWidgets('on a $name the picker opens with no field focused, so no '
+        'caret or handle covers the hex', (tester) async {
+      final rig = EditorRig();
+      await rig.open(tester, size: size);
+
+      await tapIn(tester, byKey('theme-main-accent'));
+      expect(find.byKey(AppColourPicker.hexFieldKey), findsOneWidget);
+      expect(tester.testTextInput.hasAnyClients, isFalse);
+    });
+  }
+
   testWidgets('a see-through colour takes its opacity inside the picker', (
     tester,
   ) async {
@@ -370,6 +382,8 @@ void main() {
     );
 
     await tester.enterText(byKey('theme-editor-name'), 'Mine now');
+    // Typing scrolls the caret into view; a tap during that scroll is dropped.
+    await settle(tester);
     await tapIn(tester, find.text('Light'));
     await tapIn(tester, startFrom);
     await tester.tap(find.text('Forest'));

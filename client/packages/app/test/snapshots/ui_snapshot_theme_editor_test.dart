@@ -69,6 +69,8 @@ Future<void> _openHarbour(WidgetTester tester) async {
 }
 
 /// Opens a main colour's picker and types [hex]; [done] keeps it.
+///
+/// Typing leaves the field focused, so it is let go as a click elsewhere would.
 Future<void> _pick(
   WidgetTester tester,
   String token,
@@ -77,6 +79,7 @@ Future<void> _pick(
 }) async {
   await _tap(tester, _key('theme-main-$token'));
   await tester.enterText(find.byKey(AppColourPicker.hexFieldKey), hex);
+  FocusManager.instance.primaryFocus?.unfocus();
   await _pause(tester);
   if (done) await _tap(tester, find.byKey(AppColourPicker.confirmKey));
 }
