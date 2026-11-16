@@ -11,6 +11,9 @@ import 'package:slimm_app/src/features/emoji/widgets/emoji_field_picker.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+final _button = find.bySemanticsLabel('Insert emoji');
+final _panel = find.byWidgetPredicate((w) => w is EmojiPickerPanel);
+
 Future<Rect> _open(WidgetTester tester, {required double gapRight}) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.devicePixelRatio = 1;
@@ -38,9 +41,10 @@ Future<Rect> _open(WidgetTester tester, {required double gapRight}) async {
       ),
     ),
   );
-  final button = tester.getRect(find.byType(AppIconButton));
-  await tester.tap(find.byType(AppIconButton));
-  await tester.pumpAndSettle();
+  final button = tester.getRect(_button);
+  await tester.tap(_button);
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
   return button;
 }
 
@@ -51,7 +55,7 @@ void main() {
     tester,
   ) async {
     await _open(tester, gapRight: 0);
-    final panel = tester.getRect(find.byType(EmojiPickerPanel));
+    final panel = tester.getRect(_panel);
     expect(window.contains(panel.topLeft), isTrue);
     expect(window.contains(panel.bottomRight), isTrue);
   });
@@ -60,7 +64,7 @@ void main() {
     tester,
   ) async {
     final button = await _open(tester, gapRight: 300);
-    final panel = tester.getRect(find.byType(EmojiPickerPanel));
+    final panel = tester.getRect(_panel);
     expect(panel.right, closeTo(button.right, 0.5));
     expect(panel.top, greaterThan(button.bottom));
   });
