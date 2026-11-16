@@ -35,7 +35,7 @@ class ThemeMiniatureHero extends StatelessWidget {
                   width: narrow ? 104 : 152,
                   channels: const ['general', 'design', 'music'],
                 ),
-                Expanded(child: _heroChat()),
+                Expanded(child: _heroChat(narrow: narrow)),
               ],
             ),
           ),
@@ -44,7 +44,8 @@ class ThemeMiniatureHero extends StatelessWidget {
     },
   );
 
-  Widget _heroChat() => Padding(
+  /// Narrow, one whole message fits: the one with the link.
+  Widget _heroChat({required bool narrow}) => Padding(
     padding: const EdgeInsets.all(AppSpacing.s12),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -67,12 +68,13 @@ class ThemeMiniatureHero extends StatelessWidget {
                     text: 'The new theme is up.',
                     link: 'Release notes',
                   ),
-                  _Message(
-                    tokens: tokens,
-                    who: 'Grace',
-                    time: '9:42',
-                    text: 'Reads well from here.',
-                  ),
+                  if (!narrow)
+                    _Message(
+                      tokens: tokens,
+                      who: 'Grace',
+                      time: '9:42',
+                      text: 'Reads well from here.',
+                    ),
                 ],
               ),
             ),

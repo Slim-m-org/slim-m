@@ -70,7 +70,7 @@ A Space added later starts from the same old values, which is the closest thing 
 | Participant volumes | `slimm.voice.participant_*volumes` | Device | already keyed by server-issued user ids |
 | Custom theme, where it came from, Mine | `slimm.appearance.custom_theme`, `.custom_theme_source`, `.my_themes` | Device | one copy of each theme file on this device, and its source must match it |
 | UI scale | `slimm.appearance.ui_scale` | Device | the display |
-| Background picture, dim, vignette, blur, tone | `slimm.appearance.background.*` | Device | the picture's bytes live on this device |
+| Background picture, dim, vignette, blur, tone, and the theme they came with | `slimm.appearance.background.*`, `.background_from` | Device | the picture's bytes live on this device |
 | Motion, high contrast | `slimm.appearance.motion`, `.high_contrast` | Device | accessibility needs follow the person's eyes and OS, not the community |
 | Image cache limit, preview quality, message page size | `slimm.performance.*` | Device | memory and bandwidth |
 | Splash on and duration | `slimm.performance.desktop_splash_*` | Device | startup of the app |

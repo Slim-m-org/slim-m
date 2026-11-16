@@ -31,6 +31,15 @@ abstract final class ThemeMiniatureGeometry {
   /// Where the chat column starts, the picture's left edge.
   static double chatLeft(double width) => width * (rail + list);
 
+  /// System's dark half: right of a diagonal from 62% along the top to 38%
+  /// along the bottom.
+  static Path splitPath(Size size) => Path()
+    ..moveTo(size.width * 0.62, 0)
+    ..lineTo(size.width, 0)
+    ..lineTo(size.width, size.height)
+    ..lineTo(size.width * 0.38, size.height)
+    ..close();
+
   /// The selected channel row, for a test that samples its fill.
   static Rect selectedRow(Size size) {
     final c = size.width / 100;
@@ -84,14 +93,7 @@ class ThemeMiniaturePainter extends CustomPainter {
     final dark = split;
     if (dark == null) return;
     canvas.save();
-    canvas.clipPath(
-      Path()
-        ..moveTo(size.width * 0.62, 0)
-        ..lineTo(size.width, 0)
-        ..lineTo(size.width, size.height)
-        ..lineTo(size.width * 0.38, size.height)
-        ..close(),
-    );
+    canvas.clipPath(ThemeMiniatureGeometry.splitPath(size));
     _paintAll(canvas, size, dark);
     canvas.restore();
   }

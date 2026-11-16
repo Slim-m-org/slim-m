@@ -52,8 +52,8 @@ class DisplaySettingsSection extends ConsumerWidget {
           value: spacing.toDouble(),
           min: groupSpacingSteps.first.toDouble(),
           max: groupSpacingSteps.last.toDouble(),
-          minLabel: '${groupSpacingSteps.first}',
-          maxLabel: '${groupSpacingSteps.last}',
+          minLabel: '${groupSpacingSteps.first} px',
+          maxLabel: '${groupSpacingSteps.last} px',
           divisions: groupSpacingSteps.length - 1,
           onChanged: (v) => ref
               .read(groupSpacingControllerProvider.notifier)

@@ -5,10 +5,16 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/settings/providers/settings_index.dart';
+import 'package:slimm_app/src/features/settings/providers/settings_index_gates.dart';
+import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
+import 'package:slimm_app/src/providers/providers.dart' show keyStoreProvider;
 import 'package:slimm_app/src/features/settings/widgets/settings_search.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../settings_rendered_rows.dart';
 import '../../ui_snapshot_support.dart';
@@ -64,9 +70,44 @@ void main() {
     test('every word of a query has to match', () {
       expect(_labels('screen share fps'), ['Frame rate']);
     });
+
+    test('the theme gallery and following the Space are findable', () {
+      for (final word in ['gallery', 'store', 'import', 'recent']) {
+        expect(_labels(word), contains('Browse themes'), reason: word);
+      }
+      expect(_labels('follow space'), contains('Follow Space default'));
+    });
   });
 
   group('gating', () {
+    test(
+      'Follow Space default is offered only while the Space has one',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final container = ProviderContainer(
+          overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+        );
+        addTearDown(container.dispose);
+        bool offered() => container
+            .read(personalSearchEntriesProvider)
+            .any((e) => e.label == 'Follow Space default');
+
+        expect(offered(), isFalse);
+        await container
+            .read(spaceDefaultThemeProvider.notifier)
+            .set(
+              ThemeDocument.of(
+                AppTokens.forest,
+                name: 'Pine',
+                author: '',
+                base: 'forest',
+                brightness: Brightness.dark,
+              ),
+            );
+        expect(offered(), isTrue);
+      },
+    );
+
     test('a pane this person cannot open contributes nothing', () {
       final visible = settingsEntriesFor(spaceSettingsIndex, {'invites'});
       expect(visible.map((e) => e.pane).toSet(), {'invites'});
@@ -110,6 +151,27 @@ void main() {
       await teardownFixture(tester, fixture.container, fixture.db);
     });
   }
+
+  testWidgets('Browse themes lights the Theme card\'s name and buttons', (
+    tester,
+  ) async {
+    final fixture = await pumpSettingsAt(
+      tester,
+      '/settings',
+      size: const Size(1400, 880),
+    );
+
+    await tester.enterText(_field, 'gallery');
+    await tester.pump();
+    await tester.tap(_result('Browse themes'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+
+    expect(_tint(tester, 'Browse themes'), AppTokens.dark.accentSoft);
+    await tester.pump(const Duration(seconds: 2));
+    await teardownFixture(tester, fixture.container, fixture.db);
+  });
 
   testWidgets('Escape clears the search and brings the nav back', (
     tester,

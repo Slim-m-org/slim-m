@@ -12,6 +12,8 @@ import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_gallery.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/appearance_theme_card.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_panes.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -43,6 +45,43 @@ Future<void> _pumpThemes(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: settingsSubPageHost(() => [themesSubPage()]),
+      ),
+    ),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
+/// Appearance in its pane, where the way to every theme starts.
+Future<void> _pumpAppearance(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: SettingsPanesScaffold(
+          title: 'Settings',
+          backTooltip: 'Back to channels',
+          backFallback: '/',
+          initialPaneId: 'appearance',
+          groups: [
+            SettingsPaneGroup(
+              label: 'App',
+              panes: [
+                SettingsPane(
+                  id: 'appearance',
+                  label: 'Appearance',
+                  builder: (_) => const AppearanceSettingsSection(),
+                  subPages: {
+                    'themes': () => [themesSubPage()],
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -140,9 +179,9 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Theme'), findsOneWidget);
-    // Clock and Motion default to "System"; the theme to "Space default".
-    expect(find.text('System'), findsNWidgets(2));
-    expect(find.text('Space default'), findsOneWidget);
+    // Clock, Motion and a Space with no default theme all say System.
+    expect(find.text('System'), findsNWidgets(3));
+    expect(find.text('In use · Built in, follows your device'), findsOneWidget);
   });
 
   testWidgets('tapping a segment is what actually changes the theme', (
@@ -192,8 +231,11 @@ void main() {
       await container.read(themeControllerProvider.notifier).restore();
       container.read(themeControllerProvider.notifier).state =
           AppThemeChoice.light;
-      await _pumpThemes(tester, container);
+      await _pumpAppearance(tester, container);
 
+      await tester.tap(find.byKey(AppearanceThemeCard.browseKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       await _choose(tester, choice);
 
       expect(

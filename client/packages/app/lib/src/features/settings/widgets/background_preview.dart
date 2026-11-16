@@ -10,48 +10,49 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../background/providers/app_background_controller.dart';
 
 class BackgroundPreview extends ConsumerWidget {
-  const BackgroundPreview({super.key});
+  const BackgroundPreview({super.key, this.fill = false});
+
+  /// Fills the box it is given, beside the controls; otherwise it spans its
+  /// card row at [height] with the card's inset around it.
+  final bool fill;
 
   static const Key previewKey = Key('background_preview');
-  static const double height = 140;
+  static const double height = 148;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final settings = ref.watch(appBackgroundControllerProvider);
     final picture = ref.watch(backgroundPictureProvider).valueOrNull;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        AppSpacing.s12,
-        AppSpacing.s16,
-        AppSpacing.s4,
-      ),
-      child: Semantics(
-        label: 'Background preview',
-        child: ExcludeSemantics(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.control),
-            child: SizedBox(
-              key: previewKey,
-              height: height,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(color: tokens.surfaceBase),
-                  if (picture != null)
-                    AppBackgroundLayer(
-                      image: picture,
-                      base: tokens.surfaceBase,
-                      style: settings.styleFor(tokens),
-                    ),
-                  AppBackgroundScope.active(child: _Shell(tokens: tokens)),
-                ],
-              ),
+    final preview = Semantics(
+      label: 'Background preview',
+      child: ExcludeSemantics(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          child: SizedBox(
+            key: previewKey,
+            height: fill ? null : height,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColoredBox(color: tokens.surfaceBase),
+                if (picture != null)
+                  AppBackgroundLayer(
+                    image: picture,
+                    base: tokens.surfaceBase,
+                    style: settings.styleFor(tokens),
+                  ),
+                AppBackgroundScope.active(child: _Shell(tokens: tokens)),
+              ],
             ),
           ),
         ),
       ),
+    );
+    if (fill) return preview;
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s16),
+      child: preview,
     );
   }
 }

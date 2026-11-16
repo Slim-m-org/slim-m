@@ -20,6 +20,21 @@ void main() {
       expect(find.bySemanticsLabel('Save'), findsOneWidget);
     });
 
+    testWidgets('a trailing icon sits after the label', (tester) async {
+      await _pump(
+        tester,
+        AppButton(
+          label: 'Browse',
+          trailingIcon: AppIcons.chevronRight,
+          onPressed: () {},
+        ),
+      );
+      final label = tester.getRect(find.text('Browse'));
+      final icon = tester.getRect(find.byIcon(AppIcons.chevronRight));
+      expect(icon.left, greaterThan(label.right));
+      expect(find.bySemanticsLabel('Browse'), findsOneWidget);
+    });
+
     testWidgets('the five variants render with distinguishable fills and ink',
         (tester) async {
       const tokens = AppTokens.light;

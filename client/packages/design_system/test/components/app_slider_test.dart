@@ -280,5 +280,22 @@ void main() {
         handle.dispose();
       });
     });
+
+    testWidgets('the track starts trackInset in from each side', (
+      tester,
+    ) async {
+      double? value;
+      await tester.pumpWidget(_wrap(SizedBox(
+        width: 232,
+        child: AppSlider(value: 0, onChanged: (v) => value = v),
+      )));
+      final box = tester.getRect(find.byType(AppSlider));
+      final track = box.width - 2 * AppSlider.trackInset;
+      await tester.tapAt(Offset(
+        box.left + AppSlider.trackInset + track / 4,
+        box.center.dy,
+      ));
+      expect(value, closeTo(25, 0.25));
+    });
   });
 }

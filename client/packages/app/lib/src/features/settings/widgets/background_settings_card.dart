@@ -17,8 +17,10 @@ import '../../../widgets/run_guarded.dart';
 import '../../background/providers/app_background_controller.dart';
 import '../../background/widgets/app_background_host.dart';
 import '../../messages/widgets/attachment_picker.dart';
+import '../providers/background_from_theme.dart';
 import 'background_picture_menu.dart';
 import 'background_preview.dart';
+import 'settings_control_column.dart';
 import 'settings_info_line.dart';
 import 'settings_section_header.dart';
 import 'settings_slider_row.dart';
@@ -41,6 +43,15 @@ class _State extends ConsumerState<BackgroundSettingsCard>
   AppBackgroundController get _controller =>
       ref.read(appBackgroundControllerProvider.notifier);
 
+  /// Any change made here makes the settings the person's own, not a theme's.
+  void _madeOwn() =>
+      unawaited(ref.read(backgroundFromThemeProvider.notifier).clear());
+
+  Future<void> _remove() async {
+    _madeOwn();
+    await _controller.remove();
+  }
+
   Future<void> _openMenu() async {
     final has = ref.read(appBackgroundControllerProvider).hasImage;
     final action = await showBackgroundPictureMenu(context, canRemove: has);
@@ -48,7 +59,7 @@ class _State extends ConsumerState<BackgroundSettingsCard>
     clearActionError();
     switch (action) {
       case BackgroundPictureAction.remove:
-        await _controller.remove();
+        await _remove();
       case BackgroundPictureAction.choose:
         await _pick(AttachmentSource.photoLibrary);
       case BackgroundPictureAction.browse:
@@ -70,7 +81,9 @@ class _State extends ConsumerState<BackgroundSettingsCard>
       return;
     }
     if (!mounted) return;
-    if (!await _controller.importPicture(bytes)) {
+    if (await _controller.importPicture(bytes)) {
+      _madeOwn();
+    } else {
       setActionError('That picture could not be used. Try another.');
     }
   }
@@ -80,58 +93,85 @@ class _State extends ConsumerState<BackgroundSettingsCard>
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final settings = ref.watch(appBackgroundControllerProvider);
     final plain = !backgroundWanted(ref, context) && settings.hasImage;
-    return SettingsSectionCard(
-      title: 'Background',
-      description: 'A picture behind the chat, kept on this device.',
-      children: [
-        if (settings.hasImage && !plain) const BackgroundPreview(),
-        AppListRow(
-          key: BackgroundSettingsCard.pictureRowKey,
-          label: 'Picture',
-          meta: settings.hasImage ? 'Custom' : 'None',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: AppSpacing.s8,
-            children: [
-              if (settings.hasImage)
-                AppIconButton(
-                  key: BackgroundSettingsCard.removeKey,
-                  icon: AppIcons.dismiss,
-                  size: AppIconButtonSize.sm,
-                  semanticLabel: 'Remove picture',
-                  tooltip: 'Remove picture',
-                  onPressed: () {
-                    clearActionError();
-                    unawaited(_controller.remove());
-                  },
+    final shown = settings.hasImage && !plain;
+    final from = ref.watch(backgroundFromThemeProvider);
+    final inColumn = SettingsControlColumn.widthOf(context);
+    return LayoutBuilder(
+      builder: (context, box) {
+        final beside =
+            inColumn != null && SettingsControlColumn.besideAt(box.maxWidth);
+        return SettingsSectionCard(
+          title: 'Background',
+          description: 'A picture behind the chat, kept on this device.',
+          children: [
+            _pictureRow(tokens, settings),
+            if (actionError != null)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: AppErrorState(
+                  message: actionError!,
+                  onDismiss: clearActionError,
                 ),
-              // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
-              Icon(
-                MediaQuery.sizeOf(context).width >= kCompactWidth
-                    ? AppIcons.chevronDown
-                    : AppIcons.chevronRight,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
               ),
+            if (plain) const SettingsInfoLine('Off while high contrast is on.'),
+            if (shown && beside)
+              _PreviewBeside(
+                column: inColumn,
+                controls: _controls(tokens, settings, inset: AppSpacing.s16),
+              ),
+            if (shown && !beside) ...[
+              const BackgroundPreview(),
+              ..._controls(tokens, settings),
             ],
-          ),
-          onTap: () => unawaited(_openMenu()),
-        ),
-        if (actionError != null)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: AppErrorState(
-              message: actionError!,
-              onDismiss: clearActionError,
-            ),
-          ),
-        if (plain) const SettingsInfoLine('Off while high contrast is on.'),
-        if (settings.hasImage && !plain) ..._controls(tokens, settings),
-      ],
+            if (shown && from != null)
+              SettingsInfoLine('Dim, vignette and blur came with $from.'),
+          ],
+        );
+      },
     );
   }
 
-  List<Widget> _controls(AppTokens tokens, AppBackgroundSettings settings) {
+  Widget _pictureRow(
+    AppTokens tokens,
+    AppBackgroundSettings settings,
+  ) => AppListRow(
+    key: BackgroundSettingsCard.pictureRowKey,
+    label: 'Picture',
+    meta: settings.hasImage ? 'Custom' : 'None',
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s8,
+      children: [
+        if (settings.hasImage)
+          AppIconButton(
+            key: BackgroundSettingsCard.removeKey,
+            icon: AppIcons.dismiss,
+            size: AppIconButtonSize.sm,
+            semanticLabel: 'Remove picture',
+            tooltip: 'Remove picture',
+            onPressed: () {
+              clearActionError();
+              unawaited(_remove());
+            },
+          ),
+        // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
+        Icon(
+          MediaQuery.sizeOf(context).width >= kCompactWidth
+              ? AppIcons.chevronDown
+              : AppIcons.chevronRight,
+          size: AppSizes.icon16,
+          color: tokens.textSecondary,
+        ),
+      ],
+    ),
+    onTap: () => unawaited(_openMenu()),
+  );
+
+  List<Widget> _controls(
+    AppTokens tokens,
+    AppBackgroundSettings settings, {
+    double? inset,
+  }) {
     final min = settings.minimumDimFor(tokens);
     final dim = math.max(
       min,
@@ -148,14 +188,21 @@ class _State extends ConsumerState<BackgroundSettingsCard>
         minLabel: '${(min * 100).round()}%',
         maxLabel: '${(kBackgroundMaxDim * 100).round()}%',
         divisions: ((kBackgroundMaxDim - min) / 0.05).round().clamp(1, 20),
-        onChanged: (v) => unawaited(_controller.setDim(v)),
+        onChanged: (v) {
+          _madeOwn();
+          unawaited(_controller.setDim(v));
+        },
       ),
       SettingsToggleRow(
         label: 'Vignette',
         description: 'Fade the edges.',
         value: settings.vignette,
         semanticLabel: 'Vignette',
-        onChanged: (v) => unawaited(_controller.setVignette(v)),
+        inset: inset,
+        onChanged: (v) {
+          _madeOwn();
+          unawaited(_controller.setVignette(v));
+        },
       ),
       SettingsSliderRow(
         sliderKey: BackgroundSettingsCard.blurSliderKey,
@@ -167,8 +214,50 @@ class _State extends ConsumerState<BackgroundSettingsCard>
         minLabel: '0%',
         maxLabel: '100%',
         divisions: 10,
-        onChanged: (v) => unawaited(_controller.setBlur(v)),
+        onChanged: (v) {
+          _madeOwn();
+          unawaited(_controller.setBlur(v));
+        },
       ),
     ];
+  }
+}
+
+/// The preview filling the left of the card, as tall as the controls beside
+/// it in the control column.
+class _PreviewBeside extends StatelessWidget {
+  const _PreviewBeside({required this.column, required this.controls});
+
+  final double column;
+  final List<Widget> controls;
+
+  @override
+  Widget build(BuildContext context) {
+    final controlsWidth = column + AppSlider.trackInset * 2;
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSpacing.s16),
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: controlsWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: controls,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: AppSpacing.s16,
+            bottom: AppSpacing.s16,
+            right: controlsWidth,
+            child: const BackgroundPreview(fill: true),
+          ),
+        ],
+      ),
+    );
   }
 }

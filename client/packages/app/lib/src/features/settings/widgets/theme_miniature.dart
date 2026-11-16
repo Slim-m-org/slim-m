@@ -96,7 +96,7 @@ class ThemeMiniature extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = switch (detail) {
       ThemeMiniatureDetail.bars => _bars(),
-      ThemeMiniatureDetail.hero => ThemeMiniatureHero(tokens: tokens),
+      ThemeMiniatureDetail.hero => _hero(),
       ThemeMiniatureDetail.draft => ThemeMiniatureDraft(tokens: tokens),
       ThemeMiniatureDetail.draftStrip => ThemeMiniatureDraft(
         tokens: tokens,
@@ -111,6 +111,23 @@ class ThemeMiniature extends StatelessWidget {
       image: true,
       excludeSemantics: true,
       child: painted,
+    );
+  }
+
+  Widget _hero() {
+    final dark = split;
+    final light = ThemeMiniatureHero(tokens: tokens);
+    if (dark == null) return light;
+    return Stack(
+      children: [
+        light,
+        Positioned.fill(
+          child: ClipPath(
+            clipper: const _SplitClipper(),
+            child: ThemeMiniatureHero(tokens: dark),
+          ),
+        ),
+      ],
     );
   }
 
@@ -159,4 +176,14 @@ class ThemeMiniature extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SplitClipper extends CustomClipper<Path> {
+  const _SplitClipper();
+
+  @override
+  Path getClip(Size size) => ThemeMiniatureGeometry.splitPath(size);
+
+  @override
+  bool shouldReclip(_SplitClipper oldClipper) => false;
 }

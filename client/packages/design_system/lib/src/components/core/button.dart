@@ -113,6 +113,7 @@ class AppButton extends StatefulWidget {
     this.variant = AppButtonVariant.secondary,
     this.size = AppButtonSize.md,
     this.icon,
+    this.trailingIcon,
     this.full = false,
     this.wrapLabel = false,
     this.disabled = false,
@@ -127,6 +128,9 @@ class AppButton extends StatefulWidget {
   final AppButtonVariant variant;
   final AppButtonSize size;
   final IconData? icon;
+
+  /// After the label, for a button that moves somewhere: a chevron into a page.
+  final IconData? trailingIcon;
 
   /// Fills the width the parent gives it, for a form's or a sheet's one
   /// full-width action.
@@ -299,6 +303,11 @@ class _AppButtonState extends State<AppButton> with PressTracking {
                 height: widget.wrapLabel ? 1.25 : 1),
           ),
         ),
+        if (widget.trailingIcon != null) ...[
+          const SizedBox(width: AppSpacing.s8),
+          Icon(widget.trailingIcon,
+              size: AppSizes.icon16, color: look.foreground),
+        ],
       ],
     );
   }

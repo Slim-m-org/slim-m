@@ -24,7 +24,7 @@ import 'theme_gallery_menu.dart';
 import 'theme_gallery_section_header.dart';
 import 'theme_gallery_unsaved_card.dart';
 
-/// The Themes page, opened from Appearance's Color theme row or `?page=themes`.
+/// The Themes page, opened from Appearance's Browse themes or `?page=themes`.
 SettingsSubPage themesSubPage() => SettingsSubPage(
   id: 'themes',
   title: 'Themes',

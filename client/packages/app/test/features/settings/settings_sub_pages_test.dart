@@ -302,7 +302,7 @@ void main() {
     String location(GoRouter router) =>
         router.routeInformationProvider.value.uri.toString();
 
-    testWidgets('Color theme opens Themes in the pane and the link says so', (
+    testWidgets('Browse themes opens Themes in the pane and the link says so', (
       tester,
     ) async {
       final router = await open(
@@ -311,7 +311,7 @@ void main() {
         Routes.personalSettingsPane('appearance'),
       );
 
-      await _tap(tester, find.text('Color theme'));
+      await _tap(tester, find.text('Browse themes'));
       expect(find.byKey(const Key('themes-page-list')), findsOneWidget);
       expect(find.text('Profile'), findsOneWidget, reason: 'the nav stays');
       expect(
@@ -320,7 +320,7 @@ void main() {
       );
 
       await _tap(tester, find.byTooltip('Back to Appearance'));
-      expect(find.text('Color theme'), findsOneWidget);
+      expect(find.text('Browse themes'), findsOneWidget);
       expect(location(router), Routes.personalSettingsPane('appearance'));
     });
 
@@ -342,7 +342,7 @@ void main() {
       );
 
       await _tap(tester, find.byTooltip('Back to Appearance'));
-      expect(find.text('Color theme'), findsOneWidget);
+      expect(find.text('Browse themes'), findsOneWidget);
     });
   });
 }

@@ -8,68 +8,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../providers/display_density.dart';
 import '../providers/display_preferences.dart';
-import '../providers/stored_theme.dart';
-import '../providers/theme_labels.dart';
+import 'appearance_theme_card.dart';
 import 'background_settings_card.dart';
 import 'display_settings_section.dart';
+import 'settings_control_column.dart';
 import 'settings_section_header.dart';
 import 'settings_segmented_row.dart';
 import 'settings_select_row.dart';
 import 'settings_slider_row.dart';
-import 'settings_sub_pages.dart';
-import 'settings_toggle_row.dart';
-import 'theme_gallery.dart';
 
 class AppearanceSettingsSection extends ConsumerWidget {
   const AppearanceSettingsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _themeCard(context, ref),
-        const BackgroundSettingsCard(),
-        _textAndLayoutCard(ref),
-        const DisplaySettingsSection(),
-      ],
-    );
-  }
-
-  static const themeRowKey = Key('appearance_theme_row');
-
-  Widget _themeCard(BuildContext context, WidgetRef ref) {
-    final choice = ref.watch(themeControllerProvider);
-    final custom = ref.watch(customThemeProvider);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return SettingsSectionCard(
-      title: 'Theme',
-      children: [
-        AppListRow(
-          key: themeRowKey,
-          label: 'Color theme',
-          meta: choice == AppThemeChoice.custom && custom != null
-              ? custom.name
-              : themeLabel(choice),
-          trailing: Icon(
-            AppIcons.chevronRight,
-            size: AppSizes.icon16,
-            color: tokens.textSecondary,
-          ),
-          onTap: () => SettingsSubPages.of(context).push(themesSubPage()),
-        ),
-        SettingsToggleRow(
-          label: 'High contrast',
-          description: 'Stronger borders and text.',
-          value: ref.watch(highContrastControllerProvider),
-          semanticLabel: 'High contrast',
-          onChanged: (next) =>
-              ref.read(highContrastControllerProvider.notifier).select(next),
-        ),
-      ],
+    return SettingsControlColumn(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppearanceThemeCard(),
+          const BackgroundSettingsCard(),
+          _textAndLayoutCard(ref),
+          const DisplaySettingsSection(),
+        ],
+      ),
     );
   }
 

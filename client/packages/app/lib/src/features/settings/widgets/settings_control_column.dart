@@ -7,6 +7,10 @@ import 'package:flutter/widgets.dart';
 
 const kSettingsControlColumnWidth = 280.0;
 
+/// From this much content width a row puts its control in the column; below
+/// it, the control drops under its label and spans the row.
+const kSettingsControlColumnFrom = 480.0;
+
 /// Marks a subtree whose rows put their control in a [width] column.
 class SettingsControlColumn extends InheritedWidget {
   const SettingsControlColumn({
@@ -21,6 +25,10 @@ class SettingsControlColumn extends InheritedWidget {
   static double? widthOf(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<SettingsControlColumn>()
       ?.width;
+
+  /// Whether a row [rowWidth] wide keeps its control beside its label.
+  static bool besideAt(double rowWidth) =>
+      rowWidth >= kSettingsControlColumnFrom;
 
   @override
   bool updateShouldNotify(SettingsControlColumn oldWidget) =>

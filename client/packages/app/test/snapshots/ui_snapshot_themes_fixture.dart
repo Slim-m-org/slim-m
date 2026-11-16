@@ -46,6 +46,9 @@ ThemeDocument themeFixture(
   );
 }
 
+/// The Space default, as the store lists it.
+final pineAtDusk = themeFixture('Pine at dusk', 'forest', author: 'Ada');
+
 final harbour = themeFixture(
   'Harbour',
   'dark',
@@ -86,13 +89,7 @@ Map<String, dynamic> _stored(
 final _store = api.SpaceThemeList.fromJson({
   'default_theme_id': 'pine',
   'themes': [
-    _stored(
-      'pine',
-      'Pine at dusk',
-      'Ada',
-      themeFixture('Pine at dusk', 'forest', author: 'Ada').toJson(),
-      picture: true,
-    ),
+    _stored('pine', 'Pine at dusk', 'Ada', pineAtDusk.toJson(), picture: true),
     _stored(
       'mocha',
       'Mine',
@@ -160,6 +157,7 @@ List<Override> themesFixture({
   bool emptyStore = false,
   ThemeDocument? applied,
   ThemeSource? source,
+  AppThemeChoice? choice,
   ThemeGalleryFilter filter = ThemeGalleryFilter.all,
   ThemeFilePick? pick,
 }) => [
@@ -174,7 +172,9 @@ List<Override> themesFixture({
   ),
   themeControllerProvider.overrideWith(
     (ref) => ThemeController(ref)
-      ..state = applied == null ? AppThemeChoice.dark : AppThemeChoice.custom,
+      ..state =
+          choice ??
+          (applied == null ? AppThemeChoice.dark : AppThemeChoice.custom),
   ),
   customThemeProvider.overrideWith(() => _Slot(applied)),
   customThemeSourceProvider.overrideWith(() => _Source(source)),

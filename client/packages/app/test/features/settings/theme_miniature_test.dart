@@ -112,6 +112,49 @@ void main() {
     expect(colours[1], _near(AppTokens.dark.surfaceBase));
   });
 
+  testWidgets('a System hero shows both halves across the diagonal', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const ThemeMiniature(
+        tokens: AppTokens.light,
+        split: AppTokens.dark,
+        detail: ThemeMiniatureDetail.hero,
+      ),
+      width: 600,
+    );
+
+    final colours = await _pixels(tester, [
+      const Offset(2, 170),
+      const Offset(596, 120),
+    ]);
+
+    expect(colours[0], _near(AppTokens.light.surfaceSunken));
+    expect(colours[1], _near(AppTokens.dark.surfaceBase));
+  });
+
+  testWidgets('a narrow hero shows only messages that fit whole', (
+    tester,
+  ) async {
+    const hero = ThemeMiniature(
+      tokens: AppTokens.forest,
+      detail: ThemeMiniatureDetail.hero,
+    );
+    await _pump(tester, hero, width: 600);
+    expect(find.text('Grace'), findsOneWidget);
+
+    await _pump(tester, hero, width: 360);
+    expect(find.text('Grace'), findsNothing);
+    final box = tester.getRect(find.byKey(_boundary));
+    final composer = tester.getRect(find.text('Message #general'));
+    final ada = tester.getRect(
+      find.textContaining('Release notes', findRichText: true),
+    );
+    expect(ada.bottom, lessThan(composer.top));
+    expect(composer.bottom, lessThan(box.bottom));
+  });
+
   testWidgets('a picture sits under the chat column only', (tester) async {
     final picture = MemoryImage(base64Decode(_pixelPng));
     await _pump(

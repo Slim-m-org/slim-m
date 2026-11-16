@@ -115,13 +115,43 @@ void main() {
       );
     });
     expect(_keys(container.read(recentThemesProvider)), [
+      'builtin:system',
       'builtin:softDark',
       'builtin:dark',
       'space:t1',
       'mine:m1',
+    ], reason: 'a Space with no default painted System until the file came');
+    expect(container.read(customThemeSourceProvider), const FileThemeSource());
+  });
+
+  testWidgets('the theme left behind is next, so going back is one tap', (
+    tester,
+  ) async {
+    final container = _container();
+    late WidgetRef ref;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (context, r, _) {
+            ref = r;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    await tester.runAsync(() async {
+      await container
+          .read(themeControllerProvider.notifier)
+          .select(AppThemeChoice.forest);
+      await applyThemeChoice(ref, AppThemeChoice.light);
+    });
+
+    expect(_keys(container.read(recentThemesProvider)), [
+      'builtin:light',
       'builtin:forest',
     ]);
-    expect(container.read(customThemeSourceProvider), const FileThemeSource());
   });
 
   test('a Space entry keeps its file but not the picture data', () async {

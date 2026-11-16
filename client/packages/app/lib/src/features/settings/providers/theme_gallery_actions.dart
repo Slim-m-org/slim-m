@@ -185,6 +185,26 @@ class ThemeGalleryActions {
         return null;
       });
 
+  /// On follows the Space default and its changes; off keeps [current] as a
+  /// Space theme, so nothing repaints.
+  Future<void> follow(bool on, ThemeGalleryEntry current) => _run(
+    on ? 'follow the Space default' : 'stop following the Space default',
+    () async {
+      final document = current.document;
+      if (on) {
+        await applyThemeChoice(ref, AppThemeChoice.spaceDefault);
+      } else if (document != null) {
+        await applyThemeDocument(
+          ref,
+          document,
+          source: current.source,
+          background: false,
+        );
+      }
+      return null;
+    },
+  );
+
   Future<void> delete(String mineId) => _run('delete the theme', () async {
     await ref.read(myThemesProvider.notifier).remove(mineId);
     return null;
