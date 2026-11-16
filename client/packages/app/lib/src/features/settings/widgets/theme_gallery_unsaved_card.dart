@@ -39,6 +39,8 @@ class ThemeGalleryUnsavedCard extends StatefulWidget {
 
   /// Three columns across: Save to Mine sits beside the miniature, not under it.
   final bool wide;
+
+  /// False while an action runs: its buttons keep focus but do nothing.
   final bool enabled;
   final VoidCallback onSave;
   final List<Widget> Function(BuildContext context, VoidCallback close)
@@ -75,8 +77,9 @@ class _ThemeGalleryUnsavedCardState extends State<ThemeGalleryUnsavedCard> {
       icon: AppIcons.check,
       size: AppButtonSize.sm,
       full: narrow,
-      disabled: !widget.enabled,
-      onPressed: widget.onSave,
+      onPressed: () {
+        if (widget.enabled) widget.onSave();
+      },
     );
     final soft = _entry.inUse ? tokens.accentSoft : Colors.transparent;
     return ContextMenuRegion(
@@ -192,7 +195,9 @@ class _ThemeGalleryUnsavedCardState extends State<ThemeGalleryUnsavedCard> {
                 icon: AppIcons.moreVertical,
                 label: 'More for ${_entry.name}',
                 tooltip: 'More',
-                onPressed: widget.enabled ? () => _openMenu(kebab) : null,
+                onPressed: () {
+                  if (widget.enabled) _openMenu(kebab);
+                },
               ),
             ),
           ],

@@ -35,7 +35,7 @@ class ThemeGalleryCard extends ConsumerStatefulWidget {
   /// The drawn width, which a picture decodes at.
   final double width;
 
-  /// False while an action runs.
+  /// False while an action runs: the card keeps focus but does nothing.
   final bool enabled;
   final VoidCallback onApply;
 
@@ -161,13 +161,13 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
         selected: _entry.inUse,
         label: _semantics(_entry),
         child: FocusableActionDetector(
-          enabled: _tappable,
+          enabled: _entry.broken == null,
           mouseCursor: _tappable ? SystemMouseCursors.click : MouseCursor.defer,
           onShowHoverHighlight: (v) => setState(() => _hovered = v),
           onShowFocusHighlight: (v) => setState(() => _focused = v),
           actions: {
             ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) => widget.onApply(),
+              onInvoke: (_) => _tappable ? widget.onApply() : null,
             ),
           },
           child: GestureDetector(
@@ -217,6 +217,11 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
     );
   }
 
+  /// Runs [action] unless another is running; the button keeps focus either way.
+  VoidCallback _whenIdle(VoidCallback action) => () {
+    if (widget.enabled) action();
+  };
+
   Widget? _trailing() {
     final customise = widget.onCustomise;
     if (customise != null) {
@@ -225,7 +230,7 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
         icon: AppIcons.edit,
         label: 'Customise ${_entry.name}',
         tooltip: 'Customise',
-        onPressed: widget.enabled ? customise : null,
+        onPressed: _whenIdle(customise),
       );
     }
     if (widget.menuItems == null) return null;
@@ -235,7 +240,7 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
         icon: AppIcons.moreVertical,
         label: 'More for ${_entry.name}',
         tooltip: 'More',
-        onPressed: widget.enabled ? () => _openMenu(kebab) : null,
+        onPressed: _whenIdle(() => _openMenu(kebab)),
       ),
     );
   }

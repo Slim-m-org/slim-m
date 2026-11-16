@@ -219,7 +219,6 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
               label: 'Import',
               icon: AppIcons.upload,
               size: size,
-              disabled: !enabled,
               onPressed: () => unawaited(_actions.importFile()),
             ),
             AppButton(
@@ -227,8 +226,9 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
               label: 'New',
               icon: AppIcons.add,
               size: size,
-              disabled: !enabled,
-              onPressed: () => _openEditor(null),
+              onPressed: () {
+                if (enabled) _openEditor(null);
+              },
             ),
           ],
         ),

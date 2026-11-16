@@ -112,6 +112,22 @@ void main() {
       expect(pressed, isTrue);
     });
 
+    testWidgets('a button pressed with Enter keeps focus while busy',
+        (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      Widget button({required bool busy}) => AppButton(
+          label: 'Save', busy: busy, focusNode: node, onPressed: () {});
+      await _pump(tester, button(busy: false));
+      node.requestFocus();
+      await tester.pump();
+
+      await _pump(tester, button(busy: true));
+      expect(node.hasPrimaryFocus, isTrue);
+      await _pump(tester, button(busy: false));
+      expect(node.hasPrimaryFocus, isTrue);
+    });
+
     testWidgets('busy shows a spinner, swallows taps and does not dim',
         (tester) async {
       var pressed = false;

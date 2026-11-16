@@ -26,6 +26,8 @@ class ThemeMenuButton<T> extends StatefulWidget {
   /// The menu rows; each calls the given function with its choice.
   final List<Widget> Function(void Function(T)) items;
   final ValueChanged<T> onSelected;
+
+  /// False while an action runs: the button keeps focus but opens nothing.
   final bool enabled;
 
   /// Heads the phone sheet, naming what the menu acts on; the anchored menu
@@ -75,11 +77,10 @@ class _ThemeMenuButtonState<T> extends State<ThemeMenuButton<T>> {
         icon: AppIcons.moreVertical,
         semanticLabel: widget.semanticLabel,
         tooltip: 'More',
-        onPressed: !widget.enabled
-            ? null
-            : wide
-            ? _controller.toggle
-            : () => unawaited(_openSheet()),
+        onPressed: () {
+          if (!widget.enabled) return;
+          wide ? _controller.toggle() : unawaited(_openSheet());
+        },
       ),
     );
   }

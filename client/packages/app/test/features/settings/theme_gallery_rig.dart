@@ -94,6 +94,9 @@ class GalleryRig {
   /// Holds the file picker open until a test completes it.
   Completer<ThemeFilePick?>? pickGate;
 
+  /// Holds every picture request until a test completes it.
+  Completer<void>? pictureGate;
+
   late final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -131,6 +134,7 @@ class GalleryRig {
       });
     }
     if (request.url.path.endsWith('/picture')) {
+      await pictureGate?.future;
       return http.Response.bytes(
         base64Decode(pixelPng),
         200,

@@ -61,7 +61,7 @@ class AppearanceRecentRow extends StatelessWidget {
   final List<ThemeGalleryEntry> tiles;
   final int columns;
 
-  /// False while an action runs.
+  /// False while an action runs: a tile keeps focus but does nothing.
   final bool enabled;
   final ValueChanged<ThemeGalleryEntry> onApply;
   final RecentThemePreview preview;
@@ -99,16 +99,13 @@ class AppearanceRecentRow extends StatelessWidget {
                 spacing: gap,
                 children: [
                   for (final entry in tiles.take(columns))
-                    SizedBox(
+                    _RecentTile(
+                      key: tileKey(entry),
+                      entry: entry,
                       width: width,
-                      child: _RecentTile(
-                        key: tileKey(entry),
-                        entry: entry,
-                        width: width,
-                        enabled: enabled,
-                        onApply: onApply,
-                        preview: preview,
-                      ),
+                      enabled: enabled,
+                      onApply: onApply,
+                      preview: preview,
                     ),
                 ],
               );
@@ -232,7 +229,7 @@ class _RecentTileState extends ConsumerState<_RecentTile> {
         ),
       ],
     );
-    return Semantics(
+    final tappable = Semantics(
       container: true,
       button: true,
       enabled: _tappable,
@@ -243,7 +240,6 @@ class _RecentTileState extends ConsumerState<_RecentTile> {
         onHover: (_) => widget.preview.move(_entry),
         onExit: (_) => widget.preview.leave(_entry),
         child: FocusableActionDetector(
-          enabled: widget.enabled,
           mouseCursor: _tappable ? SystemMouseCursors.click : MouseCursor.defer,
           onShowFocusHighlight: _focus,
           actions: {
@@ -259,5 +255,6 @@ class _RecentTileState extends ConsumerState<_RecentTile> {
         ),
       ),
     );
+    return SizedBox(width: widget.width, child: tappable);
   }
 }

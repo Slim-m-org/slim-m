@@ -328,8 +328,9 @@ void main() {
       Tristate.isFalse,
     );
     for (final label in ['Customise Forest', 'More for Pine', 'New']) {
-      final button = tester.getSemantics(find.bySemanticsLabel(label));
-      expect(button.flagsCollection.isEnabled, Tristate.isFalse, reason: label);
+      await tapAndSettle(tester, find.bySemanticsLabel(label));
+      expect(find.text('New theme'), findsNothing, reason: label);
+      expect(find.text('Edit a copy'), findsNothing, reason: label);
     }
     await tapAndSettle(tester, _key('theme-builtin-forest'));
     expect(

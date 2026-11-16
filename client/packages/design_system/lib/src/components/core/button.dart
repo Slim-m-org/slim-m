@@ -146,7 +146,7 @@ class AppButton extends StatefulWidget {
   final bool disabled;
 
   /// The label cross-fades to a spinner and taps are ignored, without the
-  /// dimming [disabled] gets: a form mid-submit is working, not unavailable.
+  /// dimming or focus loss [disabled] gets: a form mid-submit is working.
   /// The fade takes [AppMotion.fast] and collapses to a swap under reduce
   /// motion.
   final bool busy;
@@ -166,8 +166,8 @@ class _AppButtonState extends State<AppButton> with PressTracking {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final enabled =
-        !widget.disabled && !widget.busy && widget.onPressed != null;
+    final focusable = !widget.disabled && widget.onPressed != null;
+    final enabled = focusable && !widget.busy;
     final metrics = _metricsFor(widget.size);
     final look = _lookFor(widget.variant, tokens);
     final touch = widget.touch ?? AppTouchTargets.of(context);
@@ -183,7 +183,7 @@ class _AppButtonState extends State<AppButton> with PressTracking {
       child: Opacity(
         opacity: enabled || widget.busy ? 1 : 0.45,
         child: FocusableActionDetector(
-          enabled: enabled,
+          enabled: focusable,
           focusNode: widget.focusNode,
           mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
           onShowFocusHighlight: (v) => setState(() => _focused = v),

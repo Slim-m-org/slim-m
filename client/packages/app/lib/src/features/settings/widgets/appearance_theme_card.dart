@@ -155,9 +155,7 @@ class _AppearanceThemeCardState extends ConsumerState<AppearanceThemeCard> {
                     'Use ${followable.name} and keep up with its changes.',
                 value: applied.following,
                 semanticLabel: AppearanceThemeCard.followLabel,
-                onChanged: enabled
-                    ? (on) => unawaited(_actions.follow(on, followable))
-                    : null,
+                onChanged: (on) => unawaited(_actions.follow(on, followable)),
               ),
             SettingsToggleRow(
               label: 'High contrast',
@@ -299,8 +297,9 @@ class _Identity extends StatelessWidget {
           full: full,
           touch: touch,
           busy: busy && main == ThemeMainAction.saveToMine,
-          disabled: busy,
-          onPressed: action,
+          onPressed: () {
+            if (!busy) action!();
+          },
         ),
       AppButton(
         key: AppearanceThemeCard.browseKey,
