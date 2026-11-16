@@ -181,6 +181,9 @@ class VoiceMicRecovery {
   int _asks = 0;
   int _unpublishedProbes = 0;
 
+  /// Runs from the first probe that saw the full restart under way.
+  Stopwatch? _restartSeen;
+
   /// Whether the mic is healthy, being brought back, or given up on.
   MicStatus get status => _status;
   Stream<MicStatus> get statuses => _statuses.stream;
@@ -317,14 +320,14 @@ class VoiceMicRecovery {
     );
   }
 
-  /// Brings back a wanted microphone a failed republish after a restart left
-  /// unpublished; a restart still under way republishes it itself, so it is
-  /// left alone. The recovery itself ignores a microphone nobody wants open.
+  /// Brings back a wanted microphone with no publication; a full restart first
+  /// gets [MicRecoveryTiming.restartRepublish] to republish it itself.
   void _watchUnpublished() {
+    final holding = _awaitingRestartRepublish();
     final missing = !mic.hasTrack &&
         _setting == 0 &&
         !_recovery.busy &&
-        !_host.reconnecting() &&
+        !holding &&
         _status != MicStatus.unavailable;
     if (!missing) {
       _unpublishedProbes = 0;
@@ -334,6 +337,15 @@ class VoiceMicRecovery {
     if (++_unpublishedProbes < 2) return;
     _unpublishedProbes = 0;
     _recovery.onLost('wanted but not published');
+  }
+
+  bool _awaitingRestartRepublish() {
+    if (!_host.reconnecting()) {
+      _restartSeen = null;
+      return false;
+    }
+    final seen = _restartSeen ??= Stopwatch()..start();
+    return seen.elapsed < timing.restartRepublish;
   }
 
   /// Recovery that cannot reopen the mic hands over to the device fallback only
@@ -391,6 +403,7 @@ class VoiceMicRecovery {
     _captureProbe = null;
     _captureProgress.reset();
     _unpublishedProbes = 0;
+    _restartSeen = null;
     fallback.reset();
     _follow.stop();
     _recovery.reset();

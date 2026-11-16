@@ -84,6 +84,7 @@ const _timing = MicRecoveryTiming(
   maxRetryDelay: Duration(milliseconds: 20),
   maxRetries: 3,
   captureProbe: Duration(milliseconds: 5),
+  restartRepublish: Duration(milliseconds: 400),
 );
 
 Future<void> _settle() =>
@@ -172,17 +173,21 @@ void main() {
     expect(statuses, isEmpty);
   });
 
-  test('a restart that never reports its end brings the microphone back',
+  test('a restart that has not republished the microphone in time gets one',
       () async {
     await join();
     room.emit(const lk.RoomReconnectingEvent());
     mic.published = false;
-    await _settle();
-
-    session.health.reconnect.ended('no reconnect event');
     await pollUntil(() => mic.enables == 2);
 
+    expect(session.health.reconnect.restarting.value, isTrue,
+        reason: 'the wait ends on its own, not at the quiet release');
     expect(mic.open, isTrue);
+  });
+
+  test('the wait for a restart\'s own republish is about 10 s', () {
+    expect(const MicRecoveryTiming().restartRepublish,
+        const Duration(seconds: 10));
   });
 
   test('a mute asked while a failing republish runs is not reopened after it',
