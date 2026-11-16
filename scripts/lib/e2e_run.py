@@ -30,6 +30,7 @@ import e2e_media_slots
 import e2e_messaging
 import e2e_password
 import e2e_message_edit
+import e2e_pins
 import e2e_private_channel
 import e2e_markdown
 import e2e_composer
@@ -236,6 +237,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
              a, b, admin, member)),
         ("messaging: editing and deleting your own message from its menu",
          lambda: e2e_message_edit.edit_then_delete_own_message(a, b, admin)),
+        ("messaging: pinning from the menu, the pinned list, and unpinning",
+         lambda: e2e_pins.pin_list_and_unpin(a, b, admin, member)),
         ("messaging: a group message reaches everyone in it, and leaving ends it",
          lambda: e2e_group_dm.group_message_reaches_everyone_and_leaving_ends_it(
              a, b, admin, member, server)),
