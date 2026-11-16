@@ -2,7 +2,8 @@
 /// `memberModerationWatcherProvider` refetches the roster on
 /// [api.MemberRestored], the case the 2026-08-11 review added: a removed
 /// member let back in stayed off every open member pane until an unrelated
-/// refetch. Forces a read after the event, per
+/// refetch. The same for [api.OwnerChanged], whose heir's row reads `isOwner`
+/// only after a refetch. Forces a read after the event, per
 /// `channel_permissions_provider_test.dart`'s rule - Riverpod invalidates
 /// lazily, so a fetch count alone observes nothing.
 library;
@@ -28,38 +29,51 @@ const _tokens = api.TokenPair(
 );
 
 void main() {
-  test('a MemberRestored event refetches the roster', () async {
-    var fetches = 0;
-    final events = StreamController<api.ServerEvent>.broadcast();
-    addTearDown(events.close);
-    final container = ProviderContainer(
-      overrides: [
-        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        mockApiOverride((request) async {
-          if (request.url.path == '/members') fetches++;
-          return http.Response(jsonEncode(<Object>[]), 200);
-        }),
-        liveEventsProvider.overrideWithValue(events.stream),
-      ],
-    );
-    addTearDown(container.dispose);
+  for (final (name, event, reason) in [
+    (
+      'a MemberRestored',
+      const api.MemberRestored(userId: 'bob') as api.ServerEvent,
+      'a restore must put the member back on screen',
+    ),
+    (
+      'an OwnerChanged',
+      const api.OwnerChanged(userId: 'bob'),
+      'the heir row must read as the owner',
+    ),
+  ]) {
+    test('$name event refetches the roster', () async {
+      var fetches = 0;
+      final events = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(events.close);
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          mockApiOverride((request) async {
+            if (request.url.path == '/members') fetches++;
+            return http.Response(jsonEncode(<Object>[]), 200);
+          }),
+          liveEventsProvider.overrideWithValue(events.stream),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final watcher = container.listen(
-      memberModerationWatcherProvider,
-      (_, __) {},
-    );
-    final sub = container.listen(membersProvider, (_, __) {});
-    await container.read(membersProvider.future);
-    expect(fetches, 1);
+      final watcher = container.listen(
+        memberModerationWatcherProvider,
+        (_, __) {},
+      );
+      final sub = container.listen(membersProvider, (_, __) {});
+      await container.read(membersProvider.future);
+      expect(fetches, 1);
 
-    events.add(const api.MemberRestored(userId: 'bob'));
-    await Future<void>.delayed(memberRosterRefetchDelay * 2);
-    // Re-read, or an unread invalidation passes; see the library doc.
-    await container.read(membersProvider.future);
-    expect(fetches, 2, reason: 'a restore must put the member back on screen');
+      events.add(event);
+      await Future<void>.delayed(memberRosterRefetchDelay * 2);
+      // Re-read, or an unread invalidation passes; see the library doc.
+      await container.read(membersProvider.future);
+      expect(fetches, 2, reason: reason);
 
-    watcher.close();
-    sub.close();
-  });
+      watcher.close();
+      sub.close();
+    });
+  }
 }

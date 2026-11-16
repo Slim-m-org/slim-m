@@ -174,12 +174,13 @@ final channelOverwritesSyncedProvider = FutureProvider.autoDispose
 /// do (and see) in every channel at once; a self [api.MemberTimeoutChanged]
 /// does the same and additionally refreshes [meProvider], closing the gap
 /// where a moderator timed out mid-session kept a stale reading until some
-/// unrelated refetch; an [api.OverwriteChanged] invalidates only the one
-/// channel's permissions it names, plus the visible list, since an overwrite
-/// can grant or revoke VIEW_CHANNEL and so change the list's membership -
-/// and, if [channelOverwritesProvider] is already mounted for that channel
-/// (its editor is open), that too, so a change from elsewhere never leaves
-/// the editor showing a stale allow/deny pair.
+/// unrelated refetch, and an [api.OwnerChanged] naming the caller, who now
+/// holds every permission, does the same; an [api.OverwriteChanged]
+/// invalidates only the one channel's permissions it names, plus the visible
+/// list, since an overwrite can grant or revoke VIEW_CHANNEL and so change
+/// the list's membership - and, if [channelOverwritesProvider] is already
+/// mounted for that channel (its editor is open), that too, so a change from
+/// elsewhere never leaves the editor showing a stale allow/deny pair.
 final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
   final selfId = ref.read(sessionProvider).tokens?.userId;
   final sub = ref
@@ -191,7 +192,7 @@ final roleChangeWatcherProvider = Provider.autoDispose<void>((ref) {
 void _applyRoleEvent(Ref ref, Object event, String? selfId) {
   if (event is api.RoleChanged || event is api.MemberRoleChanged) {
     _onRoleChanged(ref, event);
-  } else if (event is api.MemberTimeoutChanged && event.userId == selfId) {
+  } else if (_movesOwnPermissions(event, selfId)) {
     ref.invalidate(meProvider);
     ref.invalidate(channelPermissionsProvider);
     _refreshVisibleChannels(ref);
@@ -204,6 +205,12 @@ void _applyRoleEvent(Ref ref, Object event, String? selfId) {
     _onOverwriteChanged(ref, event);
   }
 }
+
+bool _movesOwnPermissions(Object event, String? selfId) => switch (event) {
+  api.MemberTimeoutChanged(:final userId) ||
+  api.OwnerChanged(:final userId) => userId == selfId,
+  _ => false,
+};
 
 // ref.invalidate on a never-watched provider mounts and fetches it.
 void _refreshVisibleChannels(Ref ref) {

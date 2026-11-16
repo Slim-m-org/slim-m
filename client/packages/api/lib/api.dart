@@ -145,6 +145,7 @@ export 'src/events.dart'
         NewDeviceSignIn,
         NotificationOverrideChanged,
         OverwriteChanged,
+        OwnerChanged,
         PollVoted,
         PongEvent,
         PresenceChanged,

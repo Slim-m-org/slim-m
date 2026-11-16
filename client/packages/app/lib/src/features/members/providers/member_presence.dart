@@ -110,7 +110,8 @@ final presenceSeedProvider = FutureProvider.autoDispose.family<void, String?>((
 /// somebody joined (`api.MemberJoined`, on registration or an invite
 /// redemption - never a restore, which is its own event below), was timed
 /// out (their badge belongs on screen), had a timeout lifted, was removed
-/// (they belong off it), was restored (they belong back on it), or had a
+/// (they belong off it), was restored (they belong back on it), became the
+/// Space owner (their row's `isOwner` is wrong until refetched), or had a
 /// role granted or revoked (their role badges are wrong until refetched), or a
 /// role was edited (its name, order or hoist flag places members in the pane).
 ///
@@ -126,6 +127,7 @@ final memberModerationWatcherProvider = Provider.autoDispose<void>((ref) {
         event is api.MemberTimeoutChanged ||
         event is api.MemberRemoved ||
         event is api.MemberRestored ||
+        event is api.OwnerChanged ||
         event is api.MemberRoleChanged ||
         event is api.RoleChanged) {
       settle?.cancel();
