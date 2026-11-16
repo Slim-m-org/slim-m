@@ -10,6 +10,7 @@ import 'package:slimm_app/src/features/background/providers/app_background_contr
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
 import 'package:slimm_app/src/features/settings/providers/my_themes.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
+import 'package:slimm_app/src/features/settings/providers/theme_file_io.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_source.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_theme_card.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
@@ -175,6 +176,43 @@ void main() {
         AppThemeChoice.spaceDefault,
       );
       expect(_key(AppearanceThemeCard.actionKey), findsNothing);
+    });
+  });
+
+  group('a failure', () {
+    testWidgets('of Save to Mine shows on the card', (tester) async {
+      final rig = AppearanceRig();
+      for (var i = 0; i < myThemesMax; i++) {
+        await rig.keep(galleryDoc('Theme $i'));
+      }
+      await rig.apply(galleryDoc('Lilac'), const FileThemeSource());
+      await rig.pump(tester);
+
+      await _tap(tester, _action('Save to Mine'));
+
+      expect(
+        find.text('This device holds $myThemesMax themes. Delete one first.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('left on the gallery stays there', (tester) async {
+      final rig = AppearanceRig();
+      rig.gallery.pick = const ThemeFilePick(
+        fileName: 'b.json',
+        bytes: [0xff, 0xfe, 0xfd],
+      );
+      await rig.pump(tester);
+      await _tap(tester, _key(AppearanceThemeCard.browseKey));
+      await tester.tap(find.byKey(const Key('theme-import')));
+      await settleGallery(tester);
+      expect(find.byKey(const Key('themes-page-error')), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back to Appearance'));
+      await settleGallery(tester);
+
+      expect(find.byKey(AppearanceThemeCard.browseKey), findsOneWidget);
+      expect(find.text('Could not import b.json.'), findsNothing);
     });
   });
 

@@ -49,6 +49,15 @@ class _AppearanceThemeCardState extends ConsumerState<AppearanceThemeCard> {
   late final _actions = ThemeGalleryActions(ref);
   final _preview = RecentThemePreview();
 
+  /// A failure left over from the gallery belongs to that page, not this card.
+  ThemeGalleryError? _inherited;
+
+  @override
+  void initState() {
+    super.initState();
+    _inherited = ref.read(themeGalleryStatusProvider).error;
+  }
+
   @override
   void dispose() {
     _preview.dispose();
@@ -119,7 +128,7 @@ class _AppearanceThemeCardState extends ConsumerState<AppearanceThemeCard> {
                     SettingsSubPages.of(context).push(themesSubPage()),
               ),
             ),
-            if (status.error case final error?)
+            if (status.error case final error? when error != _inherited)
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s16),
                 child: AppErrorState(

@@ -117,7 +117,7 @@ class _State extends ConsumerState<BackgroundSettingsCard>
             if (shown && beside)
               _PreviewBeside(
                 column: inColumn,
-                controls: _controls(tokens, settings, inset: AppSpacing.s16),
+                controls: _controls(tokens, settings),
               ),
             if (shown && !beside) ...[
               const BackgroundPreview(),
@@ -167,11 +167,7 @@ class _State extends ConsumerState<BackgroundSettingsCard>
     onTap: () => unawaited(_openMenu()),
   );
 
-  List<Widget> _controls(
-    AppTokens tokens,
-    AppBackgroundSettings settings, {
-    double? inset,
-  }) {
+  List<Widget> _controls(AppTokens tokens, AppBackgroundSettings settings) {
     final min = settings.minimumDimFor(tokens);
     final dim = math.max(
       min,
@@ -198,7 +194,6 @@ class _State extends ConsumerState<BackgroundSettingsCard>
         description: 'Fade the edges.',
         value: settings.vignette,
         semanticLabel: 'Vignette',
-        inset: inset,
         onChanged: (v) {
           _madeOwn();
           unawaited(_controller.setVignette(v));
