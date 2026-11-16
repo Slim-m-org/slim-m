@@ -19,13 +19,14 @@ IOS = Path(__file__).resolve().parents[2] / "client/packages/app/ios"
 PBX = IOS / "Runner.xcodeproj/project.pbxproj"
 MANIFEST = "PrivacyInfo.xcprivacy"
 
-# Apple's NSPrivacyCollectedDataType value for each row of the owner's table. Call audio is not listed: it passes through the voice server in real time and is not kept.
+# Apple's NSPrivacyCollectedDataType value for each row of the owner's table (docs/APP-STORE.md); audio data is voice messages, since call audio is never kept.
 COLLECTED = {
     "NSPrivacyCollectedDataTypeName",
     "NSPrivacyCollectedDataTypeUserID",
     "NSPrivacyCollectedDataTypeDeviceID",
     "NSPrivacyCollectedDataTypeOtherUserContent",
     "NSPrivacyCollectedDataTypePhotosorVideos",
+    "NSPrivacyCollectedDataTypeAudioData",
 }
 PURPOSE = "NSPrivacyCollectedDataTypePurposeAppFunctionality"
 
