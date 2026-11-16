@@ -103,3 +103,12 @@ The theme editor finishes what the file format promised: you can now make a them
 - A theme in use that nothing keeps (applied from a file, or from a Mine or Space entry that is gone) is a Not saved card first in Mine, with Save to Mine.
 - A Space theme that fails a contrast check or cannot be read says so on its card, and Edit a copy opens one that fails only contrast.
 - Following the Space default is not a gallery row: the default's card is the one in use while it is followed.
+
+## The Appearance page (built 2026-11-16)
+
+- Appearance opens on a Theme card: a live preview of the theme in use (System split across a diagonal), its name and where it came from or Not saved, one main action (Customise, Edit or Save to Mine) and Browse themes into the gallery.
+- Recent (`slimm.appearance.recent_themes`, per Space) shows the theme in use and the last ones applied, one tap each.
+  Applying a theme records the one it replaced as well, so a theme chosen before Recent existed is not lost on the first switch.
+  With a pointer, resting on a tile previews it in the card's preview only; touch applies at once.
+- Following the Space default is a switch on that card, shown only while the Space has a default; turning it off keeps the same theme as a Space theme, so nothing repaints.
+- When a theme's picture settings are applied, `slimm.appearance.background_from` (device-wide, like the background) names the theme, and the Background card says so until one of its controls is changed.
