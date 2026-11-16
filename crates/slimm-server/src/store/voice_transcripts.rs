@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The text of voice messages, written by the background worker in
-//! `crate::voice_transcripts`. See migrations 0188, 0189 and 0191.
+//! `crate::voice_transcripts`. See migrations 0188, 0189 and 0191. One per blob, since the same
+//! bytes say the same words, but only a link that is a voice message shows it (0194).
 
 use anyhow::Context;
 
@@ -63,11 +64,12 @@ pub enum TranscriptOutcome<'a> {
     GaveUp { retry_at: i64 },
 }
 
-/// SQL that is true for the `attachment_text` row aliased `t` unless its words are a voice transcript
-/// the Space hid by turning transcripts off.
+/// SQL that is true for the `attachment_text` row aliased `t`, read through the link aliased `ma`,
+/// unless its words are a voice transcript that link does not show: a plain file, or transcripts off.
 pub(super) const TRANSCRIPT_TEXT_SHOWN: &str = "(NOT EXISTS (SELECT 1 FROM attachment_transcripts vt \
      WHERE vt.sha256 = t.sha256) \
-     OR (SELECT transcribe_voice_messages FROM space_settings WHERE id = 1) = 1)";
+     OR (ma.voice_duration_ms IS NOT NULL \
+         AND (SELECT transcribe_voice_messages FROM space_settings WHERE id = 1) = 1))";
 
 /// A voice message waiting to be transcribed.
 #[derive(Debug, Clone)]
@@ -104,8 +106,8 @@ impl Store {
         Ok(())
     }
 
-    /// The newest voice messages in live, unencrypted messages with no finished transcript, or
-    /// one given up on whose retry time has come. `skip` holds the ones backing off.
+    /// The newest clips some live, unencrypted voice message carries with no finished transcript,
+    /// or one given up on whose retry time has come. `skip` holds the ones backing off.
     pub async fn voice_awaiting_transcript(
         &self,
         limit: i64,
@@ -117,15 +119,14 @@ impl Store {
             r#"SELECT a.sha256 AS "sha256!: Vec<u8>", a.size AS "size!",
                       t.status IS 'failed' AS "given_up!: bool"
                FROM attachments a
-               JOIN attachment_voice v ON v.sha256 = a.sha256
                LEFT JOIN attachment_transcripts t ON t.sha256 = a.sha256
-               WHERE (t.sha256 IS NULL OR t.status = 'pending'
+               WHERE a.sha256 IN (SELECT ma.sha256 FROM message_attachments ma
+                                    JOIN messages m ON m.id = ma.message_id
+                                   WHERE ma.voice_duration_ms IS NOT NULL
+                                     AND m.is_encrypted = 0 AND m.deleted_at IS NULL)
+                 AND (t.sha256 IS NULL OR t.status = 'pending'
                       OR (t.status = 'failed' AND t.retry_at <= ?))
                  AND lower(hex(a.sha256)) NOT IN (SELECT value FROM json_each(?))
-                 AND EXISTS (SELECT 1 FROM message_attachments ma
-                               JOIN messages m ON m.id = ma.message_id
-                              WHERE ma.sha256 = a.sha256 AND m.is_encrypted = 0
-                                AND m.deleted_at IS NULL)
                ORDER BY a.created_at DESC LIMIT ?"#,
             now,
             skip,
@@ -205,15 +206,16 @@ impl Store {
         }))
     }
 
-    /// The live, unencrypted messages carrying `sha256`, for telling their readers.
-    pub async fn messages_with_attachment(
+    /// The live, unencrypted voice messages carrying `sha256`, for telling their readers.
+    pub async fn voice_messages_with_clip(
         &self,
         sha256: &[u8],
     ) -> anyhow::Result<Vec<(ChannelId, MessageId)>> {
         let rows = sqlx::query!(
             r#"SELECT m.channel_id AS "channel_id!: ChannelId", m.id AS "message_id!: MessageId"
                FROM message_attachments ma JOIN messages m ON m.id = ma.message_id
-               WHERE ma.sha256 = ? AND m.is_encrypted = 0 AND m.deleted_at IS NULL"#,
+               WHERE ma.sha256 = ? AND ma.voice_duration_ms IS NOT NULL
+                 AND m.is_encrypted = 0 AND m.deleted_at IS NULL"#,
             sha256
         )
         .fetch_all(&self.pool)

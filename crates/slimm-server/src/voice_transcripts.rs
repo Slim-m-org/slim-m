@@ -305,7 +305,7 @@ async fn read_clip(media: &Media, candidate: &VoiceCandidate) -> Option<Vec<u8>>
     Some(bytes)
 }
 
-/// Tells everyone who can see a message carrying the clip, so the line under it updates.
+/// Tells everyone who can see a voice message carrying the clip, so the line under it updates.
 async fn announce(
     store: &Store,
     hub: &Hub,
@@ -313,7 +313,7 @@ async fn announce(
     status: &'static str,
     text: &str,
 ) {
-    let Ok(messages) = store.messages_with_attachment(&candidate.sha256).await else {
+    let Ok(messages) = store.voice_messages_with_clip(&candidate.sha256).await else {
         return;
     };
     for (channel_id, message_id) in messages {

@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The query a client adds to an upload to mark it as a voice message: the
-//! length and the loudness buckets its player draws. Audio only, so the flag
-//! cannot dress a file up as something the player would then try to play.
+//! length and the loudness buckets its player draws. Audio only.
 
 use serde::Deserialize;
 
-use super::AppState;
 use super::error::ApiError;
 use crate::store::{MAX_VOICE_MS, VoiceInfo, WAVEFORM_BUCKETS};
 
@@ -55,28 +53,15 @@ fn decode_hex(raw: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-/// Stores the voice data once the bytes are placed, returning what the blob carries now, which
-/// is nothing when the mark was refused.
-///
-/// A voice upload that is not audio is refused here, after the bytes are stored: they are an
-/// ordinary orphan the sweep reclaims, the same as any upload never attached.
-pub(super) async fn record(
-    state: &AppState,
-    sha256: &[u8],
-    content_type: &str,
-    request: Option<VoiceInfo>,
-    uploader: crate::ids::UserId,
-) -> Result<Option<VoiceInfo>, ApiError> {
-    let Some(voice) = request else {
-        return Ok(None);
-    };
-    if !content_type.starts_with("audio/") {
-        return Err(ApiError::BadRequest("a voice message must be audio"));
+/// Refuses a voice mark on anything that is not audio, before the bytes are kept, so the flag
+/// cannot dress a file up as something the player would then try to play.
+pub(super) fn must_be_audio(voice: Option<&VoiceInfo>, content_type: &str) -> Result<(), ApiError> {
+    match voice {
+        Some(_) if !content_type.starts_with("audio/") => {
+            Err(ApiError::BadRequest("a voice message must be audio"))
+        }
+        _ => Ok(()),
     }
-    Ok(state
-        .store
-        .set_attachment_voice(sha256, &voice, uploader)
-        .await?)
 }
 
 #[cfg(test)]
@@ -104,6 +89,17 @@ mod tests {
         };
         assert_eq!(voice.duration_ms, 1500);
         assert_eq!(voice.waveform, vec![10; WAVEFORM_BUCKETS]);
+    }
+
+    #[test]
+    fn only_audio_can_be_a_voice_message() {
+        let voice = VoiceInfo {
+            duration_ms: 1,
+            waveform: vec![0; WAVEFORM_BUCKETS],
+        };
+        assert!(must_be_audio(Some(&voice), "audio/ogg").is_ok());
+        assert!(must_be_audio(Some(&voice), "image/png").is_err());
+        assert!(must_be_audio(None, "image/png").is_ok());
     }
 
     #[test]

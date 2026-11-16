@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! What marks an audio attachment as a voice message: its length and the
-//! loudness buckets the player draws. See migration 0187.
+//! loudness buckets the player draws. Kept per uploader and per message link,
+//! never per blob, since the same bytes can be one member's voice message and
+//! another's plain file. See migration 0194.
 
 use super::Store;
+use super::attachment_originals::insert_attachment;
 use crate::ids::UserId;
 
 /// Loudness buckets in a waveform; the client draws exactly this many bars.
@@ -32,47 +35,56 @@ impl VoiceInfo {
 }
 
 impl Store {
-    /// Marks `sha256` as a voice message for its only uploader, returning the voice data the blob
-    /// now carries. Bytes someone else uploaded, or that a message of someone else's already
-    /// carries, stay as they were, or that message would change.
-    pub async fn set_attachment_voice(
+    /// [`Store::store_attachment`] for an upload the client marked as a voice message. The mark
+    /// is this uploader's alone: their next send of these bytes carries it, nobody else's does.
+    pub async fn store_voice_attachment(
         &self,
         sha256: &[u8],
-        voice: &VoiceInfo,
+        size: i64,
+        content_type: &str,
+        filename: &str,
         uploader: UserId,
-    ) -> anyhow::Result<Option<VoiceInfo>> {
-        sqlx::query!(
-            "INSERT INTO attachment_voice (sha256, duration_ms, waveform)
-             SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM attachment_uploaders
-                                          WHERE sha256 = ? AND uploaded_by = ?)
-               AND NOT EXISTS (SELECT 1 FROM attachment_uploaders
-                               WHERE sha256 = ? AND uploaded_by != ?)
-               AND NOT EXISTS (SELECT 1 FROM message_attachments ma
-                                 JOIN messages m ON m.id = ma.message_id
-                                WHERE ma.sha256 = ? AND m.author_id IS NOT ?)
-             ON CONFLICT (sha256) DO NOTHING",
+        voice: &VoiceInfo,
+    ) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
+        insert_attachment(
+            &mut tx,
             sha256,
+            size,
+            content_type,
+            filename,
+            Some(uploader),
+        )
+        .await?;
+        sqlx::query!(
+            "UPDATE attachment_uploaders SET voice_duration_ms = ?, voice_waveform = ?
+             WHERE sha256 = ? AND uploaded_by = ?",
             voice.duration_ms,
             voice.waveform,
             sha256,
             uploader,
-            sha256,
-            uploader,
-            sha256,
-            uploader,
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
-        let kept = sqlx::query!(
-            r#"SELECT duration_ms AS "duration_ms!", waveform AS "waveform!: Vec<u8>"
-               FROM attachment_voice WHERE sha256 = ?"#,
-            sha256
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// The voice data `uploader`'s own upload of `sha256` carries, which a send of theirs would.
+    pub async fn uploaded_voice(
+        &self,
+        sha256: &[u8],
+        uploader: UserId,
+    ) -> anyhow::Result<Option<VoiceInfo>> {
+        let row = sqlx::query!(
+            r#"SELECT voice_duration_ms AS "duration_ms?: i64",
+                      voice_waveform AS "waveform?: Vec<u8>"
+               FROM attachment_uploaders WHERE sha256 = ? AND uploaded_by = ?"#,
+            sha256,
+            uploader
         )
         .fetch_optional(&self.pool)
         .await?;
-        Ok(kept.map(|row| VoiceInfo {
-            duration_ms: row.duration_ms,
-            waveform: row.waveform,
-        }))
+        Ok(row.and_then(|r| VoiceInfo::from_columns(r.duration_ms, r.waveform)))
     }
 }

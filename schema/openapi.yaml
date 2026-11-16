@@ -4507,9 +4507,9 @@ paths:
           description: >
             `true` marks the upload as a voice message. It must then be audio
             and carry `duration_ms` (1 millisecond up to 5 minutes and 10
-            seconds) and `waveform`, or the request is a 400. Bytes someone
-            else uploaded, or that someone else's message already carries, stay
-            as they were; the response carries the voice data the bytes have.
+            seconds) and `waveform`, or the request is a 400. The mark is the
+            caller's own: their next message with these bytes is a voice
+            message, and nobody else's is. An upload without it clears it.
           schema:
             type: boolean
         - name: duration_ms
@@ -18457,7 +18457,8 @@ components:
           description: >-
             True for a voice message recorded in the composer, which then
             carries `duration_ms` and `waveform`; omitted when false. A property
-            of the bytes: the first upload of a given hash decides.
+            of the message, as its sender uploaded the bytes; a forward keeps
+            its original's.
         duration_ms:
           type: integer
           format: int64
@@ -18474,7 +18475,8 @@ components:
           required: [status, text]
           description: >-
             What was heard in a voice message, while the Space transcribes
-            them; omitted otherwise. Also sent live as `message.voice_transcript`.
+            them; omitted otherwise, and on a plain file with the same bytes.
+            Also sent live as `message.voice_transcript`.
           properties:
             status:
               type: string

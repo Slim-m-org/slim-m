@@ -20,6 +20,9 @@ pub struct KeptOriginal {
 /// filename, and only refreshes `created_at`, which the orphan sweep measures its grace
 /// window from. `key_version` and `is_encrypted` are written as 0 explicitly because v1 is
 /// transport-only encryption; the column default 0002 chose is never relied on.
+///
+/// The uploader's claim follows their latest upload: its filename, and no voice mark until
+/// [`Store::store_voice_attachment`] sets one again.
 pub(super) async fn insert_attachment(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     sha256: &[u8],
@@ -46,7 +49,8 @@ pub(super) async fn insert_attachment(
             "INSERT INTO attachment_uploaders (sha256, uploaded_by, uploaded_at, filename)
              VALUES (?, ?, ?, ?)
              ON CONFLICT (sha256, uploaded_by)
-             DO UPDATE SET filename = excluded.filename, uploaded_at = excluded.uploaded_at",
+             DO UPDATE SET filename = excluded.filename, uploaded_at = excluded.uploaded_at,
+                           voice_duration_ms = NULL, voice_waveform = NULL",
             sha256,
             uploader,
             now,

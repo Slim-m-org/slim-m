@@ -84,7 +84,7 @@ async fn a_forward_out_of_a_hidden_channel_can_still_be_passed_on() {
             attachment_ids: &[],
             spoiler_ids: &[],
             reply_to_id: None,
-            forward: Some(source.origin),
+            forward: Some(source),
         })
         .await
         .unwrap();
