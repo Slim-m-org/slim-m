@@ -94,9 +94,11 @@ class Rig {
     bool onLinux = false,
     bool onPhone = false,
     String? callChannel,
+    List<Override> overrides = const [],
   }) : capture = FakeCapture(allowed: allowed) {
     container = ProviderContainer(
       overrides: [
+        ...overrides,
         voiceRecordingNeedsToolsProvider.overrideWithValue(onLinux),
         voiceRecordingYieldsToCallProvider.overrideWithValue(onPhone),
         voiceCaptureFactoryProvider.overrideWithValue(() => capture),
