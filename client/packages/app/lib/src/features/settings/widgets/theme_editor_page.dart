@@ -129,10 +129,12 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   Future<void> _run(String whatFailed, Future<void> Function() action) async {
     if (_busy) return;
     setState(() => _busy = true);
-    final failure = await runGuarded(whatFailed: whatFailed, action: action);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (failure != null) _fail(failure);
+    try {
+      final failure = await runGuarded(whatFailed: whatFailed, action: action);
+      if (failure != null && mounted) _fail(failure);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   bool _requireValid() {
@@ -168,18 +170,22 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
 
   Future<void> _save() async {
     _closePicker();
-    if (await _persist() && mounted) _confirm('Saved to Mine.');
+    await _run('save the theme', () async {
+      if (await _persist() && mounted) _confirm('Saved to Mine.');
+    });
   }
 
   Future<void> _saveAndApply() async {
     _closePicker();
-    if (!await _persist() || !mounted) return;
-    await applyThemeDocument(
-      ref,
-      _draft.document,
-      source: MineThemeSource(_draft.mineId!),
-    );
-    if (mounted) _confirm('Saved to Mine and applied.');
+    await _run('save the theme', () async {
+      if (!await _persist() || !mounted) return;
+      await applyThemeDocument(
+        ref,
+        _draft.document,
+        source: MineThemeSource(_draft.mineId!),
+      );
+      if (mounted) _confirm('Saved to Mine and applied.');
+    });
   }
 
   Future<void> _publish() async {
@@ -211,10 +217,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   Future<void> _delete() async {
     final id = _draft.mineId;
     if (id == null) return;
-    final sure = await confirmDeleteMyTheme(
-      context,
-      _draft.document.name.trim(),
-    );
+    final sure = await confirmDeleteMyTheme(context, _draft.savedName);
     if (!sure || !mounted) return;
     await ref.read(myThemesProvider.notifier).remove(id);
     if (!mounted) return;

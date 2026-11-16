@@ -3,11 +3,13 @@
 /// export, delete, and asking before unsaved changes are left.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:slimm_app/src/features/settings/providers/my_themes.dart';
 import 'package:slimm_app/src/features/settings/providers/stored_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_draft.dart';
@@ -16,6 +18,19 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'theme_editor_harness.dart';
+
+/// Preferences whose writes wait for [gate], as a disk does.
+class _SlowStore extends InMemorySharedPreferencesStore {
+  _SlowStore() : super.empty();
+
+  final gate = Completer<void>();
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    await gate.future;
+    return super.setValue(valueType, key, value);
+  }
+}
 
 Future<void> _rename(WidgetTester tester, String name) async {
   await tester.enterText(byKey('theme-editor-name'), name);
@@ -58,6 +73,29 @@ void main() {
     expect(mine.map((t) => t.document.name), ['Dusk two']);
     expect(parseThemeJson(mine.single.document.toJson()).problems, isEmpty);
   });
+
+  for (final button in ['theme-editor-save', 'theme-editor-apply']) {
+    testWidgets('$button is off while it writes, so a second tap adds no '
+        'second theme', (tester) async {
+      final rig = EditorRig();
+      await rig.open(tester);
+      await _rename(tester, 'Once');
+      final store = _SlowStore();
+      SharedPreferencesStorePlatform.instance = store;
+
+      await tester.tap(byKey(button));
+      await tester.pump();
+      await tester.tap(byKey(button), warnIfMissed: false);
+      await tester.pump();
+      expect(saveEnabled(tester), isFalse);
+      store.gate.complete();
+      await settle(tester);
+
+      final mine = rig.container.read(myThemesProvider);
+      expect(mine.map((t) => t.document.name), ['Once']);
+      expect(saveEnabled(tester), isTrue);
+    });
+  }
 
   testWidgets('a full device is said inline, not saved', (tester) async {
     final rig = EditorRig();
@@ -198,6 +236,23 @@ void main() {
 
     expect(rig.container.read(myThemesProvider), isEmpty);
     _expectThemes();
+  });
+
+  testWidgets('Delete names the theme as saved, not the edited name', (
+    tester,
+  ) async {
+    final rig = EditorRig();
+    await rig.open(tester);
+    await _rename(tester, 'Gone soon');
+    await tapIn(tester, byKey('theme-editor-save'));
+
+    for (final edited in ['', 'Renamed, not saved']) {
+      await _rename(tester, edited);
+      await pickFromMenu(tester, 'Delete');
+      expect(find.text('Delete Gone soon?'), findsOneWidget, reason: edited);
+      await tapIn(tester, find.text('Cancel'));
+    }
+    expect(rig.container.read(myThemesProvider), hasLength(1));
   });
 
   testWidgets('at a laptop every way out asks before changes are lost', (

@@ -44,12 +44,14 @@ class ThemeDraft extends ChangeNotifier {
   ThemeDraft(ThemeEditorSeed seed)
     : _document = seed.document,
       _saved = seed.document.toJsonText(),
+      _savedName = seed.document.name.trim(),
       _links = ThemeLinks.start(seed.document.colours),
       _startedFrom = seed.startedFrom ?? 'base:${seed.document.base}',
       mineId = seed.mineId;
 
   ThemeDocument _document;
   String _saved;
+  String _savedName;
   ThemeLinks _links;
   String _startedFrom;
 
@@ -87,6 +89,9 @@ class ThemeDraft extends ChangeNotifier {
 
   /// The file text as last saved, to tell whether the theme in use is this one.
   String get savedText => _saved;
+
+  /// The name as last saved, which is what Mine shows while the field is edited.
+  String get savedName => _savedName;
 
   void setName(String name) => _replace(_document.copyWith(name: name));
 
@@ -156,6 +161,7 @@ class ThemeDraft extends ChangeNotifier {
   void markSaved(String id) {
     mineId = id;
     _saved = _document.toJsonText();
+    _savedName = _document.name.trim();
     notifyListeners();
   }
 
