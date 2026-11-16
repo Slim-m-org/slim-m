@@ -69,7 +69,7 @@ void main() {
     testWidgets('a running upload shows percent, speed and time left at '
         '${size.width.toInt()} wide, with no hover', (tester) async {
       await _pump(tester, _upload(_Clock(), 20), size);
-      expect(find.text('3% · 10.0 MB/s · 9 min left'), findsOneWidget);
+      expect(find.text('3% · 10 MB/s · 9 min left'), findsOneWidget);
     });
   }
 

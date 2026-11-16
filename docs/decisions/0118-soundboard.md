@@ -30,6 +30,7 @@ Owner's answers on 2026-11-13:
 - Storage mirrors custom emoji (decision 0016's shape): a `soundboard_clips` row names a content-addressed `attachments` blob, so storage, dedupe, the storage ceiling and the orphan sweep are the existing ones.
 - Management needs `MANAGE_SERVER`, the permission custom emoji use.
   Add, rename and remove are audited (`soundboard.create`, `soundboard.rename`, `soundboard.delete`).
+- The admin list has a Listen button that plays a clip on the admin's own device only, so a clip can be checked without joining a call.
 - Names are 1 to 32 characters, trimmed, unique ignoring case.
 - Types are mp3 and wav only.
   The server sniffs more audio types, but ogg does not play on iPhone and the owner's targets are Linux, Windows and iPhone, so a clip a listener cannot play is refused at upload.

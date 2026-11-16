@@ -121,7 +121,7 @@ void main() {
       expect(shareSummaryDetail(const IncomingShare(text: ' hello ')), 'hello');
       expect(
         shareSummaryDetail(const IncomingShare(files: [_photo, _clip])),
-        '6.0 KB',
+        '6 KB',
       );
       expect(shareSummaryDetail(const IncomingShare()), isNull);
     });

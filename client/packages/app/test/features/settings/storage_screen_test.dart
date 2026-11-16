@@ -26,7 +26,7 @@ const _tokens = api.TokenPair(
 );
 
 /// Byte totals are chosen so every tile's formatted text is distinct: a
-/// database and total that both round to "1.0 MB" would make findsOneWidget
+/// database and total that both round to "1 MB" would make findsOneWidget
 /// ambiguous rather than proving each tile shows its own number.
 const _body = {
   'database_bytes': 500000,
@@ -90,8 +90,8 @@ void main() {
     expect(requested, contains('/space/storage'));
     expect(find.text('490.3 KB'), findsOneWidget); // total on disk
     expect(find.text('488.3 KB of 490.3 KB'), findsOneWidget); // database
-    expect(find.text('2.0 KB of 490.3 KB'), findsOneWidget); // attachments
-    expect(find.text('4.0 KB of 488.3 KB database'), findsOneWidget);
+    expect(find.text('2 KB of 490.3 KB'), findsOneWidget); // attachments
+    expect(find.text('4 KB of 488.3 KB database'), findsOneWidget);
     expect(find.text('#heavy'), findsOneWidget);
     expect(find.text('1.5 KB'), findsOneWidget); // that channel's own bytes
     expect(find.text('Expired sessions'), findsOneWidget);

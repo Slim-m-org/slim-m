@@ -123,6 +123,14 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'the call. If it closes unexpectedly, it asks whether to rejoin.',
       ),
       WhatsNewPoint(
+        'In a voice call, the chat button shows a dot when the chat has new '
+        'messages.',
+      ),
+      WhatsNewPoint(
+        'After a call reconnects, people no longer hear your microphone '
+        'twice, and muting while you join is no longer lost.',
+      ),
+      WhatsNewPoint(
         'Voice activity sensitivity only changes your own speaking ring now. '
         'It used to hide quieter people speaking too.',
       ),

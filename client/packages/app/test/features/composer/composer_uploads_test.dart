@@ -297,11 +297,11 @@ void main() {
       find.textContaining("holiday.png is 3.9 KB, over this server's limit of"),
       findsOneWidget,
     );
-    expect(find.textContaining('1.0 KB per file'), findsOneWidget);
+    expect(find.textContaining('1 KB per file'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
     final events = log.state;
     expect(events.single.source, 'media');
-    expect(events.single.detail, contains('1.0 KB'));
+    expect(events.single.detail, contains('1 KB'));
   });
 
   testWidgets('a file under the limit uploads normally', (tester) async {

@@ -13,6 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
+import '../../../widgets/load_error_block.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/member_presence.dart';
 import '../providers/member_selection.dart';
@@ -148,13 +149,10 @@ class _MembersError extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Align(
     alignment: Alignment.topCenter,
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.s16),
-      child: AppErrorState(
-        message: 'Could not load members.',
-        // A 403 means a lost permission, not a fault: retrying would only fail the same way.
-        onRetry: error is api.ForbiddenException ? null : onRetry,
-      ),
+    child: LoadErrorBlock(
+      message: 'Could not load members.',
+      // A 403 means a lost permission, not a fault: retrying would only fail the same way.
+      onRetry: error is api.ForbiddenException ? null : onRetry,
     ),
   );
 }

@@ -20,6 +20,7 @@ import 'settings_detail_row.dart';
 import 'settings_empty.dart';
 import 'settings_section_header.dart';
 import '../providers/settings_actions.dart';
+import '../../../widgets/load_error_block.dart';
 
 const _signOutLabel = 'Sign out';
 
@@ -67,13 +68,9 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
           ),
         ],
         error: (e, _) => [
-          SettingsCardBlock(
-            children: [
-              AppErrorState(
-                message: 'Could not load devices.',
-                onRetry: () => ref.invalidate(devicesProvider),
-              ),
-            ],
+          LoadErrorBlock(
+            message: 'Could not load devices.',
+            onRetry: () => ref.invalidate(devicesProvider),
           ),
         ],
         data: (list) => list.isEmpty

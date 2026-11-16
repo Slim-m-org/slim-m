@@ -145,8 +145,8 @@ void main() {
 
   test('rate reads in B, KB, MB or GB a second', () {
     expect(formatTransferRate(512), '512 B/s');
-    expect(formatTransferRate(2048), '2.0 KB/s');
-    expect(formatTransferRate(38 * 1024 * 1024), '38.0 MB/s');
+    expect(formatTransferRate(2048), '2 KB/s');
+    expect(formatTransferRate(38 * 1024 * 1024), '38 MB/s');
     expect(formatTransferRate(2.5 * 1024 * 1024 * 1024), '2.5 GB/s');
   });
 
@@ -169,7 +169,7 @@ void main() {
           total: 400 * 1024 * 1024,
           meter: meter,
         ),
-        '10% · 10.0 MB/s · 36 s left',
+        '10% · 10 MB/s · 36 s left',
       );
     });
 
@@ -184,7 +184,7 @@ void main() {
           total: 100 * 1024 * 1024,
           meter: meter,
         ),
-        '1% of 100.0 MB',
+        '1% of 100 MB',
       );
     });
 
@@ -207,7 +207,7 @@ void main() {
       final meter = steady(clock);
       expect(
         formatTransferLine(sent: 40 * 1024 * 1024, total: null, meter: meter),
-        '40.0 MB · 10.0 MB/s',
+        '40 MB · 10 MB/s',
       );
     });
   });
