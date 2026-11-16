@@ -194,7 +194,7 @@ bool shouldRelayCursor({
 }) => focused && (!inCallHere || othersInCall || remoteCursors);
 
 /// A stable index into a palette of [paletteSize] colours, through the same
-/// `stableIndexFor` hash the avatar tint and role dot use. The cursor palette
+/// `stableIndexFor` hash the avatar tint uses. The cursor palette
 /// is its own set of colours, so only the slot number lines up with those, not
 /// the colour. Shared with `canvas_stroke_preview_relay.dart` so a
 /// participant's ink and their cursor read as the same person.

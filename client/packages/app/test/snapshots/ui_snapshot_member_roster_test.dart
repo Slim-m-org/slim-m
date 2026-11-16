@@ -76,8 +76,13 @@ api.SlimmApi _roster(Ref ref) => testApi((request) async {
   final Object? body = path.endsWith('/members')
       ? _members
       : path == '/presence' && request.method == 'GET'
+      // Every member, as the server reports them, so Offline reads offline rather than unknown.
       ? [
-          for (final id in _online) {'user_id': id, 'status': 'online'},
+          for (final m in _members)
+            {
+              'user_id': m['id'],
+              'status': _online.contains(m['id']) ? 'online' : 'offline',
+            },
         ]
       : null;
   if (body == null) return fixtureResponse(request);

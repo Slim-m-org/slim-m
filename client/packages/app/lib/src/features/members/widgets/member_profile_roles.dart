@@ -8,7 +8,8 @@
 /// (`docs/design/desktop-vs-mobile.md`, rule 3: an inline expander, never a
 /// second popover); on touch the whole heading line is that control. On a
 /// pointer a pill the viewer may take away shows a cross on hover or focus;
-/// on touch that is done through the toggles.
+/// on touch that is done through the toggles. Both follow [RoleLadder], your
+/// own card included, so neither offers what the server would refuse.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
+import '../../../role_ladder.dart';
 import '../../../widgets/run_guarded.dart';
 import 'member_moderate_roles.dart';
 import 'role_color.dart';
@@ -28,7 +30,7 @@ const double _markSize = AppSizes.icon12;
 const double _rowInset = 6;
 
 /// One held role as the card draws it.
-typedef _HeldRole = ({String? id, String name, Color? color});
+typedef _HeldRole = ({String? id, String name, int? color});
 
 class MemberProfileRoles extends ConsumerStatefulWidget {
   const MemberProfileRoles({
@@ -39,7 +41,7 @@ class MemberProfileRoles extends ConsumerStatefulWidget {
 
   final api.UserProfile profile;
 
-  /// The viewer may grant and take away roles; see `MemberModerationGates`.
+  /// The viewer holds MANAGE_ROLES; [RoleLadder] says which roles that reaches.
   final bool canManageRoles;
 
   @override
@@ -57,9 +59,7 @@ class _MemberProfileRolesState extends ConsumerState<MemberProfileRoles>
         (
           id: i < p.roleIds.length ? p.roleIds[i] : null,
           name: p.roles[i],
-          color: chosenRoleColor(
-            i < p.roleColors.length ? p.roleColors[i] : null,
-          ),
+          color: i < p.roleColors.length ? p.roleColors[i] : null,
         ),
     ];
   }
@@ -72,20 +72,29 @@ class _MemberProfileRolesState extends ConsumerState<MemberProfileRoles>
     grant: grant,
   );
 
+  RoleLock? _lock(RoleLadder ladder, api.Role role) => ladder.lockOf(
+    role,
+    member: widget.profile,
+    held: widget.profile.roleIds.contains(role.id),
+  );
+
   @override
   Widget build(BuildContext context) {
     final held = _held;
-    final manage = widget.canManageRoles;
+    final rolesAsync = widget.canManageRoles ? ref.watch(rolesProvider) : null;
+    final roles = rolesAsync?.valueOrNull;
+    final ladder = ref.watch(roleLadderProvider);
+    // Until the roles load, the + stays: opening it is where loading or a failure shows.
+    final manage =
+        rolesAsync != null &&
+        (roles?.any((r) => _lock(ladder, r) == null) ?? true);
     if (held.isEmpty && !manage) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final touch = AppTouchTargets.of(context);
-    final rolesAsync = manage ? ref.watch(rolesProvider) : null;
-    final roles = rolesAsync?.valueOrNull;
-    final mine = manage ? ref.watch(myPermissionsProvider) : 0;
     api.Role? removable(String? id) {
       if (touch || id == null) return null;
       final role = roles?.where((r) => r.id == id).firstOrNull;
-      return role != null && roleGrantable(role, mine) ? role : null;
+      return role != null && _lock(ladder, role) == null ? role : null;
     }
 
     final name = widget.profile.displayName;
@@ -147,12 +156,13 @@ class _MemberProfileRolesState extends ConsumerState<MemberProfileRoles>
           ),
           child: section,
         ),
-        if (rolesAsync != null && _editing) _toggles(rolesAsync),
+        if (rolesAsync != null && manage && _editing)
+          _toggles(rolesAsync, ladder),
       ],
     );
   }
 
-  Widget _toggles(AsyncValue<List<api.Role>> rolesAsync) {
+  Widget _toggles(AsyncValue<List<api.Role>> rolesAsync, RoleLadder ladder) {
     final roles = rolesAsync.valueOrNull;
     if (roles == null) {
       return Padding(
@@ -182,9 +192,8 @@ class _MemberProfileRolesState extends ConsumerState<MemberProfileRoles>
           for (final role in roles)
             if (!role.isEveryone) role,
         ],
-        heldIds: widget.profile.roleIds,
-        myPermissions: ref.watch(myPermissionsProvider),
-        memberName: widget.profile.displayName,
+        member: widget.profile,
+        ladder: ladder,
         onChanged: _set,
       ),
     );
@@ -203,8 +212,8 @@ class _RolePill extends StatefulWidget {
 
   final String name;
 
-  /// The role's chosen colour, or null for a neutral dot.
-  final Color? color;
+  /// The role's palette index, or null for the neutral dot.
+  final int? color;
   final VoidCallback? onRemove;
   final String removeLabel;
 
@@ -219,7 +228,7 @@ class _RolePillState extends State<_RolePill> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final dot = widget.color ?? tokens.borderStrong;
+    final dot = roleDotColor(widget.color, tokens);
     final onRemove = widget.onRemove;
     final crossShown = onRemove != null && (_hovered || _focused);
     Widget mark = AnimatedSwitcher(

@@ -62,6 +62,7 @@ class AppListRow extends StatefulWidget {
     this.stateDescription,
     this.subtitle,
     this.subtitleIcon,
+    this.subtitleColor,
   });
 
   final String label;
@@ -86,6 +87,9 @@ class AppListRow extends StatefulWidget {
   /// A small glyph before [subtitle], for a line that names an activity
   /// rather than a typed status. Ignored without a subtitle.
   final IconData? subtitleIcon;
+
+  /// Wins over the subtitle's default colour; the caller keeps it readable.
+  final Color? subtitleColor;
 
   /// A control rendered after [trailing] (or the unread dot it falls back
   /// to), still inside the same tinted [AnimatedContainer] the row's hover
@@ -132,6 +136,9 @@ class AppListRow extends StatefulWidget {
   /// visual de-emphasis with no single meaning, and its only caller uses it for
   /// an offline member, who was being announced as "muted" as a result.
   final String? stateDescription;
+
+  /// How far [muted] dims the leading and trailing content.
+  static const double mutedOpacity = 0.62;
 
   /// Exposed so a test can find the left selection marker without depending
   /// on widget tree shape.
@@ -327,7 +334,7 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
       if (widget.leading != null)
         ExcludeSemantics(
           child: Opacity(
-            opacity: widget.muted ? 0.62 : 1,
+            opacity: widget.muted ? AppListRow.mutedOpacity : 1,
             child: widget.leading!,
           ),
         ),
@@ -339,6 +346,7 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
             label: widget.label,
             subtitle: widget.subtitle,
             subtitleIcon: widget.subtitleIcon,
+            subtitleColor: widget.subtitleColor,
             labelStyle: labelStyle,
           ),
         ),
@@ -357,7 +365,10 @@ class _AppListRowState extends State<AppListRow> with PressTracking {
           ),
         ),
       if (trailingContent != null)
-        Opacity(opacity: widget.muted ? 0.62 : 1, child: trailingContent),
+        Opacity(
+          opacity: widget.muted ? AppListRow.mutedOpacity : 1,
+          child: trailingContent,
+        ),
     ];
     final extra = widget.trailingExtra;
     if (extra == null || !_revealsExtra) {

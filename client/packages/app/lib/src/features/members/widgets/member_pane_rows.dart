@@ -75,9 +75,10 @@ class MemberGroupLabel extends StatelessWidget {
   }
 }
 
-/// A row is muted (dimmed, per [AppListRow.muted]) only once fully offline;
-/// away and do-not-disturb still read as present, matching the grouping
-/// rule the pane applies.
+/// A row is dimmed only once fully offline, name and status line with the
+/// avatar, so a role colour does not shout from the offline section; away and
+/// do-not-disturb still read as present, matching the grouping rule the pane
+/// applies.
 ///
 /// Roles show the way Discord shows them: the name wears the highest
 /// coloured role's colour and the full list waits on the card, so the row
@@ -172,16 +173,24 @@ class MemberRow extends ConsumerWidget {
     }
 
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final offline = status == AppPresence.offline;
+    final nameColor = memberNameColor(displayed, tokens.surfaceSunken);
+    Color dimmed(Color? colour) => offlineNameColor(
+      colour,
+      neutral: tokens.textSecondary,
+      surface: tokens.surfaceSunken,
+    );
     final row = LayoutBuilder(
       builder: (context, box) => AppListRow(
         // Taller than a channel row: a 28px avatar's corner status dot crops at the default height.
         height: 36,
         label: displayed.displayName,
-        labelColor: memberNameColor(displayed, tokens.surfaceSunken),
+        labelColor: offline ? dimmed(nameColor) : nameColor,
         // What they are playing wins over a typed status; the card shows the activity.
         subtitle: personLine(activity, statusText),
         subtitleIcon: activity == null ? null : activityIcon(activity.kind),
-        muted: status == AppPresence.offline,
+        subtitleColor: offline ? dimmed(null) : null,
+        muted: offline,
         // On screen presence is only a dot and an opacity; this is how it is spoken.
         stateDescription: status.word,
         trailing: _trailing(

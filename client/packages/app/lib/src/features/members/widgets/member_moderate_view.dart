@@ -101,11 +101,9 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
         .valueOrNull
         ?.where((m) => m.id == widget.profile.id)
         .firstOrNull;
-    final heldIds = live?.roleIds ?? widget.profile.roleIds;
-
     final sections = _sections(
       live: live,
-      rolesSection: _rolesSection(heldIds),
+      rolesSection: _rolesSection(live ?? widget.profile),
     );
 
     return Column(
@@ -124,13 +122,12 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
     );
   }
 
-  Widget? _rolesSection(List<String> heldIds) {
+  Widget? _rolesSection(api.UserProfile member) {
     if (!widget.canManageRoles) return null;
     return MemberModerateRoles(
       roles: ref.watch(rolesProvider).valueOrNull ?? const <api.Role>[],
-      heldIds: heldIds,
-      myPermissions: ref.watch(myPermissionsProvider),
-      memberName: widget.profile.displayName,
+      member: member,
+      ladder: ref.watch(roleLadderProvider),
       compact: widget.compact,
       onChanged: _toggleRole,
     );
@@ -232,7 +229,7 @@ class _MemberModerateViewState extends ConsumerState<MemberModerateView>
     ),
     child: ModerationUnavailableCaption(
       'You cannot time out or remove ${widget.profile.displayName}: '
-      'they hold permissions you do not.',
+      'they rank at or above you.',
     ),
   );
 

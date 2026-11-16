@@ -54,9 +54,9 @@ class MemberModerationGates {
   /// is not in a call at all.
   final String? voiceChannelId;
 
-  /// The viewer holds the kick or ban bit but the member's granted permissions
-  /// reach beyond theirs, which the server refuses for time out and removal
-  /// (`escalation_guard`); false whenever the roles needed to tell are unknown.
+  /// The member's granted permissions reach beyond the viewer's (`escalation_guard`,
+  /// unknowable without the role list), or the member does not rank below the viewer
+  /// on the role ladder; the server refuses every moderation act then.
   final bool outranked;
 
   final bool canTimeOut;
@@ -70,6 +70,8 @@ class MemberModerationGates {
   /// having failed.
   final bool canOfferTimeoutChips;
   final bool canRemove;
+
+  /// The viewer holds MANAGE_ROLES; which roles they may change is [RoleLadder]'s answer.
   final bool canManageRoles;
   final bool canIssueReset;
 
@@ -118,12 +120,13 @@ MemberModerationGates memberModerationGates(
       voiceState == VoiceSessionState.connected &&
       participants.any((p) => p.identity == profile.id && !p.isLocal);
 
-  final outranked = !isSelf && _outranks(profile, mine, get);
+  final aboveOnLadder = !get(roleLadderProvider).outranks(profile);
+  final outranked = !isSelf && (aboveOnLadder || _outranks(profile, mine, get));
   final canTimeOut =
       !isSelf && !outranked && mine.hasPermission(Perm.kickMembers);
   final canRemove =
       !isSelf && !outranked && mine.hasPermission(Perm.banMembers);
-  final canManageRoles = !isSelf && mine.hasPermission(Perm.manageRoles);
+  final canManageRoles = mine.hasPermission(Perm.manageRoles);
   final canIssueReset = !isSelf && mine.hasPermission(Perm.administrator);
   // The voice kick handler checks KICK_MEMBERS in this call's own channel, since an overwrite may grant it there alone.
   final voiceChannelPermissions = voiceChannelId != null
@@ -131,6 +134,7 @@ MemberModerationGates memberModerationGates(
       : 0;
   final canEject =
       !isSelf &&
+      !aboveOnLadder &&
       inCallTogether &&
       voiceChannelId != null &&
       voiceChannelPermissions.hasPermission(Perm.kickMembers);

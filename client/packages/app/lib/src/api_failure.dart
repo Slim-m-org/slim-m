@@ -34,6 +34,9 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
     'Could not $whatFailed: this server has no storage left. Tell an admin.',
   api.ForbiddenException(isEqualRankRefusal: true) =>
     'Could not $whatFailed: you cannot act on someone of the same rank as you.',
+  // The ladder's own reason names what was out of reach, a role or a member.
+  api.ForbiddenException(isRoleLadderRefusal: true) =>
+    'Could not $whatFailed: ${e.message}.',
   api.ForbiddenException(needsOwnSecondFactor: true) =>
     'Could not $whatFailed: turn on two-factor sign-in on your own account first.',
   api.ForbiddenException() =>

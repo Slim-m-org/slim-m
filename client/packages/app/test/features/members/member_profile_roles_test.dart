@@ -2,7 +2,7 @@
 /// The card's Roles section, Discord's way: pills in the member's own role
 /// order with each role's colour as a dot, nothing at all for a member with
 /// no roles, and for a role manager a "+" that opens the toggles in place
-/// and a cross on each pill they may take away.
+/// and a cross on each pill they may take away, both only within the ladder.
 library;
 
 import 'dart:convert';
@@ -19,24 +19,31 @@ import 'package:slimm_app/src/features/members/widgets/role_color.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/role_ladder.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/fake_api.dart';
 
-api.Role _role(String id, String name, {int permissions = 0}) => api.Role(
+api.Role _role(
+  String id,
+  String name, {
+  int permissions = 0,
+  int position = 0,
+}) => api.Role(
   id: id,
   name: name,
   permissions: permissions,
   isEveryone: false,
   createdAt: 0,
+  position: position,
 );
 
 final _roles = [
-  _role('r-admin', 'Admins', permissions: Perm.administrator),
-  _role('r-mods', 'Moderators'),
-  _role('r-regs', 'Regulars'),
-  _role('r-help', 'Helpers'),
+  _role('r-admin', 'Admins', permissions: Perm.administrator, position: 9),
+  _role('r-mods', 'Moderators', position: 5),
+  _role('r-regs', 'Regulars', position: 3),
+  _role('r-help', 'Helpers', position: 1),
   const api.Role(
     id: 'r-everyone',
     name: 'everyone',
@@ -46,7 +53,10 @@ final _roles = [
   ),
 ];
 
-api.UserProfile _maya({List<String> held = const ['r-admin', 'r-mods']}) {
+api.UserProfile _maya({
+  List<String> held = const ['r-admin', 'r-mods'],
+  bool owner = false,
+}) {
   final names = {for (final r in _roles) r.id: r.name};
   const colours = {'r-admin': 0, 'r-mods': null, 'r-regs': 4};
   return api.UserProfile(
@@ -57,8 +67,12 @@ api.UserProfile _maya({List<String> held = const ['r-admin', 'r-mods']}) {
     roleIds: held,
     roles: [for (final id in held) names[id]!],
     roleColors: [for (final id in held) colours[id]],
+    isOwner: owner,
   );
 }
+
+/// A manager standing above every role but Admins, which needs a bit they lack anyway.
+const _aboveAll = RoleLadder(permissions: Perm.manageRoles, topPosition: 50);
 
 Future<List<String>> _pump(
   WidgetTester tester,
@@ -67,6 +81,7 @@ Future<List<String>> _pump(
   bool touch = false,
   int status = 204,
   bool rolesFail = false,
+  RoleLadder ladder = _aboveAll,
 }) async {
   final calls = <String>[];
   final container = ProviderContainer(
@@ -85,6 +100,7 @@ Future<List<String>> _pump(
       myPermissionsProvider.overrideWithValue(
         manager ? Perm.manageRoles : Perm.sendMessages,
       ),
+      roleLadderProvider.overrideWithValue(ladder),
       membersProvider.overrideWith((ref) async => [profile]),
       rolesProvider.overrideWith(
         (ref) async =>
@@ -261,5 +277,71 @@ void main() {
     await tester.pump();
     expect(find.text('Could not load the roles.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('a cross shows only on a role below the manager\'s highest', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _maya(held: const ['r-mods', 'r-regs']),
+      manager: true,
+      ladder: const RoleLadder(permissions: Perm.manageRoles, topPosition: 5),
+    );
+    expect(_remove('Moderators'), findsNothing, reason: 'level with theirs');
+    expect(_remove('Regulars'), findsOneWidget);
+
+    await tester.tap(_add());
+    await tester.pump();
+    AppToggle toggle(String role) => tester.widget<AppToggle>(
+      find.byWidgetPredicate(
+        (w) => w is AppToggle && w.semanticLabel == '$role for maya',
+      ),
+    );
+    expect(toggle('Moderators').onChanged, isNull);
+    expect(toggle('Helpers').onChanged, isNotNull);
+    expect(find.text('Not below your highest role'), findsWidgets);
+  });
+
+  testWidgets('a manager with no role reaches nothing, so has no + at all', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _maya(held: const ['r-regs']),
+      manager: true,
+      ladder: const RoleLadder(permissions: Perm.manageRoles),
+    );
+    expect(find.text('Regulars'), findsOneWidget);
+    expect(_add(), findsNothing);
+    expect(_remove('Regulars'), findsNothing);
+  });
+
+  testWidgets('the owner keeps their roles: no cross, though a grant is open', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _maya(held: const ['r-regs'], owner: true),
+      manager: true,
+    );
+    expect(_remove('Regulars'), findsNothing);
+    expect(_add(), findsOneWidget);
+  });
+
+  testWidgets('the owner reaches every role, the ones above them too', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _maya(held: const ['r-mods']),
+      manager: true,
+      ladder: const RoleLadder(
+        permissions: Perm.manageRoles,
+        isOwner: true,
+        topPosition: 1,
+      ),
+    );
+    expect(_remove('Moderators'), findsOneWidget);
   });
 }

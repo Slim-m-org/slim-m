@@ -18,6 +18,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_detail_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/roles_screen.dart';
+import 'package:slimm_app/src/features/members/widgets/role_color.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sync.dart';
@@ -35,6 +36,7 @@ api.Role _role(
   bool everyone = false,
   int memberCount = 0,
   int position = 0,
+  int? color,
 }) => api.Role(
   id: id,
   name: name,
@@ -43,6 +45,7 @@ api.Role _role(
   createdAt: 0,
   memberCount: memberCount,
   position: position,
+  color: color,
 );
 
 Future<void> _pump(
@@ -91,7 +94,39 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+final _dot = find.byWidgetPredicate(
+  (w) =>
+      w is DecoratedBox &&
+      w.decoration is BoxDecoration &&
+      (w.decoration as BoxDecoration).shape == BoxShape.circle,
+);
+
 void main() {
+  testWidgets('an uncoloured role wears the neutral dot members see', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _role('role-everyone', 'everyone', everyone: true),
+      _role('role-mod', 'mod', color: 6),
+      _role('role-plain', 'plain'),
+    ]);
+    Color? dotOf(String name) {
+      final row = find
+          .ancestor(
+            of: find.text(name),
+            matching: find.byWidgetPredicate((w) => w is AppListRow),
+          )
+          .first;
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(of: row, matching: _dot).first,
+      );
+      return (box.decoration as BoxDecoration).color;
+    }
+
+    expect(dotOf('plain'), AppTokens.light.borderStrong);
+    expect(dotOf('mod'), rolePalette[6].color);
+  });
+
   testWidgets('the role list shows each role and its member count', (
     tester,
   ) async {

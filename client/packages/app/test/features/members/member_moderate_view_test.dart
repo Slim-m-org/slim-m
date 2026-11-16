@@ -318,7 +318,7 @@ void main() {
 
     expect(
       find.text(
-        'You cannot time out or remove maya: they hold permissions you do not.',
+        'You cannot time out or remove maya: they rank at or above you.',
       ),
       findsOneWidget,
     );

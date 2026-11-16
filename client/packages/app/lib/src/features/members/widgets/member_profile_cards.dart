@@ -76,6 +76,7 @@ class SelfMemberCard extends ConsumerWidget {
     required this.host,
     required this.onDone,
     required this.run,
+    this.canManageRoles = false,
     this.memberPaneScaffold,
   });
 
@@ -83,6 +84,9 @@ class SelfMemberCard extends ConsumerWidget {
   final BuildContext host;
   final VoidCallback onDone;
   final CardRun run;
+
+  /// Your own roles below your highest are yours to change, as anyone else's are.
+  final bool canManageRoles;
   final ScaffoldState? memberPaneScaffold;
 
   @override
@@ -108,7 +112,7 @@ class SelfMemberCard extends ConsumerWidget {
         MemberProfileActivity(userId: profile.id),
         MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(createdAt: profile.createdAt),
-        MemberProfileRoles(profile: profile),
+        MemberProfileRoles(profile: profile, canManageRoles: canManageRoles),
         ModuleProfileSlots(profile.id),
         const _Rule(),
         _Section([

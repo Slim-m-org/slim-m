@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../features/channels/providers/channel_permissions.dart';
+import '../role_ladder.dart';
 import '../features/settings/providers/join_gate_providers.dart';
 import 'live_events.dart';
 import '../features/members/providers/member_presence.dart'
@@ -31,6 +32,14 @@ import 'providers.dart';
 /// nothing" rather than "show everything" until proven otherwise.
 final myPermissionsProvider = Provider<int>(
   (ref) => ref.watch(meProvider).valueOrNull?.permissions ?? 0,
+);
+
+/// Where the caller stands on the role ladder; see [RoleLadder.of].
+final roleLadderProvider = Provider<RoleLadder>(
+  (ref) => RoleLadder.of(
+    ref.watch(meProvider).valueOrNull,
+    permissions: ref.watch(myPermissionsProvider),
+  ),
 );
 
 /// The invites loaded so far, newest first, and whether the server has more.

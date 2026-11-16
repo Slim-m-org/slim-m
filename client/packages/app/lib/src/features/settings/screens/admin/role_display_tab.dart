@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The selected role's Display tab: name, its colour dot (hashed, not a
-/// stored property - see `widgets/role_color.dart`), and the mentionable
-/// flag. `@everyone` cannot be renamed, mentioned as `@[Role Name]` (it wakes
+/// The selected role's Display tab: name, its colour (a palette entry or
+/// none - see `widgets/role_color.dart`), and the mentionable flag. `@everyone` cannot be renamed, mentioned as `@[Role Name]` (it wakes
 /// through the reserved `@everyone`/`@here` words instead) or deleted, so
 /// those controls are simply absent for it rather than disabled and unclear
 /// why.
@@ -72,12 +71,17 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
     if (ok && mounted) ref.invalidate(rolesProvider);
   }
 
-  Future<void> _setColor(int index) async {
+  /// A null [index] takes the colour away.
+  Future<void> _setColor(int? index) async {
     final ok = await guard(
       whatFailed: 'change the colour',
       action: () => ref
           .read(apiProvider)
-          .updateRole(roleId: widget.role.id, color: index),
+          .updateRole(
+            roleId: widget.role.id,
+            color: index,
+            clearColor: index == null,
+          ),
     );
     if (!ok || !mounted) return;
     ref.invalidate(rolesProvider);
@@ -159,7 +163,7 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
         ),
         SettingsSectionCard(
           title: 'Colour',
-          description: 'Marks this role in the roles list.',
+          description: 'Colours member names and the role dot.',
           children: [
             SettingsCardBlock(
               children: [
@@ -167,8 +171,14 @@ class _RoleDisplayTabState extends ConsumerState<RoleDisplayTab>
                   label: 'Role colour',
                   colors: [for (final entry in rolePalette) entry.color],
                   names: [for (final entry in rolePalette) entry.name],
-                  selected: rolePaletteIndex(role.id, role.color),
+                  selected: chosenRoleIndex(role.color),
                   onSelect: _setColor,
+                  leading: SwatchTile(
+                    icon: AppIcons.revoke,
+                    label: 'Role colour: No colour',
+                    selected: chosenRoleIndex(role.color) == null,
+                    onTap: () => _setColor(null),
+                  ),
                 ),
               ],
             ),

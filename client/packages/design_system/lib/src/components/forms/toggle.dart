@@ -57,9 +57,19 @@ class AppToggle extends StatelessWidget {
         ringRadius: AppRadii.full,
         builder: (context, focused, hovered) {
           // On is a solid accent track, off a hollow one, per the settings redesign (2026-10-16).
-          final trackColor = value ? tokens.accentFill : tokens.surfaceSunken;
-          final trackBorder = value ? tokens.accentFill : tokens.borderStrong;
-          final thumbColor = value ? tokens.accentOn : tokens.textSecondary;
+          final disabled = !interactive && !locked;
+          final onFill = disabled ? tokens.textDisabled : tokens.accentFill;
+          final trackColor = value ? onFill : tokens.surfaceSunken;
+          final trackBorder = value
+              ? onFill
+              : disabled
+                  ? tokens.borderSubtle
+                  : tokens.borderStrong;
+          final thumbColor = value
+              ? (disabled ? tokens.surfaceRaised : tokens.accentOn)
+              : disabled
+                  ? tokens.textDisabled
+                  : tokens.textSecondary;
           final thumb = value ? _thumbOn : _thumbOff;
           final motion =
               AppMotion.reduced(context, const Duration(milliseconds: 150));

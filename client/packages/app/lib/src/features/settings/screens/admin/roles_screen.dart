@@ -301,7 +301,10 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     key: dragIndex == null ? ValueKey(role.id) : null,
     leading: DecoratedBox(
       decoration: BoxDecoration(
-        color: roleColor(role.id, color: role.color),
+        color: roleDotColor(
+          role.color,
+          Theme.of(context).extension<AppTokens>()!,
+        ),
         shape: BoxShape.circle,
       ),
       child: const SizedBox(width: 10, height: 10),
