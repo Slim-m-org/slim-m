@@ -3,16 +3,20 @@
 /// turns the row into the recording bar until the clip is sent or discarded.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_actions.dart';
 import 'package:slimm_app/src/features/composer/providers/voice_recording.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_action_bar.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_voice_bar.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
+import '../../support/fake_voice.dart';
 import 'voice_recording_test.dart' show FakeActions, FakeCapture;
 
 Future<void> pumpBar(
@@ -21,7 +25,7 @@ Future<void> pumpBar(
   required bool canSend,
   required FakeCapture capture,
   required FakeActions actions,
-  List<Attachment>? sent,
+  List<Override> overrides = const [],
 }) async {
   final controller = TextEditingController();
   addTearDown(controller.dispose);
@@ -32,6 +36,7 @@ Future<void> pumpBar(
       overrides: [
         voiceCaptureFactoryProvider.overrideWithValue(() => capture),
         composerActionsProvider.overrideWithValue(actions),
+        ...overrides,
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
@@ -47,7 +52,7 @@ Future<void> pumpBar(
               hasText: canSend,
               canSend: canSend,
               canRecord: canRecord,
-              onVoiceSent: (attachment, _) => sent?.add(attachment),
+              onVoiceSent: (_) {},
               onSend: () async {},
               onTyping: (_) {},
               onOpenActions: () {},
@@ -67,10 +72,103 @@ Future<void> pumpBar(
   await tester.pump();
 }
 
+/// Puts the recorder behind the bar on a clock the test moves by hand.
+({ProviderContainer container, void Function(Duration) advance}) clocked(
+  WidgetTester tester,
+) {
+  final container = ProviderScope.containerOf(
+    tester.element(find.byKey(const Key('composer-action-bar'))),
+  );
+  var clock = DateTime(2026, 1, 1);
+  container.read(voiceRecorderProvider('c1').notifier).now = () => clock;
+  return (container: container, advance: (by) => clock = clock.add(by));
+}
+
+AppIconButton voiceButton(WidgetTester tester, String label) =>
+    tester.widget<AppIconButton>(
+      find.byWidgetPredicate(
+        (w) => w is AppIconButton && w.semanticLabel == label,
+      ),
+    );
+
 void main() {
   final record = find.byTooltip('Record a voice message');
   final send = find.byTooltip('Send message');
   final bar = find.byKey(const Key('composer-voice-bar'));
+
+  testWidgets(
+    'while the clip finishes, Send waits and Discard still throws it away',
+    (tester) async {
+      final capture = FakeCapture();
+      final actions = FakeActions();
+      await pumpBar(
+        tester,
+        canRecord: true,
+        canSend: false,
+        capture: capture,
+        actions: actions,
+      );
+      final clock = clocked(tester);
+      await tester.pump(ComposerMicButton.wakeDelay);
+      await tester.tap(record);
+      await tester.pump();
+      clock.advance(const Duration(seconds: 3));
+      final finish = Completer<void>();
+      capture.finishing = finish.future;
+      await tester.tap(find.byTooltip('Send voice message'));
+      await tester.pump();
+      expect(
+        clock.container.read(voiceRecorderProvider('c1')).phase,
+        VoicePhase.stopping,
+      );
+      expect(voiceButton(tester, 'Send voice message').onPressed, isNull);
+      expect(voiceButton(tester, 'Discard voice message').onPressed, isNotNull);
+
+      await tester.tap(find.byTooltip('Discard voice message'));
+      await tester.pump();
+      finish.complete();
+      await tester.pump();
+      expect(bar, findsNothing);
+      expect(actions.uploads, isEmpty);
+    },
+  );
+
+  testWidgets('a phone in a call says why it cannot record, in the bar', (
+    tester,
+  ) async {
+    final capture = FakeCapture();
+    await pumpBar(
+      tester,
+      canRecord: true,
+      canSend: false,
+      capture: capture,
+      actions: FakeActions(),
+      overrides: [
+        voiceRecordingYieldsToCallProvider.overrideWithValue(true),
+        voiceControllerProvider.overrideWith(
+          (ref) => FakeVoiceController(
+            ref,
+            initial: const VoiceState(
+              state: VoiceSessionState.connected,
+              channelId: 'lounge',
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.pump(ComposerMicButton.wakeDelay);
+    await tester.tap(record);
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: bar,
+        matching: find.text('Leave the call to record a voice message.'),
+      ),
+      findsOneWidget,
+    );
+    expect(capture.started, isFalse);
+    expect(voiceButton(tester, 'Send voice message').onPressed, isNull);
+  });
 
   testWidgets('an empty composer offers the mic in place of Send', (
     tester,
@@ -139,14 +237,7 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key('composer-voice-error')), findsOneWidget);
     expect(
-      tester
-          .widget<AppIconButton>(
-            find.byWidgetPredicate(
-              (w) =>
-                  w is AppIconButton && w.semanticLabel == 'Send voice message',
-            ),
-          )
-          .onPressed,
+      voiceButton(tester, 'Send voice message').onPressed,
       isNull,
       reason: 'there is nothing to send',
     );

@@ -34,7 +34,7 @@ void main() {
                 hasText: false,
                 canSend: false,
                 canRecord: false,
-                onVoiceSent: (_, _) {},
+                onVoiceSent: (_) {},
                 onSend: () async {},
                 onTyping: (_) {},
                 onOpenActions: () {},

@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_actions.dart';
-import 'package:slimm_app/src/features/composer/providers/voice_capture_record.dart';
 import 'package:slimm_app/src/features/composer/providers/voice_recording.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
+
+import '../../support/fake_voice.dart';
 
 class FakeCapture implements VoiceCaptureBackend {
   FakeCapture({this.allowed = true});
@@ -24,6 +27,10 @@ class FakeCapture implements VoiceCaptureBackend {
   /// When set, start waits on it, the way a permission prompt does.
   Future<void>? opening;
 
+  /// When set, stop waits on it, the way an encoder finishing its file does.
+  Future<void>? finishing;
+  int stops = 0;
+
   @override
   Future<bool> start() async {
     await opening;
@@ -36,10 +43,12 @@ class FakeCapture implements VoiceCaptureBackend {
 
   @override
   Future<VoiceCapture?> stop() async {
+    stops++;
+    await finishing;
     stopped = true;
     return VoiceCapture(
       bytes: Uint8List.fromList([1, 2, 3]),
-      filename: 'voice-message.ogg',
+      filename: 'voice-message.wav',
     );
   }
 
@@ -66,7 +75,7 @@ class FakeActions implements ComposerActions {
     return Attachment(
       id: 'abc',
       filename: filename,
-      contentType: 'audio/ogg',
+      contentType: 'audio/wav',
       size: bytes.length,
       voice: voice,
     );
@@ -77,13 +86,29 @@ class FakeActions implements ComposerActions {
 }
 
 class Rig {
-  Rig({bool allowed = true, bool onLinux = false})
-    : capture = FakeCapture(allowed: allowed) {
+  Rig({
+    bool allowed = true,
+    bool onLinux = false,
+    bool onPhone = false,
+    String? callChannel,
+  }) : capture = FakeCapture(allowed: allowed) {
     container = ProviderContainer(
       overrides: [
         voiceRecordingNeedsToolsProvider.overrideWithValue(onLinux),
+        voiceRecordingYieldsToCallProvider.overrideWithValue(onPhone),
         voiceCaptureFactoryProvider.overrideWithValue(() => capture),
         composerActionsProvider.overrideWithValue(actions),
+        voiceControllerProvider.overrideWith(
+          (ref) => FakeVoiceController(
+            ref,
+            initial: VoiceState(
+              state: callChannel == null
+                  ? VoiceSessionState.idle
+                  : VoiceSessionState.connected,
+              channelId: callChannel,
+            ),
+          ),
+        ),
       ],
     );
     recorder.now = () => clock;
@@ -151,6 +176,30 @@ void main() {
     expect(rig.capture.cancelled, isTrue, reason: 'nothing else owns it now');
     rig.container.dispose();
   });
+
+  test(
+    'a phone in a call refuses to record and never opens the microphone',
+    () async {
+      rig = Rig(onPhone: true, callChannel: 'lounge')..listen();
+      addTearDown(rig.container.dispose);
+      await rig.recorder.start();
+      expect(rig.state.phase, VoicePhase.failed);
+      expect(rig.state.error, 'Leave the call to record a voice message.');
+      expect(rig.capture.started, isFalse);
+    },
+  );
+
+  test(
+    'a call does not stop a desktop recording, nor a phone out of one',
+    () async {
+      for (final (onPhone, callChannel) in [(false, 'lounge'), (true, null)]) {
+        final rig = Rig(onPhone: onPhone, callChannel: callChannel)..listen();
+        await rig.recorder.start();
+        expect(rig.state.phase, VoicePhase.recording, reason: '$onPhone');
+        rig.container.dispose();
+      }
+    },
+  );
 
   test('a denied microphone leaves an inline error and no recording', () async {
     await started(allowed: false);
@@ -224,6 +273,54 @@ void main() {
     },
   );
 
+  test('a discard while the clip is finishing is never sent', () async {
+    await started();
+    await rig.advance(const Duration(seconds: 3));
+    final finish = Completer<void>();
+    rig.capture.finishing = finish.future;
+    final sending = rig.recorder.send();
+    await rig.recorder.cancel();
+    finish.complete();
+    expect(await sending, isNull);
+    expect(rig.state.phase, VoicePhase.idle);
+    expect(rig.state.clip, isNull);
+    expect(rig.actions.uploads, isEmpty);
+  });
+
+  test(
+    'a discard while the cap finishes the clip keeps it discarded',
+    () async {
+      await started();
+      final finish = Completer<void>();
+      rig.capture.finishing = finish.future;
+      final capping = rig.advance(kVoiceMaxDuration);
+      await Future<void>.delayed(Duration.zero);
+      await rig.recorder.cancel();
+      finish.complete();
+      await capping;
+      expect(rig.state.phase, VoicePhase.idle);
+      expect(rig.state.clip, isNull);
+    },
+  );
+
+  test(
+    'a second send while the clip is finishing stops and uploads once',
+    () async {
+      await started();
+      await rig.advance(const Duration(seconds: 3));
+      final finish = Completer<void>();
+      rig.capture.finishing = finish.future;
+      final first = rig.recorder.send();
+      final second = rig.recorder.send();
+      finish.complete();
+      final sent = await Future.wait([first, second]);
+      expect(rig.capture.stops, 1);
+      expect(rig.actions.uploads, hasLength(1));
+      expect(sent.nonNulls, hasLength(1));
+      expect(rig.state.phase, VoicePhase.idle);
+    },
+  );
+
   test('send uploads the clip as a voice message in its channel', () async {
     await started();
     rig.capture.nextLevel = 1;
@@ -231,7 +328,7 @@ void main() {
     final sent = await rig.recorder.send();
     final upload = rig.actions.uploads.single;
     expect(upload.channelId, 'c1');
-    expect(upload.filename, 'voice-message.ogg');
+    expect(upload.filename, 'voice-message.wav');
     expect(upload.voice.duration, const Duration(seconds: 3));
     expect(upload.voice.waveform, hasLength(VoiceInfo.buckets));
     expect(sent!.$1.id, 'abc');
@@ -271,16 +368,5 @@ void main() {
       );
       expect(buildWaveform(const []), everyElement(0));
     });
-  });
-
-  test('only Android and Linux record Opus', () {
-    for (final platform in TargetPlatform.values) {
-      expect(
-        prefersOpus(platform, isWeb: false),
-        platform == TargetPlatform.android || platform == TargetPlatform.linux,
-        reason: '$platform',
-      );
-    }
-    expect(prefersOpus(TargetPlatform.linux, isWeb: true), isFalse);
   });
 }

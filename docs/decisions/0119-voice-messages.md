@@ -18,12 +18,26 @@ The server never decodes audio and its image gains nothing: a background worker 
 The server image has no ffmpeg, and a second model and binary would duplicate what the listener already ships and keeps checked.
 A Space with no listener cannot turn the setting on (409), and reads it as unavailable, the same as call transcription.
 
-## Recording format by platform
+## Recording format
 
-The `record` package writes Opus in Ogg on Android and Linux (Linux needs ffmpeg on the machine, and falls back to WAV without it).
-Apple writes Opus only in a CAF container that nothing else plays, and Windows and the web have no Opus encoder, so those record 16 kHz mono WAV.
-Both sniff as audio on the server, and the listener reads both.
-A five minute WAV is about 10 MB, which stays under the attachment limits.
+Every platform records 16 kHz mono 16 bit WAV.
+Every client plays a voice message through `audioplayers`, and that cannot decode Ogg on Windows or iPhone (the reason hold music ships as MP3 in `docs/dependencies.md`, and soundboard clips refuse ogg in [0118](0118-soundboard.md)).
+An Ogg Opus message recorded on Linux or Android would not play for those members, and the server stores bytes as they came and never transcodes.
+Apple also writes Opus only in a CAF container nothing else plays, and Windows and the web have no Opus encoder at all.
+
+A five minute WAV is about 9.6 MB.
+That is far under the default attachment limit (1 GiB), the listener's 24 MiB body limit and the server's 24 MiB cap on what it sends for a transcript.
+An admin who lowers the per-attachment limit below about 10 MB refuses the longest voice messages, the same as any other file that size.
+On Linux the `record` package captures with parecord and writes the file with ffmpeg, WAV included, so both programs must be installed.
+
+A smaller format such as AAC in m4a would need a playback check on Linux (GStreamer), Windows and iPhone first, and the web has no AAC encoder.
+The listener still reads Ogg Opus, which costs nothing to keep.
+
+## Recording and the call
+
+A recording uses the microphone chosen in Voice settings, wherever a call honours that choice, and the system default once that microphone is unplugged.
+On iPhone and Android a recording is refused during a call ("Leave the call to record a voice message."), because the recorder reconfigures the one audio session the call holds: on iPhone it can move the call to the speaker, and on Android stopping it drops a Bluetooth headset.
+Playing a voice message on iPhone during a call is refused for the same reason.
 
 ## Privacy and lifetime
 
