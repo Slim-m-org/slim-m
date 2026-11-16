@@ -131,6 +131,10 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'notice instead of an error, and the permission grid keeps Save and '
         'the column names in view while you edit.',
       ),
+      WhatsNewPoint(
+        'On Windows, the call panel and drawing overlay move with your '
+        'screens when a monitor is plugged in or changed during a call.',
+      ),
     ],
   ),
 ];
