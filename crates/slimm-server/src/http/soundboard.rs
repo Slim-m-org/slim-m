@@ -80,15 +80,8 @@ struct UploadParams {
 struct UpdateRequest {
     #[serde(default)]
     name: Option<String>,
-    #[serde(default, deserialize_with = "present")]
+    #[serde(default, deserialize_with = "super::space::present")]
     emoji: Option<Option<String>>,
-}
-
-fn present<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    Option::<String>::deserialize(deserializer).map(Some)
 }
 
 async fn list(
