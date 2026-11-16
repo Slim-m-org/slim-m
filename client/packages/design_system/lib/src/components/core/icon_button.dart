@@ -13,6 +13,7 @@ import '../../app_tokens.dart';
 import '../../press_tracking.dart';
 import '../../touch_targets.dart';
 import 'control_with_options.dart';
+import 'spinner.dart';
 
 /// `danger` states the consequence at rest, for a destructive action sitting
 /// among ordinary ones. `dangerGhost` withholds it until hover, for the case
@@ -63,6 +64,7 @@ class AppIconButton extends StatefulWidget {
     this.tooltip,
     this.focusNode,
     this.suppressOwnHoverFill = false,
+    this.busy = false,
   });
 
   final IconData icon;
@@ -95,6 +97,10 @@ class AppIconButton extends StatefulWidget {
   /// hover, the same "share one mechanism" call `MessageRow.hoverFillKey`
   /// already made for its own hover fill.
   final bool suppressOwnHoverFill;
+
+  /// Swaps the icon for a spinner and ignores presses, while the control keeps
+  /// its focus, so a keyboard user is not dropped when work starts.
+  final bool busy;
 
   @override
   State<AppIconButton> createState() => _AppIconButtonState();
@@ -172,11 +178,14 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
     return control;
   }
 
+  void _press() {
+    if (!widget.busy) widget.onPressed!();
+  }
+
   Map<Type, Action<Intent>> _activateActions(bool enabled) {
     if (!enabled) return const <Type, Action<Intent>>{};
     return <Type, Action<Intent>>{
-      ActivateIntent:
-          CallbackAction<ActivateIntent>(onInvoke: (_) => widget.onPressed!()),
+      ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _press()),
     };
   }
 
@@ -189,6 +198,7 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
       onTapCancel: enabled ? () => setPressed(false) : null,
       onTap: enabled
           ? () {
+              if (widget.busy) return;
               AppHaptics.selection();
               widget.onPressed!();
             }
@@ -250,7 +260,9 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
               border: Border.all(color: tokens.focusRing, width: 2),
             )
           : null,
-      child: Icon(widget.icon, size: widget.iconSize, color: ink),
+      child: widget.busy
+          ? const AppSpinner(size: AppSpinnerSize.sm)
+          : Icon(widget.icon, size: widget.iconSize, color: ink),
     );
   }
 

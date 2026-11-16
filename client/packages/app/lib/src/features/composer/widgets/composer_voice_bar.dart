@@ -123,10 +123,9 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final error = state.error;
     if (error != null) {
-      return Text(
-        error,
+      return AppErrorState(
         key: const Key('composer-voice-error'),
-        style: AppText.ui.copyWith(color: tokens.dangerText),
+        message: error,
       );
     }
     final remaining = kVoiceMaxDuration - state.elapsed;

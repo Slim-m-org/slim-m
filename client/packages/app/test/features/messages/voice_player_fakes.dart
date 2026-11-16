@@ -67,12 +67,14 @@ Attachment voiceMessage(
 );
 
 /// Players for [messages] in a column, over a fresh [FakePlayer]; a clip in
-/// [unplayable] fails to load for as long as it stays in the set.
+/// [unplayable] fails to load for as long as it stays in the set, and every
+/// clip waits on [slowBytes] when given.
 Future<FakePlayer> pumpVoicePlayers(
   WidgetTester tester,
   List<Attachment> messages, {
   Set<String> unplayable = const {},
   List<Override> extra = const [],
+  Future<Uint8List>? slowBytes,
 }) async {
   final player = FakePlayer();
   await tester.pumpWidget(
@@ -81,7 +83,9 @@ Future<FakePlayer> pumpVoicePlayers(
         ...extra,
         voicePlayerFactoryProvider.overrideWithValue(() => player),
         attachmentBytesProvider.overrideWith(
-          (ref, id) async => unplayable.contains(id)
+          (ref, id) async => slowBytes != null
+              ? await slowBytes
+              : unplayable.contains(id)
               ? throw const TransportException('offline')
               : Uint8List.fromList([1, 2, 3, 4]),
         ),

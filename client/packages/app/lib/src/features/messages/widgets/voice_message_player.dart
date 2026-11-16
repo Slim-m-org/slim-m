@@ -79,23 +79,15 @@ class VoiceMessagePlayer extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  loading
-                      ? const SizedBox(
-                          width: AppSizes.controlLg,
-                          height: AppSizes.controlLg,
-                          child: Center(
-                            child: AppSpinner(size: AppSpinnerSize.sm),
-                          ),
-                        )
-                      : AppIconButton(
-                          icon: playing ? AppIcons.pause : AppIcons.play,
-                          semanticLabel: playing
-                              ? 'Pause voice message'
-                              : 'Play voice message',
-                          tooltip: playing ? 'Pause' : 'Play',
-                          onPressed: () =>
-                              unawaited(playback.toggle(attachment)),
-                        ),
+                  AppIconButton(
+                    icon: playing ? AppIcons.pause : AppIcons.play,
+                    busy: loading,
+                    semanticLabel: playing
+                        ? 'Pause voice message'
+                        : 'Play voice message',
+                    tooltip: playing ? 'Pause' : 'Play',
+                    onPressed: () => unawaited(playback.toggle(attachment)),
+                  ),
                   const SizedBox(width: AppSpacing.s8),
                   Expanded(
                     child: _Seekable(
