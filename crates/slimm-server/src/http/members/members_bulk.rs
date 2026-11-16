@@ -33,9 +33,10 @@ use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::escalation::peer_guard;
+use super::super::escalation::escalation_guard;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
+use super::super::role_ladder::Ladder;
 use super::super::safety::validate_reason;
 use super::{evict_from_rooms, require, voice_room_ids};
 use crate::hub::Event;
@@ -193,7 +194,7 @@ fn parse_targets(raw: &[String], caller: UserId) -> Result<Vec<UserId>, ApiError
     Ok(targets)
 }
 
-/// The caller holds `needed`, and contains every one of `targets`.
+/// The caller holds `needed`, contains every one of `targets`, and outranks each on the role ladder.
 ///
 /// Read as one pass before anything is written, so the refusal is the whole
 /// request rather than a partly-applied one. `granted_base_permissions` is
@@ -208,9 +209,11 @@ async fn authorize_all(
 ) -> Result<(), ApiError> {
     require(state, caller, needed).await?;
     let caller_granted = state.store.granted_base_permissions(caller).await?;
+    let ladder = Ladder::of(state, caller).await?;
     for target in targets {
         let target_granted = state.store.granted_base_permissions(*target).await?;
-        peer_guard(caller_granted, target_granted)?;
+        escalation_guard(caller_granted, target_granted)?;
+        ladder.reach_member(state, *target).await?;
     }
     Ok(())
 }

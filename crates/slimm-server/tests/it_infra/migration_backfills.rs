@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The data backfills inside migrations 0125 (a bot's assigned prefix) and
-//! 0144 (a canvas clear's affected count), run against rows that existed
-//! before them.
+//! The data backfills inside migrations 0125 (a bot's assigned prefix), 0144
+//! (a canvas clear's affected count) and 0197 (the Space owner), run against
+//! rows that existed before them.
 
 use std::path::Path;
 use std::time::Duration;
@@ -163,4 +163,46 @@ async fn undoing_a_clear_does_not_change_its_stored_count() {
         Some(2),
         "the count must outlive the fence it was derived from"
     );
+}
+
+async fn owner_after_0197(claimed_by: Option<u8>) -> Option<Vec<u8>> {
+    let (pool, full, _guard) = pool_before(197).await;
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at, is_bot) VALUES
+               ({bot}, 'bot', 'Bot', 'h', 1, 1),
+               ({removed}, 'removed', 'Removed', 'h', 2, 0),
+               ({gone}, 'gone', 'Gone', 'h', 3, 0),
+               ({first}, 'first', 'First', 'h', 4, 0),
+               ({later}, 'later', 'Later', 'h', 5, 0);
+             UPDATE users SET deleted_at = 9 WHERE id = {gone};
+             INSERT INTO space_removals (user_id, removed_at) VALUES ({removed}, 9);
+             UPDATE space_settings SET setup_claimed_by = {claimed}",
+            bot = id(1),
+            removed = id(2),
+            gone = id(3),
+            first = id(4),
+            later = id(5),
+            claimed = claimed_by.map_or("NULL".to_owned(), id),
+        ),
+    )
+    .await;
+    full.run(&pool).await.unwrap();
+    sqlx::query_scalar("SELECT owner_id FROM space_settings WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn the_space_owner_is_the_claimer_while_they_are_still_a_member() {
+    assert_eq!(owner_after_0197(Some(5)).await, Some(vec![5u8; 16]));
+}
+
+/// Unrecorded, or recorded but deleted: the first human who joined and is still a member.
+#[tokio::test]
+async fn without_a_live_claimer_the_space_owner_is_the_first_human_member() {
+    assert_eq!(owner_after_0197(None).await, Some(vec![4u8; 16]));
+    assert_eq!(owner_after_0197(Some(3)).await, Some(vec![4u8; 16]));
 }

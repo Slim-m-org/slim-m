@@ -22,6 +22,8 @@
 //! granting - and `update`/`delete` run it against the role's own current
 //! bits, since a role has no user to check instead.
 //!
+//! Every route also runs the role ladder, [`super::role_ladder`]: only roles below the caller's own.
+//!
 //! A bot is a role holder like any other; see
 //! `docs/decisions/0028-bot-accounts.md`.
 
@@ -41,6 +43,7 @@ use super::extract::require_manage_roles;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::hidden_chars::is_hidden_char;
 use super::messages::parse_uuid;
+use super::space::present;
 use crate::hub::{Event, RoleChange};
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
@@ -48,6 +51,8 @@ use crate::ratelimit::Class;
 use crate::store::{ROLE_COLOR_COUNT, Role, RoleChanges, RoleGuardError, RoleWithCount};
 
 pub(super) mod role_reorder;
+
+use super::role_ladder::{Ladder, hand_assignable};
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -80,7 +85,7 @@ pub(super) struct RoleDto {
     mentionable: bool,
     /// Whether the member pane lists this role's members under their own heading.
     hoist: bool,
-    /// An index into the client's role palette, or null for the colour derived from the id.
+    /// An index into the client's role palette, or null for no colour.
     color: Option<i64>,
     created_at: i64,
     /// See [`Role::managed_bot_id`].
@@ -140,7 +145,9 @@ struct UpdateRoleRequest {
     permissions: Option<i64>,
     mentionable: Option<bool>,
     hoist: Option<bool>,
-    color: Option<i64>,
+    /// Absent leaves it alone; null clears it.
+    #[serde(default, deserialize_with = "present")]
+    color: Option<Option<i64>>,
 }
 
 // --- Handlers: role CRUD ---
@@ -172,6 +179,8 @@ async fn create(
 ) -> Result<Json<RoleDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let caller_permissions = require_manage_roles(&state, ctx.user_id).await?;
+    // A new role starts at the bottom; a caller must be able to manage it once it exists.
+    Ladder::of(&state, ctx.user_id).await?.reach_role(0)?;
 
     let name = validate_role_name(&req.name)?;
     let permissions = grantable(caller_permissions, req.permissions)?;
@@ -249,6 +258,9 @@ async fn update(
     // Read before the write, against granted permissions; see `escalation`.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
+        Ladder::of(&state, ctx.user_id)
+            .await?
+            .reach_role(current.position)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
@@ -291,6 +303,9 @@ async fn delete(
     // Read before the mutating write; see `update`'s identical note.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
+        Ladder::of(&state, ctx.user_id)
+            .await?
+            .reach_role(current.position)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
@@ -331,6 +346,10 @@ async fn assign(
         .role(role_id)
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
+    hand_assignable(&role)?;
+    Ladder::of(&state, ctx.user_id)
+        .await?
+        .reach_role(role.position)?;
     escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
 
     let target = state
@@ -373,6 +392,11 @@ async fn unassign(
 
     let role = state.store.role(role_id).await?;
     if let Some(role) = &role {
+        hand_assignable(role)?;
+        let ladder = Ladder::of(&state, ctx.user_id).await?;
+        ladder.spare_owner(user_id)?;
+        // Also what keeps a caller from dropping their own highest role.
+        ladder.reach_role(role.position)?;
         escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
     }
 
@@ -412,9 +436,6 @@ async fn unassign(
 /// would be identical today, since nothing in `TIMEOUT_DENY` touches a
 /// role-management bit - and would silently become a hole the moment something
 /// did.
-///
-/// `pub(super)`: [`self::role_reorder`] reuses this for its own
-/// position-hierarchy guard's administrator bypass.
 pub(super) async fn caller_granted(
     state: &AppState,
     user_id: UserId,
@@ -464,8 +485,9 @@ fn validate_role_name(name: &str) -> Result<&str, ApiError> {
     Ok(trimmed)
 }
 
-fn validate_role_color(color: i64) -> Result<i64, ApiError> {
-    if usize::try_from(color).is_ok_and(|index| index < ROLE_COLOR_COUNT) {
+/// `None` is no colour, which is always valid.
+fn validate_role_color(color: Option<i64>) -> Result<Option<i64>, ApiError> {
+    if color.is_none_or(|c| usize::try_from(c).is_ok_and(|index| index < ROLE_COLOR_COUNT)) {
         Ok(color)
     } else {
         Err(ApiError::BadRequest(

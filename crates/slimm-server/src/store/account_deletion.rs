@@ -67,8 +67,8 @@ impl Store {
     /// comment already promised "null once the reporter's account has been
     /// anonymized", which was not true of any code path until this cleared it.
     ///
-    /// Group-ownership transfer is a no-op until an ownership model exists; the
-    /// current schema has no owner column, so nothing can be orphaned.
+    /// Deleting the Space owner hands ownership on in the same transaction; see
+    /// [`super::space_owner::hand_on_owner`].
     ///
     /// Refuses to delete the last administrator, because that leaves a
     /// deployment nobody can administer and no recovery path: roles, invites
@@ -369,6 +369,8 @@ impl Store {
                 return Err(DeleteAccountError::WouldStrandDeployment);
             }
         }
+
+        super::space_owner::hand_on_owner(&mut tx).await?;
 
         if let Some(actor_id) = audited_by {
             record_moderation_audit(

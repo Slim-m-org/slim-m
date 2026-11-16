@@ -103,7 +103,7 @@ struct UpdateSpaceSettingsDto {
     transcribe_voice_messages: Option<bool>,
 }
 
-fn present<'de, D>(deserializer: D) -> Result<Option<Option<i64>>, D::Error>
+pub(super) fn present<'de, D>(deserializer: D) -> Result<Option<Option<i64>>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

@@ -188,6 +188,14 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
              names nobody and matches no signed-in admin",
         ),
     ),
+    (
+        "space_settings",
+        "owner_id",
+        OnDelete::Keep(
+            "the Space's, not the person's: ownership passes on to the next \
+             owner in the same transaction (store::space_owner::hand_on_owner)",
+        ),
+    ),
     ("totp_challenges", "user_id", OnDelete::Purge),
     ("totp_recovery_codes", "user_id", OnDelete::Purge),
     ("user_blocks", "blocked_id", OnDelete::Purge),

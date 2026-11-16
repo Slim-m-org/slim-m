@@ -20,6 +20,8 @@ An administrator is exempt, because their grant contains every bit and nobody ra
 Role management and voice kicks keep the original containment rule.
 The refusal is a 403 with the reason `you cannot act on someone of equal rank`.
 
+Replaced on 2026-11-16 by the role ladder below: equal rank is now read from role position, not from equal permission bits.
+
 ### Changing the TOTP policy needs the admin's own factor (question 5)
 
 The owner chose to require the acting admin to have a confirmed second factor before they change the TOTP policy.
@@ -55,3 +57,40 @@ The locked response already carries an `until` value, and the client shows its o
 
 The second-factor 403 keeps its message as the only signal.
 The client matches the message for the refusals above and shows a plain sentence, so no wire code is added for now.
+
+## The role ladder and the Space owner (owner decision, 2026-11-16)
+
+Roles and moderation now follow Discord's hierarchy.
+This replaces the peer rule above and the administrator exemptions of the role reorder and voice kick rank checks.
+
+### The ladder
+
+A member stands at their highest role's position; a member holding no role stands below every role, as `@everyone` does.
+A caller may grant, revoke, edit, reorder or delete only a role strictly below where they stand.
+A new role is created at position 0, so a caller whose highest role is at 0, or who holds none, cannot create one.
+A caller may kick from a call, time out, rename, remove, or delete the account of only a member standing strictly below them, single and bulk alike.
+A tie is refused, so two members whose highest roles share a position cannot act on each other, and neither can two members with no role.
+The ladder runs on top of the permission checks, never instead of them: the caller still needs the bit for the act, and still cannot grant or reach past bits they do not hold.
+Every ladder refusal is a 403 carrying `code` `role_hierarchy`; a tie between members keeps the reason `you cannot act on someone of equal rank`.
+
+A member who can manage roles may add or remove their own roles below their highest.
+Their highest role is not below itself, so the ladder refuses dropping it, which would be self-demotion past the ladder.
+
+### The Space owner
+
+The owner is the one member the ladder exempts, the way Discord exempts a server owner.
+Administrators follow the ladder like everyone else.
+Nobody else can moderate the owner or take a role away from them.
+The owner is not shown anywhere in the interface; profiles and `/me` carry `is_owner` only so a client can leave out what the server would refuse.
+
+The owner is the account that claimed the deployment.
+Where that was never recorded (a deployment claimed before migration 0155) or the account is gone, migration 0197 makes it the first human member who joined.
+When the owner's account is deleted, or the owner is no longer a member, ownership passes to the earliest-joined remaining administrator, else the earliest-joined member.
+There is no way to transfer ownership yet.
+
+### Bot roles
+
+A bot's own role and the shared Bots role follow their bots, so nobody grants or revokes either by hand, the owner included.
+That refusal is a 409 with `code` `role_follows_bot`.
+Deleting a bot's own role by hand stays allowed, under the ladder.
+

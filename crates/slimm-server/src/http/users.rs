@@ -112,6 +112,9 @@ pub(super) struct UserDto {
     /// That role's hierarchy position, so a client orders sections exactly
     /// without `GET /roles`, which needs MANAGE_ROLES.
     hoisted_role_position: Option<i64>,
+    /// The position of this member's highest role, or `null` for none: where the role ladder
+    /// stands them, so a client offers moderation only to members below its own.
+    top_role_position: Option<i64>,
     /// When this member's timeout lifts, in Unix milliseconds, or `null` if
     /// they are not timed out. An elapsed timeout reads as `null` rather than
     /// as a past deadline, so a client never has to do the comparison to know
@@ -158,6 +161,9 @@ pub(super) struct UserDto {
     /// `GET /members` at all (it is not a participant), so this is only ever
     /// seen by resolving a message's own author id.
     is_webhook: bool,
+    /// Whether this member is the Space owner, whom no one else can moderate
+    /// or take roles from. Never drawn; a client only uses it to hide what it would refuse.
+    is_owner: bool,
 }
 
 /// The colour a card shows before its owner ever picks one: a stable index
@@ -188,6 +194,7 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
     let timed_out = store.timed_out_among_until(&ids).await?;
     let hoisted = store.hoisted_roles_for_users(&ids).await?;
     let nicknames = store.nicknames_for(&ids).await?;
+    let owner = store.space_owner().await?;
     Ok(users
         .into_iter()
         .map(|user| {
@@ -209,6 +216,7 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 role_colors: held.iter().map(|role| role.color).collect(),
                 hoisted_role_id: hoisted.get(&user.id).map(|role| role.id.to_string()),
                 hoisted_role_position: hoisted.get(&user.id).map(|role| role.position),
+                top_role_position: held.first().map(|role| role.position),
                 timed_out_until: timed_out.get(&user.id).copied(),
                 status_text: user.status_text,
                 pronouns: user.pronouns,
@@ -220,6 +228,7 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 invite_code: None,
                 is_bot: user.is_bot,
                 is_webhook: user.is_webhook,
+                is_owner: owner == Some(user.id),
             }
         })
         .collect())
@@ -270,6 +279,11 @@ struct MeDto {
     /// A bot's assigned command prefix; absent for a person and for a bot with none.
     #[serde(skip_serializing_if = "Option::is_none")]
     bot_prefix: Option<String>,
+    /// Whether the caller is the Space owner, who stands above every role.
+    is_owner: bool,
+    /// The highest position among the caller's roles, `None` for none: where the role ladder
+    /// stands them.
+    top_role_position: Option<i64>,
 }
 
 /// The editable half of a profile.
@@ -352,6 +366,8 @@ async fn get_me(
         profile_color_rgb: user.profile_color_rgb,
         presence_visibility: visibility.unwrap_or_default().as_str().to_owned(),
         bot_prefix: state.store.bot_prefix(ctx.user_id).await?,
+        is_owner: state.store.space_owner().await? == Some(ctx.user_id),
+        top_role_position: super::role_ladder::top_position(&state, ctx.user_id).await?,
     }))
 }
 

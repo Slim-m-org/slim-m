@@ -15,8 +15,8 @@ pub struct RoleChanges<'a> {
     pub permissions: Option<Permissions>,
     pub mentionable: Option<bool>,
     pub hoist: Option<bool>,
-    /// A palette index already checked against `ROLE_COLOR_COUNT`.
-    pub color: Option<i64>,
+    /// A palette index already checked against `ROLE_COLOR_COUNT`; `Some(None)` clears it.
+    pub color: Option<Option<i64>>,
 }
 
 impl RoleChanges<'_> {

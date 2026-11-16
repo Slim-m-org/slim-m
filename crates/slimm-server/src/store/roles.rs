@@ -47,8 +47,8 @@ pub struct Role {
     /// The one role every bot holds; it cannot be deleted. See ADR 0028.
     pub is_bots_role: bool,
     /// Hierarchy order: higher sorts first in [`Store::list_roles`] and is
-    /// the value `store::role_reorder`'s escalation guard compares a caller's
-    /// own highest role against. `@everyone` stays at its bootstrap default
+    /// what `http::role_ladder` compares a caller's own highest role against.
+    /// `@everyone` stays at its bootstrap default
     /// (0) forever - it is never a member of `member_roles`, so nothing ever
     /// reorders it - and every other role's position only ever comes from an
     /// explicit reorder or the column's own `DEFAULT 0` at creation.
@@ -56,7 +56,7 @@ pub struct Role {
     /// Whether the member pane gives this role's members their own section.
     pub hoist: bool,
     /// An index into the client's role palette, below [`ROLE_COLOR_COUNT`];
-    /// `None` leaves the colour the client derives from the id.
+    /// `None` is no colour.
     pub color: Option<i64>,
 }
 
@@ -373,7 +373,8 @@ impl Store {
         // Built rather than a fixed `query!` because the id list is variable
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
-            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name, r.color AS color \
+            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name, r.color AS color, \
+             r.position AS position \
              FROM member_roles mr JOIN roles r ON r.id = mr.role_id \
              WHERE r.is_everyone = 0 AND mr.user_id IN (",
         );
@@ -393,6 +394,7 @@ impl Store {
                 id: row.try_get("role_id")?,
                 name: row.try_get("name")?,
                 color: row.try_get("color")?,
+                position: row.try_get("position")?,
             };
             // Rows arrive grouped by user, so a member's roles are always the last entry.
             match grouped.last_mut() {

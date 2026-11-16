@@ -69,10 +69,8 @@ impl Store {
     /// The highest `position` among the roles `user_id` currently holds
     /// through `member_roles` - never `@everyone`, which is not held
     /// explicitly and would only ever contribute its bootstrap default. This
-    /// is the ceiling `http::role_reorder`'s escalation guard compares a
-    /// reorder against, the position-hierarchy sibling of
-    /// `http::escalation::escalation_guard`'s bit comparison. `None` if the
-    /// user holds no role beyond `@everyone`.
+    /// is where `http::role_ladder` stands a caller. `None` if the user holds
+    /// no role beyond `@everyone`.
     pub async fn highest_role_position(&self, user_id: UserId) -> anyhow::Result<Option<i64>> {
         let position = sqlx::query_scalar!(
             r#"SELECT MAX(r.position) AS "position: i64" FROM member_roles mr

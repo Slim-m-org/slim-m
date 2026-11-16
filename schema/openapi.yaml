@@ -2041,7 +2041,9 @@ paths:
         Without CREATE_INVITE, while the space lets members invite, the
         invite defaults to one use and 24 hours, may not exceed 10 uses or
         7 days, and may not grant a role. With `reuse`, the caller's live invite
-        of the same limits and no role is returned instead of a new one.
+        of the same limits and no role is returned instead of a new one. A
+        `role_grant` is checked as `assignRole` checks a grant, the role ladder
+        and the bot-role lock included.
       requestBody:
         required: true
         content:
@@ -2061,6 +2063,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -3224,6 +3228,9 @@ paths:
         Idempotent by the optional client-supplied `id`: a retry with the
         same id returns the role already stored under it. An id already used
         by the `@everyone` role is a conflict rather than a wrong-typed 200.
+        A new role starts at position 0, so the role ladder refuses a caller
+        whose own highest role is not above that, unless they are the Space
+        owner (403, `code` `role_hierarchy`).
       requestBody:
         required: true
         content:
@@ -3263,9 +3270,9 @@ paths:
 
         A second guard beyond MANAGE_ROLES: a caller may only touch a role
         whose old or new position sits strictly below the highest position
-        among roles they themselves hold - the position-hierarchy sibling of
-        the bit-based escalation check every other role route already
-        applies. An administrator bypasses it.
+        among roles they themselves hold - the role ladder every other role
+        route applies too. Only the Space owner bypasses it; a refusal is a
+        403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -3304,10 +3311,10 @@ paths:
       tags: [roles]
       summary: Rename a role or change its permissions. Requires MANAGE_ROLES.
       description: >
-        Both fields are optional; a field left out is unchanged. A
-        permissions change is checked the same way `createRole` checks one,
-        and is refused if it would leave the deployment with no
-        administrator.
+        Every field is optional; a field left out is unchanged, and a null
+        `color` clears the colour. A permissions change is checked the same
+        way `createRole` checks one, and is refused if it would leave the
+        deployment with no administrator. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -3340,7 +3347,8 @@ paths:
       description: >
         Refuses to delete `@everyone` (exactly one always exists) and refuses
         if this role is the deployment's only remaining source of
-        ADMINISTRATOR.
+        ADMINISTRATOR. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A bot's own role may be deleted
+        under the same rule.
       responses:
         "204":
           description: The role was deleted.
@@ -3494,7 +3502,9 @@ paths:
         whatever it carries. A bot is a role holder like any other, ADMINISTRATOR
         included; see docs/decisions/0028-bot-accounts.md. A member that does
         not exist or was deleted is a 404, and a webhook, which holds no roles,
-        is a 400.
+        is a 400. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may grant themselves a role this
+        way too. A bot's own role and the shared Bots role follow their bots
+        and are never granted by hand (409, `code` `role_follows_bot`).
       responses:
         "204":
           description: The role is assigned.
@@ -3506,6 +3516,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -3515,7 +3527,11 @@ paths:
       description: >
         Idempotent: revoking a role the member does not hold changes nothing
         and publishes nothing. Refused if it would leave the deployment with no
-        administrator.
+        administrator. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may take away their own roles
+        below their highest this way, never their highest itself, and nobody
+        but the owner takes a role away from the Space owner (403, `code`
+        `role_hierarchy`). A bot's own role and the shared Bots role are never
+        revoked by hand (409, `code` `role_follows_bot`).
       responses:
         "204":
           description: The role is no longer assigned (or never was).
@@ -3544,7 +3560,8 @@ paths:
         administrator, which rolls the whole batch back. Repeated ids collapse
         to one act with one audit row. Each removal publishes its own
         `member.removed`, and every session it revoked its own
-        `session.revoked`.
+        `session.revoked`. The role ladder applies per target as in
+        `removeMember`.
       requestBody:
         required: true
         content:
@@ -3597,7 +3614,8 @@ paths:
         member in it comes back at the same moment. Replaces any timeout
         already in force on a named member, as the single verb does. Nothing is
         applied unless every target passes; an id that is not a member answers
-        404 for the whole batch.
+        404 for the whole batch. The role ladder applies per target as in
+        `timeOutMember`.
       requestBody:
         required: true
         content:
@@ -3716,7 +3734,7 @@ paths:
         it in its own profile. Replaces any nickname already set. Refused on
         yourself, on an account whose granted permissions the caller's own do
         not contain, and for a blank, hidden-character or over-64-character
-        name. Audited as nickname_set.
+        name. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`. Audited as nickname_set.
       requestBody:
         required: true
         content:
@@ -3778,7 +3796,7 @@ paths:
         reading. It lapses on its own at `until` with nothing needing to run.
         Re-issuing replaces any timeout already in force, which is also how
         one is shortened. Refused on yourself, and on a member whose granted
-        permissions the caller's own do not contain.
+        permissions the caller's own do not contain. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
       requestBody:
         required: true
         content:
@@ -3874,7 +3892,9 @@ paths:
         Refused on yourself - delete your own account with `deleteAccount`,
         so that an administrator can leave without needing another one to do
         it for them - and on the last administrator. An account that is
-        already deleted, or never existed, answers 404.
+        already deleted, or never existed, answers 404. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
+        Deleting the Space owner's own account passes ownership to the
+        earliest-joined remaining administrator, else the earliest-joined member.
       responses:
         "204":
           description: The account is deleted.
@@ -3915,7 +3935,8 @@ paths:
         a Space whose join policy is open.
 
         Refused on yourself, on a member whose granted permissions the
-        caller's own do not contain, and on the last administrator.
+        caller's own do not contain, and on the last administrator. Role
+        ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
       requestBody:
         required: false
         content:
@@ -8387,6 +8408,9 @@ paths:
         This does not prevent the target requesting a new token. Removing
         CONNECT is what bars someone from a room; this is what makes that take
         effect immediately rather than when their current token expires.
+
+
+        Kicking somebody else follows the role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
       responses:
         "204":
           description: The participant is no longer in the room.
@@ -12803,6 +12827,16 @@ components:
             `unsupported_type`, `too_many_pixels`, `name_taken`,
             `builtin_name` or `full`. Present only with `item_index`; read
             an unknown value as a refusal of that image for another reason.
+        code:
+          type: string
+          description: >
+            Why the request was refused, as a stable word, so a client never
+            reads `error`. `role_hierarchy` on a 403 from the role ladder: the
+            role, or the member's highest role, is not strictly below the
+            caller's own highest role, or the member is the Space owner.
+            `role_follows_bot` on a 409 from granting or revoking by hand a role
+            a bot holds by being a bot. Absent on every other error; read an
+            unknown value as a refusal for another reason.
 
     Version:
       type: object
@@ -13351,6 +13385,24 @@ components:
             A webhook never appears in `GET /members`, so this is only ever
             seen by resolving a message's own author id. Absent on servers
             older than this field, which a client reads as not a webhook.
+        top_role_position:
+          type: [integer, "null"]
+          format: int64
+          description: >
+            The position of this member's highest role, or null when they hold
+            none, which ranks below every role. The role ladder lets a caller
+            moderate only members whose highest role sits strictly below their
+            own, so a client can leave out what the server would refuse. Absent
+            on servers older than this field.
+        is_owner:
+          type: boolean
+          description: >
+            Whether this member is the Space owner: the account that claimed
+            the deployment, or whoever ownership passed to. Nobody else can
+            moderate the owner or take their roles away. Not drawn anywhere; a
+            client uses it only to leave out what the server would refuse.
+            Absent on servers older than this field, which a client reads as
+            not the owner.
         invite_code:
           type: [string, "null"]
           description: >
@@ -13468,6 +13520,20 @@ components:
           description: >-
             For a bot, the command prefix an admin assigned it; absent for a
             person and for a bot with none.
+        is_owner:
+          type: boolean
+          description: >-
+            Whether the caller is the Space owner, who stands above every role
+            on the role ladder. Absent on servers older than this field.
+        top_role_position:
+          type: [integer, "null"]
+          format: int64
+          description: >-
+            The highest position among the caller's roles, or null when they
+            hold none, which ranks below every role. The role ladder lets the
+            caller manage only roles, and moderate only members whose highest
+            role is, strictly below this; a member with no role is below any
+            role. Absent on servers older than this field.
 
     UpdateMeRequest:
       type: object
@@ -17361,7 +17427,7 @@ components:
         color:
           type: [integer, "null"]
           format: int64
-          description: An index into the client's ten-colour role palette, or null for the colour the client derives from the role id.
+          description: An index into the client's ten-colour role palette, or null for no colour.
         created_at:
           type: integer
           format: int64
@@ -17460,9 +17526,9 @@ components:
         hoist:
           type: boolean
         color:
-          type: integer
+          type: [integer, "null"]
           format: int64
-          description: A role palette index from 0 to 9.
+          description: A role palette index from 0 to 9, or null to clear the colour.
 
     ReorderRolesRequest:
       type: object

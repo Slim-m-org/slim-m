@@ -110,6 +110,7 @@ mod space;
 mod space_landing;
 mod space_link_previews;
 mod space_module_display;
+mod space_owner;
 mod space_setup;
 mod space_themes;
 mod space_welcome;

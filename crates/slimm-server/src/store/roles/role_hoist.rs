@@ -17,6 +17,8 @@ pub struct HeldRole {
     pub name: String,
     /// The role's palette index, or `None` when nobody chose one; see [`super::Role::color`].
     pub color: Option<i64>,
+    /// Where it sits on the role ladder; see [`super::Role::position`].
+    pub position: i64,
 }
 
 /// The hoisted role a member is listed under: the highest-position one they hold.

@@ -19,6 +19,8 @@
 //! decision too: it is correct for member moderation (see
 //! [`super::members::authorize`]), wrong for a voice kick (kicking yourself
 //! is harmless), and meaningless for role management (a role is not a user).
+//!
+//! Who ranks above whom by role is [`super::role_ladder`]'s question, asked on top of this one.
 
 use super::error::ApiError;
 use crate::permissions::Permissions;
@@ -32,44 +34,5 @@ pub(super) fn escalation_guard(
         Ok(())
     } else {
         Err(ApiError::Forbidden)
-    }
-}
-
-/// The reason a peer is refused, which the client matches to say so in plain words.
-pub(crate) const EQUAL_RANK_REFUSED: &str = "you cannot act on someone of equal rank";
-
-/// [`escalation_guard`] for acts on a person: an equal-rank peer is refused too.
-///
-/// An administrator is exempt, since their grant contains every bit and no one ranks above them.
-pub(super) fn peer_guard(
-    caller_granted: Permissions,
-    target_granted: Permissions,
-) -> Result<(), ApiError> {
-    escalation_guard(caller_granted, target_granted)?;
-    if caller_granted == target_granted && !caller_granted.contains(Permissions::ADMINISTRATOR) {
-        return Err(ApiError::ForbiddenBecause(EQUAL_RANK_REFUSED));
-    }
-    Ok(())
-}
-
-/// The role-position check a voice kick adds on top of the bit comparison:
-/// unless the caller is an administrator, their highest role must sit above
-/// the target's (decision 0092, owner decision 2026-10-28).
-///
-/// Bits alone cannot rank people in a call, since a channel overwrite can give
-/// every participant KICK_MEMBERS and so make everyone a peer of everyone.
-/// No role at all ranks below every role.
-pub(super) fn role_rank_guard(
-    caller_is_admin: bool,
-    caller_position: Option<i64>,
-    target_position: Option<i64>,
-) -> Result<(), ApiError> {
-    if caller_is_admin {
-        return Ok(());
-    }
-    match caller_position.cmp(&target_position) {
-        std::cmp::Ordering::Greater => Ok(()),
-        std::cmp::Ordering::Equal => Err(ApiError::ForbiddenBecause(EQUAL_RANK_REFUSED)),
-        std::cmp::Ordering::Less => Err(ApiError::Forbidden),
     }
 }

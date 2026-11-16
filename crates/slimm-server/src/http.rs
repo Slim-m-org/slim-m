@@ -130,6 +130,7 @@ mod read_sync;
 mod reauth;
 mod recovery;
 mod reports;
+mod role_ladder;
 mod roles;
 use roles::role_reorder;
 mod data_exports;

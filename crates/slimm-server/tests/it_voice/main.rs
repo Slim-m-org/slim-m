@@ -29,6 +29,7 @@ mod voice_dm;
 mod voice_forget_heartbeat;
 mod voice_heartbeat;
 mod voice_kick_escalation;
+mod voice_kick_ladder;
 mod voice_move;
 mod voice_notify;
 mod voice_notify_prefs;

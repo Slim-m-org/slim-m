@@ -205,6 +205,7 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "setup_claimed_by",
         Fate::Excluded(SPACE_RECORD),
     ),
+    ("space_settings", "owner_id", Fate::Excluded(SPACE_RECORD)),
     ("totp_challenges", "user_id", Fate::Excluded(CREDENTIAL)),
     ("totp_recovery_codes", "user_id", Fate::Excluded(CREDENTIAL)),
     (
