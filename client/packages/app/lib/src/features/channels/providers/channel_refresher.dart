@@ -125,6 +125,37 @@ class ChannelRefresher {
           manuallyUnread: read.state.manuallyUnread,
         ),
     ]);
+    await _sendMarkersAhead(api, store, states, isCurrent: isCurrent);
+  }
+
+  /// Sends the server each marker this device holds ahead of it.
+  ///
+  /// Reading moves the local marker first, so a send that failed, or a channel
+  /// read while offline, leaves the server behind with nothing to retry it:
+  /// the marker only moves forward, so hydration never notices, and every
+  /// other device keeps the channel unread. Best-effort and capped; whatever
+  /// is left is sent by the next refresh.
+  Future<void> _sendMarkersAhead(
+    SlimmApi api,
+    MessageStore store,
+    List<ChannelReadState> states, {
+    required bool Function() isCurrent,
+  }) async {
+    final server = {for (final s in states) s.channelId: s.state.lastReadSeq};
+    final ahead = [
+      for (final channel in await store.allChannels())
+        if (server[channel.id] case final seq? when channel.lastReadSeq > seq)
+          channel,
+    ];
+    for (final channel in ahead.take(_markersAheadPerRefresh)) {
+      if (!isCurrent()) return;
+      try {
+        await api.markRead(channelId: channel.id, seq: channel.lastReadSeq);
+      } on ApiException catch (error, stack) {
+        reportFailure(LogTag.ui, 'save the read position', error, stack);
+        return;
+      }
+    }
   }
 
   /// A server that predates `GET /read-states` answers 404 to it, and only
@@ -217,6 +248,9 @@ class ChannelRefresher {
     _trailing = null;
   }
 }
+
+/// Most markers one refresh sends, so a store far ahead cannot spend the write limit.
+const _markersAheadPerRefresh = 25;
 
 class _Request {
   const _Request(this.api, this.store, this.isCurrent);

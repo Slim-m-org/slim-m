@@ -31,13 +31,24 @@ import '../../../providers/providers.dart';
 /// builds `ChannelScreen` with no key, so navigating between channels reuses
 /// the same `State`.
 ///
+/// The local marker moves before the server answers, so a send that failed
+/// leaves the two apart with nothing in [advance]'s arguments to show it.
+/// [_owed] is that debt: it lets the same seq through again, after
+/// [retryAfter], so a reader offline at the bottom of a channel does not send
+/// a request per rebuild. `ChannelRefresher` settles whatever is still owed at
+/// the next connect, for a channel nobody has open by then.
+///
 /// Callers own the scroll gate: this only knows the seq to advance to, never
 /// whether the viewport is actually showing it.
 class ReadMarker {
-  ReadMarker(this._ref);
+  ReadMarker(this._ref, {this.retryAfter = const Duration(seconds: 5)});
 
   final WidgetRef _ref;
+
+  /// How long a failed send waits before the same seq may go out again.
+  final Duration retryAfter;
   final Map<String, int> _sent = {};
+  final Map<String, ({int seq, DateTime failedAt})> _owed = {};
 
   /// [manuallyUnread] is the hand-mark's current value, not an edge trigger:
   /// the caller has no seq of its own to guard it with, since the server's
@@ -54,7 +65,12 @@ class ReadMarker {
     required bool manuallyUnread,
   }) {
     if (seq == 0) return;
-    if (seq <= lastReadSeq && !manuallyUnread) return;
+    final owed = _owed[channelId];
+    final retrying = owed != null && owed.seq >= seq;
+    if (retrying && DateTime.now().difference(owed.failedAt) < retryAfter) {
+      return;
+    }
+    if (seq <= lastReadSeq && !manuallyUnread && !retrying) return;
     if (!manuallyUnread && (_sent[channelId] ?? 0) >= seq) return;
     final previous = _sent[channelId];
     _sent[channelId] = seq;
@@ -70,6 +86,7 @@ class ReadMarker {
       // Reading clears the manual mark here too, so the dot goes out at once.
       await store.setReadMarker(channelId, seq, manuallyUnread: false);
       await client.markRead(channelId: channelId, seq: seq);
+      if ((_owed[channelId]?.seq ?? 0) <= seq) _owed.remove(channelId);
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'save the read position', e, stack);
       // The local marker already advanced; only the server one is behind.
@@ -87,9 +104,10 @@ class ReadMarker {
       e is api.UnavailableException ||
       e is api.ServerException;
 
-  /// Lets the next [advance] for this seq send again, unless a newer one has since gone out.
+  /// Lets a later [advance] for this seq send again, unless a newer one has since gone out.
   void _forget(String channelId, int seq, int? previous) {
     if (_sent[channelId] != seq) return;
+    _owed[channelId] = (seq: seq, failedAt: DateTime.now());
     if (previous == null) {
       _sent.remove(channelId);
     } else {
