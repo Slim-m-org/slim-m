@@ -20187,6 +20187,7 @@ components:
         - $ref: "#/components/schemas/VoiceScreenShareChanged"
         - $ref: "#/components/schemas/VoiceCallAudioChanged"
         - $ref: "#/components/schemas/VoiceCallTranscriptChanged"
+        - $ref: "#/components/schemas/VoiceCallTranscriptLine"
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
@@ -21875,6 +21876,13 @@ components:
           type: integer
           format: int64
           description: When the segment started, in epoch milliseconds.
+        end_at:
+          type: [integer, "null"]
+          format: int64
+          description: When the segment ended, in epoch milliseconds. Null on lines kept before the server recorded it.
+        language:
+          type: [string, "null"]
+          description: The language the listener heard, as a lowercase tag such as `en`. Null when it did not say.
         text:
           type: string
     VoiceTranscript:
@@ -21924,6 +21932,13 @@ components:
         at:
           type: integer
           format: int64
+        end_at:
+          type: [integer, "null"]
+          format: int64
+          description: As on `VoiceTranscriptLine`.
+        language:
+          type: [string, "null"]
+          description: As on `VoiceTranscriptLine`.
         text:
           type: string
         highlight:
@@ -21948,6 +21963,27 @@ components:
           format: uuid
         ended:
           type: boolean
+    VoiceCallTranscriptLine:
+      type: object
+      required: [type, channel_id, transcript_id, line]
+      description: >
+        A line the server just kept in a call's transcript (decision 0113).
+        Sent only to people in the call at that moment who hold `VIEW_CHANNEL`
+        and `VIEW_TRANSCRIPTS`; anyone else reads the transcript route. Apply
+        by `line.seq`: a gap means a line was missed, so read the transcript
+        with `after_seq` set to the last line held.
+      properties:
+        type:
+          type: string
+          enum: [call.transcript_line]
+        channel_id:
+          type: string
+          format: uuid
+        transcript_id:
+          type: string
+          format: uuid
+        line:
+          $ref: "#/components/schemas/VoiceTranscriptLine"
 
     VoiceCallAudioChanged:
       type: object

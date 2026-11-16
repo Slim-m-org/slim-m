@@ -271,6 +271,14 @@ pub enum Event {
         transcript_id: crate::ids::CallTranscriptId,
         ended: bool,
     },
+    /// A line the server just kept in a call's transcript, for whoever in `audience` (the
+    /// call's roster then) may read it (0113). Durable: a lagging reader resyncs over REST.
+    CallTranscriptLine {
+        channel_id: ChannelId,
+        transcript_id: crate::ids::CallTranscriptId,
+        audience: Arc<[UserId]>,
+        line: Arc<crate::store::TranscriptLine>,
+    },
     /// Ringing was started for a DM call: `caller_id` is calling whoever the
     /// other side of the `channel_id` DM is. `ring_id` names this specific
     /// attempt so a receiving client can tell it apart from an immediate

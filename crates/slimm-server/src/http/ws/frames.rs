@@ -287,6 +287,14 @@ pub(super) enum ServerFrame {
         transcript_id: String,
         ended: bool,
     },
+    /// A line just kept in a call's transcript, for the people in the call who may read it;
+    /// see [`crate::hub::Event::CallTranscriptLine`].
+    #[serde(rename = "call.transcript_line")]
+    CallTranscriptLine {
+        channel_id: String,
+        transcript_id: String,
+        line: crate::http::voice::voice_transcripts::LineDto,
+    },
     /// A member played a soundboard clip in a call this connection's account is in;
     /// see [`crate::hub::Event::SoundboardPlayed`].
     #[serde(rename = "soundboard.played")]

@@ -3,7 +3,7 @@
 //! deleting the account removes them (decision 0113).
 
 use slimm_server::ids::{CallTranscriptId, ChannelId, UserId};
-use slimm_server::store::{NewTranscript, TranscriptionMode};
+use slimm_server::store::{NewTranscript, NewTranscriptLine, TranscriptionMode};
 
 use crate::support;
 use support::app::general_channel_id;
@@ -30,15 +30,24 @@ async fn a_member_export_holds_only_the_lines_that_member_spoke() {
     };
     store.begin_call_transcript(&new).await.unwrap();
     for (who, text) in [(alice_id, "alice speaks"), (bob_id, "bob speaks")] {
-        store
-            .append_call_transcript_line(id, who, 20, text)
-            .await
-            .unwrap();
+        let line = NewTranscriptLine {
+            speaker: who,
+            at: 20,
+            end_at: Some(1_500),
+            language: Some("nl"),
+            text,
+        };
+        store.append_call_transcript_line(id, &line).await.unwrap();
     }
 
     let archive = w.archive(&alice, "member").await;
     let lines = archive.lines("transcript_lines.jsonl");
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0]["text"], "alice speaks");
+    assert_eq!(
+        (lines[0]["at"].as_i64(), lines[0]["end_at"].as_i64()),
+        (Some(20), Some(1_500))
+    );
+    assert_eq!(lines[0]["language"], "nl");
     assert!(!archive.contains("bob speaks"));
 }
