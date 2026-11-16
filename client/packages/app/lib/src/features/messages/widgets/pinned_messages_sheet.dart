@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The sheet the channel header's pin pill opens: every message currently
-/// pinned in this channel, newest pin first, with an unpin action for
-/// whoever the server lets use it (a failed attempt is just left in place -
-/// the button that caused it is still right there to retry).
+/// pinned in this channel, newest pin first, with an unpin action for a
+/// member who may manage messages; a refused unpin says why on its row.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,6 +10,9 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../permissions.dart';
+import '../../../widgets/run_guarded.dart';
+import '../../channels/providers/channel_permissions.dart';
 import '../../channels/providers/pins_controller.dart';
 import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
@@ -157,7 +159,7 @@ class _Body extends ConsumerWidget {
 /// One pinned-message row: selects only its own author's slice of
 /// [batchProfilesControllerProvider], so an unrelated author resolving does
 /// not rebuild every row in the list - see `message_row_identity.dart`.
-class PinnedMessageRow extends ConsumerWidget {
+class PinnedMessageRow extends ConsumerStatefulWidget {
   const PinnedMessageRow({
     super.key,
     required this.channelId,
@@ -172,7 +174,25 @@ class PinnedMessageRow extends ConsumerWidget {
   final String? currentChannelId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PinnedMessageRow> createState() => _PinnedMessageRowState();
+}
+
+class _PinnedMessageRowState extends ConsumerState<PinnedMessageRow>
+    with GuardedActionState<PinnedMessageRow> {
+  Future<void> _unpin() async {
+    final pins = ref.read(pinsControllerProvider(widget.channelId).notifier);
+    await guard(
+      whatFailed: 'unpin the message',
+      action: () => pins.unpin(widget.pin.message.id),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pin = widget.pin;
+    final mayUnpin = ref
+        .watch(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageMessages);
     final density = ref.watch(messageDensityControllerProvider);
     final resolution = ref.watch(
       batchProfilesControllerProvider.select(
@@ -184,39 +204,54 @@ class PinnedMessageRow extends ConsumerWidget {
       cachedDisplayName: pin.message.authorDisplayName,
       resolution: resolution,
     );
-    return ListTile(
-      dense: density == AppDensity.compact,
-      visualDensity: density.tileVisualDensity,
-      onTap: () {
-        final read = ref.read;
-        Navigator.of(context).pop();
-        jumpToMessage(
-          router,
-          read,
-          currentChannelId: currentChannelId,
-          channelId: pin.message.channelId,
-          messageId: pin.message.id,
-        );
-      },
-      leading: UserAvatar(
-        userId: pin.message.authorId,
-        name: name,
-        size: density.listAvatarSize,
-      ),
-      title: AuthorNameLine(name: name, profile: resolution.profile),
-      subtitle: Text(
-        previewLine(pin.message.content, pin.message.attachments),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: AppIconButton(
-        icon: AppIcons.pin,
-        semanticLabel: 'Unpin this message',
-        tooltip: 'Unpin',
-        onPressed: () => ref
-            .read(pinsControllerProvider(channelId).notifier)
-            .unpin(pin.message.id),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (actionError case final error?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              0,
+              AppSpacing.s16,
+              AppSpacing.s8,
+            ),
+            child: AppErrorState(message: error, onDismiss: clearActionError),
+          ),
+        ListTile(
+          dense: density == AppDensity.compact,
+          visualDensity: density.tileVisualDensity,
+          onTap: () {
+            final read = ref.read;
+            Navigator.of(context).pop();
+            jumpToMessage(
+              widget.router,
+              read,
+              currentChannelId: widget.currentChannelId,
+              channelId: pin.message.channelId,
+              messageId: pin.message.id,
+            );
+          },
+          leading: UserAvatar(
+            userId: pin.message.authorId,
+            name: name,
+            size: density.listAvatarSize,
+          ),
+          title: AuthorNameLine(name: name, profile: resolution.profile),
+          subtitle: Text(
+            previewLine(pin.message.content, pin.message.attachments),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: mayUnpin
+              ? AppIconButton(
+                  icon: AppIcons.pin,
+                  semanticLabel: 'Unpin this message',
+                  tooltip: 'Unpin',
+                  onPressed: _unpin,
+                )
+              : null,
+        ),
+      ],
     );
   }
 }
