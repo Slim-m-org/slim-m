@@ -89,8 +89,8 @@ String formatPlaybackTime(Duration d) {
 String formatClipLength(int durationMs) =>
     '${((durationMs < 0 ? 0 : durationMs) / 1000).toStringAsFixed(1)} s';
 
-/// `1.2 MB`: whole bytes, one decimal from KB up, in binary steps to TB. The
-/// one byte-size label, so a size reads the same on every screen.
+/// `1.2 MB`, `2 GB`: whole bytes, one decimal from KB up that a whole value
+/// drops, in binary steps to TB. The one byte-size label on every screen.
 String formatByteSize(int bytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   var value = bytes.toDouble();
@@ -99,6 +99,6 @@ String formatByteSize(int bytes) {
     value /= 1024;
     unit++;
   }
-  final digits = unit == 0 ? 0 : 1;
-  return '${value.toStringAsFixed(digits)} ${units[unit]}';
+  final text = value.toStringAsFixed(unit == 0 ? 0 : 1);
+  return '${text.endsWith('.0') ? text.substring(0, text.length - 2) : text} ${units[unit]}';
 }

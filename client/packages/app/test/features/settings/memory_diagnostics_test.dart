@@ -25,7 +25,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('0 B of 150.0 MB'), findsOneWidget);
+    expect(find.text('0 B of 150 MB'), findsOneWidget);
   });
 
   testWidgets('renders the image-cache line against its cap', (tester) async {

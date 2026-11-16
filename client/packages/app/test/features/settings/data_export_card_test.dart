@@ -240,7 +240,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ready to download'), findsOneWidget);
-    expect(find.textContaining('2.0 KB'), findsOneWidget);
+    expect(find.textContaining('2 KB'), findsOneWidget);
   });
 
   testWidgets('ready: Download streams the archive into the chosen file', (

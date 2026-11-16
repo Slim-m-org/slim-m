@@ -36,7 +36,7 @@ void main() {
   test('the machine line names a container limit', () {
     expect(
       machineSummary(_capacity(limit: 2 * _gib)),
-      '8 cores, 2.0 GB memory (container limit), 400.0 GB free of 500.0 GB disk',
+      '8 cores, 2 GB memory (container limit), 400 GB free of 500 GB disk',
     );
     expect(
       machineSummary(_capacity(cores: 1, free: null)),

@@ -39,7 +39,11 @@ class EmojiPickerButton extends StatefulWidget {
     required this.onSelect,
     this.triggerBuilder,
     this.focusNode,
+    this.alignEnd = false,
   });
+
+  /// Opens the panel with its right edge on the button's, for a button at a field's end.
+  final bool alignEnd;
 
   final ValueChanged<String> onSelect;
 
@@ -68,6 +72,7 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
   Widget build(BuildContext context) {
     return EmojiPickerAnchor(
       key: _picker,
+      alignEnd: widget.alignEnd,
       onSelect: widget.onSelect,
       child: switch (widget.triggerBuilder) {
         final build? => build(context, _toggle),
@@ -95,8 +100,10 @@ class EmojiPickerAnchor extends StatefulWidget {
     super.key,
     required this.onSelect,
     required this.child,
+    this.alignEnd = false,
   });
 
+  final bool alignEnd;
   final ValueChanged<String> onSelect;
   final Widget child;
 
@@ -144,7 +151,8 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
     final box = context.findRenderObject() as RenderBox?;
     if (overlay == null || box == null) return Offset.zero;
     return box.localToGlobal(
-      Offset(0, box.size.height) + _buttonDrop,
+      Offset(widget.alignEnd ? box.size.width : 0, box.size.height) +
+          _buttonDrop,
       ancestor: overlay,
     );
   }
@@ -174,6 +182,7 @@ class EmojiPickerAnchorState extends State<EmojiPickerAnchor> {
         child: CustomSingleChildLayout(
           delegate: MessageMenuLayout(
             anchor: _anchor,
+            alignEnd: widget.alignEnd,
             padding:
                 MediaQuery.paddingOf(context) +
                 const EdgeInsets.all(menuScreenMargin),
