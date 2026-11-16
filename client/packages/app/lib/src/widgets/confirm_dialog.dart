@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A destructive-action confirmation, shared by the moderation and
-/// administration screens rather than each hand-rolling its own dialog.
+/// The one confirmation sheet: a title, what happens, and a way out beside
+/// the choice. Every yes-or-no question in the app asks through it.
 ///
 /// Routed through [showAppSheet] rather than a bare `AlertDialog`, so it gets
 /// the same border-first card, radius and phone/desktop split every other
@@ -22,41 +22,65 @@ const String deleteMessageConfirmMessage =
 
 /// Asks before a destructive, hard-to-undo action. [message] must state what
 /// happens, not just ask "are you sure?".
-///
-/// [cancelLabel] names the way out where "Cancel" is vaguer than the choice
-/// deserves. Its absence is why one caller copied this whole dialog rather
-/// than reuse it.
 Future<bool> confirmDangerousAction(
   BuildContext context, {
   required String title,
   required String message,
   required String confirmLabel,
   String cancelLabel = 'Cancel',
+}) => confirmChoice(
+  context,
+  title: title,
+  message: message,
+  confirmLabel: confirmLabel,
+  cancelLabel: cancelLabel,
+  confirmVariant: AppButtonVariant.danger,
+);
+
+/// True when the person picks [confirmLabel]; false when they pick
+/// [cancelLabel] or close the sheet.
+///
+/// [cancelLabel] names the way out where "Cancel" is vaguer than the choice
+/// deserves. A destructive choice goes through [confirmDangerousAction].
+Future<bool> confirmChoice(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  String cancelLabel = 'Cancel',
+  AppButtonVariant confirmVariant = AppButtonVariant.primary,
+  Key? confirmKey,
+  Key? cancelKey,
 }) async {
   final confirmed = await showAppSheet<bool>(
     context,
-    builder: (context) => _ConfirmDialog(
+    builder: (context) => _ConfirmSheet(
       title: title,
       message: message,
-      confirmLabel: confirmLabel,
-      cancelLabel: cancelLabel,
+      confirm: (label: confirmLabel, key: confirmKey),
+      cancel: (label: cancelLabel, key: cancelKey),
+      confirmVariant: confirmVariant,
     ),
   );
   return confirmed ?? false;
 }
 
-class _ConfirmDialog extends StatelessWidget {
-  const _ConfirmDialog({
+typedef _Choice = ({String label, Key? key});
+
+class _ConfirmSheet extends StatelessWidget {
+  const _ConfirmSheet({
     required this.title,
     required this.message,
-    required this.confirmLabel,
-    required this.cancelLabel,
+    required this.confirm,
+    required this.cancel,
+    required this.confirmVariant,
   });
 
   final String title;
   final String message;
-  final String confirmLabel;
-  final String cancelLabel;
+  final _Choice confirm;
+  final _Choice cancel;
+  final AppButtonVariant confirmVariant;
 
   @override
   Widget build(BuildContext context) {
@@ -72,11 +96,14 @@ class _ConfirmDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppText.body.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
+          Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: AppText.body.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.semi,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
@@ -89,19 +116,18 @@ class _ConfirmDialog extends StatelessWidget {
             children: [
               Expanded(
                 child: AppButton(
-                  label: cancelLabel,
+                  key: cancel.key,
+                  label: cancel.label,
                   variant: AppButtonVariant.ghost,
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
               ),
               const SizedBox(width: AppSpacing.s8),
               Expanded(
-                // Danger is outlined, never filled: the destructive choice
-                // must be unmistakable without being the brightest thing on
-                // screen.
                 child: AppButton(
-                  label: confirmLabel,
-                  variant: AppButtonVariant.danger,
+                  key: confirm.key,
+                  label: confirm.label,
+                  variant: confirmVariant,
                   onPressed: () => Navigator.of(context).pop(true),
                 ),
               ),

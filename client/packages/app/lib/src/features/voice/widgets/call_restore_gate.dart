@@ -7,11 +7,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/confirm_dialog.dart';
 import '../providers/call_restore.dart';
-import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import 'transcription_notice.dart';
 
 const callRestoreRejoinKey = Key('call-restore-rejoin');
 const callRestoreDismissKey = Key('call-restore-dismiss');
@@ -36,82 +36,26 @@ class _CallRestoreGateState extends ConsumerState<CallRestoreGate> {
     final found = await ref.read(callToRestoreProvider)();
     if (found == null || !mounted) return;
     final (:call, :channelName) = found;
-    if (!call.restart) {
-      final rejoin = await showAppSheet<bool>(
-        context,
-        builder: (context) => _RejoinSheet(channelName: channelName),
-      );
-      if (rejoin != true || !mounted) return;
-      if (ref.read(voiceFlagsProvider).channelId != null) return;
-    }
-    final voice = ref.read(voiceControllerProvider.notifier);
-    await (call.muted
-        ? voice.joinMuted(call.channelId)
-        : voice.join(call.channelId));
+    if (!call.restart && !await _askToRejoin(channelName)) return;
+    if (!mounted) return;
+    if (!await confirmTranscriptionNotice(context, ref)) return;
+    if (!mounted || ref.read(voiceFlagsProvider).channelId != null) return;
+    await ref.read(rejoinRestoredCallProvider)(call);
   }
+
+  Future<bool> _askToRejoin(String channelName) => confirmChoice(
+    context,
+    title: 'Rejoin the call?',
+    message: 'slim-m closed while you were in $channelName.',
+    confirmLabel: 'Rejoin',
+    cancelLabel: 'Not now',
+    confirmKey: callRestoreRejoinKey,
+    cancelKey: callRestoreDismissKey,
+  );
 
   @override
   Widget build(BuildContext context) {
     ref.watch(callRestoreWatchProvider);
     return widget.child;
-  }
-}
-
-class _RejoinSheet extends StatelessWidget {
-  const _RejoinSheet({required this.channelName});
-
-  final String channelName;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Rejoin the call?',
-            style: AppText.body.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            'slim-m closed while you were in $channelName.',
-            style: AppText.body.copyWith(color: tokens.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.s16),
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  key: callRestoreDismissKey,
-                  label: 'Not now',
-                  variant: AppButtonVariant.ghost,
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: AppButton(
-                  key: callRestoreRejoinKey,
-                  label: 'Rejoin',
-                  variant: AppButtonVariant.primary,
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -3,6 +3,8 @@
 /// See docs/decisions/0068-multiple-servers-in-one-app.md.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -20,6 +22,7 @@ import '../../channels/providers/channel_notification_overrides_controller.dart'
 import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
 import '../../screen_overlay/providers/screen_overlay_controller.dart';
+import '../../voice/providers/call_restore.dart';
 import '../../voice/providers/soundboard_player.dart';
 import '../../voice/providers/voice_move_follower.dart';
 import '../../voice/providers/voice_notice_controller.dart';
@@ -57,6 +60,8 @@ void startAccountServices(ProviderContainer container) {
   container.listen(screenOverlayControllerProvider, (_, _) {});
   container.listen(notificationScheduleProvider, (_, _) {});
   container.listen(retentionSweepControllerProvider, (_, _) {});
+  container.listen(callRestoreWatchProvider, (_, _) {});
+  unawaited(container.read(offScreenCallRestoreProvider)());
 }
 
 /// Reads a provider; both a [WidgetRef] and a [ProviderContainer] offer it.

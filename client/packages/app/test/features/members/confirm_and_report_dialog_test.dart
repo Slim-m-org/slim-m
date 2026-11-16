@@ -16,6 +16,8 @@ import 'package:slimm_app/src/widgets/confirm_dialog.dart';
 import 'package:slimm_app/src/features/members/widgets/report_dialog.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../support/async_wait.dart';
+
 /// Mounts a single button that opens whatever [onTap] starts, so a test can
 /// drive the real modal route rather than the bare content widget - the
 /// phone/desktop split lives in [showAppSheet], not in the content itself.
@@ -114,6 +116,63 @@ void main() {
       await tester.pumpAndSettle();
       expect(answer, isFalse);
     });
+  });
+
+  group('confirmChoice', () {
+    const confirmKey = Key('confirm');
+    const cancelKey = Key('cancel');
+    bool? answer;
+
+    Future<void> open(WidgetTester tester) async {
+      answer = null;
+      await _pumpTrigger(tester, (context) {
+        confirmChoice(
+          context,
+          title: 'Rejoin the call?',
+          message: 'slim-m closed while you were in Lounge.',
+          confirmLabel: 'Rejoin',
+          cancelLabel: 'Not now',
+          confirmKey: confirmKey,
+          cancelKey: cancelKey,
+        ).then((v) => answer = v);
+      });
+    }
+
+    testWidgets('a choice that is not destructive is the filled button', (
+      tester,
+    ) async {
+      await open(tester);
+
+      final confirm = tester.widget<AppButton>(find.byKey(confirmKey));
+      final cancel = tester.widget<AppButton>(find.byKey(cancelKey));
+      expect(confirm.variant, AppButtonVariant.primary);
+      expect(confirm.label, 'Rejoin');
+      expect(cancel.variant, AppButtonVariant.ghost);
+      expect(cancel.label, 'Not now');
+    });
+
+    testWidgets('the title is announced as a heading', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester);
+
+      expect(
+        tester.getSemantics(find.text('Rejoin the call?')),
+        matchesSemantics(label: 'Rejoin the call?', isHeader: true),
+      );
+      handle.dispose();
+    });
+
+    for (final (key, expected) in [(confirmKey, true), (cancelKey, false)]) {
+      testWidgets('$key answers $expected', (tester) async {
+        await open(tester);
+
+        await tester.tap(find.byKey(key));
+        await pumpFrames(tester, frames: 20);
+
+        expect(answer, expected);
+        expect(find.text('Rejoin the call?'), findsNothing);
+      });
+    }
   });
 
   group('promptReportReason', () {

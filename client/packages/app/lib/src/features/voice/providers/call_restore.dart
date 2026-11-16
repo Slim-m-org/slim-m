@@ -14,6 +14,9 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/providers.dart';
+import '../../accounts/providers/account_slot.dart' show accountActiveProvider;
+import 'transcription_notice.dart';
+import 'voice_controller.dart';
 import 'voice_elsewhere.dart';
 import 'voice_flags.dart';
 
@@ -31,6 +34,7 @@ class CallToRestore {
     required this.userId,
     required this.at,
     required this.muted,
+    this.deafened = false,
     this.restart = false,
   });
 
@@ -38,6 +42,7 @@ class CallToRestore {
   final String userId;
   final DateTime at;
   final bool muted;
+  final bool deafened;
 
   /// The app restarted itself, so the call comes back without asking.
   final bool restart;
@@ -47,6 +52,7 @@ class CallToRestore {
     'user': userId,
     'at': at.toUtc().toIso8601String(),
     'muted': muted,
+    'deafened': deafened,
     'restart': restart,
   });
 
@@ -59,6 +65,7 @@ class CallToRestore {
         userId: json['user'] as String,
         at: DateTime.parse(json['at'] as String),
         muted: json['muted'] as bool,
+        deafened: json['deafened'] as bool? ?? false,
         restart: json['restart'] as bool? ?? false,
       );
     } catch (error, stack) {
@@ -72,13 +79,17 @@ class CallToRestore {
     }
   }
 
-  CallToRestore restarting(DateTime now) => CallToRestore(
-    channelId: channelId,
-    userId: userId,
-    at: now,
-    muted: muted,
-    restart: true,
-  );
+  CallToRestore restarting(DateTime now) => _with(at: now, restart: true);
+
+  CallToRestore _with({required DateTime at, required bool restart}) =>
+      CallToRestore(
+        channelId: channelId,
+        userId: userId,
+        at: at,
+        muted: muted,
+        deafened: deafened,
+        restart: restart,
+      );
 }
 
 class CallRestore {
@@ -98,6 +109,7 @@ class CallRestore {
     required String channelId,
     required String userId,
     required bool muted,
+    bool deafened = false,
   }) async {
     if (_closing) return;
     final call = CallToRestore(
@@ -105,6 +117,7 @@ class CallRestore {
       userId: userId,
       at: _now(),
       muted: muted,
+      deafened: deafened,
     );
     await _prefs.setString(callRestoreKey, call.encode());
   }
@@ -129,12 +142,7 @@ class CallRestore {
     if (call == null || !call.restart) return;
     await _prefs.setString(
       callRestoreKey,
-      CallToRestore(
-        channelId: call.channelId,
-        userId: call.userId,
-        at: call.at,
-        muted: call.muted,
-      ).encode(),
+      call._with(at: call.at, restart: false).encode(),
     );
   }
 
@@ -155,10 +163,16 @@ class CallRestore {
     await _prefs.remove(callRestoreKey);
   }
 
+  /// [userId]'s call to bring back, left where it is; null when there is none.
+  CallToRestore? peek(String userId) {
+    final call = CallToRestore.decode(_prefs.getString(callRestoreKey));
+    return call != null && call.userId == userId ? call : null;
+  }
+
   /// [userId]'s call to bring back, cleared as it is read; null when there is none or it is too old.
   Future<CallToRestore?> take(String userId) async {
-    final call = CallToRestore.decode(_prefs.getString(callRestoreKey));
-    if (call == null || call.userId != userId) return null;
+    final call = peek(userId);
+    if (call == null) return null;
     await _prefs.remove(callRestoreKey);
     final age = _now().difference(call.at);
     if (age.isNegative || age > callRestoreWindow) return null;
@@ -188,6 +202,7 @@ final callRestoreWatchProvider = Provider<void>((ref) {
       channelId: channelId,
       userId: userId,
       muted: !now.microphoneEnabled,
+      deafened: now.deafened,
     );
     refresh ??= Timer.periodic(
       callRestoreRefresh,
@@ -198,7 +213,8 @@ final callRestoreWatchProvider = Provider<void>((ref) {
   ref.listen<VoiceFlags>(voiceFlagsProvider, (before, now) {
     if (before?.channelId == now.channelId &&
         before?.state == now.state &&
-        before?.microphoneEnabled == now.microphoneEnabled) {
+        before?.microphoneEnabled == now.microphoneEnabled &&
+        before?.deafened == now.deafened) {
       return;
     }
     unawaited(sync(before, now));
@@ -222,7 +238,10 @@ typedef RestorableCall = ({CallToRestore call, String channelName});
 final callToRestoreProvider = Provider<Future<RestorableCall?> Function()>(
   (ref) => () async {
     final userId = ref.read(apiProvider).session.tokens?.userId;
-    if (userId == null) return null;
+    // A live call's record is its own, kept current by the watch, not one to bring back.
+    if (userId == null || ref.read(voiceFlagsProvider).channelId != null) {
+      return null;
+    }
     final restore = await ref.read(callRestoreProvider.future);
     final call = await restore.take(userId);
     if (call == null) return null;
@@ -235,5 +254,53 @@ final callToRestoreProvider = Provider<Future<RestorableCall?> Function()>(
       return null;
     }
     return (call: call, channelName: name);
+  },
+);
+
+/// Joins a restored call as it was left: muted if it was, and deafened again once it connects.
+final rejoinRestoredCallProvider =
+    Provider<Future<void> Function(CallToRestore call)>(
+      (ref) => (call) async {
+        final voice = ref.read(voiceControllerProvider.notifier);
+        await (call.muted
+            ? voice.joinMuted(call.channelId)
+            : voice.join(call.channelId));
+        if (!call.deafened) return;
+        if (!await _connects(ref, call.channelId)) return;
+        if (!ref.read(voiceFlagsProvider).deafened) await voice.toggleDeafen();
+      },
+    );
+
+/// Whether the call in [channelId] reaches connected, which can be after a retry; false once it ends instead.
+Future<bool> _connects(Ref ref, String channelId) async {
+  final outcome = Completer<bool>();
+  final flags = ref.listen<VoiceFlags>(voiceFlagsProvider, (_, now) {
+    if (outcome.isCompleted) return;
+    if (now.channelId != channelId) {
+      outcome.complete(false);
+    } else if (now.state == VoiceSessionState.connected) {
+      outcome.complete(true);
+    }
+  }, fireImmediately: true);
+  try {
+    return await outcome.future;
+  } finally {
+    flags.close();
+  }
+}
+
+/// Brings back a call the app restarted itself out of in a Space that is not
+/// on screen. One that has to ask first waits for its Space to be opened.
+final offScreenCallRestoreProvider = Provider<Future<void> Function()>(
+  (ref) => () async {
+    if (ref.read(accountActiveProvider)) return;
+    final userId = ref.read(apiProvider).session.tokens?.userId;
+    if (userId == null) return;
+    final restore = await ref.read(callRestoreProvider.future);
+    if (restore.peek(userId)?.restart != true) return;
+    if (await ref.read(transcriptionNoticeActionsProvider).isDue()) return;
+    final found = await ref.read(callToRestoreProvider)();
+    if (found == null) return;
+    await ref.read(rejoinRestoredCallProvider)(found.call);
   },
 );
