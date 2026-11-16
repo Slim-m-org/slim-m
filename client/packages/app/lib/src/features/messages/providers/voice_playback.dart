@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show Attachment, AppLog, LogTag;
 import 'package:slimm_platform/platform.dart' show isIOSHost;
 
+import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_output_router.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'attachment_bytes.dart';
@@ -137,6 +138,8 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
           dismissError();
         }
       });
+    } else {
+      ref.onDispose(ref.read(callStartYieldsProvider).add(_pauseForCall));
     }
     ref.onDispose(() {
       unawaited(_positions?.cancel());
@@ -179,6 +182,18 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
     if (!_ios) return;
     state = VoicePlaybackState(speed: state.speed);
     await _backend?.stop();
+  }
+
+  /// Elsewhere a call starting pauses a message where it is, so Play resumes it.
+  Future<void> _pauseForCall() async {
+    if (state.loading) {
+      // Nothing holds the message now, so its play stops as it lands.
+      state = VoicePlaybackState(speed: state.speed);
+      return;
+    }
+    if (!state.playing) return;
+    await _engine.pause();
+    state = state.copyWith(playing: false);
   }
 
   void dismissError() => state = state.copyWith();

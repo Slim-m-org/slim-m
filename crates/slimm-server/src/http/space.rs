@@ -349,6 +349,7 @@ async fn update(
         || body.hide_bots_in_member_list.is_some()
         || body.module_member_badges.is_some()
         || body.module_profile_sections.is_some()
+        || body.transcribe_voice_messages.is_some()
         || transcription.is_some();
     let description = body
         .description

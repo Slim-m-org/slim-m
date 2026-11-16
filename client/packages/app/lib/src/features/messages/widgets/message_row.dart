@@ -220,7 +220,12 @@ class MessageRow extends ConsumerWidget {
     final live = ref.watch(
       voiceTranscriptsProvider.select((all) => all[voice.id]),
     );
-    return voiceTranscriptWords(voice, live) ?? '';
+    return voiceTranscriptWords(
+          voice,
+          live,
+          spaceShows: ref.watch(voiceTranscriptsShownProvider),
+        ) ??
+        '';
   }
 
   Widget _contextRegion(BuildContext context, _RowView v, String copyText) {

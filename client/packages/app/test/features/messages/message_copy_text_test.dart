@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart'
@@ -15,6 +16,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dar
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 
 import 'message_row_harness.dart';
 import 'voice_player_fakes.dart';
@@ -33,6 +35,7 @@ void main() {
     WidgetTester tester, {
     required String content,
     List<api.Attachment> attachments = const [],
+    List<Override> overrides = const [],
   }) async {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -71,7 +74,10 @@ void main() {
             onCancelEdit: () {},
           ),
         ),
-        overrides: [liveEventsProvider.overrideWithValue(events.stream)],
+        overrides: [
+          liveEventsProvider.overrideWithValue(events.stream),
+          ...overrides,
+        ],
       ),
     );
     final region = find.byWidgetPredicate((w) => w is MessageContextMenuRegion);
@@ -90,6 +96,28 @@ void main() {
     await tester.tap(find.text('Copy text'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(copied, ['meet me at the lighthouse']);
+  });
+
+  testWidgets('a Space with transcripts off offers no Copy text for them', (
+    tester,
+  ) async {
+    await openMenu(
+      tester,
+      content: '',
+      attachments: [voiceMessage('v1', transcript: _heard)],
+      overrides: [
+        serverInfoProvider.overrideWith(
+          (ref) => const api.Version(
+            name: 'slim-m',
+            version: '1',
+            protocol: 1,
+            transcribeVoiceMessages: false,
+          ),
+        ),
+      ],
+    );
+    expect(find.text('Save message'), findsOneWidget, reason: 'menu is up');
+    expect(find.text('Copy text'), findsNothing);
   });
 
   testWidgets('a voice message with no words yet offers no Copy text', (

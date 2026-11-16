@@ -15,6 +15,9 @@ import 'package:slimm_platform/platform.dart'
 import 'package:slimm_rtc/rtc.dart' show AudioDevice, resolveAudioDevice;
 
 import '../../../api_failure.dart';
+import '../../../audio/call_start_yields.dart';
+import '../../../providers/session_provider.dart';
+import '../../accounts/providers/account_slot.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_settings_storage.dart';
 import 'composer_actions.dart';
@@ -88,6 +91,7 @@ class VoiceRecordingState {
     this.levels = const [],
     this.clip,
     this.error,
+    this.stoppedForCall = false,
   });
 
   final VoicePhase phase;
@@ -100,7 +104,16 @@ class VoiceRecordingState {
   final VoiceClip? clip;
   final String? error;
 
+  /// Whether a call starting ended this recording, which the bar says.
+  final bool stoppedForCall;
+
   bool get isActive => phase != VoicePhase.idle;
+
+  /// Audio not yet sent or thrown away, which keeps the recorder past its composer.
+  bool get holdsAudio =>
+      phase == VoicePhase.recording ||
+      phase == VoicePhase.stopping ||
+      clip != null;
 
   /// Whether the 5 minute cap ended this recording.
   bool get hitCap =>
@@ -123,11 +136,12 @@ List<int> buildWaveform(List<double> levels) {
   return [for (final v in raw) (v * scale * 255).round().clamp(0, 255)];
 }
 
-/// The recorder of one channel's composer; autodisposed with it, which also
-/// releases the microphone.
+/// One channel's recorder. It outlives the composer while it holds audio and
+/// otherwise goes with it, which releases the microphone.
 class VoiceRecorder
     extends AutoDisposeFamilyNotifier<VoiceRecordingState, String> {
   VoiceCaptureBackend? _backend;
+  KeepAliveLink? _hold;
 
   /// Bumped by every start, cancel and disposal; a start or stop that returns to a newer number lets go.
   int _attempt = 0;
@@ -142,7 +156,21 @@ class VoiceRecorder
 
   @override
   VoiceRecordingState build(String channelId) {
+    final unregister = ref
+        .read(callStartYieldsProvider)
+        .add(() => _giveWay(forCall: true));
+    final signIns = _dropOnAccountChange();
+    ref.listen(accountActiveProvider, (_, onScreen) {
+      if (!onScreen) unawaited(_giveWay(forCall: false));
+    });
+    listenSelf((_, next) {
+      _holdWhile(next.holdsAudio);
+      _claimWhile(next.phase == VoicePhase.recording);
+    });
     ref.onDispose(() {
+      unregister();
+      unawaited(signIns.cancel());
+      _hold = null;
       _attempt++;
       _timer?.cancel();
       unawaited(_backend?.cancel());
@@ -165,6 +193,10 @@ class VoiceRecorder
     }
     state = const VoiceRecordingState(phase: VoicePhase.starting);
     final attempt = ++_attempt;
+    if (_otherRecording() case final other?) {
+      await other.stop();
+      if (attempt != _attempt) return;
+    }
     final backend = ref.read(voiceCaptureFactoryProvider)();
     final needsTools = ref.read(voiceRecordingNeedsToolsProvider);
     bool opened;
@@ -238,8 +270,56 @@ class VoiceRecorder
     }
   }
 
+  void _holdWhile(bool holdsAudio) {
+    if (holdsAudio) {
+      _hold ??= ref.keepAlive();
+    } else {
+      _hold?.close();
+      _hold = null;
+    }
+  }
+
+  /// Names this channel in [recordingVoiceChannelProvider] while it records.
+  void _claimWhile(bool recording) {
+    final live = ref.read(recordingVoiceChannelProvider.notifier);
+    if (recording && live.state != arg) {
+      final other = _otherRecording();
+      live.state = arg;
+      if (other != null) unawaited(other.stop());
+    } else if (!recording && live.state == arg) {
+      live.state = null;
+    }
+  }
+
+  /// Another channel's recording, which stops and keeps its clip: one records at a time.
+  VoiceRecorder? _otherRecording() {
+    final other = ref.read(recordingVoiceChannelProvider);
+    if (other == null || other == arg) return null;
+    return ref.read(voiceRecorderProvider(other).notifier);
+  }
+
+  /// Another account's audio is never kept for this one, the boundary the drafts keep.
+  StreamSubscription<TokenPair?> _dropOnAccountChange() {
+    final session = ref.read(sessionProvider);
+    var account = session.tokens?.userId;
+    return session.changes.listen((tokens) {
+      if (tokens?.userId == account) return;
+      account = tokens?.userId;
+      unawaited(cancel());
+    });
+  }
+
+  /// A call starting, or its account leaving the screen, stops a recording and
+  /// keeps the clip; one still opening is dropped.
+  Future<void> _giveWay({required bool forCall}) async {
+    if (state.phase == VoicePhase.starting) return cancel();
+    if (state.phase == VoicePhase.recording) await _finish(forCall: forCall);
+  }
+
   /// Ends the recording and keeps the clip for [send]; a stray tap is dropped.
-  Future<void> stop() async {
+  Future<void> stop() => _finish(forCall: false);
+
+  Future<void> _finish({required bool forCall}) async {
     final backend = _backend;
     if (state.phase != VoicePhase.recording || backend == null) return;
     _timer?.cancel();
@@ -286,6 +366,7 @@ class VoiceRecorder
         duration: duration,
         waveform: buildWaveform(_samples),
       ),
+      stoppedForCall: forCall,
     );
   }
 
@@ -348,6 +429,9 @@ class VoiceRecorder
 
 final voiceRecorderProvider = NotifierProvider.autoDispose
     .family<VoiceRecorder, VoiceRecordingState, String>(VoiceRecorder.new);
+
+/// The channel whose voice message is recording now, if any.
+final recordingVoiceChannelProvider = StateProvider<String?>((ref) => null);
 
 /// Linux records through the ffmpeg and parecord programs, so a failed start
 /// there is most often one of them missing. Replaced in tests.

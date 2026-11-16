@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
+import 'package:slimm_app/src/audio/call_start_yields.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_actions.dart';
 import 'package:slimm_app/src/features/composer/providers/voice_recording.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -93,9 +94,11 @@ class Rig {
     bool onLinux = false,
     bool onPhone = false,
     String? callChannel,
+    List<Override> overrides = const [],
   }) : capture = FakeCapture(allowed: allowed) {
     container = ProviderContainer(
       overrides: [
+        ...overrides,
         voiceRecordingNeedsToolsProvider.overrideWithValue(onLinux),
         voiceRecordingYieldsToCallProvider.overrideWithValue(onPhone),
         voiceCaptureFactoryProvider.overrideWithValue(() => capture),
@@ -202,6 +205,51 @@ void main() {
       }
     },
   );
+
+  test(
+    'a call starting stops a recording and keeps the clip to send',
+    () async {
+      await started();
+      await rig.advance(const Duration(seconds: 3));
+
+      await rig.container.read(callStartYieldsProvider).callStarting();
+
+      expect(rig.capture.stopped, isTrue);
+      expect(rig.capture.cancelled, isFalse);
+      expect(rig.state.phase, VoicePhase.stopped);
+      expect(rig.state.clip?.duration, const Duration(seconds: 3));
+      expect(rig.state.stoppedForCall, isTrue);
+      expect(await rig.recorder.send(), isNotNull);
+      expect(rig.actions.uploads, hasLength(1));
+    },
+  );
+
+  test(
+    'a call starting while the microphone opens drops the recording',
+    () async {
+      rig = Rig()..listen();
+      addTearDown(rig.container.dispose);
+      final prompt = Completer<void>();
+      rig.capture.opening = prompt.future;
+      final starting = rig.recorder.start();
+
+      await rig.container.read(callStartYieldsProvider).callStarting();
+      prompt.complete();
+      await starting;
+
+      expect(rig.capture.cancelled, isTrue);
+      expect(rig.state.phase, VoicePhase.idle);
+    },
+  );
+
+  test('stopping by hand says nothing about a call', () async {
+    await started();
+    await rig.advance(const Duration(seconds: 3));
+    await rig.recorder.stop();
+
+    expect(rig.state.phase, VoicePhase.stopped);
+    expect(rig.state.stoppedForCall, isFalse);
+  });
 
   test('a denied microphone leaves an inline error and no recording', () async {
     await started(allowed: false);

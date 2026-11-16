@@ -144,6 +144,7 @@ class VoiceMessagePlayer extends ConsumerWidget {
     final words = voiceTranscriptWords(
       attachment,
       ref.read(voiceTranscriptsProvider)[attachment.id],
+      spaceShows: ref.read(voiceTranscriptsShownProvider),
     );
     return [
       if (words != null)

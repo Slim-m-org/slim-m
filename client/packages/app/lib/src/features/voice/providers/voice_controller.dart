@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../audio/call_start_yields.dart';
 import '../../../audio/sound_session_release.dart';
 import '../../../push/providers/push_channel_providers.dart';
 import 'call_foreground_keeper.dart';
@@ -245,6 +246,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     // The same call coming back (a retry, a rejoin) or a move keeps the microphone as it is.
     final keepMic = _keepMicNextJoin || state.channelId == channelId;
     _keepMicNextJoin = false;
+    final callStarts = state.channelId == null;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
     if (state.channelId != channelId) _shareResume.forget();
@@ -269,6 +271,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     );
     // Before the token round trip, so a muted join that fails there is retried muted.
     if (mutedByCaller) state = _joinMuted.showMuted(state);
+    if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
     // Awaited before the connect: a ring stopping later would deactivate the call's audio session.
     await _ref.read(soundSessionReleaseProvider)();
     if (superseded()) return;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The line under a voice message: transcribing, then the words in full,
-/// updated live by a frame without rereading the message.
+/// updated live by a frame without rereading the message, and gone at once
+/// when the Space turns transcripts off.
 library;
 
 import 'dart:async';
@@ -11,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/messages/widgets/voice_transcript_line.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Attachment voiceWith(VoiceTranscript? transcript) => Attachment(
@@ -25,6 +27,9 @@ Attachment voiceWith(VoiceTranscript? transcript) => Attachment(
   transcript: transcript,
 );
 
+/// The Space's transcript switch, as `/version` reports it.
+final _transcriptsOn = StateProvider<bool>((ref) => true);
+
 void main() {
   late StreamController<ServerEvent> events;
 
@@ -34,7 +39,17 @@ void main() {
   Future<void> pump(WidgetTester tester, Attachment attachment) =>
       tester.pumpWidget(
         ProviderScope(
-          overrides: [liveEventsProvider.overrideWithValue(events.stream)],
+          overrides: [
+            liveEventsProvider.overrideWithValue(events.stream),
+            serverInfoProvider.overrideWith(
+              (ref) => Version(
+                name: 'slim-m',
+                version: '1',
+                protocol: 1,
+                transcribeVoiceMessages: ref.watch(_transcriptsOn),
+              ),
+            ),
+          ],
           child: MaterialApp(
             theme: buildTheme(Brightness.light, AppTokens.light),
             home: Scaffold(body: VoiceTranscriptLine(attachment: attachment)),
@@ -151,6 +166,54 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('second pass'), findsOneWidget);
+  });
+
+  testWidgets('turning transcripts off hides fetched and live ones at once', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      voiceWith(
+        const VoiceTranscript(
+          status: VoiceTranscriptStatus.ready,
+          text: 'first pass',
+        ),
+      ),
+    );
+    events.add(
+      const MessageVoiceTranscript(
+        channelId: 'c',
+        messageId: 'm',
+        attachmentId: 'a1',
+        transcript: VoiceTranscript(
+          status: VoiceTranscriptStatus.ready,
+          text: 'second pass',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('second pass'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const Key('voice-transcript-text'))),
+    );
+    container.read(_transcriptsOn.notifier).state = false;
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('second pass'), findsNothing);
+    expect(find.text('first pass'), findsNothing);
+
+    container.read(_transcriptsOn.notifier).state = true;
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text('second pass'),
+      findsOneWidget,
+      reason: 'the server keeps what it hid, so turning them on shows it again',
+    );
   });
 
   testWidgets('failed and silent clips have their own plain lines', (

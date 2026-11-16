@@ -12,6 +12,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogLevel, LogTag;
 
 import 'mic_recovery.dart' show senderLevelToDb;
 
+/// Keeps one microphone published: a second one, left by a recovery that ran
+/// while a full restart was still republishing, is removed as soon as it lands.
 abstract interface class MicPort {
   /// Whether a microphone track has been published.
   bool get hasTrack;

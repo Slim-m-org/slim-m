@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/audio/call_start_yields.dart';
 import 'package:slimm_app/src/features/composer/providers/composer_actions.dart';
 import 'package:slimm_app/src/features/composer/providers/voice_recording.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer_action_bar.dart';
@@ -168,6 +169,38 @@ void main() {
     );
     expect(capture.started, isFalse);
     expect(voiceButton(tester, 'Send voice message').onPressed, isNull);
+  });
+
+  testWidgets('a call starting stops the recording, keeps it and says why', (
+    tester,
+  ) async {
+    final actions = FakeActions();
+    await pumpBar(
+      tester,
+      canRecord: true,
+      canSend: false,
+      capture: FakeCapture(),
+      actions: actions,
+    );
+    final clock = clocked(tester);
+    await tester.pump(ComposerMicButton.wakeDelay);
+    await tester.tap(record);
+    await tester.pump();
+    clock.advance(const Duration(seconds: 4));
+
+    await clock.container.read(callStartYieldsProvider).callStarting();
+    await tester.pump();
+
+    expect(
+      find.descendant(of: bar, matching: find.text('Stopped for a call')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('composer-voice-dot')), findsNothing);
+    expect(find.text('0:04'), findsOneWidget);
+    await tester.tap(find.byTooltip('Send voice message'));
+    await tester.pump();
+    await tester.pump();
+    expect(actions.uploads, hasLength(1));
   });
 
   testWidgets('an empty composer offers the mic in place of Send', (

@@ -160,6 +160,15 @@ class _Body extends StatelessWidget {
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
+        if (state.stoppedForCall) ...[
+          const SizedBox(width: AppSpacing.s8),
+          Text(
+            'Stopped for a call',
+            key: const Key('composer-voice-call-note'),
+            maxLines: 1,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ],
         const SizedBox(width: AppSpacing.s12),
         Expanded(
           child: _Meter(state: state, tokens: tokens),

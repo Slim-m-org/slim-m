@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/downloads/downloads_controller.dart';
+import 'package:slimm_app/src/providers/server_info.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_player_fakes.dart';
@@ -179,6 +180,41 @@ void main() {
     await tester.tap(find.text('Save voice message'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(downloads.started, ['a']);
+  });
+
+  testWidgets('a Space with transcripts off has no transcript to copy', (
+    tester,
+  ) async {
+    player = await pumpVoicePlayers(
+      tester,
+      [
+        voiceMessage(
+          'a',
+          transcript: const VoiceTranscript(
+            status: VoiceTranscriptStatus.ready,
+            text: 'meet me at the lighthouse',
+          ),
+        ),
+      ],
+      extra: [
+        serverInfoProvider.overrideWith(
+          (ref) => const Version(
+            name: 'slim-m',
+            version: '1',
+            protocol: 1,
+            transcribeVoiceMessages: false,
+          ),
+        ),
+      ],
+    );
+    expect(find.text('meet me at the lighthouse'), findsNothing);
+    await tester.tap(
+      find.byKey(const ValueKey('voice-player-a')),
+      buttons: kSecondaryButton,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Save voice message'), findsOneWidget);
+    expect(find.text('Copy transcript'), findsNothing);
   });
 
   testWidgets('without words heard the menu has nothing to copy', (

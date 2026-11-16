@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A ring or chime still playing must let go of the audio session before the call connects.
+/// A ring or chime still playing must let go of the audio session before the
+/// call connects, and what gives way to a starting call does so before it too.
 library;
 
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/audio/call_start_yields.dart';
 import 'package:slimm_app/src/audio/sound_session_release.dart';
 
 import 'voice_controller_harness.dart';
@@ -61,6 +63,37 @@ void main() {
       release.complete();
       await joining;
       expect(log, ['stop', 'stopped', 'connect']);
+    },
+  );
+
+  test(
+    'a call starting gives way before the connect, a retry or a move does not',
+    () async {
+      final log = <String>[];
+      final yields = CallStartYields()
+        ..add(() async {
+          log.add('yield');
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          log.add('yielded');
+        });
+      final controller = harness.controllerWith(
+        _LoggingSession(log),
+        voiceApi(),
+        extraOverrides: [callStartYieldsProvider.overrideWithValue(yields)],
+      );
+
+      await controller.join('chan-a');
+      expect(log, ['yield', 'yielded', 'connect']);
+
+      log.clear();
+      await controller.join('chan-a');
+      await controller.join('chan-b');
+      expect(log, isNot(contains('yield')));
+
+      await controller.leave();
+      log.clear();
+      await controller.join('chan-a');
+      expect(log, ['yield', 'yielded', 'connect']);
     },
   );
 }

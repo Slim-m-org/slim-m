@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../accounts/providers/account_providers.dart';
 import '../../accounts/widgets/account_switcher.dart';
+import '../../composer/widgets/voice_recording_marker.dart';
 import '../../members/providers/presence_view.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/server_info.dart';
@@ -216,7 +217,8 @@ const double _footerNameMinWidth = 200;
 const double _tooltipGap = 24;
 
 /// The member's bar at the foot of the rail, under a call row while a call is
-/// live anywhere but the channel on screen (decision 0111, 2026-11-16).
+/// live anywhere but the channel on screen (decision 0111, 2026-11-16), and
+/// under a recording row while a voice message records off screen.
 class RailUserFooter extends ConsumerWidget {
   const RailUserFooter({super.key, this.activeChannelId});
 
@@ -260,7 +262,11 @@ class RailUserFooter extends ConsumerWidget {
       callRow = null;
     }
     final toggles = RailVoiceToggles(otherAccount: otherCommunity?.container);
+    final recording = recordingElsewhere(context, ref, activeChannelId);
     return _FooterStack(
+      recordingRow: recording == null
+          ? null
+          : _FooterRow(child: VoiceRecordingRow(channelId: recording)),
       callRow: callRow == null ? null : _FooterRow(child: callRow),
       bar: _FooterRow(
         paddingKey: const Key('rail-footer-padding'),
@@ -390,11 +396,16 @@ class _UserBar extends ConsumerWidget {
   }
 }
 
-/// The call row over the user bar, with every tooltip opening upward and the
-/// bar's lifted clear of the call row, so none covers the call's Leave.
+/// The recording and call rows over the user bar, with every tooltip opening
+/// upward and the bar's lifted clear of the call row, so none covers its Leave.
 class _FooterStack extends StatefulWidget {
-  const _FooterStack({required this.callRow, required this.bar});
+  const _FooterStack({
+    required this.recordingRow,
+    required this.callRow,
+    required this.bar,
+  });
 
+  final Widget? recordingRow;
   final Widget? callRow;
   final Widget bar;
 
@@ -426,6 +437,7 @@ class _FooterStackState extends State<_FooterStack> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          ?widget.recordingRow,
           if (callRow != null) KeyedSubtree(key: _callRowKey, child: callRow),
           TooltipTheme(
             data: upward.copyWith(
