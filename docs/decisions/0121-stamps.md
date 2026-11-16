@@ -48,6 +48,7 @@ The owner defined seamless for the canvas in 0017: "as an end user, i shouldnt e
 - One content model: an emoji key or an attachment id, the same on a share and on the board.
 - One picker, called Stamp, with three tabs.
   Emoji is the composer's emoji browser, with the Space's custom emoji and recent picks, on a pointer and on touch alike, since a share or the board has no keyboard behind it.
+  In the touch sheet its search waits for a tap, so the keyboard does not cover the grid when the sheet opens; the popover puts the keyboard in it at once.
   GIFs is the composer's GIF search with favourites, shown when the deployment has GIF search.
   Picture offers "Open file", "Paste" and the pictures picked earlier in the session.
 - The picker follows surface rule 3: a popover anchored to the Stamp button on a pointer, and a bottom sheet on touch, through `showAppSheet`.
@@ -80,6 +81,9 @@ The owner defined seamless for the canvas in 0017: "as an end user, i shouldnt e
   The Picture tab's Paste does the same from anywhere.
   Nothing reaches the sharer before the tap, so a screenshot meant for chat never lands on someone's desktop.
 - Elsewhere on the board, paste works as it does today and puts a durable image at the centre of the view.
+- Dropping a picture file on a share tile that takes stamps uploads it with the same checks as the Picture tab's Open file, arms it, and stamps it at the drop point at the default size.
+  A drop is aimed at a spot on purpose, so unlike a paste it needs no tap.
+  On the board, such a tile takes the drops that land on it, and the board places every other drop as a durable image, as it does today.
 - On a pointer, the armed stamp follows the pointer at the default size before it is placed, faint, so its size and spot are seen before anything is sent.
 - On the board a tap places an item 130 world units on its longest side (12% of the shared area's height), and a drag sizes it up to 324 (30%).
   After that it moves, resizes, layers, erases and undoes like any other item.
@@ -91,6 +95,8 @@ The body is `{id, target_user_id, x, y, size}` plus exactly one of `emoji` or `a
 `id` is a client-minted UUIDv7 and keys the stamp everywhere.
 `x` and `y` are the centre, 0 to 1 across the shared screen, and `size` is the longest side as a fraction of its height.
 A success, and a replay of the same stamp, both answer 204.
+
+The sharer's list is `GET /voice/screen-stamps/received`, one entry per sender, and `GET /voice/screen-stamps/received/{sender_id}` lists one sender's pictures.
 
 The server relays the stamp as `canvas.screen_annotation.updated` with `kind: "stamp"`.
 `annotation_id` is the stamp id, `points` is `[x, y]`, `size` is the size, and `ended` is always true.
@@ -117,6 +123,8 @@ In order:
 5. For a picture, the sender must be allowed to use the attachment, by the same rule a message uses (they uploaded it, or can see a channel that has it).
    It must be a PNG, JPEG, GIF or WebP of at most 8 MiB.
    Its header, read the way the server reads it to derive a still, must show at most 40 megapixels.
+   Every frame of a GIF must lie inside its logical screen, read to the file's last block, since some decoders grow the canvas to fit a frame that does not and so pass any cap on the canvas.
+   Uploads that read a picture's header, such as custom emoji, refuse such a GIF too.
 6. The SFU roster must show both people in the channel's call and the target sharing a screen.
 7. The target's consent must be live.
    The server keeps each sharer's last relayed consent frame in memory and believes it for 15 seconds, as a viewer does.
@@ -154,16 +162,18 @@ The sender's client removes its local copy of a refused stamp and says why in a 
 
 ## Reporting a picture after it fades
 
-- The sharer's "Pictures on your screen" sheet lists the pictures stamped on their screen in the last 24 hours, newest first.
-  Each row shows the picture, who sent it and when, with Report and Block.
+- The sharer's "Pictures on your screen" sheet lists everyone who stamped a picture on their screen in the last 24 hours, one row each, newest first by their latest picture.
+  Each row shows that picture, who sent it, how many they sent and when, with Report and Block, and opens the list of that person's pictures, newest first.
+  One row per sender means a flood from one person never pushes another off the list before they are reported.
 - The sheet opens from the share options menu while sharing, and from Voice settings at any time, with Review under the "Viewers draw on my screen" switch in the Screen share card.
   So a sharer who stopped sharing in a hurry can still report.
 - It follows surface rule 3: a popover on a pointer and a bottom sheet on touch.
-- A report has `subject_kind: "screen_stamp"` and names the stamp.
+- Report is per sender.
+  A report has `subject_kind: "screen_stamp"` and names the sender's latest picture.
   The server checks that the reporter is the stamp's target and that the row still exists.
-  It then files the report about the sender, with the stamp's channel, and links the row to the report.
-- A second picture from the same person, while that report is still open, joins the same report.
-  So one report can carry several pictures.
+  It then files the report about the sender, with the stamp's channel, and links that row and every other picture the sender stamped on the reporter's screen in the last 24 hours to the report.
+- A picture from the same person after the report offers Report again, and reporting it joins the same report while that report is open.
+  So one report carries all of one person's pictures.
 - A linked row, and its picture, are kept past 24 hours while the report is open.
   The first sweep after the report is resolved or dismissed removes both.
 - The moderation queue shows the pictures beside the reason.
@@ -255,7 +265,6 @@ This replaces 0096's line "Nothing a viewer draws is stored on the server or the
 - Rotation.
 - Animation on the native overlay.
 - Placing a stamp from the keyboard; M arms the board's Stamp tool, and opens the picker when nothing is armed.
-- Dropping a picture file on a share tile; the Picture tab's Open file does that for now.
 - Stamping from the full-screen video view, which has no pen either (0096).
 - Animated WebP and PNG show their first frame everywhere, and only GIFs animate on tiles.
 
