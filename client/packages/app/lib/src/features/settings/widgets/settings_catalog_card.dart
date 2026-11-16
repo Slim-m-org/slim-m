@@ -10,7 +10,8 @@ import '../../../widgets/sheet_item_list.dart';
 import 'settings_section_header.dart';
 
 /// Every row is in one list bounded to part of the window, so a long catalog
-/// only builds the rows on screen and the page around it stays put.
+/// only builds the rows on screen and the page around it stays put; a small
+/// capped catalog passes [bounded] false and scrolls with the page instead.
 class SettingsCatalogCard extends StatelessWidget {
   const SettingsCatalogCard({
     super.key,
@@ -21,6 +22,7 @@ class SettingsCatalogCard extends StatelessWidget {
     this.count,
     this.above = const [],
     this.listKey,
+    this.bounded = true,
   });
 
   final String title;
@@ -40,12 +42,19 @@ class SettingsCatalogCard extends StatelessWidget {
   /// Marks the list's bounding box, for a test that measures it.
   final Key? listKey;
 
+  /// False lays out every row, for a catalog with a small hard cap, so the
+  /// card never stops short of the page with a row cut in half.
+  final bool bounded;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final count = this.count;
+    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     return SettingsSectionCard(
       title: title,
+      // The first section under a phone's app bar, as the compact settings list's first group is.
+      topGap: compact ? AppSpacing.s8 : kSettingsSectionTopGap,
       trailing: count == null
           ? null
           : Text(
@@ -56,6 +65,17 @@ class SettingsCatalogCard extends StatelessWidget {
         ...above,
         if (itemCount == 0)
           empty
+        else if (!bounded)
+          Padding(
+            key: listKey,
+            padding: _listPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < itemCount; i++) itemBuilder(context, i),
+              ],
+            ),
+          )
         else
           ConstrainedBox(
             key: listKey,
@@ -63,7 +83,7 @@ class SettingsCatalogCard extends StatelessWidget {
               maxHeight: MediaQuery.sizeOf(context).height * 0.6,
             ),
             child: SheetItemList(
-              padding: EdgeInsets.zero,
+              padding: _listPadding,
               itemCount: itemCount,
               itemBuilder: itemBuilder,
             ),
@@ -72,3 +92,6 @@ class SettingsCatalogCard extends StatelessWidget {
     );
   }
 }
+
+/// The same 8 between the card's edge and its first or last button as between two dense rows' buttons.
+const _listPadding = EdgeInsets.symmetric(vertical: AppSpacing.s4);

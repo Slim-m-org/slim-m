@@ -25,6 +25,30 @@ void main() {
     expect(find.text('1.5 s'), findsOneWidget);
   });
 
+  testWidgets('every clip is laid out in the page, not a box cut short', (
+    tester,
+  ) async {
+    final wire = SoundboardWire();
+    wire.clips.addAll([
+      for (var i = 2; i <= 40; i++)
+        {'id': 'c$i', 'name': 'Clip $i', 'duration_ms': 900, 'created_at': i},
+    ]);
+    await pumpSoundboard(tester, wire);
+
+    expect(find.text('Clip 40', skipOffstage: false), findsOneWidget);
+  });
+
+  testWidgets('on a phone the clips start just under the title bar', (
+    tester,
+  ) async {
+    await pumpSoundboard(tester, SoundboardWire(), width: 390);
+    final gap =
+        tester.getTopLeft(find.text('Clips')).dy -
+        tester.getBottomLeft(soundboardTitleBar).dy;
+
+    expect(gap, AppSpacing.s16 + AppSpacing.s8);
+  });
+
   testWidgets(
     'a clip the server seeded with no uploader renders like any other',
     (tester) async {

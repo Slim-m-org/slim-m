@@ -86,6 +86,8 @@ class SoundboardPane extends ConsumerWidget {
         data: (context, list) => SettingsCatalogCard(
           title: 'Clips',
           count: '${list.length} of $maxSoundClips',
+          // At most 48 clips, so the page scrolls them rather than a box inside it.
+          bounded: false,
           itemCount: list.length,
           itemBuilder: (context, index) => _ClipRow(
             key: ValueKey(list[index].id),
