@@ -135,13 +135,19 @@ class ChannelRefresher {
   /// the marker only moves forward, so hydration never notices, and every
   /// other device keeps the channel unread. Best-effort and capped; whatever
   /// is left is sent by the next refresh.
+  ///
+  /// A channel the server holds marked unread is skipped: marking it read
+  /// would clear that mark, which is newer than any debt left here.
   Future<void> _sendMarkersAhead(
     SlimmApi api,
     MessageStore store,
     List<ChannelReadState> states, {
     required bool Function() isCurrent,
   }) async {
-    final server = {for (final s in states) s.channelId: s.state.lastReadSeq};
+    final server = {
+      for (final s in states)
+        if (!s.state.manuallyUnread) s.channelId: s.state.lastReadSeq,
+    };
     final ahead = [
       for (final channel in await store.allChannels())
         if (server[channel.id] case final seq? when channel.lastReadSeq > seq)
