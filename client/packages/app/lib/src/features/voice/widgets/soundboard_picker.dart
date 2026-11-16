@@ -3,7 +3,7 @@
 ///
 /// Playing only asks the server to tell the call; the sound comes back as an
 /// event every client in the call, this one included, plays for itself. The
-/// server's one play per person every 3 seconds shows as the rows resting,
+/// server's one play per person every 3 seconds shows as the buttons resting,
 /// the way slow mode rests Send, never as an error.
 library;
 
@@ -19,7 +19,7 @@ import '../../../widgets/run_guarded.dart';
 import '../providers/soundboard_actions.dart';
 import '../providers/soundboard_clips.dart';
 
-/// The tallest the clip list grows before it scrolls.
+/// The tallest the clip grid grows before it scrolls; 12 starter clips fit under it.
 const double soundboardListMaxHeight = 288;
 
 /// How long the server makes one person wait between plays (decision 0118).
@@ -108,26 +108,59 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
                 maxHeight: soundboardListMaxHeight,
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final clip in list)
-                      AppMenuItem(
-                        key: ValueKey(clip.id),
-                        label: clip.name,
-                        leading: AppIcons.play,
-                        trailing: AppMenuValue(
-                          formatClipLength(clip.durationMs),
-                        ),
-                        onTap: _resting ? null : () => unawaited(_play(clip)),
-                      ),
-                  ],
+                child: _ClipGrid(
+                  clips: list,
+                  onPlay: _resting ? null : (clip) => unawaited(_play(clip)),
                 ),
               ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+/// The least width a clip button gets; the grid fits as many columns as that allows.
+const double _clipMinWidth = 112;
+
+/// Clip buttons in as many equal columns as the menu is wide enough for.
+class _ClipGrid extends StatelessWidget {
+  const _ClipGrid({required this.clips, required this.onPlay});
+
+  final List<api.SoundClip> clips;
+
+  /// Null while the buttons rest.
+  final void Function(api.SoundClip clip)? onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    const gap = AppSpacing.s4;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = (constraints.maxWidth + gap) ~/ (_clipMinWidth + gap);
+          final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final clip in clips)
+                SizedBox(
+                  width: width,
+                  child: AppMenuItem(
+                    key: ValueKey(clip.id),
+                    label: clip.name,
+                    semanticLabel:
+                        '${clip.name}, ${formatClipLength(clip.durationMs)}',
+                    onTap: onPlay == null ? null : () => onPlay!(clip),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
