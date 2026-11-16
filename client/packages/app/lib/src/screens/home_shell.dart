@@ -38,6 +38,7 @@ import '../features/voice/providers/hold_music_controller.dart';
 import '../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../features/channels/providers/channel_by_id_provider.dart';
 import '../features/composer/providers/composer_focus.dart';
+import '../features/composer/widgets/voice_recording_marker.dart';
 import '../features/auth/providers/database_key_store.dart';
 import '../features/members/providers/member_presence.dart'
     show memberModerationWatcherProvider;
@@ -396,6 +397,7 @@ class HomeShell extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (!keyboardUp) VoiceRecordingStrip(activeChannelId: channelId),
               if (showVoiceStrip && !keyboardUp) const VoiceStripIndicator(),
             ],
           ),

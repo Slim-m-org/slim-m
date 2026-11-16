@@ -39,6 +39,13 @@ A recording uses the microphone chosen in Voice settings, wherever a call honour
 On iPhone and Android a recording is refused during a call ("Leave the call to record a voice message."), because the recorder reconfigures the one audio session the call holds: on iPhone it can move the call to the speaker, and on Android stopping it drops a Bluetooth headset.
 Playing a voice message on iPhone during a call is refused for the same reason.
 
+## Recording off screen
+
+A recording, or a clip waiting to send, stays with its channel when another channel opens, and waits in that channel's composer on return.
+While it still records, the shell marks it (owner decision, 2026-11-16): a row over the call row in the rail's footer, and on a phone a strip over the call strip.
+Each shows a red dot, the channel and the clock, and one tap goes back to the composer.
+One recording runs at a time: starting another in a different channel stops the first, which keeps its clip.
+
 ## Privacy and lifetime
 
 - Audio never leaves the deployment.
