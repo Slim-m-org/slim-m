@@ -69,6 +69,44 @@ void main() {
     expect(find.text('New theme'), findsOneWidget);
   });
 
+  testWidgets('back from the editor, Themes is where it was left', (
+    tester,
+  ) async {
+    final rig = EditorRig(
+      storeThemes: [
+        for (final id in ['s1', 's2', 's3'])
+          {
+            'id': id,
+            'name': 'Shared $id',
+            'author_id': 'ren',
+            'author_name': 'Ren',
+            'created_at': 1,
+            'has_picture': false,
+            'theme': _doc('Shared $id').toJson(),
+          },
+      ],
+    );
+    await rig.pump(tester, editor: false, size: const Size(1000, 600));
+    Finder segment(String label) =>
+        find.descendant(of: _key('themes-filter'), matching: find.text(label));
+    final card = _key('theme-store-s3');
+
+    await _tap(tester, segment('Mine'));
+    await _tap(tester, _key('theme-new'));
+    await _tap(tester, find.byTooltip('Back to Themes'));
+    expect(_key('theme-builtin-dark'), findsNothing, reason: 'Mine is kept');
+    expect(_key('theme-new'), findsOneWidget);
+
+    await _tap(tester, segment('All'));
+    await revealInGallery(tester, card);
+    final before = tester.getRect(card);
+    await _tap(tester, _key('theme-menu-s3'));
+    await _tap(tester, find.text('Edit a copy'));
+    await _tap(tester, find.byTooltip('Back to Themes'));
+    expect(card, findsOneWidget, reason: 'the scroll is kept');
+    expect(tester.getRect(card), before);
+  });
+
   testWidgets('a saved theme is listed and Edit opens it', (tester) async {
     final rig = EditorRig();
     await _page(tester, rig: rig);

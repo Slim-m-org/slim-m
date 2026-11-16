@@ -15,7 +15,7 @@ const kSettingsWidePaneInset = EdgeInsets.fromLTRB(32, 24, 32, 40);
 
 /// A pane's content, keyed by its id so switching panes does not carry the
 /// previous one's scroll offset or form state across, and faded in on that
-/// same key.
+/// same key; pushed pages stack above it, the lower ones kept alive.
 ///
 /// Capped at [AppContentColumn]'s own width and centred, or a pane's rows
 /// stretch across whatever the window happens to be.
@@ -61,29 +61,40 @@ class SettingsPaneBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final page = stack.top;
+    final pages = stack.pages;
     final padding = _padding(context);
     return SettingsSubPages(
       stack: stack,
       bottomInset: padding.bottom,
       onClose: onClose,
-      child: AppFadeIn(
-        key: ValueKey(page == null ? pane.id : '${pane.id}/${page.id}'),
-        duration: page == null ? AppMotion.fast : AppMotion.base,
-        offset: page == null ? 0 : AppSpacing.s16,
-        child: page != null && page.ownsHeader
-            ? _page(context, page, padding)
-            : AppContentColumn(
-                maxWidth: pane.wide
-                    ? kSettingsWideContentMax
-                    : kContentColumnMax,
-                child: page == null
-                    ? _body(context, padding)
-                    : _page(context, page, padding),
-              ),
-      ),
+      child: pages.isEmpty
+          ? AppFadeIn(
+              key: ValueKey(pane.id),
+              duration: AppMotion.fast,
+              offset: 0,
+              child: _column(_body(context, padding)),
+            )
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                for (final (i, page) in pages.indexed)
+                  _KeptPage(
+                    shown: i == pages.length - 1,
+                    pane: pane.id,
+                    page: page,
+                    child: page.ownsHeader
+                        ? _page(context, page, padding)
+                        : _column(_page(context, page, padding)),
+                  ),
+              ],
+            ),
     );
   }
+
+  Widget _column(Widget child) => AppContentColumn(
+    maxWidth: pane.wide ? kSettingsWideContentMax : kContentColumnMax,
+    child: child,
+  );
 
   Widget _page(BuildContext context, SettingsSubPage page, EdgeInsets inset) {
     final content = KeyedSubtree(
@@ -147,4 +158,41 @@ class SettingsPaneBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// A page under the one on top stays built but hidden, so going back finds
+/// it scrolled and filtered as it was left.
+class _KeptPage extends StatelessWidget {
+  const _KeptPage({
+    required this.shown,
+    required this.pane,
+    required this.page,
+    required this.child,
+  });
+
+  final bool shown;
+  final String pane;
+  final SettingsSubPage page;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TickerMode(
+    enabled: shown,
+    child: ExcludeFocus(
+      excluding: !shown,
+      child: ExcludeSemantics(
+        excluding: !shown,
+        child: Offstage(
+          offstage: !shown,
+          child: shown
+              ? AppFadeIn(
+                  key: ValueKey('$pane/${page.id}'),
+                  offset: AppSpacing.s16,
+                  child: child,
+                )
+              : child,
+        ),
+      ),
+    ),
+  );
 }
