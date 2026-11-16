@@ -18422,9 +18422,9 @@ components:
         filename:
           type: string
           description: >
-            Sanitized display name. Content-addressed storage means this is a
-            property of the bytes, not of any one message attaching them: the
-            first upload of a given hash sets it.
+            Sanitized display name. A property of the message, as its sender
+            uploaded the bytes, else the first upload's; a forward keeps its
+            original's.
         content_type:
           type: string
           description: >
@@ -18438,7 +18438,8 @@ components:
           type: boolean
           description: >-
             Shown behind a spoiler on this message. A property of the message
-            carrying the bytes, not of the bytes; omitted when false.
+            carrying the bytes, not of the bytes, and a forward of a hidden
+            file stays hidden; omitted when false.
         original:
           type: object
           description: >-
@@ -18967,7 +18968,8 @@ components:
           type: array
           description: >-
             The subset of `attachment_ids` shown behind a spoiler. An id not
-            among `attachment_ids` is a 400.
+            among `attachment_ids` is a 400. A forward also hides whatever its
+            original hid.
           items:
             type: string
         reply_to_id:

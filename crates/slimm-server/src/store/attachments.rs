@@ -373,11 +373,11 @@ impl Store {
 /// transaction rather than exposed as its own `Store` method, since it only
 /// ever makes sense as part of that larger write.
 ///
-/// The link carries the name its author gave these bytes when they uploaded
-/// them, falling back to the blob's first name when they have none recorded.
+/// The link carries the name and voice mark from the author's own upload, the
+/// name falling back to the blob's first one when they have none recorded.
 ///
-/// Its voice mark is the author's own upload's, or for a forward the forwarded
-/// message's link's, so the same bytes can be one member's voice message and another's file.
+/// A forward copies the name, spoiler and voice mark of the named message's link
+/// instead, so it shows what that showed; its sender may add a spoiler, not drop one.
 ///
 /// Authorization is [`may_link`]'s job and runs before the write lock is
 /// taken; this is the existence half only.
@@ -400,7 +400,9 @@ pub(super) async fn link_attachments(
         let affected = sqlx::query!(
             "INSERT INTO message_attachments
                  (message_id, sha256, position, filename, spoiler, voice_duration_ms, voice_waveform)
-             SELECT ?, a.sha256, ?, u.filename, ?,
+             SELECT ?, a.sha256, ?,
+                    CASE WHEN s.sha256 IS NULL THEN u.filename ELSE s.filename END,
+                    MAX(COALESCE(s.spoiler, 0), ?),
                     CASE WHEN s.sha256 IS NULL THEN u.voice_duration_ms ELSE s.voice_duration_ms END,
                     CASE WHEN s.sha256 IS NULL THEN u.voice_waveform ELSE s.voice_waveform END
              FROM attachments a

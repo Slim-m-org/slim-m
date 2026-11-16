@@ -27,8 +27,8 @@ class Attachment {
   /// one message.
   final String id;
 
-  /// Sanitized display name. A property of the bytes, not of any one message
-  /// attaching them: the first upload of a given hash sets it.
+  /// Sanitized display name, as the message's sender uploaded the bytes, else
+  /// the first upload's; a forward keeps its original's.
   final String filename;
 
   /// One of a fixed server-side allowlist, decided by sniffing the uploaded
@@ -37,7 +37,7 @@ class Attachment {
   final int size;
 
   /// Shown behind a spoiler on the message carrying it; per message, never
-  /// a property of the bytes.
+  /// a property of the bytes, and a forward of a hidden file stays hidden.
   final bool spoiler;
 
   /// The file as uploaded, kept beside this compressed copy when the space

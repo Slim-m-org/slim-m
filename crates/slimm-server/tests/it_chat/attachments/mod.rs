@@ -20,6 +20,7 @@ mod binding;
 mod compression;
 mod filenames;
 mod fixtures;
+mod forward_links;
 mod message_filenames;
 mod overwrite_allow;
 mod pdf_worker;
