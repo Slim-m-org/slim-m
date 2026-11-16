@@ -73,7 +73,8 @@ class _RailNotesButtonState extends ConsumerState<RailNotesButton> {
       icon: AppIcons.notebook,
       semanticLabel: 'Notes',
       tooltip: labelWithShortcut('Notes', AppAction.openNotes),
-      active: open,
+      // Null while closed, so a screen reader hears a plain button rather than a toggle that is off.
+      active: open ? true : null,
       onPressed: () => unawaited(_open()),
     );
   }

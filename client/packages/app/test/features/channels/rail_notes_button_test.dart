@@ -4,6 +4,8 @@
 /// person does: the button, its shortcut, and next/previous from Notes.
 library;
 
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,7 +98,16 @@ void main() {
       findsNothing,
       reason: 'no Notes row in Direct messages',
     );
-    expect(_notesButton(tester).active, isFalse);
+    expect(_notesButton(tester).active, isNot(isTrue));
+    expect(
+      tester
+          .getSemantics(find.bySemanticsLabel('Notes'))
+          .getSemanticsData()
+          .flagsCollection
+          .isToggled,
+      Tristate.none,
+      reason: 'closed, it is a plain button, not a toggle that is off',
+    );
 
     await tester.tap(find.bySemanticsLabel('Notes'));
     await pumpFrames(tester, frames: 20);
