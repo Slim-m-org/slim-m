@@ -253,11 +253,7 @@ class RailUserFooter extends ConsumerWidget {
     if (callHere) {
       callRow = const RailCallRow();
     } else if (otherCommunity case final entry?) {
-      callRow = RailCommunityCallRow(
-        entry: entry,
-        switchTo: () async =>
-            ref.read(accountHostProvider)?.switchTo(entry.account.origin),
-      );
+      callRow = RailCommunityCallRow(entry: entry);
     } else {
       callRow = null;
     }

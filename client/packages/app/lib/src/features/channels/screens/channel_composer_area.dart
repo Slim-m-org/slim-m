@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../accounts/providers/account_providers.dart';
 import '../../composer/providers/composer_extent.dart';
 import '../../messages/providers/message_selection.dart';
 import '../../voice/providers/voice_controller.dart';
@@ -107,6 +108,9 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
       state: state,
       callChannelId: callChannelId,
       channelId: widget.channelId,
+      callElsewhere: ref.watch(
+        accountsSnapshotProvider.select((s) => s.callElsewhere != null),
+      ),
     );
   }
 

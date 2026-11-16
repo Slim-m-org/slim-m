@@ -13,10 +13,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../providers/channel_by_id_provider.dart';
 import '../../accounts/providers/account_providers.dart';
-import '../../accounts/providers/call_elsewhere_shown.dart';
-import '../../accounts/widgets/other_account_value.dart';
-import '../../../providers/server_info.dart';
-import '../../../routing/router.dart';
+import '../../accounts/widgets/call_elsewhere_view.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/shortcut_label.dart';
 import '../../voice/providers/dm_call.dart';
@@ -55,79 +52,23 @@ class RailCallRow extends ConsumerWidget {
 }
 
 /// The call row for [entry]'s call while another community is on screen: its
-/// name leads the second line, a tap runs [switchTo] first, and the pill hides.
-class RailCommunityCallRow extends ConsumerStatefulWidget {
-  const RailCommunityCallRow({
-    super.key,
-    required this.entry,
-    required this.switchTo,
-  });
+/// name leads the second line, a tap switches to it first, and the pill hides.
+class RailCommunityCallRow extends StatelessWidget {
+  const RailCommunityCallRow({super.key, required this.entry});
 
   final AccountEntry entry;
-  final Future<void> Function() switchTo;
 
   @override
-  ConsumerState<RailCommunityCallRow> createState() =>
-      _RailCommunityCallRowState();
-}
-
-class _RailCommunityCallRowState extends ConsumerState<RailCommunityCallRow> {
-  CallElsewhereShown? _counted;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // A route pushed over the rail keeps it mounted but off screen, with tickers off.
-    final next = TickerMode.valuesOf(context).enabled
-        ? ref.read(callElsewhereShownProvider)
-        : null;
-    if (identical(next, _counted)) return;
-    _counted?.remove();
-    _counted = next?..add();
-  }
-
-  @override
-  void dispose() {
-    _counted?.remove();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final account = widget.entry.container;
-    return OtherAccountValue(
-      container: account,
-      provider: voiceFlagsProvider,
-      builder: (context, voice) {
-        final channelId = voice.channelId;
-        if (channelId == null) return const SizedBox.shrink();
-        return OtherAccountValue(
-          container: account,
-          provider: channelByIdProvider(channelId),
-          builder: (context, channel) => OtherAccountValue(
-            container: account,
-            provider: serverInfoProvider,
-            builder: (context, info) => _CallRow(
-              channelName: channel.valueOrNull?.name,
-              voice: voice,
-              community:
-                  info.valueOrNull?.displayName ??
-                  widget.entry.account.serverUrl.host,
-              onOpen: () async {
-                final router = account.read(routerProvider);
-                await widget.switchTo();
-                account.read(dmCallOpenProvider.notifier).state = channelId;
-                router.go(Routes.channel(channelId));
-              },
-              onLeave: () => unawaited(
-                account.read(voiceControllerProvider.notifier).leave(),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => CallElsewhereView(
+    entry: entry,
+    builder: (context, call) => _CallRow(
+      channelName: call.channelName,
+      voice: call.voice,
+      community: call.community,
+      onOpen: call.open,
+      onLeave: () => unawaited(call.controller.leave()),
+    ),
+  );
 }
 
 /// The call's speaker glyph over the avatar column, its channel and timer,
@@ -303,16 +244,23 @@ class _SecondLine extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (community case final name?)
+        if (community case final name?) ...[
           Flexible(
             flex: 3,
             child: Text(
-              '$name · ',
+              name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textWidthBasis: TextWidthBasis.longestLine,
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
           ),
+          // Outside the name, so a long one keeps its separator from the timer.
+          Text(
+            ' · ',
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          ),
+        ],
         if (connectedAt case final since?)
           Flexible(
             flex: 2,
