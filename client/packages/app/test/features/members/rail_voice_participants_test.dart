@@ -54,6 +54,7 @@ Future<void> _pump(
   required int permissions,
   Size size = const Size(1280, 800),
   VoiceParticipant participant = _bob,
+  List<VoiceParticipant> before = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -79,7 +80,7 @@ Future<void> _pump(
           body: SizedBox(
             width: 240,
             child: RailParticipantList(
-              participants: [participant],
+              participants: [...before, participant],
               channelId: 'voice-1',
             ),
           ),
@@ -145,6 +146,30 @@ void main() {
     await tester.tap(find.text('Bob'));
     await tester.pumpAndSettle();
     expect(find.byType(MemberProfileBody), findsOneWidget);
+  });
+
+  testWidgets('on a phone a row whose profile is still loading is as tall '
+      'as one whose profile has resolved', (tester) async {
+    // Only Bob's profile is overridden; Carol's request 404s, so hers never resolves.
+    await _pump(
+      tester,
+      permissions: 0,
+      size: const Size(390, 844),
+      before: const [
+        VoiceParticipant(
+          identity: 'user-carol',
+          name: 'Carol',
+          isLocal: false,
+          isSpeaking: false,
+          isMuted: false,
+          isScreenSharing: false,
+        ),
+      ],
+    );
+    final gap =
+        tester.getCenter(find.text('Bob')).dy -
+        tester.getCenter(find.text('Carol')).dy;
+    expect(gap, AppSizes.rowTouch);
   });
 
   testWidgets('a speaking participant still reads as speaking', (tester) async {
