@@ -21,7 +21,11 @@ class VoiceTranscriptLine extends ConsumerWidget {
     final live = ref.watch(
       voiceTranscriptsProvider.select((all) => all[attachment.id]),
     );
-    final transcript = shownVoiceTranscript(attachment, live);
+    final transcript = shownVoiceTranscript(
+      attachment,
+      live,
+      spaceShows: ref.watch(voiceTranscriptsShownProvider),
+    );
     if (transcript == null) return const SizedBox.shrink();
     final muted = AppText.caption.copyWith(color: tokens.textSecondary);
     return Padding(

@@ -12932,6 +12932,13 @@ components:
           description: >
             Whether module sections show on profile cards, for everyone. On
             by default; absent on older servers, read as true.
+        transcribe_voice_messages:
+          type: boolean
+          description: >
+            Whether voice messages show their transcripts. A client hides the
+            ones it already has while this is false. Absent on older servers,
+            which strip hidden transcripts themselves, so a client reads it as
+            true.
         canvas_scoped_clear:
           type: boolean
           description: >

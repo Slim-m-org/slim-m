@@ -39,6 +39,7 @@ class Version {
     this.hideBotsInMemberList = false,
     this.moduleMemberBadges = false,
     this.moduleProfileSections = true,
+    this.transcribeVoiceMessages = true,
     this.canvasScopedClear,
     this.maxAttachmentBytes,
     this.capabilities,
@@ -124,6 +125,9 @@ class Version {
   /// Whether module sections show on profile cards; an admin's Space-wide choice.
   final bool moduleProfileSections;
 
+  /// Whether voice messages show their transcripts; true on an older server, which strips hidden ones itself.
+  final bool transcribeVoiceMessages;
+
   /// Whether the canvas accepts a scoped clear. Null on a server older than this field, which [supportsPartialClear] answers from the version number.
   final bool? canvasScopedClear;
 
@@ -206,6 +210,8 @@ class Version {
             json['hide_bots_in_member_list'] as bool? ?? false,
         moduleMemberBadges: json['module_member_badges'] as bool? ?? false,
         moduleProfileSections: json['module_profile_sections'] as bool? ?? true,
+        transcribeVoiceMessages:
+            json['transcribe_voice_messages'] as bool? ?? true,
         canvasScopedClear: json['canvas_scoped_clear'] as bool?,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.

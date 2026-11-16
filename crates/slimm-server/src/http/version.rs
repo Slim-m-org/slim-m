@@ -79,6 +79,8 @@ pub(super) struct Version {
     module_member_badges: bool,
     /// Whether module sections show on profile cards, for everyone.
     module_profile_sections: bool,
+    /// Whether voice messages show their transcripts, so a client hides the ones it already has once they are off.
+    transcribe_voice_messages: bool,
     /// Whether the canvas accepts a `clear_scoped` op. Always true on a build that has this field;
     /// a client reads its absence as an older server and falls back to its version number.
     canvas_scoped_clear: bool,
@@ -196,6 +198,7 @@ pub(super) async fn version(
         hide_bots_in_member_list: state.store.hide_bots_in_member_list().await?,
         module_member_badges: display.member_badges,
         module_profile_sections: display.profile_sections,
+        transcribe_voice_messages: state.store.transcribe_voice_messages().await?,
         canvas_scoped_clear: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),

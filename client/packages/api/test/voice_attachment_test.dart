@@ -126,4 +126,16 @@ void main() {
     expect(settings.transcribeVoiceMessages, isTrue);
     expect(settings.transcribeVoiceMessagesAvailable, isFalse);
   });
+
+  test('/version says whether transcripts show, and an older server shows them',
+      () {
+    Version version(Map<String, dynamic> extra) => Version.fromJson(
+        {'name': 'slim-m', 'version': '1', 'protocol': 1, ...extra});
+
+    expect(version({}).transcribeVoiceMessages, isTrue);
+    expect(
+      version({'transcribe_voice_messages': false}).transcribeVoiceMessages,
+      isFalse,
+    );
+  });
 }

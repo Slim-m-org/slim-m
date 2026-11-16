@@ -203,6 +203,36 @@ async fn turning_the_setting_off_hides_what_was_made() {
     assert_eq!(world.search("plans").await.len(), 1, "back when turned on");
 }
 
+async fn shown_on_version(world: &World) -> Value {
+    let response = world
+        .app
+        .clone()
+        .oneshot(request_plain("GET", "/version", &world.token))
+        .await
+        .unwrap();
+    json_body(response).await["transcribe_voice_messages"].clone()
+}
+
+#[tokio::test]
+async fn version_says_whether_transcripts_show_so_clients_hide_theirs() {
+    let world = world().await;
+    assert_eq!(shown_on_version(&world).await, false);
+
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    assert_eq!(shown_on_version(&world).await, true);
+
+    world
+        .store
+        .set_transcribe_voice_messages(false)
+        .await
+        .unwrap();
+    assert_eq!(shown_on_version(&world).await, false);
+}
+
 #[tokio::test]
 async fn a_failing_engine_leaves_it_pending_and_a_refusal_fails_it_for_good() {
     let world = world().await;
