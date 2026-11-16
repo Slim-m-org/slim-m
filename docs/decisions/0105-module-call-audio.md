@@ -25,7 +25,7 @@ Checked against `v122/integration` at 682d40944 on 2026-11-02.
   A module that wanted raw audio would get it as JSON text in 1 MiB pieces, one interpreter run per piece, two at a time across every module on the server.
 - The server never touches media.
   It mints LiveKit tokens and calls the room service over HTTP (`voice/token.rs`, `voice/room_admin.rs`), and learns who is in a call from LiveKit webhooks (0032).
-- The server image is one static musl binary on distroless, and `server-ci.yml` fails it past 22 MiB (20 MiB until v123).
+- The server image is one static musl binary on distroless, and `server-ci.yml` fails it past 30 MiB (20 MiB until v123, 22 MiB until 2026-11-16).
   The LiveKit SDKs that can subscribe to a track are built on libwebrtc, which ships prebuilt for glibc and is many times that size.
 - Bots already join calls as participants with the Python LiveKit SDK, `livekit==1.1.20`, in `slim-bots` (`slimbots/voice.py`), with a fake-based suite and a real-LiveKit suite.
 - LiveKit runs as `livekit-server` 1.13.11 (0102), single node, with no Redis and no egress service deployed.
