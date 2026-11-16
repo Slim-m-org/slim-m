@@ -115,4 +115,45 @@ void main() {
     );
     expect(item.label, 'meet me at the lighthouse');
   });
+
+  testWidgets('a voice hit reads what was said and where it was found', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, _voiceHit());
+    expect(
+      find.bySemanticsLabel(
+        'Message from Priya: meet me at the lighthouse, found in a voice message',
+      ),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('a file hit reads the file it was found in', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, _hit(matched: 'a1'));
+    expect(
+      find.bySemanticsLabel('Message from Priya: found in notes.txt'),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('the wide row reads a hit as the palette and narrow page do', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    for (final hit in [_voiceHit(), _hit(matched: 'a1'), _hit(content: 'hi')]) {
+      await _pump(tester, hit);
+      final narrow = messageResultItem(
+        hit,
+        channelLabel: '#general',
+        authorName: 'Priya',
+        onSelect: (_, _) async {},
+      );
+      expect(find.bySemanticsLabel(narrow.semanticLabel!), findsOneWidget);
+    }
+    semantics.dispose();
+  });
 }

@@ -248,18 +248,40 @@ PaletteResultItem messageResultItem(
             matchedAttachmentName(message) ??
             '')
       : message.content;
-  // Read aloud the way the chips show it: the member's name, not the stored @username.
-  final spoken = rewriteMentions(label, mentionNames);
+  final spoken = searchHitSpokenLabel(
+    message,
+    authorName: authorName,
+    mentionNames: mentionNames,
+  );
   return PaletteResultItem(
     label: label,
-    semanticLabel: authorName == null
-        ? (spoken == label ? null : spoken)
-        : 'Message from $authorName: $spoken',
+    semanticLabel: spoken == label ? null : spoken,
     kind: PaletteKind.message,
     message: message,
     messageChannelLabel: channelLabel,
     onSelect: onSelect,
   );
+}
+
+/// How a message hit is read aloud, the same in the palette and at every
+/// search width: what matched, and the file it was found in.
+String searchHitSpokenLabel(
+  api.Message message, {
+  String? authorName,
+  Map<String, String> mentionNames = const {},
+}) {
+  final said = matchedVoiceTranscript(message);
+  final file = said == null
+      ? matchedAttachmentName(message)
+      : 'a voice message';
+  final what = [
+    // Read aloud the way the chips show it: the member's name, not the stored @username.
+    if (message.content.isNotEmpty)
+      rewriteMentions(message.content, mentionNames),
+    ?said,
+    if (file != null) 'found in $file',
+  ].join(', ');
+  return authorName == null ? what : 'Message from $authorName: $what';
 }
 
 /// How a message hit names the conversation it was said in.
