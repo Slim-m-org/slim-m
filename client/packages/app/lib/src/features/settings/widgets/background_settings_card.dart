@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Settings > Appearance > Background: a picture behind the panes on this
-/// device, with how far it fades, an edge vignette and an optional blur.
+/// device, with how far it fades, an optional blur and an edge vignette.
 library;
 
 import 'dart:async';
@@ -124,7 +124,7 @@ class _State extends ConsumerState<BackgroundSettingsCard>
               ..._controls(tokens, settings),
             ],
             if (shown && from != null)
-              SettingsInfoLine('Dim, vignette and blur came with $from.'),
+              SettingsInfoLine('Dim, blur and vignette came with $from.'),
           ],
         );
       },
@@ -189,16 +189,6 @@ class _State extends ConsumerState<BackgroundSettingsCard>
           unawaited(_controller.setDim(v));
         },
       ),
-      SettingsToggleRow(
-        label: 'Vignette',
-        description: 'Fade the edges.',
-        value: settings.vignette,
-        semanticLabel: 'Vignette',
-        onChanged: (v) {
-          _madeOwn();
-          unawaited(_controller.setVignette(v));
-        },
-      ),
       SettingsSliderRow(
         sliderKey: BackgroundSettingsCard.blurSliderKey,
         label: 'Blur',
@@ -212,6 +202,16 @@ class _State extends ConsumerState<BackgroundSettingsCard>
         onChanged: (v) {
           _madeOwn();
           unawaited(_controller.setBlur(v));
+        },
+      ),
+      SettingsToggleRow(
+        label: 'Vignette',
+        description: 'Fade the edges.',
+        value: settings.vignette,
+        semanticLabel: 'Vignette',
+        onChanged: (v) {
+          _madeOwn();
+          unawaited(_controller.setVignette(v));
         },
       ),
     ];

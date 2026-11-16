@@ -89,7 +89,7 @@ Future<void> _withPicture(WidgetTester tester, ProviderContainer c) async {
   await tester.pump();
 }
 
-const _note = 'Dim, vignette and blur came with Pine at dusk.';
+const _note = 'Dim, blur and vignette came with Pine at dusk.';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -114,6 +114,35 @@ void main() {
       }
     });
   }
+
+  for (final (width, panes) in [(1280.0, 3), (390.0, 1)]) {
+    testWidgets('at $width wide the preview shows the panes the shell has '
+        'there', (tester) async {
+      final container = await _mount(tester, width: width, column: true);
+      await _withPicture(tester, container);
+
+      expect(
+        find.descendant(
+          of: find.byKey(BackgroundPreview.previewKey),
+          matching: find.byWidgetPredicate((w) => w is PaneSurface),
+        ),
+        findsNWidgets(panes),
+      );
+    });
+  }
+
+  testWidgets('the two sliders sit together, then the vignette', (
+    tester,
+  ) async {
+    final container = await _mount(tester, width: 390, column: true);
+    await _withPicture(tester, container);
+
+    final dim = tester.getTopLeft(find.text('Dim')).dy;
+    final blur = tester.getTopLeft(find.text('Blur')).dy;
+    final vignette = tester.getTopLeft(find.text('Vignette')).dy;
+    expect(dim, lessThan(blur));
+    expect(blur, lessThan(vignette));
+  });
 
   testWidgets('a theme\'s settings are noted until one is changed here', (
     tester,
