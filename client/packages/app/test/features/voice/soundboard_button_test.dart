@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The soundboard control in a call: who sees it, how it opens at each width,
-/// what a tap sends, and what a refusal says.
+/// what a tap sends, how the rate limit rests the rows, and what a refusal says.
 library;
 
 import 'dart:convert';
@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/channels/providers/channel_permissions.da
 import 'package:slimm_app/src/features/voice/widgets/soundboard_button.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/widgets/hover_reveal.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/async_wait.dart';
@@ -66,7 +67,15 @@ Future<void> _pump(
   WidgetTester tester,
   _Wire wire, {
   double width = 1280,
+  ValueChanged<bool>? pin,
 }) async {
+  const button = Align(
+    alignment: Alignment.bottomCenter,
+    child: Padding(
+      padding: EdgeInsets.all(16),
+      child: SoundboardButton(channelId: 'c1'),
+    ),
+  );
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -78,14 +87,15 @@ Future<void> _pump(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: SoundboardButton(channelId: 'c1'),
-            ),
-          ),
+        home: Scaffold(
+          body: pin == null
+              ? button
+              : HoverRevealScope(
+                  pin: pin,
+                  reportMenuOpen: (_) {},
+                  reportOverlayHover: (_) {},
+                  child: button,
+                ),
         ),
       ),
     ),
@@ -141,16 +151,68 @@ void main() {
     expect(find.text('Sad trombone'), findsOneWidget, reason: 'stays open');
   });
 
-  testWidgets('a refused play says so next to the clips', (tester) async {
+  testWidgets('a play rests the rows for 3 s, then they come back', (
+    tester,
+  ) async {
+    final wire = _Wire();
+    await _pump(tester, wire);
+    await _open(tester);
+
+    await tester.tap(find.text('Air horn'));
+    await waitUntil(tester, () => wire.plays.isNotEmpty);
+    await tester.tap(find.text('Sad trombone'));
+    await pumpFrames(tester);
+    expect(wire.plays, hasLength(1), reason: 'inside the rest');
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.tap(find.text('Sad trombone'));
+    await waitUntil(tester, () => wire.plays.length == 2);
+    expect(wire.plays.last, '/channels/c1/voice/soundboard/clip-2/play');
+  });
+
+  testWidgets('the rate limit reads as the rest, never as an error', (
+    tester,
+  ) async {
     final wire = _Wire(playStatus: 429);
     await _pump(tester, wire);
     await _open(tester);
 
     await tester.tap(find.text('Air horn'));
     await waitUntil(tester, () => wire.plays.isNotEmpty);
+    await pumpFrames(tester);
+
+    expect(find.textContaining('Could not play'), findsNothing);
+    await tester.tap(find.text('Sad trombone'));
+    await pumpFrames(tester);
+    expect(wire.plays, hasLength(1), reason: 'the rows are resting');
+  });
+
+  testWidgets('any other refusal says so next to the clips', (tester) async {
+    final wire = _Wire(playStatus: 403);
+    await _pump(tester, wire);
+    await _open(tester);
+
+    await tester.tap(find.text('Air horn'));
+    await waitUntil(tester, () => wire.plays.isNotEmpty);
+    await pumpFrames(tester);
 
     expect(find.textContaining('Could not play Air horn'), findsOneWidget);
-    expect(find.text('Air horn'), findsOneWidget);
+    await tester.tap(find.text('Sad trombone'));
+    await waitUntil(tester, () => wire.plays.length == 2);
+    expect(wire.plays, hasLength(2), reason: 'a refusal starts no rest');
+  });
+
+  testWidgets('the open menu keeps a collapsible call dock revealed', (
+    tester,
+  ) async {
+    final pins = <bool>[];
+    await _pump(tester, _Wire(), pin: pins.add);
+    await _open(tester);
+    expect(pins, [true]);
+
+    await tester.tap(find.byTooltip('Soundboard'));
+    await pumpFrames(tester, frames: 20);
+    expect(pins, [true, false]);
   });
 
   testWidgets('a Space with no clips says so', (tester) async {

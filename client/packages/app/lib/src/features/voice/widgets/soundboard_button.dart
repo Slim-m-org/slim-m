@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../../widgets/hover_reveal.dart';
 import '../../channels/providers/channel_permissions.dart';
 import 'call_dock_button.dart';
 import 'soundboard_picker.dart';
@@ -40,25 +41,30 @@ class _SoundboardButtonState extends State<SoundboardButton> {
   final _group = Object();
 
   @override
-  Widget build(BuildContext context) => ContextMenuRegion(
-    key: _region,
-    ownsFocusNode: false,
-    enableLongPress: false,
-    opensAbove: true,
-    menuWidth: 280,
-    tapRegionGroupId: _group,
-    itemsBuilder: (context, close) => [
-      const AppMenuLabel('Soundboard'),
-      SoundboardPicker(channelId: widget.channelId),
-    ],
-    child: TapRegion(
-      groupId: _group,
-      child: CallDockButton(
-        icon: AppIcons.music,
-        tooltip: 'Soundboard',
-        active: false,
-        onPressed: () => _region.currentState?.toggle(),
+  Widget build(BuildContext context) {
+    // Looked up now: the menu reports closing from dispose, when this context can no longer be asked.
+    final reveal = HoverRevealScope.maybeOf(context);
+    return ContextMenuRegion(
+      key: _region,
+      ownsFocusNode: false,
+      enableLongPress: false,
+      opensAbove: true,
+      menuWidth: 280,
+      tapRegionGroupId: _group,
+      onOpenChanged: (open) => reveal?.pin(open),
+      itemsBuilder: (context, close) => [
+        const AppMenuLabel('Soundboard'),
+        SoundboardPicker(channelId: widget.channelId),
+      ],
+      child: TapRegion(
+        groupId: _group,
+        child: CallDockButton(
+          icon: AppIcons.music,
+          tooltip: 'Soundboard',
+          active: false,
+          onPressed: () => _region.currentState?.toggle(),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
