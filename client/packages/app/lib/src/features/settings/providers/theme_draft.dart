@@ -63,7 +63,10 @@ class ThemeDraft extends ChangeNotifier {
 
   ThemeDocument get document => _document;
 
-  List<ThemeContrastCheck> get checks => themeContrastChecks(_document.colours);
+  List<ThemeContrastCheck>? _checks;
+
+  List<ThemeContrastCheck> get checks =>
+      _checks ??= themeContrastChecks(_document.colours);
 
   List<ThemeContrastCheck> get failing => [
     for (final c in checks)
@@ -164,6 +167,7 @@ class ThemeDraft extends ChangeNotifier {
 
   void _replace(ThemeDocument next) {
     _document = next;
+    _checks = null;
     notifyListeners();
   }
 }

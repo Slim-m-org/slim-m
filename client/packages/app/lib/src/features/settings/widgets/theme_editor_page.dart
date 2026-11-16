@@ -292,10 +292,10 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
 
   String? _openIn(_Place place) => _open?.place == place ? _open?.token : null;
 
-  List<Widget> _cards({required bool roomy}) {
+  /// The cards that show colours, rebuilt with every change to the draft.
+  List<Widget> _colourCards({required bool roomy}) {
     final failing = _draft.failingColours;
     return [
-      ThemeEditorDetails(draft: _draft, name: _name, onStartFrom: _closePicker),
       ThemeMainColours(
         colours: _draft.document.colours,
         links: _draft.links,
@@ -353,12 +353,15 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
       child: Padding(
         padding: EdgeInsets.fromLTRB(inset, vertical, inset, vertical),
         child: AppContentColumn(
-          child: ThemeMiniature.forDocument(
-            _draft.document,
-            key: const Key('theme-editor-preview'),
-            detail: roomy
-                ? ThemeMiniatureDetail.draft
-                : ThemeMiniatureDetail.draftStrip,
+          child: ListenableBuilder(
+            listenable: _draft,
+            builder: (_, _) => ThemeMiniature.forDocument(
+              _draft.document,
+              key: const Key('theme-editor-preview'),
+              detail: roomy
+                  ? ThemeMiniatureDetail.draft
+                  : ThemeMiniatureDetail.draftStrip,
+            ),
           ),
         ),
       ),
@@ -366,62 +369,73 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _draft,
-    builder: (context, _) => LayoutBuilder(
-      builder: (context, box) {
-        final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
-        final inset = wide ? AppSpacing.s32 : AppSpacing.s16;
-        final content = math.min(box.maxWidth - 2 * inset, kContentColumnMax);
-        final roomy = content >= _roomyFrom;
-        final pin =
-            box.maxHeight >= MediaQuery.textScalerOf(context).scale(_pinFrom);
-        final preview = _preview(inset: inset, roomy: roomy);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ThemeEditorHeader(
-              draft: _draft,
-              busy: _busy,
-              onAction: (a) => unawaited(switch (a) {
-                ThemeEditorAction.publish => _publish(),
-                ThemeEditorAction.export => _export(),
-                ThemeEditorAction.delete => _delete(),
-              }),
-            ),
-            Expanded(
-              child: CustomScrollView(
-                key: const Key('theme-editor-tokens'),
-                controller: _scroll,
-                slivers: [
-                  if (pin)
-                    PinnedHeaderSliver(child: preview)
-                  else
-                    SliverToBoxAdapter(child: preview),
-                  // Not lazy: the footer scrolls to Contrast, which must be built to be found.
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(
-                      inset,
-                      AppSpacing.s24,
-                      inset,
-                      AppSpacing.s24,
-                    ),
-                    sliver: SliverToBoxAdapter(
-                      child: AppContentColumn(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ..._errorLines(),
-                            ..._cards(roomy: roomy),
-                          ],
-                        ),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
+      final inset = wide ? AppSpacing.s32 : AppSpacing.s16;
+      final content = math.min(box.maxWidth - 2 * inset, kContentColumnMax);
+      final roomy = content >= _roomyFrom;
+      final pin =
+          box.maxHeight >= MediaQuery.textScalerOf(context).scale(_pinFrom);
+      final preview = _preview(inset: inset, roomy: roomy);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ThemeEditorHeader(
+            draft: _draft,
+            busy: _busy,
+            onAction: (a) => unawaited(switch (a) {
+              ThemeEditorAction.publish => _publish(),
+              ThemeEditorAction.export => _export(),
+              ThemeEditorAction.delete => _delete(),
+            }),
+          ),
+          Expanded(
+            child: CustomScrollView(
+              key: const Key('theme-editor-tokens'),
+              controller: _scroll,
+              slivers: [
+                if (pin)
+                  PinnedHeaderSliver(child: preview)
+                else
+                  SliverToBoxAdapter(child: preview),
+                // Not lazy: the footer scrolls to Contrast, which must be built to be found.
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    inset,
+                    AppSpacing.s24,
+                    inset,
+                    AppSpacing.s24,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: AppContentColumn(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ..._errorLines(),
+                          ThemeEditorDetails(
+                            draft: _draft,
+                            name: _name,
+                            onStartFrom: _closePicker,
+                          ),
+                          ListenableBuilder(
+                            listenable: _draft,
+                            builder: (_, _) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: _colourCards(roomy: roomy),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            ThemeEditorFooter(
+          ),
+          ListenableBuilder(
+            listenable: _draft,
+            builder: (_, _) => ThemeEditorFooter(
               failingChecks: _draft.failing.length,
               nameValid: _draft.nameValid,
               busy: _busy,
@@ -432,10 +446,10 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
               onFixAll: () => _fix(_draft.applyAllFixes),
               onShowContrast: () => _reveal(_contrastKey, atEnd: false),
             ),
-          ],
-        );
-      },
-    ),
+          ),
+        ],
+      );
+    },
   );
 }
 
