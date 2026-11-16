@@ -20008,8 +20008,9 @@ components:
         client drops every annotation it did not allow. Gated like ink
         (canvas access, not timed out), and a mark (not `consent`) is only
         relayed when its sender and `target_user_id` are both connected to
-        that channel's call. Charged by wire size against the stroke-preview
-        budget.
+        that channel's call. Either kind is delivered only to the people
+        connected to that call. Charged by wire size against the
+        stroke-preview budget.
       properties:
         type:
           type: string
@@ -20504,7 +20505,8 @@ components:
         [type, channel_id, user_id, target_user_id, kind, points, ended, allowed]
       description: >-
         A viewer's mark over a shared screen, or the sharer's consent for
-        marks, on a channel's canvas, gated the same way
+        marks, on a channel's canvas, sent only to the people connected to
+        that channel's call and gated for them the same way
         `canvas.stroke_preview.updated` is. Carries no `seq` and is never
         stored. Clients that do not know this frame ignore it.
       properties:

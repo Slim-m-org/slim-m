@@ -104,6 +104,9 @@ Nothing is persisted and there is no migration.
   Consent skips that check, so a withdrawal sent while leaving the call still lands.
   Charged by wire size against the stroke-preview budget, so a drawing viewer cannot flood a call.
   Any coordinate outside 0 to 1, a malformed id, or an unknown kind drops the frame silently.
+- Either kind is delivered only to the people in that channel's call, from the same roster read, and still only to those with canvas access (owner decision, 2026-11-16).
+  Before that it went to every member with canvas access to the channel, so someone outside the call could read the marks and the consent off the wire.
+  The roster read and the publish run on a task of the drawer's connection, so the socket never waits on the SFU.
 - A consent frame is only relayed when its sender is the sharer it speaks for.
   The sharer repeats consent every 5 seconds while the overlay is up and a viewer believes it for 15, so a sharer who vanishes stops being believed and a missed frame can only remove the pen, never grant it.
 - The server cannot know whether the sharer opted in, and does not try.

@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
@@ -23,6 +24,7 @@ pub struct RecordingRoomService {
     pub bearers: Arc<Mutex<Vec<String>>>,
     roster: Arc<Mutex<Vec<Value>>>,
     rooms: Arc<Mutex<HashMap<String, Vec<Value>>>>,
+    listing_delay: Arc<Mutex<Duration>>,
 }
 
 impl RecordingRoomService {
@@ -37,6 +39,11 @@ impl RecordingRoomService {
             .lock()
             .unwrap()
             .insert(room.to_owned(), participants(users));
+    }
+
+    /// Makes every later `ListParticipants` answer only after `delay`, as a slow SFU would.
+    pub fn delay_listing(&self, delay: Duration) {
+        *self.listing_delay.lock().unwrap() = delay;
     }
 
     /// Like [`Self::seat`], with the unix millisecond each user joined at.
@@ -61,6 +68,8 @@ async fn list_participants(
     State(recorder): State<RecordingRoomService>,
     Json(body): Json<Value>,
 ) -> Json<Value> {
+    let delay = *recorder.listing_delay.lock().unwrap();
+    tokio::time::sleep(delay).await;
     let room = body["room"].as_str().unwrap_or_default();
     let seated = recorder.rooms.lock().unwrap().get(room).cloned();
     let present = seated.unwrap_or_else(|| recorder.roster.lock().unwrap().clone());
