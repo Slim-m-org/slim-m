@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/theme_gallery.dart';
+import 'theme_miniature_painter.dart';
 
 /// A card on the raised surface with a hairline edge, which turns strong on
 /// hover and becomes a 2 px accent ring while the theme is in use.
@@ -107,7 +108,7 @@ class ThemeBrokenPlaceholder extends StatelessWidget {
       color: tokens.warnText,
     );
     return AspectRatio(
-      aspectRatio: 16 / 10,
+      aspectRatio: ThemeMiniatureGeometry.aspect,
       child: CustomPaint(
         painter: _Stripes(tokens.surfaceSunken, tokens.borderSubtle),
         child: Center(

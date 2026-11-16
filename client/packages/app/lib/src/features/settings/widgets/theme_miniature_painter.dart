@@ -40,14 +40,26 @@ abstract final class ThemeMiniatureGeometry {
     ..lineTo(size.width * 0.38, size.height)
     ..close();
 
-  /// The selected channel row, for a test that samples its fill.
-  static Rect selectedRow(Size size) {
+  /// The channel list's rows, under its title bar; [selected] is the accented one.
+  static const channels = 4;
+  static const selected = 1;
+
+  /// The title bar's top in the channel list.
+  static double listTitleTop(Size size) => size.width / 100 * 3.6;
+
+  /// Channel row [i] of [channels].
+  static Rect listRow(Size size, int i) {
     final c = size.width / 100;
-    final top = c * 3 + c * 0.6 + c * 1.9 + c * 2.4 + c * 1.2;
-    final left = size.width * rail + c * 2;
-    final rowTop = top + (c * 5.4 + c * 1.2);
-    return Rect.fromLTWH(left, rowTop, size.width * list - c * 4, c * 5.4);
+    final top = listTitleTop(size) + c * 1.9 + c * 2.4 + c * 1.2;
+    return Rect.fromLTWH(
+      size.width * rail + c * 2,
+      top + i * (c * 5.4 + c * 1.2),
+      size.width * list - c * 4,
+      c * 5.4,
+    );
   }
+
+  static Rect selectedRow(Size size) => listRow(size, selected);
 
   /// The composer's send button.
   static Rect send(Size size) {
@@ -168,15 +180,17 @@ class _Mini {
   }
 
   void _list() {
-    final left = _railW + c * 2;
-    final inner = _listW - c * 4;
-    var y = c * 3 + c * 0.6;
-    _bar(left + c * 1.6, y, inner * 0.7, high: true);
-    y += c * 1.9 + c * 2.4 + c * 1.2;
+    final first = ThemeMiniatureGeometry.listRow(size, 0);
+    _bar(
+      first.left + c * 1.6,
+      ThemeMiniatureGeometry.listTitleTop(size),
+      first.width * 0.7,
+      high: true,
+    );
     const widths = [0.55, 0.65, 0.45, 0.6];
-    for (var i = 0; i < widths.length; i++) {
-      final row = Rect.fromLTWH(left, y, inner, c * 5.4);
-      final selected = i == 1;
+    for (var i = 0; i < ThemeMiniatureGeometry.channels; i++) {
+      final row = ThemeMiniatureGeometry.listRow(size, i);
+      final selected = i == ThemeMiniatureGeometry.selected;
       if (selected) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(row, Radius.circular(c * 1.2)),
@@ -190,14 +204,13 @@ class _Mini {
           _fill(t.accent),
         );
       }
-      final barW = (inner - c * 3.2) * widths[i];
+      final barW = (row.width - c * 3.2) * widths[i];
       _bar(
         row.left + c * 1.6,
         row.center.dy - c * 0.8,
         barW,
         colour: selected ? t.textPrimary : null,
       );
-      y += c * 5.4 + c * 1.2;
     }
   }
 
