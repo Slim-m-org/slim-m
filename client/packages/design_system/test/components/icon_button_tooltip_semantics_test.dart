@@ -95,4 +95,30 @@ void main() {
     );
     handle.dispose();
   });
+
+  testWidgets('a caller can keep a different tooltip out of the name', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(
+      tester,
+      AppIconButton(
+        icon: Icons.settings,
+        semanticLabel: 'Personal settings',
+        tooltip: 'Settings',
+        excludeTooltipFromSemantics: true,
+        onPressed: () {},
+      ),
+    );
+
+    final node = _button(tester);
+    expect(node.label, 'Personal settings');
+    expect(
+      node.tooltip,
+      isEmpty,
+      reason: 'the label already names the control, so the shorter tooltip '
+          'would only be read out a second time',
+    );
+    handle.dispose();
+  });
 }

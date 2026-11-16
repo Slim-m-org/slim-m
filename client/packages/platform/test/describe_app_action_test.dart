@@ -36,6 +36,37 @@ void main() {
     expect(owners.where((a) => a == AppAction.openInbox), hasLength(1));
   });
 
+  test('Notes has its own chord, shared with no other action', () {
+    expect(
+      describeAppAction(AppAction.openNotes, forWeb: false),
+      [anyOf('Ctrl', 'Cmd'), 'Shift', 'N'],
+    );
+    for (final forWeb in [false, true]) {
+      final resolved = resolveBindings(forWeb: forWeb);
+      final notes = resolved.entries
+          .where((e) => e.value == AppAction.openNotes)
+          .single
+          .key as SingleActivator;
+      final sameChord = resolved.keys.whereType<SingleActivator>().where(
+            (k) =>
+                k.trigger == notes.trigger &&
+                k.control == notes.control &&
+                k.shift == notes.shift &&
+                k.alt == notes.alt &&
+                k.meta == notes.meta,
+          );
+      expect(sameChord, hasLength(1), reason: 'forWeb: $forWeb');
+    }
+  });
+
+  test('the web build opens Notes with a key the browser lets through', () {
+    // Ctrl+Shift+N opens a private window in every browser and never reaches the page.
+    expect(
+      describeAppAction(AppAction.openNotes, forWeb: true),
+      ['Alt', 'Shift', 'N'],
+    );
+  });
+
   test('the web build describes its own browser-safe keys', () {
     // Ctrl+Tab never reaches the page, so the hint must not claim it does.
     final keys = describeAppAction(AppAction.nextChannel, forWeb: true);
