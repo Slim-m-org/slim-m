@@ -24,6 +24,7 @@ import '../../../providers/providers.dart';
 import '../providers/reply_mention_preference.dart';
 import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
+import 'message_preview_text.dart';
 import 'reply_target_summary.dart';
 
 /// Small enough that the banner stays one row at the close control's height.
@@ -58,7 +59,12 @@ class ReplyBanner extends ConsumerWidget {
     );
     // A text-less parent is named by what it carried, not left blank.
     final text = plainPreview(message.content);
-    final snippet = previewLine(message.content, attachments);
+    final snippet = watchPreviewLine(
+      ref,
+      messageId: message.id,
+      content: message.content,
+      attachments: attachments,
+    );
     final showThumb = text.isEmpty && attachments.length == 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(

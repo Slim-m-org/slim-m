@@ -19,7 +19,7 @@ import '../../members/providers/user_profiles.dart';
 import 'author_label.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import 'message_jump.dart';
-import 'reply_target_summary.dart' show previewLine;
+import 'message_preview_text.dart';
 import '../../../widgets/sheet_item_list.dart';
 import '../../members/widgets/user_avatar.dart';
 
@@ -59,7 +59,6 @@ class _PinnedMessagesSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final pins = ref.watch(pinsControllerProvider(channelId));
     final body = _Body(
       channelId: channelId,
@@ -74,31 +73,7 @@ class _PinnedMessagesSheet extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            0,
-            AppSpacing.s16,
-            AppSpacing.s12,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                AppIcons.pin,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Text(
-                'Pinned messages',
-                style: AppText.body.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.semi,
-                ),
-              ),
-            ],
-          ),
-        ),
+        const AppSheetHeader('Pinned messages'),
         ConstrainedBox(
           key: pinnedMessagesBodyBoxKey,
           // A ceiling for a real list, via `body`'s own shrinkWrap ListView; an empty or loading state keeps a modest fixed box instead.
@@ -237,10 +212,10 @@ class _PinnedMessageRowState extends ConsumerState<PinnedMessageRow>
             size: density.listAvatarSize,
           ),
           title: AuthorNameLine(name: name, profile: resolution.profile),
-          subtitle: Text(
-            previewLine(pin.message.content, pin.message.attachments),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          subtitle: MessagePreviewText(
+            messageId: pin.message.id,
+            content: pin.message.content,
+            attachments: pin.message.attachments,
           ),
           trailing: mayUnpin
               ? AppIconButton(
