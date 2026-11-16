@@ -20,6 +20,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +31,7 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::module_commands::{ModuleInfoDto, reachable_extension_points};
-use super::post_commit::after_commit;
+use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -44,7 +45,10 @@ const APP_BODY_LIMIT: usize = 8 * 1024;
 /// The app routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/channels/{channel_id}/messages/apps", post(create))
+        .route(
+            "/channels/{channel_id}/messages/apps",
+            post(create).layer(from_fn(run_to_completion)),
+        )
         .route("/modules/apps", get(list_apps))
         .layer(DefaultBodyLimit::max(APP_BODY_LIMIT))
 }

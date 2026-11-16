@@ -27,6 +27,16 @@ pub(super) async fn mark_request(request: Request, next: Next) -> Response {
     IN_REQUEST.scope((), next.run(request)).await
 }
 
+/// Spawns part of a request onto its own task, still marked as a request, so
+/// a panic in it reaches whoever awaits the handle instead of ending the process.
+pub(super) fn spawn_request<T, F>(work: F) -> tokio::task::JoinHandle<T>
+where
+    F: std::future::Future<Output = T> + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::spawn(IN_REQUEST.scope((), work))
+}
+
 /// Turns a caught request panic into the same 500 an [`ApiError::Internal`] sends.
 pub(super) fn catch_layer() -> CatchPanicLayer<PanicResponse> {
     CatchPanicLayer::custom(internal_error as PanicResponse)

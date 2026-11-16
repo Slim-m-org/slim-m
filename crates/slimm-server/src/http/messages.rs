@@ -15,7 +15,8 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::get;
+use axum::middleware::from_fn;
+use axum::routing::{get, post};
 
 use self::message_get::get_message;
 use self::message_history::history;
@@ -27,7 +28,7 @@ use super::embeds;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::module_hooks::{Draft, HookPoint, intercept};
-use super::post_commit::after_commit;
+use super::post_commit::{after_commit, run_to_completion};
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
@@ -59,7 +60,10 @@ const MAX_LIMIT: i64 = 100;
 /// The message routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/channels/{channel_id}/messages", get(list).post(send))
+        .route(
+            "/channels/{channel_id}/messages",
+            get(list).merge(post(send).layer(from_fn(run_to_completion))),
+        )
         .route(
             "/channels/{channel_id}/messages/{message_id}",
             get(get_message).patch(edit).delete(delete),

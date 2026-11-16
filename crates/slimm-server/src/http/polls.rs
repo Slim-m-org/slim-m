@@ -18,6 +18,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::middleware::from_fn;
 use axum::routing::{post, put};
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +28,7 @@ use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
-use super::post_commit::after_commit;
+use super::post_commit::{after_commit, run_to_completion};
 use super::viewable_message::viewable_message;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
@@ -44,7 +45,10 @@ const POLL_BODY_LIMIT: usize = 8 * 1024;
 /// The poll routes, mounted by [`super::router`].
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/channels/{channel_id}/messages/polls", post(create))
+        .route(
+            "/channels/{channel_id}/messages/polls",
+            post(create).layer(from_fn(run_to_completion)),
+        )
         .route("/messages/{message_id}/polls/vote", put(vote))
         .layer(DefaultBodyLimit::max(POLL_BODY_LIMIT))
 }
