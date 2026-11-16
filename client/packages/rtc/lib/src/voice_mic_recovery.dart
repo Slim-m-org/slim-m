@@ -170,6 +170,10 @@ class VoiceMicRecovery {
   Timer? _captureProbe;
   final _captureProgress = CaptureProgress();
 
+  /// The [setEnabled] calls in flight, which publish on their own.
+  int _setting = 0;
+  int _unpublishedProbes = 0;
+
   /// Whether the mic is healthy, being brought back, or given up on.
   MicStatus get status => _status;
   Stream<MicStatus> get statuses => _statuses.stream;
@@ -224,6 +228,7 @@ class VoiceMicRecovery {
     if (enabled && switching.chosenInput != null) {
       await _host.forgetUnplugged();
     }
+    _setting++;
     try {
       final reopen = enabled && release.onUnmuting();
       final opened = Stopwatch()..start();
@@ -245,6 +250,8 @@ class VoiceMicRecovery {
       _host.noteError(e);
       _host.refresh();
       return false;
+    } finally {
+      _setting--;
     }
   }
 
@@ -279,6 +286,7 @@ class VoiceMicRecovery {
   /// Reads the media source's sample counter on its own clock: the only sign
   /// of life, whatever the level says. A host that reports none is never restarted.
   Future<void> _probeCapture() async {
+    _watchUnpublished();
     final active = _connected() && micWanted && mic.open;
     if (!active) {
       _captureProgress.reset();
@@ -295,6 +303,25 @@ class VoiceMicRecovery {
       advancing: _captureProgress.advanced(seconds),
       active: true,
     );
+  }
+
+  /// Brings back a wanted microphone that lost its publication with no event:
+  /// livekit clears its publications before republishing after a restart, and
+  /// a republish that fails there leaves none. The recovery itself ignores a
+  /// microphone nobody wants open.
+  void _watchUnpublished() {
+    final missing = !mic.hasTrack &&
+        _setting == 0 &&
+        !_recovery.busy &&
+        _status != MicStatus.unavailable;
+    if (!missing) {
+      _unpublishedProbes = 0;
+      return;
+    }
+    // Two probes in a row, so the gap inside a healthy republish is not a loss.
+    if (++_unpublishedProbes < 2) return;
+    _unpublishedProbes = 0;
+    _recovery.onLost('wanted but not published');
   }
 
   /// Recovery that cannot reopen the mic hands over to the device fallback only
@@ -351,6 +378,7 @@ class VoiceMicRecovery {
     _captureProbe?.cancel();
     _captureProbe = null;
     _captureProgress.reset();
+    _unpublishedProbes = 0;
     fallback.reset();
     _follow.stop();
     _recovery.reset();
