@@ -122,7 +122,9 @@ class _SoundboardPickerState extends ConsumerState<SoundboardPicker>
 }
 
 /// The least width a clip button gets; the grid fits as many columns as that allows.
-const double _clipMinWidth = 112;
+/// A touch button is taller and its label larger, so it gets a wider column.
+double _clipMinWidth(BuildContext context) =>
+    AppTouchTargets.of(context) ? 150 : 112;
 
 /// Clip buttons in as many equal columns as the menu is wide enough for.
 class _ClipGrid extends StatelessWidget {
@@ -136,11 +138,12 @@ class _ClipGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const gap = AppSpacing.s4;
+    final minWidth = _clipMinWidth(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final columns = (constraints.maxWidth + gap) ~/ (_clipMinWidth + gap);
+          final columns = (constraints.maxWidth + gap) ~/ (minWidth + gap);
           final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
           return Wrap(
             spacing: gap,
@@ -149,12 +152,15 @@ class _ClipGrid extends StatelessWidget {
               for (final clip in clips)
                 SizedBox(
                   width: width,
-                  child: AppMenuItem(
+                  child: AppButton(
                     key: ValueKey(clip.id),
                     label: clip.name,
+                    icon: AppIcons.play,
+                    size: AppButtonSize.sm,
+                    full: true,
                     semanticLabel:
                         '${clip.name}, ${formatClipLength(clip.durationMs)}',
-                    onTap: onPlay == null ? null : () => onPlay!(clip),
+                    onPressed: onPlay == null ? null : () => onPlay!(clip),
                   ),
                 ),
             ],
