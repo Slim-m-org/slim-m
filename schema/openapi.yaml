@@ -2954,8 +2954,9 @@ paths:
         Decision 0120. Replaces the sub-category's overwrites with a copy of
         its parent's, marks it synced, and copies the result into its synced
         channels, each of which gets an overwrite.changed frame. Requires
-        MANAGE_ROLES deployment-wide and every bit the parent allows. 409 on
-        a top-level category, which has no parent to follow.
+        MANAGE_ROLES deployment-wide, every bit the parent allows, and every
+        bit the sync would stop denying. 409 on a top-level category, which
+        has no parent to follow.
       responses:
         "200":
           description: The sub-category's overwrites after the sync, with `synced` true.

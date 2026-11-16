@@ -175,12 +175,19 @@ async fn sync_category(
         "a top-level category has no parent to follow",
     ))?;
     // Syncing can grant what the parent grants, so the caller must hold all of it.
+    let parent_rows = state.store.category_overwrites(parent).await?;
     let mut targets = Vec::new();
-    for o in state.store.category_overwrites(parent).await? {
+    for o in &parent_rows {
         refuse_ungrantable(caller, o.allow)?;
         targets.push(target_of(&o.target_type, o.target_id));
     }
+    // Dropping a deny the parent lacks grants it back, as a batch edit would count it.
     for o in state.store.category_overwrites(category.id).await? {
+        let kept = parent_rows
+            .iter()
+            .find(|p| p.target_type == o.target_type && p.target_id == o.target_id)
+            .map_or(Permissions::NONE, |p| p.deny);
+        refuse_ungrantable(caller, o.deny.remove(kept))?;
         targets.push(target_of(&o.target_type, o.target_id));
     }
     let channels = state.store.synced_channels_beneath(category.id).await?;

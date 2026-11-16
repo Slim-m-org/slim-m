@@ -164,6 +164,7 @@ Nothing reads `parent_id` when deciding what a member may do.
 Escalation follows 0064.
 A parent save is checked entry by entry against the caller's deployment permissions, as today, and the cascade copies exactly what passed that check, since a synced sub-category already held the parent's previous rows.
 "Sync with parent" refuses unless the caller holds every bit the parent allows, the same rule the channel sync applies to its category.
+It also refuses when the sync would drop a deny of the sub-category's that the parent lacks and the caller does not hold, since a batch edit counts lifting a deny as granting it.
 
 Every channel a write touched publishes `OverwriteChanged`, with its `previously_visible_to` snapshot taken before the write.
 One store query lists "the synced channels beneath this category", the direct ones and those of its synced sub-categories, and both the snapshot and the write use it, so the two cannot disagree about which channels changed.

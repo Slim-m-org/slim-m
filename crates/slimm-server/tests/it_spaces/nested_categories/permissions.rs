@@ -176,3 +176,28 @@ async fn a_new_sub_category_starts_with_its_parents_rows() {
     assert!(!has(&w.channel_names(&w.neither.token).await, "val-chat"));
     assert!(!has(&w.channel_names(&w.cs.token).await, "val-chat"));
 }
+
+#[tokio::test]
+async fn syncing_a_sub_category_cannot_drop_a_deny_the_caller_could_not_lift() {
+    let w = world("slimm-nested-sync-deny").await;
+    let keep_quiet = json!([entry("role", &w.cs_role, VIEW, Permissions::SEND_MESSAGES)]);
+    w.set_overwrites(&w.cs2, keep_quiet).await;
+    let muted = Permissions::MANAGE_ROLES.union(VIEW);
+    let manager_role = w
+        .store
+        .create_role("role-manager", muted, false)
+        .await
+        .unwrap();
+    w.store
+        .assign_role(w.neither.id, manager_role)
+        .await
+        .unwrap();
+    let everyone = format!("/roles/{}", w.everyone);
+    let view_only = json!({"permissions": VIEW.bits()});
+    w.ok("PATCH", &everyone, &w.admin, Some(view_only)).await;
+
+    let uri = format!("/categories/{}/overwrites/sync", w.cs2);
+    let (status, body) = w.call("POST", &uri, &w.neither.token, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(w.overwrites(&w.cs2).await["synced"], json!(false));
+}
