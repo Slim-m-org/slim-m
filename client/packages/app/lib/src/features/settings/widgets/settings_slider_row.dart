@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A labelled slider for a settings card: the label with its value in mono at
-/// the right, the track, and the range ends in mono underneath.
+/// the right, the track, and the range ends in mono flush under it.
 ///
-/// In a [SettingsControlColumn] the track and its value take the column at
-/// the card's right inset, with the ends flush under the track; below the
-/// column's width the row stacks and the track spans it.
+/// The track spans the row's insets; in a [SettingsControlColumn] at least
+/// the column's width wide, it takes the column at the card's right inset.
 library;
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_control_column.dart';
@@ -41,10 +41,6 @@ class SettingsSliderRow extends StatelessWidget {
   final Key? sliderKey;
   final ValueChanged<double> onChanged;
 
-  /// The least room the value keeps beside the track, so the track does not
-  /// change length as the value does.
-  static const valueMinWidth = 48.0;
-
   static const _inset = AppSpacing.s16;
   static const _top = AppSpacing.s12;
   static const _bottom = 14.0;
@@ -56,96 +52,58 @@ class SettingsSliderRow extends StatelessWidget {
   Widget _content(BuildContext context) {
     final parts = _Parts(this, Theme.of(context).extension<AppTokens>()!);
     final column = SettingsControlColumn.widthOf(context);
-    if (column == null) return _stacked(parts, flush: false);
+    if (column == null) return _layout(parts, trackLeft: _inset);
     return LayoutBuilder(
-      builder: (context, box) => SettingsControlColumn.besideAt(box.maxWidth)
-          ? _beside(context, parts, column)
-          : _stacked(parts, flush: true),
-    );
-  }
-
-  /// The label and value above the track; [flush] runs the track to the
-  /// row's insets with the ends under its ends.
-  Widget _stacked(_Parts parts, {required bool flush}) {
-    final sliderInset = flush
-        ? math.max(0.0, _inset - AppSlider.trackInset)
-        : _inset;
-    final endsInset = flush ? _inset : _inset + AppSpacing.s8;
-    return Padding(
-      padding: const EdgeInsets.only(top: _top, bottom: _bottom),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: _inset),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Expanded(child: parts.label),
-                parts.value(),
-              ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: sliderInset),
-            child: parts.slider,
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: endsInset),
-            child: parts.ends,
-          ),
-        ],
+      builder: (context, box) => _layout(
+        parts,
+        trackLeft: SettingsControlColumn.besideAt(box.maxWidth)
+            ? box.maxWidth - _inset - column
+            : _inset,
       ),
     );
   }
 
-  /// The label at the left; the track and its value in [column] at the right
-  /// inset, the ends under the track.
-  Widget _beside(BuildContext context, _Parts parts, double column) {
-    final valueWidth = math.max(valueMinWidth, parts.valueWidth(context));
-    Widget control(Widget track, [Widget? value]) => SizedBox(
-      width: column + AppSlider.trackInset,
-      child: Row(
-        children: [
-          Expanded(child: track),
-          SizedBox(width: valueWidth, child: value),
-        ],
-      ),
-    );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(_inset, _top, _inset, _bottom),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+  /// The label and value across the row, then the track from [trackLeft] to
+  /// the right inset with its ends flush under it.
+  Widget _layout(_Parts parts, {required double trackLeft}) => Padding(
+    padding: const EdgeInsets.only(top: _top, bottom: _bottom),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _inset),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(child: parts.label),
-              control(parts.slider, parts.value()),
+              parts.value,
             ],
           ),
-          Row(
-            children: [
-              const Spacer(),
-              control(
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSlider.trackInset,
-                  ),
-                  child: parts.ends,
-                ),
-              ),
-            ],
+        ),
+        _TouchReach(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: math.max(0, trackLeft - AppSlider.trackInset),
+              right: math.max(0, _inset - AppSlider.trackInset),
+            ),
+            child: parts.slider,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        // The ends lie inside the track's touch reach, so a press there must fall through to it.
+        IgnorePointer(
+          child: Padding(
+            padding: EdgeInsets.only(left: trackLeft, right: _inset),
+            child: parts.ends,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
-/// The pieces both layouts arrange.
+/// The pieces the layout arranges.
 class _Parts {
   _Parts(this.row, this.tokens)
     : _mono = AppText.micro.copyWith(
@@ -160,41 +118,27 @@ class _Parts {
   Widget get label =>
       Text(row.label, style: AppText.ui.copyWith(color: tokens.textPrimary));
 
-  TextStyle get _valueStyle =>
-      _mono.copyWith(fontSize: AppText.caption.fontSize);
-
-  Widget value() => Text(
+  Widget get value => Text(
     row.valueLabel,
     maxLines: 1,
     softWrap: false,
     textAlign: TextAlign.right,
-    style: _valueStyle,
+    style: _mono.copyWith(fontSize: AppText.caption.fontSize),
   );
 
-  /// The value's drawn width at this text scale.
-  double valueWidth(BuildContext context) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: row.valueLabel,
-        style: DefaultTextStyle.of(context).style.merge(_valueStyle),
-      ),
-      textScaler: MediaQuery.textScalerOf(context),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout();
-    final width = painter.width;
-    painter.dispose();
-    return width.ceilToDouble();
-  }
-
-  Widget get slider => AppSlider(
-    key: row.sliderKey,
-    value: row.value,
-    min: row.min,
-    max: row.max,
-    divisions: row.divisions,
-    semanticLabel: row.label,
-    onChanged: row.onChanged,
+  /// Held at pointer height on a phone too, so the ends sit just under the
+  /// track; [_TouchReach] gives a finger the touch floor instead.
+  Widget get slider => AppTouchTargets(
+    enabled: false,
+    child: AppSlider(
+      key: row.sliderKey,
+      value: row.value,
+      min: row.min,
+      max: row.max,
+      divisions: row.divisions,
+      semanticLabel: row.label,
+      onChanged: row.onChanged,
+    ),
   );
 
   Widget get ends => Row(
@@ -204,4 +148,43 @@ class _Parts {
       Text(row.maxLabel, style: _mono),
     ],
   );
+}
+
+/// At touch density, takes a press anywhere in an [AppSizes.rowTouch] band
+/// around the slider and hands it to the slider's middle at the same x.
+class _TouchReach extends SingleChildRenderObjectWidget {
+  const _TouchReach({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderTouchReach(touch: AppTouchTargets.of(context));
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderTouchReach renderObject,
+  ) => renderObject.touch = AppTouchTargets.of(context);
+}
+
+class _RenderTouchReach extends RenderProxyBox {
+  _RenderTouchReach({required this.touch});
+
+  bool touch;
+
+  /// A translation, not a point, so a drag keeps its x and its deltas.
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final child = this.child;
+    if (!touch || child == null) {
+      return super.hitTest(result, position: position);
+    }
+    final spare = math.max(0.0, (AppSizes.rowTouch - size.height) / 2);
+    final band = Rect.fromLTRB(0, -spare, size.width, size.height + spare);
+    if (!band.contains(position)) return false;
+    return result.addWithPaintOffset(
+      offset: Offset(0, position.dy - size.height / 2),
+      position: position,
+      hitTest: (result, position) => child.hitTest(result, position: position),
+    );
+  }
 }

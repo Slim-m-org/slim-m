@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Appearance's control column, read from the real pane: on a laptop every
 /// segmented control and slider track starts on one edge and ends at the
-/// card's inset, and on a phone each spans the card; a doubled text size on a
-/// phone overflows nothing.
+/// card's inset, and on a phone each spans the card with the laptop's slider
+/// rhythm and touch reach; a doubled text size on a phone overflows nothing.
 library;
 
 import 'package:flutter/material.dart';
@@ -94,7 +94,7 @@ void main() {
       for (final s in sliders) {
         final track = _track(tester, s);
         expect(track.left, moreOrLessEquals(left), reason: '$s left');
-        expect(track.right, lessThanOrEqualTo(inner.right + 0.01));
+        expect(track.right, moreOrLessEquals(inner.right), reason: '$s right');
       }
     });
   });
@@ -153,6 +153,52 @@ void main() {
         expect(track.left, moreOrLessEquals(inner.left), reason: '$s');
         expect(track.width, moreOrLessEquals(inner.width), reason: '$s');
       }
+    });
+  });
+
+  testWidgets('on a phone a slider row keeps the laptop rhythm', (
+    tester,
+  ) async {
+    await _render(tester, 'phone-portrait', (tester) async {
+      final rows = find.byWidgetPredicate((w) => w is SettingsSliderRow);
+      expect(rows, findsNWidgets(4));
+      for (final row in _each(rows)) {
+        final widget = tester.widget<SettingsSliderRow>(row);
+        Rect text(String s) => tester.getRect(
+          find.descendant(of: row, matching: find.text(s)).last,
+        );
+        final track = tester
+            .getRect(find.descendant(of: row, matching: _sliders))
+            .center
+            .dy;
+        expect(track - text(widget.label).bottom, lessThan(18));
+        expect(text(widget.minLabel).top - track, lessThan(18));
+      }
+    });
+  });
+
+  testWidgets('on a phone a press on the end labels still takes the track', (
+    tester,
+  ) async {
+    await _render(tester, 'phone-portrait', (tester) async {
+      final row = find.byWidgetPredicate(
+        (w) => w is SettingsSliderRow && w.label == 'Space between groups',
+      );
+      await tester.ensureVisible(row);
+      await tester.pump();
+      final widget = tester.widget<SettingsSliderRow>(row);
+      final max = tester.getRect(
+        find.descendant(of: row, matching: find.text(widget.maxLabel)).last,
+      );
+      final track = _track(
+        tester,
+        find.descendant(of: row, matching: _sliders),
+      );
+      final press = Offset(track.right - 1, track.center.dy + 21);
+      expect(max.contains(press), isTrue, reason: 'the press is on "16 px"');
+      await tester.tapAt(press);
+      await tester.pump();
+      expect(tester.widget<SettingsSliderRow>(row).valueLabel, '16 px');
     });
   });
 
