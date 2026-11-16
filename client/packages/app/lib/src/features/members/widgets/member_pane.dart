@@ -146,29 +146,17 @@ class _MembersError extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Could not load members.',
-              style: TextStyle(color: tokens.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            // A 403 means a lost permission, not a fault: retrying would only fail the same way.
-            if (error is! api.ForbiddenException) ...[
-              const SizedBox(height: AppSpacing.s12),
-              TextButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
-          ],
-        ),
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.s16),
+      child: AppErrorState(
+        message: 'Could not load members.',
+        // A 403 means a lost permission, not a fault: retrying would only fail the same way.
+        onRetry: error is api.ForbiddenException ? null : onRetry,
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _RosterList extends ConsumerWidget {

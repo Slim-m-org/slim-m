@@ -66,10 +66,14 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
             child: LinearProgressIndicator(),
           ),
         ],
-        error: (e, _) => const [
-          Padding(
-            padding: EdgeInsets.all(AppSpacing.s16),
-            child: Text('Could not load devices.'),
+        error: (e, _) => [
+          SettingsCardBlock(
+            children: [
+              AppErrorState(
+                message: 'Could not load devices.',
+                onRetry: () => ref.invalidate(devicesProvider),
+              ),
+            ],
           ),
         ],
         data: (list) => list.isEmpty

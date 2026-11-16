@@ -41,7 +41,7 @@ class SpaceSettingSwitchSection extends ConsumerStatefulWidget {
   final bool Function(SpaceSettings settings) read;
   final SpaceSettingsUpdate Function(bool value) update;
 
-  /// Said under the switch, which is then off and disabled, when [isAvailable] answers false.
+  /// Said under the switch when [isAvailable] answers false; it then cannot be turned on, only off.
   final String? unavailableReason;
   final bool Function(SpaceSettings settings)? isAvailable;
 
@@ -90,7 +90,10 @@ class _SpaceSettingSwitchSectionState
               description: widget.description,
               value: current ?? false,
               semanticLabel: widget.semanticLabel,
-              onChanged: current == null || saving || !available ? null : _set,
+              onChanged:
+                  current == null || saving || (!available && current != true)
+                  ? null
+                  : (value) => available || !value ? _set(value) : null,
             ),
             if (!available && widget.unavailableReason != null)
               SettingsSubRow(label: widget.unavailableReason!),
@@ -98,7 +101,7 @@ class _SpaceSettingSwitchSectionState
               SettingsCardBlock(
                 children: [
                   AppErrorState(
-                    message: 'Could not load the current setting.',
+                    message: 'Could not load this setting.',
                     onRetry: () => ref.invalidate(spaceSettingsProvider),
                   ),
                 ],

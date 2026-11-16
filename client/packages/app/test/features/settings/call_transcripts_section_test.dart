@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/screens/admin/space_voice_screen.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -43,6 +44,8 @@ Future<List<Map<String, dynamic>>> _open(
   String mode = 'off',
   int? retentionDays = 30,
   bool voiceAvailable = true,
+  bool voiceStored = false,
+  bool failSettings = false,
   Size size = const Size(1000, 1400),
 }) async {
   tester.view.physicalSize = size;
@@ -52,6 +55,7 @@ Future<List<Map<String, dynamic>>> _open(
   final client = MockClient((request) async {
     switch (request.url.path) {
       case '/space/settings':
+        if (failSettings) return http.Response('{"error":"x"}', 500);
         if (request.method == 'PATCH') {
           patches.add(jsonDecode(request.body) as Map<String, dynamic>);
         }
@@ -60,7 +64,7 @@ Future<List<Map<String, dynamic>>> _open(
           'call_transcription': mode,
           'call_transcript_retention_days': retentionDays,
           'call_transcription_available': available,
-          'transcribe_voice_messages': false,
+          'transcribe_voice_messages': voiceStored,
           'transcribe_voice_messages_available': voiceAvailable,
         });
       case '/space/screen-share':
@@ -153,7 +157,10 @@ void main() {
     final patches = await _open(tester, retentionDays: 90);
 
     await _tap(tester, '7 days');
-    expect(find.text('Delete transcripts older than 7 days?'), findsOneWidget);
+    expect(
+      find.text('Delete call transcripts older than 7 days?'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Cancel'));
     await _frames(tester);
 
@@ -197,5 +204,61 @@ void main() {
     );
     expect(tester.widget<SettingsToggleRow>(_voiceSwitch).onChanged, isNull);
     expect(patches, isEmpty);
+  });
+
+  testWidgets('the retention card names call transcripts only', (tester) async {
+    await _open(tester, retentionDays: 90);
+
+    expect(find.text('Call transcript retention'), findsOneWidget);
+    expect(find.text('Transcript retention'), findsNothing);
+  });
+
+  testWidgets(
+    'a stored-on voice switch can still be turned off without a listener',
+    (tester) async {
+      final patches = await _open(
+        tester,
+        voiceAvailable: false,
+        voiceStored: true,
+      );
+
+      final row = tester.widget<SettingsToggleRow>(_voiceSwitch);
+      expect(row.onChanged, isNotNull);
+      row.onChanged!(false);
+      await _frames(tester);
+      expect(patches, [
+        {'transcribe_voice_messages': false},
+      ]);
+    },
+  );
+
+  testWidgets(
+    'a stored-on voice switch cannot be turned on again without a listener',
+    (tester) async {
+      final patches = await _open(
+        tester,
+        voiceAvailable: false,
+        voiceStored: true,
+      );
+
+      tester.widget<SettingsToggleRow>(_voiceSwitch).onChanged!(true);
+      await _frames(tester);
+      expect(patches, isEmpty);
+    },
+  );
+
+  testWidgets('a failed load shows the error inside the retention card too', (
+    tester,
+  ) async {
+    await _open(tester, failSettings: true);
+
+    final inRetention = find.descendant(
+      of: find.ancestor(
+        of: find.text('Call transcript retention'),
+        matching: find.byWidgetPredicate((w) => w is SettingsSectionCard),
+      ),
+      matching: find.text('Could not load this setting.'),
+    );
+    expect(inRetention, findsOneWidget);
   });
 }

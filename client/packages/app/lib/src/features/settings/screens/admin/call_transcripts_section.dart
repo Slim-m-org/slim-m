@@ -137,17 +137,17 @@ class _RetentionCardState extends ConsumerState<_RetentionCard>
     if (retentionDeletesHistory(from: current, to: days)) {
       final confirmed = await confirmDangerousAction(
         context,
-        title: 'Delete transcripts older than $days days?',
+        title: 'Delete call transcripts older than $days days?',
         message:
             'They are deleted within the next few hours, for everyone. '
             'This cannot be undone.',
-        confirmLabel: 'Delete old transcripts',
+        confirmLabel: 'Delete old call transcripts',
       );
       if (!confirmed || !mounted) return;
     }
     await saveOptimistic(
       days,
-      whatFailed: 'change transcript retention',
+      whatFailed: 'change call transcript retention',
       action: () => ref
           .read(settingsActionsProvider)
           .setSpaceSettings(
@@ -174,16 +174,25 @@ class _RetentionCardState extends ConsumerState<_RetentionCard>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsSectionCard(
-          title: 'Transcript retention',
-          description: 'Older transcripts are deleted.',
+          title: 'Call transcript retention',
+          description: 'Older call transcripts are deleted.',
           children: [
             SettingsSegmentedBlock(
-              semanticLabel: 'Transcript retention window',
+              semanticLabel: 'Call transcript retention window',
               labels: [for (final option in options) option.$1],
               selectedIndex: options.indexWhere((o) => o.$2 == current),
               disabled: saving || current == null,
               onSelected: (i) => _set(options[i].$2, current: current!),
             ),
+            if (settings.hasError && current == null)
+              SettingsCardBlock(
+                children: [
+                  AppErrorState(
+                    message: 'Could not load this setting.',
+                    onRetry: () => ref.invalidate(spaceSettingsProvider),
+                  ),
+                ],
+              ),
           ],
         ),
         SettingsSaveFeedback(

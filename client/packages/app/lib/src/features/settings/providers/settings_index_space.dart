@@ -188,8 +188,8 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     _voicePage,
-    'Transcript retention',
-    description: 'Older transcripts are deleted.',
+    'Call transcript retention',
+    description: 'Older call transcripts are deleted.',
     keywords: ['transcription', 'delete', 'history'],
   ),
   SettingsEntry(
