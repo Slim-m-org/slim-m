@@ -143,7 +143,6 @@ app/test/features/settings/notification_sound_rules_test.dart
 app/test/features/palette/palette_match_query_test.dart
 app/test/features/palette/palette_result_builders_test.dart
 app/test/features/members/perm_groups_test.dart
-app/test/features/settings/personal_space_visibility_test.dart
 app/test/features/emoji/picker_search_test.dart
 app/test/features/emoji/picker_sections_test.dart
 app/test/features/emoji/picker_tabs_test.dart

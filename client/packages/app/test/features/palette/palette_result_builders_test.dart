@@ -2,8 +2,8 @@
 /// The palette result builders, tested for the logic that is theirs rather
 /// than the match predicates': the result list is capped at
 /// [paletteResultLimit], a member list drops the caller themselves (a DM with
-/// yourself has its own rail row), and a hidden personal space stays out of a
-/// blank browse but returns the moment a real query is typed.
+/// yourself is Notes, listed under Channels), and Notes is found by its own
+/// name or the caller's.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -49,29 +49,19 @@ void main() {
       expect(buildChannelItems(channels, '').length, paletteResultLimit);
     });
 
-    test(
-      'a hidden personal space is out of a blank browse but back on a query',
-      () {
-        final channels = [
-          _channel('general'),
-          _channel('space', personal: true),
-        ];
+    test('Notes is found by its own name and by the caller\'s name', () {
+      final channels = [_channel('general'), _channel('Notes', personal: true)];
 
-        final browse = buildChannelItems(
+      expect(buildChannelItems(channels, 'not').map((i) => i.label), ['Notes']);
+      expect(
+        buildChannelItems(
           channels,
-          '',
-          personalSpaceHidden: true,
-        );
-        expect(browse.map((i) => i.label), ['general']);
-
-        final searched = buildChannelItems(
-          channels,
-          'spa',
-          personalSpaceHidden: true,
-        );
-        expect(searched.map((i) => i.label), ['space']);
-      },
-    );
+          'ada',
+          selfDisplayName: 'Ada',
+        ).map((i) => i.label),
+        ['Notes'],
+      );
+    });
   });
 
   group('buildMemberItems', () {

@@ -331,7 +331,6 @@ Each of these shapes was added after a real file or a planted violation showed t
 
 `SHOWS_SNACKBAR` matches `showAppSnackbar(` as well as the raw `ScaffoldMessenger` and `SnackBar(`.
 At first it matched none of the real calls, because every site calls `showAppSnackbar`, so the gate reported zero offenders whether or not one existed (confirmed by mutating a fixed site back to its old shape).
-`personal_space_menu.dart`'s success notice also calls it, outside any catch block, and is not in scope.
 
 A `/* ... */` block comment is blanked out before any of this runs, string-aware so a quoted `'/*'` such as the `blockComment` tuple in `message_code_langs.dart` is left alone.
 The scan that finds where a catch block ends reads "the next line starting with `}` at or above this indent", and a block comment can contain a stray `}` at column zero.

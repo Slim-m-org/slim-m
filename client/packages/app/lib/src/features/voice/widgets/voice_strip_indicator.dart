@@ -3,10 +3,11 @@
 /// have navigated to a different channel.
 ///
 /// Compact width has no rail to carry a call summary, so the shell pins this
-/// strip above the bottom edge instead. A wider layout folds the same
-/// information into the rail's own footer (`RailCallSummary`) rather than a
-/// second strip; this widget has no wide-layout rendering of its own to keep
-/// in sync with that, since a rail is never absent above `kCompactWidth`.
+/// strip above the bottom edge instead. A wider layout shows the same
+/// information in the call row above the rail's user bar (`RailCallRow`)
+/// rather than a second strip; this widget has no wide-layout rendering of
+/// its own to keep in sync with that, since a rail is never absent above
+/// `kCompactWidth`.
 ///
 /// Its own file so the shell can show it without a screens-to-widgets import
 /// running backwards.
