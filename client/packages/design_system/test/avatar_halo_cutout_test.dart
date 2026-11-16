@@ -4,6 +4,7 @@
 /// which read as a dark blob behind the phone glyph on any other surface.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -127,4 +128,73 @@ void main() {
       AppTokens.dark.surfaceRaised,
     );
   });
+
+  for (final presence in [
+    AppPresence.online,
+    AppPresence.away,
+    AppPresence.dnd,
+    AppPresence.offline,
+    AppPresence.hidden,
+  ]) {
+    testWidgets(
+        'the ${presence.name} mark sits inside its round cutout, '
+        'a whole ring of surface around it', (tester) async {
+      final ring = await _haloRing(tester, presence);
+      expect(ring.where((pixel) => pixel != _surface), isEmpty);
+    });
+  }
+}
+
+/// The pixels on a circle midway through the halo, all the way round the mark.
+Future<List<Color>> _haloRing(WidgetTester tester, AppPresence presence) async {
+  const size = AppAvatarSize.s56;
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildTheme(Brightness.light, AppTokens.light),
+      home: Align(
+        alignment: Alignment.topLeft,
+        child: RepaintBoundary(
+          key: _boundary,
+          child: Container(
+            color: _surface,
+            padding: const EdgeInsets.all(_inset),
+            child: AppAvatar(
+              name: 'Nadia',
+              size: size,
+              status: presence,
+              surfaceColor: _surface,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  const geometry = AppAvatarGeometry(size);
+  final centre = geometry.dotCenter + const Offset(_inset, _inset);
+  final radius = geometry.markDiameter / 2 + AppAvatarGeometry.dotHalo / 2;
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(_boundary),
+  );
+  final pixels = await tester.runAsync(() async {
+    final image = await boundary.toImage(pixelRatio: _scale);
+    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final width = image.width;
+    image.dispose();
+    Color at(Offset point) {
+      final i = (point.dy.floor() * width + point.dx.floor()) * 4;
+      return Color.fromARGB(
+        data!.getUint8(i + 3),
+        data.getUint8(i),
+        data.getUint8(i + 1),
+        data.getUint8(i + 2),
+      );
+    }
+
+    return [
+      for (var step = 0; step < 72; step++)
+        at((centre + Offset.fromDirection(step * math.pi / 36, radius)) *
+            _scale),
+    ];
+  });
+  return pixels!;
 }

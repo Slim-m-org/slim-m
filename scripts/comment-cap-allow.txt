@@ -113,7 +113,7 @@ client/packages/design_system/lib/src/app_tokens.dart 3
 client/packages/design_system/lib/src/components/core/avatar.dart 1
 client/packages/design_system/lib/src/components/core/badge.dart 3
 client/packages/design_system/lib/src/components/core/button.dart 2
-client/packages/design_system/lib/src/components/core/status_dot.dart 4
+client/packages/design_system/lib/src/components/core/status_dot.dart 3
 client/packages/design_system/lib/src/components/forms/chip.dart 1
 client/packages/design_system/lib/src/components/forms/focusable_tap_target.dart 2
 client/packages/design_system/lib/src/components/forms/input.dart 3
