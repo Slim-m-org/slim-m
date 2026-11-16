@@ -344,6 +344,8 @@ async fn get_me(
         .user_profile(ctx.user_id)
         .await?
         .ok_or(ApiError::Unauthorized)?;
+    // First, so an owner handed on just now already holds everything in `permissions`.
+    let is_owner = state.store.space_owner().await? == Some(ctx.user_id);
     let permissions = state.store.base_permissions(ctx.user_id).await?;
     let timeout = state.store.member_timeout(ctx.user_id).await?;
     let visibility = state.store.presence_visibility(ctx.user_id).await?;
@@ -366,7 +368,7 @@ async fn get_me(
         profile_color_rgb: user.profile_color_rgb,
         presence_visibility: visibility.unwrap_or_default().as_str().to_owned(),
         bot_prefix: state.store.bot_prefix(ctx.user_id).await?,
-        is_owner: state.store.space_owner().await? == Some(ctx.user_id),
+        is_owner,
         top_role_position: super::role_ladder::top_position(&state, ctx.user_id).await?,
     }))
 }

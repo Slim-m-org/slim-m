@@ -84,7 +84,7 @@ Their highest role is not below itself, so the ladder refuses dropping it, which
 
 The owner is the one member the ladder exempts, the way Discord exempts a server owner.
 Administrators follow the ladder like everyone else.
-Nobody else can moderate the owner, give them a role or take one away, delete a role they hold, or take bits from one.
+Nobody else can moderate the owner, give them a role or take one away.
 The last-administrator guard counts only people the owner could pass to, so the last human administrator cannot leave the roles to bots alone.
 The owner is not shown anywhere in the interface; profiles and `/me` carry `is_owner` only so a client can leave out what the server would refuse.
 
@@ -92,6 +92,17 @@ The owner is the account that claimed the deployment.
 Where that was never recorded (a deployment claimed before migration 0155) or the account is gone, migration 0197 makes it the first human member who joined.
 When the owner's account is deleted, or the owner is no longer a member, ownership passes to the earliest-joined remaining administrator, else the earliest-joined member.
 There is no way to transfer ownership yet.
+
+#### The owner holds every permission (owner decision, 2026-11-16, later the same day)
+
+The owner holds every permission whatever roles they hold, exactly like Discord's server owner.
+The permission evaluator answers every bit for the owner, at the base and in every channel, so no channel or category overwrite can deny the owner anything, the way ADMINISTRATOR already bypasses them.
+Every path that works out a principal's permissions agrees: single and batched checks, the channel list, push fan-out, live delivery, search, admin alerts, an invite's role re-check, and the bot and module paths.
+The owner also holds every permission an installed module declares, which an administrator holds only by a grant.
+A direct message stays outside the role model for the owner too, and a timeout in force still takes away what it takes.
+Ownership counts only while the stored owner is a live human member: an owner id that points at a bot or a removed account grants nothing, and ownership passes on as above.
+The last-administrator guard counts the owner, so the owner may drop or delete the last administrator role; the owner's own account deletion is still refused while nobody else could administer.
+The earlier rule that nobody but the owner takes bits from or deletes a role the owner holds is gone, since the owner keeps every permission either way.
 
 ### Bot roles
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! What keeps the Space owner able to recover the roles: nobody else hollows out or deletes a
-//! role the owner holds, and the last person holding ADMINISTRATOR cannot leave it to bots alone.
+//! What keeps the Space owner able to recover the roles: the owner holds every permission
+//! whatever happens to a role they hold, and the last human holding ADMINISTRATOR cannot leave it
+//! to bots alone.
 
 use axum::Router;
 use axum::http::StatusCode;
@@ -46,9 +47,9 @@ fn refused(result: (StatusCode, Value)) {
     assert_eq!(result.1["code"], "role_hierarchy", "{}", result.1);
 }
 
-/// The owner keeps ADMINISTRATOR only through `ops`, low on the list, below frank's `admin`.
+/// The owner holds ADMINISTRATOR only through `ops`, low on the list, below frank's `admin`.
 #[tokio::test]
-async fn an_administrator_above_cannot_hollow_out_or_delete_the_owners_role() {
+async fn an_administrator_above_may_hollow_out_the_owners_role_and_the_owner_keeps_everything() {
     let w = world().await;
     let frank = register_account(&w.store, "frank").await;
     let admin_bit = Permissions::ADMINISTRATOR;
@@ -62,19 +63,27 @@ async fn an_administrator_above_cannot_hollow_out_or_delete_the_owners_role() {
 
     let role = format!("/roles/{ops}");
     let hollow = json!({ "permissions": 0 });
-    refused(call_as(&w.app, "PATCH", &role, &frank.token, Some(hollow)).await);
-    refused(call_as(&w.app, "DELETE", &role, &frank.token, None).await);
-    let held = w.store.role(ops).await.unwrap().unwrap().permissions;
-    assert_eq!(held, Permissions::ADMINISTRATOR);
+    let (status, body) = call_as(&w.app, "PATCH", &role, &frank.token, Some(hollow)).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        w.store.base_permissions(w.alice.id).await.unwrap(),
+        Permissions::ALL
+    );
+    let (status, body) = call_as(&w.app, "DELETE", &role, &frank.token, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    assert_eq!(
+        w.store.base_permissions(w.alice.id).await.unwrap(),
+        Permissions::ALL
+    );
 
-    let wider = json!({ "permissions": Permissions::ADMINISTRATOR.union(Permissions::KICK_MEMBERS).bits() });
-    for change in [json!({ "color": 3 }), wider] {
-        let (status, body) = call_as(&w.app, "PATCH", &role, &frank.token, Some(change)).await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-    }
+    refused(call_as(&w.app, "PUT", &own, &frank.token, None).await);
+    let take = format!("/members/{}/roles/{}", frank.id, w.admin);
+    let (status, body) = call_as(&w.app, "DELETE", &take, &w.alice.token, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
 }
 
-/// A bot holding ADMINISTRATOR cannot be the heir and stands at the bottom of the list.
+/// A bot holding ADMINISTRATOR cannot be the heir and stands at the bottom of the list; the
+/// owner dropping `admin` leaves nobody stranded, since the owner still holds everything.
 #[tokio::test]
 async fn the_last_human_administrator_cannot_leave_the_roles_to_a_bot() {
     let w = world().await;
@@ -87,7 +96,7 @@ async fn the_last_human_administrator_cannot_leave_the_roles_to_a_bot() {
 
     let own = format!("/members/{}/roles/{}", w.alice.id, w.admin);
     let (status, body) = call_as(&w.app, "DELETE", &own, &w.alice.token, None).await;
-    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
     let left = w.store.delete_account(w.alice.id).await;
     assert!(
         matches!(left, Err(DeleteAccountError::WouldStrandDeployment)),

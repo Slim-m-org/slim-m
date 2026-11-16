@@ -17,6 +17,7 @@ struct World {
     app: Router,
     store: Store,
     pool: sqlx::SqlitePool,
+    alice: support::app::Account,
     admin: RoleId,
     mods: RoleId,
     helper: RoleId,
@@ -28,7 +29,7 @@ struct World {
 async fn world(name: &str) -> World {
     let (store, pool, guard) = support::new_store_with_pool(name).await;
     let app = app(store.clone());
-    register_account(&store, "alice").await;
+    let alice = register_account(&store, "alice").await;
     let mia = register_account(&store, "mia").await;
     let kick = Permissions::KICK_MEMBERS;
     let managing = Permissions::MANAGE_ROLES
@@ -48,6 +49,7 @@ async fn world(name: &str) -> World {
         app,
         store,
         pool,
+        alice,
         admin,
         mods,
         helper,
@@ -59,12 +61,17 @@ async fn world(name: &str) -> World {
 impl World {
     /// Registers `username` with the code and answers whether they came in holding `helper`.
     async fn joins_with_helper(&self, username: &str) -> bool {
+        self.joins_holding(username, &self.code, self.helper).await
+    }
+
+    /// Registers `username` with `code` and answers whether they came in holding `role`.
+    async fn joins_holding(&self, username: &str, code: &str, role: RoleId) -> bool {
         let body = json!({
             "username": username,
             "display_name": username,
             "password": "a-long-enough-password",
             "device_name": "cli",
-            "invite_code": self.code,
+            "invite_code": code,
         });
         let (status, body): (StatusCode, Value) =
             call(&self.app, "POST", "/auth/register", None, Some(body)).await;
@@ -76,7 +83,7 @@ impl World {
             .unwrap()
             .unwrap()
             .0;
-        self.store.holds_role(user, self.helper).await.unwrap()
+        self.store.holds_role(user, role).await.unwrap()
     }
 }
 
@@ -123,4 +130,18 @@ async fn a_role_grown_past_its_maker_is_not_given_to_a_member_either() {
     let (status, body) = call_as(&w.app, "POST", &uri, &member.token, None).await;
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
     assert!(!w.store.holds_role(member.id, w.helper).await.unwrap());
+}
+
+/// The owner holds every permission with no role at all, so their grant stands when spent.
+#[tokio::test]
+async fn the_owner_with_no_roles_still_gives_the_role() {
+    let w = world("slimm-invite-recheck-owner").await;
+    let own = format!("/members/{}/roles/{}", w.alice.id, w.admin);
+    let (status, body) = call_as(&w.app, "DELETE", &own, &w.alice.token, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    let invite = json!({ "role_grant": w.mods.to_string() });
+    let (status, body) = call_as(&w.app, "POST", "/invites", &w.alice.token, Some(invite)).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let code = body["code"].as_str().unwrap();
+    assert!(w.joins_holding("guest", code, w.mods).await);
 }

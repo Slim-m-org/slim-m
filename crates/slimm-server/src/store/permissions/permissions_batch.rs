@@ -117,6 +117,7 @@ impl Store {
         }
 
         let (everyone_id, everyone_perms) = self.everyone_role().await?;
+        let owner = self.live_space_owner().await?;
 
         // One built query (no array binding in SQLite), joined from `users` so a webhook is recognised too.
         let mut builder = sqlx::QueryBuilder::new(
@@ -142,6 +143,7 @@ impl Store {
             let context = contexts.entry(user_id).or_insert_with(|| RoleContext {
                 everyone_id,
                 everyone_perms,
+                owner: owner == Some(UserId(user_id)),
                 ..RoleContext::none()
             });
             // A webhook holds no roles at all, `@everyone` included; see `load_roles`.

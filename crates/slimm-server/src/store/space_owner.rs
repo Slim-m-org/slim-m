@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The Space owner: the one member the role ladder exempts and nobody can act on.
-//! See `docs/decisions/0092-server-hardening-review-answers.md` for who it is and how it passes on.
+//! The Space owner: the one member who holds every permission, whom the role ladder exempts and
+//! nobody can act on. See `docs/decisions/0092-server-hardening-review-answers.md`.
 
 use sqlx::SqliteConnection;
 
@@ -11,13 +11,19 @@ use crate::permissions::Permissions;
 impl Store {
     /// The owner, handed on first when the stored one is no longer a member.
     pub async fn space_owner(&self) -> anyhow::Result<Option<UserId>> {
-        if let Some(owner) = live_owner(&mut *self.pool.acquire().await?).await? {
+        if let Some(owner) = self.live_space_owner().await? {
             return Ok(Some(owner));
         }
         let mut tx = self.begin_write().await?;
         let owner = hand_on_owner(&mut tx).await?;
         tx.commit().await?;
         Ok(owner)
+    }
+
+    /// The stored owner while still a live human member, else `None`; never writes, so every
+    /// permission read can ask it.
+    pub(super) async fn live_space_owner(&self) -> anyhow::Result<Option<UserId>> {
+        Ok(live_owner(&mut *self.pool.acquire().await?).await?)
     }
 }
 
@@ -52,7 +58,7 @@ pub(super) async fn hand_on_owner(conn: &mut SqliteConnection) -> sqlx::Result<O
 }
 
 /// The stored owner while they are a human still in the Space: not deleted, removed or gated.
-async fn live_owner(conn: &mut SqliteConnection) -> sqlx::Result<Option<UserId>> {
+pub(super) async fn live_owner(conn: &mut SqliteConnection) -> sqlx::Result<Option<UserId>> {
     sqlx::query_scalar!(
         r#"SELECT u.id AS "id!: UserId" FROM space_settings s JOIN users u ON u.id = s.owner_id
            WHERE s.id = 1 AND u.deleted_at IS NULL AND u.is_bot = 0 AND u.is_webhook = 0

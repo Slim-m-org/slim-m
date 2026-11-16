@@ -414,3 +414,35 @@ async fn an_administrator_below_a_role_cannot_change_it() {
         StatusCode::NO_CONTENT
     );
 }
+
+/// Unlike ADMINISTRATOR, being the Space owner holds every permission a module declares.
+#[tokio::test]
+async fn the_owner_holds_every_declared_module_permission_without_a_grant() {
+    let (s, _guard) = store("slimm-module-perm-owner").await;
+    let owner = s.create_user("root", "Root").await.unwrap();
+    s.bootstrap_deployment(owner.id).await.unwrap();
+    let admin = s.create_user("nia", "Nia").await.unwrap();
+    let admin_role = s.list_roles().await.unwrap();
+    let admin_role = admin_role.iter().find(|r| r.name == "admin").unwrap().id;
+    s.assign_role(admin.id, admin_role).await.unwrap();
+    install_code_exec(&s).await;
+
+    assert!(
+        s.user_has_module_permission(owner.id, "code-exec", "run")
+            .await
+            .unwrap()
+    );
+    let held = s.held_module_permissions(owner.id).await.unwrap();
+    assert!(held.contains(&("code-exec".to_owned(), "run".to_owned())));
+    assert!(
+        !s.user_has_module_permission(owner.id, "code-exec", "undeclared")
+            .await
+            .unwrap()
+    );
+    assert!(
+        !s.user_has_module_permission(admin.id, "code-exec", "run")
+            .await
+            .unwrap(),
+        "an administrator still holds a module permission only by a grant"
+    );
+}

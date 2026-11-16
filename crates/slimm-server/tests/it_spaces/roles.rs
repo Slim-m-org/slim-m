@@ -187,10 +187,10 @@ async fn unknown_permission_bits_are_rejected() {
 
 // --- The last-administrator invariant ---
 
-/// The sole administrator cannot remove their own admin role: that would
-/// leave the deployment with no administrator and no recovery path.
+/// The Space owner may remove their own admin role though nobody else holds one: the owner
+/// holds every permission without it, so the deployment keeps its recovery path.
 #[tokio::test]
-async fn cannot_unassign_the_last_administrator() {
+async fn the_owner_may_unassign_the_last_administrator_role() {
     let (store, _guard) = support::new_store("slimm-roles-test").await;
     let app = app(store.clone());
     let (admin_token, admin_id) = register(&store, "alice").await;
@@ -206,10 +206,8 @@ async fn cannot_unassign_the_last_administrator() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
-    // The refusal must be a real rollback: alice is still an administrator
-    // and can still do administrator-only things afterwards.
     let still_admin = app
         .clone()
         .oneshot(request(
@@ -223,19 +221,15 @@ async fn cannot_unassign_the_last_administrator() {
     assert_eq!(still_admin.status(), StatusCode::OK);
 }
 
-/// Deleting the role that is the deployment's only source of ADMINISTRATOR is
-/// refused the same way removing the assignment is, even for the
-/// administrator doing it themselves - the escalation guard cannot be what
-/// refuses this, since an administrator's granted set already contains
-/// whatever the role carries, so it has to be the structural invariant.
+/// Deleting the deployment's only administrator role is the owner's to do, for the same
+/// reason as dropping it: the owner still holds every permission afterwards.
 ///
 /// A MANAGE_ROLES holder who is not themselves an administrator is refused
-/// earlier and for a different reason now: see
+/// for a different reason: see
 /// `only_the_administrators_own_bits_let_them_touch_an_administrator_role`,
-/// which pins that as 403 rather than 409 and proves it is not this test in
-/// disguise by leaving a second administrator role in place.
+/// which pins that as 403.
 #[tokio::test]
-async fn cannot_delete_the_only_administrator_role() {
+async fn the_owner_may_delete_the_only_administrator_role() {
     let (store, _guard) = support::new_store("slimm-roles-test").await;
     let app = app(store.clone());
     let (admin_token, _admin_id) = register(&store, "alice").await;
@@ -251,7 +245,7 @@ async fn cannot_delete_the_only_administrator_role() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
 
 /// Once a second administrator exists, removing the first one's assignment

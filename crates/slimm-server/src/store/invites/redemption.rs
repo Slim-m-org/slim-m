@@ -8,6 +8,7 @@ use sqlx::QueryBuilder;
 use super::RedeemError;
 use crate::ids::{RoleId, UserId};
 use crate::permissions::{Permissions, evaluate};
+use crate::store::space_owner::live_owner;
 use crate::store::{Store, now_ms};
 
 impl Store {
@@ -178,9 +179,8 @@ async fn creator_still_grants(
     let grant = sqlx::query!(
         r#"SELECT u.id AS "creator!: UserId",
                   r.permissions AS "permissions!: Permissions", r.position AS "position!: i64",
-                  (r.managed_bot_id IS NOT NULL OR r.is_bots_role = 1) AS "bot_held!: bool",
-                  COALESCE(s.owner_id = i.created_by, 0) AS "is_owner!: bool"
-           FROM invites i JOIN roles r ON r.id = ? JOIN space_settings s ON s.id = 1
+                  (r.managed_bot_id IS NOT NULL OR r.is_bots_role = 1) AS "bot_held!: bool"
+           FROM invites i JOIN roles r ON r.id = ?
            JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL
            WHERE i.code = ?
              AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)"#,
@@ -192,6 +192,7 @@ async fn creator_still_grants(
     let Some(grant) = grant.filter(|g| !g.bot_held) else {
         return Ok(false);
     };
+    let is_owner = live_owner(tx).await? == Some(grant.creator);
     let held = sqlx::query!(
         r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64",
                   is_everyone AS "is_everyone!: bool"
@@ -211,12 +212,15 @@ async fn creator_still_grants(
         .filter(|r| !r.is_everyone)
         .map(|r| r.permissions)
         .collect();
-    let granted = evaluate(everyone, &roles, None, &[], None);
+    let granted = match is_owner {
+        true => Permissions::ALL,
+        false => evaluate(everyone, &roles, None, &[], None),
+    };
     let top = held
         .iter()
         .filter(|r| !r.is_everyone)
         .map(|r| r.position)
         .max();
-    let ranks = grant.is_owner || top.is_some_and(|top| grant.position < top);
+    let ranks = is_owner || top.is_some_and(|top| grant.position < top);
     Ok(ranks && granted.contains(Permissions::MANAGE_ROLES) && granted.contains(grant.permissions))
 }

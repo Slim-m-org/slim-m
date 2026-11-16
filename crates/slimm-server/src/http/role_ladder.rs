@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 
 use super::AppState;
 use super::error::ApiError;
-use crate::ids::{RoleId, UserId};
+use crate::ids::UserId;
 use crate::store::Role;
 
 /// The stable `code` every ladder refusal carries, so a client never reads the sentence.
@@ -95,20 +95,6 @@ impl Ladder {
             Err(refusal(MEMBER_NOT_BELOW_YOU))
         } else {
             Ok(())
-        }
-    }
-
-    /// Refuses deleting a role the owner holds, or taking bits from it, unless the owner does it.
-    pub(in crate::http) async fn spare_owners_role(
-        &self,
-        state: &AppState,
-        role: RoleId,
-    ) -> Result<(), ApiError> {
-        match self.owner {
-            Some(owner) if !self.exempt() && state.store.holds_role(owner, role).await? => {
-                Err(refusal(MEMBER_NOT_BELOW_YOU))
-            }
-            _ => Ok(()),
         }
     }
 }

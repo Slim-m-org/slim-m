@@ -258,18 +258,13 @@ async fn update(
     // Read before the write, against granted permissions; see `escalation`.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
-        let ladder = Ladder::of(&state, ctx.user_id).await?;
-        ladder.reach_role(current.position)?;
+        Ladder::of(&state, ctx.user_id)
+            .await?
+            .reach_role(current.position)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
         )?;
-        if changes
-            .permissions
-            .is_some_and(|bits| !bits.contains(current.permissions))
-        {
-            ladder.spare_owners_role(&state, role_id).await?;
-        }
     }
 
     // Hoist and colour cannot remove an administrator, so they need no guard of their own.
@@ -308,13 +303,13 @@ async fn delete(
     // Read before the mutating write; see `update`'s identical note.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
-        let ladder = Ladder::of(&state, ctx.user_id).await?;
-        ladder.reach_role(current.position)?;
+        Ladder::of(&state, ctx.user_id)
+            .await?
+            .reach_role(current.position)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
         )?;
-        ladder.spare_owners_role(&state, role_id).await?;
     }
 
     match state.store.delete_role(role_id).await {

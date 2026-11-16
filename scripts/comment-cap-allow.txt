@@ -216,7 +216,7 @@ crates/slimm-server/tests/it_infra/response_contract/script.rs 2
 crates/slimm-server/tests/it_infra/response_contract/script/content.rs 1
 crates/slimm-server/tests/it_infra/response_contract/verdict.rs 1
 crates/slimm-server/tests/it_infra/response_contract/world.rs 1
-crates/slimm-server/tests/it_spaces/roles.rs 2
+crates/slimm-server/tests/it_spaces/roles.rs 1
 crates/slimm-server/tests/it_infra/safety.rs 3
 crates/slimm-server/tests/it_infra/token_sweep.rs 1
 crates/slimm-server/tests/it_realtime/typing.rs 6

@@ -3318,7 +3318,7 @@ paths:
         `color` clears the colour. A permissions change is checked the same
         way `createRole` checks one, and is refused if it would leave the
         deployment with no administrator. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
-        Nobody but the Space owner takes permissions away from a role the owner holds (a 403 with `code` `role_hierarchy`).
+        The Space owner holds every permission whatever their roles, so counts as an administrator here.
       requestBody:
         required: true
         content:
@@ -3353,7 +3353,7 @@ paths:
         if this role is the deployment's only remaining source of
         ADMINISTRATOR. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A bot's own role may be deleted
         under the same rule.
-        Nobody but the Space owner deletes a role the owner holds (a 403 with `code` `role_hierarchy`).
+        The Space owner holds every permission whatever their roles, so counts as an administrator here.
       responses:
         "204":
           description: The role was deleted.
@@ -3536,7 +3536,7 @@ paths:
       description: >
         Idempotent: revoking a role the member does not hold changes nothing
         and publishes nothing. Refused if it would leave the deployment with no
-        administrator. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may take away their own roles
+        administrator, the Space owner always counting as one. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may take away their own roles
         below their highest this way, never their highest itself, and nobody
         but the owner takes a role away from the Space owner (403, `code`
         `role_hierarchy`). A bot's own role and the shared Bots role are never
@@ -13418,8 +13418,9 @@ components:
           type: boolean
           description: >
             Whether this member is the Space owner: the account that claimed
-            the deployment, or whoever ownership passed to. Nobody else can
-            moderate the owner or take their roles away. Not drawn anywhere; a
+            the deployment, or whoever ownership passed to. The owner holds
+            every permission whatever their roles, and no overwrite takes one
+            away; nobody else can moderate the owner or change their roles. Not drawn anywhere; a
             client uses it only to leave out what the server would refuse.
             Absent on servers older than this field, which a client reads as
             not the owner.
@@ -13489,9 +13490,9 @@ components:
           format: int64
           description: >
             The caller's base (deployment-level) permission bitmask, ignoring
-            any per-channel overwrite. A UI nicety for hiding actions the
-            caller cannot perform; every write is still re-authorized
-            server-side regardless of what this says.
+            any per-channel overwrite, and every bit for the Space owner. A UI
+            nicety for hiding actions the caller cannot perform; every write is
+            still re-authorized server-side regardless of what this says.
 
             Already has any timeout subtracted, so a client that greys the
             composer on a missing SEND_MESSAGES bit needs no separate rule
@@ -13543,8 +13544,9 @@ components:
         is_owner:
           type: boolean
           description: >-
-            Whether the caller is the Space owner, who stands above every role
-            on the role ladder. Absent on servers older than this field.
+            Whether the caller is the Space owner, who holds every permission
+            whatever their roles and stands above every role on the role
+            ladder. Absent on servers older than this field.
         top_role_position:
           type: [integer, "null"]
           format: int64

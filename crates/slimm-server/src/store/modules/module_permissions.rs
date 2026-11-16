@@ -80,6 +80,16 @@ impl Store {
             .collect())
     }
 
+    /// Every `(module_id, perm_key)` an installed module declares, what the Space owner holds.
+    async fn declared_module_permissions(&self) -> anyhow::Result<HashSet<(String, String)>> {
+        Ok(self
+            .list_module_permissions()
+            .await?
+            .into_iter()
+            .map(|p| (p.module_id, p.perm_key))
+            .collect())
+    }
+
     /// The module permissions a role currently holds.
     pub async fn role_module_permissions(
         &self,
@@ -171,6 +181,9 @@ impl Store {
         user_id: UserId,
     ) -> anyhow::Result<HashSet<(String, String)>> {
         let roles = self.load_roles(user_id).await?;
+        if roles.owner {
+            return self.declared_module_permissions().await;
+        }
         let mut role_ids: Vec<Uuid> = roles.role_ids;
         role_ids.extend(roles.everyone_id);
         if role_ids.is_empty() {
@@ -203,6 +216,7 @@ impl Store {
     /// permissions are a separate, module-scoped namespace the core
     /// evaluator never resolves, so an administrator sees this the same way
     /// every other role does, by holding the grant like anyone else.
+    /// The Space owner holds every permission a module declares, as they hold every core one.
     pub async fn user_has_module_permission(
         &self,
         user_id: UserId,
@@ -210,6 +224,10 @@ impl Store {
         perm_key: &str,
     ) -> anyhow::Result<bool> {
         let roles = self.load_roles(user_id).await?;
+        if roles.owner {
+            let wanted = (module_id.to_owned(), perm_key.to_owned());
+            return Ok(self.declared_module_permissions().await?.contains(&wanted));
+        }
         let mut role_ids: Vec<Uuid> = roles.role_ids;
         role_ids.extend(roles.everyone_id);
         if role_ids.is_empty() {
