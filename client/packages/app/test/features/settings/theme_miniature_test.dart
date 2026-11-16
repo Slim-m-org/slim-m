@@ -180,11 +180,6 @@ void main() {
     await _pump(tester, draft, width: 420);
     expect(find.text('builds'), findsOneWidget);
     expect(find.text('Focused control'), findsOneWidget);
-    final low = tester.getRect(find.text('Low battery'));
-    expect(
-      low.top,
-      greaterThan(tester.getRect(find.text('Delete failed')).bottom),
-    );
 
     await _pump(tester, draft, width: 380);
     expect(find.text('builds'), findsNothing);
@@ -197,6 +192,22 @@ void main() {
     expect(find.text('builds'), findsNothing);
     expect(find.text('Reads well. The links are a bit dim.'), findsNothing);
     expect(find.text('Low battery'), findsOneWidget);
+  });
+
+  testWidgets('at a laptop the draft keeps to the mockup height, Low battery '
+      'on the link line', (tester) async {
+    const t = AppTokens.forest;
+    await _pump(
+      tester,
+      const ThemeMiniature(tokens: t, detail: ThemeMiniatureDetail.draft),
+      width: 868,
+    );
+
+    expect(tester.getSize(find.byKey(_boundary)).height, lessThan(232));
+    expect(
+      tester.getCenter(find.text('Low battery')).dy,
+      closeTo(tester.getCenter(find.text('Delete failed')).dy, 1),
+    );
   });
 
   test('the painter repaints only for different colours', () {
