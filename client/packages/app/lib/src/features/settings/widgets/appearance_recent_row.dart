@@ -4,15 +4,13 @@
 /// pointer, resting on a tile previews it in the card's hero.
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/theme_gallery.dart';
-import '../providers/theme_store.dart';
 import 'theme_miniature.dart';
+import 'theme_picture.dart';
 
 /// The theme the hero shows instead of the one in use: the tile a pointer
 /// rests on or the keyboard is on.
@@ -153,21 +151,6 @@ class _RecentTileState extends ConsumerState<_RecentTile> {
     focused ? widget.preview.move(_entry) : widget.preview.leave(_entry);
   }
 
-  ImageProvider? _picture() {
-    final id = _entry.pictureId;
-    if (id == null) return null;
-    final Uint8List? bytes = ref
-        .watch(spaceThemePictureProvider(id))
-        .valueOrNull;
-    if (bytes == null) return null;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return ResizeImage(
-      MemoryImage(bytes),
-      width: (widget.width * dpr).round(),
-      policy: ResizeImagePolicy.fit,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -185,7 +168,12 @@ class _RecentTileState extends ConsumerState<_RecentTile> {
           tokens: _entry.tokens!,
           brightness: _entry.brightness,
           split: _entry.split,
-          picture: _picture(),
+          picture: watchThemePicture(
+            ref,
+            context,
+            id: _entry.pictureId,
+            width: widget.width,
+          ),
         ),
       ),
     );

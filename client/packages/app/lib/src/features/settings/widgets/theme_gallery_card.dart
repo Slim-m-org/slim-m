@@ -3,19 +3,17 @@
 /// name and where it came from, and a pencil or a menu. Tap applies it.
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart' show AppThemeChoice;
-import '../../../widgets/context_menu_region.dart';
 import '../providers/theme_gallery.dart';
-import '../providers/theme_store.dart';
 import 'theme_gallery_frame.dart';
 import 'theme_gallery_layout.dart';
+import 'theme_menu_region.dart';
 import 'theme_miniature.dart';
+import 'theme_picture.dart';
 
 class ThemeGalleryCard extends ConsumerStatefulWidget {
   const ThemeGalleryCard({
@@ -55,7 +53,6 @@ class ThemeGalleryCard extends ConsumerStatefulWidget {
 }
 
 class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
-  final _region = GlobalKey<ContextMenuRegionState>();
   bool _hovered = false;
   bool _focused = false;
 
@@ -89,28 +86,6 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
           );
   }
 
-  ImageProvider? _picture() {
-    final id = _entry.pictureId;
-    if (id == null) return null;
-    final Uint8List? bytes = ref
-        .watch(spaceThemePictureProvider(id))
-        .valueOrNull;
-    if (bytes == null) return null;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return ResizeImage(
-      MemoryImage(bytes),
-      width: (widget.width * dpr).round(),
-      policy: ResizeImagePolicy.fit,
-    );
-  }
-
-  void _openMenu(BuildContext kebab) {
-    final box = kebab.findRenderObject() as RenderBox?;
-    _region.currentState?.open(
-      at: box?.localToGlobal(Offset(0, box.size.height)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -123,7 +98,14 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _top(_picture()),
+              _top(
+                watchThemePicture(
+                  ref,
+                  context,
+                  id: _entry.pictureId,
+                  width: widget.width,
+                ),
+              ),
               ColoredBox(
                 color: tokens.borderSubtle,
                 child: const SizedBox(height: 1),
@@ -146,14 +128,10 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
         ],
       ),
     );
-    final items = widget.menuItems;
-    return ContextMenuRegion(
-      key: _region,
-      ownsFocusNode: false,
-      menuWidth: 250,
-      itemsBuilder: (context, close) =>
-          items == null || !widget.enabled ? const [] : items(context, close),
-      sheetHeaderBuilder: widget.sheetHeader,
+    return ThemeMenuRegion(
+      items: widget.menuItems,
+      enabled: widget.enabled,
+      sheetHeader: widget.sheetHeader,
       child: Semantics(
         container: true,
         button: true,
@@ -234,14 +212,9 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
       );
     }
     if (widget.menuItems == null) return null;
-    return Builder(
-      builder: (kebab) => ThemeCardButton(
-        key: widget.menuKey,
-        icon: AppIcons.moreVertical,
-        label: 'More for ${_entry.name}',
-        tooltip: 'More',
-        onPressed: _whenIdle(() => _openMenu(kebab)),
-      ),
+    return ThemeMenuKebab(
+      key: widget.menuKey,
+      label: 'More for ${_entry.name}',
     );
   }
 }

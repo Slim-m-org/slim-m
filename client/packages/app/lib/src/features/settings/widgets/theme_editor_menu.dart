@@ -12,7 +12,7 @@ import '../providers/theme_draft.dart';
 import 'settings_pane_body.dart' show kSettingsWidePaneInset;
 import 'settings_sub_pages.dart';
 import 'theme_draft_select.dart';
-import 'theme_menu_button.dart';
+import 'theme_menu_region.dart';
 import 'theme_miniature.dart';
 import 'theme_sheet_title.dart';
 
@@ -82,20 +82,24 @@ class ThemeEditorHeader extends StatelessWidget {
     );
   }
 
-  Widget _menu({required bool saved, required String name}) =>
-      ThemeMenuButton<ThemeEditorAction>(
-        key: const Key('theme-editor-menu'),
-        semanticLabel: 'More for this theme',
-        enabled: !busy,
-        sheetTitle: ThemeSheetTitle(
-          name: name.isEmpty ? 'This theme' : name,
-          caption: saved ? 'Mine' : 'Not saved',
-          miniature: ListenableBuilder(
-            listenable: draft,
-            builder: (_, _) => ThemeMiniature.forDocument(draft.document),
-          ),
-        ),
-        onSelected: onAction,
-        items: (pick) => themeEditorMenuItems(pick, canDelete: saved),
-      );
+  Widget _menu({required bool saved, required String name}) => ThemeMenuRegion(
+    enabled: !busy,
+    sheetHeader: (_) => ThemeSheetTitle(
+      name: name.isEmpty ? 'This theme' : name,
+      caption: saved ? 'Mine' : 'Not saved',
+      miniature: ListenableBuilder(
+        listenable: draft,
+        builder: (_, _) => ThemeMiniature.forDocument(draft.document),
+      ),
+    ),
+    items: (_, close) => themeEditorMenuItems((action) {
+      close();
+      onAction(action);
+    }, canDelete: saved),
+    child: const ThemeMenuKebab(
+      key: Key('theme-editor-menu'),
+      label: 'More for this theme',
+      card: false,
+    ),
+  );
 }

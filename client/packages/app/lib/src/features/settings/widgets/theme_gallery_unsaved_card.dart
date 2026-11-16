@@ -7,10 +7,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/context_menu_region.dart';
 import '../providers/theme_gallery.dart';
 import '../providers/theme_source.dart';
 import 'theme_gallery_frame.dart';
+import 'theme_menu_region.dart';
 import 'theme_miniature.dart';
 
 /// Why the theme in use is not kept anywhere.
@@ -20,7 +20,7 @@ String themeUnsavedLine(ThemeGalleryEntry entry) => switch (entry.lost) {
   _ => 'Applied from a file. Save it to keep it.',
 };
 
-class ThemeGalleryUnsavedCard extends StatefulWidget {
+class ThemeGalleryUnsavedCard extends StatelessWidget {
   const ThemeGalleryUnsavedCard({
     super.key,
     required this.entry,
@@ -50,27 +50,12 @@ class ThemeGalleryUnsavedCard extends StatefulWidget {
   static const menuKey = Key('theme-mine-menu');
   static const saveKey = Key('theme-mine-save');
 
-  @override
-  State<ThemeGalleryUnsavedCard> createState() =>
-      _ThemeGalleryUnsavedCardState();
-}
-
-class _ThemeGalleryUnsavedCardState extends State<ThemeGalleryUnsavedCard> {
-  final _region = GlobalKey<ContextMenuRegionState>();
-
-  ThemeGalleryEntry get _entry => widget.entry;
-
-  void _openMenu(BuildContext kebab) {
-    final box = kebab.findRenderObject() as RenderBox?;
-    _region.currentState?.open(
-      at: box?.localToGlobal(Offset(0, box.size.height)),
-    );
-  }
+  ThemeGalleryEntry get _entry => entry;
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final narrow = !widget.wide;
+    final narrow = !wide;
     final save = AppButton(
       key: ThemeGalleryUnsavedCard.saveKey,
       label: 'Save to Mine',
@@ -78,17 +63,14 @@ class _ThemeGalleryUnsavedCardState extends State<ThemeGalleryUnsavedCard> {
       size: AppButtonSize.sm,
       full: narrow,
       onPressed: () {
-        if (widget.enabled) widget.onSave();
+        if (enabled) onSave();
       },
     );
     final soft = _entry.inUse ? tokens.accentSoft : Colors.transparent;
-    return ContextMenuRegion(
-      key: _region,
-      ownsFocusNode: false,
-      menuWidth: 250,
-      itemsBuilder: (context, close) =>
-          widget.enabled ? widget.menuItems(context, close) : const [],
-      sheetHeaderBuilder: widget.sheetHeader,
+    return ThemeMenuRegion(
+      items: menuItems,
+      enabled: enabled,
+      sheetHeader: sheetHeader,
       child: Semantics(
         container: true,
         selected: _entry.inUse,
@@ -144,7 +126,7 @@ class _ThemeGalleryUnsavedCardState extends State<ThemeGalleryUnsavedCard> {
   Widget _miniature() {
     final tokens = _entry.tokens;
     return SizedBox(
-      width: widget.miniatureWidth,
+      width: miniatureWidth,
       child: Align(
         alignment: Alignment.topCenter,
         child: Stack(
@@ -189,16 +171,9 @@ class _ThemeGalleryUnsavedCardState extends State<ThemeGalleryUnsavedCard> {
               ),
             ),
             if (save != null) ...[save, const SizedBox(width: AppSpacing.s4)],
-            Builder(
-              builder: (kebab) => ThemeCardButton(
-                key: ThemeGalleryUnsavedCard.menuKey,
-                icon: AppIcons.moreVertical,
-                label: 'More for ${_entry.name}',
-                tooltip: 'More',
-                onPressed: () {
-                  if (widget.enabled) _openMenu(kebab);
-                },
-              ),
+            ThemeMenuKebab(
+              key: ThemeGalleryUnsavedCard.menuKey,
+              label: 'More for ${_entry.name}',
             ),
           ],
         ),

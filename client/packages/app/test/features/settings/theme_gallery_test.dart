@@ -142,6 +142,17 @@ void main() {
     expect(find.text('Remove'), findsOneWidget);
   });
 
+  testWidgets('a second press on a kebab closes its menu, as in the editor', (
+    tester,
+  ) async {
+    await GalleryRig().pump(tester);
+
+    await _openMenu(tester, 'theme-menu-t1');
+    expect(find.text('Edit a copy'), findsOneWidget);
+    await _openMenu(tester, 'theme-menu-t1');
+    expect(find.text('Edit a copy'), findsNothing);
+  });
+
   testWidgets('an administrator removes any theme and sets the default', (
     tester,
   ) async {
