@@ -127,7 +127,7 @@ void main() {
       _installed(storage: _storage),
       onClear: () => cleared++,
     );
-    expect(find.text('12 of 256 entries, 3.0 KB of 64.0 KB'), findsOneWidget);
+    expect(find.text('12 of 256 entries, 3 KB of 64 KB'), findsOneWidget);
     await tester.tap(find.widgetWithText(AppButton, 'Clear data'));
     expect(cleared, 1);
   });

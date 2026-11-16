@@ -91,7 +91,7 @@ void main() {
         ),
         now: now,
       );
-      expect(line.detail, '14h ago, 4.0 KB');
+      expect(line.detail, '14h ago, 4 KB');
       expect(line.warn, isFalse);
     });
 

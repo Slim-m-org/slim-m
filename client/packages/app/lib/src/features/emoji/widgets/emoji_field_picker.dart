@@ -54,6 +54,7 @@ class _EmojiFieldPickerState extends State<EmojiFieldPicker> {
     final button = compact
         ? _glyph(() => _setInline(!_inline), active: _inline)
         : EmojiPickerButton(
+            alignEnd: true,
             onSelect: widget.onSelect,
             triggerBuilder: (context, toggle) => _glyph(toggle),
           );

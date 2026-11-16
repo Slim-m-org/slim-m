@@ -35,13 +35,13 @@ void main() {
       const SettingsMeterRow(
         label: 'Image cache',
         value: '10.9 MB',
-        of: 'of 100.0 MB',
+        of: 'of 100 MB',
         fraction: 0.25,
       ),
     );
 
     expect(find.text('Image cache'), findsOneWidget);
-    expect(find.text('10.9 MB of 100.0 MB'), findsOneWidget);
+    expect(find.text('10.9 MB of 100 MB'), findsOneWidget);
     expect(_barFraction(tester), 0.25);
     expect(
       tester.getSize(find.byType(FractionallySizedBox)).height,
