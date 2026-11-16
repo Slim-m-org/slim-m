@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Soundboard administration: create, listen to, rename and remove the
-/// Space's clips (`/soundboard`). Writing needs MANAGE_SERVER, the same bit
-/// custom emoji use; reading is open to every member.
+/// Soundboard administration: create, listen to, edit and remove the Space's
+/// clips (`/soundboard`), laid out as the Emoji pane is. Writing needs
+/// MANAGE_SERVER, the same bit custom emoji use; reading is open to every
+/// member.
 library;
 
 import 'dart:async';
@@ -18,14 +19,16 @@ import '../../../../format.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/app_drop_zone.dart';
 import '../../../../widgets/confirm_dialog.dart';
-import '../../../../widgets/name_sheet.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../../emoji/widgets/stored_emoji.dart';
+import '../../../members/providers/user_profiles.dart';
 import '../../../voice/providers/soundboard_actions.dart';
 import '../../../voice/providers/soundboard_clips.dart';
+import '../../widgets/settings_catalog_card.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
-import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'soundboard_clip_sheet.dart';
 import 'soundboard_create.dart';
 import 'soundboard_intake.dart';
 
@@ -61,8 +64,12 @@ class SoundboardPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final clips = ref.watch(soundClipsProvider);
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final count = clips.valueOrNull?.length;
+    final profiles = ref.watch(batchProfilesControllerProvider);
+    resolveAuthorProfiles(ref, [
+      for (final clip in clips.valueOrNull ?? const <api.SoundClip>[])
+        clip.uploaderId,
+    ]);
     return AppDropZone(
       enabled:
           count != null &&
@@ -76,25 +83,20 @@ class SoundboardPane extends ConsumerWidget {
         center: false,
         errorMessage: 'Could not load the soundboard.',
         onRetry: () => ref.invalidate(soundClipsProvider),
-        data: (context, list) => SettingsSectionCard(
+        data: (context, list) => SettingsCatalogCard(
           title: 'Clips',
-          description:
-              'Short mp3 or wav clips, up to 5 seconds, played in calls.',
-          trailing: Text(
-            '${list.length} of $maxSoundClips',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+          count: '${list.length} of $maxSoundClips',
+          itemCount: list.length,
+          itemBuilder: (context, index) => _ClipRow(
+            key: ValueKey(list[index].id),
+            clip: list[index],
+            uploader: profiles[list[index].uploaderId]?.displayName,
           ),
-          children: [
-            if (list.isEmpty)
-              const SettingsEmptyState(
-                icon: AppIcons.music,
-                title: 'No clips yet.',
-                detail: 'Create one and members can play it in a call.',
-              )
-            else
-              for (final clip in list)
-                _ClipRow(key: ValueKey(clip.id), clip: clip, clips: list),
-          ],
+          empty: const SettingsEmptyState(
+            icon: AppIcons.music,
+            title: 'No clips yet.',
+            detail: 'Create one from an mp3 or wav file, up to 5 seconds.',
+          ),
         ),
       ),
     );
@@ -102,12 +104,12 @@ class SoundboardPane extends ConsumerWidget {
 }
 
 class _ClipRow extends ConsumerStatefulWidget {
-  const _ClipRow({super.key, required this.clip, required this.clips});
+  const _ClipRow({super.key, required this.clip, required this.uploader});
 
   final api.SoundClip clip;
 
-  /// Every clip, so a rename can say a name is taken before it is sent.
-  final List<api.SoundClip> clips;
+  /// Who added it, once their profile has loaded; a starter clip has nobody.
+  final String? uploader;
 
   @override
   ConsumerState<_ClipRow> createState() => _ClipRowState();
@@ -141,24 +143,6 @@ class _ClipRowState extends ConsumerState<_ClipRow>
     }
   }
 
-  Future<void> _rename() {
-    final clip = widget.clip;
-    final clips = widget.clips;
-    return showNameSheet(
-      context,
-      title: 'Rename ${clip.name}',
-      fieldLabel: 'Clip name',
-      initial: clip.name,
-      maxChars: soundClipMaxNameChars,
-      whatFailed: 'rename the clip',
-      problem: (name) => soundClipNameProblem(name, clips, renaming: clip.id),
-      onSave: (ref, name) async {
-        await ref.read(soundboardActionsProvider).rename(clip.id, name: name);
-        ref.invalidate(soundClipsProvider);
-      },
-    );
-  }
-
   Future<void> _remove() async {
     final confirmed = await confirmDangerousAction(
       context,
@@ -181,25 +165,41 @@ class _ClipRowState extends ConsumerState<_ClipRow>
   Widget build(BuildContext context) {
     final clip = widget.clip;
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final wide = MediaQuery.sizeOf(context).width >= kCompactWidth;
+    final length = formatClipLength(clip.durationMs);
+    final uploader = widget.uploader;
     return SettingsEntityRow(
       dense: true,
-      // Leads with what a member will hear, as an emoji row leads with its image.
-      leading: AppIconButton(
-        icon: AppIcons.play,
-        semanticLabel: 'Listen to ${clip.name}',
-        tooltip: 'Listen',
-        onPressed: () => unawaited(_listen()),
+      // Where an emoji row has its image, so the list shows what the call picker will.
+      leading: StoredEmoji(
+        clip.emoji,
+        placeholder: AppIcons.music,
+        size: AppSizes.icon24,
       ),
       headline: clip.name,
-      badge: Text(
-        formatClipLength(clip.durationMs),
-        style: AppText.caption.copyWith(color: tokens.textSecondary),
+      badge: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _factsMaxWidth),
+        child: Text(
+          wide && uploader != null ? '$length · added by $uploader' : length,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        ),
       ),
       actions: [
         AppIconButton(
+          icon: AppIcons.play,
+          semanticLabel: 'Listen to ${clip.name}',
+          tooltip: 'Listen',
+          onPressed: () => unawaited(_listen()),
+        ),
+        AppIconButton(
           icon: AppIcons.edit,
-          semanticLabel: 'Rename ${clip.name}',
-          onPressed: _busy ? null : () => unawaited(_rename()),
+          semanticLabel: 'Edit ${clip.name}',
+          tooltip: 'Edit',
+          onPressed: _busy
+              ? null
+              : () => unawaited(showSoundClipSheet(context, clip: clip)),
         ),
         AppIconButton(
           icon: AppIcons.delete,
@@ -213,3 +213,6 @@ class _ClipRowState extends ConsumerState<_ClipRow>
     );
   }
 }
+
+/// Room for the length and a long display name, which ellipsizes past it.
+const double _factsMaxWidth = 240;

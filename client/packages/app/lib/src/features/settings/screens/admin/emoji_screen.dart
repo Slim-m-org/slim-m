@@ -28,9 +28,9 @@ import '../../../emoji/widgets/custom_emoji_image.dart';
 import '../../../emoji/widgets/emoji_catalog.dart' show emojiNameMatches;
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
+import '../../widgets/settings_catalog_card.dart';
 import '../../widgets/settings_entity_row.dart';
 import '../../widgets/settings_section_header.dart';
-import '../../../../widgets/sheet_item_list.dart';
 import 'emoji_create.dart';
 import 'emoji_intake.dart';
 
@@ -58,12 +58,9 @@ class EmojiScreen extends StatelessWidget {
 /// The emoji catalog, embeddable as a Space settings pane as well as routed;
 /// its create button sits in the title bar ([EmojiCreateButton]).
 ///
-/// The catalog itself sits in a bounded box handed to [SheetItemList]: a
-/// plain `Column` of every row used to lag once a deployment passed a
-/// couple hundred emoji, because it built, laid out and fetched the image
-/// for every row regardless of what was actually on screen. Bounding the
-/// box and reusing the same lazy list the pin/thread sheets already use
-/// means a large catalog only ever realizes the rows actually visible.
+/// The catalog sits in a [SettingsCatalogCard], whose bounded lazy list only
+/// builds the rows on screen: a plain `Column` of every row lagged once a
+/// deployment passed a couple hundred emoji.
 class EmojiPane extends ConsumerStatefulWidget {
   const EmojiPane({super.key});
 
@@ -107,30 +104,27 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
             onRetry: () => ref.invalidate(customEmojiProvider),
             data: (context, list) {
               if (list.isEmpty) {
-                return const SettingsSectionCard(
+                return SettingsCatalogCard(
                   title: _title,
-                  children: [
-                    SettingsEmptyState(
-                      icon: AppIcons.smile,
-                      title: 'No emoji yet.',
-                      detail: 'Create some and members can use them.',
-                    ),
-                  ],
+                  itemCount: 0,
+                  itemBuilder: (_, _) => const SizedBox.shrink(),
+                  empty: const SettingsEmptyState(
+                    icon: AppIcons.smile,
+                    title: 'No emoji yet.',
+                    detail: 'Create some and members can use them.',
+                  ),
                 );
               }
               final shown = [
                 for (final e in list)
                   if (emojiNameMatches(e.name, _search.text)) e,
               ];
-              return SettingsSectionCard(
+              return SettingsCatalogCard(
                 title: _title,
-                trailing: _count(
-                  tokens,
-                  shown.length == list.length
-                      ? '${list.length}'
-                      : '${shown.length} of ${list.length}',
-                ),
-                children: [
+                count: shown.length == list.length
+                    ? '${list.length}'
+                    : '${shown.length} of ${list.length}',
+                above: [
                   SettingsCardBlock(
                     children: [
                       AppInput(
@@ -146,27 +140,17 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
                       ),
                     ],
                   ),
-                  if (shown.isEmpty)
-                    SettingsEmptyState(
-                      icon: AppIcons.search,
-                      title: 'No emoji match "${_search.text.trim()}".',
-                    )
-                  else
-                    ConstrainedBox(
-                      key: emojiListBodyBoxKey,
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-                      ),
-                      child: SheetItemList(
-                        padding: EdgeInsets.zero,
-                        itemCount: shown.length,
-                        itemBuilder: (context, index) => _EmojiRow(
-                          key: ValueKey(shown[index].id),
-                          emoji: shown[index],
-                        ),
-                      ),
-                    ),
                 ],
+                listKey: emojiListBodyBoxKey,
+                itemCount: shown.length,
+                itemBuilder: (context, index) => _EmojiRow(
+                  key: ValueKey(shown[index].id),
+                  emoji: shown[index],
+                ),
+                empty: SettingsEmptyState(
+                  icon: AppIcons.search,
+                  title: 'No emoji match "${_search.text.trim()}".',
+                ),
               );
             },
           ),
@@ -177,9 +161,6 @@ class _EmojiPaneState extends ConsumerState<EmojiPane> {
 
   /// Not the pane's own name, which the title bar above already says.
   static const _title = 'Custom emoji';
-
-  Widget _count(AppTokens tokens, String text) =>
-      Text(text, style: AppText.caption.copyWith(color: tokens.textSecondary));
 }
 
 class _EmojiRow extends ConsumerStatefulWidget {

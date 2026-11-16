@@ -19,28 +19,30 @@ extension SlimmApiSoundboard on SlimmApi {
         .toList(growable: false);
   }
 
-  /// Adds a clip from raw mp3 or wav [bytes] under [name]. Requires
-  /// MANAGE_SERVER. The server holds it to 5 seconds and 512 KB.
+  /// Adds a clip from raw mp3 or wav [bytes] under [name], with an optional
+  /// [emoji]. Requires MANAGE_SERVER. The server holds it to 5 seconds and 512 KB.
   Future<SoundClip> uploadSoundClip(
     List<int> bytes, {
     required String name,
+    String? emoji,
   }) async {
     final json = await send(
       'POST',
       '/soundboard',
       bytes: bytes,
-      query: {'name': name},
+      query: {'name': name, if (emoji != null) 'emoji': emoji},
     );
     return SoundClip.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Renames a clip. Requires MANAGE_SERVER.
+  /// Renames a clip and sets its [emoji], clearing it when null. Requires
+  /// MANAGE_SERVER.
   Future<SoundClip> renameSoundClip(String clipId,
-      {required String name}) async {
+      {required String name, required String? emoji}) async {
     final json = await send(
       'PATCH',
       '/soundboard/$clipId',
-      body: {'name': name},
+      body: {'name': name, 'emoji': emoji},
     );
     return SoundClip.fromJson(json as Map<String, dynamic>);
   }

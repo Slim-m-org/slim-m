@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The one sheet a single name is typed in: renaming a category, a member, a
-/// webhook or a clip, and naming a new clip.
+/// The one sheet a single name is typed in: renaming a category, a member or
+/// a webhook.
 ///
 /// `showAppSheet`: a bottom sheet on a phone, a centred dialog on a desktop
 /// (`docs/design/desktop-vs-mobile.md`, rule 4).

@@ -51,6 +51,12 @@ void main() {
         SoundClip.fromJson({..._clip, 'uploader_id': null}).uploaderId, isNull);
   });
 
+  test('a clip carries its emoji, and one without has none', () {
+    expect(SoundClip.fromJson(_clip).emoji, isNull);
+    expect(SoundClip.fromJson({..._clip, 'emoji': '\u{1F4EF}'}).emoji,
+        '\u{1F4EF}');
+  });
+
   test('listing reads GET /soundboard', () async {
     String? path;
     final api = _api((request) async {
@@ -72,7 +78,11 @@ void main() {
     expect(seen.url.path, '/soundboard');
     expect(seen.url.queryParameters['name'], 'Air horn');
     expect(seen.bodyBytes, [1, 2, 3]);
+    expect(seen.url.queryParameters.containsKey('emoji'), isFalse);
     expect(clip.id, 'clip-1');
+
+    await api.uploadSoundClip(const [1], name: 'Honk', emoji: '\u{1F986}');
+    expect(seen.url.queryParameters['emoji'], '\u{1F986}');
   });
 
   test('renaming patches the clip, deleting removes it, playing posts',
@@ -84,11 +94,11 @@ void main() {
           ? http.Response(jsonEncode(_clip), 200)
           : http.Response('', 204);
     });
-    await api.renameSoundClip('clip-1', name: 'Honk');
+    await api.renameSoundClip('clip-1', name: 'Honk', emoji: null);
     await api.deleteSoundClip('clip-1');
     await api.playSoundClip('chan-1', 'clip-1');
     expect(seen, [
-      'PATCH /soundboard/clip-1 {"name":"Honk"}',
+      'PATCH /soundboard/clip-1 {"name":"Honk","emoji":null}',
       'DELETE /soundboard/clip-1 ',
       'POST /channels/chan-1/voice/soundboard/clip-1/play ',
     ]);
