@@ -62,6 +62,9 @@ It used to replace the name line inside the bar, which left no room for Notes.
 - The speaker glyph sits over the avatar column, then the channel name and the timer.
 - A tap goes back to the call, with the tooltip `Go to <channel>`.
 - When the call is in another community, that community's name leads the second line, and a tap switches to it first.
+  While this row is on screen, the "In a call on <server>" pill from decision 0068 steps aside, since both name the same call.
+  The pill floated over the rail's search field on a phone and over the channel topic on a wide window.
+  It still shows where no rail is on screen: a conversation on a phone with its drawer closed, a full-screen canvas, or a route pushed over the rail.
 - Leave is last on the row, over the gear, with the call dock's leave treatment from decision 0047 point 2: an always-on 2px danger outline and a danger fill on hover.
   Its glyph is the size of the bar's icons below it rather than the dock's smaller one.
 

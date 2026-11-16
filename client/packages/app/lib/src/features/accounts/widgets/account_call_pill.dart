@@ -9,10 +9,12 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/widgets/compact_channel_app_bar.dart';
 import '../providers/account_providers.dart';
+import '../providers/call_elsewhere_shown.dart';
 import 'account_server_label.dart';
 
 /// Mounted once by `appChromeBuilder`, top-centre like the web update pill and
-/// below the app bar on a narrow window. Tapping it returns to the call.
+/// below the app bar on a narrow window. Tapping it returns to the call. It
+/// steps aside while the rail's call row shows the same call.
 class AccountCallPill extends ConsumerWidget {
   const AccountCallPill({super.key});
 
@@ -22,22 +24,29 @@ class AccountCallPill extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final entry = ref.watch(accountsSnapshotProvider).callElsewhere;
     if (entry == null) return const SizedBox.shrink();
+    final elsewhere = ref.watch(callElsewhereShownProvider);
     final clearOfHeader = MediaQuery.sizeOf(context).width < kCompactWidth
         ? CompactChannelAppBar.height
         : 0.0;
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.all(
-            AppSpacing.s16,
-          ).copyWith(top: AppSpacing.s16 + clearOfHeader),
-          child: ServerIdentityScope(
-            entry: entry,
-            builder: (context, name, _) => _Pill(
-              name: name,
-              onTap: () =>
-                  ref.read(accountHostProvider)?.switchTo(entry.account.origin),
+    return ListenableBuilder(
+      listenable: elsewhere,
+      builder: (context, pill) =>
+          elsewhere.shown ? const SizedBox.shrink() : pill!,
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.all(
+              AppSpacing.s16,
+            ).copyWith(top: AppSpacing.s16 + clearOfHeader),
+            child: ServerIdentityScope(
+              entry: entry,
+              builder: (context, name, _) => _Pill(
+                name: name,
+                onTap: () => ref
+                    .read(accountHostProvider)
+                    ?.switchTo(entry.account.origin),
+              ),
             ),
           ),
         ),

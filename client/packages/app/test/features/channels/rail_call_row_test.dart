@@ -63,27 +63,39 @@ Future<({ProviderContainer container, SlimmDatabase db})> _other() async {
   return (container: container, db: db);
 }
 
+typedef _Fixture = ({ProviderContainer container, SlimmDatabase db});
+
+/// This community, with [other]'s account in a call elsewhere.
+Future<_Fixture> _here(_Fixture other) {
+  final entry = AccountEntry(
+    account: Account.forServer(Uri.parse('https://beta.example')),
+    container: other.container,
+    active: false,
+    signedIn: true,
+    unread: AccountUnread.none,
+    inCall: true,
+  );
+  return fixtureContainer(
+    extraOverrides: [
+      accountsSnapshotProvider.overrideWith(
+        (ref) => AccountsSnapshot(entries: [entry], callElsewhere: entry),
+      ),
+    ],
+  );
+}
+
+const _footer = SizedBox(
+  width: 264,
+  child: RailUserFooter(activeChannelId: 'c-general'),
+);
+
 void main() {
   setUpAll(loadRealFonts);
 
   testWidgets('a call in another community names it, and its Leave ends that '
       "community's call", (tester) async {
     final other = (await tester.runAsync(_other))!;
-    final entry = AccountEntry(
-      account: Account.forServer(Uri.parse('https://beta.example')),
-      container: other.container,
-      active: false,
-      signedIn: true,
-      unread: AccountUnread.none,
-      inCall: true,
-    );
-    final here = await fixtureContainer(
-      extraOverrides: [
-        accountsSnapshotProvider.overrideWith(
-          (ref) => AccountsSnapshot(entries: [entry], callElsewhere: entry),
-        ),
-      ],
-    );
+    final here = await _here(other);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: here.container,
@@ -94,13 +106,7 @@ void main() {
             body: Stack(
               children: [
                 AccountCallPill(),
-                Align(
-                  alignment: Alignment.bottomLeft,
-                  child: SizedBox(
-                    width: 264,
-                    child: RailUserFooter(activeChannelId: 'c-general'),
-                  ),
-                ),
+                Align(alignment: Alignment.bottomLeft, child: _footer),
               ],
             ),
           ),
@@ -138,6 +144,61 @@ void main() {
       other.container.read(voiceControllerProvider).state,
       VoiceSessionState.idle,
     );
+
+    await teardownFixture(tester, here.container, here.db);
+    other.container.dispose();
+    await tester.runAsync(other.db.close);
+  });
+
+  testWidgets("the call pill steps aside while the rail's row shows the "
+      'same call', (tester) async {
+    final other = (await tester.runAsync(_other))!;
+    final here = await _here(other);
+    final pill = find.byKey(AccountCallPill.pillKey);
+    // The rail before the pill, the order appChromeBuilder mounts them in.
+    Future<void> show({required bool rail, bool onScreen = true}) =>
+        tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: here.container,
+            child: MaterialApp(
+              theme: buildTheme(Brightness.dark, AppTokens.dark),
+              home: Scaffold(
+                body: Stack(
+                  children: [
+                    if (rail)
+                      Align(
+                        alignment: Alignment.bottomLeft,
+                        child: TickerMode(enabled: onScreen, child: _footer),
+                      ),
+                    const Positioned.fill(child: AccountCallPill()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+    await show(rail: true);
+    expect(pill, findsNothing, reason: 'not even for the first frame');
+    await pumpFrames(tester, frames: 20);
+    expect(find.byKey(railCallRowKey), findsOneWidget);
+    expect(pill, findsNothing);
+
+    await show(rail: true, onScreen: false);
+    await pumpFrames(tester);
+    expect(
+      pill,
+      findsOneWidget,
+      reason: 'a route pushed over the rail keeps its row mounted, unseen',
+    );
+
+    await show(rail: false);
+    await pumpFrames(tester);
+    expect(pill, findsOneWidget, reason: 'with no rail it is the way back');
+
+    await show(rail: true);
+    await pumpFrames(tester);
+    expect(pill, findsNothing);
 
     await teardownFixture(tester, here.container, here.db);
     other.container.dispose();

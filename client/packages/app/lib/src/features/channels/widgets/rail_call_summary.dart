@@ -13,6 +13,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../providers/channel_by_id_provider.dart';
 import '../../accounts/providers/account_providers.dart';
+import '../../accounts/providers/call_elsewhere_shown.dart';
 import '../../accounts/widgets/other_account_value.dart';
 import '../../../providers/server_info.dart';
 import '../../../routing/router.dart';
@@ -54,8 +55,8 @@ class RailCallRow extends ConsumerWidget {
 }
 
 /// The call row for [entry]'s call while another community is on screen: its
-/// name leads the second line, and a tap runs [switchTo] first.
-class RailCommunityCallRow extends StatelessWidget {
+/// name leads the second line, a tap runs [switchTo] first, and the pill hides.
+class RailCommunityCallRow extends ConsumerStatefulWidget {
   const RailCommunityCallRow({
     super.key,
     required this.entry,
@@ -66,8 +67,34 @@ class RailCommunityCallRow extends StatelessWidget {
   final Future<void> Function() switchTo;
 
   @override
+  ConsumerState<RailCommunityCallRow> createState() =>
+      _RailCommunityCallRowState();
+}
+
+class _RailCommunityCallRowState extends ConsumerState<RailCommunityCallRow> {
+  CallElsewhereShown? _counted;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A route pushed over the rail keeps it mounted but off screen, with tickers off.
+    final next = TickerMode.valuesOf(context).enabled
+        ? ref.read(callElsewhereShownProvider)
+        : null;
+    if (identical(next, _counted)) return;
+    _counted?.remove();
+    _counted = next?..add();
+  }
+
+  @override
+  void dispose() {
+    _counted?.remove();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final account = entry.container;
+    final account = widget.entry.container;
     return OtherAccountValue(
       container: account,
       provider: voiceFlagsProvider,
@@ -84,10 +111,11 @@ class RailCommunityCallRow extends StatelessWidget {
               channelName: channel.valueOrNull?.name,
               voice: voice,
               community:
-                  info.valueOrNull?.displayName ?? entry.account.serverUrl.host,
+                  info.valueOrNull?.displayName ??
+                  widget.entry.account.serverUrl.host,
               onOpen: () async {
                 final router = account.read(routerProvider);
-                await switchTo();
+                await widget.switchTo();
                 account.read(dmCallOpenProvider.notifier).state = channelId;
                 router.go(Routes.channel(channelId));
               },
