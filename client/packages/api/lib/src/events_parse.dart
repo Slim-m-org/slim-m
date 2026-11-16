@@ -245,6 +245,9 @@ ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
     'member.joined' when decoded['user_id'] is String => MemberJoined(
         userId: decoded['user_id'] as String,
       ),
+    'owner.changed' when decoded['user_id'] is String => OwnerChanged(
+        userId: decoded['user_id'] as String,
+      ),
     'profile.changed' when decoded['user_id'] is String => ProfileChanged(
         userId: decoded['user_id'] as String,
       ),

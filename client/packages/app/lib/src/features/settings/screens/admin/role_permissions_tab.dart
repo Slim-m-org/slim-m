@@ -30,9 +30,16 @@ const _administratorDescription =
 const _inset = AppSpacing.s24;
 
 class RolePermissionsTab extends ConsumerStatefulWidget {
-  const RolePermissionsTab({super.key, required this.role});
+  const RolePermissionsTab({
+    super.key,
+    required this.role,
+    this.locked = false,
+  });
 
   final api.Role role;
+
+  /// The role is not below the viewer's highest, so every toggle only shows.
+  final bool locked;
 
   @override
   ConsumerState<RolePermissionsTab> createState() => _RolePermissionsTabState();
@@ -255,7 +262,9 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
               .watch(myPermissionsProvider)
               .hasPermission(Perm.administrator),
           value: _bitOverrides[Perm.administrator] ?? held,
-          onChanged: (v) => _setBit(Perm.administrator, v, held),
+          onChanged: widget.locked
+              ? null
+              : (v) => _setBit(Perm.administrator, v, held),
         ),
       ],
     );
@@ -275,8 +284,9 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
             elevated: spec.elevated,
             held: myPermissions.hasPermission(spec.bit),
             value: _bitOverrides[spec.bit] ?? roleBits.hasPermission(spec.bit),
-            onChanged: (v) =>
-                _setBit(spec.bit, v, roleBits.hasPermission(spec.bit)),
+            onChanged: widget.locked
+                ? null
+                : (v) => _setBit(spec.bit, v, roleBits.hasPermission(spec.bit)),
           ),
       ],
     );
@@ -291,7 +301,9 @@ class _RolePermissionsTabState extends ConsumerState<RolePermissionsTab>
           : perm.description,
       semanticLabel: '${perm.name} (${perm.moduleName})',
       value: _moduleOverrides[key] ?? grantedKeys.contains(key),
-      onChanged: (v) => _setModule(key, v, grantedKeys.contains(key)),
+      onChanged: widget.locked
+          ? null
+          : (v) => _setModule(key, v, grantedKeys.contains(key)),
     );
   }
 }

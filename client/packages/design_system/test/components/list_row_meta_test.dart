@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// `AppListRow`'s `meta` sits against the trailing edge, and a strong-label
-/// scope lifts the label colour, both of which settings rows depend on.
+/// `AppListRow`'s `meta` sits against the trailing edge, a strong-label scope
+/// lifts the label colour, and a caller's label colour wins over both.
 library;
 
 import 'package:flutter/material.dart';
@@ -57,5 +57,22 @@ void main() {
       const AppStrongLabelScope(child: AppListRow(label: 'Theme')),
     );
     expect(colorOf(tester), AppTokens.light.textPrimary);
+  });
+
+  testWidgets('a label colour wins over every state-driven one', (
+    tester,
+  ) async {
+    const gold = Color(0xFF8A6A10);
+    Color? colorOf(WidgetTester t) =>
+        t.widget<Text>(find.text('Ada')).style?.color;
+
+    await _pump(tester, const AppListRow(label: 'Ada', labelColor: gold));
+    expect(colorOf(tester), gold);
+
+    await _pump(
+      tester,
+      const AppListRow(label: 'Ada', labelColor: gold, selected: true),
+    );
+    expect(colorOf(tester), gold);
   });
 }

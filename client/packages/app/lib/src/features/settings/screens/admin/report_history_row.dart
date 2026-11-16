@@ -53,14 +53,22 @@ class ReportHistoryRow extends ConsumerWidget {
     bool use24Hour,
   ) {
     final (variant, label) = _auditBadge(entry.action);
+    final system = _systemAct(
+      entry.action,
+      reporterLabel(entry.subjectId, profiles),
+    );
+    final when = formatDateTime(entry.createdAt, use24Hour: use24Hour);
     return SettingsEntityRow(
       headline: subjectHeadline(entry.subjectId, profiles),
       badge: AppBadge(variant: variant, label: label),
       details: [
-        SettingsEntityDetail(
-          '${reporterLabel(entry.actorId, profiles)} · '
-          '${formatDateTime(entry.createdAt, use24Hour: use24Hour)}',
-        ),
+        if (system != null) ...[
+          SettingsEntityDetail(system, wrap: true),
+          SettingsEntityDetail(when),
+        ] else
+          SettingsEntityDetail(
+            '${reporterLabel(entry.actorId, profiles)} · $when',
+          ),
         if (entry.until case final until?)
           SettingsEntityDetail(
             'Until ${formatDateTime(until, use24Hour: use24Hour)}',
@@ -94,6 +102,15 @@ class ReportHistoryRow extends ConsumerWidget {
     );
   }
 }
+
+/// What the server did on its own, in place of an actor's name, or null when a member acted.
+String? _systemAct(api.AuditLogAction action, String subject) =>
+    switch (action) {
+      api.AuditLogAction.ownerHandoff => 'Ownership passed to $subject',
+      api.AuditLogAction.ownerTimeoutEnded =>
+        'Timeout ended because $subject became the owner',
+      _ => null,
+    };
 
 (AppBadgeVariant, String) _auditBadge(
   api.AuditLogAction action,
@@ -131,6 +148,11 @@ class ReportHistoryRow extends ConsumerWidget {
   api.AuditLogAction.nicknameSet => (AppBadgeVariant.tag, 'Nickname set'),
   api.AuditLogAction.nicknameClear => (AppBadgeVariant.tag, 'Nickname cleared'),
   api.AuditLogAction.voiceMove => (AppBadgeVariant.tag, 'Moved between calls'),
+  api.AuditLogAction.ownerHandoff => (AppBadgeVariant.tag, 'Became owner'),
+  api.AuditLogAction.ownerTimeoutEnded => (
+    AppBadgeVariant.tag,
+    'Timeout ended',
+  ),
   api.AuditLogAction.unknown => (AppBadgeVariant.tag, 'Other action'),
 };
 

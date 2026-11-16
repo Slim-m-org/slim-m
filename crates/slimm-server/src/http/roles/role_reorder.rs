@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Setting the deployment's role order: `PATCH /roles/reorder`.
-//!
-//! Gated on MANAGE_ROLES like every other route in `http::roles`, plus a
-//! second guard that permission bit alone cannot express: a caller may only
-//! touch a role whose old or new position sits strictly below the highest
-//! position among roles they themselves hold - the position-hierarchy sibling
-//! of [`escalation_guard`]'s bit comparison. Without it, a MANAGE_ROLES
-//! holder with no elevated role of their own could drag `admin` above
-//! `@everyone` in the list; the capability is purely cosmetic today (nothing
-//! yet reads a "may I edit this role" answer off position), but the guard is
-//! the one this feature needs before position starts meaning something a
-//! caller could actually escalate with. An administrator bypasses it the same
-//! way ADMINISTRATOR already contains every bit `escalation_guard` compares.
+//! Setting the deployment's role order: `PATCH /roles/reorder`. Each role that moves must sit
+//! below the caller's highest role both before and after; see [`super::super::role_ladder`].
 
 use std::collections::HashMap;
 
@@ -26,10 +15,10 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce, require_manage_roles};
 use super::super::messages::parse_uuid;
-use super::{RoleDto, caller_granted};
+use super::super::role_ladder::Ladder;
+use super::RoleDto;
 use crate::hub::Event;
 use crate::ids::RoleId;
-use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::ReorderRolesError;
 
@@ -76,13 +65,8 @@ async fn reorder(
         .map(|id| parse_uuid(id).map(RoleId))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let granted = caller_granted(&state, ctx.user_id).await?;
-    if !granted.contains(Permissions::ADMINISTRATOR) {
-        let ceiling = state
-            .store
-            .highest_role_position(ctx.user_id)
-            .await?
-            .unwrap_or(0);
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
+    if !ladder.exempt() {
         let current: HashMap<RoleId, i64> = state
             .store
             .list_roles()
@@ -99,9 +83,8 @@ async fn reorder(
             if old_position == new_position {
                 continue;
             }
-            if old_position >= ceiling || new_position >= ceiling {
-                return Err(ApiError::Forbidden);
-            }
+            ladder.reach_role(old_position)?;
+            ladder.reach_role(new_position)?;
         }
     }
 

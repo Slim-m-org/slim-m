@@ -48,7 +48,7 @@ async fn delete_account_anonymizes_content_and_revokes_access() {
     );
     assert!(store.find_credentials("alice").await.unwrap().is_some());
 
-    let revoked = store.delete_account(account.id).await.unwrap();
+    let revoked = store.delete_account(account.id).await.unwrap().revoked;
     assert_eq!(revoked.len(), 1, "the one open session is revoked");
 
     // The access token no longer resolves and refresh is denied.

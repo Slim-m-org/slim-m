@@ -36,6 +36,7 @@ mod identity;
 mod install_sessions;
 mod invite_code_case;
 mod invite_code_disclosure;
+mod invite_grant_recheck;
 mod invite_landing;
 mod invite_listing_scope;
 mod invite_page;

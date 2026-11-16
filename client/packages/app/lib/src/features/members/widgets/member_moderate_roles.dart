@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The Moderate view's roles section: a toggle per role on a pointer layout,
 /// and on a phone one "Roles" row that shows what the member holds as chips
-/// and opens the same toggles in place.
+/// and opens the same toggles in place. The card's Roles section opens the
+/// same toggles and makes the same write, from [setMemberRole].
 ///
 /// A phone sheet cannot afford a 44dp row per role - a Space with a dozen
 /// roles pushed Time out and Remove off the screen. Expanding in place keeps
@@ -10,26 +11,47 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../permissions.dart';
+import '../../../role_ladder.dart';
+import '../../../widgets/run_guarded.dart';
+import '../providers/member_actions.dart';
+import '../providers/member_presence.dart' show membersProvider;
+
+/// Grants [role] to [memberId] or takes it away through [guard], which shows
+/// a refusal inline, then refetches the roster so every surface follows.
+Future<void> setMemberRole(
+  WidgetRef ref,
+  Guard guard, {
+  required String memberId,
+  required api.Role role,
+  required bool grant,
+}) async {
+  final client = ref.read(memberActionsProvider);
+  final ok = await guard(
+    whatFailed: grant ? 'grant "${role.name}"' : 'take away "${role.name}"',
+    action: () => grant
+        ? client.assignRole(userId: memberId, roleId: role.id)
+        : client.unassignRole(userId: memberId, roleId: role.id),
+  );
+  if (ok && ref.context.mounted) ref.invalidate(membersProvider);
+}
 
 class MemberModerateRoles extends StatefulWidget {
   const MemberModerateRoles({
     super.key,
     required this.roles,
-    required this.heldIds,
-    required this.myPermissions,
-    required this.memberName,
+    required this.member,
+    required this.ladder,
     required this.compact,
     required this.onChanged,
   });
 
   final List<api.Role> roles;
-  final List<String> heldIds;
-  final int myPermissions;
-  final String memberName;
+  final api.UserProfile member;
+  final RoleLadder ladder;
   final bool compact;
   final void Function(api.Role role, bool grant) onChanged;
 
@@ -40,21 +62,12 @@ class MemberModerateRoles extends StatefulWidget {
 class _MemberModerateRolesState extends State<MemberModerateRoles> {
   bool _open = false;
 
-  Widget _toggles() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      for (final role in widget.roles)
-        _RoleRow(
-          role: role,
-          held: role.isEveryone || widget.heldIds.contains(role.id),
-          grantable:
-              !role.isEveryone &&
-              widget.myPermissions.hasPermission(role.permissions),
-          memberName: widget.memberName,
-          showIcon: !widget.compact,
-          onChanged: (v) => widget.onChanged(role, v),
-        ),
-    ],
+  Widget _toggles() => MemberRoleToggles(
+    roles: widget.roles,
+    member: widget.member,
+    ladder: widget.ladder,
+    showIcon: !widget.compact,
+    onChanged: widget.onChanged,
   );
 
   @override
@@ -67,7 +80,7 @@ class _MemberModerateRolesState extends State<MemberModerateRoles> {
     }
     final held = [
       for (final role in widget.roles)
-        if (!role.isEveryone && widget.heldIds.contains(role.id)) role,
+        if (!role.isEveryone && widget.member.roleIds.contains(role.id)) role,
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,6 +95,51 @@ class _MemberModerateRolesState extends State<MemberModerateRoles> {
     );
   }
 }
+
+/// A toggle per role in [roles], each locked where [RoleLadder.lockOf] says the server would refuse.
+class MemberRoleToggles extends StatelessWidget {
+  const MemberRoleToggles({
+    super.key,
+    required this.roles,
+    required this.member,
+    required this.ladder,
+    required this.onChanged,
+    this.showIcon = false,
+  });
+
+  final List<api.Role> roles;
+  final api.UserProfile member;
+  final RoleLadder ladder;
+  final bool showIcon;
+  final void Function(api.Role role, bool grant) onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [for (final role in roles) _row(role)],
+  );
+
+  Widget _row(api.Role role) {
+    final held = role.isEveryone || member.roleIds.contains(role.id);
+    return _RoleRow(
+      role: role,
+      held: held,
+      lock: ladder.lockOf(role, member: member, held: held),
+      memberName: member.displayName,
+      showIcon: showIcon,
+      onChanged: (v) => onChanged(role, v),
+    );
+  }
+}
+
+/// Why a locked toggle is locked, in a few words; `@everyone` says so in its meta instead.
+String? _lockReason(RoleLock? lock) => switch (lock) {
+  null || RoleLock.always => null,
+  RoleLock.followsBot => 'Follows its bot',
+  RoleLock.missingPermissions => 'Needs permissions you lack',
+  RoleLock.notBelowYou => 'Not below your highest role',
+  RoleLock.memberAboveYou => 'They rank above you',
+};
 
 class _RolesSummaryRow extends StatelessWidget {
   const _RolesSummaryRow({
@@ -155,14 +213,14 @@ class _RolesSummaryRow extends StatelessWidget {
   }
 }
 
-/// One role's toggle row. `@everyone` arrives already locked (`grantable`
-/// false and `held` true), so it renders the same as any role the caller
-/// cannot toggle - the design's own "shown but locked".
+/// One role's toggle row. `@everyone` arrives already locked and held, so it
+/// renders the same as any role the caller cannot toggle - the design's own
+/// "shown but locked".
 class _RoleRow extends StatelessWidget {
   const _RoleRow({
     required this.role,
     required this.held,
-    required this.grantable,
+    required this.lock,
     required this.memberName,
     required this.showIcon,
     required this.onChanged,
@@ -170,7 +228,7 @@ class _RoleRow extends StatelessWidget {
 
   final api.Role role;
   final bool held;
-  final bool grantable;
+  final RoleLock? lock;
   final String memberName;
   final bool showIcon;
   final ValueChanged<bool> onChanged;
@@ -184,9 +242,7 @@ class _RoleRow extends StatelessWidget {
           : null,
       label: role.name,
       meta: role.isEveryone ? 'Always granted' : null,
-      subtitle: role.isEveryone || grantable
-          ? null
-          : 'Needs permissions you lack',
+      subtitle: _lockReason(lock),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -196,9 +252,7 @@ class _RoleRow extends StatelessWidget {
           ],
           AppToggle(
             value: held,
-            onChanged: (!role.isEveryone && grantable)
-                ? (v) => onChanged(v)
-                : null,
+            onChanged: lock == null ? (v) => onChanged(v) : null,
             locked: role.isEveryone,
             semanticLabel: '${role.name} for $memberName',
           ),

@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::UserId;
+use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use sqlx::SqlitePool;
 use tower::ServiceExt;
@@ -64,6 +65,21 @@ pub async fn admin(store: &Store, username: &str) -> (UserId, String) {
         .unwrap()
         .access_token;
     (account.id, token)
+}
+
+/// Makes a member created for it the Space owner, who holds every permission, and ranks `caller`
+/// above the Bots role, so `caller` manages bots with only what their roles grant.
+pub async fn someone_else_owns(store: &Store, pool: &SqlitePool, caller: UserId) {
+    let (owner, _) = member(store, "owner").await;
+    sqlx::query("UPDATE space_settings SET owner_id = ? WHERE id = 1")
+        .bind(owner)
+        .execute(pool)
+        .await
+        .unwrap();
+    let lead = store.create_role("lead", Permissions::NONE, false).await;
+    let lead = lead.unwrap();
+    store.reorder_roles(&[lead]).await.unwrap();
+    store.assign_role(caller, lead).await.unwrap();
 }
 
 /// A plain member with a session, holding only `@everyone`.

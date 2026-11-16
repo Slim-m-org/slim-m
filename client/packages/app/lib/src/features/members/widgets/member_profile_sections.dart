@@ -22,6 +22,7 @@ import 'member_profile_identity.dart';
 import 'member_profile_status_line.dart';
 import 'user_avatar.dart';
 import 'profile_colour.dart';
+import 'role_color.dart';
 
 /// Avatar with its presence dot, name, handle, the status they typed, and the
 /// join date. Someone whose display name is only their username shows it once.
@@ -61,7 +62,8 @@ class MemberProfileHeader extends ConsumerWidget {
     ];
 
     final nameStyle = AppText.body.copyWith(
-      color: tokens.textPrimary,
+      color:
+          memberNameColor(profile, tokens.surfaceRaised) ?? tokens.textPrimary,
       fontWeight: AppWeights.semi,
     );
     final handleOnly = _namedByHandle(profile);

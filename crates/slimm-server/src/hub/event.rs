@@ -77,6 +77,9 @@ pub enum Event {
     /// for any channel it holds, since nobody was ever told "no" for this
     /// user first.
     MemberJoined(UserId),
+    /// Space ownership passed to this member, who now holds every permission. Carries only the
+    /// id; their profile's `is_owner` travels on the `ProfileChanged` published beside it.
+    OwnerChanged(UserId),
     /// A user changed their display name. Carries only the id, the shape
     /// [`Event::MemberRemoved`] already uses: the name itself lives in
     /// exactly one place, `users.display_name`, and a receiving connection

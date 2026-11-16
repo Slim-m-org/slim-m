@@ -7,14 +7,11 @@
 //! both use a permission bit that already existed and had never been spent:
 //! KICK_MEMBERS for the temporary act (the voice-room eviction already reads
 //! it as "put them out of where they are for now") and BAN_MEMBERS for the
-//! durable one. That ladder is the whole authorization model here.
+//! durable one.
 //!
-//! On top of the bit, one rule stands in for the role hierarchy this product
-//! does not have: you may only moderate somebody whose granted permissions
-//! yours already contain. Without it, KICK_MEMBERS would be enough to silence
-//! every administrator on the deployment one at a time. It is the same
-//! no-escalation test [`super::roles`] applies when handing a role out, read
-//! in the other direction, and it deliberately reads *granted* permissions so
+//! On top of the bit, two rules: you may only moderate somebody whose granted
+//! permissions yours already contain, and who stands below you on the role
+//! ladder ([`super::role_ladder`]). The first reads *granted* permissions so
 //! that timing somebody out cannot itself be what makes them look junior
 //! enough to time out again.
 
@@ -28,9 +25,10 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::escalation::peer_guard;
+use super::escalation::escalation_guard;
 use super::extract::{Authed, Json, enforce};
 use super::messages::parse_uuid;
+use super::role_ladder::Ladder;
 use super::safety::validate_reason;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
@@ -249,6 +247,8 @@ pub(in crate::http) async fn announce_member_gone(state: &AppState, target: User
 
 /// Lets a removed member back in. Requires BAN_MEMBERS. 404 if they were not
 /// removed, so a caller can tell an undo from a no-op.
+///
+/// A removed member keeps their roles, so this is gated like the removal itself.
 async fn restore_member(
     Authed(ctx): Authed,
     parts: Parts,
@@ -257,7 +257,7 @@ async fn restore_member(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let target = UserId(parse_uuid(&user_id)?);
-    require(&state, ctx.user_id, Permissions::BAN_MEMBERS).await?;
+    authorize(&state, ctx.user_id, target, Permissions::BAN_MEMBERS).await?;
 
     if state.store.restore_to_space(target, ctx.user_id).await? {
         state.hub.publish(Event::MemberRestored(target));
@@ -299,13 +299,17 @@ async fn delete_member_account(
             "delete your own account with DELETE /account",
         ));
     }
+    Ladder::of(&state, ctx.user_id)
+        .await?
+        .reach_member(&state, target)
+        .await?;
 
-    let revoked = match state
+    let deleted = match state
         .store
         .delete_account_by_admin(target, ctx.user_id)
         .await
     {
-        Ok(revoked) => revoked,
+        Ok(deleted) => deleted,
         Err(DeleteAccountError::WouldStrandDeployment) => {
             return Err(ApiError::Conflict(
                 "that is the only administrator; appoint another before deleting it",
@@ -314,7 +318,7 @@ async fn delete_member_account(
         Err(DeleteAccountError::UserNotFound) => return Err(ApiError::NotFound("no such member")),
         Err(DeleteAccountError::Internal(e)) => return Err(e.into()),
     };
-    for session_id in revoked {
+    for session_id in deleted.revoked {
         state.hub.publish(Event::SessionRevoked(session_id));
     }
     if let Err(err) = state.media.delete_avatar(&target.to_string()).await {
@@ -326,6 +330,7 @@ async fn delete_member_account(
     super::linked_accounts::purge_avatar_files(&state, target).await;
     super::dock::purge_module_member_data(&state, target).await;
     announce_member_gone(&state, target).await;
+    super::space_owner::announce_handoff(&state, deleted.handoff);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -379,8 +384,9 @@ pub(super) async fn require(
         .map(drop)
 }
 
-/// [`require`], plus the two rules that apply when the act has a target: it
-/// is not yourself, and you are not reaching above your own level.
+/// [`require`], plus the rules that apply when the act has a target: it is
+/// not yourself, their granted bits are within yours, and they rank below you
+/// on the role ladder.
 ///
 /// Refusing self-moderation is not politeness. Timing yourself out would take
 /// away the ability to lift it only if KICK_MEMBERS were among the masked
@@ -399,7 +405,11 @@ pub(super) async fn authorize(
 
     let caller_granted = state.store.granted_base_permissions(caller).await?;
     let target_granted = state.store.granted_base_permissions(target).await?;
-    peer_guard(caller_granted, target_granted)
+    escalation_guard(caller_granted, target_granted)?;
+    Ladder::of(state, caller)
+        .await?
+        .reach_member(state, target)
+        .await
 }
 
 /// Drops a member from every voice room they could currently be connected

@@ -179,6 +179,56 @@ void main() {
       permSub.close();
     });
 
+    test('an OwnerChanged naming the caller invalidates meProvider and the '
+        'whole channel-permissions family; one naming someone else does '
+        'neither', () async {
+      var meFetchCount = 0;
+      var permissionsFetchCount = 0;
+      final events = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(events.close);
+      final container = _containerWith(
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/me') {
+            meFetchCount++;
+            return http.Response(jsonEncode(_meJson()), 200);
+          }
+          permissionsFetchCount++;
+          return http.Response(jsonEncode({'permissions': 1}), 200);
+        }),
+        liveEvents: events.stream,
+      );
+      final watcherSub = container.listen(
+        roleChangeWatcherProvider,
+        (_, __) {},
+      );
+      final meSub = container.listen(meProvider, (_, __) {});
+      final permSub = container.listen(
+        channelPermissionsProvider('chan-1'),
+        (_, __) {},
+      );
+      Future<void> settle(api.ServerEvent event) async {
+        events.add(event);
+        await Future<void>.delayed(Duration.zero);
+        // Re-read, or an unread invalidation passes; see the library doc.
+        await container.read(meProvider.future);
+        await container.read(channelPermissionsProvider('chan-1').future);
+      }
+
+      await container.read(meProvider.future);
+      await container.read(channelPermissionsProvider('chan-1').future);
+      await settle(const api.OwnerChanged(userId: 'someone-else'));
+      expect(meFetchCount, 1, reason: 'someone else owning it moves nothing');
+      expect(permissionsFetchCount, 1);
+
+      await settle(const api.OwnerChanged(userId: 'self'));
+      expect(meFetchCount, 2, reason: 'the heir holds every permission now');
+      expect(permissionsFetchCount, 2);
+
+      watcherSub.close();
+      meSub.close();
+      permSub.close();
+    });
+
     test('an OverwriteChanged invalidates only the channel it names, not an '
         'unrelated one', () async {
       var chan1FetchCount = 0;

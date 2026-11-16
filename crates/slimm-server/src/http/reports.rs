@@ -249,7 +249,7 @@ enum ModerationHistoryItemDto {
     #[serde(rename = "audit_log")]
     AuditLog {
         id: String,
-        /// Null once the actor's account has been anonymized.
+        /// Null once the actor's account has been anonymized, and for an act the server did itself.
         actor_id: Option<String>,
         subject_id: String,
         action: String,

@@ -24,6 +24,7 @@ use super::error::ApiError;
 use super::extract::require_manage_roles;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
+use super::role_ladder::Ladder;
 use super::roles::caller_granted;
 use crate::hub::Event;
 use crate::ids::{RoleId, UserId};
@@ -110,8 +111,8 @@ async fn list_role_grants(
     ))
 }
 
-/// Refuses unless the caller may change `perm_key` on `role`: an administrator always may;
-/// anyone else must hold the permission themselves and outrank the role, so MANAGE_ROLES
+/// Refuses unless the caller may change `perm_key` on `role`: the role sits below them on the
+/// role ladder, and they hold the permission themselves or are an administrator, so MANAGE_ROLES
 /// alone can neither mint a module permission nor reach a role above its holder.
 async fn authorize_change(
     state: &AppState,
@@ -119,27 +120,23 @@ async fn authorize_change(
     role: &crate::store::Role,
     module_perm: (&str, &str),
 ) -> Result<(), ApiError> {
+    Ladder::of(state, caller).await?.reach_role(role.position)?;
     if caller_granted(state, caller)
         .await?
         .contains(Permissions::ADMINISTRATOR)
     {
         return Ok(());
     }
-    let ceiling = state
-        .store
-        .highest_role_position(caller)
-        .await?
-        .unwrap_or(0);
     let (module_id, perm_key) = module_perm;
-    if role.position >= ceiling
-        || !state
-            .store
-            .user_has_module_permission(caller, module_id, perm_key)
-            .await?
+    if state
+        .store
+        .user_has_module_permission(caller, module_id, perm_key)
+        .await?
     {
-        return Err(ApiError::Forbidden);
+        Ok(())
+    } else {
+        Err(ApiError::Forbidden)
     }
-    Ok(())
 }
 
 async fn grant(

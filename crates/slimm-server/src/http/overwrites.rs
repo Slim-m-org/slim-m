@@ -17,6 +17,9 @@
 //! a real vulnerability class. `deny` is a restriction, not a grant, and is
 //! never gated on top of already requiring MANAGE_ROLES here.
 //!
+//! Every write also runs the role ladder on its target, [`reach_target`]: an overwrite on a role
+//! edits that role in one channel, and one on a member acts on them.
+//!
 //! [`batch_set`] applies several targets' overwrites in one request rather
 //! than one `PUT` per target: the permissions grid batches a pending set of
 //! cell changes across several columns and wants to save them atomically, not
@@ -37,6 +40,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
+use super::role_ladder::Ladder;
 use crate::hub::Event;
 use crate::ids::{ChannelId, RoleId, UserId};
 use crate::permissions::Permissions;
@@ -143,6 +147,22 @@ pub(super) fn parse_target(kind: &str, id: &str) -> Result<Target, ApiError> {
     }
 }
 
+/// Refuses a target the caller does not outrank. `@everyone` ranks below every role, and a
+/// caller's own member overwrite needs no rank.
+pub(super) async fn reach_target(
+    state: &AppState,
+    ladder: &Ladder,
+    target: Target,
+) -> Result<(), ApiError> {
+    match target {
+        Target::Member(user_id) => ladder.reach_other(state, user_id).await,
+        Target::Role(role_id) => match state.store.role(role_id).await? {
+            Some(role) if !role.is_everyone => ladder.reach_role(role.position),
+            _ => Ok(()),
+        },
+    }
+}
+
 /// Requires MANAGE_ROLES in this channel and returns the caller's effective
 /// permissions there, reused by [`set`] as the ceiling on what it may grant.
 async fn require_manage_roles_here(
@@ -224,6 +244,7 @@ async fn set(
         .unwrap_or((Permissions::NONE, Permissions::NONE));
     let granted = allow.remove(old_allow).union(old_deny.remove(deny));
     refuse_ungrantable(caller_permissions, granted)?;
+    reach_target(&state, &Ladder::of(&state, ctx.user_id).await?, target).await?;
 
     let previously_visible_to = previously_visible_to(&state, channel_id, target).await?;
     match target {
@@ -296,6 +317,7 @@ async fn batch_set(
         return Err(ApiError::BadRequest("too many overwrites in one batch"));
     }
 
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
     let mut named = std::collections::HashSet::new();
     let mut entries = Vec::with_capacity(req.overwrites.len());
     let mut targets = Vec::with_capacity(req.overwrites.len());
@@ -332,6 +354,7 @@ async fn batch_set(
             .unwrap_or((Permissions::NONE, Permissions::NONE));
         let granted = allow.remove(old_allow).union(old_deny.remove(deny));
         refuse_ungrantable(caller_permissions, granted)?;
+        reach_target(&state, &ladder, target).await?;
 
         targets.push(target);
         entries.push(OverwriteBatchEntry {
@@ -408,6 +431,7 @@ async fn clear(
     {
         refuse_ungrantable(caller_permissions, old_deny)?;
     }
+    reach_target(&state, &Ladder::of(&state, ctx.user_id).await?, target).await?;
 
     let previously_visible_to = previously_visible_to(&state, channel_id, target).await?;
     match target {

@@ -149,11 +149,8 @@ final class RosterGroupLabel extends RosterEntry {
 }
 
 final class RosterMember extends RosterEntry {
-  const RosterMember(this.profile, {this.sectionRoleId});
+  const RosterMember(this.profile);
   final api.UserProfile profile;
-
-  /// The role whose section this row sits under, so its badge can be left off.
-  final String? sectionRoleId;
 }
 
 /// [groups] flattened into the rows the pane lays out, each non-empty group
@@ -162,8 +159,7 @@ final class RosterMember extends RosterEntry {
 List<RosterEntry> rosterEntries(RosterGroups groups) => [
   for (final section in groups.roles) ...[
     RosterGroupLabel('${section.name} · ${section.members.length}'),
-    for (final m in section.members)
-      RosterMember(m, sectionRoleId: section.roleId),
+    for (final m in section.members) RosterMember(m),
   ],
   if (groups.online.isNotEmpty) ...[
     RosterGroupLabel('Online · ${groups.online.length}'),

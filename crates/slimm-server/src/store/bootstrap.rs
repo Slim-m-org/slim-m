@@ -160,7 +160,8 @@ pub(super) async fn claim_in(
     .await?;
 
     sqlx::query!(
-        "UPDATE space_settings SET setup_claimed_by = ? WHERE id = 1",
+        "UPDATE space_settings SET setup_claimed_by = ?, owner_id = ? WHERE id = 1",
+        user_id,
         user_id
     )
     .execute(&mut **tx)

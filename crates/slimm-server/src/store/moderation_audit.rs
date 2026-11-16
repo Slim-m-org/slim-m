@@ -38,11 +38,13 @@ pub(crate) enum ModerationAction {
     NicknameSet,
     NicknameClear,
     VoiceMove,
+    OwnerHandoff,
+    OwnerTimeoutEnded,
 }
 
 impl ModerationAction {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 18] = [
+    pub(crate) const ALL: [Self; 20] = [
         Self::Remove,
         Self::Restore,
         Self::Timeout,
@@ -61,6 +63,8 @@ impl ModerationAction {
         Self::NicknameSet,
         Self::NicknameClear,
         Self::VoiceMove,
+        Self::OwnerHandoff,
+        Self::OwnerTimeoutEnded,
     ];
 
     pub(crate) fn as_str(self) -> &'static str {
@@ -83,6 +87,8 @@ impl ModerationAction {
             Self::NicknameSet => "nickname_set",
             Self::NicknameClear => "nickname_clear",
             Self::VoiceMove => "voice_move",
+            Self::OwnerHandoff => "owner_handoff",
+            Self::OwnerTimeoutEnded => "owner_timeout_ended",
         }
     }
 }
@@ -121,6 +127,26 @@ pub(super) async fn record_moderation_audit(
         entry.reason,
         entry.until,
         entry.created_at
+    )
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
+/// Appends one row for an act the server took on its own, such as passing ownership on: no member
+/// did it, so its actor is null, the system actor of decision 0092, and it has no reason or deadline.
+pub(super) async fn record_system_moderation_audit(
+    conn: &mut sqlx::SqliteConnection,
+    subject_id: UserId,
+    action: ModerationAction,
+    created_at: i64,
+) -> Result<(), sqlx::Error> {
+    let action = action.as_str();
+    sqlx::query!(
+        "INSERT INTO moderation_audit_log (subject_id, action, created_at) VALUES (?, ?, ?)",
+        subject_id,
+        action,
+        created_at
     )
     .execute(&mut *conn)
     .await?;
@@ -184,6 +210,8 @@ mod tests {
                 ModerationAction::NicknameClear => 15,
                 ModerationAction::VoiceMove => 16,
                 ModerationAction::BotTokenReissue => 17,
+                ModerationAction::OwnerHandoff => 18,
+                ModerationAction::OwnerTimeoutEnded => 19,
             }
         }
         let mut seen = vec![false; ModerationAction::ALL.len()];

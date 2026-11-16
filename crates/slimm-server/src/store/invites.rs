@@ -16,7 +16,7 @@
 
 mod redemption;
 mod sweep;
-pub(super) use redemption::{record_redemption, spend_invite};
+pub(super) use redemption::{apply_role_grant, record_redemption, spend_invite};
 
 use rand_core::{OsRng, RngCore};
 

@@ -92,6 +92,7 @@ void main() {
       'a self MemberTimeoutChanged',
       const api.MemberTimeoutChanged(userId: 'self', until: 1),
     ),
+    ('a self OwnerChanged', const api.OwnerChanged(userId: 'self')),
     ('OverwriteChanged', const api.OverwriteChanged(channelId: 'c1')),
   ]) {
     test('$name invalidates myVisibleChannelsProvider', () async {
@@ -107,9 +108,15 @@ void main() {
     });
   }
 
-  test(
-    'a MemberTimeoutChanged for someone else leaves the list alone',
-    () async {
+  for (final (name, event) in [
+    (
+      'a MemberTimeoutChanged',
+      const api.MemberTimeoutChanged(userId: 'someone-else', until: 1)
+          as api.ServerEvent,
+    ),
+    ('an OwnerChanged', const api.OwnerChanged(userId: 'someone-else')),
+  ]) {
+    test('$name for someone else leaves the list alone', () async {
       final f = _fixture();
       final watcher = f.container.listen(roleChangeWatcherProvider, (_, __) {});
       final sub = f.container.listen(myVisibleChannelsProvider, (_, __) {});
@@ -117,15 +124,12 @@ void main() {
       expect(f.fetchCount(), 1);
 
       expect(
-        await _fetchesAfter(
-          f,
-          const api.MemberTimeoutChanged(userId: 'someone-else', until: 1),
-        ),
+        await _fetchesAfter(f, event),
         1,
-        reason: 'a timeout on another member is not this caller going stale',
+        reason: 'a change to another member is not this caller going stale',
       );
       watcher.close();
       sub.close();
-    },
-  );
+    });
+  }
 }

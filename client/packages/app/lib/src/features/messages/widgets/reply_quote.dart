@@ -24,6 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../message_preview.dart';
 import '../providers/message_extras.dart';
 import '../../members/providers/user_profiles.dart';
+import '../../members/widgets/role_color.dart';
 import '../../members/widgets/user_avatar.dart';
 import 'author_label.dart';
 import 'reply_target_summary.dart';
@@ -208,7 +209,9 @@ class ReplyQuote extends ConsumerWidget {
               name: label,
               profile: profile,
               style: snippetStyle.copyWith(
-                color: tokens.textPrimary,
+                color:
+                    memberNameColor(profile, tokens.surfaceBase) ??
+                    tokens.textPrimary,
                 fontWeight: AppWeights.semi,
               ),
               secondary: snippet,

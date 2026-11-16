@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The data backfills inside migrations 0125 (a bot's assigned prefix), 0144
-//! (a canvas clear's affected count) and 0194 (voice data per message), run
-//! against rows that existed before them.
+//! (a canvas clear's affected count), 0194 (voice data per message) and 0197
+//! (the Space owner), run against rows that existed before them.
 
 use std::path::Path;
 use std::time::Duration;
@@ -250,4 +250,87 @@ async fn every_voice_message_stays_one_and_only_a_sole_uploader_keeps_an_unsent_
     .await
     .unwrap();
     assert_eq!(left, 0, "nothing reads a per-blob mark any more");
+}
+
+async fn owner_after_0197(claimed_by: Option<u8>) -> Option<Vec<u8>> {
+    let (pool, full, _guard) = pool_before(197).await;
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at, is_bot) VALUES
+               ({bot}, 'bot', 'Bot', 'h', 1, 1),
+               ({removed}, 'removed', 'Removed', 'h', 2, 0),
+               ({gone}, 'gone', 'Gone', 'h', 3, 0),
+               ({first}, 'first', 'First', 'h', 4, 0),
+               ({later}, 'later', 'Later', 'h', 5, 0);
+             UPDATE users SET deleted_at = 9 WHERE id = {gone};
+             INSERT INTO space_removals (user_id, removed_at) VALUES ({removed}, 9);
+             UPDATE space_settings SET setup_claimed_by = {claimed}",
+            bot = id(1),
+            removed = id(2),
+            gone = id(3),
+            first = id(4),
+            later = id(5),
+            claimed = claimed_by.map_or("NULL".to_owned(), id),
+        ),
+    )
+    .await;
+    full.run(&pool).await.unwrap();
+    sqlx::query_scalar("SELECT owner_id FROM space_settings WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn the_space_owner_is_the_claimer_while_they_are_still_a_member() {
+    assert_eq!(owner_after_0197(Some(5)).await, Some(vec![5u8; 16]));
+}
+
+/// Unrecorded, or recorded but deleted: the first human who joined and is still a member.
+#[tokio::test]
+async fn without_a_live_claimer_the_space_owner_is_the_first_human_member() {
+    assert_eq!(owner_after_0197(None).await, Some(vec![4u8; 16]));
+    assert_eq!(owner_after_0197(Some(3)).await, Some(vec![4u8; 16]));
+}
+
+/// Without a live claimer an administrator is preferred over an earlier plain member, as a
+/// hand-off chooses, and the owner keeps no timeout, since nobody could lift it.
+#[tokio::test]
+async fn without_a_live_claimer_the_space_owner_is_the_first_administrator_and_not_timed_out() {
+    let (pool, full, _guard) = pool_before(197).await;
+    let (member, admin, later, role) = (id(4), id(5), id(6), id(9));
+    let admin_bit = slimm_server::permissions::Permissions::ADMINISTRATOR.bits();
+    seed(
+        &pool,
+        &format!(
+            "INSERT INTO users (id, username, display_name, password_hash, created_at, is_bot) VALUES
+               ({member}, 'member', 'Member', 'h', 4, 0),
+               ({admin}, 'admin', 'Admin', 'h', 5, 0),
+               ({later}, 'later', 'Later', 'h', 6, 0);
+             INSERT INTO roles (id, name, permissions, position, created_at)
+               VALUES ({role}, 'admin', {admin_bit}, 100, 1);
+             INSERT INTO member_roles (user_id, role_id) VALUES ({admin}, {role}), ({later}, {role});
+             INSERT INTO member_timeouts (user_id, until, issued_by, issued_at)
+               VALUES ({admin}, 9000000000000, {later}, 1), ({later}, 9000000000000, {admin}, 1)"
+        ),
+    )
+    .await;
+    full.run(&pool).await.unwrap();
+
+    let owner: Option<Vec<u8>> =
+        sqlx::query_scalar("SELECT owner_id FROM space_settings WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(owner, Some(vec![5u8; 16]));
+    let timed_out: Vec<Vec<u8>> = sqlx::query_scalar("SELECT user_id FROM member_timeouts")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        timed_out,
+        vec![vec![6u8; 16]],
+        "only the owner's timeout ends"
+    );
 }

@@ -26,9 +26,12 @@ import '../../../members/widgets/profile_colour.dart';
 const _collapseAt = 5;
 
 class RoleMembersTab extends ConsumerStatefulWidget {
-  const RoleMembersTab({super.key, required this.role});
+  const RoleMembersTab({super.key, required this.role, this.locked = false});
 
   final api.Role role;
+
+  /// The role is not below the viewer's highest, so its holders are listed without add or remove.
+  final bool locked;
 
   @override
   ConsumerState<RoleMembersTab> createState() => _RoleMembersTabState();
@@ -100,28 +103,33 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
             .toList();
         final bots = holders.where((m) => m.isBot).toList();
         final people = holders.where((m) => !m.isBot).toList();
-        final candidates = _candidates(list);
+        final locked = widget.locked;
+        final candidates = locked
+            ? const <api.UserProfile>[]
+            : _candidates(list);
 
         return Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s24,
-                AppSpacing.s16,
-                AppSpacing.s24,
-                0,
+            if (!locked)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s24,
+                  AppSpacing.s16,
+                  AppSpacing.s24,
+                  0,
+                ),
+                child: AppInput(
+                  controller: _search,
+                  placeholder: 'Search members to add',
+                  icon: const Icon(AppIcons.search),
+                  semanticLabel: 'Search members to add',
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (candidates.isEmpty) return;
+                    unawaited(_add(candidates.first));
+                  },
+                ),
               ),
-              child: AppInput(
-                controller: _search,
-                placeholder: 'Search members to add',
-                icon: const Icon(AppIcons.search),
-                semanticLabel: 'Search members to add',
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) {
-                  if (candidates.isNotEmpty) unawaited(_add(candidates.first));
-                },
-              ),
-            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -159,16 +167,16 @@ class _RoleMembersTabState extends ConsumerState<RoleMembersTab>
                       holders: bots,
                       expanded: _expandBots,
                       onExpand: () => setState(() => _expandBots = true),
-                      onRemove: _remove,
+                      onRemove: locked ? null : _remove,
                     ),
                   _HolderGroup(
                     title: 'People',
                     holders: people,
                     expanded: _expandPeople,
                     onExpand: () => setState(() => _expandPeople = true),
-                    onRemove: _remove,
+                    onRemove: locked ? null : _remove,
                     emptyTitle: 'No people hold this role',
-                    emptyDetail: 'Search above to add someone.',
+                    emptyDetail: locked ? null : 'Search above to add someone.',
                   ),
                 ],
               ),
@@ -244,7 +252,9 @@ class _HolderGroup extends StatelessWidget {
   final List<api.UserProfile> holders;
   final bool expanded;
   final VoidCallback onExpand;
-  final ValueChanged<api.UserProfile> onRemove;
+
+  /// Null lists the holders without a Remove button.
+  final ValueChanged<api.UserProfile>? onRemove;
   final String? emptyTitle;
   final String? emptyDetail;
 
@@ -273,13 +283,16 @@ class _HolderGroup extends StatelessWidget {
               leading: _avatar(context, holder),
               label: holder.displayName,
               meta: '@${holder.username}',
-              trailing: AppButton(
-                label: 'Remove',
-                semanticLabel: 'Remove ${holder.displayName}',
-                variant: AppButtonVariant.ghost,
-                size: AppButtonSize.sm,
-                onPressed: () => onRemove(holder),
-              ),
+              trailing: switch (onRemove) {
+                final remove? => AppButton(
+                  label: 'Remove',
+                  semanticLabel: 'Remove ${holder.displayName}',
+                  variant: AppButtonVariant.ghost,
+                  size: AppButtonSize.sm,
+                  onPressed: () => remove(holder),
+                ),
+                null => null,
+              },
             ),
         if (hidden.isNotEmpty)
           FocusableTapTarget(

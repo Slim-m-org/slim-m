@@ -7,6 +7,8 @@
 /// server-side from scratch regardless of what a caller can see.
 library;
 
+import 'package:slimm_api/api.dart' as api;
+
 import 'action_labels.dart';
 
 abstract final class Perm {
@@ -75,6 +77,9 @@ abstract final class Perm {
     (viewTranscripts, 'View transcripts'),
     (useSoundboard, 'Use the soundboard'),
   ];
+
+  /// Every named bit, which the server's evaluator resolves an administrator and the Space owner to.
+  static final int all = editable.fold(0, (bits, entry) => bits | entry.$1);
 
   /// [groups] flattened, in the same order - the channel permissions grid's
   /// row list, since a grid has no room for group headers of its own and
@@ -237,6 +242,14 @@ class PermGroup {
 /// carry it as an ordinary bit a caller can check for directly.
 extension PermissionCheck on int {
   bool hasPermission(int required) => (this & required) == required;
+}
+
+/// The viewer's own deployment-wide bits, read the way the server rules them.
+extension HeldPermissions on api.Me {
+  /// Everything for the Space owner, whatever their roles; a timeout in force is already
+  /// subtracted from [api.Me.permissions], so a timed-out owner keeps the server's answer.
+  int get heldPermissions =>
+      isOwner && timedOutUntil == null ? Perm.all : permissions;
 }
 
 /// The human names of every permission in [bits], in grid order.

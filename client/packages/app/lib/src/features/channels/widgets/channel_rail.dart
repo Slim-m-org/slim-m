@@ -119,7 +119,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     final selected = selectedChannelId(context);
     final me = ref.watch(effectiveMeProvider);
     final canManageChannels =
-        me != null && me.permissions.hasPermission(Perm.manageChannels);
+        me != null && me.heldPermissions.hasPermission(Perm.manageChannels);
     final orderState = ref.watch(channelOrderControllerProvider);
     final orderController = ref.read(channelOrderControllerProvider.notifier);
 

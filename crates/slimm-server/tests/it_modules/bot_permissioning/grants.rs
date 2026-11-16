@@ -9,7 +9,7 @@ use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
 use crate::bot_permissioning::harness::{
-    admin, app, create_bot, harness, json_body, member, request,
+    admin, app, create_bot, harness, json_body, member, request, someone_else_owns,
 };
 
 /// An admin may grant a bot only bits they hold themselves.
@@ -110,7 +110,7 @@ async fn an_administrator_bot_can_issue_a_reset_code() {
 /// `store::bootstrap::bootstrap_deployment`).
 #[tokio::test]
 async fn repermissioning_a_bot_cannot_grant_a_permission_the_caller_lacks() {
-    let (store, _pool, _guard) = harness("slimm-bot-perm-patch-escalation").await;
+    let (store, pool, _guard) = harness("slimm-bot-perm-patch-escalation").await;
     // Claims `@everyone` first; see this test's own doc comment for why.
     store
         .create_role(
@@ -121,6 +121,7 @@ async fn repermissioning_a_bot_cannot_grant_a_permission_the_caller_lacks() {
         .await
         .unwrap();
     let (admin_id, root) = admin(&store, "root").await;
+    someone_else_owns(&store, &pool, admin_id).await;
     assert!(
         !store
             .base_permissions(admin_id)

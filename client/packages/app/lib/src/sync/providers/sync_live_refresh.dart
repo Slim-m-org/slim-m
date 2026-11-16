@@ -10,12 +10,14 @@ import 'package:slimm_data/data.dart';
 
 import '../../features/auth/providers/account_state_refresh.dart';
 import '../../features/messages/providers/failed_send_retry.dart';
+import '../../providers/admin_providers.dart';
 import '../../providers/server_info.dart';
 import 'sync_ephemeral_reset.dart';
 import 'sync_failure.dart';
 import 'sync_status.dart';
 
-/// Refreshes what a reconnect may have missed, clears the failure flags and resends unsent messages.
+/// Refreshes what a reconnect may have missed, permissions included, clears the failure flags and
+/// resends unsent messages.
 void afterSyncLive(
   Ref ref,
   MessageStore store, {
@@ -23,7 +25,10 @@ void afterSyncLive(
   required bool Function() isCurrent,
 }) {
   refreshAccountNotificationState(ref, reconnect: reconnect);
-  if (reconnect) refreshRosterAfterReconnect(ref);
+  if (reconnect) {
+    refreshRosterAfterReconnect(ref);
+    refreshPermissionsAfterReconnect(ref);
+  }
   refreshServerInfo(ref, reconnect: reconnect);
   ref.read(hasFailedSinceLiveProvider.notifier).state = false;
   ref.read(syncFailureProvider.notifier).state = null;

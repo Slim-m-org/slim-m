@@ -212,6 +212,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
             host: host,
             onDone: widget.onDone,
             run: run,
+            canManageRoles: canManageRoles,
             memberPaneScaffold: widget.memberPaneScaffold,
           )
         : OtherMemberCard(

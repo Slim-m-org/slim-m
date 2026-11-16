@@ -195,6 +195,17 @@ void main() {
       );
     });
 
+    test('a role ladder 403 carries its code', () async {
+      await expectMapped(
+        403,
+        '{"error":"you can only manage roles below your highest role",'
+        '"code":"role_hierarchy"}',
+        isA<ForbiddenException>()
+            .having((e) => e.code, 'code', 'role_hierarchy')
+            .having((e) => e.isRoleLadderRefusal, 'isRoleLadderRefusal', true),
+      );
+    });
+
     test('a 409 or 400 names the batch image it refuses', () async {
       await expectMapped(
         409,
