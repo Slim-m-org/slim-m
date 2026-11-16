@@ -23,7 +23,7 @@ class VoiceRosterHost {
   /// Rebuilds the whole call state, which ends in [VoiceRoster.update].
   final void Function() refresh;
 
-  /// Only a full restart empties the SDK's remote list.
+  /// Whether a full restart is under way, the one repair that empties the SDK's remote list.
   final bool Function() reconnecting;
 
   /// Your own voice state from the input gate, or null when the SFU's report is all there is.
@@ -61,8 +61,11 @@ class VoiceRoster {
   }
 
   /// Rebuilds from [room], keeping a speaking ring up briefly after the voice stops.
+  ///
+  /// A full restart holds the roster only until the SDK lists everyone shown
+  /// again, not until it says it finished: it does not always say so.
   void update(lk.Room room) {
-    if (_host.reconnecting()) {
+    if (_restartPending(room)) {
       _reportLocalLevel(const []);
       return;
     }
@@ -84,6 +87,18 @@ class VoiceRoster {
       return;
     }
     set(List.unmodifiable(next));
+  }
+
+  bool _restartPending(lk.Room room) {
+    if (!_host.reconnecting()) return false;
+    final shown = [
+      for (final p in _participants)
+        if (!p.isLocal) p.identity,
+    ];
+    // With nobody else shown, the room says nothing about whether it is back.
+    if (shown.isEmpty) return true;
+    final back = {for (final p in room.remoteParticipants.values) p.identity};
+    return !shown.every(back.contains);
   }
 
   /// The one place the roster changes, so your level is reported with it and never outlives the people it came from.

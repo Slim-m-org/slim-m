@@ -99,6 +99,24 @@ void main() {
     expect(log.single, contains('next retry in 300 ms'));
   });
 
+  test('the attempt the SDK sends ahead of a resume is not a restart', () {
+    tracker.attempted(1, 10, 0);
+    tracker.started(ReconnectKind.resume);
+
+    expect(tracker.active.value, isTrue);
+    expect(tracker.restarting.value, isFalse,
+        reason: 'a resume keeps the media path whatever announced it');
+  });
+
+  test('the attempt ahead of a restart leaves it to the restart to say so', () {
+    tracker.attempted(1, 10, 0);
+    expect(tracker.restarting.value, isFalse);
+
+    tracker.started(ReconnectKind.restart);
+
+    expect(tracker.restarting.value, isTrue);
+  });
+
   test('resetting the counts keeps an episode in flight', () {
     tracker.started(ReconnectKind.resume);
     pass(const Duration(seconds: 1));

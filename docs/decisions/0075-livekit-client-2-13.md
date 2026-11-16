@@ -41,9 +41,14 @@ What they may do is limited to:
 
 - set a reconnecting flag next to `VoiceSessionState`, never a new state, because many gates key on `state == connected`;
 - show that flag in the call stage's banner slot after a 2 s debounce;
-- hold the roster emit while it is set and rebuild it from the live room afterwards, because a full restart empties the SDK's remote list;
+- hold the roster emit during a full restart and rebuild it from the live room afterwards, because a full restart empties the SDK's remote list (narrowed below);
 - pause the stall watchdog's recovery and the audio sampling, and clear the ping readout;
 - log each transition and count blips into the call summary.
+
+The roster hold is narrower than the flag (amended 2026-11-15, after two e2e failures on main traced to it).
+Only `RoomReconnecting` starts it: livekit announces every reconnect, a resume included, with `RoomAttemptReconnect` first, so treating a lone attempt as a restart froze the roster through every resume, for as long as the SDK kept retrying.
+It ends when the SDK lists everyone the roster shows again, without waiting for `RoomReconnected`: `Room` republishes the local tracks before it emits that event, and a publish that times out there throws out of the handler, so the event never comes.
+With nobody else shown there is nothing to tell by, and the hold lasts until the event or the 60 s quiet release, as before.
 
 `serverShutdown` and `stateMismatch` now map to `connectionLost` like the other drops, so the automatic rejoin covers them.
 `mapDisconnectReason` has a test row for every `DisconnectReason` value, so a value an upgrade adds is decided there.
