@@ -75,6 +75,7 @@ import e2e_voice_latency
 import e2e_voice_quality
 import e2e_voice_volume
 import e2e_voice_network
+import e2e_voice_signal_drop
 import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_tabs
@@ -359,6 +360,10 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_voice_join_time.join_time(a, b, room_id)),
         ("voice: a client that loses its network rejoins on its own",
          lambda: e2e_voice_network.rejoins_after_a_network_drop(
+             a, b, room_id)),
+        ("voice: a signal socket dropped while the microphone publishes leaves "
+         "one microphone that Mute reaches",
+         lambda: e2e_voice_signal_drop.a_signal_drop_mid_publish_converges(
              a, b, room_id)),
         ("voice: noise suppression quiets the noise floor and keeps the voice",
          lambda: e2e_voice_noise.suppression_quiets_the_noise_floor(
