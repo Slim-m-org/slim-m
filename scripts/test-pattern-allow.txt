@@ -429,7 +429,7 @@ client/packages/app/test/features/members/member_profile_note_field_test.dart 2 
 client/packages/app/test/features/members/member_profile_popover_geometry_test.dart 1 2
 client/packages/app/test/features/members/member_profile_remove_from_channel_test.dart 2 8
 client/packages/app/test/features/members/member_profile_sheet_motion_test.dart 1 1
-client/packages/app/test/features/members/member_profile_test.dart 2 4
+client/packages/app/test/features/members/member_profile_test.dart 1 4
 client/packages/app/test/features/members/member_rename_sheet_test.dart 5 6
 client/packages/app/test/features/members/member_roster_paging_test.dart 0 1
 client/packages/app/test/features/members/member_row_context_menu_test.dart 0 2

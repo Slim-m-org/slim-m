@@ -82,7 +82,15 @@ void main() {
       expect(name.top, greaterThanOrEqualTo(avatar.bottom));
       expect(name.top, greaterThanOrEqualTo(banner.bottom));
       expect(find.byType(AppStatusDot), findsOneWidget);
-      expect(find.text('Away'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('member-profile-avatar-slot')),
+          matching: find.byWidgetPredicate((w) => w is AppStatusDot),
+        ),
+        findsOneWidget,
+        reason: 'on the avatar, with no word line beside it',
+      );
+      expect(find.text('Away'), findsNothing);
     });
   }
 

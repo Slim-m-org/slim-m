@@ -28,6 +28,7 @@ import '../../modules/providers/module_display_settings.dart';
 import '../../voice/providers/member_voice_channel.dart';
 import 'member_voice_chip.dart';
 import 'user_avatar.dart';
+import 'profile_colour.dart';
 
 /// Test-only: how many times each member's row has actually run `build`,
 /// keyed by user id. A rendered frame looks the same whether or not a
@@ -198,6 +199,7 @@ class MemberRow extends ConsumerWidget {
         leading: UserAvatar.known(
           userId: profile.id,
           avatarUpdatedAt: displayed.avatarUpdatedAt,
+          profileColour: profileColourOfUser(displayed),
           name: displayed.displayName,
           size: AppAvatarSize.s32,
           presence: true,

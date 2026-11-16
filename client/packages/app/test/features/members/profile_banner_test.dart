@@ -80,8 +80,56 @@ void main() {
 
       expect(find.byType(Image), findsNothing);
       expect(fetched, isFalse);
-      final fill = tester.widget<ColoredBox>(find.byType(ColoredBox).last);
-      expect(fill.color, const Color(0xFF336699));
+      final band = profileBandDecoration(
+        const Color(0xFF336699),
+        AppTokens.light.surfaceRaised,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is DecoratedBox && w.decoration == band,
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  test(
+    'a band with no image is one tonal wash of the colour, top to bottom',
+    () {
+      final band =
+          profileBandDecoration(
+                const Color(0xFF336699),
+                AppTokens.dark.surfaceRaised,
+              )
+              as BoxDecoration;
+      final wash = band.gradient! as LinearGradient;
+      expect(
+        (wash.begin, wash.end),
+        (Alignment.topCenter, Alignment.bottomCenter),
+      );
+      expect(wash.colors.map((c) => c.a), [
+        closeTo(0.45, 0.01),
+        closeTo(0.3, 0.01),
+      ]);
+      expect(wash.colors.map((c) => c.withValues(alpha: 1)).toSet(), {
+        const Color(0xFF336699),
+      }, reason: 'one colour faded, not a second shade of it');
+    },
+  );
+
+  test(
+    'a colour that is the card surface is nudged so the band still shows',
+    () {
+      for (final tokens in [AppTokens.light, AppTokens.dark]) {
+        final surface = tokens.surfaceRaised;
+        final band = profileBandDecoration(surface, surface) as BoxDecoration;
+        final top = (band.gradient! as LinearGradient).colors.first;
+        expect(
+          contrastRatio(Color.alphaBlend(top, surface), surface),
+          greaterThan(1.2),
+          reason: '${tokens == AppTokens.light ? 'light' : 'dark'} card',
+        );
+      }
     },
   );
 

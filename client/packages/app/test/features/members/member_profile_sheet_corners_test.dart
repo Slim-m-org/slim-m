@@ -38,6 +38,13 @@ const _tokens = api.TokenPair(
 
 const _pink = Color(0xFFE0699A);
 
+/// A pixel of the band: the profile colour's hue, not the neutral sheet or page.
+bool _inBand(Color pixel) {
+  final hsl = HSLColor.fromColor(pixel);
+  final hue = HSLColor.fromColor(_pink).hue;
+  return hsl.saturation > 0.2 && (hsl.hue - hue).abs() < 10;
+}
+
 const _maya = api.UserProfile(
   id: 'user-maya',
   username: 'maya',
@@ -146,10 +153,14 @@ void main() {
 
         // Down the sheet's left and right edge the curve has not reached the edge for 20 rows.
         for (var row = 0; row < 18; row++) {
-          expect(pixel(1, top + row), isNot(_pink), reason: 'left, row $row');
           expect(
-            pixel(388, top + row),
-            isNot(_pink),
+            _inBand(pixel(1, top + row)),
+            isFalse,
+            reason: 'left, row $row',
+          );
+          expect(
+            _inBand(pixel(388, top + row)),
+            isFalse,
             reason: 'right, row $row',
           );
         }
@@ -162,8 +173,8 @@ void main() {
         final pixel = await _pixels(tester);
         final top = _sheetTop(pixel);
 
-        expect(pixel(60, top + 3), _pink);
-        expect(pixel(330, top + 3), _pink);
+        expect(_inBand(pixel(60, top + 3)), isTrue);
+        expect(_inBand(pixel(330, top + 3)), isTrue);
       });
 
       testWidgets('Moderate clears the handle it has no banner under', (
