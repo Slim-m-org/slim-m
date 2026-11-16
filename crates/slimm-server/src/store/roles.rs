@@ -435,6 +435,9 @@ impl Store {
 /// `@everyone` base (which applies with no explicit assignment) or a role
 /// assigned to them directly.
 ///
+/// Only people the Space owner can pass to count, the same set `space_owner::hand_on_owner`
+/// picks an heir from: a bot or a member still waiting at the join gate cannot recover roles.
+///
 /// Excludes a webhook's principal even though it is a live `users` row that
 /// would otherwise inherit `@everyone`'s grant like anyone else: a webhook
 /// holds no roles at all (`docs/decisions/0030-incoming-webhooks.md`), and a
@@ -449,8 +452,9 @@ pub(super) async fn administrator_count(conn: &mut SqliteConnection) -> Result<i
     let admin_bit = Permissions::ADMINISTRATOR.bits();
     sqlx::query_scalar!(
         r#"SELECT COUNT(*) AS "count!: i64" FROM users u
-           WHERE u.deleted_at IS NULL AND u.is_webhook = 0
-           AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id) AND (
+           WHERE u.deleted_at IS NULL AND u.is_webhook = 0 AND u.is_bot = 0
+           AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)
+           AND NOT EXISTS (SELECT 1 FROM pending_members pm WHERE pm.user_id = u.id) AND (
                EXISTS (SELECT 1 FROM roles WHERE is_everyone = 1 AND (permissions & ?) != 0)
                OR EXISTS (
                    SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id

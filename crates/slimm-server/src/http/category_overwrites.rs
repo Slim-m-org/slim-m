@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Category permissions (decision 0064): a category's own overwrites, and
 //! syncing a channel back to them. The checks are the channel batch's own,
-//! with the caller's deployment-wide permissions as the ceiling.
+//! with the caller's deployment-wide permissions as the ceiling, and the role
+//! ladder on every target a write changes.
 
 use std::sync::Arc;
 
@@ -16,13 +17,14 @@ use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_
 use super::messages::parse_uuid;
 use super::overwrites::{
     BatchSetRequest, MAX_BATCH_ENTRIES, OverwriteDto, OverwritesDto, Target, check_bits,
-    parse_target, previously_visible_to, refuse_ungrantable,
+    parse_target, previously_visible_to, reach_target, refuse_ungrantable,
 };
+use super::role_ladder::Ladder;
 use crate::hub::Event;
 use crate::ids::{ChannelCategoryId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::OverwriteBatchEntry;
+use crate::store::{ChannelOverwrite, OverwriteBatchEntry};
 
 const BODY_LIMIT: usize = 16 * 1024;
 
@@ -104,6 +106,7 @@ async fn batch_set(
         return Err(ApiError::BadRequest("too many overwrites in one batch"));
     }
 
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
     let mut named = std::collections::HashSet::new();
     let mut entries = Vec::with_capacity(req.overwrites.len());
     let mut targets = Vec::with_capacity(req.overwrites.len());
@@ -136,6 +139,7 @@ async fn batch_set(
             .await?
             .unwrap_or((Permissions::NONE, Permissions::NONE));
         refuse_ungrantable(caller, allow.remove(old_allow).union(old_deny.remove(deny)))?;
+        reach_target(&state, &ladder, target).await?;
         targets.push(target);
         entries.push(OverwriteBatchEntry {
             target_type,
@@ -180,14 +184,20 @@ async fn sync(
         .and_then(|c| c.category_id)
         .ok_or(ApiError::Conflict("the channel is not in a category"))?;
     // Syncing can grant what the category grants, so the caller must hold all of it.
-    let mut targets = Vec::new();
-    for o in state.store.category_overwrites(category).await? {
+    let adopted = state.store.category_overwrites(category).await?;
+    for o in &adopted {
         refuse_ungrantable(caller, o.allow)?;
-        targets.push(target_of(&o.target_type, o.target_id));
     }
-    for o in state.store.channel_overwrites(channel_id).await? {
-        targets.push(target_of(&o.target_type, o.target_id));
+    let replaced = state.store.channel_overwrites(channel_id).await?;
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
+    for o in changed_by_sync(&adopted, &replaced) {
+        reach_target(&state, &ladder, target_of(&o.target_type, o.target_id)).await?;
     }
+    let targets: Vec<Target> = adopted
+        .iter()
+        .chain(&replaced)
+        .map(|o| target_of(&o.target_type, o.target_id))
+        .collect();
     let before = visible_before(&state, &[channel_id], &targets).await?;
     state.store.sync_channel_permissions(channel_id).await?;
     for (channel_id, previously_visible_to) in before {
@@ -201,6 +211,25 @@ async fn sync(
         overwrites: overwrites.into_iter().map(OverwriteDto::from).collect(),
         synced: Some(true),
     }))
+}
+
+/// The overwrites a sync adds, changes or drops: every row whose target does not keep its pair.
+fn changed_by_sync<'a>(
+    adopted: &'a [ChannelOverwrite],
+    replaced: &'a [ChannelOverwrite],
+) -> impl Iterator<Item = &'a ChannelOverwrite> {
+    let kept = |o: &ChannelOverwrite, other: &[ChannelOverwrite]| {
+        other.iter().any(|p| {
+            p.target_type == o.target_type
+                && p.target_id == o.target_id
+                && p.allow == o.allow
+                && p.deny == o.deny
+        })
+    };
+    adopted
+        .iter()
+        .filter(move |o| !kept(o, replaced))
+        .chain(replaced.iter().filter(move |o| !kept(o, adopted)))
 }
 
 fn target_of(kind: &str, id: uuid::Uuid) -> Target {

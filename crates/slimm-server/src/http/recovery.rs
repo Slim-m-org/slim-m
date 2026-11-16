@@ -65,6 +65,7 @@ struct ResetRequest {
 ///
 /// A person must also send their own password: a reset code is a way into any
 /// account, so a stolen administrator token alone must not be able to mint one.
+/// For the same reason the account must rank below the caller on the role ladder.
 async fn issue(
     AuthedLimited(ctx): AuthedLimited<PASSWORD>,
     Path(user_id): Path<String>,
@@ -76,6 +77,10 @@ async fn issue(
     super::reauth::require_admin_password(&state, ctx.user_id, &body).await?;
 
     let user_id = UserId(parse_uuid(&user_id)?);
+    super::role_ladder::Ladder::of(&state, ctx.user_id)
+        .await?
+        .reach_other(&state, user_id)
+        .await?;
     match state.store.issue_reset_code(ctx.user_id, user_id).await {
         Ok((code, expires_at)) => Ok(Json(ResetCodeIssued { code, expires_at })),
         Err(IssueResetError::NoSuchUser) => Err(ApiError::NotFound("user not found")),

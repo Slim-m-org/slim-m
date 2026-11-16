@@ -275,7 +275,7 @@ async fn an_administrator_who_is_not_the_owner_cannot_touch_the_top_role() {
 
 /// A role below the manager is still the owner's, so the manager cannot take it away from them.
 #[tokio::test]
-async fn nobody_but_the_owner_takes_a_role_from_the_owner() {
+async fn nobody_but_the_owner_gives_or_takes_the_owners_roles() {
     let l = ladder().await;
     ok(
         &l.app,
@@ -291,10 +291,11 @@ async fn nobody_but_the_owner_takes_a_role_from_the_owner() {
     assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
     assert_eq!(body["code"], "role_hierarchy");
     assert!(l.holds(&l.alice_id, &l.junior).await);
-    let (status, _) = l
+    let (status, body) = l
         .as_bob("PUT", &member_role(&l.alice_id, &l.junior), None)
         .await;
-    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["code"], "role_hierarchy");
 }
 
 #[tokio::test]

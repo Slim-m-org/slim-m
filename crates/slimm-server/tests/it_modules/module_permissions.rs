@@ -362,7 +362,7 @@ async fn a_manager_can_change_only_roles_below_their_own_and_only_permissions_th
 }
 
 #[tokio::test]
-async fn an_administrator_can_change_any_role_without_holding_the_permission() {
+async fn the_owner_can_change_any_role_without_holding_the_permission() {
     let (s, _guard) = store("slimm-module-perm-admin").await;
     let l = ladder(&s).await;
     let router = app(s.clone());
@@ -379,4 +379,38 @@ async fn an_administrator_can_change_any_role_without_holding_the_permission() {
             StatusCode::NO_CONTENT
         );
     }
+}
+
+/// An administrator other than the owner follows the ladder: holding every bit is not rank.
+#[tokio::test]
+async fn an_administrator_below_a_role_cannot_change_it() {
+    let (s, _guard) = store("slimm-module-perm-admin-ladder").await;
+    let l = ladder(&s).await;
+    let deputy = s
+        .create_role("deputy", Permissions::ADMINISTRATOR, false)
+        .await
+        .unwrap();
+    let roles = s.list_roles().await.unwrap();
+    let admin_role = roles.iter().find(|r| r.name == "admin").unwrap().id;
+    s.reorder_roles(&[admin_role, l.top, deputy, l.senior, l.junior])
+        .await
+        .unwrap();
+    let erin = s.create_user("erin", "Erin").await.unwrap();
+    s.assign_role(erin.id, deputy).await.unwrap();
+    let erin = s.open_session(erin.id, "pc").await.unwrap().access_token;
+    let router = app(s.clone());
+
+    for method in ["PUT", "DELETE"] {
+        let response = router
+            .clone()
+            .oneshot(req(method, &uri(l.top), &erin))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{method}");
+        assert_eq!(json_body(response).await["code"], "role_hierarchy");
+    }
+    assert_eq!(
+        status(&router, "PUT", l.senior, &erin).await,
+        StatusCode::NO_CONTENT
+    );
 }

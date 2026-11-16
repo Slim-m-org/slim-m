@@ -247,6 +247,8 @@ pub(in crate::http) async fn announce_member_gone(state: &AppState, target: User
 
 /// Lets a removed member back in. Requires BAN_MEMBERS. 404 if they were not
 /// removed, so a caller can tell an undo from a no-op.
+///
+/// A removed member keeps their roles, so this is gated like the removal itself.
 async fn restore_member(
     Authed(ctx): Authed,
     parts: Parts,
@@ -255,7 +257,7 @@ async fn restore_member(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let target = UserId(parse_uuid(&user_id)?);
-    require(&state, ctx.user_id, Permissions::BAN_MEMBERS).await?;
+    authorize(&state, ctx.user_id, target, Permissions::BAN_MEMBERS).await?;
 
     if state.store.restore_to_space(target, ctx.user_id).await? {
         state.hub.publish(Event::MemberRestored(target));

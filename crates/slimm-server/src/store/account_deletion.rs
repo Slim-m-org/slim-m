@@ -79,7 +79,8 @@ impl Store {
     /// That refusal only applies while somebody would actually be stranded.
     /// The last user of a deployment deleting themselves leaves nobody to
     /// administer, but also nobody to care, and refusing there would trap the
-    /// one person who most clearly has the right to leave.
+    /// one person who most clearly has the right to leave. Bots and webhooks
+    /// left behind are not people anyone strands.
     pub async fn delete_account(
         &self,
         user_id: UserId,
@@ -360,7 +361,7 @@ impl Store {
         if super::roles::administrator_count(&mut tx).await? == 0 {
             let others = sqlx::query_scalar!(
                 r#"SELECT COUNT(*) AS "n!: i64" FROM users
-                   WHERE deleted_at IS NULL AND id != ?"#,
+                   WHERE deleted_at IS NULL AND is_bot = 0 AND is_webhook = 0 AND id != ?"#,
                 user_id
             )
             .fetch_one(&mut *tx)

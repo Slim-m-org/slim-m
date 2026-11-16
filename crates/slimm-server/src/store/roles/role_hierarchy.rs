@@ -81,4 +81,16 @@ impl Store {
         .await?;
         Ok(position)
     }
+
+    /// Whether `user_id` holds `role_id` through `member_roles`.
+    pub async fn holds_role(&self, user_id: UserId, role_id: RoleId) -> anyhow::Result<bool> {
+        let held = sqlx::query_scalar!(
+            r#"SELECT 1 AS "one!: i64" FROM member_roles WHERE user_id = ? AND role_id = ?"#,
+            user_id,
+            role_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(held.is_some())
+    }
 }

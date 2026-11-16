@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.id AS \"creator!: UserId\",\n                  r.permissions AS \"permissions!: Permissions\", r.position AS \"position!: i64\",\n                  (r.managed_bot_id IS NOT NULL OR r.is_bots_role = 1) AS \"bot_held!: bool\",\n                  COALESCE(s.owner_id = i.created_by, 0) AS \"is_owner!: bool\"\n           FROM invites i JOIN roles r ON r.id = ? JOIN space_settings s ON s.id = 1\n           JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL\n           WHERE i.code = ?\n             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)",
+  "describe": {
+    "columns": [
+      {
+        "name": "creator!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "permissions!: Permissions",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "bot_held!: bool",
+        "ordinal": 3,
+        "type_info": "Null"
+      },
+      {
+        "name": "is_owner!: bool",
+        "ordinal": 4,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "8fae708fd7850cdc26eb3098262a8386302eae7ab09fa2f4ac5145efb9d90abf"
+}

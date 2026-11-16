@@ -69,6 +69,10 @@ A member stands at their highest role's position; a member holding no role stand
 A caller may grant, revoke, edit, reorder or delete only a role strictly below where they stand.
 A new role is created at position 0, so a caller whose highest role is at 0, or who holds none, cannot create one.
 A caller may kick from a call, time out, rename, remove, or delete the account of only a member standing strictly below them, single and bulk alike.
+The same goes for the acts that hand an account over or back: issuing a reset code, clearing a second factor, restoring a removed member (who keeps their roles), and moving someone else between calls.
+A permission overwrite on a role or a member, in a channel or a category, follows the ladder too, since it edits that role or acts on that member in one place; `@everyone` is below every role, and a caller's own member overwrite needs no rank.
+Managing a bot (creating one, a new token, revoking it, its permissions or prefix) needs every bit the bot holds and a rank above it, because its token acts with all of its roles; a new bot holds the shared Bots role, so its maker must stand above that role.
+An invite that grants a role is checked again when it is spent, against its maker as they are then; a maker who could no longer grant the role by hand gives nobody the role.
 A tie is refused, so two members whose highest roles share a position cannot act on each other, and neither can two members with no role.
 The ladder runs on top of the permission checks, never instead of them: the caller still needs the bit for the act, and still cannot grant or reach past bits they do not hold.
 Every ladder refusal is a 403 carrying `code` `role_hierarchy`; a tie between members keeps the reason `you cannot act on someone of equal rank`.
@@ -80,7 +84,8 @@ Their highest role is not below itself, so the ladder refuses dropping it, which
 
 The owner is the one member the ladder exempts, the way Discord exempts a server owner.
 Administrators follow the ladder like everyone else.
-Nobody else can moderate the owner or take a role away from them.
+Nobody else can moderate the owner, give them a role or take one away, delete a role they hold, or take bits from one.
+The last-administrator guard counts only people the owner could pass to, so the last human administrator cannot leave the roles to bots alone.
 The owner is not shown anywhere in the interface; profiles and `/me` carry `is_owner` only so a client can leave out what the server would refuse.
 
 The owner is the account that claimed the deployment.

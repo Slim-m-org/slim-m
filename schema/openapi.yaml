@@ -630,6 +630,7 @@ paths:
         the account and writes a totp_cleared entry to the moderation audit log,
         so it cannot be done quietly. A person must send their own password in
         the body; a bot has none and sends no body.
+        Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`. A caller's own account needs no rank.
       requestBody:
         required: false
         content:
@@ -669,6 +670,7 @@ paths:
         expires on its own even if nobody redeems it. Issuing one is written to
         the moderation audit log as `reset_code_issue`. A person must send their
         own password in the body; a bot has none and sends no body.
+        Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`. A caller's own account needs no rank.
       requestBody:
         required: false
         content:
@@ -2856,6 +2858,7 @@ paths:
         deny are both zero removes that target. Every synced channel in the
         category gets a copy of the result in the same transaction, and an
         overwrite.changed frame each.
+        Every entry follows the role ladder `setChannelOverwrite` describes; one out of reach refuses the whole batch.
       requestBody:
         required: true
         content:
@@ -3315,6 +3318,7 @@ paths:
         `color` clears the colour. A permissions change is checked the same
         way `createRole` checks one, and is refused if it would leave the
         deployment with no administrator. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
+        Nobody but the Space owner takes permissions away from a role the owner holds (a 403 with `code` `role_hierarchy`).
       requestBody:
         required: true
         content:
@@ -3349,6 +3353,7 @@ paths:
         if this role is the deployment's only remaining source of
         ADMINISTRATOR. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A bot's own role may be deleted
         under the same rule.
+        Nobody but the Space owner deletes a role the owner holds (a 403 with `code` `role_hierarchy`).
       responses:
         "204":
           description: The role was deleted.
@@ -3445,6 +3450,7 @@ paths:
       description: >
         Idempotent. Refused with 404 if no installed module currently
         declares `(moduleId, permKey)`.
+        Role ladder: the role must sit strictly below the caller's own highest role, administrators included, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
           description: The role now holds the permission.
@@ -3462,7 +3468,9 @@ paths:
       operationId: revokeModulePermission
       tags: [roles]
       summary: Revoke a module permission from a role. Requires MANAGE_ROLES.
-      description: Idempotent - revoking one not held still succeeds.
+      description: >
+        Idempotent - revoking one not held still succeeds.
+        Role ladder: the role must sit strictly below the caller's own highest role, administrators included, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
           description: The role no longer holds the permission.
@@ -3505,6 +3513,7 @@ paths:
         is a 400. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may grant themselves a role this
         way too. A bot's own role and the shared Bots role follow their bots
         and are never granted by hand (409, `code` `role_follows_bot`).
+        Nobody but the Space owner gives the owner a role (a 403 with `code` `role_hierarchy`).
       responses:
         "204":
           description: The role is assigned.
@@ -3969,6 +3978,7 @@ paths:
       description: >
         Restores the right to sign in. Their sessions stay revoked, so every
         device signs in again rather than resuming.
+        A removed member keeps their roles, so restoring one is gated like removing them: their granted permissions must be within the caller's. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
           description: The member may sign in again.
@@ -4025,6 +4035,7 @@ paths:
         so one entry failing refuses the whole request rather than partially
         applying it. An entry that allows and denies the same bit, and a
         request that names one role or member twice, are refused with 400.
+        Every entry follows the role ladder `setChannelOverwrite` describes; one out of reach refuses the whole batch.
       requestBody:
         required: true
         content:
@@ -4061,6 +4072,7 @@ paths:
         marks it synced (decision 0064). Requires MANAGE_ROLES in the channel
         and every bit the category allows. 409 when the channel is not in a
         category.
+        Every overwrite the sync adds, changes or drops follows the role ladder `setChannelOverwrite` describes.
       responses:
         "200":
           description: The channel's overwrites after the sync.
@@ -4107,6 +4119,7 @@ paths:
         the caller's own effective permissions in this channel and refused
         if it would force on a bit the caller does not hold; `deny` is a
         restriction, not a grant, and carries no such check.
+        Role ladder: a role target must sit strictly below the caller's own highest role (`@everyone` always does), and a member target must rank below the caller unless it is the caller; nobody but the Space owner targets the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -4133,6 +4146,7 @@ paths:
       description: >
         Requires MANAGE_ROLES in this channel. Idempotent: clearing one that
         was never set still succeeds.
+        Follows the same role ladder as setting one.
       responses:
         "204":
           description: The overwrite is cleared (or never existed).
@@ -8500,6 +8514,7 @@ paths:
         not full. Sends the moved account a `voice.moved` frame, takes them out
         of the source room, and records a `voice_move` entry in the moderation
         history.
+        Moving somebody else is gated like a voice kick: their permissions in the source call must be within the caller's there. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -8899,6 +8914,7 @@ paths:
         refuses a command registration that clashes with another live bot's
         (see `setBotCommands`). A `prefix` follows the same shape rules as one
         registered with commands.
+        The new bot holds the shared Bots role, so the caller must also hold every bit that role grants and, unless the Space owner, stand strictly above it on the role ladder (a 403 with `code` `role_hierarchy`).
       requestBody:
         required: true
         content:
@@ -8963,6 +8979,7 @@ paths:
         Stops the bot on its next request. The account and its roles stay, so
         what it wrote stays attributed to it, exactly as revoking a person's
         session does.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder; refused as a 403, with `code` `role_hierarchy` for the ladder.
       responses:
         "204":
           description: Revoked.
@@ -8997,6 +9014,7 @@ paths:
         role and what it wrote are kept. Refused for a caller that is itself a
         bot, and for a bot that has been removed from the Space (restore it
         first). Recorded in the moderation history as `bot_token_reissue`.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder, since its token acts with all of it; refused as a 403, with `code` `role_hierarchy` for the ladder.
       responses:
         "200":
           description: The bot, and its new token once.
@@ -9684,6 +9702,7 @@ paths:
         already be held by the caller, and the role's *current* bits must not
         already exceed what the caller holds. See
         docs/decisions/0028-bot-accounts.md.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot and its role on the role ladder; refused as a 403, with `code` `role_hierarchy` for the ladder.
       requestBody:
         required: true
         content:
@@ -9733,6 +9752,7 @@ paths:
         registers under the old prefix afterwards is refused with 409 until it
         reconnects and reads the new one from `/me`. Recorded in the admin
         audit log as `bot.prefix`.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder; refused as a 403, with `code` `role_hierarchy` for the ladder.
       requestBody:
         required: true
         content:

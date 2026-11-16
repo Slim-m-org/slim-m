@@ -258,13 +258,18 @@ async fn update(
     // Read before the write, against granted permissions; see `escalation`.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
-        Ladder::of(&state, ctx.user_id)
-            .await?
-            .reach_role(current.position)?;
+        let ladder = Ladder::of(&state, ctx.user_id).await?;
+        ladder.reach_role(current.position)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
         )?;
+        if changes
+            .permissions
+            .is_some_and(|bits| !bits.contains(current.permissions))
+        {
+            ladder.spare_owners_role(&state, role_id).await?;
+        }
     }
 
     // Hoist and colour cannot remove an administrator, so they need no guard of their own.
@@ -303,13 +308,13 @@ async fn delete(
     // Read before the mutating write; see `update`'s identical note.
     let before = state.store.role(role_id).await?;
     if let Some(current) = &before {
-        Ladder::of(&state, ctx.user_id)
-            .await?
-            .reach_role(current.position)?;
+        let ladder = Ladder::of(&state, ctx.user_id).await?;
+        ladder.reach_role(current.position)?;
         escalation_guard(
             caller_granted(&state, ctx.user_id).await?,
             current.permissions,
         )?;
+        ladder.spare_owners_role(&state, role_id).await?;
     }
 
     match state.store.delete_role(role_id).await {
@@ -347,9 +352,9 @@ async fn assign(
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
     hand_assignable(&role)?;
-    Ladder::of(&state, ctx.user_id)
-        .await?
-        .reach_role(role.position)?;
+    let ladder = Ladder::of(&state, ctx.user_id).await?;
+    ladder.spare_owner(user_id)?;
+    ladder.reach_role(role.position)?;
     escalation_guard(caller_granted(&state, ctx.user_id).await?, role.permissions)?;
 
     let target = state

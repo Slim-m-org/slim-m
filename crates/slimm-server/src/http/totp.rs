@@ -254,6 +254,7 @@ async fn verify(
 /// 0048 records why collapsing the two would make the factor worth no more than
 /// one administrator's say-so. It revokes every session and writes a
 /// `totp_cleared` audit entry, so the act leaves a trace that outlives it.
+/// Like a reset code, it reaches only an account ranking below the caller.
 async fn admin_clear(
     AuthedLimited(ctx): AuthedLimited<PASSWORD>,
     Path(user_id): Path<String>,
@@ -264,6 +265,10 @@ async fn admin_clear(
         .await?;
     super::reauth::require_admin_password(&state, ctx.user_id, &body).await?;
     let user_id = UserId(parse_uuid(&user_id)?);
+    super::role_ladder::Ladder::of(&state, ctx.user_id)
+        .await?
+        .reach_other(&state, user_id)
+        .await?;
     let revoked = state
         .store
         .clear_totp_factor(Some(ctx.user_id), user_id)

@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 
 use super::AppState;
 use super::error::ApiError;
-use crate::ids::UserId;
+use crate::ids::{RoleId, UserId};
 use crate::store::Role;
 
 /// The stable `code` every ladder refusal carries, so a client never reads the sentence.
@@ -76,12 +76,39 @@ impl Ladder {
         .map_err(refusal)
     }
 
-    /// Refuses taking a role away from the owner, unless the owner does it.
+    /// [`Self::reach_member`], except that an act a caller aims at themselves needs no rank.
+    pub(in crate::http) async fn reach_other(
+        &self,
+        state: &AppState,
+        target: UserId,
+    ) -> Result<(), ApiError> {
+        if target == self.caller {
+            Ok(())
+        } else {
+            self.reach_member(state, target).await
+        }
+    }
+
+    /// Refuses giving the owner a role or taking one away, unless the owner does it.
     pub(in crate::http) fn spare_owner(&self, target: UserId) -> Result<(), ApiError> {
         if self.owner == Some(target) && !self.exempt() {
             Err(refusal(MEMBER_NOT_BELOW_YOU))
         } else {
             Ok(())
+        }
+    }
+
+    /// Refuses deleting a role the owner holds, or taking bits from it, unless the owner does it.
+    pub(in crate::http) async fn spare_owners_role(
+        &self,
+        state: &AppState,
+        role: RoleId,
+    ) -> Result<(), ApiError> {
+        match self.owner {
+            Some(owner) if !self.exempt() && state.store.holds_role(owner, role).await? => {
+                Err(refusal(MEMBER_NOT_BELOW_YOU))
+            }
+            _ => Ok(()),
         }
     }
 }

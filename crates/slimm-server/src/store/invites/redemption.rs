@@ -7,6 +7,7 @@ use sqlx::QueryBuilder;
 
 use super::RedeemError;
 use crate::ids::{RoleId, UserId};
+use crate::permissions::{Permissions, evaluate};
 use crate::store::{Store, now_ms};
 
 impl Store {
@@ -46,13 +47,7 @@ impl Store {
         record_redemption(&mut tx, code, user_id, now).await?;
 
         if let Some(role_id) = role_grant {
-            sqlx::query!(
-                "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
-                user_id,
-                role_id
-            )
-            .execute(&mut *tx)
-            .await?;
+            apply_role_grant(&mut tx, code, user_id, role_id).await?;
         }
 
         tx.commit().await?;
@@ -150,4 +145,78 @@ pub(in crate::store) async fn record_redemption(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+/// Gives `user_id` the role `code` grants, but only while its creator could still grant it by
+/// hand: a creator demoted or removed since the invite was made no longer hands out the role.
+pub(in crate::store) async fn apply_role_grant(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    code: &str,
+    user_id: UserId,
+    role_id: RoleId,
+) -> Result<(), sqlx::Error> {
+    if !creator_still_grants(tx, code, role_id).await? {
+        tracing::info!(%role_id, "an invite's creator can no longer grant its role; joined without it");
+        return Ok(());
+    }
+    sqlx::query!(
+        "INSERT OR IGNORE INTO member_roles (user_id, role_id) VALUES (?, ?)",
+        user_id,
+        role_id
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// The checks `http::invites::resolve_grant` ran at creation, against the creator as they are now.
+async fn creator_still_grants(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    code: &str,
+    role_id: RoleId,
+) -> Result<bool, sqlx::Error> {
+    let grant = sqlx::query!(
+        r#"SELECT u.id AS "creator!: UserId",
+                  r.permissions AS "permissions!: Permissions", r.position AS "position!: i64",
+                  (r.managed_bot_id IS NOT NULL OR r.is_bots_role = 1) AS "bot_held!: bool",
+                  COALESCE(s.owner_id = i.created_by, 0) AS "is_owner!: bool"
+           FROM invites i JOIN roles r ON r.id = ? JOIN space_settings s ON s.id = 1
+           JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL
+           WHERE i.code = ?
+             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)"#,
+        role_id,
+        code
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    let Some(grant) = grant.filter(|g| !g.bot_held) else {
+        return Ok(false);
+    };
+    let held = sqlx::query!(
+        r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64",
+                  is_everyone AS "is_everyone!: bool"
+           FROM roles
+           WHERE is_everyone = 1
+              OR id IN (SELECT role_id FROM member_roles WHERE user_id = ?)"#,
+        grant.creator
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    let everyone = held
+        .iter()
+        .filter(|r| r.is_everyone)
+        .fold(Permissions::NONE, |bits, r| bits.union(r.permissions));
+    let roles: Vec<Permissions> = held
+        .iter()
+        .filter(|r| !r.is_everyone)
+        .map(|r| r.permissions)
+        .collect();
+    let granted = evaluate(everyone, &roles, None, &[], None);
+    let top = held
+        .iter()
+        .filter(|r| !r.is_everyone)
+        .map(|r| r.position)
+        .max();
+    let ranks = grant.is_owner || top.is_some_and(|top| grant.position < top);
+    Ok(ranks && granted.contains(Permissions::MANAGE_ROLES) && granted.contains(grant.permissions))
 }

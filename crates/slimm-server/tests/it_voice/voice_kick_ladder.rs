@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! A voice kick follows the role ladder's owner rules: the Space owner kicks anyone, and nobody
-//! kicks the owner, an administrator holding the owner's own top role included.
+//! A voice kick, and a move that takes someone out of their call, follow the role ladder's owner
+//! rules: the Space owner kicks anyone, and nobody kicks or moves the owner, an administrator
+//! holding the owner's own top role included.
 
 use axum::Router;
 use axum::http::StatusCode;
@@ -10,7 +11,7 @@ use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 use crate::support;
-use support::app::request_bare as request;
+use support::app::{json_body, request_bare as request, request_json};
 
 fn app(store: Store) -> Router {
     let voice = VoiceService::for_test(
@@ -67,4 +68,14 @@ async fn the_owner_kicks_a_fellow_administrator_who_cannot_kick_the_owner() {
         StatusCode::SERVICE_UNAVAILABLE,
         "past every guard; the unreachable SFU answers next"
     );
+
+    let other = store.create_channel("games", "voice").await.unwrap().id;
+    let uri = format!("/channels/{channel}/voice/participants/{}/move", alice.id);
+    let body = serde_json::json!({ "to_channel_id": other.to_string() });
+    let response = app(store.clone())
+        .oneshot(request_json("POST", &uri, &erin_token, body))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(json_body(response).await["code"], "role_hierarchy");
 }

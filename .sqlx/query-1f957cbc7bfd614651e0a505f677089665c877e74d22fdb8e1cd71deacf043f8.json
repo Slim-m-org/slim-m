@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT permissions AS \"permissions!: Permissions\", position AS \"position!: i64\",\n                  is_everyone AS \"is_everyone!: bool\"\n           FROM roles\n           WHERE is_everyone = 1\n              OR id IN (SELECT role_id FROM member_roles WHERE user_id = ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "permissions!: Permissions",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_everyone!: bool",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1f957cbc7bfd614651e0a505f677089665c877e74d22fdb8e1cd71deacf043f8"
+}
