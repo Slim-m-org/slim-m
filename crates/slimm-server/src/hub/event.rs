@@ -161,15 +161,8 @@ pub enum Event {
     /// never reach anyone - see
     /// [`crate::store::Store::viewed_channel_before_delete`].
     ChannelDeleted { channel_id: ChannelId },
-    /// A category was created, renamed, repositioned, or deleted. Carries no
-    /// fields at all, the plainest form of the "re-ask what changed" shape
-    /// [`Event::RoleChanged`] already uses: a category is organisational
-    /// only (see docs/decisions/0006-channel-categories.md), so there is
-    /// nothing privileged to withhold and nothing per-viewer to resolve -
-    /// unlike a role's bits, a category's name and position are exactly what
-    /// `GET /channels` already hands every viewer unfiltered. A receiving
-    /// client re-fetches the channel list, the same path a channel create,
-    /// rename, or delete already drives.
+    /// A category was created, renamed, moved or deleted. Payload-free because it is broadcast
+    /// unfiltered while `GET /categories` filters per viewer; clients re-fetch both lists.
     CategoryChanged,
     /// A deployment-wide Space display setting changed; carries nothing, a client re-reads `/version`.
     SpaceSettingsChanged,

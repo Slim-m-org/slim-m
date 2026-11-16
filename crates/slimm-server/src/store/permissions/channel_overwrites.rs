@@ -57,6 +57,7 @@ impl Store {
         let mut tx = self.begin_write().await?;
         set_overwrite(&mut *tx, channel_id, target_type, target_id, allow, deny).await?;
         crate::store::category_overwrites::mark_unsynced(&mut *tx, channel_id).await?;
+        crate::store::voice_rooms::copy_lobby_overwrites_into_rooms(&mut tx, channel_id).await?;
         tx.commit().await?;
         Ok(())
     }

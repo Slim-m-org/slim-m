@@ -232,6 +232,12 @@ abstract final class AppIcons {
   /// Making a new channel category, beside [add] (a new channel) in the rail's
   /// own menu, so the two "create" items read as different things at a glance.
   static const IconData addCategory = LucideIcons.folderPlus300;
+
+  /// A category as a place things are filed under, and moving one into
+  /// another, then back out to the top level (decision 0120).
+  static const IconData category = LucideIcons.folder300;
+  static const IconData moveIntoCategory = LucideIcons.folderInput300;
+  static const IconData moveOutOfCategory = LucideIcons.folderOutput300;
   static const IconData canvas = LucideIcons.pencilRuler300;
 
   /// The canvas's own draw/erase toggle. Distinct constants from [edit] even
@@ -392,6 +398,9 @@ abstract final class AppIcons {
 
   static const IconData delete = LucideIcons.trash2300;
   static const IconData revoke = LucideIcons.ban300;
+
+  /// A drop or a step that is not allowed here, such as a third category level.
+  static const IconData notAllowed = LucideIcons.ban300;
 
   /// Undoing a block. Distinct from [revoke]: "Block" and "Unblock" are
   /// opposite actions that used to share [revoke]'s glyph, which drew the

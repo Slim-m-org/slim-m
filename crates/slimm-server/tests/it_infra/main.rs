@@ -38,6 +38,7 @@ mod moderation_audit_action_widening;
 mod moderation_audit_backfill;
 mod moderation_audit_rebuilds;
 mod moderation_history_index_plan;
+mod nested_categories_migration;
 mod openapi_400_coverage;
 mod openapi_429_coverage;
 mod openapi_contract;

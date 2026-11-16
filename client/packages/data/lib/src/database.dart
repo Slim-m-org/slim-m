@@ -149,8 +149,12 @@ class ChannelCategories extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
 
-  /// Sort key among the deployment's live categories: lower sorts first.
+  /// Sort key among its siblings, lower first: the top-level categories, or
+  /// one parent's sub-categories (decision 0120).
   IntColumn get position => integer().withDefault(const Constant(0))();
+
+  /// The top-level category this one sits in, or null for a top-level one.
+  TextColumn get parentId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -334,7 +338,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 31;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -455,6 +459,10 @@ class SlimmDatabase extends _$SlimmDatabase {
               'UPDATE messages SET mentions_me = 1 WHERE seq > 0 AND seq = '
               '(SELECT mentioned_seq FROM channels WHERE channels.id = messages.channel_id)');
         }),
+        _UpgradeStep(
+            31,
+            () => _addColumnOnce(
+                m, channelCategories, channelCategories.parentId)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

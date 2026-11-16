@@ -130,4 +130,66 @@ pub(super) async fn category_overwrite_calls(c: &mut Contract, root: &str, categ
         root,
     )
     .await;
+    sub_category_calls(c, root, category_id).await;
+}
+
+/// Nested categories (decision 0120): a sub-category under `parent`, a move
+/// out and back, its sync with the parent, and the arrangement written back
+/// unchanged.
+async fn sub_category_calls(c: &mut Contract, root: &str, parent: &str) {
+    let sub = c
+        .json(
+            "createCategory",
+            "POST",
+            "/categories",
+            root,
+            json!({ "name": "nested", "parent_id": parent }),
+        )
+        .await;
+    let sub = text(&sub, "id");
+    let uri = format!("/categories/{sub}");
+    c.json(
+        "updateCategory",
+        "PATCH",
+        &uri,
+        root,
+        json!({ "parent_id": null }),
+    )
+    .await;
+    c.json(
+        "updateCategory",
+        "PATCH",
+        &uri,
+        root,
+        json!({ "parent_id": parent }),
+    )
+    .await;
+    c.bare(
+        "syncCategoryOverwrites",
+        "POST",
+        &format!("/categories/{sub}/overwrites/sync"),
+        root,
+    )
+    .await;
+    let listed = c.get("listCategories", "/categories", root).await;
+    let mut groups: Vec<(serde_json::Value, Vec<String>)> = vec![(json!(null), Vec::new())];
+    for category in listed.as_array().unwrap() {
+        let parent = category["parent_id"].clone();
+        match groups.iter_mut().find(|(p, _)| *p == parent) {
+            Some((_, ids)) => ids.push(text(category, "id")),
+            None => groups.push((parent, vec![text(category, "id")])),
+        }
+    }
+    let groups: Vec<_> = groups
+        .into_iter()
+        .map(|(parent, ids)| json!({ "parent_id": parent, "category_ids": ids }))
+        .collect();
+    c.json(
+        "reorderCategories",
+        "PUT",
+        "/categories/order",
+        root,
+        json!({ "groups": groups }),
+    )
+    .await;
 }

@@ -27,8 +27,6 @@
 //! half-applied. Same checks as [`set`], run per entry before any of them
 //! write.
 
-use std::sync::Arc;
-
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
@@ -40,8 +38,8 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
+use super::overwrite_changes::{publish_changed, visible_before};
 use super::role_ladder::Ladder;
-use crate::hub::Event;
 use crate::ids::{ChannelId, RoleId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -180,6 +178,21 @@ async fn require_manage_roles_here(
     Ok(permissions)
 }
 
+/// [`require_manage_roles_here`] for a write, which a temporary room never takes: it holds its
+/// lobby's rows (decision 0065), and the lobby's next write would replace a row of its own.
+pub(super) async fn require_writable_here(
+    state: &AppState,
+    user_id: UserId,
+    channel_id: ChannelId,
+) -> Result<Permissions, ApiError> {
+    let permissions = require_manage_roles_here(state, user_id, channel_id).await?;
+    let channel = state.store.channel(channel_id).await?;
+    if channel.is_some_and(|c| c.room.is_room()) {
+        return Err(ApiError::Conflict("a temporary room follows its lobby"));
+    }
+    Ok(permissions)
+}
+
 /// Refuses a write that hands out bits the caller lacks, naming them in the body.
 pub(super) fn refuse_ungrantable(
     caller: Permissions,
@@ -225,7 +238,7 @@ async fn set(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller_permissions = require_manage_roles_here(&state, ctx.user_id, channel_id).await?;
+    let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
     let target = parse_target(&kind, &id)?;
 
     let allow = Permissions::from_bits(req.allow);
@@ -246,7 +259,7 @@ async fn set(
     refuse_ungrantable(caller_permissions, granted)?;
     reach_target(&state, &Ladder::of(&state, ctx.user_id).await?, target).await?;
 
-    let previously_visible_to = previously_visible_to(&state, channel_id, target).await?;
+    let before = visible_before(&state, &[channel_id], &[target]).await?;
     match target {
         Target::Role(role_id) => {
             if state.store.role(role_id).await?.is_none() {
@@ -267,10 +280,7 @@ async fn set(
                 .await?;
         }
     }
-    state.hub.publish(Event::OverwriteChanged {
-        channel_id,
-        previously_visible_to: Arc::new(previously_visible_to),
-    });
+    publish_changed(&state, before);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -311,7 +321,7 @@ async fn batch_set(
 ) -> Result<Json<OverwritesDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller_permissions = require_manage_roles_here(&state, ctx.user_id, channel_id).await?;
+    let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
 
     if req.overwrites.len() > MAX_BATCH_ENTRIES {
         return Err(ApiError::BadRequest("too many overwrites in one batch"));
@@ -365,22 +375,12 @@ async fn batch_set(
         });
     }
 
-    // Resolved before the write, per target then deduplicated; see `previously_visible_to`.
-    let mut previously_visible_to_all = Vec::new();
-    for target in &targets {
-        previously_visible_to_all.extend(previously_visible_to(&state, channel_id, *target).await?);
-    }
-    previously_visible_to_all.sort();
-    previously_visible_to_all.dedup();
-
+    let before = visible_before(&state, &[channel_id], &targets).await?;
     state
         .store
         .set_channel_overwrites_batch(channel_id, &entries)
         .await?;
-    state.hub.publish(Event::OverwriteChanged {
-        channel_id,
-        previously_visible_to: Arc::new(previously_visible_to_all),
-    });
+    publish_changed(&state, before);
 
     let overwrites = state
         .store
@@ -415,7 +415,7 @@ async fn clear(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let caller_permissions = require_manage_roles_here(&state, ctx.user_id, channel_id).await?;
+    let caller_permissions = require_writable_here(&state, ctx.user_id, channel_id).await?;
     let target = parse_target(&kind, &id)?;
 
     // Checked against the bits being handed back; see the note on this
@@ -433,7 +433,7 @@ async fn clear(
     }
     reach_target(&state, &Ladder::of(&state, ctx.user_id).await?, target).await?;
 
-    let previously_visible_to = previously_visible_to(&state, channel_id, target).await?;
+    let before = visible_before(&state, &[channel_id], &[target]).await?;
     match target {
         Target::Role(role_id) => {
             state
@@ -448,31 +448,6 @@ async fn clear(
                 .await?
         }
     }
-    state.hub.publish(Event::OverwriteChanged {
-        channel_id,
-        previously_visible_to: Arc::new(previously_visible_to),
-    });
+    publish_changed(&state, before);
     Ok(StatusCode::NO_CONTENT)
-}
-
-/// Who this overwrite affects and could already view the channel, resolved
-/// before the write lands.
-///
-/// See [`Event::OverwriteChanged`] for why the event needs it: the ordinary
-/// per-viewer check runs after the change, so the people whose access it just
-/// removed are exactly the ones it would exclude.
-pub(super) async fn previously_visible_to(
-    state: &AppState,
-    channel_id: ChannelId,
-    target: Target,
-) -> Result<Vec<UserId>, ApiError> {
-    let affected = match target {
-        Target::Member(user_id) => vec![user_id],
-        Target::Role(role_id) => match state.store.role(role_id).await? {
-            // `@everyone` has no `member_roles` rows; it applies to every live member.
-            Some(role) if role.is_everyone => state.store.all_live_user_ids().await?,
-            _ => state.store.members_with_role(role_id).await?,
-        },
-    };
-    Ok(state.store.viewers_among(channel_id, &affected).await?)
 }

@@ -238,3 +238,51 @@ async fn only_a_role_manager_changes_category_permissions() {
         StatusCode::NOT_FOUND
     );
 }
+
+#[tokio::test]
+async fn syncing_a_channel_cannot_drop_a_deny_the_caller_could_not_lift() {
+    let w = world("slimm-catperm-sync-deny").await;
+    let channel = w.channel("plans", false).await;
+    let quiet = |id: &str| json!({"kind": "role", "id": id, "allow": 0, "deny": Permissions::SEND_MESSAGES.bits()});
+    let uri = format!("/channels/{channel}/overwrites");
+    let body = json!({"overwrites": [quiet(&w.staff_role)]});
+    assert_eq!(
+        call(&w.app, "PUT", &uri, &w.admin, Some(body)).await.0,
+        StatusCode::OK
+    );
+    let (manager, manager_id) = register(&w.store, "manager").await;
+    let manages = Permissions::MANAGE_ROLES.union(Permissions::VIEW_CHANNEL);
+    let role = w
+        .store
+        .create_role("role-manager", manages, false)
+        .await
+        .unwrap();
+    let manager_id = UserId(manager_id.parse().unwrap());
+    w.store.assign_role(manager_id, role).await.unwrap();
+    let view_only = json!({"permissions": Permissions::VIEW_CHANNEL.bits()});
+    let everyone = format!("/roles/{}", w.everyone);
+    assert_eq!(
+        call(&w.app, "PATCH", &everyone, &w.admin, Some(view_only))
+            .await
+            .0,
+        StatusCode::OK
+    );
+
+    let sync = format!("/channels/{channel}/overwrites/sync");
+    let (status, body) = call(&w.app, "POST", &sync, &manager, None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(w.synced(&channel).await, json!(false));
+
+    let category = format!("/categories/{}/overwrites", w.category);
+    let body = json!({"overwrites": [quiet(&w.staff_role)]});
+    assert_eq!(
+        call(&w.app, "PUT", &category, &w.admin, Some(body)).await.0,
+        StatusCode::OK
+    );
+    let (status, body) = call(&w.app, "POST", &sync, &manager, None).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a deny the category keeps is not lifted: {body}"
+    );
+}

@@ -5,9 +5,9 @@
 ///
 /// The counterpart to `manage_channel_sheet.dart` for a category, which has
 /// only a name - no topic and no last-channel guard - so this is the same
-/// shape with the middle taken out. Deleting a category never deletes its
-/// channels; they fall back to uncategorised, which the confirmation says so a
-/// manager is not left guessing whether a delete takes the rooms with it.
+/// shape with the middle taken out. Deleting a category never deletes what is
+/// in it; everything moves up one level (decision 0120), which the
+/// confirmation says so a manager is not left guessing.
 library;
 
 import 'package:flutter/material.dart';
@@ -23,26 +23,43 @@ import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/name_sheet.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/channel_actions.dart';
+import 'category_tree.dart';
+import 'rail_category_slots.dart';
 
 const _deleteCategoryAction = 'delete the category';
 
 /// The one confirmation for deleting a category, asked the same way wherever
 /// the delete was started from.
 ///
-/// The point it has to make is that the channels survive - a manager who thinks a delete takes the rooms with it will not
-/// press the button.
+/// The point it has to make is that the contents survive, and where they go:
+/// a manager who thinks a delete takes the rooms with it will not press it.
 Future<bool> confirmCategoryDeletion(
   BuildContext context,
-  ChannelCategoryRow category,
-) => confirmDangerousAction(
+  ChannelCategoryRow category, {
+  String? parentName,
+  bool hasSubCategories = false,
+}) => confirmDangerousAction(
   context,
   title: 'Delete "${category.name}"?',
   message:
-      'Its channels are never deleted with it - they fall back to '
-      'uncategorised. This cannot be undone.',
+      '${_whereContentsGo(parentName, hasSubCategories)} '
+      'This cannot be undone.',
   confirmLabel: 'Delete',
   cancelLabel: 'Keep category',
 );
+
+String _whereContentsGo(String? parentName, bool hasSubCategories) {
+  if (parentName != null) {
+    return 'Its channels are never deleted with it - they move up into '
+        '"$parentName".';
+  }
+  if (hasSubCategories) {
+    return 'Its channels are never deleted with it - they fall back to '
+        'uncategorised, and its sub-categories become categories of their own.';
+  }
+  return 'Its channels are never deleted with it - they fall back to '
+      'uncategorised.';
+}
 
 /// Deletes [category] and drops it from the local store.
 ///
@@ -66,9 +83,17 @@ Future<void> deleteCategoryAndForget(
 Future<void> confirmAndDeleteCategory(
   BuildContext context,
   WidgetRef ref,
-  ChannelCategoryRow category,
-) async {
-  if (!await confirmCategoryDeletion(context, category)) return;
+  ChannelCategoryRow category, {
+  String? parentName,
+  bool hasSubCategories = false,
+}) async {
+  final confirmed = await confirmCategoryDeletion(
+    context,
+    category,
+    parentName: parentName,
+    hasSubCategories: hasSubCategories,
+  );
+  if (!confirmed) return;
   final failure = await runGuarded(
     whatFailed: _deleteCategoryAction,
     action: () => deleteCategoryAndForget(ref, category),
@@ -76,36 +101,27 @@ Future<void> confirmAndDeleteCategory(
   if (failure != null && context.mounted) showAppSnackbar(context, failure);
 }
 
-/// Swaps [category] with its neighbour [delta] steps away (-1 up, 1 down) in
-/// [ordered], the rail header menu's own reorder path. Not a drag: a category
-/// header dragged through the rail's flat, single-list channel rows would
-/// risk silently reassigning the channels it passed over on the way, since
-/// that list attributes every channel to whichever header precedes it. A
-/// menu step can only ever mean "these two categories, swapped."
+/// Moves [category] one place among its siblings by [delta] (-1 up, 1 down),
+/// the header menu's own reorder path, as one whole arrangement.
 ///
-/// Reports a failure the same way [confirmAndDeleteCategory] does: the menu
-/// has already closed by the time the request answers, so a snackbar carries
-/// it rather than an inline [AppErrorState] with nowhere left to sit.
+/// A refusal stays in [categoryOrderControllerProvider], which the rail
+/// shows inline with a retry; the menu has already closed by then.
 Future<void> moveCategoryAndReport(
   BuildContext context,
-  List<ChannelCategoryRow> ordered,
+  List<ChannelCategoryRow> categories,
   ChannelCategoryRow category,
   int delta,
 ) async {
-  final index = ordered.indexWhere((c) => c.id == category.id);
-  final target = index + delta;
-  if (index < 0 || target < 0 || target >= ordered.length) return;
-
-  final ids = [for (final c in ordered) c.id];
-  ids.insert(target, ids.removeAt(index));
-  final container = ProviderScope.containerOf(context, listen: false);
-  final controller = container.read(categoryOrderControllerProvider.notifier);
-  await controller.reorder(ids);
-
-  final error = container.read(categoryOrderControllerProvider).error;
-  if (error == null) return;
-  controller.dismiss();
-  if (context.mounted) showAppSnackbar(context, error);
+  final groups = groupsAfterSiblingStep(
+    CategoryTree(categories),
+    category.id,
+    delta,
+  );
+  if (groups == null) return;
+  await ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(categoryOrderControllerProvider.notifier).arrange(groups);
 }
 
 Future<void> showRenameCategorySheet(

@@ -12,21 +12,24 @@ import 'database.dart';
 import 'message_store.dart';
 
 extension CategoryStore on MessageStore {
-  /// Watches every live category, in display order - the same "position,
-  /// then id" ordering the server's own `list_categories` applies.
-  Stream<List<ChannelCategoryRow>> watchCategories() {
-    final query = db.select(db.channelCategories)
-      ..orderBy([(c) => OrderingTerm(expression: c.position)]);
-    return query.watch();
-  }
+  /// Watches every live category by position then id; a position orders
+  /// siblings only, so the rail arranges the tree itself (decision 0120).
+  Stream<List<ChannelCategoryRow>> watchCategories() =>
+      _ordered(db.select(db.channelCategories)).watch();
 
   /// [watchCategories]'s own snapshot, for a caller that wants today's list
   /// once rather than a subscription it would only ever read one value from.
-  Future<List<ChannelCategoryRow>> allCategories() {
-    final query = db.select(db.channelCategories)
-      ..orderBy([(c) => OrderingTerm(expression: c.position)]);
-    return query.get();
-  }
+  Future<List<ChannelCategoryRow>> allCategories() =>
+      _ordered(db.select(db.channelCategories)).get();
+
+  SimpleSelectStatement<$ChannelCategoriesTable, ChannelCategoryRow> _ordered(
+    SimpleSelectStatement<$ChannelCategoriesTable, ChannelCategoryRow> query,
+  ) =>
+      query
+        ..orderBy([
+          (c) => OrderingTerm(expression: c.position),
+          (c) => OrderingTerm(expression: c.id),
+        ]);
 
   /// Replaces the whole known category list with exactly what the server
   /// returned. Its own replace path, never shared with [MessageStore.
@@ -39,15 +42,12 @@ extension CategoryStore on MessageStore {
         for (final category in categories) {
           batch.insert(
             db.channelCategories,
-            ChannelCategoriesCompanion.insert(
-              id: category.id,
-              name: category.name,
-              position: Value(category.position),
-            ),
+            _companion(category),
             onConflict: DoUpdate(
               (_) => ChannelCategoriesCompanion.custom(
                 name: Variable(category.name),
                 position: Variable(category.position),
+                parentId: Variable(category.parentId),
               ),
             ),
           );
@@ -65,24 +65,29 @@ extension CategoryStore on MessageStore {
   /// same client - the same instant-feedback shape
   /// `create_channel_sheet.dart` already uses for a freshly created channel.
   Future<void> upsertCategory(api.ChannelCategory category) {
-    return db.into(db.channelCategories).insertOnConflictUpdate(
-          ChannelCategoriesCompanion.insert(
-            id: category.id,
-            name: category.name,
-            position: Value(category.position),
-          ),
-        );
+    return db
+        .into(db.channelCategories)
+        .insertOnConflictUpdate(_companion(category));
   }
 
+  ChannelCategoriesCompanion _companion(api.ChannelCategory category) =>
+      ChannelCategoriesCompanion.insert(
+        id: category.id,
+        name: category.name,
+        position: Value(category.position),
+        parentId: Value(category.parentId),
+      );
+
   /// Removes one category locally, the immediate-feedback counterpart to
-  /// [upsertCategory]. Never touches [Channels]: a category's own delete
-  /// already uncategorises its channels server-side, and the next channel
-  /// refresh (already triggered by the same `CategoryChanged` event) is what
-  /// picks that up locally.
-  Future<void> removeCategory(String categoryId) =>
-      (db.delete(db.channelCategories)
-            ..where(
-              (c) => c.id.equals(categoryId),
-            ))
-          .go();
+  /// [upsertCategory], and lifts its sub-categories to the top level the way
+  /// the server's delete does. Never touches [Channels]: the next refresh
+  /// (triggered by the same `CategoryChanged` event) moves them.
+  Future<void> removeCategory(String categoryId) => db.transaction(() async {
+        await (db.update(db.channelCategories)
+              ..where((c) => c.parentId.equals(categoryId)))
+            .write(const ChannelCategoriesCompanion(parentId: Value(null)));
+        await (db.delete(db.channelCategories)
+              ..where((c) => c.id.equals(categoryId)))
+            .go();
+      });
 }

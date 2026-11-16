@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A category header's own context menu (mark all read for anyone; rename,
-/// move, collapse, delete for a manager), split out of `channel_rail_sections.dart` for the review budget. The null,
+/// nest, move, collapse, delete for a manager), split out of `channel_rail_sections.dart` for the review budget. The null,
 /// id-less implicit "Channels" section never reaches this: it has nothing
 /// here to manage.
 library;
@@ -15,10 +15,16 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/channel_notification_overrides_controller.dart';
+import '../providers/category_nesting.dart';
+import '../providers/channel_order_controller.dart';
 import '../providers/collapsed_categories_preference.dart';
 import 'category_permissions_sheet.dart';
+import 'category_tree.dart';
+import 'create_category_sheet.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'manage_category_sheet.dart';
+import 'move_category_sheet.dart';
+import 'rail_category_slots.dart';
 import '../../messages/widgets/mark_read_action.dart';
 import 'row_menu_notifications.dart';
 
@@ -42,7 +48,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
   final Set<String> collapsed;
   final Widget label;
 
-  /// The channels filed under [category], for "Mark all as read".
+  /// The channels filed under [category] and its sub-categories, for "Mark all as read".
   final List<Channel> channels;
 
   /// Whether the caller may rename, move, collapse and delete; without it
@@ -80,53 +86,112 @@ class CategoryHeaderMenu extends ConsumerWidget {
     WidgetRef ref,
     VoidCallback close,
   ) {
-    final categoryIndex = categories.indexWhere((c) => c.id == category.id);
-    final isCollapsed = collapsed.contains(category.id);
+    final tree = CategoryTree(categories);
+    final nests = ref.watch(categoriesNestProvider);
+    final parent = tree.parentOf(category);
+    final subs = tree.childrenOf(category.id);
+    final targets = [
+      for (final top in tree.topLevel)
+        if (top.id != category.id &&
+            top.id != parent?.id &&
+            top.parentId == null)
+          top,
+    ];
+    final isCollapsed =
+        collapsed.contains(category.id) || collapsed.contains(parent?.id);
+    void then(VoidCallback action) {
+      close();
+      action();
+    }
+
     return [
       AppMenuItem(
         label: 'Rename category...',
         leading: AppIcons.edit,
-        onTap: () {
-          close();
-          showRenameCategorySheet(context, category);
-        },
+        onTap: () => then(() => showRenameCategorySheet(context, category)),
       ),
-      if (categoryIndex > 0) _moveItem(context, close, up: true),
-      if (categoryIndex >= 0 && categoryIndex < categories.length - 1)
+      if (nests && parent == null)
+        AppMenuItem(
+          label: 'Create sub-category...',
+          leading: AppIcons.addCategory,
+          onTap: () => then(
+            () => unawaited(
+              showCreateCategorySheet(context, parentId: category.id),
+            ),
+          ),
+        ),
+      if (groupsAfterSiblingStep(tree, category.id, -1) != null)
+        _moveItem(context, close, up: true),
+      if (groupsAfterSiblingStep(tree, category.id, 1) != null)
         _moveItem(context, close, up: false),
+      if (nests && subs.isEmpty && targets.isNotEmpty)
+        AppMenuItem(
+          label: 'Move into...',
+          leading: AppIcons.moveIntoCategory,
+          onTap: () => then(
+            () => unawaited(
+              showMoveCategorySheet(
+                context,
+                category: category,
+                targets: targets,
+              ),
+            ),
+          ),
+        ),
+      if (nests && parent != null)
+        AppMenuItem(
+          label: 'Move out of ${parent.name}',
+          leading: AppIcons.moveOutOfCategory,
+          onTap: () => then(
+            () => unawaited(
+              ref
+                  .read(categoryOrderControllerProvider.notifier)
+                  .move(category.id, null),
+            ),
+          ),
+        ),
       AppMenuItem(
         label: isCollapsed ? 'Expand category' : 'Collapse category',
         leading: isCollapsed ? AppIcons.unfold : AppIcons.fold,
-        onTap: () {
-          close();
-          unawaited(
-            ref.read(collapsedCategoriesProvider.notifier).toggle(category.id),
-          );
-        },
+        onTap: () => then(
+          () => unawaited(
+            ref
+                .read(collapsedCategoriesProvider.notifier)
+                .toggleShown(category.id, parentId: parent?.id),
+          ),
+        ),
       ),
       if (ref.watch(myPermissionsProvider).hasPermission(Perm.manageRoles))
         AppMenuItem(
           label: 'Permissions...',
           leading: AppIcons.permissions,
-          onTap: () {
-            close();
-            unawaited(
+          onTap: () => then(
+            () => unawaited(
               showCategoryPermissionsSheet(
                 context,
                 categoryId: category.id,
-                categoryName: category.name,
+                categoryName: tree.pathOf(category),
+                isSubCategory: parent != null,
+                holdsSubCategories: nests && parent == null,
               ),
-            );
-          },
+            ),
+          ),
         ),
       AppMenuItem(
         label: 'Delete category...',
         leading: AppIcons.delete,
         tone: AppMenuItemTone.danger,
-        onTap: () {
-          close();
-          unawaited(confirmAndDeleteCategory(context, ref, category));
-        },
+        onTap: () => then(
+          () => unawaited(
+            confirmAndDeleteCategory(
+              context,
+              ref,
+              category,
+              parentName: parent?.name,
+              hasSubCategories: subs.isNotEmpty,
+            ),
+          ),
+        ),
       ),
     ];
   }

@@ -180,6 +180,11 @@ void main() {
       'changed permissions on category Text',
     ),
     (
+      _change('category.overwrites_sync', target: 'k1'),
+      'synced permissions on category Text with its parent category',
+    ),
+    (_change('category.reorder'), 'reordered categories'),
+    (
       _change('bot.prefix', target: 'u1', detail: {'prefix': '~'}),
       'changed the prefix of Ada to ~',
     ),

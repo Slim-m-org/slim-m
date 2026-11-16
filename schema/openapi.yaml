@@ -2767,16 +2767,22 @@ paths:
       tags: [channels]
       summary: List the channel categories the caller can see.
       description: >
-        Every category for a caller with MANAGE_CHANNELS, empty ones included;
-        for anyone else only the categories holding a channel they can view,
-        so a private category's name does not reach members kept out of all
-        of it. Split out of
-        `listChannels`'s own response, which used to embed this list until
-        that reshaped an existing response the wire's additive-only rule
-        does not allow; a new route is additive.
+        Every category at both levels for a caller with MANAGE_CHANNELS at the
+        deployment level, empty ones included; for anyone else each category
+        holding a channel they can view, plus the parent of each such
+        sub-category (decision 0120), so a private category's name does not
+        reach members kept out of all of it. The closure runs upward only: a
+        parent listed for a visible sub-category is a heading with none of its
+        own channels, and a visible parent never lists a sub-category the
+        caller cannot view into. Every listed `parent_id` names a category in
+        the same answer. In tree order: each top-level category by position,
+        then its sub-categories by position. Split out of `listChannels`'s own
+        response, which used to embed this list until that reshaped an
+        existing response the wire's additive-only rule does not allow; a new
+        route is additive.
       responses:
         "200":
-          description: Every live category.
+          description: The live categories the caller can see, in tree order.
           content:
             application/json:
               schema:
@@ -2793,7 +2799,12 @@ paths:
       summary: Create a channel category.
       description: >
         Requires MANAGE_CHANNELS at the deployment level, the same check
-        `createChannel` uses. Appended after every live category.
+        `createChannel` uses. Appended after its live siblings: the top-level
+        categories, or the sub-categories of `parent_id`. A sub-category
+        starts following its parent's permissions with a copy of its
+        overwrites (decision 0120). A `parent_id` that is not a live category
+        is a 400; one that is itself a sub-category is a 409, since categories
+        nest two levels at most.
       requestBody:
         required: true
         content:
@@ -2813,6 +2824,52 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /categories/order:
+    put:
+      operationId: reorderCategories
+      tags: [channels]
+      summary: Set the whole category arrangement, levels included.
+      description: >
+        Requires MANAGE_CHANNELS at the deployment level. What a drag in the
+        rail sends (decision 0120): every live category named exactly once,
+        grouped by parent, with the top level as the group whose `parent_id`
+        is null. Position `i` within a group goes to the category at index
+        `i`. Applied in one transaction. A list that is not exactly the live
+        categories is a 400 naming the missing and extra ids, as
+        `reorderChannels` does; two groups naming the same parent, or a
+        parent that is not a live category, is a 400; a parent that is not
+        in the top-level group is a 409, since categories nest two levels at
+        most. A category whose parent changes keeps its overwrites and stops
+        following any parent's. Publishes one `category.changed` only when
+        something moved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderCategoriesRequest"
+      responses:
+        "200":
+          description: Every live category, in tree order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChannelCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2830,7 +2887,9 @@ paths:
       summary: List a category's permission overwrites.
       description: >
         Decision 0064. Requires MANAGE_ROLES deployment-wide. A channel synced
-        to the category carries an exact copy of these.
+        to the category carries an exact copy of these. For a sub-category,
+        `synced` says whether it follows its parent (decision 0120); it is
+        absent for a top-level category.
       responses:
         "200":
           description: The category's overwrites.
@@ -2856,8 +2915,12 @@ paths:
         The same checks as batchSetChannelOverwrites, with the caller's
         deployment-wide permissions as the ceiling. An entry whose allow and
         deny are both zero removes that target. Every synced channel in the
-        category gets a copy of the result in the same transaction, and an
-        overwrite.changed frame each.
+        category gets a copy of the result in the same transaction. Saving a
+        top-level category also copies it into each sub-category that follows
+        it and on into their synced channels, stopping at any that does not
+        (decision 0120); saving a sub-category's own stops it following its
+        parent. Every channel the save touched gets an overwrite.changed
+        frame.
         Every entry follows the role ladder `setChannelOverwrite` describes; one out of reach refuses the whole batch.
       requestBody:
         required: true
@@ -2882,6 +2945,45 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /categories/{categoryId}/overwrites/sync:
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: syncCategoryOverwrites
+      tags: [roles]
+      summary: Make a sub-category follow its parent category's permissions again.
+      description: >
+        Decision 0120. Replaces the sub-category's overwrites with a copy of
+        its parent's, marks it synced, and copies the result into its synced
+        channels, each of which gets an overwrite.changed frame. Requires
+        MANAGE_ROLES deployment-wide, every bit the parent allows, and every
+        bit the sync would stop denying. 409 on a top-level category, which
+        has no parent to follow.
+        Every overwrite the sync adds, changes or drops follows the role ladder `setChannelOverwrite` describes.
+      responses:
+        "200":
+          description: The sub-category's overwrites after the sync, with `synced` true.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /categories/{categoryId}:
     parameters:
       - name: categoryId
@@ -2893,10 +2995,15 @@ paths:
     patch:
       operationId: updateCategory
       tags: [channels]
-      summary: Rename and/or reposition a category.
+      summary: Rename, reposition and/or re-parent a category.
       description: >
         Requires MANAGE_CHANNELS at the deployment level, the same check
-        `updateChannel` uses.
+        `updateChannel` uses. A `parent_id` moves the category (decision
+        0120): appended after its new siblings unless `position` says where,
+        keeping its overwrites and no longer following any parent's. A parent
+        that is not a live category, or the category itself, is a 400; a
+        parent that is itself a sub-category, or moving a category that holds
+        sub-categories under another, is a 409.
       requestBody:
         required: true
         content:
@@ -2918,6 +3025,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -2925,8 +3034,12 @@ paths:
       tags: [channels]
       summary: Soft-delete a category.
       description: >
-        Requires MANAGE_CHANNELS at the deployment level. Its channels are
-        never deleted with it - they fall back to uncategorised. Deleting an
+        Requires MANAGE_CHANNELS at the deployment level. Nothing in it is
+        deleted with it; its contents move up one level (decision 0120). A
+        sub-category's channels move to the end of its parent; a top-level
+        category's channels fall back to uncategorised and its sub-categories
+        become top-level categories in its place. Everything moved keeps its
+        overwrites and stops following any category's. Deleting an
         already-deleted category is not an error.
       responses:
         "204":
@@ -4036,6 +4149,8 @@ paths:
         applying it. An entry that allows and denies the same bit, and a
         request that names one role or member twice, are refused with 400.
         Every entry follows the role ladder `setChannelOverwrite` describes; one out of reach refuses the whole batch.
+        409 on a temporary room, which holds its lobby's overwrites (decision
+        0065).
       requestBody:
         required: true
         content:
@@ -4057,6 +4172,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4069,9 +4186,10 @@ paths:
       summary: Make a channel follow its category's permissions again.
       description: >
         Replaces the channel's overwrites with a copy of its category's and
-        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel
-        and every bit the category allows. 409 when the channel is not in a
-        category.
+        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel,
+        every bit the category allows, and every bit the sync would stop
+        denying. 409 when the channel is not in a category, or is a temporary
+        room, which follows its lobby instead.
         Every overwrite the sync adds, changes or drops follows the role ladder `setChannelOverwrite` describes.
       responses:
         "200":
@@ -4118,7 +4236,8 @@ paths:
         itself grant or deny MANAGE_ROLES there. `allow` is checked against
         the caller's own effective permissions in this channel and refused
         if it would force on a bit the caller does not hold; `deny` is a
-        restriction, not a grant, and carries no such check.
+        restriction, not a grant, and carries no such check. 409 on a
+        temporary room, which holds its lobby's overwrites (decision 0065).
         Role ladder: a role target must sit strictly below the caller's own highest role (`@everyone` always does), and a member target must rank below the caller unless it is the caller; nobody but the Space owner targets the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
@@ -4137,6 +4256,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4145,7 +4266,8 @@ paths:
       summary: Clear a channel permission overwrite.
       description: >
         Requires MANAGE_ROLES in this channel. Idempotent: clearing one that
-        was never set still succeeds.
+        was never set still succeeds. 409 on a temporary room, which holds its
+        lobby's overwrites (decision 0065).
         Follows the same role ladder as setting one.
       responses:
         "204":
@@ -4156,6 +4278,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -17223,6 +17347,8 @@ components:
       description: >
         A rail section a channel of any kind may be filed under. Carries no
         permission of its own; see docs/decisions/0006-channel-categories.md.
+        Nests two levels deep: a top-level category may hold sub-categories
+        (decision 0120).
       properties:
         id:
           type: string
@@ -17233,12 +17359,20 @@ components:
           type: integer
           format: int64
           description: >
-            Sort key among the deployment's live categories: lower sorts
-            first.
+            Sort key among its siblings, lower first: the top-level
+            categories, or one parent's sub-categories.
         created_at:
           type: integer
           format: int64
           description: Unix milliseconds.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The top-level category this one sits in, or null for a top-level
+            category. Always sent by a server that nests; absent on servers
+            older than this field, which a client reads as a server that does
+            not nest.
 
     CreateCategoryRequest:
       type: object
@@ -17254,13 +17388,20 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The top-level category to create this under. Absent or null
+            creates a top-level category. A retry with an id already used
+            returns the stored category whatever this says.
 
     UpdateCategoryRequest:
       type: object
       description: >
-        At least one of `name` and `position` must be present; a request
-        with neither is a 400. Each is independent, the same convention
-        `UpdateChannelRequest` follows for its own two optional fields.
+        At least one of `name`, `position` and `parent_id` must be present; a
+        request with none is a 400. Each is independent, the same convention
+        `UpdateChannelRequest` follows for its own optional fields.
       properties:
         name:
           type: string
@@ -17269,6 +17410,40 @@ components:
         position:
           type: integer
           format: int64
+          description: >
+            The place among its siblings, the new ones when `parent_id`
+            moves it.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Absent leaves the placement alone, null moves the category to the
+            top level, and an id files it under that top-level category.
+
+    ReorderCategoriesRequest:
+      type: object
+      required: [groups]
+      description: >
+        Every live category named exactly once, grouped by parent. Every
+        non-null `parent_id` must be a category named in the group whose
+        `parent_id` is null.
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            required: [parent_id, category_ids]
+            properties:
+              parent_id:
+                type: [string, "null"]
+                format: uuid
+                description: The parent category, or null for the top level.
+              category_ids:
+                type: array
+                description: The group's categories in display order.
+                items:
+                  type: string
+                  format: uuid
 
     CreateChannelRequest:
       type: object
@@ -19580,7 +19755,9 @@ components:
           type: boolean
           description: >
             A channel's: whether its overwrites follow its category (decision
-            0064). Absent for a category's own list.
+            0064). A sub-category's: whether its overwrites follow its parent
+            category (decision 0120). Absent for a top-level category's own
+            list.
         overwrites:
           type: array
           description: Every overwrite set on the channel, role and member alike.
@@ -21650,12 +21827,13 @@ components:
       type: object
       required: [type]
       description: >
-        A channel category was created, renamed, repositioned, or deleted.
-        Carries no fields at all: a category is organisational only (see
-        docs/decisions/0006-channel-categories.md), so there is nothing
-        privileged to withhold and nothing per-viewer to resolve. A receiving
-        client re-fetches `listChannels`, the same path a `channel.created`,
-        `channel.updated`, or `channel.deleted` frame already drives.
+        A channel category was created, renamed, repositioned, re-parented,
+        or deleted with the moves a delete makes (decision 0120). Carries no
+        fields at all: it is broadcast to every connection while
+        `listCategories` filters names per viewer, so it never names a
+        category. A receiving client re-fetches `listCategories` and
+        `listChannels`, the same path a `channel.created`, `channel.updated`,
+        or `channel.deleted` frame already drives.
       properties:
         type:
           type: string

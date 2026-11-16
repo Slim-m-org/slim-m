@@ -46,6 +46,7 @@ impl Store {
             .await?;
         }
         super::category_overwrites::mark_unsynced(&mut *tx, channel_id).await?;
+        super::voice_rooms::copy_lobby_overwrites_into_rooms(&mut tx, channel_id).await?;
         tx.commit().await?;
         Ok(())
     }

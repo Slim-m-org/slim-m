@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM category_overwrites WHERE category_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "55f525689629f6b1e73f7dd8e205d41c3f4c63577a07cc3316fc8e9b9227af79"
+}

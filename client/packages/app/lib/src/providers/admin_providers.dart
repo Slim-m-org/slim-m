@@ -148,6 +148,15 @@ final categoryOverwritesProvider = FutureProvider.autoDispose
           ref.watch(apiProvider).getCategoryOverwrites(categoryId),
     );
 
+/// Whether a sub-category's overwrites follow its parent (decision 0120);
+/// null for a top-level category, which follows nothing.
+final categoryOverwritesSyncedProvider = FutureProvider.autoDispose
+    .family<bool?, String>(
+      (ref, categoryId) async =>
+          (await ref.watch(apiProvider).getCategoryOverwriteSet(categoryId))
+              .synced,
+    );
+
 /// Whether a channel's overwrites follow its category.
 final channelOverwritesSyncedProvider = FutureProvider.autoDispose
     .family<bool, String>(

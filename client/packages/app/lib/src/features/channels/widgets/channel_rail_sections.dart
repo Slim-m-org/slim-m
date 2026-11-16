@@ -14,14 +14,17 @@ import 'package:slimm_api/api.dart'
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/category_nesting.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../providers/channel_order_controller.dart'
     show categoryOrderControllerProvider;
 import '../providers/collapsed_categories_preference.dart';
 import '../../members/providers/member_presence.dart' show presenceSeedProvider;
-import '../../messages/providers/unread_indicator_rules.dart';
+import '../../messages/providers/unread_indicator_rules.dart'
+    show unreadIndicatorForChannel;
 import '../../../routing/routes.dart';
 import 'category_header_menu.dart';
+import 'category_tree.dart';
 import 'channel_grouping.dart';
 import 'channel_kind_icon.dart';
 import 'channel_rail_channel_rows.dart';
@@ -30,6 +33,7 @@ import 'channel_rail_section_label.dart';
 import 'channel_rail_selection_marker.dart';
 import '../../../widgets/context_menu_region.dart' show ContextMenuRegionState;
 import 'dm_row.dart';
+import 'rail_view.dart';
 import 'new_group_dm_sheet.dart';
 import '../providers/channel_latest_message_at.dart';
 
@@ -133,25 +137,20 @@ class _ChannelCategorySectionsState
 
   @override
   Widget build(BuildContext context) {
-    final byCategory = channelsByCategory(widget.channels);
-    // An empty category is a drop target for a manager and a dead header for
-    // anyone else; migration 0031's unconditional Text/Voice seed gives every
-    // fresh deployment two of them (the 2026-08-11 review's M8). The implicit
-    // section gets the same structural treatment now - see `_header` for why
-    // it still renders as nothing while empty and idle.
-    final sections = <ChannelSection>[
-      for (final section in <ChannelSection>[
-        (null, byCategory[null] ?? const []),
-        for (final category in widget.categories)
-          (category, byCategory[category.id] ?? const []),
-      ])
-        if (widget.canManage || section.$2.isNotEmpty) section,
-    ];
-    final view = _RailView(
+    final tree = CategoryTree(widget.categories);
+    // An empty category is a drop target for a manager and a dead header for anyone else (the 2026-08-11 review's M8).
+    final sections = railSections(
+      widget.channels,
+      tree,
+      canManage: widget.canManage,
+    );
+    final view = RailView(
       sections: sections,
-      byCategory: byCategory,
+      byCategory: channelsByCategory(widget.channels),
+      tree: tree,
       collapsed: ref.watch(collapsedCategoriesProvider),
       overrides: ref.watch(channelNotificationOverridesProvider),
+      selectedId: widget.selectedId,
     );
 
     return ReorderableChannelRows(
@@ -166,8 +165,9 @@ class _ChannelCategorySectionsState
       carriedHeaderBuilder: (category) =>
           _header(view, category, carried: true),
       collapsed: view.collapsed,
-      onReorderCategories: (ids) => unawaited(
-        ref.read(categoryOrderControllerProvider.notifier).reorder(ids),
+      categoriesNest: ref.watch(categoriesNestProvider),
+      onReorderCategories: (groups) => unawaited(
+        ref.read(categoryOrderControllerProvider.notifier).arrange(groups),
       ),
       onDragStart: () => setState(() => _dragging = true),
       onDragEnd: () => setState(() => _dragging = false),
@@ -175,25 +175,16 @@ class _ChannelCategorySectionsState
     );
   }
 
-  // A collapsed category's rows render as zero-height rather than being
-  // left out of `sections`/`_items` entirely: `ReorderableChannelRows`
-  // builds its reorder payload from exactly the items it renders, and
-  // dropping a collapsed category's channels from that payload would tell
-  // the server to clear its membership the next time any other channel
-  // moves. Zero size keeps every channel's identity and position in the
-  // list - just invisible and unreachable by a drag - while collapsed.
-  //
+  // A folded row renders zero-height rather than leaving `sections`: the reorder payload is built from exactly the items rendered, and a missing channel would be cleared from its category.
   // Every channel hangs off its header rather than sharing its left edge, which is what read as floating rows between dividers.
   Widget _row(
-    _RailView view,
+    RailView view,
     Channel channel,
     bool longPressDrags, {
     bool carried = false,
   }) {
     final selected = channel.id == widget.selectedId;
-    if (_hiddenByCollapse(view, channel, selected: selected)) {
-      return const SizedBox.shrink();
-    }
+    if (view.rowHidden(channel)) return const SizedBox.shrink();
     Widget body(Widget? kebab) => channel.kind == 'voice'
         ? VoiceChannelRow(
             channel: channel,
@@ -207,10 +198,11 @@ class _ChannelCategorySectionsState
           );
     // The lifted copy is just the face of the row: no menu, kebab or hover.
     if (carried) return body(null);
+    final depth = view.tree.depthOf(view.tree.byId[channel.categoryId]);
     return KeepsLatestMessageLoaded(
       channelId: channel.id,
       child: Padding(
-        padding: const EdgeInsets.only(left: kRailRowInset),
+        padding: EdgeInsets.only(left: kRailRowInset * (1 + depth)),
         child: SelectionMarkerTarget(
           selected: selected,
           child: ManagedChannelRow(
@@ -228,97 +220,58 @@ class _ChannelCategorySectionsState
     );
   }
 
-  // A folded category still surfaces what the rows would light, so a notification never points at a hidden channel.
-  bool _hiddenByCollapse(
-    _RailView view,
-    Channel channel, {
-    required bool selected,
-  }) {
-    final categoryId = channel.categoryId;
-    if (categoryId == null || !view.collapsed.contains(categoryId)) {
-      return false;
-    }
-    return !selected && !view.indicatorOf(channel).lit;
-  }
-
   Widget _header(
-    _RailView view,
+    RailView view,
     ChannelCategoryRow? category, {
     bool carried = false,
   }) {
-    final implicitEmpty = (view.byCategory[null] ?? const <Channel>[]).isEmpty;
     // Structurally always an item (see _dragging's doc comment); nothing while idle and empty.
-    if (category == null && implicitEmpty && !_dragging) {
+    if (category == null && view.channelsOf(null).isEmpty && !_dragging) {
       return const SizedBox.shrink();
     }
+    if (category != null && !carried && view.headerHidden(category)) {
+      return const SizedBox.shrink();
+    }
+    final place = category == null ? 'Channels' : view.tree.pathOf(category);
     // Any section, the implicit uncategorised one included: it is a real place a channel can live.
     final label = SectionLabel(
       category?.name ?? 'Channels',
-      collapsed: view.collapsed.contains(category?.id),
-      indicator: category == null || !view.collapsed.contains(category.id)
-          ? null
-          : view.rollupOf(view.byCategory[category.id] ?? const []),
+      collapsed: view.folded(category),
+      indicator: category == null ? null : view.rollupOf(category),
       onToggle: category == null
           ? null
           : () => unawaited(
               ref
                   .read(collapsedCategoriesProvider.notifier)
-                  .toggle(category.id),
+                  .toggleShown(category.id, parentId: category.parentId),
             ),
       trailingBuilder: !widget.canManage
           ? null
           : (revealed, onFocusChange) => AddChannelGlyph(
               categoryId: category?.id,
-              categoryName: category?.name ?? 'Channels',
+              categoryName: place,
               revealed: revealed && !carried,
               onFocusChange: onFocusChange,
             ),
     );
     // Only a real category has a menu; the null section is the id-less implicit 'Channels' bucket.
     if (category == null || carried) return label;
-    return CategoryHeaderMenu(
+    final depth = view.tree.depthOf(category);
+    final header = CategoryHeaderMenu(
       category: category,
       categories: widget.categories,
       collapsed: view.collapsed,
       label: label,
-      channels: view.byCategory[category.id] ?? const [],
+      channels: view.channelsBeneath(category),
       canManage: widget.canManage,
     );
+    return depth == 0
+        ? header
+        : Padding(
+            padding: EdgeInsets.only(left: kRailRowInset * depth),
+            child: header,
+          );
   }
-}
-
-/// What one build of the rail resolved once, shared by its row and header builders.
-class _RailView {
-  const _RailView({
-    required this.sections,
-    required this.byCategory,
-    required this.collapsed,
-    required this.overrides,
-  });
-
-  final List<ChannelSection> sections;
-  final Map<String?, List<Channel>> byCategory;
-  final Set<String> collapsed;
-  final ChannelNotificationOverridesState overrides;
-
-  UnreadIndicator indicatorOf(Channel channel) => unreadIndicatorForChannel(
-    channel,
-    channelOverride: overrides.effectiveFor(channel),
-    isDm: false,
-  );
-
-  /// What a folded header shows for its rows: a mention outranks plain unread.
-  UnreadIndicator rollupOf(List<Channel> channels) {
-    final all = channels.map(indicatorOf);
-    return (
-      unread: all.any((i) => i.unread),
-      mentioned: all.any((i) => i.mentioned),
-    );
-  }
-}
-
-extension on UnreadIndicator {
-  bool get lit => unread || mentioned;
 }
 
 class _TextChannelRow extends ConsumerWidget {

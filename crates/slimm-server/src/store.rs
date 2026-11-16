@@ -36,6 +36,8 @@ use canvas::{
     canvas_ops_write, canvas_purge,
 };
 mod categories;
+mod category_delete;
+mod category_order;
 mod category_overwrites;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
@@ -115,6 +117,7 @@ mod space_setup;
 mod space_themes;
 mod space_welcome;
 mod storage;
+mod sub_category_overwrites;
 mod thread_listing;
 mod threads;
 mod timeouts;
@@ -173,7 +176,8 @@ pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };
 pub use canvas_purge::PurgeError;
-pub use categories::CreatedCategory;
+pub use categories::{CategoryUpdate, CategoryWriteError, CreatedCategory};
+pub use category_order::{CategoryOrderGroup, CategoryReorderOutcome, ReorderCategoriesError};
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;
 pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};

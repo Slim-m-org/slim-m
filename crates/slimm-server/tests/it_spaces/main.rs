@@ -43,6 +43,7 @@ mod member_timeout;
 mod members_channel_scope;
 mod moderation_audit;
 mod moderation_audit_routes;
+mod nested_categories;
 mod overwrite_atomicity;
 mod overwrite_escalation_body;
 mod overwrite_ladder;

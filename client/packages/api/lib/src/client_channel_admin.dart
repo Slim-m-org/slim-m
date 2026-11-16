@@ -109,11 +109,8 @@ extension SlimmApiChannelAdmin on SlimmApi {
         .toList(growable: false);
   }
 
-  /// Every live category. Unfiltered by any permission: a category carries
-  /// none of its own, so any authenticated caller may read the list. Its own
-  /// route, not folded into [SlimmApi.listChannels]'s response: that would
-  /// reshape an existing response, which the wire's additive-only rule does
-  /// not allow.
+  /// The categories the caller can see, in tree order: all for MANAGE_CHANNELS, else those
+  /// holding a channel they can view plus each such sub-category's parent.
   Future<List<ChannelCategory>> listCategories() async {
     final json = await send('GET', '/categories');
     return (json as List<dynamic>)
@@ -121,16 +118,58 @@ extension SlimmApiChannelAdmin on SlimmApi {
         .toList(growable: false);
   }
 
-  /// Creates a category, appended after every live one. Requires
-  /// MANAGE_CHANNELS. [id] is an optional client-generated UUIDv7 that makes
-  /// the create idempotent on retry.
-  Future<ChannelCategory> createCategory(String name, {String? id}) async {
+  /// Creates a category after its siblings, under the top-level [parentId] when given.
+  /// Requires MANAGE_CHANNELS; [id] is a client UUIDv7 that makes a retry idempotent.
+  Future<ChannelCategory> createCategory(
+    String name, {
+    String? id,
+    String? parentId,
+  }) async {
     final json = await send(
       'POST',
       '/categories',
-      body: {if (id != null) 'id': id, 'name': name},
+      body: {
+        if (id != null) 'id': id,
+        'name': name,
+        if (parentId != null) 'parent_id': parentId,
+      },
     );
     return ChannelCategory.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Files a category under the top-level [parentId], or at the top level for null,
+  /// after its new siblings unless [position] says where. A third level is a 409.
+  Future<ChannelCategory> moveCategory({
+    required String categoryId,
+    required String? parentId,
+    int? position,
+  }) async {
+    final json = await send(
+      'PATCH',
+      '/categories/$categoryId',
+      body: {
+        'parent_id': parentId,
+        if (position != null) 'position': position,
+      },
+    );
+    return ChannelCategory.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Sets the whole category arrangement, naming every live category once; every
+  /// non-null parent must be in the top-level group. Answers the tree in order.
+  Future<List<ChannelCategory>> reorderCategories(
+    List<CategoryOrderGroup> groups,
+  ) async {
+    final json = await send(
+      'PUT',
+      '/categories/order',
+      body: {
+        'groups': groups.map((g) => g.toJson()).toList(growable: false),
+      },
+    );
+    return (json as List<dynamic>)
+        .map((c) => ChannelCategory.fromJson(c as Map<String, dynamic>))
+        .toList(growable: false);
   }
 
   /// Renames and/or repositions a category. At least one of [ChannelUpdate.name] and
@@ -151,9 +190,8 @@ extension SlimmApiChannelAdmin on SlimmApi {
     return ChannelCategory.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Soft-deletes a category. Requires MANAGE_CHANNELS. Its channels are
-  /// never deleted with it - they fall back to uncategorised. Deleting an
-  /// already-deleted category is not an error.
+  /// Soft-deletes a category, moving its contents up one level. Requires
+  /// MANAGE_CHANNELS; deleting one already gone is not an error.
   Future<void> deleteCategory(String categoryId) =>
       send('DELETE', '/categories/$categoryId', expectNoContent: true);
 

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The header menu's delete and move-up/down run after their menu has closed,
-/// so a refusal has only a SnackBar to land in. The happy paths are covered by
-/// `manage_category_sheet_test.dart`; this pins the failures.
+/// The header menu's delete and move-up/down run after their menu has closed.
+/// A refused delete lands in a SnackBar; a refused move stays in the category
+/// order controller, which the rail shows inline with a retry. The happy paths
+/// are covered by `manage_category_sheet_test.dart`; this pins the failures.
 library;
 
 import 'dart:async';
@@ -101,8 +102,8 @@ void main() {
     expect(await r.store.allCategories(), hasLength(2));
   });
 
-  testWidgets('a refused move answered after the header is gone is dropped '
-      'quietly', (tester) async {
+  testWidgets('a refused move answered after the header is gone still '
+      'reaches the rail', (tester) async {
     final answer = Completer<void>();
     final r = await _pump(
       tester,
@@ -128,10 +129,13 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(r.container.read(categoryOrderControllerProvider).error, isNull);
+    expect(
+      r.container.read(categoryOrderControllerProvider).error,
+      contains('Could not reorder categories'),
+    );
   });
 
-  testWidgets('a refused move is reported and the failure is dismissed', (
+  testWidgets('a refused move is held for the rail, never a SnackBar', (
     tester,
   ) async {
     final r = await _pump(
@@ -146,13 +150,10 @@ void main() {
     await tester.tap(find.text('move'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.textContaining('Could not reorder categories'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     expect(
       r.container.read(categoryOrderControllerProvider).error,
-      isNull,
-      reason:
-          'the snackbar carries it, so the controller is not left holding it',
+      contains('Could not reorder categories'),
     );
   });
 }

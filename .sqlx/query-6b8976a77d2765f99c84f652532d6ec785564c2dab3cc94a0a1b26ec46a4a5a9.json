@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)\n         SELECT r.id, o.target_type, o.target_id, o.allow, o.deny\n         FROM channels r JOIN channel_overwrites o ON o.channel_id = r.room_lobby_id\n         WHERE r.room_lobby_id = ? AND r.deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "6b8976a77d2765f99c84f652532d6ec785564c2dab3cc94a0a1b26ec46a4a5a9"
+}

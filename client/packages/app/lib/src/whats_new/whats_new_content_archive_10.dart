@@ -89,6 +89,11 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'Soundboard sounds in Notifications to stop hearing them.',
       ),
       WhatsNewPoint(
+        'A category can hold sub-categories. Right-click it and pick Create '
+        'sub-category, or drag another category into it. Each has its own '
+        'permissions, so people see only the part meant for them.',
+      ),
+      WhatsNewPoint(
         'A mention reads as the name people use in this Space. Hover it to '
         'see the username.',
       ),
