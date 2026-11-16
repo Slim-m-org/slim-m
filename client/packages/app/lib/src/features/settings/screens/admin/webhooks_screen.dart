@@ -12,13 +12,13 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../../api_failure.dart';
 import '../../../../format.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../providers/providers.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/labeled_field.dart';
+import '../../../../widgets/name_sheet.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
@@ -298,109 +298,18 @@ String webhookDeliveryLabel(int deliveredAtMs, DateTime now) {
 }
 
 /// Opens the label editor for one webhook.
-Future<void> showRenameWebhookSheet(BuildContext context, api.Webhook webhook) {
-  return showAppSheet<void>(
-    context,
-    builder: (context) => _RenameWebhookSheet(webhook: webhook),
-  );
-}
-
-class _RenameWebhookSheet extends ConsumerStatefulWidget {
-  const _RenameWebhookSheet({required this.webhook});
-
-  final api.Webhook webhook;
-
-  @override
-  ConsumerState<_RenameWebhookSheet> createState() =>
-      _RenameWebhookSheetState();
-}
-
-class _RenameWebhookSheetState extends ConsumerState<_RenameWebhookSheet> {
-  late final _label = TextEditingController(text: widget.webhook.label);
-  bool _submitting = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _label.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final label = _label.text.trim();
-    if (label.isEmpty) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await ref.read(apiProvider).renameWebhook(widget.webhook.id, label);
-      if (context.mounted) ref.invalidate(webhooksProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'rename the webhook', e, stack);
-      if (!mounted) return;
-      setState(() {
-        _error = describeApiFailure("rename ${widget.webhook.label}", e);
-        _submitting = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Rename ${widget.webhook.label}',
-                  style: AppText.heading.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
-                ),
-              ),
-              AppIconButton(
-                icon: AppIcons.dismiss,
-                semanticLabel: 'Close',
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          AppInput(
-            maxLength: api.InputLimits.name,
-            controller: _label,
-            semanticLabel: 'Webhook label',
-            onSubmitted: (_) => _submitting ? null : _submit(),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.s8),
-            AppErrorState(message: _error!),
-          ],
-          const SizedBox(height: AppSpacing.s12),
-          AppButton(
-            label: _submitting ? 'Saving...' : 'Save changes',
-            variant: AppButtonVariant.primary,
-            full: true,
-            disabled: _submitting,
-            onPressed: _submit,
-          ),
-        ],
-      ),
-    );
-  }
-}
+Future<void> showRenameWebhookSheet(
+  BuildContext context,
+  api.Webhook webhook,
+) => showNameSheet(
+  context,
+  title: 'Rename ${webhook.label}',
+  fieldLabel: 'Webhook label',
+  initial: webhook.label,
+  maxChars: api.InputLimits.name,
+  whatFailed: 'rename ${webhook.label}',
+  onSave: (ref, label) async {
+    await ref.read(apiProvider).renameWebhook(webhook.id, label);
+    ref.invalidate(webhooksProvider);
+  },
+);
