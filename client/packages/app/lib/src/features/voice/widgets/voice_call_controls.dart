@@ -52,6 +52,9 @@ import 'call_dock_hint.dart';
 import '../providers/call_dock_hint.dart' show DockHintTarget;
 import 'call_dock_button.dart';
 import 'share_options_menu.dart';
+import 'screen_stamps_received_sheet.dart';
+import '../../canvas/providers/armed_stamp.dart'
+    show canvasStampsSupportedProvider;
 import 'soundboard_button.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
 
@@ -365,6 +368,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
 
   bool get _canSwitchSource => widget.controller.video.screenShareNeedsSource;
 
+  bool get _stampsKept => ref.read(canvasStampsSupportedProvider);
+
   List<ControlOptionEntry> _shareOptions(BuildContext context) =>
       shareMenuEntries(
         ref,
@@ -384,6 +389,9 @@ class _CallControlsState extends ConsumerState<CallControls> {
             if (_shareRequestInFlight) return;
             unawaited(_startShare(context, stopFirst: true, preset: source));
           },
+          onPicturesOnScreen: _stampsKept
+              ? () => unawaited(showScreenStampsReceived(context))
+              : null,
         ),
       );
 

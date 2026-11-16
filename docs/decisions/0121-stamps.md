@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
 # 0121 - Stamps: emoji and pictures on a shared screen and on the board
 
-Status: accepted, 2026-11-16 (the server and the wire model are built; the client is not yet).
+Status: accepted, 2026-11-16 (built; the Windows runner is compile-checked only and has not run on the VM yet).
 Amends [0096](0096-screen-overlay.md): its Relay, Privacy and Fade sections and "The board's own tools on the canvas".
 
 ## The ask
@@ -47,9 +47,9 @@ The owner defined seamless for the canvas in 0017: "as an end user, i shouldnt e
 
 - One content model: an emoji key or an attachment id, the same on a share and on the board.
 - One picker, called Stamp, with three tabs.
-  Emoji is the reaction picker's grid, with the Space's custom emoji and recent picks.
+  Emoji is the composer's emoji browser, with the Space's custom emoji and recent picks, on a pointer and on touch alike, since a share or the board has no keyboard behind it.
   GIFs is the composer's GIF search with favourites, shown when the deployment has GIF search.
-  Picture offers "Choose a file" and paste.
+  Picture offers "Open file", "Paste" and the pictures picked earlier in the session.
 - The picker follows surface rule 3: a popover anchored to the Stamp button on a pointer, and a bottom sheet on touch, through `showAppSheet`.
 - Choosing something arms that stamp, and the Stamp button shows it as its sample, the way the pen button shows its colour (0073).
 - One tool.
@@ -75,11 +75,12 @@ The owner defined seamless for the canvas in 0017: "as an end user, i shouldnt e
 - Stamps do not rotate.
 - The tool stays armed after placing a stamp, so another tap places another.
   Picking the tool again puts it down, as with the pen.
-- Paste: Ctrl+V (Cmd+V on Apple) of a picture, with the pointer over a share that takes stamps, uploads the picture, arms it and shows it under the pointer.
-  A tap places it, and Escape puts it down.
+- Paste: Ctrl+V (Cmd+V on Apple) of a picture, while the Stamp tool is in hand over a share that takes stamps, uploads the picture, arms it and shows it under the pointer.
+  A tap places it, and Escape or a right-click puts the tool down.
+  The Picture tab's Paste does the same from anywhere.
   Nothing reaches the sharer before the tap, so a screenshot meant for chat never lands on someone's desktop.
 - Elsewhere on the board, paste works as it does today and puts a durable image at the centre of the view.
-- A picture file dropped on a share that takes stamps is placed at the drop point, at the default size.
+- On a pointer, the armed stamp follows the pointer at the default size before it is placed, faint, so its size and spot are seen before anything is sent.
 - On the board a tap places an item 130 world units on its longest side (12% of the shared area's height), and a drag sizes it up to 324 (30%).
   After that it moves, resizes, layers, erases and undoes like any other item.
 
@@ -151,7 +152,7 @@ The sender's client removes its local copy of a refused stamp and says why in a 
 
 - The sharer's "Pictures on your screen" sheet lists the pictures stamped on their screen in the last 24 hours, newest first.
   Each row shows the picture, who sent it and when, with Report and Block.
-- The sheet opens from the share options menu while sharing, and from Voice settings under "Sharing and preview" at any time.
+- The sheet opens from the share options menu while sharing, and from Voice settings at any time, with Review under the "Viewers draw on my screen" switch in the Screen share card.
   So a sharer who stopped sharing in a hurry can still report.
 - It follows surface rule 3: a popover on a pointer and a bottom sheet on touch.
 - A report has `subject_kind: "screen_stamp"` and names the stamp.
@@ -249,7 +250,8 @@ This replaces 0096's line "Nothing a viewer draws is stored on the server or the
 
 - Rotation.
 - Animation on the native overlay.
-- Placing a stamp from the keyboard.
+- Placing a stamp from the keyboard; M arms the board's Stamp tool, and opens the picker when nothing is armed.
+- Dropping a picture file on a share tile; the Picture tab's Open file does that for now.
 - Stamping from the full-screen video view, which has no pen either (0096).
 - Animated WebP and PNG show their first frame everywhere, and only GIFs animate on tiles.
 

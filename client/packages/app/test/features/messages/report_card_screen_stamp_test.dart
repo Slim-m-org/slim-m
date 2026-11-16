@@ -33,4 +33,28 @@ void main() {
     expect(find.text('Jump to message'), findsNothing);
     expect(find.text('Delete message'), findsNothing);
   });
+
+  testWidgets('the pictures are shown beside the reason while kept', (
+    tester,
+  ) async {
+    await pumpReports(
+      tester,
+      reports: [
+        reportJson(
+          id: 'report-1',
+          subjectKind: 'screen_stamp',
+          subjectId: 'viewer-1',
+          reporterId: 'sharer-1',
+          channelId: 'channel-1',
+          subjectAuthorId: 'viewer-1',
+          channelPermissions: -1,
+          pictureIds: const ['pic-1', 'pic-2'],
+        ),
+      ],
+      profiles: {'sharer-1': 'Alice', 'viewer-1': 'Bob'},
+    );
+
+    expect(find.text("Stamped on Alice's shared screen"), findsOneWidget);
+    expect(find.bySemanticsLabel('Reported picture'), findsNWidgets(2));
+  });
 }

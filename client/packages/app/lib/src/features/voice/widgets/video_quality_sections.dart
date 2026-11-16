@@ -3,8 +3,11 @@
 /// screen you share, and the call overlay.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show AppAction, OverlayCorner;
 import 'package:slimm_rtc/rtc.dart';
 
@@ -24,6 +27,10 @@ import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_segmented_row.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
+import '../../settings/widgets/settings_detail_row.dart' show SettingsActionRow;
+import '../../canvas/providers/armed_stamp.dart'
+    show canvasStampsSupportedProvider;
+import 'screen_stamps_received_sheet.dart';
 import 'share_resolution_support.dart';
 import 'video_quality_labels.dart';
 
@@ -45,6 +52,7 @@ class VideoQualitySection extends ConsumerWidget {
       settings.screenShareQuality.resolution,
     );
     final cameraReach = ref.watch(cameraReachProvider);
+    final stamps = ref.watch(canvasStampsSupportedProvider);
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
         .share
@@ -130,12 +138,26 @@ class VideoQualitySection extends ConsumerWidget {
             ),
             SettingsToggleRow(
               label: 'Viewers draw on my screen',
-              description:
-                  'Their marks show on the screen you share for a few seconds.',
+              description: stamps
+                  ? 'Marks, emoji and pictures show for a few seconds.'
+                  : 'Their marks show on the screen you share for a few seconds.',
               value: settings.screenShareAllowAnnotations,
               semanticLabel: 'Let viewers draw on the screen I share',
               onChanged: notifier.setScreenShareAllowAnnotations,
             ),
+            if (stamps)
+              SettingsActionRow(
+                message: 'Pictures are kept for a day so you can report them.',
+                action: Builder(
+                  builder: (anchor) => AppButton(
+                    label: 'Review',
+                    size: AppButtonSize.sm,
+                    semanticLabel: 'Review pictures on your screen',
+                    onPressed: () =>
+                        unawaited(showScreenStampsReceived(anchor)),
+                  ),
+                ),
+              ),
           ],
         ),
         // Absent, never disabled, on a desktop that cannot host the overlay window; see decision 0096.

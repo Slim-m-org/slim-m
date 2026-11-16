@@ -32,6 +32,14 @@ Future<Uint8List> _solidPng(int width, int height) async {
   return data!.buffer.asUint8List();
 }
 
+/// A runner whose putImage answers only when the test says.
+class _SlowPuts extends FakeOverlay {
+  final reply = Completer<bool>();
+
+  @override
+  Future<bool> putImage(String key, Uint8List png) => reply.future;
+}
+
 Future<(int, int)> _sizeOf(Uint8List png) async {
   final codec = await ui.instantiateImageCodec(png);
   final image = (await codec.getNextFrame()).image;
@@ -175,6 +183,20 @@ void main() {
         final put = images.ensure('k', () => baking.future);
         images.forget();
         baking.complete(Uint8List.fromList([1]));
+        expect(await put, isFalse);
+        expect(images.has('k'), isFalse);
+      },
+    );
+
+    test(
+      'a put still out when the window was shown again is not held',
+      () async {
+        final overlay = _SlowPuts();
+        final images = OverlayStampImages(overlay);
+        final put = images.ensure('k', () async => Uint8List.fromList([1]));
+        await pumpEventQueue();
+        images.forget();
+        overlay.reply.complete(true);
         expect(await put, isFalse);
         expect(images.has('k'), isFalse);
       },

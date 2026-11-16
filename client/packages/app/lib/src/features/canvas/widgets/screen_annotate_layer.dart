@@ -20,12 +20,17 @@ import '../../screen_overlay/providers/screen_annotation_board.dart';
 import '../../screen_overlay/providers/screen_annotation_feed.dart';
 import '../../screen_overlay/providers/screen_annotation_mapping.dart';
 import '../../screen_overlay/providers/screen_annotation_sender.dart';
+import '../../screen_overlay/providers/stamp_images.dart';
 import '../../voice/providers/share_zoom_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/share_zoom_view.dart';
+import '../providers/armed_stamp.dart';
 import 'armed_pen.dart';
 import 'screen_annotate_painter.dart';
 import 'screen_annotate_toolbar.dart';
+import 'screen_stamp_marks.dart';
+import 'screen_stamp_placer.dart';
+import 'screen_stamp_tools.dart';
 
 /// The narrowest tile, in logical pixels, that gets the toolbar.
 const screenAnnotateMinTileWidth = 220.0;
@@ -82,6 +87,9 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
   Offset? _pendingNote;
   double? _aspect;
 
+  /// Why the last stamp was refused, shown on the tile until it times out.
+  String? _refusal;
+
   @override
   void initState() {
     super.initState();
@@ -129,8 +137,37 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
     CanvasTool.pen => ScreenAnnotateTool.pen,
     CanvasTool.shape => ScreenAnnotateTool.ellipse,
     CanvasTool.note || CanvasTool.text => ScreenAnnotateTool.note,
+    CanvasTool.stamp => ScreenAnnotateTool.stamp,
     CanvasTool.pan || CanvasTool.eraser => null,
   };
+
+  late final _stamps = ScreenStampTools(
+    ref: ref,
+    sharerId: widget.sharerId,
+    feed: _feed,
+    onRefusal: (message) {
+      if (mounted) setState(() => _refusal = message);
+    },
+  );
+
+  void _pressStamp(BuildContext anchor) {
+    if (_tool == ScreenAnnotateTool.stamp) {
+      _setTool(null);
+    } else if (ref.read(armedStampProvider).content == null) {
+      _chooseStamp(anchor);
+    } else {
+      _setTool(ScreenAnnotateTool.stamp);
+    }
+  }
+
+  void _chooseStamp(BuildContext anchor) => _stamps.choose(
+    anchor,
+    onPicked: () {
+      if (mounted && widget.canvasTool == null) {
+        _setTool(ScreenAnnotateTool.stamp);
+      }
+    },
+  );
 
   Rect _content() {
     final aspect = _aspect ?? widget.fallbackAspect;
@@ -231,6 +268,10 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
         widget.canvasTool == null &&
         widget.tileRect.width >= screenAnnotateMinTileWidth;
     final zoomed = widget.zoom?.zoomed ?? false;
+    final stamps = _stamps.takes(consent);
+    final armed = ref.watch(armedStampProvider).content;
+    final stamping = _active == ScreenAnnotateTool.stamp;
+    final cache = ref.read(stampImageCacheProvider);
     return Positioned.fromRect(
       rect: widget.tileRect,
       child: ClipRect(
@@ -252,11 +293,42 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
             IgnorePointer(
               child: ValueListenableBuilder<int>(
                 valueListenable: _frame,
-                builder: (_, _, _) => Stack(children: _notes(content)),
+                builder: (_, _, _) => Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ..._notes(content),
+                    ...screenStampMarks(
+                      marks: _feed.marksFor(widget.sharerId),
+                      content: content,
+                      now: _feed.now,
+                      aspectOf: cache.aspectOf,
+                      reduceMotion: MediaQuery.disableAnimationsOf(context),
+                    ),
+                  ],
+                ),
               ),
             ),
-            if (_active != null && consent != null)
+            if (stamping && stamps && armed != null)
+              Positioned.fill(
+                child: Listener(
+                  onPointerSignal: _wheel,
+                  child: ScreenStampPlacer(
+                    content: content,
+                    armed: armed,
+                    aspectOf: cache.aspectOf,
+                    onPlace: _stamps.place,
+                    onPaste: _stamps.paste,
+                    onCancel: () => _setTool(null),
+                  ),
+                ),
+              )
+            else if (_active != null && !stamping && consent != null)
               Positioned.fill(child: _catcher()),
+            if (_refusal case final refusal?)
+              ScreenStampRefusal(
+                message: refusal,
+                onDismiss: () => setState(() => _refusal = null),
+              ),
             if (_pendingNote != null) _noteField(),
             if (showToolbar)
               Positioned(
@@ -268,6 +340,8 @@ class _ScreenAnnotateLayerState extends ConsumerState<ScreenAnnotateLayer>
                     sharerName: widget.sharerName,
                     tool: _tool,
                     onChanged: _setTool,
+                    onStamp: stamps ? _pressStamp : null,
+                    onChooseStamp: _chooseStamp,
                   ),
                 ),
               ),

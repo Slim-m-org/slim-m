@@ -88,6 +88,12 @@ class StampImageCache {
     _keep(key, image, generation: generation);
   }
 
+  /// [content]'s baked width over height, or null until it is loaded.
+  double? aspectOf(StampContent content) {
+    final image = _images[keyOf(content)];
+    return image == null ? null : image.width / image.height;
+  }
+
   /// A copy of [content]'s baked picture for the caller to paint and dispose, or null until it is loaded.
   ui.Image? peek(StampContent content) => _images[keyOf(content)]?.clone();
 

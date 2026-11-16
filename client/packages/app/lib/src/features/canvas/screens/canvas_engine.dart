@@ -8,6 +8,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../members/providers/blocks_controller.dart';
+import '../../screen_overlay/providers/stamp_content.dart';
+import '../../screen_overlay/providers/stamp_images.dart';
 import '../providers/canvas_grid_snap.dart';
 import '../providers/canvas_layout_store.dart';
 import '../../../providers/app_lifecycle.dart';
@@ -28,6 +31,7 @@ import 'canvas_board_pager.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_label.dart';
 import 'canvas_cursor_relay.dart';
+import 'canvas_emoji_hydrator.dart';
 import 'canvas_engine_state.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_fullscreen.dart';
@@ -218,7 +222,25 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   late final CanvasImageHydrator hydrator = CanvasImageHydrator(
     client: _client,
     document: document,
+    emoji: CanvasEmojiHydrator(document: document, bake: _bakeEmoji),
   );
+
+  Future<ui.Image?> _bakeEmoji(String key) async {
+    final stamps = _ref.read(stampImageCacheProvider);
+    final emoji = EmojiStamp(key);
+    try {
+      await stamps.load(emoji);
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.media,
+        'An emoji stamp on the board would not bake; it shows a placeholder',
+        error,
+        stack,
+      );
+      return null;
+    }
+    return stamps.peek(emoji);
+  }
 
   late final CanvasSync sync;
 

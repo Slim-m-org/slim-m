@@ -57,11 +57,6 @@ const Map<String, String> _allowlist = {
       '"delete this author\'s recent messages" as a single action yet. Same '
       'shape bulkDeleteMessages itself carried in this allowlist until MOD13 '
       'built the multi-select that finally called it',
-  'placeScreenStamp': 'the server half of decision 0121 lands first because '
-      'main deploys it; the Stamp tool on a share is the client follow-up '
-      '(2026-11-16)',
-  'listReceivedScreenStamps': 'the "Pictures on your screen" sheet of '
-      'decision 0121 is the client follow-up to the server half (2026-11-16)',
   'uploadAttachmentStream': 'the single-request half of '
       'uploadAttachmentAuto, which is what the composer calls: it picks this '
       'for small files and for servers without upload sessions, so the app '

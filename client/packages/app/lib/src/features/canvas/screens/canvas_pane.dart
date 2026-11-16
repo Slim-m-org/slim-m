@@ -100,6 +100,9 @@ import 'canvas_pane_body.dart';
 import 'canvas_real_window.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_quick_placement.dart';
+import 'canvas_stamp_placement.dart';
+import '../providers/armed_stamp.dart';
+import '../../screen_overlay/providers/stamp_images.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_sync.dart';
@@ -172,6 +175,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
+  CanvasStampPlacement? _stampPlacementHelper;
 
   /// Captured once: `ref.read` throws while this element unmounts, and [dispose] still needs the engine.
   late final CanvasEngine _engine = ref.read(
@@ -260,6 +264,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _stampPlacementHelper?.dispose();
     _timeoutBanner.dispose();
     _boardFocusNode.dispose();
     _focusNode.dispose();
@@ -421,6 +426,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                       unawaited(
                         _onShapePlace(world, size, flipX: flipX, flipY: flipY),
                       ),
+                  stamping: _stampPlacement,
                   shapeKind: _shapeKind,
                   onShapeKindChanged: (kind) {
                     ref.read(canvasActiveShapeKindProvider.notifier).state =

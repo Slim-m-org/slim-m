@@ -251,6 +251,9 @@ abstract final class AppIcons {
   /// menu while it is active.
   static const IconData note = LucideIcons.stickyNote300;
 
+  /// The Stamp tool (decision 0121): puts an emoji or a picture on a shared screen or the board.
+  static const IconData stamp = LucideIcons.stamp300;
+
   /// The text tool: type straight onto the canvas with no card behind it.
   static const IconData textBox = LucideIcons.type300;
   static const IconData shapeRectangle = LucideIcons.square300;

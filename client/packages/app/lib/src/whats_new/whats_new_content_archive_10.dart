@@ -89,6 +89,13 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'Soundboard sounds in Notifications to stop hearing them.',
       ),
       WhatsNewPoint(
+        'Stamp an emoji, a GIF or a picture of your own on someone\'s '
+        'shared screen with the new Stamp tool, if they let viewers draw. It '
+        'fades after a few seconds. On the canvas, a stamp stays like any '
+        'other item. A sharer can report a picture for a day from Pictures '
+        'on your screen.',
+      ),
+      WhatsNewPoint(
         'A mention reads as the name people use in this Space. Hover it to '
         'see the username.',
       ),

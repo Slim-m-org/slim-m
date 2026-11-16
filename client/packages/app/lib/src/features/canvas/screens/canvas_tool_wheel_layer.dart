@@ -37,6 +37,7 @@ class CanvasToolWheelLayer extends StatefulWidget {
     required this.canDraw,
     required this.isObjectAt,
     required this.onToolChanged,
+    this.stamps = true,
   });
 
   final CanvasDocument document;
@@ -44,6 +45,7 @@ class CanvasToolWheelLayer extends StatefulWidget {
   final CanvasTool tool;
   final CanvasShapeKind shapeKind;
   final bool canDraw;
+  final bool stamps;
 
   /// Whether a right-click at this world point belongs to an object's own menu.
   final bool Function(Offset world) isObjectAt;
@@ -149,7 +151,9 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
     final index = canvasWheelSector(center: _center, pointer: overlayPoint);
     if (index == null) return null;
     final item = CanvasWheelItem.values[index];
-    return item.isAvailable(canDraw: widget.canDraw) ? item : null;
+    return item.isAvailable(canDraw: widget.canDraw, stamps: widget.stamps)
+        ? item
+        : null;
   }
 
   void _openHeld() {
@@ -201,6 +205,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
       tool: widget.tool,
       shapeKind: widget.shapeKind,
       canDraw: widget.canDraw,
+      stamps: widget.stamps,
       onPick: _pick,
       onDismiss: _close,
       openedByPointer: _byPointer,
