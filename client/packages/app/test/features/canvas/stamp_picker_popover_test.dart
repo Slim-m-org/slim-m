@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Stamp picker as a popover (decision 0121) keeps one place and size
-/// across its tabs, so switching from Emoji to a shorter tab never makes it jump.
+/// The Stamp picker (decision 0121): as a popover it keeps one place and size
+/// across its tabs and takes the keyboard in its search at once; as a phone
+/// sheet its search waits for a tap, so no keyboard covers the grid on open.
 library;
 
 import 'dart:convert';
@@ -41,47 +42,52 @@ Future<void> _frames(WidgetTester tester) async {
   }
 }
 
+/// Opens the picker from a Stamp button on a window [width] wide.
+Future<void> _open(WidgetTester tester, double width) async {
+  tester.view.physicalSize = Size(width, 800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await pumpInApp(
+    tester,
+    Stack(
+      children: [
+        Positioned(
+          left: width / 2 - 80,
+          bottom: 160,
+          child: Builder(
+            builder: (anchor) => TextButton(
+              onPressed: () => showStampPicker(anchor, onPicked: (_) {}),
+              child: const Text('Stamp'),
+            ),
+          ),
+        ),
+      ],
+    ),
+    settle: false,
+    overrides: [
+      sessionProvider.overrideWithValue(
+        api.SessionStore(
+          tokens: const api.TokenPair(
+            userId: 'me',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 9999999999999,
+          ),
+        ),
+      ),
+      mockApiOverride(_api),
+    ],
+  );
+  await _frames(tester);
+  await tester.tap(find.text('Stamp'));
+  await _frames(tester);
+}
+
 void main() {
   testWidgets('switching tabs never moves or resizes the popover', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await pumpInApp(
-      tester,
-      Stack(
-        children: [
-          Positioned(
-            left: 560,
-            bottom: 160,
-            child: Builder(
-              builder: (anchor) => TextButton(
-                onPressed: () => showStampPicker(anchor, onPicked: (_) {}),
-                child: const Text('Stamp'),
-              ),
-            ),
-          ),
-        ],
-      ),
-      settle: false,
-      overrides: [
-        sessionProvider.overrideWithValue(
-          api.SessionStore(
-            tokens: const api.TokenPair(
-              userId: 'me',
-              accessToken: 'a',
-              refreshToken: 'r',
-              accessExpiresAt: 9999999999999,
-            ),
-          ),
-        ),
-        mockApiOverride(_api),
-      ],
-    );
-    await _frames(tester);
-    await tester.tap(find.text('Stamp'));
-    await _frames(tester);
+    await _open(tester, 1280);
     final strip = find.bySemanticsLabel(_tabs);
     final onEmoji = tester.getRect(strip);
     final bottom = tester.getBottomLeft(find.text('Search emoji')).dy;
@@ -99,5 +105,26 @@ void main() {
       bottom,
       reason: 'back on Emoji the body sits where it opened',
     );
+  });
+
+  testWidgets('a phone sheet leaves the emoji search for a tap', (
+    tester,
+  ) async {
+    await _open(tester, 390);
+
+    expect(find.text('Search emoji'), findsOneWidget);
+    expect(
+      tester.testTextInput.hasAnyClients,
+      isFalse,
+      reason: 'no keyboard rises over the grid on open',
+    );
+  });
+
+  testWidgets('a popover puts the keyboard in the emoji search at once', (
+    tester,
+  ) async {
+    await _open(tester, 1280);
+
+    expect(tester.testTextInput.hasAnyClients, isTrue);
   });
 }

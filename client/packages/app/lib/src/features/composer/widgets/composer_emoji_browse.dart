@@ -39,6 +39,7 @@ class ComposerEmojiPicker extends ConsumerStatefulWidget {
     super.key,
     required this.onSelect,
     required this.onClose,
+    this.autofocusSearch = true,
   });
 
   /// Exposed so a test can find this exact node rather than any other
@@ -47,6 +48,9 @@ class ComposerEmojiPicker extends ConsumerStatefulWidget {
 
   final ValueChanged<String> onSelect;
   final VoidCallback onClose;
+
+  /// Off in a touch sheet, where the soft keyboard would rise over the grid before it is seen.
+  final bool autofocusSearch;
 
   @override
   ConsumerState<ComposerEmojiPicker> createState() =>
@@ -259,7 +263,7 @@ class _ComposerEmojiPickerState extends ConsumerState<ComposerEmojiPicker> {
             child: AppInput(
               controller: _searchController,
               focusNode: _searchFocus,
-              autofocus: true,
+              autofocus: widget.autofocusSearch,
               placeholder: 'Search emoji',
               icon: Icon(
                 AppIcons.search,

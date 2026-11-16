@@ -122,6 +122,7 @@ class _StampPickerState extends ConsumerState<StampPicker> {
             key: _body,
             child: switch (tab) {
               _StampTab.emoji => ComposerEmojiPicker(
+                autofocusSearch: !widget.sheet,
                 onSelect: (token) => _pick(
                   EmojiStamp(
                     storableEmoji(token, ref.read(customEmojiIndexProvider)),
