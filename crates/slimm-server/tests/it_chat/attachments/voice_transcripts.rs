@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use serde_json::{Value, json};
 use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::voice_transcripts::{
-    EngineFuture, Failure, Heard, SpeechEngine, VoiceTranscriber,
+    EngineFuture, Failure, Heard, MAX_ATTEMPTS, SpeechEngine, VoiceTranscriber,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -212,6 +212,52 @@ async fn an_unreachable_engine_leaves_it_pending_and_a_refusal_fails_it() {
         0,
         "not tried again"
     );
+}
+
+#[tokio::test]
+async fn a_clip_the_listener_never_takes_ends_failed_instead_of_pending_forever() {
+    let world = world().await;
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    let (message, _) = send_voice(&world, 7).await;
+    let transcriber = VoiceTranscriber::with_backoff(std::time::Duration::from_millis(1));
+    let broken = Fake::failing(Failure::Transient);
+    for attempt in 1..MAX_ATTEMPTS {
+        transcriber
+            .run_pass(&world.store, &world.media, &Hub::new(), &broken)
+            .await;
+        assert_eq!(
+            transcript_of(&world, &message).await["status"],
+            "pending",
+            "still trying after {attempt}"
+        );
+        // The backoff doubles from 1 ms, so wait it out before the next pass.
+        tokio::time::sleep(std::time::Duration::from_millis(2 << attempt)).await;
+    }
+    transcriber
+        .run_pass(&world.store, &world.media, &Hub::new(), &broken)
+        .await;
+    assert_eq!(transcript_of(&world, &message).await["status"], "failed");
+    assert_eq!(broken.calls.load(Ordering::SeqCst), MAX_ATTEMPTS as usize);
+}
+
+#[tokio::test]
+async fn a_listener_without_the_route_stops_the_pass_at_the_first_clip() {
+    let world = world().await;
+    world
+        .store
+        .set_transcribe_voice_messages(true)
+        .await
+        .unwrap();
+    for tail in 8..11 {
+        send_voice(&world, tail).await;
+    }
+    let old = Fake::failing(Failure::Unavailable);
+    assert_eq!(pass(&world, &old, &Hub::new()).await, 0);
+    assert_eq!(old.calls.load(Ordering::SeqCst), 1, "the others wait");
 }
 
 #[tokio::test]

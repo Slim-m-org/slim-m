@@ -26,6 +26,8 @@ const SWEEP_INTERVAL: Duration = Duration::from_secs(10);
 const BATCH: i64 = 5;
 const MAX_PER_PASS: usize = 20;
 const RETRY_BACKOFF: Duration = Duration::from_secs(30);
+/// Failures before a clip is marked failed: about 4.5 hours of doubling backoff from 30 s.
+pub const MAX_ATTEMPTS: u32 = 10;
 /// Longer than a clip at the cap takes on a slow host.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// A five minute WAV is about 10 MB; this leaves room.
@@ -45,6 +47,8 @@ pub enum Failure {
     Transient,
     /// The engine refused this clip; trying again would not help.
     Permanent,
+    /// The listener has no transcribe route yet, an older image than the server.
+    Unavailable,
 }
 
 pub type EngineFuture<'a> = Pin<Box<dyn Future<Output = Result<Heard, Failure>> + Send + 'a>>;
@@ -97,6 +101,11 @@ impl SpeechEngine for ListenerEngine {
             let status = response.status();
             if status == reqwest::StatusCode::UNPROCESSABLE_ENTITY {
                 return Err(Failure::Permanent);
+            }
+            if status == reqwest::StatusCode::NOT_FOUND
+                || status == reqwest::StatusCode::METHOD_NOT_ALLOWED
+            {
+                return Err(Failure::Unavailable);
             }
             if !status.is_success() {
                 return Err(Failure::Transient);
@@ -156,10 +165,13 @@ impl VoiceTranscriber {
                 }
             };
             for candidate in batch {
-                if self.process(store, media, hub, engine, &candidate).await {
-                    done += 1;
-                }
                 attempted += 1;
+                match self.process(store, media, hub, engine, &candidate).await {
+                    Step::Settled => done += 1,
+                    Step::Later => {}
+                    // Every clip would get the same answer, so the rest wait for the next pass.
+                    Step::NoListener => return done,
+                }
             }
         }
         done
@@ -172,23 +184,31 @@ impl VoiceTranscriber {
         hub: &Hub,
         engine: &dyn SpeechEngine,
         candidate: &VoiceCandidate,
-    ) -> bool {
+    ) -> Step {
         let Some(bytes) = read_clip(media, candidate).await else {
             self.retries.failed(&candidate.sha256);
-            return false;
+            return Step::Later;
         };
         if let Err(err) = store.begin_voice_transcript(&candidate.sha256).await {
             tracing::warn!(error = %err, attachment = %candidate.hex, "could not mark a voice message pending");
-            return false;
+            return Step::Later;
         }
         announce(store, hub, candidate, "pending", "").await;
         let outcome = match engine.transcribe(bytes).await {
             Ok(heard) => Ok(heard),
-            Err(Failure::Transient) => {
-                self.retries.failed(&candidate.sha256);
-                return false;
-            }
             Err(Failure::Permanent) => Err(()),
+            Err(retry @ (Failure::Transient | Failure::Unavailable)) => {
+                self.retries.failed(&candidate.sha256);
+                if self.retries.attempts(&candidate.sha256) < MAX_ATTEMPTS {
+                    return if retry == Failure::Unavailable {
+                        Step::NoListener
+                    } else {
+                        Step::Later
+                    };
+                }
+                tracing::warn!(attachment = %candidate.hex, "gave up transcribing a voice message after {MAX_ATTEMPTS} tries");
+                Err(())
+            }
         };
         self.retries.settled(&candidate.sha256);
         let finish = match &outcome {
@@ -207,8 +227,15 @@ impl VoiceTranscriber {
                 tracing::warn!(error = %err, attachment = %candidate.hex, "could not store a voice transcript");
             }
         }
-        true
+        Step::Settled
     }
+}
+
+/// What became of one clip in a pass.
+enum Step {
+    Settled,
+    Later,
+    NoListener,
 }
 
 impl Default for VoiceTranscriber {
@@ -307,6 +334,7 @@ mod tests {
     async fn a_refused_clip_is_permanent_and_everything_else_is_transient() {
         let refused = stub(post(|| async { StatusCode::UNPROCESSABLE_ENTITY })).await;
         let broken = stub(post(|| async { StatusCode::INTERNAL_SERVER_ERROR })).await;
+        let old_listener = stub(post(|| async { StatusCode::NOT_FOUND })).await;
         let engine = |url: String| ListenerEngine::new(url, "s".into());
         assert_eq!(
             engine(refused).transcribe(vec![1]).await,
@@ -315,6 +343,10 @@ mod tests {
         assert_eq!(
             engine(broken).transcribe(vec![1]).await,
             Err(Failure::Transient)
+        );
+        assert_eq!(
+            engine(old_listener).transcribe(vec![1]).await,
+            Err(Failure::Unavailable)
         );
         let gone = "http://127.0.0.1:1/v1/transcribe".to_owned();
         assert_eq!(
