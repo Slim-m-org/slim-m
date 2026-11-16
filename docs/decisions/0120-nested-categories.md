@@ -242,7 +242,7 @@ A newer client on an older server finds no `parent_id` key and offers no nesting
 
 ### Rendering
 
-- One pure builder in `channel_grouping.dart` turns channels and categories into the rail's sections in tree order, each with a depth of 0 or 1, and `orderedChannels` (next and previous channel) walks the same list.
+- One pure builder, `CategoryTree` in `category_tree.dart`, turns the flat rows into the rail's sections in tree order, each with a depth of 0 or 1, and `orderedChannels` (next and previous channel) walks the same order.
 - A sub-category's header is inset by `kRailRowInset`, the same edge as its parent's channel rows, and its channel rows by twice that, so every row still hangs off its own heading.
 - The insets are the same at every width, since tokens never move with width.
 - A sub-category whose parent this device does not hold renders as a top-level section until the next refresh, never under whichever heading happens to precede it.
@@ -264,8 +264,12 @@ This is `DesktopRailReorder`.
 - A carried channel can land in any expanded section at either depth, and the insertion line is inset to the depth it lands at.
 - Lifting a top-level category carries its whole block, sub-categories included, and lifting a sub-category carries its own block.
 - A carried category is offered the top-level gaps and the sub-category gaps of every other expanded top-level block, which is how it gets filed under one.
-- A carried category that has sub-categories is offered top-level gaps only, and no category is ever offered a gap inside its own block.
-- No gap exists inside a sub-category's block for a carried category, so a third level cannot be expressed, and the nearest legal gap wins with the line showing where it is.
+- No category is ever offered a gap inside its own block.
+- Where the last gap of a block and the next top-level gap share a line, the side the pointer is on decides: above it stays inside the block, below it starts the next one.
+- A gap that would make a third level is still offered, marked refused: any gap inside a sub-category's block, and every sub-category gap for a carried category that has sub-categories of its own.
+  The line there is danger-toned, inset to the third level, with "Two levels at most" beneath it and a not-allowed cursor, and a drop on it sends nothing.
+  Silently snapping to the nearest legal gap was the first design; it left a manager guessing why the category did not land where they let go.
+- An older server, one whose listing carries no `parent_id`, is offered top-level gaps only.
 - A category drop sends one `PUT /categories/order`, and a channel drop sends `PUT /channels/order` as today.
 - The server refuses a third level regardless, and that refusal lands in the rail's existing reorder error state.
 
@@ -284,8 +288,9 @@ At compact width the rail is `channel_rail_drawer`, which is this same widget wi
 - "Create sub-category..." appears on a top-level header when the server nests.
 - "Move category up" and "Move category down" move it among its siblings.
 - "Move into..." appears on a category with no sub-categories and lists every other top-level category in a sheet, and "Move out of gamers" appears on a sub-category.
-- "Permissions..." opens the same grid, and a sub-category's adds a sync line: "Follows its parent category's permissions." or "Has its own permissions." with "Sync with parent".
-- A parent's permissions caption names the sub-categories that follow it, and says that anyone who can see a channel in a sub-category also sees this category's name.
+- "Permissions..." opens the same grid, and a sub-category's adds a sync line: "Follows its parent category's permissions." or "Has its own permissions." with "Sync with parent category".
+- A top-level category's permissions caption says that channels and sub-categories following it get these permissions, and that anyone who can see a channel in one of its sub-categories also sees its name.
+  It does not list which sub-categories follow it, which would cost one request per sub-category each time the sheet opens.
 - "Delete category..." says where the contents go: up into the parent for a sub-category, and for a parent, that its sub-categories become categories of their own.
 
 ### Elsewhere in the client
@@ -296,7 +301,10 @@ At compact width the rail is `channel_rail_drawer`, which is this same widget wi
 - That also fixes a gap that exists today: a public channel moved into a category the member was never listed disappears from their rail until the next refresh.
 - `api`: `ChannelCategory.parentId` and whether the key was present, `createCategory(parentId:)`, `moveCategory`, `reorderCategories`, `syncCategoryOverwrites`, and the synced flag on a category's overwrite set.
 - `data`: `ChannelCategories.parentId`, drift schema 31 with an `_addColumnOnce` step, and `parent_id` written by both `replaceCategories`, its `DoUpdate` included, and `upsertCategory`.
-- `CategoryOrderController` sends one `PUT /categories/order` instead of one `PATCH` per category, which removes its partial-failure path.
+- `CategoryOrderController` sends one `PUT /categories/order` instead of one `PATCH` per category on a server that nests.
+  An older server has no such route, so there it keeps the per-category `PATCH` path for top-level order, partial-failure handling included.
+- A refused arrangement or move stays in that controller and shows inline over the rail with a retry, like a refused channel reorder, never in a SnackBar.
+- The create-category sheet gains a "Parent category" choice on a server that nests, and "Create sub-category..." opens it with the header already chosen.
 
 ## Ways this could leak a hidden category or channel name
 

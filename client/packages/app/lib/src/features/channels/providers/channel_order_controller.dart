@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Setting the deployment's channel order and category placement from the
 /// rail: `PUT /channels/order` ([api.SlimmApiChannelAdmin.reorderChannels]).
-/// [CategoryOrderController] below is the category-reorder sibling, from the
-/// categories admin screen rather than the rail.
+/// [CategoryOrderController] below is the category sibling.
 ///
 /// Optimistic, the same shape `BlocksController.block` uses: the new
 /// arrangement renders the instant a drag completes, and the round trip only
@@ -18,6 +17,7 @@ import 'package:slimm_data/data.dart' show CategoryStore;
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
+import 'category_nesting.dart';
 
 /// A store or parse failure has no API wording, and its raw text is a log line.
 String _failureMessage(String whatFailed, Object e) => e is api.ApiException
@@ -92,52 +92,96 @@ final channelOrderControllerProvider =
       (ref) => ChannelOrderController(ref),
     );
 
-/// What the categories screen should show while a category reorder is in
-/// flight or has failed.
+/// What the rail should show while a category arrangement is in flight or
+/// has failed.
 class CategoryOrderState {
   const CategoryOrderState({this.pendingOrder, this.error});
 
-  /// Every live category's id, in the arrangement this client asked for and
-  /// has not yet heard back on for every one of them. Null once every
-  /// request in that attempt has settled, whether or not all of them
-  /// succeeded - see [CategoryOrderController.reorder]'s own doc comment for
-  /// why "settled" and "succeeded" are not the same thing here.
-  final List<String>? pendingOrder;
+  /// The arrangement this client asked for and has not yet heard back on,
+  /// which the rail draws meanwhile; null once it settles either way.
+  final List<api.CategoryOrderGroup>? pendingOrder;
 
   final String? error;
 }
 
-/// Setting the deployment's channel-category order: one `PATCH
-/// /categories/{id}` per category whose position changes
-/// ([api.SlimmApiChannelAdmin.updateCategory]'s own `position` argument),
-/// never a bulk request - categories have no `PUT .../order` equivalent, only
-/// the single-row route `updateCategory`'s own doc comment already names.
+/// Setting the deployment's category arrangement from the rail.
 ///
-/// Same optimistic shape as [ChannelOrderController] above, with one real
-/// difference: a channel reorder is one atomic request, so a refusal reverts
-/// cleanly to whatever the store already held. A category reorder is N
-/// independent requests, so a partial failure can leave some categories
-/// repositioned and others not - [reorder] applies every response that did
-/// succeed to the local store before `pendingOrder` clears, so what renders
-/// next is always what the server actually holds rather than either a full
-/// revert or a fiction that everything landed.
+/// A server that nests (decision 0120) takes the whole tree in one
+/// `PUT /categories/order`, so a refusal reverts cleanly. An older one only
+/// has `PATCH /categories/{id}`, so [reorder] falls back to one request per
+/// moved category and applies whichever succeeded before `pendingOrder`
+/// clears, so what renders next is what the server actually holds.
 class CategoryOrderController extends StateNotifier<CategoryOrderState> {
   CategoryOrderController(this._ref) : super(const CategoryOrderState());
 
   final Ref _ref;
-  List<String>? _lastAttempt;
+  Future<void> Function()? _lastAttempt;
 
   /// See [ChannelOrderController._generation]'s own doc: the same
   /// stale-response guard, one controller over.
   int _generation = 0;
 
-  /// Submits [categoryIds] - every live category, in the arrangement a drag
-  /// produced - as sequential positions 0..N-1, one request per category
-  /// whose stored position differs, run together rather than one at a time.
-  Future<void> reorder(List<String> categoryIds) async {
-    _lastAttempt = categoryIds;
+  /// Submits [groups], the whole tree as a drag or a menu step left it.
+  Future<void> arrange(List<api.CategoryOrderGroup> groups) async {
+    if (!_ref.read(categoriesNestProvider)) {
+      return reorder(groups.firstWhere((g) => g.parentId == null).categoryIds);
+    }
+    _lastAttempt = () => arrange(groups);
     final generation = ++_generation;
-    state = CategoryOrderState(pendingOrder: categoryIds);
+    state = CategoryOrderState(pendingOrder: groups);
+    await _settle(
+      generation,
+      'reorder categories',
+      () => _ref.read(apiProvider).reorderCategories(groups),
+    );
+  }
+
+  /// Files [categoryId] under the top-level [parentId], or at the top level
+  /// for null, after its new siblings.
+  Future<void> move(String categoryId, String? parentId) async {
+    _lastAttempt = () => move(categoryId, parentId);
+    final generation = ++_generation;
+    state = const CategoryOrderState();
+    await _settle(generation, 'move the category', () async {
+      final moved = await _ref
+          .read(apiProvider)
+          .moveCategory(categoryId: categoryId, parentId: parentId);
+      return [moved];
+    });
+  }
+
+  Future<void> _settle(
+    int generation,
+    String whatFailed,
+    Future<List<api.ChannelCategory>> Function() request,
+  ) async {
+    try {
+      final updated = await request();
+      if (!mounted || generation != _generation) return;
+      final store = await _ref.read(storeProvider.future);
+      if (!mounted || generation != _generation) return;
+      for (final category in updated) {
+        await store.upsertCategory(category);
+      }
+      if (!mounted || generation != _generation) return;
+      state = const CategoryOrderState();
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, whatFailed, e, stack);
+      if (!mounted || generation != _generation) return;
+      state = CategoryOrderState(error: _failureMessage(whatFailed, e));
+    }
+  }
+
+  /// The older server's path: [categoryIds] are every top-level category in
+  /// order, sent as positions 0..N-1, one request per changed category.
+  Future<void> reorder(List<String> categoryIds) async {
+    _lastAttempt = () => reorder(categoryIds);
+    final generation = ++_generation;
+    state = CategoryOrderState(
+      pendingOrder: [
+        api.CategoryOrderGroup(parentId: null, categoryIds: categoryIds),
+      ],
+    );
     final client = _ref.read(apiProvider);
     final moves = await _positionsToWrite(categoryIds);
     if (!mounted || generation != _generation) return;
@@ -198,10 +242,7 @@ class CategoryOrderController extends StateNotifier<CategoryOrderState> {
   }
 
   /// Retries the arrangement that last failed, or does nothing if none did.
-  Future<void> retry() {
-    final attempt = _lastAttempt;
-    return attempt == null ? Future<void>.value() : reorder(attempt);
-  }
+  Future<void> retry() => _lastAttempt?.call() ?? Future<void>.value();
 
   /// Clears a failure without retrying, accepting whatever the store holds.
   void dismiss() {

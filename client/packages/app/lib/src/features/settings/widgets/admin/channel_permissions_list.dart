@@ -10,6 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/providers.dart';
 import '../../../channels/providers/dms.dart' show dmChannelKind;
+import '../../../channels/widgets/category_tree.dart';
 import '../../../channels/widgets/channel_grouping.dart';
 import '../../../channels/widgets/channel_kind_icon.dart';
 
@@ -60,11 +61,12 @@ class ChannelPermissionsList extends ConsumerWidget {
     List<ChannelCategoryRow> categories,
   ) {
     final byCategory = channelsByCategory(channels);
+    final tree = CategoryTree(categories);
     return [
       if (byCategory[null] case final loose?) _ChannelGroup('Channels', loose),
-      for (final category in categories)
+      for (final category in tree.ordered)
         if (byCategory[category.id] case final inside?)
-          _ChannelGroup(category.name, inside),
+          _ChannelGroup(tree.pathOf(category), inside),
     ];
   }
 }

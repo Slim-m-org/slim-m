@@ -31,6 +31,7 @@ import '../../../providers/providers.dart';
 import '../../../providers/store_stream.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
+import '../../channels/widgets/category_tree.dart' show categoryPaths;
 import 'command_palette_compact.dart';
 import 'command_palette_items.dart';
 import 'command_palette_rows.dart';
@@ -295,11 +296,9 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             builder: (context, categorySnapshot) => _animatedResults((
               tokens: tokens,
               channels: channels,
-              categoryNames: {
-                for (final c
-                    in categorySnapshot.data ?? const <ChannelCategoryRow>[])
-                  c.id: c.name,
-              },
+              categoryNames: categoryPaths(
+                categorySnapshot.data ?? const <ChannelCategoryRow>[],
+              ),
               members: members,
               me: me,
               permissions: permissions,

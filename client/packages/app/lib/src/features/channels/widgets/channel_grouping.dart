@@ -14,6 +14,7 @@ library;
 import 'package:slimm_data/data.dart';
 
 import '../providers/dms.dart';
+import 'category_tree.dart';
 
 /// [channels] split into the caller's personal space, if present, and every
 /// other channel: the first one flagged [Channel.isPersonalSpace] is pulled
@@ -51,8 +52,9 @@ Map<String?, List<Channel>> channelsByCategory(List<Channel> channels) {
 /// [channels] grouped and ordered the way the rail renders them: direct
 /// messages (the personal space first, then every other DM in listing
 /// order), then every non-DM channel bucketed by category - uncategorised
-/// first, then each of [categories] in its own position order - mixed kind
-/// within a bucket, ordered by the channel's own position.
+/// first, then each of [categories] in tree order (a parent's own channels
+/// before its sub-categories') - mixed kind within a bucket, ordered by the
+/// channel's own position.
 List<Channel> orderedChannels(
   List<Channel> channels,
   List<ChannelCategoryRow> categories,
@@ -69,6 +71,7 @@ List<Channel> orderedChannels(
     if (dms.personal != null) dms.personal!,
     ...dms.others,
     ...byCategory[null] ?? const [],
-    for (final category in categories) ...byCategory[category.id] ?? const [],
+    for (final category in CategoryTree(categories).ordered)
+      ...byCategory[category.id] ?? const [],
   ];
 }

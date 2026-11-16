@@ -2425,8 +2425,14 @@ class $ChannelCategoriesTable extends ChannelCategories
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _parentIdMeta =
+      const VerificationMeta('parentId');
   @override
-  List<GeneratedColumn> get $columns => [id, name, position];
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+      'parent_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [id, name, position, parentId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2452,6 +2458,10 @@ class $ChannelCategoriesTable extends ChannelCategories
       context.handle(_positionMeta,
           position.isAcceptableOrUnknown(data['position']!, _positionMeta));
     }
+    if (data.containsKey('parent_id')) {
+      context.handle(_parentIdMeta,
+          parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
+    }
     return context;
   }
 
@@ -2467,6 +2477,8 @@ class $ChannelCategoriesTable extends ChannelCategories
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       position: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+      parentId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
     );
   }
 
@@ -2481,16 +2493,26 @@ class ChannelCategoryRow extends DataClass
   final String id;
   final String name;
 
-  /// Sort key among the deployment's live categories: lower sorts first.
+  /// Sort key among its siblings, lower first: the top-level categories, or
+  /// one parent's sub-categories (decision 0120).
   final int position;
+
+  /// The top-level category this one sits in, or null for a top-level one.
+  final String? parentId;
   const ChannelCategoryRow(
-      {required this.id, required this.name, required this.position});
+      {required this.id,
+      required this.name,
+      required this.position,
+      this.parentId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['position'] = Variable<int>(position);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
     return map;
   }
 
@@ -2499,6 +2521,9 @@ class ChannelCategoryRow extends DataClass
       id: Value(id),
       name: Value(name),
       position: Value(position),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
     );
   }
 
@@ -2509,6 +2534,7 @@ class ChannelCategoryRow extends DataClass
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       position: serializer.fromJson<int>(json['position']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
     );
   }
   @override
@@ -2518,20 +2544,27 @@ class ChannelCategoryRow extends DataClass
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'position': serializer.toJson<int>(position),
+      'parentId': serializer.toJson<String?>(parentId),
     };
   }
 
-  ChannelCategoryRow copyWith({String? id, String? name, int? position}) =>
+  ChannelCategoryRow copyWith(
+          {String? id,
+          String? name,
+          int? position,
+          Value<String?> parentId = const Value.absent()}) =>
       ChannelCategoryRow(
         id: id ?? this.id,
         name: name ?? this.name,
         position: position ?? this.position,
+        parentId: parentId.present ? parentId.value : this.parentId,
       );
   ChannelCategoryRow copyWithCompanion(ChannelCategoriesCompanion data) {
     return ChannelCategoryRow(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       position: data.position.present ? data.position.value : this.position,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
     );
   }
 
@@ -2540,37 +2573,42 @@ class ChannelCategoryRow extends DataClass
     return (StringBuffer('ChannelCategoryRow(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('position: $position')
+          ..write('position: $position, ')
+          ..write('parentId: $parentId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, position);
+  int get hashCode => Object.hash(id, name, position, parentId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ChannelCategoryRow &&
           other.id == this.id &&
           other.name == this.name &&
-          other.position == this.position);
+          other.position == this.position &&
+          other.parentId == this.parentId);
 }
 
 class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<int> position;
+  final Value<String?> parentId;
   final Value<int> rowid;
   const ChannelCategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.position = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChannelCategoriesCompanion.insert({
     required String id,
     required String name,
     this.position = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -2578,12 +2616,14 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<int>? position,
+    Expression<String>? parentId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (position != null) 'position': position,
+      if (parentId != null) 'parent_id': parentId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2592,11 +2632,13 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
       {Value<String>? id,
       Value<String>? name,
       Value<int>? position,
+      Value<String?>? parentId,
       Value<int>? rowid}) {
     return ChannelCategoriesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       position: position ?? this.position,
+      parentId: parentId ?? this.parentId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2613,6 +2655,9 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2625,6 +2670,7 @@ class ChannelCategoriesCompanion extends UpdateCompanion<ChannelCategoryRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('position: $position, ')
+          ..write('parentId: $parentId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4344,6 +4390,7 @@ typedef $$ChannelCategoriesTableCreateCompanionBuilder
   required String id,
   required String name,
   Value<int> position,
+  Value<String?> parentId,
   Value<int> rowid,
 });
 typedef $$ChannelCategoriesTableUpdateCompanionBuilder
@@ -4351,6 +4398,7 @@ typedef $$ChannelCategoriesTableUpdateCompanionBuilder
   Value<String> id,
   Value<String> name,
   Value<int> position,
+  Value<String?> parentId,
   Value<int> rowid,
 });
 
@@ -4371,6 +4419,9 @@ class $$ChannelCategoriesTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+      column: $table.parentId, builder: (column) => ColumnFilters(column));
 }
 
 class $$ChannelCategoriesTableOrderingComposer
@@ -4390,6 +4441,9 @@ class $$ChannelCategoriesTableOrderingComposer
 
   ColumnOrderings<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get parentId => $composableBuilder(
+      column: $table.parentId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$ChannelCategoriesTableAnnotationComposer
@@ -4409,6 +4463,9 @@ class $$ChannelCategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
 }
 
 class $$ChannelCategoriesTableTableManager extends RootTableManager<
@@ -4443,24 +4500,28 @@ class $$ChannelCategoriesTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<int> position = const Value.absent(),
+            Value<String?> parentId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelCategoriesCompanion(
             id: id,
             name: name,
             position: position,
+            parentId: parentId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String name,
             Value<int> position = const Value.absent(),
+            Value<String?> parentId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ChannelCategoriesCompanion.insert(
             id: id,
             name: name,
             position: position,
+            parentId: parentId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

@@ -279,6 +279,10 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
                     ),
                 ],
               );
+          // A sub-category's own save stops it following its parent.
+          if (ref.exists(categoryOverwritesSyncedProvider(categoryId))) {
+            ref.invalidate(categoryOverwritesSyncedProvider(categoryId));
+          }
         } else if (edits.isNotEmpty) {
           await ref
               .read(settingsActionsProvider)

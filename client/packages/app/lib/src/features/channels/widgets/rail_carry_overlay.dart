@@ -46,8 +46,15 @@ class RailCarryOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        const Positioned.fill(
-          child: MouseRegion(cursor: SystemMouseCursors.grabbing),
+        Positioned.fill(
+          child: ValueListenableBuilder<DropSlot?>(
+            valueListenable: slot,
+            builder: (context, slot, _) => MouseRegion(
+              cursor: slot?.refused ?? false
+                  ? SystemMouseCursors.forbidden
+                  : SystemMouseCursors.grabbing,
+            ),
+          ),
         ),
         ValueListenableBuilder<Offset>(
           valueListenable: pointer,
@@ -80,13 +87,16 @@ class RailCarryOverlay extends StatelessWidget {
   Widget _line(DropSlot slot) => CompositedTransformFollower(
     link: link,
     showWhenUnlinked: false,
-    offset: Offset(AppSpacing.s8, slot.y - RailInsertionLine.thickness / 2),
+    offset: Offset(
+      AppSpacing.s8 + slot.inset,
+      slot.y - RailInsertionLine.thickness / 2,
+    ),
     child: Align(
       alignment: Alignment.topLeft,
       child: IgnorePointer(
         child: SizedBox(
-          width: listWidth() - 2 * AppSpacing.s8,
-          child: const RailInsertionLine(),
+          width: listWidth() - 2 * AppSpacing.s8 - slot.inset,
+          child: RailInsertionLine(refused: slot.refused),
         ),
       ),
     ),
