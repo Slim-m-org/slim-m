@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::clip;
 use crate::control::{Control, same_secret};
 use crate::endpoint::SAMPLE_RATE;
-use crate::stt::{Meta, Work};
+use crate::stt::{Meta, Work, is_noise_marker};
 
 /// A clip of the longest length in WAV is about 11 MB; this leaves room.
 pub const MAX_BODY_BYTES: usize = 24 * 1024 * 1024;
@@ -70,8 +70,13 @@ pub async fn handler(
         tracing::warn!(%why, "the engine failed on a clip");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+    let text = if is_noise_marker(&transcript.text) {
+        String::new()
+    } else {
+        transcript.text
+    };
     Ok(Json(Reply {
-        text: transcript.text,
+        text,
         language: transcript.language,
         duration_ms,
     }))
@@ -115,7 +120,25 @@ mod tests {
         }
     }
 
+    /// Hears the same words in every clip.
+    struct Saying(&'static str);
+    impl Transcriber for Saying {
+        fn transcribe(&self, _: &[i16], _: Option<&str>) -> anyhow::Result<Transcript> {
+            Ok(Transcript {
+                text: self.0.into(),
+                language: None,
+            })
+        }
+        fn model(&self) -> String {
+            "saying".into()
+        }
+    }
+
     fn router() -> axum::Router {
+        router_hearing(Arc::new(Counting))
+    }
+
+    fn router_hearing(transcriber: Arc<dyn Transcriber>) -> axum::Router {
         let config = Arc::new(Config {
             listen: "127.0.0.1:0".parse().unwrap(),
             secret: SECRET.into(),
@@ -124,16 +147,24 @@ mod tests {
             threads: 1,
             max_sessions: 1,
         });
-        let pool = Arc::new(Pool::new(Arc::new(Counting), 1));
+        let pool = Arc::new(Pool::new(transcriber, 1));
         Control::new(config, pool, Arc::new(NoSessions)).router()
     }
 
     async fn post(secret: &str, body: &[u8]) -> (StatusCode, serde_json::Value) {
+        post_to(router(), secret, body).await
+    }
+
+    async fn post_to(
+        router: axum::Router,
+        secret: &str,
+        body: &[u8],
+    ) -> (StatusCode, serde_json::Value) {
         let request = Request::post("/v1/transcribe")
             .header("authorization", format!("Bearer {secret}"))
             .body(Body::from(body.to_vec()))
             .unwrap();
-        let response = router().oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.unwrap();
         let status = response.status();
         let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         (status, serde_json::from_slice(&bytes).unwrap_or_default())
@@ -164,5 +195,18 @@ mod tests {
             post(SECRET, b"not audio").await.0,
             StatusCode::UNPROCESSABLE_ENTITY
         );
+    }
+
+    #[tokio::test]
+    async fn a_clip_of_only_noise_markers_has_no_words() {
+        for marker in ["[BLANK_AUDIO]", "(music)", "[Music] (applause)"] {
+            let (status, reply) =
+                post_to(router_hearing(Arc::new(Saying(marker))), SECRET, OGG).await;
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(reply["text"], "", "{marker}");
+        }
+        let speech = "[BLANK_AUDIO] call me back [BLANK_AUDIO]";
+        let (_, reply) = post_to(router_hearing(Arc::new(Saying(speech))), SECRET, OGG).await;
+        assert_eq!(reply["text"], speech, "words between markers are kept");
     }
 }
