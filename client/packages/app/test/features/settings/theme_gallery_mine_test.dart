@@ -259,11 +259,25 @@ void main() {
     await _applyUnsaved(rig, _doc('Borrowed'));
     await tester.pump();
 
-    await _tap(tester, _key('theme-mine-menu'));
-    expect(find.text('Save to Mine'), findsNWidgets(2));
-    expect(find.text('Publish to Space'), findsOneWidget);
-    await _tap(tester, find.text('Export to file'));
+    Future<void> pick(String label) async {
+      await _tap(tester, _key('theme-mine-menu'));
+      await _tap(tester, find.widgetWithText(AppMenuItem, label));
+    }
+
+    await pick('Publish to Space');
+    expect(rig.calls, contains('POST /space/themes'));
+    expect((rig.published! as Map<String, dynamic>)['name'], 'Borrowed');
+
+    await pick('Export to file');
     expect(rig.saved.single.$1, 'borrowed.slimm-theme.json');
+
+    await pick('Save to Mine');
+    final mine = rig.container.read(myThemesProvider);
+    expect(mine.map((t) => t.document.name), ['Borrowed']);
+    expect(
+      rig.container.read(customThemeSourceProvider),
+      MineThemeSource(mine.single.id),
+    );
   });
 
   testWidgets('a Space theme applied and then removed reads as Not saved', (
