@@ -40,3 +40,23 @@ Build the setup with `iscc /DAppVersion=<version> /DSourceDir=<release folder> s
 `launcher/` holds the launcher's source (Go).
 Run `go generate ./...` in `launcher/` first: it embeds the app icon as a resource (`rsrc_windows_amd64.syso`, gitignored) with a pinned go-winres.
 Then build it with `GOOS=windows go build -ldflags "-H=windowsgui -s -w" -o slim-m.exe ./launcher`.
+
+## No firewall prompt
+
+slim-m must never listen for inbound connections, so Windows Firewall never asks to allow it.
+The firewall keys its rules on the exe path and every update runs from a new `app-<version>` folder, so a listener would ask again after each update.
+libwebrtc is the only part that listens: a passive TCP ICE candidate opens a listening socket on every interface address.
+The mic preview's in-process loopback gathers no TCP candidates (`loopbackPeerConfiguration`), and a Windows call gathers none when the server offers TURN over TLS or TCP (`callPeerConfiguration`).
+A deployment with no TCP relay keeps them, because LiveKit's TCP port is then the only way through a network that blocks UDP, so there a call on such a network can still raise the prompt.
+Cancel does not break that call: it blocks inbound only, and the TCP connection the call uses is outbound.
+`client/packages/rtc/test/peer_connection_sites_gate_test.dart` fails when a peer connection is created anywhere else.
+Both settings need the `tcpCandidatePolicy` key, which the WebRTC fork reads on Windows and Linux since `fix/desktop-tcp-candidate-policy`.
+
+To check a build by hand, from an elevated PowerShell:
+
+1. `auditpol /set /subcategory:"{0CCE9226-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable` turns on the Filtering Platform Connection audit.
+2. Copy the release folder to a path that has never run, start it there, open Settings > Voice and screen share, then join and leave a call.
+3. `Get-WinEvent -FilterHashtable @{LogName='Security'; Id=5154,5031} | ? Message -match 'slimm_app'` must list nothing: 5154 is a socket permitted to listen, 5031 is the prompt.
+4. Set the subcategory back with `/success:disable /failure:disable`.
+
+The audit log records a listener however briefly it lives, which polling `Get-NetTCPConnection -State Listen` cannot promise.
