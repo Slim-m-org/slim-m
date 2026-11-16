@@ -30,3 +30,4 @@ mod role_mentions;
 mod thread_notification_override;
 mod thread_push_mention_case;
 mod thread_push_narrowing;
+mod voice_chat_push;
