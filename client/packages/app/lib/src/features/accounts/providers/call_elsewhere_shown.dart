@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Whether the call another account holds is already on screen, so the call
-/// pill steps aside. See docs/decisions/0111-personal-space-is-called-notes.md.
+/// pill steps aside. See docs/decisions/0068-multiple-servers-in-one-app.md.
 library;
 
 import 'package:flutter/foundation.dart';

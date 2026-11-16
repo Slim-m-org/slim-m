@@ -156,8 +156,8 @@ void main() {
         ],
     ]);
 
-    expect(offscreen['_Summary'], isNull);
-    expect(shown['_Summary'], greaterThan(0));
+    expect(offscreen['_FaceRow'], isNull);
+    expect(shown['_FaceRow'], greaterThan(0));
     await call.leave();
   });
 

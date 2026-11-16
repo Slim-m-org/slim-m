@@ -21,6 +21,8 @@
 /// worse than a missing one. Everything else here acts.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +30,8 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../accounts/providers/account_providers.dart';
+import '../../accounts/widgets/call_elsewhere_view.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
@@ -43,7 +47,8 @@ const _inCallLabel = 'In a call';
 const voiceStripKey = Key('voice_strip');
 
 /// Whether a call is live and worth surfacing, regardless of which channel is
-/// on screen. The caller decides *where* it renders; this decides *if*.
+/// on screen. The caller decides *where* it renders; this decides *if*. With no
+/// call here, a call in another community shows the way the rail's row shows it.
 class VoiceStripIndicator extends ConsumerWidget {
   const VoiceStripIndicator({super.key, this.atTop = false});
 
@@ -54,11 +59,100 @@ class VoiceStripIndicator extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final voice = ref.watch(voiceFlagsProvider);
     if (!voice.callLive) {
-      return const SizedBox.shrink();
+      final elsewhere = ref.watch(accountsSnapshotProvider).callElsewhere;
+      if (elsewhere == null) return const SizedBox.shrink();
+      return CallElsewhereView(
+        entry: elsewhere,
+        builder: (context, call) => _CommunityStrip(call: call, atTop: atTop),
+      );
     }
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final controller = ref.read(voiceControllerProvider.notifier);
+    return _StripFrame(
+      atTop: atTop,
+      press: switch (voice.channelId) {
+        final channelId? => _ReturnToCall(
+          voice: voice,
+          onPressed: () => returnToCall(ref, context, channelId),
+        ),
+        null => null,
+      },
+      summary: _Summary(
+        voice: voice,
+        leading: const _FaceRow(),
+        title: CallChannelName(
+          channelId: voice.channelId,
+          style: _Summary.titleStyle(tokens),
+        ),
+      ),
+      controls: _Controls(
+        voice: voice,
+        controller: ref.read(voiceControllerProvider.notifier),
+      ),
+    );
+  }
+}
 
+/// Another community's call: its glyph where the faces go, its name leading
+/// the second line, and a press that switches there first.
+class _CommunityStrip extends StatelessWidget {
+  const _CommunityStrip({required this.call, required this.atTop});
+
+  final CallElsewhere call;
+  final bool atTop;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final channel = call.channelName;
+    return _StripFrame(
+      atTop: atTop,
+      press: CallStripPressArea(
+        semanticLabel: channel == null
+            ? 'Return to call on ${call.community}'
+            : 'Return to call, $channel on ${call.community}',
+        onPressed: () => unawaited(call.open()),
+      ),
+      summary: _Summary(
+        voice: call.voice,
+        leading: Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Icon(
+            AppIcons.voice,
+            size: AppSizes.icon20,
+            color: tokens.accent,
+          ),
+        ),
+        title: Text(
+          channel ?? _inCallLabel,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _Summary.titleStyle(tokens),
+        ),
+        community: call.community,
+      ),
+      controls: _Controls(voice: call.voice, controller: call.controller),
+    );
+  }
+}
+
+/// The strip's fill and border, its press surface, and [summary] drawn over
+/// that surface beside [controls].
+class _StripFrame extends StatelessWidget {
+  const _StripFrame({
+    required this.atTop,
+    required this.press,
+    required this.summary,
+    required this.controls,
+  });
+
+  final bool atTop;
+  final Widget? press;
+  final Widget summary;
+  final Widget controls;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Container(
       key: voiceStripKey,
       decoration: BoxDecoration(
@@ -73,13 +167,7 @@ class VoiceStripIndicator extends ConsumerWidget {
       constraints: const BoxConstraints(minHeight: AppSizes.rowTouch),
       child: Stack(
         children: [
-          if (voice.channelId case final channelId?)
-            Positioned.fill(
-              child: _ReturnToCall(
-                voice: voice,
-                onPressed: () => returnToCall(ref, context, channelId),
-              ),
-            ),
+          if (press case final press?) Positioned.fill(child: press),
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.s12,
@@ -87,10 +175,8 @@ class VoiceStripIndicator extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Expanded(
-                  child: IgnorePointer(child: _Summary(voice: voice)),
-                ),
-                _Controls(voice: voice, controller: controller),
+                Expanded(child: IgnorePointer(child: summary)),
+                controls,
               ],
             ),
           ),
@@ -131,45 +217,61 @@ class _ReturnToCall extends ConsumerWidget {
   }
 }
 
-/// Avatars, channel name, clock and what the call is; drawn over the press
-/// surface and left out of semantics, which the button's own label covers.
-class _Summary extends ConsumerWidget {
-  const _Summary({required this.voice});
+/// [leading], the channel name, clock and what the call is; drawn over the
+/// press surface and left out of semantics, which the button's own label covers.
+class _Summary extends StatelessWidget {
+  const _Summary({
+    required this.voice,
+    required this.leading,
+    required this.title,
+    this.community,
+  });
 
   final VoiceFlags voice;
+  final Widget leading;
+
+  /// The channel's name, in [titleStyle].
+  final Widget title;
+
+  /// Leads the second line when the call is in another community.
+  final String? community;
+
+  static TextStyle titleStyle(AppTokens tokens) => AppText.caption.copyWith(
+    color: tokens.textPrimary,
+    fontWeight: AppWeights.medium,
+  );
+
+  static TextStyle _communityStyle(AppTokens tokens) =>
+      AppText.caption.copyWith(color: tokens.textSecondary);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final faces = ref.watch(voiceParticipantsProvider.select(_Faces.of)).people;
     return ExcludeSemantics(
       child: Row(
         children: [
-          for (final (identity, name, speaking) in faces)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: UserAvatar(
-                userId: identity,
-                name: name,
-                size: AppAvatarSize.s20,
-                speaking: speaking,
-              ),
-            ),
+          leading,
           const SizedBox(width: 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                CallChannelName(
-                  channelId: voice.channelId,
-                  style: AppText.caption.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.medium,
-                  ),
-                ),
+                title,
                 Row(
                   children: [
+                    if (community case final name?) ...[
+                      Flexible(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textWidthBasis: TextWidthBasis.longestLine,
+                          style: _communityStyle(tokens),
+                        ),
+                      ),
+                      Text(' · ', style: _communityStyle(tokens)),
+                    ],
                     if (voice.connectedAt case final since?)
                       CallDuration(since: since),
                     Flexible(
@@ -195,6 +297,31 @@ class _Summary extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The first two people in this community's call.
+class _FaceRow extends ConsumerWidget {
+  const _FaceRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final faces = ref.watch(voiceParticipantsProvider.select(_Faces.of)).people;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (identity, name, speaking) in faces)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: UserAvatar(
+              userId: identity,
+              name: name,
+              size: AppAvatarSize.s20,
+              speaking: speaking,
+            ),
+          ),
+      ],
     );
   }
 }

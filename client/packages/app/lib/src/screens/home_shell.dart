@@ -350,8 +350,8 @@ class HomeShell extends ConsumerWidget {
     String channelId,
   ) {
     // No rail here to carry the strip, so a call not on screen gets its own row.
-    final (callLive, voiceChannelId) = ref.watch(
-      voiceControllerProvider.select((s) => (s.callLive, s.channelId)),
+    final voiceChannelId = ref.watch(
+      voiceControllerProvider.select((s) => s.channelId),
     );
     final chatOverCall = voiceChatOverCall(ref, channelId);
     // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
@@ -364,7 +364,6 @@ class HomeShell extends ConsumerWidget {
           voiceChannelId == channelId &&
           !chatOverCall &&
           (!isDm || facts.dmCallOpen);
-      final showVoiceStrip = callLive && !callOnScreen;
       return CompactDrawerScaffold(
         channelId: channelId,
         onBack: facts.canvasFullscreen
@@ -396,7 +395,8 @@ class HomeShell extends ConsumerWidget {
                   ),
                 ),
               ),
-              if (showVoiceStrip && !keyboardUp) const VoiceStripIndicator(),
+              // The strip decides if a call is live, here or in another community.
+              if (!callOnScreen && !keyboardUp) const VoiceStripIndicator(),
             ],
           ),
         ),
