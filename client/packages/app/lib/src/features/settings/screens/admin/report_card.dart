@@ -186,6 +186,7 @@ class _ReportCardState extends ConsumerState<ReportCard>
         api.ReportSubject.message => 'Reported message',
         api.ReportSubject.ephemeralMessage => 'Reported private message',
         api.ReportSubject.user => 'Reported user',
+        api.ReportSubject.screenStamp => 'Reported pictures',
       },
       children: [
         _subjectBlock(facts),

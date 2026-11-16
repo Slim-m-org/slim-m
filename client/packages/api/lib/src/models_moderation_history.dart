@@ -56,6 +56,7 @@ class ResolvedReportHistoryEntry extends ModerationHistoryItem {
     this.subjectAuthorId,
     this.resolvedBy,
     this.resolution,
+    this.pictureIds = const [],
   });
 
   @override
@@ -85,6 +86,10 @@ class ResolvedReportHistoryEntry extends ModerationHistoryItem {
   final String? resolvedBy;
   final ReportResolution? resolution;
 
+  /// A [ReportSubject.screenStamp] report's pictures while they are kept, as on
+  /// [Report.pictureIds]; the first sweep after it closed empties it.
+  final List<String> pictureIds;
+
   @override
   String get cursorKind => 'resolved_report';
 
@@ -105,6 +110,9 @@ class ResolvedReportHistoryEntry extends ModerationHistoryItem {
         resolvedAt: json['resolved_at'] as int,
         resolvedBy: json['resolved_by'] as String?,
         resolution: _resolutionOf(json['resolution']),
+        pictureIds: [
+          ...?(json['picture_ids'] as List<dynamic>?)?.whereType<String>(),
+        ],
       );
 }
 

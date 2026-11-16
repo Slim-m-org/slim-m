@@ -61,6 +61,7 @@ export 'src/client.dart'
         SlimmApiDock,
         SlimmApiEmoji,
         SlimmApiSoundboard,
+        SlimmApiScreenStamps,
         SlimmApiSpaceThemes,
         SlimmApiFavorites,
         SlimmApiGifs,
