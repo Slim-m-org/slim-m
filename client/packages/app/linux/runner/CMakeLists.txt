@@ -18,6 +18,8 @@ add_executable(${BINARY_NAME}
   "linux_screen_overlay_channel.cc"
   "screen_overlay.cc"
   "screen_overlay_panel.cc"
+  "screen_overlay_png.cc"
+  "screen_overlay_stamps.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 

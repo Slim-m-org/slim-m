@@ -62,13 +62,36 @@ class FakeOverlay implements ScreenOverlay {
   Future<bool> show(List<int> monitors, {int? window}) async {
     shown.add(monitors);
     windows.add(window);
+    images.clear();
     return true;
   }
 
   @override
   Future<void> draw(List<OverlayShape> shapes) async => draws.add(shapes);
+
+  /// The stamp pictures the runner holds, by key, as put and dropped.
+  final images = <String, Uint8List>{};
+  final puts = <String>[];
+  final drops = <String>[];
   @override
-  Future<void> hide() async => hides++;
+  Future<bool> putImage(String key, Uint8List png) async {
+    puts.add(key);
+    images[key] = png;
+    return true;
+  }
+
+  @override
+  Future<void> dropImage(String key) async {
+    drops.add(key);
+    images.remove(key);
+  }
+
+  @override
+  Future<void> hide() async {
+    hides++;
+    images.clear();
+  }
+
   @override
   Future<void> panel(OverlayPanel? panel) async => panels.add(panel);
   @override

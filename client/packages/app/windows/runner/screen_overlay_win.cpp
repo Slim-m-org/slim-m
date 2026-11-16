@@ -2,6 +2,8 @@
 
 #include "screen_overlay_win_capture.h"
 #include "screen_overlay_win_panel.h"
+#include "screen_overlay_win_png.h"
+#include "screen_overlay_win_stamps.h"
 
 #include <windows.h>
 
@@ -47,7 +49,6 @@ struct Layer {
 
 Layer g_draw;
 Layer g_panel_layer;
-ULONG_PTR g_gdiplus_token = 0;
 bool g_class_registered = false;
 std::vector<Shape> g_shapes;
 Panel g_panel;
@@ -219,6 +220,7 @@ void Present(Layer& layer, Content content) {
           case Shape::Kind::kStroke: DrawStroke(g, s, layer.width, layer.height); break;
           case Shape::Kind::kEllipse: DrawEllipse(g, s, layer.width, layer.height); break;
           case Shape::Kind::kNote: DrawNote(g, s, layer.width, layer.height); break;
+          case Shape::Kind::kStamp: DrawStamp(g, s, layer.width, layer.height); break;
         }
       }
     } else if (g_panel.present) {
@@ -276,12 +278,6 @@ bool EnsureClass() {
   if (RegisterClassW(&wc) == 0) return false;
   g_class_registered = true;
   return true;
-}
-
-bool EnsureGdiplus() {
-  if (g_gdiplus_token != 0) return true;
-  Gdiplus::GdiplusStartupInput input;
-  return Gdiplus::GdiplusStartup(&g_gdiplus_token, &input, nullptr) == Gdiplus::Ok;
 }
 
 // Opens a click-through window over [monitor] and hides it from capture; refused means it would show up in the share, so it is not shown at all.
@@ -480,6 +476,7 @@ void SetDisplaysChangedHandler(std::function<void()> handler) {
 void Hide() {
   StopFollowing();
   g_shapes.clear();
+  ForgetStampImages();
   CloseLayer(g_draw);
 }
 

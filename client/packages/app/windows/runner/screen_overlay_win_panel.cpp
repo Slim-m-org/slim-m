@@ -1,6 +1,6 @@
 #include "screen_overlay_win_panel.h"
 
-#include <shlwapi.h>
+#include "screen_overlay_win_png.h"
 
 #include <cmath>
 #include <map>
@@ -30,26 +30,6 @@ using Gdiplus::REAL;
 
 // Pictures by user id, decoded from the PNG the app sends once per picture.
 std::map<std::string, std::unique_ptr<Gdiplus::Bitmap>> g_avatars;
-
-// A bitmap made from a stream needs the stream for its whole life, so the pixels are copied out and the stream released.
-std::unique_ptr<Gdiplus::Bitmap> DecodePicture(const std::vector<uint8_t>& png) {
-  IStream* stream = SHCreateMemStream(png.data(), static_cast<UINT>(png.size()));
-  if (stream == nullptr) return nullptr;
-  std::unique_ptr<Gdiplus::Bitmap> decoded(Gdiplus::Bitmap::FromStream(stream));
-  std::unique_ptr<Gdiplus::Bitmap> copy;
-  if (decoded != nullptr && decoded->GetLastStatus() == Gdiplus::Ok) {
-    INT w = static_cast<INT>(decoded->GetWidth());
-    INT h = static_cast<INT>(decoded->GetHeight());
-    copy = std::make_unique<Gdiplus::Bitmap>(w, h, PixelFormat32bppPARGB);
-    Gdiplus::Graphics g(copy.get());
-    g.SetCompositingMode(Gdiplus::CompositingModeSourceCopy);
-    g.DrawImage(decoded.get(), 0, 0, w, h);
-  }
-  decoded.reset();
-  stream->Release();
-  if (copy != nullptr && copy->GetLastStatus() != Gdiplus::Ok) return nullptr;
-  return copy;
-}
 
 Gdiplus::Color ColorOf(uint32_t argb, double alpha = 1) {
   double a = alpha * static_cast<double>((argb >> 24) & 0xFF);

@@ -80,6 +80,32 @@ class ChannelScreenOverlay implements ScreenOverlay {
   }
 
   @override
+  Future<bool> putImage(String key, Uint8List png) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'putImage',
+            {'key': key, 'png': png},
+          ) ??
+          false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> dropImage(String key) async {
+    try {
+      await _channel.invokeMethod<void>('dropImage', {'key': key});
+    } on PlatformException {
+      return;
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  @override
   Future<void> hide() async {
     try {
       await _channel.invokeMethod<void>('hide');
