@@ -63,6 +63,30 @@ class EvTest(unittest.TestCase):
         self.assertEqual(c.taps, [])
 
 
+class ExactClickTest(unittest.TestCase):
+    """`Mute` sits inside `Unmute`, so a loose click on a closed microphone opened it."""
+
+    def test_a_whole_word_label_is_not_found_inside_its_opposite(self):
+        c = ScriptedClient(None)
+        c.nodes = lambda: [{"t": "Unmute", "x": 1, "y": 2, "field": False}]
+        self.assertIsNotNone(c.find("Mute"))
+        self.assertIsNone(c.find("Mute", exact=True))
+
+    def test_click_hands_exact_to_the_wait_and_to_the_script(self):
+        waits, scripts = [], []
+        c = ScriptedClient(None)
+        c.wait_for = lambda label, **kw: waits.append(kw) or {"x": 1, "y": 2}
+        c.ev = lambda expr: scripts.append(expr) or True
+        c.settle = lambda *args, **kw: None
+
+        c.click("Mute", exact=True)
+        c.click("Mute")
+
+        self.assertEqual(waits, [{"exact": True}, {"exact": False}])
+        self.assertIn("var exact=true;", scripts[0])
+        self.assertIn("var exact=false;", scripts[1])
+
+
 class NetworkEventsTest(unittest.TestCase):
     def setUp(self):
         self.addCleanup(e2e_client.REQUEST_URLS.clear)

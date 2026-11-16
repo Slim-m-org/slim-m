@@ -279,18 +279,18 @@ class Client:
                        "clickCount": 1})
             time.sleep(0.06)
 
-    def click(self, label, settle=1.5, fixed=False):
+    def click(self, label, settle=1.5, fixed=False, exact=False):
         """Activate a widget the way a screen reader would.
 
         Dispatching a mouse event at the widget's coordinates hits whatever
         Flutter has layered over the canvas there and silently does nothing on
         some screens; clicking the semantics element itself is what the
-        framework listens for.
+        framework listens for. `exact` is [find]'s, for a label inside its opposite.
         """
-        self.wait_for(label)
-        hit = self.ev(e2e_js.click(json.dumps(label.lower())))
+        self.wait_for(label, exact=exact)
+        hit = self.ev(e2e_js.click(json.dumps(label.lower()), exact))
         if not hit:
-            n = self.wait_for(label)
+            n = self.wait_for(label, exact=exact)
             self.tap(n["x"], n["y"])
         self.settle(settle, fixed=fixed)
 

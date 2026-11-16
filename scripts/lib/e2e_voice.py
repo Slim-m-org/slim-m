@@ -144,6 +144,14 @@ def join_call(a, b, room_id, channel=L.VOICE_CHANNEL):
         assert mics, f'{p["identity"]} published no microphone track'
         assert not mics[0].get("muted"), f'{p["identity"]} is muted on join'
         print(f'  {p["identity"][:13]} ACTIVE, mic published unmuted')
+    # A publish whose answer was lost leaves the microphone open at the SFU and the page showing itself muted.
+    for c, who in ((a, "Alice"), (b, "Bob")):
+        try:
+            c.wait_for(f"{who}, you, {L.MIC_ON}", timeout=20)
+        except AssertionError:
+            explain_silence(a, b, room_id)
+            raise
+    print("  and each client shows its own microphone open")
 
 
 def _wait_until_gone(client, label, timeout=30):
@@ -188,12 +196,28 @@ def media_state(client):
         return {"unreadable": str(err)}
 
 
+def call_view(client):
+    """What one page shows of the call: the reconnecting banner and each tile's own words.
+
+    A page whose own tile reads muted while the SFU holds its microphone open, or
+    whose banner is up, explains a ring that never lit better than the audio does.
+    """
+    try:
+        tiles = [n["t"].replace("\n", " ") for n in client.nodes()
+                 if L.MIC_ON in n["t"] or ", muted" in n["t"]]
+        return {"reconnecting": client.find(L.RECONNECTING_CALL) is not None,
+                "tiles": tiles}
+    except Exception as err:  # a dead page must not hide the failure being explained
+        return {"unreadable": str(err)}
+
+
 def explain_silence(a, b, room_id):
     """Prints what the SFU and each page held when a speaking check timed out."""
     if room_id:
         print(f"    SFU at the failure: {sfu_state(room_id)}")
     for client in (a, b):
         print(f"    {client.name} at the failure: {json.dumps(media_state(client))}")
+        print(f"    {client.name} shows: {json.dumps(call_view(client))}")
 
 
 def audio_actually_arrives(a, b, room_id=None):
@@ -303,7 +327,7 @@ def mute_propagates(a, b, room_id):
     Unmuting before returning is this scenario cleaning up after itself, the
     same shape leave_call's own trailing leave already does for the rail.
     """
-    a.click(L.MUTE)
+    a.click(L.MUTE, exact=True)
     muted = _wait_mute_flags(room_id, lambda m: any(m.values()),
                              "no participant reads as muted")
     assert not all(muted.values()), f"both read as muted: {muted}"
@@ -339,7 +363,8 @@ def mute_actually_silences(a, b, room_id=None):
     try:
         a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
 
-        b.click(L.MUTE)
+        # Whole word: with bob's microphone off the page shows only Unmute, and a loose match turned it on instead.
+        b.click(L.MUTE, exact=True)
         _wait_until_gone(a, f"Bob{L.SPEAKING}", timeout=30)
         a.shot("peer-muted-and-silent")
         print("  muting stops the sound, not just the flag")
@@ -390,7 +415,7 @@ def canvas_keeps_call_controls(client, room_id, channel=L.VOICE_CHANNEL):
     print(f"  {client.name}: mute and leave call stayed reachable "
           f"with the canvas open")
 
-    client.click(L.MUTE)
+    client.click(L.MUTE, exact=True)
     _wait_mute_flags(room_id, lambda m: any(m.values()),
                      "muting from inside the canvas's own dock never reached the SFU")
     client.wait_for(L.UNMUTE)

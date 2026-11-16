@@ -142,6 +142,10 @@ SHARING_NOTICE = "You are sharing your screen"
 STOP_SHARING = "Stop sharing"
 MUTE = "Mute"
 UNMUTE = "Unmute"
+# A call tile's own words for an open microphone (call_participant_tiles.dart).
+MIC_ON = "microphone on"
+# The banner while the SDK repairs the call's transport (voice_reconnect_banner.dart).
+RECONNECTING_CALL = "Reconnecting to the call"
 LEAVE_CALL = "Leave call"
 # A share hidden from its tile menu, and shown again from the person's (participant_stream_menu.dart).
 HIDE_STREAM = "Stop watching"

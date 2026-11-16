@@ -54,8 +54,11 @@ SIGNATURE = """
 })()"""
 
 
-def click(label_json):
+def click(label_json, exact=False):
     """Activate a widget the way a screen reader would.
+
+    With `exact` only a name that starts with the label as a whole word
+    counts, so "Mute" cannot land on "Unmute" when that is all the page shows.
 
     Flutter paints the same label onto a plain node and onto the tappable one
     beside it, and only the tappable one answers a click. The closest name wins
@@ -74,19 +77,24 @@ def click(label_json):
     return """
     (function(){
       var want=%s;
+      var exact=%s;
       var hits=[];
+      function name(e){
+        return (e.getAttribute('aria-label')||e.textContent||'').trim();
+      }
+      function wholeWord(e){
+        var n=name(e).toLowerCase();
+        return n.indexOf(want)===0 && !/[a-z]/.test(n.charAt(want.length));
+      }
       document.querySelectorAll('flt-semantics').forEach(function(e){
         var t=((e.getAttribute('aria-label')||'')+' '+
                (e.textContent||'')).toLowerCase();
-        if (t.indexOf(want)>=0) hits.push(e);
+        if (exact ? wholeWord(e) : t.indexOf(want)>=0) hits.push(e);
       });
       var tappable=hits.filter(function(e){
         return e.hasAttribute('flt-tappable') ||
                e.getAttribute('role')==='button';
       });
-      function name(e){
-        return (e.getAttribute('aria-label')||e.textContent||'').trim();
-      }
       tappable.sort(function(x,y){
         var nx=name(x), ny=name(y);
         if ((nx.toLowerCase()===want)!==(ny.toLowerCase()===want)) {
@@ -108,7 +116,7 @@ def click(label_json):
       if (!target) return false;
       target.click();
       return true;
-    })()""" % label_json
+    })()""" % (label_json, "true" if exact else "false")
 
 
 def focus_field(label_json):

@@ -100,6 +100,8 @@ export const L = {
   "STOP_SHARING": "Stop sharing",
   "MUTE": "Mute",
   "UNMUTE": "Unmute",
+  "MIC_ON": "microphone on",
+  "RECONNECTING_CALL": "Reconnecting to the call",
   "LEAVE_CALL": "Leave call",
   "HIDE_STREAM": "Stop watching",
   "SHOW_STREAM": "Watch stream",
