@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas can open its voice channel's chat (decision: a docked pane
 /// where there is room, a sheet narrower) and says when a message waits.
+/// The canvas sits over its call here, where any message counts.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,10 +11,12 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_chat_toggle.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_text_pane.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_chat_unread_dot.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 Channel _channel({
@@ -35,6 +38,10 @@ Channel _channel({
   isPersonalSpace: false,
 );
 
+final _inCall = voiceFlagsProvider.overrideWithValue(
+  const VoiceFlags(channelId: 'c1', state: VoiceSessionState.connected),
+);
+
 Future<ProviderContainer> _pump(
   WidgetTester tester,
   Channel channel, {
@@ -46,6 +53,7 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       channelByIdProvider('c1').overrideWith((ref) => Stream.value(channel)),
+      _inCall,
     ],
   );
   addTearDown(container.dispose);
@@ -146,6 +154,7 @@ void main() {
           channelByIdProvider(
             'c1',
           ).overrideWith((ref) => Stream.value(channel)),
+          _inCall,
         ],
       );
       addTearDown(container.dispose);

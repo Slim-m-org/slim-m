@@ -25,12 +25,13 @@ import 'package:slimm_data/data.dart' show Channel;
 import '../../../providers/providers.dart';
 
 /// What [channel] gives members with no choice of their own, or null when it
-/// sets no default (`everything` is the same as none).
+/// sets no default (`everything` is the same as none); a voice chat's is mentions.
 api.NotificationPreference? channelDefaultOf(Channel channel) {
   final level = api.NotificationPreference.parse(
     channel.defaultNotification ?? 'everything',
   );
-  return level == api.NotificationPreference.everything ? null : level;
+  if (level != api.NotificationPreference.everything) return level;
+  return channel.kind == 'voice' ? api.NotificationPreference.mentions : null;
 }
 
 class ChannelNotificationOverridesState {

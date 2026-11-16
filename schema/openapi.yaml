@@ -17059,7 +17059,8 @@ components:
             What members with no choice of their own for this channel get.
             A member's own choice wins, and a default can only narrow their
             account preference. Absent on older servers, which a client must
-            treat as `everything`.
+            treat as `everything`. A voice channel's chat is never louder
+            than `mentions` for such a member, whatever this says.
         creates_rooms:
           type: boolean
           description: >

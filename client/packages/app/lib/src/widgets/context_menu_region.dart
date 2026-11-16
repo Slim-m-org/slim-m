@@ -153,6 +153,22 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// Whether the parent was last told this region is open.
   bool _toldOpen = false;
 
+  /// What the sheet last showed, kept while it slides away from a region an item took off screen.
+  List<Widget> _sheetItems = const [];
+  bool _active = true;
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
+  }
+
+  @override
+  void deactivate() {
+    _active = false;
+    super.deactivate();
+  }
+
   @override
   void dispose() {
     _watched?.removeListener(_closeOnScroll);
@@ -233,15 +249,15 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     showAppSheet<void>(
       context,
       bare: true,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: AppSheetMenu(
-          children: widget.itemsBuilder(
+      builder: (sheetContext) {
+        if (_active) {
+          _sheetItems = widget.itemsBuilder(
             context,
             () => Navigator.of(sheetContext).pop(),
-          ),
-        ),
-      ),
+          );
+        }
+        return SafeArea(top: false, child: AppSheetMenu(children: _sheetItems));
+      },
     ).whenComplete(_onSheetClosed);
   }
 

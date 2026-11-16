@@ -59,15 +59,18 @@ UnreadIndicator unreadIndicatorFor({
 };
 
 /// [unreadIndicatorFor] fed from [channel]'s own read cursors, so no surface
-/// re-derives what counts as unread.
+/// re-derives what counts as unread. A lobby lights nothing: its chat is never shown.
 UnreadIndicator unreadIndicatorForChannel(
   Channel channel, {
   required api.NotificationPreference? channelOverride,
   required bool isDm,
-}) => unreadIndicatorFor(
-  channelOverride: channelOverride,
-  isDm: isDm,
-  unread: channel.standingSeq > channel.lastReadSeq,
-  mentioned: channel.mentionedSeq > channel.lastReadSeq,
-  manuallyUnread: channel.manuallyUnread ?? false,
-);
+}) {
+  if (channel.createsRooms == true) return (unread: false, mentioned: false);
+  return unreadIndicatorFor(
+    channelOverride: channelOverride,
+    isDm: isDm,
+    unread: channel.standingSeq > channel.lastReadSeq,
+    mentioned: channel.mentionedSeq > channel.lastReadSeq,
+    manuallyUnread: channel.manuallyUnread ?? false,
+  );
+}

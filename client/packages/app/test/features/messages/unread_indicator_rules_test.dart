@@ -29,10 +29,12 @@ Channel _channel({
   int lastRead = 5,
   int mentioned = 0,
   bool? manuallyUnread,
+  bool? createsRooms,
 }) => Channel(
   id: 'c1',
   name: 'general',
-  kind: 'text',
+  kind: createsRooms == null ? 'text' : 'voice',
+  createsRooms: createsRooms,
   createdAt: 0,
   position: 0,
   cursor: cursor,
@@ -127,5 +129,20 @@ void main() {
   test('a channel with no hand-mark value reads as not hand-marked', () {
     expect(_forChannel(_channel(manuallyUnread: null)).unread, isFalse);
     expect(_forChannel(_channel(manuallyUnread: true)).unread, isTrue);
+  });
+
+  test('a lobby lights nothing, since its own chat is never shown', () {
+    final lobby = _channel(
+      cursor: 7,
+      mentioned: 6,
+      manuallyUnread: true,
+      createsRooms: true,
+    );
+    expect(_forChannel(lobby), (unread: false, mentioned: false));
+    expect(
+      _forChannel(_channel(cursor: 7, mentioned: 6, createsRooms: false)),
+      (unread: true, mentioned: true),
+      reason: 'a room is an ordinary voice channel',
+    );
   });
 }

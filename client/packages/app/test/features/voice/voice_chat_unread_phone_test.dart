@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A tester on an iPhone (2026-11-15): "how I get rid of the little indicator that looks like I'm missing a chat in the voice channel?"
 /// Opening a voice channel joins its call with the chat closed, so the chat toggle has to say the unread text is in there.
+/// The owner (2026-11-16): inside the call any new message lights it, like Discord, while the rail stays mentions only.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/unread_indicator_rules.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_chat_unread_dot.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -47,9 +49,12 @@ Future<UnreadIndicator> _railIndicator(
 ) async {
   final store = await s.container.read(storeProvider.future);
   final rows = (await tester.runAsync(store.allChannels))!;
+  final row = rows.singleWhere((c) => c.id == callChannelId);
   return unreadIndicatorForChannel(
-    rows.singleWhere((c) => c.id == callChannelId),
-    channelOverride: null,
+    row,
+    channelOverride: s.container
+        .read(channelNotificationOverridesProvider)
+        .effectiveFor(row),
     isDm: false,
   );
 }
@@ -92,7 +97,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     final s = await pumpCallScreen(tester, const Size(1280, 800));
 
-    await _arrive(tester, s, [_message(1)]);
+    await _arrive(tester, s, [_message(1, mentionsMe: true)]);
 
     expect(_unreadToggle, findsOneWidget);
     _expectDotOnToggle(tester);
@@ -100,4 +105,29 @@ void main() {
     semantics.dispose();
     await teardown(tester, s.container, s.db);
   });
+
+  for (final size in [_phone, const Size(1280, 800)]) {
+    testWidgets('in the call a plain message marks the toggle at $size', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final s = await pumpCallScreen(tester, size);
+
+      await _arrive(tester, s, [_message(1)]);
+      _expectDotOnToggle(tester);
+      expect(await _railIndicator(tester, s), (
+        unread: false,
+        mentioned: false,
+      ), reason: 'the rail stays mentions only');
+
+      s.container
+          .read(channelNotificationOverridesProvider.notifier)
+          .applyRemote(callChannelId, api.NotificationPreference.nothing);
+      await pumpFrames(tester);
+      expect(find.byKey(voiceChatUnreadKey), findsNothing, reason: 'muted');
+
+      semantics.dispose();
+      await teardown(tester, s.container, s.db);
+    });
+  }
 }

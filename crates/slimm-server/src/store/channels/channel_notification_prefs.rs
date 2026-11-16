@@ -123,7 +123,8 @@ impl Store {
     /// default (`channels.default_notification`, its parent's for a thread)
     /// and their account preference, so a default only ever narrows. It is
     /// resolved here, never written into a row, so editing it leaves every
-    /// member's own choices alone.
+    /// member's own choices alone. A voice channel's chat, and a thread off
+    /// one, is never louder than mentions for such a member (decision 0049).
     ///
     /// This is the one place `crate::push::recipients::narrow_for_notification_preference`
     /// reads a preference from, replacing the account-only lookup it used
@@ -161,11 +162,12 @@ impl Store {
             "SELECT u.id AS id, \
              COALESCE(c.preference, p.preference, CASE \
                WHEN 'nothing' IN (d.level, u.notification_preference) THEN 'nothing' \
-               WHEN 'mentions' IN (d.level, u.notification_preference) THEN 'mentions' \
+               WHEN 'mentions' IN (d.level, d.voice_level, u.notification_preference) THEN 'mentions' \
                ELSE 'everything' END) AS preference, \
              COALESCE(c.preference, p.preference) IS NOT NULL AS overridden \
              FROM users u \
-             LEFT JOIN (SELECT COALESCE(pc.default_notification, cc.default_notification) AS level \
+             LEFT JOIN (SELECT COALESCE(pc.default_notification, cc.default_notification) AS level, \
+               CASE COALESCE(pc.kind, cc.kind) WHEN 'voice' THEN 'mentions' END AS voice_level \
                FROM channels cc LEFT JOIN channels pc ON pc.id = ",
         );
         builder.push_bind(parent_channel_id);

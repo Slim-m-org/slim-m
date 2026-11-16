@@ -110,6 +110,19 @@ class AlertRig {
       ),
       const api.Channel(id: 'dm-1', name: 'Alice', kind: 'dm', createdAt: 0),
       const api.Channel(
+        id: 'voice-1',
+        name: 'hangout',
+        kind: 'voice',
+        createdAt: 0,
+      ),
+      const api.Channel(
+        id: 'lobby-1',
+        name: 'make-a-room',
+        kind: 'voice',
+        createdAt: 0,
+        createsRooms: true,
+      ),
+      const api.Channel(
         id: 'thread-1',
         name: '',
         kind: 'text',
