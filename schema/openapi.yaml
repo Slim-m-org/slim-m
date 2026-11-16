@@ -4149,9 +4149,9 @@ paths:
       summary: Make a channel follow its category's permissions again.
       description: >
         Replaces the channel's overwrites with a copy of its category's and
-        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel
-        and every bit the category allows. 409 when the channel is not in a
-        category.
+        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel,
+        every bit the category allows, and every bit the sync would stop
+        denying. 409 when the channel is not in a category.
       responses:
         "200":
           description: The channel's overwrites after the sync.

@@ -19,7 +19,7 @@ use super::overwrites::{
 use crate::ids::{ChannelCategoryId, ChannelId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{ChannelCategory, OverwriteBatchEntry};
+use crate::store::{ChannelCategory, ChannelOverwrite, OverwriteBatchEntry};
 
 const BODY_LIMIT: usize = 16 * 1024;
 
@@ -129,6 +129,29 @@ async fn batch_set(
     Ok(Json(category_dto(&state, id).await?))
 }
 
+/// Refuses a sync that grants more than the caller holds, and returns every target it touches.
+/// Adopting `parent`'s rows grants what they allow, and dropping a deny of `own` they lack grants it back.
+fn refuse_sync_escalation(
+    caller: Permissions,
+    parent: &[ChannelOverwrite],
+    own: &[ChannelOverwrite],
+) -> Result<Vec<Target>, ApiError> {
+    let mut targets = Vec::with_capacity(parent.len() + own.len());
+    for o in parent {
+        refuse_ungrantable(caller, o.allow)?;
+        targets.push(target_of(&o.target_type, o.target_id));
+    }
+    for o in own {
+        let kept = parent
+            .iter()
+            .find(|p| p.target_type == o.target_type && p.target_id == o.target_id)
+            .map_or(Permissions::NONE, |p| p.deny);
+        refuse_ungrantable(caller, o.deny.remove(kept))?;
+        targets.push(target_of(&o.target_type, o.target_id));
+    }
+    Ok(targets)
+}
+
 /// Makes a sub-category follow its parent again (decision 0120), adopting
 /// the parent's overwrites and copying them into its own synced channels.
 async fn sync_category(
@@ -143,22 +166,11 @@ async fn sync_category(
     let parent = category.parent_id.ok_or(ApiError::Conflict(
         "a top-level category has no parent to follow",
     ))?;
-    // Syncing can grant what the parent grants, so the caller must hold all of it.
-    let parent_rows = state.store.category_overwrites(parent).await?;
-    let mut targets = Vec::new();
-    for o in &parent_rows {
-        refuse_ungrantable(caller, o.allow)?;
-        targets.push(target_of(&o.target_type, o.target_id));
-    }
-    // Dropping a deny the parent lacks grants it back, as a batch edit would count it.
-    for o in state.store.category_overwrites(category.id).await? {
-        let kept = parent_rows
-            .iter()
-            .find(|p| p.target_type == o.target_type && p.target_id == o.target_id)
-            .map_or(Permissions::NONE, |p| p.deny);
-        refuse_ungrantable(caller, o.deny.remove(kept))?;
-        targets.push(target_of(&o.target_type, o.target_id));
-    }
+    let targets = refuse_sync_escalation(
+        caller,
+        &state.store.category_overwrites(parent).await?,
+        &state.store.category_overwrites(category.id).await?,
+    )?;
     let channels = state.store.synced_channels_beneath(category.id).await?;
     let before = visible_before(&state, &channels, &targets).await?;
     state.store.sync_category_permissions(category.id).await?;
@@ -188,15 +200,11 @@ async fn sync(
         .await?
         .and_then(|c| c.category_id)
         .ok_or(ApiError::Conflict("the channel is not in a category"))?;
-    // Syncing can grant what the category grants, so the caller must hold all of it.
-    let mut targets = Vec::new();
-    for o in state.store.category_overwrites(category).await? {
-        refuse_ungrantable(caller, o.allow)?;
-        targets.push(target_of(&o.target_type, o.target_id));
-    }
-    for o in state.store.channel_overwrites(channel_id).await? {
-        targets.push(target_of(&o.target_type, o.target_id));
-    }
+    let targets = refuse_sync_escalation(
+        caller,
+        &state.store.category_overwrites(category).await?,
+        &state.store.channel_overwrites(channel_id).await?,
+    )?;
     let before = visible_before(&state, &[channel_id], &targets).await?;
     state.store.sync_channel_permissions(channel_id).await?;
     publish_changed(&state, before);
