@@ -21,26 +21,43 @@ extension SlimmApiSoundboard on SlimmApi {
 
   /// Adds a clip from raw mp3 or wav [bytes] under [name]. Requires
   /// MANAGE_SERVER. The server holds it to 5 seconds and 512 KB.
+  ///
+  /// [emoji] is one standard emoji, a custom emoji's id or its `:shortcode:`.
   Future<SoundClip> uploadSoundClip(
     List<int> bytes, {
     required String name,
+    String? emoji,
   }) async {
     final json = await send(
       'POST',
       '/soundboard',
       bytes: bytes,
-      query: {'name': name},
+      query: {'name': name, if (emoji != null) 'emoji': emoji},
     );
     return SoundClip.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Renames a clip. Requires MANAGE_SERVER.
-  Future<SoundClip> renameSoundClip(String clipId,
-      {required String name}) async {
+  /// Renames a clip, changes its emoji, or both. Requires MANAGE_SERVER.
+  ///
+  /// [emoji] takes what [uploadSoundClip] does; [clearEmoji] removes it.
+  Future<SoundClip> renameSoundClip(
+    String clipId, {
+    String? name,
+    String? emoji,
+    bool clearEmoji = false,
+  }) async {
+    assert(
+      name != null || emoji != null || clearEmoji,
+      'a clip PATCH must carry at least one field',
+    );
+    assert(!(emoji != null && clearEmoji), 'set the emoji or clear it');
     final json = await send(
       'PATCH',
       '/soundboard/$clipId',
-      body: {'name': name},
+      body: {
+        if (name != null) 'name': name,
+        if (emoji != null || clearEmoji) 'emoji': emoji,
+      },
     );
     return SoundClip.fromJson(json as Map<String, dynamic>);
   }
