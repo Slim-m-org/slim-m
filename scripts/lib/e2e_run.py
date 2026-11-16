@@ -29,10 +29,11 @@ import e2e_invite_landing
 import e2e_media_slots
 import e2e_messaging
 import e2e_password
+import e2e_channel_notifications
 import e2e_message_edit
 import e2e_pins
-import e2e_search
 import e2e_roles_live
+import e2e_search
 import e2e_private_channel
 import e2e_markdown
 import e2e_composer
@@ -245,6 +246,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_search.search_follows_the_index(a, admin)),
         ("permissions: a role granted or removed changes an open menu live",
          lambda: e2e_roles_live.role_change_reaches_an_open_screen(b, admin, member)),
+        ("account: muting a channel from its row menu is kept by the server",
+         lambda: e2e_channel_notifications.mute_from_the_row_menu(b, admin, member)),
         ("messaging: a group message reaches everyone in it, and leaving ends it",
          lambda: e2e_group_dm.group_message_reaches_everyone_and_leaving_ends_it(
              a, b, admin, member, server)),
