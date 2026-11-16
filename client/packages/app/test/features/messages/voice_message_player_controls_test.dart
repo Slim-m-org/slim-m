@@ -4,12 +4,15 @@
 /// a right-click or long press offers to save the clip or copy its words.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/downloads/downloads_controller.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_player_fakes.dart';
 
@@ -56,6 +59,32 @@ void main() {
     await tester.pump();
     expect(find.text('1.5x').hitTestable(), findsOneWidget);
     expect(player.log, isEmpty);
+  });
+
+  testWidgets('Enter on Play keeps focus on the control while the clip loads', (
+    tester,
+  ) async {
+    final gate = Completer<Uint8List>();
+    player = await pumpVoicePlayers(tester, [
+      voiceMessage('a'),
+    ], slowBytes: gate.future);
+    final control = find.byTooltip('Play');
+    await _tabTo(tester, control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(find.byWidgetPredicate((w) => w is AppSpinner), findsOneWidget);
+    expect(_focusIsIn(find.byKey(const Key('voice-player-a'))), isTrue);
+    expect(_focusIsIn(find.byTooltip('Play')), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    gate.complete(Uint8List.fromList([1, 2, 3, 4]));
+    await tester.pump();
+    await tester.pump();
+    expect(player.log.where((l) => l.startsWith('play')), hasLength(1));
+    expect(_focusIsIn(find.byTooltip('Pause')), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(player.log.last, 'pause');
   });
 
   testWidgets('arrow keys on the waveform move the playhead five seconds', (
