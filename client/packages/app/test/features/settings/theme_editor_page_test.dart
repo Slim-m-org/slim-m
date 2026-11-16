@@ -12,8 +12,15 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'theme_editor_harness.dart';
 
-Color? _linkColour(WidgetTester tester) =>
-    tester.widget<Text>(find.text('Link to the build')).style!.color;
+Color? _linkColour(WidgetTester tester) => tester
+    .widget<Text>(
+      find.descendant(
+        of: byKey('theme-editor-preview'),
+        matching: find.text('Link to the build'),
+      ),
+    )
+    .style!
+    .color;
 
 /// Text the colour of the base surface and an accent as dim as its soft fill.
 ThemeDocument _twoFailing() {
@@ -61,7 +68,7 @@ void main() {
 
   for (final (name, size) in [('laptop', laptop), ('phone', phone)]) {
     testWidgets('on a $name the preview and footer stay put while the '
-        'column scrolls', (tester) async {
+        'column scrolls, the preview folded short', (tester) async {
       final rig = EditorRig();
       await rig.open(tester, size: size);
       final preview = tester.getRect(byKey('theme-editor-preview'));
@@ -72,7 +79,9 @@ void main() {
       await tester.drag(byKey('theme-editor-tokens'), const Offset(0, -200));
       await settle(tester);
 
-      expect(tester.getRect(byKey('theme-editor-preview')), preview);
+      final folded = tester.getRect(byKey('theme-editor-preview'));
+      expect(folded.top, preview.top);
+      expect(folded.height, lessThan(preview.height - 40));
       expect(tester.getRect(byKey('theme-editor-footer')), footer);
       expect(
         tester.getRect(byKey('theme-editor-details')).top,

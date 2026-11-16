@@ -99,12 +99,17 @@ class ThemeMiniatureDraft extends StatelessWidget {
     super.key,
     required this.tokens,
     this.strip = false,
+    this.open = 1,
   });
 
   final AppTokens tokens;
 
   /// A phone's short strip: no channel list, the stripe or the samples.
   final bool strip;
+
+  /// How much of the rows the editor folds away shows, from 0 to 1: the link
+  /// line on the strip, otherwise the second message and the samples.
+  final double open;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -152,6 +157,14 @@ class ThemeMiniatureDraft extends StatelessWidget {
       'Delete failed',
       style: AppText.ui.copyWith(color: tokens.dangerText),
     );
+    final links = inset(
+      Wrap(
+        spacing: AppSpacing.s12,
+        runSpacing: AppSpacing.s8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [link, danger, _warn()],
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(
         top: AppSpacing.s8,
@@ -160,7 +173,6 @@ class ThemeMiniatureDraft extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        spacing: AppSpacing.s8,
         children: [
           inset(
             _Message(
@@ -170,25 +182,42 @@ class ThemeMiniatureDraft extends StatelessWidget {
               text: 'Pine at dusk is up. Have a look at the new theme.',
             ),
           ),
-          if (!strip) _stripe(),
-          inset(
-            Wrap(
-              spacing: AppSpacing.s12,
-              runSpacing: AppSpacing.s8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [link, danger, _warn()],
-            ),
-          ),
-          inset(_Composer(tokens: tokens, sendLabel: 'Send')),
+          if (!strip) _fold(_stripe()),
+          if (strip) _fold(links) else _below(links),
+          _below(inset(_Composer(tokens: tokens, sendLabel: 'Send'))),
           if (!strip)
-            inset(
-              Wrap(
-                spacing: AppSpacing.s8,
-                runSpacing: AppSpacing.s8,
-                children: [_error(), _focus()],
+            _fold(
+              inset(
+                Wrap(
+                  spacing: AppSpacing.s8,
+                  runSpacing: AppSpacing.s8,
+                  children: [_error(), _focus()],
+                ),
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _below(Widget row) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.s8),
+    child: row,
+  );
+
+  /// [row] and the gap above it, cut from the bottom as [open] falls; gone
+  /// from sight by half way, so a part-folded row never shows cut text.
+  Widget _fold(Widget row) {
+    if (open <= 0) return const SizedBox.shrink();
+    if (open >= 1) return _below(row);
+    return ClipRect(
+      child: Align(
+        alignment: Alignment.topCenter,
+        heightFactor: open,
+        child: Opacity(
+          opacity: ((open - 0.5) * 2).clamp(0.0, 1.0),
+          child: _below(row),
+        ),
       ),
     );
   }

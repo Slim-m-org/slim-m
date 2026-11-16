@@ -30,9 +30,9 @@ import 'theme_contrast_panel.dart';
 import 'theme_editor_details.dart';
 import 'theme_editor_footer.dart';
 import 'theme_editor_menu.dart';
+import 'theme_editor_preview.dart';
 import 'theme_gallery_menu.dart';
 import 'theme_main_colours.dart';
-import 'theme_miniature.dart';
 import 'theme_token_grid.dart';
 import 'theme_token_groups_compact.dart';
 
@@ -341,33 +341,6 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
     ],
   ];
 
-  Widget _preview({required double inset, required bool roomy}) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final wide = inset > AppSpacing.s16;
-    final vertical = wide ? AppSpacing.s16 : AppSpacing.s12;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surfaceBase,
-        border: Border(bottom: BorderSide(color: tokens.borderSubtle)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(inset, vertical, inset, vertical),
-        child: AppContentColumn(
-          child: ListenableBuilder(
-            listenable: _draft,
-            builder: (_, _) => ThemeMiniature.forDocument(
-              _draft.document,
-              key: const Key('theme-editor-preview'),
-              detail: roomy
-                  ? ThemeMiniatureDetail.draft
-                  : ThemeMiniatureDetail.draftStrip,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
@@ -377,7 +350,6 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
       final roomy = content >= _roomyFrom;
       final pin =
           box.maxHeight >= MediaQuery.textScalerOf(context).scale(_pinFrom);
-      final preview = _preview(inset: inset, roomy: roomy);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -395,10 +367,13 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
               key: const Key('theme-editor-tokens'),
               controller: _scroll,
               slivers: [
-                if (pin)
-                  PinnedHeaderSliver(child: preview)
-                else
-                  SliverToBoxAdapter(child: preview),
+                ThemeEditorPreview(
+                  draft: _draft,
+                  scroll: _scroll,
+                  inset: inset,
+                  roomy: roomy,
+                  pinned: pin,
+                ),
                 // Not lazy: the footer scrolls to Contrast, which must be built to be found.
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(

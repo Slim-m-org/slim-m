@@ -39,6 +39,7 @@ class ThemeMiniature extends StatelessWidget {
     this.split,
     this.picture,
     this.label,
+    this.open = 1,
   });
 
   /// A built-in choice; System paints light with the dark half beside it.
@@ -67,6 +68,7 @@ class ThemeMiniature extends StatelessWidget {
     ThemeMiniatureDetail detail = ThemeMiniatureDetail.bars,
     ImageProvider? picture,
     String? label,
+    double open = 1,
   }) => ThemeMiniature(
     key: key,
     tokens: document.tokens,
@@ -74,6 +76,7 @@ class ThemeMiniature extends StatelessWidget {
     detail: detail,
     picture: picture,
     label: label,
+    open: open,
   );
 
   /// What it paints with; the ambient theme never shows through.
@@ -92,15 +95,22 @@ class ThemeMiniature extends StatelessWidget {
   /// What a screen reader hears; null leaves the miniature out of semantics.
   final String? label;
 
+  /// How much of the draft's foldable rows shows; see [ThemeMiniatureDraft.open].
+  final double open;
+
   @override
   Widget build(BuildContext context) {
     final body = switch (detail) {
       ThemeMiniatureDetail.bars => _bars(),
       ThemeMiniatureDetail.hero => _hero(),
-      ThemeMiniatureDetail.draft => ThemeMiniatureDraft(tokens: tokens),
+      ThemeMiniatureDetail.draft => ThemeMiniatureDraft(
+        tokens: tokens,
+        open: open,
+      ),
       ThemeMiniatureDetail.draftStrip => ThemeMiniatureDraft(
         tokens: tokens,
         strip: true,
+        open: open,
       ),
     };
     final painted = RepaintBoundary(child: body);
