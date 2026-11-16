@@ -167,8 +167,9 @@ final channelOverwritesSyncedProvider = FutureProvider.autoDispose
 /// watch as documentation of the dependency, not as the thing keeping this
 /// alive.
 ///
-/// Also the one place [channelPermissionsProvider] and
-/// [myVisibleChannelsProvider] are invalidated - see
+/// Also, with [refreshPermissionsAfterReconnect] beside it, the one place
+/// [channelPermissionsProvider] and [myVisibleChannelsProvider] are
+/// invalidated - see
 /// docs/decisions/0011-per-channel-permissions.md. A role or role-assignment
 /// change invalidates both bare, since either can change what the caller can
 /// do (and see) in every channel at once; a self [api.MemberTimeoutChanged]
@@ -211,6 +212,15 @@ bool _movesOwnPermissions(Object event, String? selfId) => switch (event) {
   api.OwnerChanged(:final userId) => userId == selfId,
   _ => false,
 };
+
+/// Refetches what a role change, timeout or hand-off missed while the socket was down would have
+/// moved: the caller's own permissions and ladder place, every channel's, and the role list.
+void refreshPermissionsAfterReconnect(Ref ref) {
+  ref.invalidate(meProvider);
+  ref.invalidate(channelPermissionsProvider);
+  _refreshVisibleChannels(ref);
+  if (ref.exists(rolesProvider)) ref.invalidate(rolesProvider);
+}
 
 // ref.invalidate on a never-watched provider mounts and fetches it.
 void _refreshVisibleChannels(Ref ref) {

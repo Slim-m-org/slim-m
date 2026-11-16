@@ -116,6 +116,7 @@ A hand-off tells every client: `owner.changed` names the heir, whose own client 
 A `profile.changed` for the heir comes with it so every client re-reads their `is_owner`, and a `member.timeout` when a timeout ended.
 Both ways a hand-off happens announce it: an account deletion, and a read (`/me`, or any act checked against the ladder) that finds the stored owner gone.
 Profile reads never hand ownership on themselves; they report the live owner, if there is one.
+Nobody replays those frames to a client that was offline, so every client re-reads `/me`, its channel permissions and the channel list when its socket reconnects, which also covers a role change or a timeout it missed.
 
 A hand-off is also written into the moderation log, under the system actor: a row with a null actor, which only the server writes.
 `owner_handoff` records that ownership passed to the heir.
