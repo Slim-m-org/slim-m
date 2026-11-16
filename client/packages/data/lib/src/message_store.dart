@@ -377,8 +377,12 @@ class MessageStore {
   /// Marks a pending send as failed so the UI can offer a retry, naming why
   /// so a retry against the same doomed content is not the user's only clue.
   /// The row is kept rather than dropped, so nothing typed is silently lost.
+  ///
+  /// Only a row still pending: a request can fail after the server stored the
+  /// message, and the copy fan-out already delivered must not read as unsent.
   Future<void> markFailed(String id, {required String reason}) async {
-    await (db.update(db.messages)..where((m) => m.id.equals(id)))
+    await (db.update(db.messages)
+          ..where((m) => m.id.equals(id) & m.pending.equals(true)))
         .write(MessagesCompanion(
       pending: const Value(false),
       failed: const Value(true),

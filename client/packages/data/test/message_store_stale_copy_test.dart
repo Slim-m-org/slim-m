@@ -178,4 +178,23 @@ void main() {
 
     expect(await _held(store, 'm2'), isNotNull);
   });
+
+  test('a send that failed after its message was delivered is not failed',
+      () async {
+    final store = await _store();
+    await store.addPending(
+      id: 'm2',
+      channelId: 'c1',
+      authorId: 'user-1',
+      content: 'first draft',
+    );
+    // The request timed out, but the server had stored it and fanned it out.
+    await store.applyMessage(_message(2));
+
+    await store.markFailed('m2', reason: 'the request timed out');
+
+    final held = (await _held(store, 'm2'))!;
+    expect(held.failed, isFalse);
+    expect(await store.failedMessages(), isEmpty);
+  });
 }
