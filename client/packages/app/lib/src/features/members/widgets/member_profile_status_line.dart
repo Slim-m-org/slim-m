@@ -17,8 +17,9 @@ const statusEditPencilKey = Key('member-status-edit-pencil');
 ///
 /// [editable] makes the whole line a button for the status menu, an anchored
 /// dropdown per desktop-vs-mobile.md surface rule 2. The pencil shows on hover
-/// or keyboard focus, and always under [kCompactWidth] (law 3: a hover
-/// affordance needs a touch equivalent), where the row is 44dp tall (law 2).
+/// or keyboard focus, and always at touch density (law 3: a hover affordance
+/// needs a touch equivalent). The line keeps its text's height at any density;
+/// the card pads its touch reach (law 2).
 class MemberProfileStatusLine extends StatefulWidget {
   const MemberProfileStatusLine({
     super.key,
@@ -43,7 +44,7 @@ class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     if (!widget.editable) return _line(tokens, false);
-    final touch = MediaQuery.sizeOf(context).width < kCompactWidth;
+    final touch = AppTouchTargets.of(context);
     return PresenceMenuAnchor(
       targetAnchor: Alignment.bottomLeft,
       followerAnchor: Alignment.topLeft,
@@ -74,16 +75,7 @@ class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: open,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: touch ? AppSizes.rowTouch : 0,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  heightFactor: 1,
-                  child: _line(tokens, touch || _hovered || _focused),
-                ),
-              ),
+              child: _line(tokens, touch || _hovered || _focused),
             ),
           ),
         ),

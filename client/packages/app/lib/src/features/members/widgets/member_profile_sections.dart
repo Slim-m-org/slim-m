@@ -76,23 +76,32 @@ class MemberProfileHeader extends ConsumerWidget {
       statusTextProvider((userId: profile.id, snapshot: profile.statusText)),
     );
     final statusLine = statusText != null || isSelf
-        ? MemberProfileStatusLine(statusText: statusText, editable: isSelf)
+        ? AppTouchHitArea(
+            // Your own line is a button; a finger reaches it down over the join date.
+            touch: isSelf ? null : false,
+            alignment: Alignment.topLeft,
+            child: _belowHandle(
+              MemberProfileStatusLine(statusText: statusText, editable: isSelf),
+            ),
+          )
         : null;
     final callLine = inCallTogether
-        ? Row(
-            children: [
-              Icon(AppIcons.speaker, size: 12, color: tokens.accent),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  callChannelName == null
-                      ? 'in this call with you'
-                      : 'in $callChannelName with you',
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.accent),
+        ? _belowHandle(
+            Row(
+              children: [
+                Icon(AppIcons.speaker, size: 12, color: tokens.accent),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    callChannelName == null
+                        ? 'in this call with you'
+                        : 'in $callChannelName with you',
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(color: tokens.accent),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           )
         : null;
 
@@ -139,12 +148,7 @@ class MemberProfileHeader extends ConsumerWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -175,17 +179,28 @@ class MemberProfileHeader extends ConsumerWidget {
           else
             name,
           if (!handleOnly) handleLine,
-          for (final line in [?statusLine, ?callLine])
-            Padding(padding: const EdgeInsets.only(top: 2), child: line),
-          MemberProfileJoined(
-            createdAt: profile.createdAt,
-            inviteCode: inviteCode,
+          ?statusLine,
+          ?callLine,
+          // Lets a press through to your own status line; the bottom gap gives its reach room.
+          IgnorePointer(
+            ignoring: isSelf,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.s12),
+              child: MemberProfileJoined(
+                createdAt: profile.createdAt,
+                inviteCode: inviteCode,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 }
+
+/// The status and call lines sit a little further from the handle than the name block's own spacing.
+Widget _belowHandle(Widget line) =>
+    Padding(padding: const EdgeInsets.only(top: 2), child: line);
 
 /// No display name of their own: the server fills it with the username.
 bool _namedByHandle(api.UserProfile profile) =>

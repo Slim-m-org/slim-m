@@ -22,6 +22,9 @@ String formatJoinDate(int createdAtMs) {
   return 'Joined ${_shortMonths[dt.month - 1]} ${dt.year}';
 }
 
+/// Finds the About block in tests.
+const memberProfileAboutKey = Key('member-profile-about');
+
 /// The member's own "About" text, labelled so it is not read as their typed
 /// status, which has its own line under their name. [onEdit] adds a pencil
 /// on your own card; with no text it becomes a prompt to write one.
@@ -43,37 +46,46 @@ class MemberProfileAbout extends StatelessWidget {
         fontStyle: about.isEmpty ? FontStyle.italic : null,
       ),
     );
+    // The pencil's box, kept clear of the text; it sits over the block's bottom gap rather than growing it.
+    final pencilBox = onEdit == null
+        ? 0.0
+        : AppTouchTargets.of(context)
+        ? AppSizes.rowTouch
+        : AppSizes.rowPointer;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s12,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      key: memberProfileAboutKey,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
+      child: Stack(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 2,
-              children: [
-                Text(
-                  'ABOUT',
-                  style: AppText.label.copyWith(color: tokens.textSecondary),
-                ),
-                body,
-              ],
+          Padding(
+            padding: EdgeInsets.only(right: pencilBox, bottom: AppSpacing.s12),
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 2,
+                children: [
+                  Text(
+                    'ABOUT',
+                    style: AppText.label.copyWith(color: tokens.textSecondary),
+                  ),
+                  body,
+                ],
+              ),
             ),
           ),
           if (onEdit != null)
-            AppIconButton(
-              icon: AppIcons.edit,
-              iconSize: AppSizes.icon16,
-              semanticLabel: 'Edit about',
-              tooltip: 'Edit about',
-              size: AppIconButtonSize.sm,
-              onPressed: onEdit,
+            Positioned(
+              top: 0,
+              right: 0,
+              child: AppIconButton(
+                icon: AppIcons.edit,
+                iconSize: AppSizes.icon16,
+                semanticLabel: 'Edit about',
+                tooltip: 'Edit about',
+                size: AppIconButtonSize.sm,
+                onPressed: onEdit,
+              ),
             ),
         ],
       ),
