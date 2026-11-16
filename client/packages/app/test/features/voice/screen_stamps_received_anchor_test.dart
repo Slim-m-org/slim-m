@@ -43,13 +43,18 @@ void main() {
         canvasStampsSupportedProvider.overrideWithValue(true),
         receivedScreenStampsProvider.overrideWith(
           (ref) async => [
-            api.ReceivedScreenStamp(
-              id: 's1',
-              channelId: 'call',
+            api.ScreenStampSender(
               senderId: 'u1',
-              attachmentId: 'a1',
-              createdAt: DateTime.now().millisecondsSinceEpoch,
+              count: 1,
               reported: false,
+              latest: api.ReceivedScreenStamp(
+                id: 's1',
+                channelId: 'call',
+                senderId: 'u1',
+                attachmentId: 'a1',
+                createdAt: DateTime.now().millisecondsSinceEpoch,
+                reported: false,
+              ),
             ),
           ],
         ),

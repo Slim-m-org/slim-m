@@ -84,9 +84,56 @@ void main() {
     expect(body.containsKey('attachment_id'), isFalse);
   });
 
-  test('the received list parses newest first as the server sent it', () async {
+  test('the received list is one entry per sender, newest first', () async {
     final api = _api((request) async {
       expect(request.url.path, '/voice/screen-stamps/received');
+      return http.Response(
+        jsonEncode({
+          'senders': [
+            {
+              'sender_id': 'loud',
+              'count': 150,
+              'reported': true,
+              'latest': {
+                'id': 's2',
+                'channel_id': 'c1',
+                'sender_id': 'loud',
+                'attachment_id': 'cd' * 32,
+                'created_at': 9,
+                'reported': true,
+              },
+            },
+            {
+              'sender_id': 'quiet',
+              'count': 1,
+              'reported': false,
+              'latest': {
+                'id': 's1',
+                'channel_id': 'c1',
+                'sender_id': 'quiet',
+                'attachment_id': 'ab' * 32,
+                'created_at': 8,
+                'reported': false,
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final senders = await api.listReceivedScreenStamps();
+    expect(senders.map((s) => (s.senderId, s.count, s.reported)), [
+      ('loud', 150, true),
+      ('quiet', 1, false),
+    ]);
+    expect((senders.last.latest.id, senders.last.latest.attachmentId),
+        ('s1', 'ab' * 32));
+  });
+
+  test("one sender's pictures parse newest first as the server sent them",
+      () async {
+    final api = _api((request) async {
+      expect(request.url.path, '/voice/screen-stamps/received/viewer');
       return http.Response(
         jsonEncode({
           'stamps': [
@@ -111,7 +158,7 @@ void main() {
         200,
       );
     });
-    final stamps = await api.listReceivedScreenStamps();
+    final stamps = await api.listReceivedScreenStampsFrom('viewer');
     expect(
         stamps.map((s) => (s.id, s.reported)), [('s2', true), ('s1', false)]);
     expect((stamps.last.senderId, stamps.last.attachmentId),

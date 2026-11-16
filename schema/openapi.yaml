@@ -12395,11 +12395,40 @@ paths:
     get:
       operationId: listReceivedScreenStamps
       tags: [voice]
-      summary: The pictures stamped on the caller's screen in the last day.
+      summary: Who stamped pictures on the caller's screen in the last day.
       description: >
-        Decision 0121. Newest first, at most 100, so a sharer can report a
-        picture after it faded. Emoji stamps are never stored and never
-        listed.
+        Decision 0121. One entry per sender, by their latest picture, newest
+        first and at most 100, so a sharer can report someone after their
+        pictures faded and a flood from one sender never pushes another off
+        the list. `listReceivedScreenStampsFrom` lists one sender's pictures.
+        Emoji stamps are never stored and never listed.
+      responses:
+        "200":
+          description: The senders.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenStampSenders"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /voice/screen-stamps/received/{senderId}:
+    parameters:
+      - name: senderId
+        in: path
+        required: true
+        description: The user who stamped the pictures.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listReceivedScreenStampsFrom
+      tags: [voice]
+      summary: The pictures one person stamped on the caller's screen in the last day.
+      description: >
+        Decision 0121. Newest first, at most 100. Empty for someone who
+        stamped nothing on the caller's screen in the last day.
       responses:
         "200":
           description: The pictures.
@@ -12407,6 +12436,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReceivedScreenStamps"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "429":
@@ -12888,6 +12919,34 @@ components:
         attachment_id:
           type: string
           description: The hex id of a PNG, JPEG, GIF or WebP attachment.
+    ScreenStampSenders:
+      type: object
+      required: [senders]
+      properties:
+        senders:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScreenStampSender"
+    ScreenStampSender:
+      type: object
+      description: >-
+        Someone who stamped pictures on the caller's screen in the last day.
+        A `screen_stamp` report naming `latest.id` is about them and takes
+        every picture of theirs in that day.
+      required: [sender_id, count, reported, latest]
+      properties:
+        sender_id:
+          type: string
+          format: uuid
+        count:
+          type: integer
+          format: int64
+          description: How many pictures they stamped in the last day.
+        reported:
+          type: boolean
+          description: Whether a report from the caller holds every one of them.
+        latest:
+          $ref: "#/components/schemas/ReceivedScreenStamp"
     ReceivedScreenStamps:
       type: object
       required: [stamps]
@@ -15768,7 +15827,8 @@ components:
             For `ephemeral_message`, the private message's own id. For
             `screen_stamp`, the id of a picture stamped on the reporter's
             own screen in the last day (`listReceivedScreenStamps`); the
-            report is then about whoever sent it, and a later picture from
+            report is then about whoever sent it and takes every picture they
+            stamped on the reporter's screen that day. A later picture from
             them joins the reporter's open report, whose id is answered.
         reason:
           type: string

@@ -5,7 +5,7 @@
 use uuid::Uuid;
 
 use super::reports::{FiledReport, ReportError};
-use super::{Store, now_ms};
+use super::{SCREEN_STAMP_TTL_MS, Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 
 /// The subject kind of a report about pictures stamped on a screen; its subject is the sender.
@@ -13,7 +13,8 @@ pub const SCREEN_STAMP_KIND: &str = "screen_stamp";
 
 impl Store {
     /// Files a report about whoever stamped `stamp_id`, or joins the reporter's open one
-    /// about them, and links the stamp to it.
+    /// about them, and links the stamp and every other picture they stamped on the reporter's
+    /// screen in the last day that no report holds yet.
     ///
     /// Only the stamp's target may report it, and anyone else gets the same not-found as a
     /// stamp that never existed. Idempotent by the client's `id`, which names the report
@@ -88,11 +89,17 @@ impl Store {
                 (id, true)
             }
         };
+        let since = now_ms() - SCREEN_STAMP_TTL_MS;
         let linked = sqlx::query!(
-            "UPDATE screen_stamps SET report_id = ? WHERE id = ? AND report_id IS NOT ?",
+            "UPDATE screen_stamps SET report_id = ?
+             WHERE (id = ? AND report_id IS NOT ?)
+                OR (target_id = ? AND sender_id = ? AND created_at >= ? AND report_id IS NULL)",
             report_id,
             stamp_id,
-            report_id
+            report_id,
+            reporter,
+            sender,
+            since
         )
         .execute(&mut *tx)
         .await?

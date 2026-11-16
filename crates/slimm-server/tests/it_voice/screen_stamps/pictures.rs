@@ -9,14 +9,14 @@ use slimm_server::store::NewScreenStamp;
 
 use super::{Rig, rig};
 
-async fn placed(rig: &Rig, attachment_id: &str) -> String {
+pub(super) async fn placed(rig: &Rig, attachment_id: &str) -> String {
     let body = rig.picture(attachment_id);
     let (status, error) = rig.stamp(&rig.viewer.token, body.clone()).await;
     assert_eq!(status, StatusCode::NO_CONTENT, "{error}");
     body["id"].as_str().unwrap().to_owned()
 }
 
-async fn report(rig: &Rig, token: &str, stamp_id: &str) -> (StatusCode, Value) {
+pub(super) async fn report(rig: &Rig, token: &str, stamp_id: &str) -> (StatusCode, Value) {
     let body = json!({
         "id": uuid::Uuid::now_v7().to_string(),
         "subject_kind": "screen_stamp",
@@ -26,7 +26,7 @@ async fn report(rig: &Rig, token: &str, stamp_id: &str) -> (StatusCode, Value) {
     rig.send("POST", "/reports", token, Some(body)).await
 }
 
-async fn open_reports(rig: &Rig) -> Vec<Value> {
+pub(super) async fn open_reports(rig: &Rig) -> Vec<Value> {
     let (status, body) = rig.send("GET", "/reports", &rig.admin.token, None).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     body.as_array().unwrap().clone()
@@ -270,52 +270,6 @@ async fn a_replayed_report_id_answers_the_same_report() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(first["id"], second["id"]);
     assert_eq!(open_reports(&rig).await.len(), 1);
-}
-
-#[tokio::test]
-async fn the_sharer_lists_the_last_days_pictures_newest_first() {
-    let rig = rig().await;
-    rig.consent(true, true);
-    let old = rig.viewer_png(b"old").await;
-    placed(&rig, &old).await;
-    rig.age_a_day().await;
-    let first = rig.viewer_png(b"first").await;
-    let second = rig.viewer_png(b"second").await;
-    let first_id = placed(&rig, &first).await;
-    placed(&rig, &second).await;
-    report(&rig, &rig.sharer.token, &first_id).await;
-
-    let (status, listed) = rig
-        .send(
-            "GET",
-            "/voice/screen-stamps/received",
-            &rig.sharer.token,
-            None,
-        )
-        .await;
-    let (_, viewers) = rig
-        .send(
-            "GET",
-            "/voice/screen-stamps/received",
-            &rig.viewer.token,
-            None,
-        )
-        .await;
-
-    assert_eq!(status, StatusCode::OK);
-    let stamps = listed["stamps"].as_array().unwrap();
-    let pictures: Vec<&str> = stamps
-        .iter()
-        .map(|s| s["attachment_id"].as_str().unwrap())
-        .collect();
-    assert_eq!(pictures, vec![second.as_str(), first.as_str()]);
-    assert_eq!(stamps[0]["sender_id"], rig.viewer.id.to_string());
-    assert_eq!(stamps[0]["channel_id"], rig.channel);
-    assert_eq!(
-        (stamps[0]["reported"].clone(), stamps[1]["reported"].clone()),
-        (json!(false), json!(true))
-    );
-    assert!(viewers["stamps"].as_array().unwrap().is_empty());
 }
 
 /// Stamps `attachment_id` `times` over in another channel, carol onto dave, each newer than any before.

@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: Uuid\", channel_id AS \"channel_id!: ChannelId\",\n                      sender_id AS \"sender_id!: UserId\", target_id AS \"target_id!: UserId\",\n                      sha256 AS \"sha256!: Vec<u8>\", report_id AS \"report_id?: Uuid\",\n                      created_at AS \"created_at!\", sent AS \"sent!: i64\",\n                      unreported AS \"unreported!: i64\"\n               FROM (\n                   SELECT id, channel_id, sender_id, target_id, sha256, report_id, created_at,\n                          ROW_NUMBER() OVER (\n                              PARTITION BY sender_id ORDER BY created_at DESC, id DESC\n                          ) AS place,\n                          COUNT(*) OVER (PARTITION BY sender_id) AS sent,\n                          SUM(report_id IS NULL) OVER (PARTITION BY sender_id) AS unreported\n                   FROM screen_stamps WHERE target_id = ? AND created_at >= ?\n               )\n               WHERE place = 1\n               ORDER BY created_at DESC, id DESC LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sender_id!: UserId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "target_id!: UserId",
+        "ordinal": 3,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sha256!: Vec<u8>",
+        "ordinal": 4,
+        "type_info": "Blob"
+      },
+      {
+        "name": "report_id?: Uuid",
+        "ordinal": 5,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "sent!: i64",
+        "ordinal": 7,
+        "type_info": "Null"
+      },
+      {
+        "name": "unreported!: i64",
+        "ordinal": 8,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "153681a0077c98f06f3a4c24dd9730f8bbe83626297cb5053fc9e2a3010b3b83"
+}

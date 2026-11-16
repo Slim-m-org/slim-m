@@ -40,9 +40,22 @@ extension SlimmApiScreenStamps on SlimmApi {
         expectNoContent: true,
       );
 
-  /// The pictures stamped on the caller's screen in the last day, newest first.
-  Future<List<ReceivedScreenStamp>> listReceivedScreenStamps() async {
+  /// Everyone who stamped pictures on the caller's screen in the last day, by
+  /// their latest picture, newest first.
+  Future<List<ScreenStampSender>> listReceivedScreenStamps() async {
     final json = await send('GET', '/voice/screen-stamps/received');
+    final senders = (json as Map<String, dynamic>)['senders'] as List<dynamic>;
+    return senders
+        .map((e) => ScreenStampSender.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  /// The pictures [senderId] stamped on the caller's screen in the last day,
+  /// newest first.
+  Future<List<ReceivedScreenStamp>> listReceivedScreenStampsFrom(
+    String senderId,
+  ) async {
+    final json = await send('GET', '/voice/screen-stamps/received/$senderId');
     final stamps = (json as Map<String, dynamic>)['stamps'] as List<dynamic>;
     return stamps
         .map((e) => ReceivedScreenStamp.fromJson(e as Map<String, dynamic>))

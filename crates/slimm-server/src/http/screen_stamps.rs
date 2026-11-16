@@ -50,7 +50,7 @@ const NOT_A_PICTURE: &str = "a stamp must be a PNG, JPEG, GIF or WebP picture";
 /// The picture types a stamp may show, as upload sniffing names them.
 const STAMP_PICTURE_TYPES: [&str; 4] = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
-/// Most pictures the sharer's list returns.
+/// Most senders the sharer's list returns, and most pictures it shows of one sender.
 const RECEIVED_LIMIT: i64 = 100;
 
 const NOT_TAKING: &str = "Their screen is not taking stamps right now";
@@ -59,6 +59,10 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/channels/{channel_id}/voice/screen-stamps", post(place))
         .route("/voice/screen-stamps/received", get(received))
+        .route(
+            "/voice/screen-stamps/received/{sender_id}",
+            get(received_from),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
@@ -288,15 +292,53 @@ struct ReceivedStamps {
     stamps: Vec<ReceivedStampDto>,
 }
 
-/// The pictures stamped on the caller's screen in the last day, newest first.
+#[derive(Serialize)]
+struct StampSenderDto {
+    sender_id: String,
+    count: i64,
+    reported: bool,
+    latest: ReceivedStampDto,
+}
+
+#[derive(Serialize)]
+struct StampSenders {
+    senders: Vec<StampSenderDto>,
+}
+
+/// Everyone who stamped a picture on the caller's screen in the last day, by their latest one.
 async fn received(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
+) -> Result<Json<StampSenders>, ApiError> {
+    let since = now_ms() - SCREEN_STAMP_TTL_MS;
+    let senders = state
+        .store
+        .screen_stamp_senders(ctx.user_id, since, RECEIVED_LIMIT)
+        .await?;
+    Ok(Json(StampSenders {
+        senders: senders
+            .into_iter()
+            .map(|sender| StampSenderDto {
+                sender_id: sender.latest.sender_id.to_string(),
+                count: sender.sent,
+                reported: sender.unreported == 0,
+                latest: sender.latest.into(),
+            })
+            .collect(),
+    }))
+}
+
+/// The pictures one person stamped on the caller's screen in the last day, newest first.
+async fn received_from(
+    AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
+    Path(sender_id): Path<String>,
+    State(state): State<AppState>,
 ) -> Result<Json<ReceivedStamps>, ApiError> {
+    let sender = UserId(parse_uuid(&sender_id)?);
     let since = now_ms() - SCREEN_STAMP_TTL_MS;
     let stamps = state
         .store
-        .screen_stamps_received(ctx.user_id, since, RECEIVED_LIMIT)
+        .screen_stamps_from(ctx.user_id, sender, since, RECEIVED_LIMIT)
         .await?;
     Ok(Json(ReceivedStamps {
         stamps: stamps.into_iter().map(ReceivedStampDto::from).collect(),

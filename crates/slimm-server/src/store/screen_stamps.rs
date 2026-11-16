@@ -31,6 +31,16 @@ pub struct ScreenStamp {
     pub created_at: i64,
 }
 
+/// One person who stamped pictures on a screen in the window, by their latest picture.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StampSender {
+    pub latest: ScreenStamp,
+    /// How many pictures they stamped in the window.
+    pub sent: i64,
+    /// How many of those no report holds yet.
+    pub unreported: i64,
+}
+
 /// A picture stamp about to be stored.
 pub struct NewScreenStamp<'a> {
     pub id: Uuid,
@@ -118,10 +128,60 @@ impl Store {
         Ok(row)
     }
 
-    /// Picture stamps aimed at `target` since `since`, newest first.
-    pub async fn screen_stamps_received(
+    /// Everyone who stamped a picture on `target`'s screen since `since`, by their latest one,
+    /// newest first, so a flood from one sender never pushes another off the list.
+    pub async fn screen_stamp_senders(
         &self,
         target: UserId,
+        since: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<StampSender>> {
+        let rows = sqlx::query!(
+            r#"SELECT id AS "id!: Uuid", channel_id AS "channel_id!: ChannelId",
+                      sender_id AS "sender_id!: UserId", target_id AS "target_id!: UserId",
+                      sha256 AS "sha256!: Vec<u8>", report_id AS "report_id?: Uuid",
+                      created_at AS "created_at!", sent AS "sent!: i64",
+                      unreported AS "unreported!: i64"
+               FROM (
+                   SELECT id, channel_id, sender_id, target_id, sha256, report_id, created_at,
+                          ROW_NUMBER() OVER (
+                              PARTITION BY sender_id ORDER BY created_at DESC, id DESC
+                          ) AS place,
+                          COUNT(*) OVER (PARTITION BY sender_id) AS sent,
+                          SUM(report_id IS NULL) OVER (PARTITION BY sender_id) AS unreported
+                   FROM screen_stamps WHERE target_id = ? AND created_at >= ?
+               )
+               WHERE place = 1
+               ORDER BY created_at DESC, id DESC LIMIT ?"#,
+            target,
+            since,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| StampSender {
+                sent: row.sent,
+                unreported: row.unreported,
+                latest: ScreenStamp {
+                    id: row.id,
+                    channel_id: row.channel_id,
+                    sender_id: row.sender_id,
+                    target_id: row.target_id,
+                    sha256: row.sha256,
+                    report_id: row.report_id,
+                    created_at: row.created_at,
+                },
+            })
+            .collect())
+    }
+
+    /// The pictures `sender` stamped on `target`'s screen since `since`, newest first.
+    pub async fn screen_stamps_from(
+        &self,
+        target: UserId,
+        sender: UserId,
         since: i64,
         limit: i64,
     ) -> anyhow::Result<Vec<ScreenStamp>> {
@@ -131,9 +191,10 @@ impl Store {
                       sender_id AS "sender_id!: UserId", target_id AS "target_id!: UserId",
                       sha256 AS "sha256!: Vec<u8>", report_id AS "report_id?: Uuid",
                       created_at AS "created_at!"
-               FROM screen_stamps WHERE target_id = ? AND created_at >= ?
+               FROM screen_stamps WHERE target_id = ? AND sender_id = ? AND created_at >= ?
                ORDER BY created_at DESC, id DESC LIMIT ?"#,
             target,
+            sender,
             since,
             limit
         )

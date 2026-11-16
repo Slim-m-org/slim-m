@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The sharer's list of pictures stamped on their screen, holding one stamp so the item shape is checked.
+//! The sharer's lists of who stamped pictures on their screen and of one sender's pictures,
+//! holding one stamp so the item shapes are checked.
 //!
 //! The stamp is written through the store: placing one needs a reachable LiveKit room service.
 
@@ -38,6 +39,12 @@ pub(super) async fn screen_stamp_calls(
     c.get(
         "listReceivedScreenStamps",
         "/voice/screen-stamps/received",
+        root,
+    )
+    .await;
+    c.get(
+        "listReceivedScreenStampsFrom",
+        &format!("/voice/screen-stamps/received/{bob_id}"),
         root,
     )
     .await;

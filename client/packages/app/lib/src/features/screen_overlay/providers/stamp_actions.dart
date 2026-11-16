@@ -50,8 +50,15 @@ class StampActions {
 
 final stampActionsProvider = Provider<StampActions>(StampActions.new);
 
-/// The pictures stamped on the caller's screen in the last day, newest first.
+/// Everyone who stamped pictures on the caller's screen in the last day, by their latest one.
 final receivedScreenStampsProvider =
-    FutureProvider.autoDispose<List<api.ReceivedScreenStamp>>(
+    FutureProvider.autoDispose<List<api.ScreenStampSender>>(
       (ref) => ref.watch(apiProvider).listReceivedScreenStamps(),
+    );
+
+/// The pictures one sender stamped on the caller's screen in the last day, newest first.
+final receivedScreenStampsFromProvider = FutureProvider.autoDispose
+    .family<List<api.ReceivedScreenStamp>, String>(
+      (ref, senderId) =>
+          ref.watch(apiProvider).listReceivedScreenStampsFrom(senderId),
     );

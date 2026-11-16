@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Stamps on a shared screen (decision 0121): [`placing`] covers the route's checks and
-//! the relay, [`pictures`] the 24-hour fetch grant, the sweep and the sharer's report.
+//! the relay, [`pictures`] the 24-hour fetch grant, the sweep and the sharer's report, and
+//! [`received`] the sharer's list of who stamped pictures on their screen.
 
 mod pictures;
 mod placing;
+mod received;
 
 use std::time::Instant;
 

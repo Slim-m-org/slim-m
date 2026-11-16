@@ -37,3 +37,35 @@ class ReceivedScreenStamp {
         reported: json['reported'] == true,
       );
 }
+
+/// Someone who stamped pictures on the caller's screen in the last day, by
+/// their [latest] picture. A report naming [latest]'s id is about them and
+/// takes every picture of theirs from that day.
+class ScreenStampSender {
+  const ScreenStampSender({
+    required this.senderId,
+    required this.count,
+    required this.reported,
+    required this.latest,
+  });
+
+  final String senderId;
+
+  /// How many pictures they stamped in the last day.
+  final int count;
+
+  /// Whether the caller's report holds every one of them.
+  final bool reported;
+
+  final ReceivedScreenStamp latest;
+
+  factory ScreenStampSender.fromJson(Map<String, dynamic> json) =>
+      ScreenStampSender(
+        senderId: json['sender_id'] as String,
+        count: json['count'] as int,
+        reported: json['reported'] == true,
+        latest: ReceivedScreenStamp.fromJson(
+          json['latest'] as Map<String, dynamic>,
+        ),
+      );
+}
