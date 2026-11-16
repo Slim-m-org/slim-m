@@ -89,6 +89,13 @@ impl World {
         let body = json!({ "overwrites": entries });
         call_as(&self.app, "PUT", uri, &self.mo, Some(body)).await
     }
+
+    /// The owner's write, which the ladder never refuses.
+    async fn owner_call(&self, method: &str, uri: &str, body: Value) -> Value {
+        let (status, body) = call_as(&self.app, method, uri, &self.alice.0, Some(body)).await;
+        assert!(status.is_success(), "{method} {uri}: {status} {body}");
+        body
+    }
 }
 
 #[tokio::test]
@@ -133,4 +140,41 @@ async fn only_the_owner_gives_the_owner_a_role() {
     refused(call_as(&w.app, "PUT", &uri, &w.mo, None).await);
     let (status, body) = call_as(&w.app, "PUT", &uri, &w.alice.0, None).await;
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+}
+
+/// A sync drops or adopts every row it does not keep, so each of those targets must be in reach.
+#[tokio::test]
+async fn a_sync_is_refused_when_it_would_change_a_row_out_of_reach() {
+    let w = world().await;
+    let sub = json!({"name": "Sub", "parent_id": w.category});
+    let sub = w.owner_call("POST", "/categories", sub).await["id"].clone();
+    let channel = json!({"name": "lobby", "category_id": w.category});
+    let channel = w.owner_call("POST", "/channels", channel).await["id"].clone();
+    let (sub, channel) = (sub.as_str().unwrap(), channel.as_str().unwrap());
+    for own in [
+        format!("/categories/{sub}/overwrites"),
+        format!("/channels/{channel}/overwrites"),
+    ] {
+        let rows = json!({ "overwrites": [entry("member", &w.jay)] });
+        w.owner_call("PUT", &own, rows).await;
+    }
+    let parent = format!("/categories/{}/overwrites", w.category);
+    let syncs = [
+        format!("/categories/{sub}/overwrites/sync"),
+        format!("/channels/{channel}/overwrites/sync"),
+    ];
+
+    let senior = json!({ "overwrites": [entry("role", &w.senior.to_string())] });
+    w.owner_call("PUT", &parent, senior).await;
+    for sync in &syncs {
+        refused(call_as(&w.app, "POST", sync, &w.mo, None).await);
+    }
+
+    let cleared = json!({ "kind": "role", "id": w.senior.to_string(), "allow": 0, "deny": 0 });
+    let junior = json!({ "overwrites": [cleared, entry("role", &w.junior.to_string())] });
+    w.owner_call("PUT", &parent, junior).await;
+    for sync in &syncs {
+        let (status, body) = call_as(&w.app, "POST", sync, &w.mo, None).await;
+        assert_eq!(status, StatusCode::OK, "{sync}: {body}");
+    }
 }
