@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// On iOS a call and a voice message share one audio session: joining stops
 /// the message before the connect, and nothing starts or resumes during the
-/// call. Elsewhere a call leaves playback alone.
+/// call. Elsewhere a call starting pauses the message, and Play resumes it.
 library;
 
 import 'dart:async';
@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/audio/call_start_yields.dart';
 import 'package:slimm_app/src/audio/sound_session_release.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/voice_playback.dart';
@@ -127,18 +128,71 @@ void main() {
     },
   );
 
-  test('elsewhere a call leaves playback alone', () async {
+  test('elsewhere a call starting pauses a message where it is', () async {
+    final c = container(ios: false);
+    final playback = c.read(voicePlaybackProvider.notifier);
+    final message = voiceMessage('a');
+    await playback.toggle(message);
+    player.position.add(const Duration(seconds: 7));
+    await Future<void>.delayed(Duration.zero);
+
+    joinCall(c);
+    await c.read(callStartYieldsProvider).callStarting();
+
+    expect(player.log.last, 'pause', reason: 'paused, not stopped');
+    final paused = c.read(voicePlaybackProvider);
+    expect(paused.playing, isFalse);
+    expect(paused.attachmentId, 'a');
+    expect(paused.position, const Duration(seconds: 7));
+
+    await playback.toggle(message);
+
+    expect(player.log.last, 'resume');
+    expect(c.read(voicePlaybackProvider).playing, isTrue);
+  });
+
+  test(
+    'elsewhere a message still loading when a call starts never plays',
+    () async {
+      final slow = _SlowPlayer();
+      final c = container(ios: false, engine: slow);
+      final starting = c
+          .read(voicePlaybackProvider.notifier)
+          .toggle(voiceMessage('a'));
+      await slow.started.future;
+
+      joinCall(c);
+      await c.read(callStartYieldsProvider).callStarting();
+      slow.release.complete();
+      await starting;
+
+      expect(slow.log.last, 'stop');
+      expect(c.read(voicePlaybackProvider).playing, isFalse);
+    },
+  );
+
+  test('elsewhere a message already paused stays as it is', () async {
     final c = container(ios: false);
     final playback = c.read(voicePlaybackProvider.notifier);
     final message = voiceMessage('a');
     await playback.toggle(message);
     await playback.toggle(message);
 
-    joinCall(c);
-    await c.read(soundSessionReleaseProvider)();
-    await playback.toggle(message);
+    await c.read(callStartYieldsProvider).callStarting();
 
-    expect(player.log.skip(1), ['pause', 'resume']);
-    expect(c.read(voicePlaybackProvider).playing, isTrue);
+    expect(player.log.skip(1), ['pause']);
   });
+
+  test(
+    'a call starting on iOS leaves the stop to the session release',
+    () async {
+      final c = container(ios: true);
+      await c.read(voicePlaybackProvider.notifier).toggle(voiceMessage('a'));
+
+      await c.read(callStartYieldsProvider).callStarting();
+
+      expect(player.log, hasLength(1), reason: 'nothing but the play');
+      expect(c.read(voicePlaybackProvider).playing, isTrue);
+    },
+  );
 }
