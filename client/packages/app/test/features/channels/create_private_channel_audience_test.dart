@@ -21,6 +21,8 @@ import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
+import '../../support/async_wait.dart';
+
 const _tokens = api.TokenPair(
   userId: 'self',
   accessToken: 'access',
@@ -55,8 +57,10 @@ class _Server {
   final created = <Map<String, dynamic>>[];
   final overwrites = <Map<String, dynamic>>[];
   bool failOverwrites = false;
+  var requests = 0;
 
   Future<http.Response> handle(http.Request request) async {
+    requests++;
     final body = jsonDecode(request.body) as Map<String, dynamic>;
     if (request.method == 'POST') {
       created.add(body);
@@ -137,14 +141,25 @@ Future<void> _open(WidgetTester tester, _Server server) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _create(WidgetTester tester) async {
+/// Creates, and waits for [requests] to reach the server: the channel, then any grant.
+Future<void> _create(
+  WidgetTester tester,
+  _Server server, {
+  required int requests,
+}) async {
   await tester.ensureVisible(find.text('Create channel'));
   await tester.pumpAndSettle();
-  await tester.runAsync(() async {
-    await tester.tap(find.text('Create channel'));
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-  });
+  await tester.tap(find.text('Create channel'));
+  await waitUntil(tester, () => server.requests >= requests);
+  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   await tester.pumpAndSettle();
+}
+
+/// The sheet now watches the store's categories, a drift stream that only lets go once unmounted.
+Future<void> _unmount(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(seconds: 1));
+  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
 }
 
 void main() {
@@ -170,6 +185,7 @@ void main() {
       find.textContaining('Administrator or Manage channels'),
       findsOneWidget,
     );
+    await _unmount(tester);
   });
 
   testWidgets('picked roles and members are written as view grants', (
@@ -180,7 +196,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('audience:role:role-mods')));
     await tester.tap(find.byKey(const ValueKey('audience:member:m-nadia')));
     await tester.pump();
-    await _create(tester);
+    await _create(tester, server, requests: 2);
 
     expect(server.created.single['restricted'], isTrue);
     expect(server.overwrites, hasLength(2));
@@ -191,15 +207,17 @@ void main() {
       },
       {'role:role-mods': Perm.viewChannel, 'member:m-nadia': Perm.viewChannel},
     );
+    await _unmount(tester);
   });
 
   testWidgets('nobody picked writes no overwrites', (tester) async {
     final server = _Server();
     await _open(tester, server);
-    await _create(tester);
+    await _create(tester, server, requests: 1);
 
     expect(server.created.single['restricted'], isTrue);
     expect(server.overwrites, isEmpty);
+    await _unmount(tester);
   });
 
   testWidgets('a failed grant keeps the sheet open with a clear error', (
@@ -209,10 +227,11 @@ void main() {
     await _open(tester, server);
     await tester.tap(find.byKey(const ValueKey('audience:role:role-mods')));
     await tester.pump();
-    await _create(tester);
+    await _create(tester, server, requests: 2);
 
     expect(find.textContaining('The channel was created'), findsOneWidget);
     expect(find.text('Create channel'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
+    await _unmount(tester);
   });
 }
