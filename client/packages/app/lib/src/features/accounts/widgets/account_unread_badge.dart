@@ -46,13 +46,12 @@ class AccountUnreadBadge extends StatelessWidget {
     return Semantics(
       label: 'Unread messages',
       excludeSemantics: true,
-      child: DecoratedBox(
+      child: KeyedSubtree(
         key: dotKey,
-        decoration: BoxDecoration(
+        child: AppListRow.indicatorDot(
+          mentioned: false,
           color: tokens.textPrimary,
-          borderRadius: BorderRadius.circular(AppRadii.full),
         ),
-        child: const SizedBox(width: 8, height: 8),
       ),
     );
   }
