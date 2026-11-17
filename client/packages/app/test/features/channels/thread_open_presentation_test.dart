@@ -59,10 +59,18 @@ void main() {
       addTearDown(container.dispose);
       final context = await _pumpAtWidth(tester, container, 1400);
 
-      openThreadPresenting(context, container, 'c-thread');
+      openThreadPresenting(
+        context,
+        container,
+        'c-thread',
+        besideChannelId: 'c1',
+      );
       await tester.pumpAndSettle();
 
-      expect(container.read(openThreadProvider), 'c-thread');
+      expect(container.read(openThreadProvider), (
+        threadId: 'c-thread',
+        besideChannelId: 'c1',
+      ));
       expect(
         find.text('thread route'),
         findsNothing,
@@ -79,7 +87,12 @@ void main() {
       addTearDown(container.dispose);
       final context = await _pumpAtWidth(tester, container, 500);
 
-      openThreadPresenting(context, container, 'c-thread');
+      openThreadPresenting(
+        context,
+        container,
+        'c-thread',
+        besideChannelId: 'c1',
+      );
       await tester.pumpAndSettle();
 
       expect(

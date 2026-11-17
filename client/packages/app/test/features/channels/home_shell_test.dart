@@ -121,7 +121,7 @@ void main() {
       expect(find.byType(AppMemberPane), findsOneWidget);
       expect(find.byType(ThreadScreen), findsNothing);
 
-      s.container.read(openThreadProvider.notifier).state = 'c-thread';
+      dockThread(s.container, 'c-thread', besideChannelId: null);
       await tester.pumpAndSettle();
 
       expect(
@@ -145,7 +145,7 @@ void main() {
       final s = setup();
       // Medium: two panes fit, but not a 360px thread pane and a transcript.
       await pumpAtWidth(tester, s.container, 700);
-      s.container.read(openThreadProvider.notifier).state = 'c-thread';
+      dockThread(s.container, 'c-thread', besideChannelId: null);
       await tester.pumpAndSettle();
       expect(find.byType(ThreadScreen), findsNothing);
       await teardown(tester, s.container, s.db);

@@ -147,7 +147,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
       // As the e2e run did: open the thread in the dock, close it, then return by the link.
-      dockThread(container, 'c-thread');
+      dockThread(container, 'c-thread', besideChannelId: 'c1');
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -159,7 +159,7 @@ void main() {
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(container.read(openThreadProvider), 'c-thread');
+      expect(container.read(openThreadProvider)?.threadId, 'c-thread');
 
       final threadField = find.descendant(
         of: find.byType(ThreadScreen),

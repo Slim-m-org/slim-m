@@ -22,6 +22,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
+import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -53,6 +54,17 @@ api.Message _message({
   replyToId: replyToId,
 );
 
+Map<String, Object?> _onTheWire(api.Message m) => {
+  'id': m.id,
+  'channel_id': m.channelId,
+  'author_id': m.authorId,
+  'author_display_name': m.authorDisplayName,
+  'seq': m.seq,
+  'content': m.content,
+  'created_at': m.createdAt,
+  'reply_to_id': m.replyToId,
+};
+
 http.Response _json(Object body) => http.Response(
   jsonEncode(body),
   200,
@@ -60,10 +72,13 @@ http.Response _json(Object body) => http.Response(
 );
 
 /// A container wired at a channel holding [messages], with [blocked] as the
-/// server's answer to `GET /blocks`.
+/// server's answer to `GET /blocks`. The server also holds [olderOnServer],
+/// which this client never paged in, and has deleted every id in [gone].
 Future<ProviderContainer> _wire(
   WidgetTester tester, {
   required List<api.Message> messages,
+  List<api.Message> olderOnServer = const [],
+  Set<String> gone = const {},
   List<String> blocked = const [],
 }) async {
   tester.view.physicalSize = const Size(500, 800);
@@ -95,6 +110,15 @@ Future<ProviderContainer> _wire(
           final seq =
               (jsonDecode(request.body) as Map<String, dynamic>)['seq'] as int;
           return _json({'last_read_seq': seq, 'unread': 0});
+        }
+        final single = RegExp(r'^/channels/c1/messages/(.+)$');
+        if (single.firstMatch(request.url.path) case final match?) {
+          final id = match.group(1)!;
+          final held = [...messages, ...olderOnServer].where((m) => m.id == id);
+          if (held.isEmpty || gone.contains(id)) {
+            return http.Response('{"error":"message not found"}', 404);
+          }
+          return _json(_onTheWire(held.single));
         }
         if (request.url.path == '/me') {
           return _json({
@@ -203,10 +227,37 @@ void main() {
     },
   );
 
+  testWidgets('a reply to an older message this client has not paged in '
+      'quotes it', (tester) async {
+    await _wire(
+      tester,
+      olderOnServer: [
+        _message(id: 'm1', authorId: 'priya', seq: 1, content: 'history 000'),
+      ],
+      messages: [
+        _message(
+          id: 'm200',
+          authorId: 'friend',
+          seq: 200,
+          content: 'reply to very old',
+          replyToId: 'm1',
+        ),
+      ],
+    );
+
+    expect(find.text('reply to very old'), findsOneWidget);
+    expect(find.text('history 000'), findsOneWidget);
+    expect(find.byKey(ReplyQuote.avatarKey), findsOneWidget);
+    expect(find.text('Message unavailable'), findsNothing);
+    await _unmount(tester);
+  });
+
   testWidgets('a reply to a since-deleted message renders honestly once the delete '
       'is applied', (tester) async {
+    final gone = <String>{};
     final container = await _wire(
       tester,
+      gone: gone,
       messages: [
         _message(id: 'm1', authorId: 'friend', seq: 1, content: 'original'),
         _message(
@@ -225,6 +276,7 @@ void main() {
 
     // A delete, own or a live `message.deleted` frame, always lands as `MessageStore.discard`.
     final store = await container.read(storeProvider.future);
+    gone.add('m1');
     await store.discard('m1');
     for (var i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 20));

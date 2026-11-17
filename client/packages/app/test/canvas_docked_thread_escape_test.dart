@@ -21,12 +21,15 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
 
-    container.read(openThreadProvider.notifier).state = 'thread_1';
+    container.read(openThreadProvider.notifier).state = (
+      threadId: 'thread_1',
+      besideChannelId: 'c1',
+    );
 
     await pumpCanvasPane(tester, container, board: true);
     await tester.pumpAndSettle();
 
-    expect(container.read(openThreadProvider), 'thread_1');
+    expect(container.read(openThreadProvider)?.threadId, 'thread_1');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();

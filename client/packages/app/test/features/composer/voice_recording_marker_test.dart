@@ -192,7 +192,7 @@ void main() {
     final shell = _Shell(tester);
     await shell.open(const Size(1280, 900));
     final thread = shell.container.read(openThreadProvider.notifier);
-    thread.state = 'c-thread';
+    thread.state = (threadId: 'c-thread', besideChannelId: 'c-design');
     await tester.pump(const Duration(milliseconds: 350));
     shell.container.read(voiceRecorderProvider('c-thread').notifier).now = () =>
         shell.clock;
@@ -208,7 +208,7 @@ void main() {
 
     await tester.tap(_marker);
     await tester.pump(const Duration(milliseconds: 350));
-    expect(thread.state, 'c-thread');
+    expect(thread.state, (threadId: 'c-thread', besideChannelId: 'c-design'));
     expect(shell.path, '/channels/c-design');
     expect(_marker, findsNothing);
     await shell.close();

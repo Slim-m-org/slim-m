@@ -194,7 +194,11 @@ final _shellStateSurfaces =
       'thread-docked': (
         route: '/channels/c-general',
         viewports: const ['expanded-999', 'expanded-1000'],
-        overrides: () => [openThreadProvider.overrideWith((ref) => 'c-thread')],
+        overrides: () => [
+          openThreadProvider.overrideWith(
+            (ref) => (threadId: 'c-thread', besideChannelId: 'c-general'),
+          ),
+        ],
       ),
       'channel-ephemeral': (
         route: '/channels/c-general',

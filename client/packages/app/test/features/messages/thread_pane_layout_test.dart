@@ -272,8 +272,11 @@ void main() {
     final channelComposer = FocusNode();
     addTearDown(channelComposer.dispose);
     container.read(composerFocusNodeProvider.notifier).state = channelComposer;
-    container.read(openThreadProvider.notifier).state = 'c1';
-    dockThread(container, 'c1');
+    container.read(openThreadProvider.notifier).state = (
+      threadId: 'c1',
+      besideChannelId: null,
+    );
+    dockThread(container, 'c1', besideChannelId: null);
     await tester.pump();
 
     expect(

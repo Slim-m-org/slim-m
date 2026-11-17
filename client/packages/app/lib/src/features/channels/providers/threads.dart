@@ -26,28 +26,43 @@ import '../../../providers/providers.dart';
 /// exists to avoid, just with the wrong value.
 const String threadChannelName = '';
 
-/// The thread docked beside the transcript right now, as its channel id, or
-/// null for none. The single source of truth for the desktop side-pane
-/// presentation, mirroring [canvasOpenProvider]/[memberPaneVisibleProvider]:
-/// at expanded widths an in-app "open thread" sets this and the shell docks a
-/// pane, so the parent transcript stays visible (UX1). At compact widths, and
-/// for a cold deep link or reload, the `/thread/:id` route and its modal are
-/// used instead - so this is deliberately not URL-backed, and a reload closes
-/// a docked thread back to its channel rather than restoring the pane.
-final openThreadProvider = StateProvider<String?>((ref) => null);
+/// A thread docked beside the transcript, and the channel it was opened beside.
+typedef DockedThread = ({String threadId, String? besideChannelId});
+
+/// The thread docked beside the transcript right now, or null for none. The
+/// single source of truth for the desktop side-pane presentation, mirroring
+/// [canvasOpenProvider]/[memberPaneVisibleProvider]: at expanded widths an
+/// in-app "open thread" sets this and the shell docks a pane, so the parent
+/// transcript stays visible (UX1). At compact widths, and for a cold deep link
+/// or reload, the `/thread/:id` route and its modal are used instead - so this
+/// is deliberately not URL-backed, and a reload closes a docked thread back to
+/// its channel rather than restoring the pane.
+final openThreadProvider = StateProvider<DockedThread?>((ref) => null);
+
+/// The thread docked beside [channelId], or null; a thread opened beside
+/// another channel stays with that one.
+String? dockedThreadBeside(DockedThread? docked, String? channelId) =>
+    docked != null && docked.besideChannelId == channelId
+    ? docked.threadId
+    : null;
 
 /// Bumped each time the user asks for a thread that is already docked, so the
 /// pane's composer takes focus again; a new thread focuses itself on mount.
 final threadComposerFocusRequestProvider = StateProvider<int>((ref) => 0);
 
-/// Docks [threadId] in the side pane. Asking for the thread already open
-/// moves the caret back into its composer instead of doing nothing.
-void dockThread(ProviderContainer container, String threadId) {
+/// Docks [threadId] in the side pane beside [besideChannelId]. Asking for the
+/// thread already open there moves the caret back into its composer instead.
+void dockThread(
+  ProviderContainer container,
+  String threadId, {
+  required String? besideChannelId,
+}) {
   final open = container.read(openThreadProvider.notifier);
-  if (open.state == threadId) {
+  final docked = (threadId: threadId, besideChannelId: besideChannelId);
+  if (open.state == docked) {
     container.read(threadComposerFocusRequestProvider.notifier).state++;
   } else {
-    open.state = threadId;
+    open.state = docked;
   }
 }
 

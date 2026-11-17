@@ -22258,8 +22258,10 @@ components:
       required: [type]
       description: >
         A Space setting that `/version` shows changed: the name, description
-        or icon, or a Space-wide display switch. Carries no fields; a receiving
-        client re-reads `/version`, which every member can read.
+        or icon, or a Space-wide display switch; or the theme store changed (a
+        theme published or removed, or the default set). Carries no fields; a
+        receiving client re-reads `/version` and `/space/themes`, which every
+        member can read.
       properties:
         type:
           type: string

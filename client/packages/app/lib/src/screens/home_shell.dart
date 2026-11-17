@@ -204,7 +204,10 @@ class HomeShell extends ConsumerWidget {
     // thread takes it, so the roster yields while a thread is open (UX1, and
     // see fitsThreadPane's doc). Below the width that fits a docked pane the
     // thread stays the pushed modal route instead.
-    final openThread = ref.watch(openThreadProvider);
+    final openThread = dockedThreadBeside(
+      ref.watch(openThreadProvider),
+      selected,
+    );
     final threadFits = layout.fitsThreadPane(width);
     final showThread = openThread != null && threadFits && !canvasFullscreen;
     // Once synced, a channel the store lacks is one the viewer cannot see: ChannelNotFound owns the pane, with no roster or members control.

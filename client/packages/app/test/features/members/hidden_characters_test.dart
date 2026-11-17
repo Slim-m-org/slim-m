@@ -94,4 +94,18 @@ void main() {
       expect(activity?.source, isNull);
     });
   });
+
+  group('wellFormedUtf16', () {
+    test('replaces an unpaired surrogate of either half', () {
+      expect(wellFormedUtf16('a\uD800b'), 'a�b');
+      expect(wellFormedUtf16('a\uDC00'), 'a�');
+      expect(wellFormedUtf16('\uD83D'), '�');
+    });
+
+    test('keeps a real pair and returns clean text as is', () {
+      const clean = 'ok \u{1F600} fine';
+      expect(identical(wellFormedUtf16(clean), clean), isTrue);
+      expect(wellFormedUtf16('\uDC00\u{1F600}'), '�\u{1F600}');
+    });
+  });
 }

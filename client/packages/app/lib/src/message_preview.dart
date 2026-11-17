@@ -3,6 +3,7 @@
 library;
 
 import 'features/messages/widgets/message_inline.dart';
+import 'hidden_characters.dart';
 
 final _fence = RegExp(r'```[\s\S]*?(?:```|$)');
 final _whitespace = RegExp(r'\s+');
@@ -17,7 +18,7 @@ const spoilerPlaceholder = '[spoiler]';
 /// Walks the same parse the transcript renders, so a preview can never show
 /// what the transcript hides. Empty when nothing is left.
 String plainPreview(String content) {
-  final withoutFences = content.replaceAll(_fence, ' [code] ');
+  final withoutFences = wellFormedUtf16(content).replaceAll(_fence, ' [code] ');
   final text = parseInline(withoutFences).map(_flatten).join();
   return text.replaceAll(_whitespace, ' ').trim();
 }
