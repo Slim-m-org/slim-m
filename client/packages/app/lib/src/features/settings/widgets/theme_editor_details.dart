@@ -10,7 +10,6 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/theme_draft.dart';
 import '../providers/theme_editor_sources.dart';
 import 'settings_control_column.dart';
-import 'settings_field.dart';
 import 'settings_section_header.dart';
 import 'settings_segmented_row.dart';
 import 'settings_select_row.dart';
@@ -47,22 +46,17 @@ class ThemeEditorDetails extends ConsumerWidget {
         title: 'Details',
         topGap: 0,
         children: [
-          SettingsCardBlock(
-            children: [
-              SettingsField(
-                label: 'Name',
-                child: AppInput(
-                  key: const Key('theme-editor-name'),
-                  controller: name,
-                  semanticLabel: 'Theme name',
-                  counterMax: themeNameMaxChars,
-                  errorText: shown.nameValid
-                      ? null
-                      : 'Use 1 to $themeNameMaxChars characters.',
-                  onChanged: draft.setName,
-                ),
-              ),
-            ],
+          _NameField(
+            input: AppInput(
+              key: const Key('theme-editor-name'),
+              controller: name,
+              semanticLabel: 'Theme name',
+              counterMax: themeNameMaxChars,
+              errorText: shown.nameValid
+                  ? null
+                  : 'Use 1 to $themeNameMaxChars characters.',
+              onChanged: draft.setName,
+            ),
           ),
           SettingsControlColumn(
             child: SettingsSegmentedRow<Brightness>(
@@ -105,6 +99,45 @@ class ThemeEditorDetails extends ConsumerWidget {
         onStartFrom();
         draft.startFrom(source.document, key: source.key);
       },
+    );
+  }
+}
+
+/// What [AppInput] keeps outside its border for the focus ring.
+const _inputRing = AppSpacing.s4;
+
+/// The name and its field, the field's border on the card's inset like the
+/// Mode and Start from controls under it.
+class _NameField extends StatelessWidget {
+  const _NameField({required this.input});
+
+  final Widget input;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s16 - _inputRing,
+        vertical: AppSpacing.s16,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 6,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: _inputRing),
+            child: Text(
+              'Name',
+              style: AppText.caption.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.medium,
+              ),
+            ),
+          ),
+          input,
+        ],
+      ),
     );
   }
 }

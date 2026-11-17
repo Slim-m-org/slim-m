@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// One theme colour as a full-width row: its chip, name, what it follows, a
-/// warning when a check asks to change it, and its hex. Main colours and the
-/// phone's colour groups share it.
+/// warning when a check asks to change it, and its hex; a see-through colour's
+/// opacity is its slider's to show. Main colours and the phone's groups share it.
 library;
 
 import 'package:flutter/material.dart';
@@ -45,7 +45,7 @@ class ThemeColourRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final hex = themeColourHex(token, colour);
+    final hex = hexOfColour(colour.withValues(alpha: 1));
     return AppListRow(
       label: label,
       subtitle: description,
@@ -53,7 +53,7 @@ class ThemeColourRow extends StatelessWidget {
       semanticLabel: [
         label,
         ?description,
-        hex,
+        themeColourHex(token, colour),
         if (failing) 'fails a contrast check',
       ].join(', '),
       selected: open,

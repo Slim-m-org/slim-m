@@ -239,6 +239,14 @@ void main() {
       expect(slider.top, greaterThanOrEqualTo(row.bottom), reason: token);
       expect(slider.top - row.bottom, lessThan(12), reason: token);
       expect(slider.left, greaterThan(row.left + AppSizes.icon24));
+      expect(
+        find.descendant(
+          of: byKey('theme-token-$token'),
+          matching: find.textContaining('%'),
+        ),
+        findsNothing,
+        reason: '$token: the slider under it says the opacity',
+      );
     }
   });
 
@@ -376,6 +384,28 @@ void main() {
     expect(find.widgetWithText(AppSheetHeader, 'Mine'), findsOneWidget);
     expect(find.text('Delete'), findsOneWidget);
   });
+
+  for (final (name, size) in [('laptop', laptop), ('phone', phone)]) {
+    testWidgets('on a $name the name field lines up with Mode in Details', (
+      tester,
+    ) async {
+      final rig = EditorRig();
+      await rig.open(tester, size: size);
+      Finder inDetails(Finder finder) =>
+          find.descendant(of: byKey('theme-editor-details'), matching: finder);
+      // The field's border sits inside the box it reserves for its focus ring.
+      final field = tester
+          .getRect(byKey('theme-editor-name'))
+          .deflate(AppSpacing.s4);
+      final mode = tester.getRect(
+        inDetails(find.byWidgetPredicate((w) => w is AppSegmentedControl)),
+      );
+
+      expect(tester.getTopLeft(inDetails(find.text('Name'))).dx, field.left);
+      expect(tester.getTopLeft(inDetails(find.text('Mode'))).dx, field.left);
+      expect(field.right, mode.right);
+    });
+  }
 
   testWidgets('Details: the counter, Mode, and Start from showing its base '
       'and keeping the name', (tester) async {
