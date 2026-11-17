@@ -33,6 +33,7 @@ use super::super::messages::parse_uuid;
 use crate::hub::Event;
 use crate::ids::{CallRingId, ChannelId, UserId};
 use crate::permissions::Permissions;
+use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, VoiceError};
 
@@ -51,6 +52,8 @@ pub fn routes() -> Router<AppState> {
 struct RingResponse {
     ring_id: String,
     timeout_ms: i64,
+    /// Callees left unrung because they are on Do not disturb.
+    do_not_disturb: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -103,7 +106,8 @@ async fn incoming(
 /// personal space (a DM with themself) has nobody on the other end to ring.
 /// A group rings everyone else on its roster; the first to join answers for all.
 /// Someone already in the call is not rung, and with nobody left the ring ends
-/// as answered at once.
+/// as answered at once. Nor is anyone on Do not disturb: with only them left it
+/// ends at once as a missed call.
 ///
 /// A second ring for the same channel replaces whatever was already
 /// outstanding - see [`crate::voice::CallRings`] - since a caller trying
@@ -154,11 +158,25 @@ async fn ring(
         .filter(|callee| !state.voice.has_heartbeat(*callee, channel_id))
         .collect();
     if callees.is_empty() {
-        return Ok(Json(ended_at_once(
-            &state,
+        let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::Answered);
+        return Ok(Json(RingResponse::ended(ring_id, Vec::new())));
+    }
+    let (callees, do_not_disturb) = split_off_do_not_disturb(&state, callees).await?;
+    let do_not_disturb: Vec<String> = do_not_disturb.iter().map(ToString::to_string).collect();
+    if callees.is_empty() {
+        let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::TimedOut);
+        // Nothing rang, and a missed-call push would disturb them all the same.
+        crate::voice::record_finished_call(
+            &state.store,
+            &state.hub,
+            &crate::push::PushSender::disabled(),
             channel_id,
-            CallRingOutcome::Answered,
-        )));
+            ring_id,
+            ctx.user_id,
+            CallRingOutcome::TimedOut,
+        )
+        .await;
+        return Ok(Json(RingResponse::ended(ring_id, do_not_disturb)));
     }
 
     let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, &callees);
@@ -183,25 +201,40 @@ async fn ring(
     Ok(Json(RingResponse {
         ring_id: ring_id.to_string(),
         timeout_ms: crate::voice::RING_TIMEOUT.as_millis() as i64,
+        do_not_disturb,
     }))
 }
 
-/// A ring with nobody left to ring ends as `outcome` before anyone hears it.
-fn ended_at_once(
+impl RingResponse {
+    fn ended(ring_id: CallRingId, do_not_disturb: Vec<String>) -> Self {
+        Self {
+            ring_id: ring_id.to_string(),
+            timeout_ms: 0,
+            do_not_disturb,
+        }
+    }
+}
+
+/// `(still to ring, on Do not disturb)`: Do not disturb blocks a ring on every device.
+async fn split_off_do_not_disturb(
     state: &AppState,
-    channel_id: ChannelId,
-    outcome: CallRingOutcome,
-) -> RingResponse {
+    callees: Vec<UserId>,
+) -> Result<(Vec<UserId>, Vec<UserId>), ApiError> {
+    let visibility = state.store.presence_visibility_many(&callees).await?;
+    Ok(callees
+        .into_iter()
+        .partition(|callee| visibility.get(callee) != Some(&Visibility::Dnd)))
+}
+
+/// A ring with nobody left to ring ends as `outcome` before anyone hears it.
+fn ended_at_once(state: &AppState, channel_id: ChannelId, outcome: CallRingOutcome) -> CallRingId {
     let ring_id = CallRingId::generate();
     state.hub.publish(Event::CallRingEnded {
         channel_id,
         ring_id,
         outcome,
     });
-    RingResponse {
-        ring_id: ring_id.to_string(),
-        timeout_ms: 0,
-    }
+    ring_id
 }
 
 /// Rings the callees of `caller_id`'s pending ring in `channel_id`, once the

@@ -14,8 +14,9 @@
 ///   No system message is written, so this feature needed no migration and
 ///   adds no new moderation surface; a transcript of who called whom is a
 ///   deliberate absence, not an oversight.
-/// - **Ringing is not gated on quiet hours**, and follows the account's own
-///   notification preference the same way an ordinary DM message already
+/// - **Do not disturb blocks a ring outright**, on the server, so it never
+///   reaches this controller. Quiet hours do not; ringing follows the
+///   account's own notification preference the same way an ordinary DM message already
 ///   does: a `nothing` preference silences it, `mentions`/`everything` both
 ///   let it through, since a DM already counts as addressed to that account
 ///   either way. See `push::call_ring`'s own module doc on the server for

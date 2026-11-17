@@ -24,7 +24,8 @@
 //! one Slack-style exception this schedule makes. The one preference that
 //! does suppress a ring is [`NotificationPreference::Nothing`]: an account
 //! that opted out of every notification, DMs included, also opted out of
-//! being rung.
+//! being rung. Do not disturb never reaches here: the ring route leaves those
+//! callees out before anything is sent.
 
 use std::sync::Arc;
 

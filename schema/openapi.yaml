@@ -8804,6 +8804,12 @@ paths:
         the ring ends as `answered` at once and `timeout_ms` is 0.
 
 
+        Nobody on Do not disturb is rung, on any device, push included; they
+        are listed in `do_not_disturb`. When nobody else is left the ring ends
+        at once as `timed_out` (`timeout_ms` 0) and leaves a missed call in
+        the DM, without a push.
+
+
         Publishes a live `call.ringing` event to the other participants and, in
         the background, a push notification to each whose account's
         notification preference allows it - see `call.ringing`'s own schema doc for exactly
@@ -19338,7 +19344,16 @@ components:
           description: >-
             How long the server waits for an answer before giving up on this
             ring on its own; a client renders its own countdown from this
-            value rather than a hard-coded duration.
+            value rather than a hard-coded duration. 0 when the ring already
+            ended because nobody was left to ring.
+        do_not_disturb:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >-
+            Participants left unrung because they are on Do not disturb.
+            Absent from servers older than this field.
 
     IncomingDmCallRings:
       type: object

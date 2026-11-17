@@ -102,18 +102,30 @@ class VoiceRoster {
 /// A DM call ring the caller just started, from `POST
 /// /channels/{id}/voice/ring`.
 class RingStarted {
-  const RingStarted({required this.ringId, required this.timeoutMs});
+  const RingStarted({
+    required this.ringId,
+    required this.timeoutMs,
+    this.doNotDisturb = const [],
+  });
 
   final String ringId;
 
   /// How long the server itself waits for an answer before giving up on this
   /// ring; a client renders its own countdown from this rather than a
-  /// hard-coded duration that could drift from the server's.
+  /// hard-coded duration that could drift from the server's. 0 when the ring
+  /// already ended because nobody was left to ring.
   final int timeoutMs;
+
+  /// The people left unrung because they are on Do not disturb.
+  final List<String> doNotDisturb;
 
   factory RingStarted.fromJson(Map<String, dynamic> json) => RingStarted(
         ringId: json['ring_id'] as String,
         timeoutMs: json['timeout_ms'] as int,
+        doNotDisturb: [
+          for (final id in json['do_not_disturb'] as List<dynamic>? ?? [])
+            id as String,
+        ],
       );
 }
 
