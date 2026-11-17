@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/providers/forward_targets.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/features/messages/widgets/destination_picker.dart';
 import 'package:slimm_app/src/features/messages/widgets/forward_message.dart';
 import 'package:slimm_data/data.dart' as data;
 import 'package:slimm_design_system/design_system.dart';
@@ -29,16 +30,14 @@ const _source = data.Message(
   failed: false,
 );
 
-List<IconData> _glyphsOf(WidgetTester tester, String label) {
-  final row = find.ancestor(
-    of: find.text(label),
-    matching: find.byType(AppListRow),
-  );
+List<IconData> _glyphsOf(WidgetTester tester, String channelId) {
+  final row = find.byKey(DestinationPicker.rowKey(channelId));
   return [
     for (final icon in tester.widgetList<Icon>(
       find.descendant(of: row, matching: find.byType(Icon)),
     ))
-      icon.icon!,
+      // The highlighted row's Enter keycap is not the row's glyph.
+      if (icon.icon != AppIcons.enterKey) icon.icon!,
   ];
 }
 
@@ -102,12 +101,9 @@ void main() {
     await tester.tap(find.text('Forward'));
     await tester.pumpAndSettle();
 
-    expect(_glyphsOf(tester, 'general'), [AppIcons.hash]);
-    expect(_glyphsOf(tester, 'secret'), [
-      AppIcons.hash,
-      AppIcons.restrictedChannel,
-    ]);
-    expect(_glyphsOf(tester, 'vc'), [AppIcons.voice]);
-    expect(_glyphsOf(tester, 'Notes'), [AppIcons.notebook]);
+    expect(_glyphsOf(tester, 'a'), [AppIcons.hash]);
+    expect(_glyphsOf(tester, 'b'), [AppIcons.hash, AppIcons.restrictedChannel]);
+    expect(_glyphsOf(tester, 'c'), [AppIcons.voice]);
+    expect(_glyphsOf(tester, 'n'), [AppIcons.notebook]);
   });
 }
