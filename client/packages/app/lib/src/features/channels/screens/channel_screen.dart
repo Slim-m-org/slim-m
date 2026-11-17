@@ -32,6 +32,7 @@ import '../../../providers/providers.dart';
 import '../../messages/providers/reply_mention_preference.dart';
 import '../../../routing/breakpoints.dart';
 import '../../members/widgets/blocked_dm_notice.dart';
+import '../../messages/widgets/message_transcript_widgets.dart' show DmAudience;
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
@@ -456,7 +457,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               composer: _composer,
               hashChannelName: isVoice ? channelName : hashChannelName,
               isVoice: isVoice,
-              isGroup: channel?.isGroupDm ?? false,
+              dmAudience: channel?.isPersonalSpace ?? false
+                  ? DmAudience.self
+                  : channel?.isGroupDm ?? false
+                  ? DmAudience.group
+                  : DmAudience.pair,
               searchPage: searchPage,
               channelTopic: channel?.topic,
               isThread: isThread,

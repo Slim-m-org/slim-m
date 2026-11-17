@@ -30,7 +30,7 @@ class TranscriptTopSlot extends StatelessWidget {
     required this.channelTopic,
     required this.channelIsThread,
     required this.channelIsVoice,
-    this.channelIsGroup = false,
+    this.dmAudience = DmAudience.pair,
     required this.threadParent,
   });
 
@@ -40,7 +40,7 @@ class TranscriptTopSlot extends StatelessWidget {
   final String? channelTopic;
   final bool channelIsThread;
   final bool channelIsVoice;
-  final bool channelIsGroup;
+  final DmAudience dmAudience;
   final Widget? threadParent;
 
   @override
@@ -58,7 +58,7 @@ class TranscriptTopSlot extends StatelessWidget {
       topic: channelTopic,
       isThread: channelIsThread,
       isVoice: channelIsVoice,
-      isGroup: channelIsGroup,
+      audience: dmAudience,
     );
   }
 }
