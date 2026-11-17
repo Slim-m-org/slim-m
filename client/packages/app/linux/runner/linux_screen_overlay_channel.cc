@@ -115,6 +115,7 @@ slimm_overlay::Panel PanelFrom(FlValue* map) {
   panel.text_muted = Argb(map, "textMuted", panel.text_muted);
   panel.accent = Argb(map, "accent", panel.accent);
   panel.danger = Argb(map, "danger", panel.danger);
+  panel.inset = Number(Field(map, "inset"), panel.inset);
   FlValue* rows = Field(map, "rows");
   if (rows != nullptr && fl_value_get_type(rows) == FL_VALUE_TYPE_LIST) {
     for (size_t i = 0; i < fl_value_get_length(rows); i++) {

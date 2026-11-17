@@ -11,7 +11,6 @@ namespace slimm_overlay {
 namespace {
 
 // Sizes follow the 4dp grid and the panel radius of docs/design/design-language.md.
-constexpr double kMargin = 16;
 constexpr double kPadX = 8;
 constexpr double kPadY = 6;
 constexpr double kRowHeight = 28;
@@ -76,6 +75,10 @@ void DrawText(Gdiplus::Graphics& g, const Gdiplus::Font& font,
                     static_cast<REAL>(kMaxName), static_cast<REAL>(kRowHeight));
   Gdiplus::StringFormat format;
   ConfigureName(format);
+  // A soft dark offset copy keeps the name readable over a bright screen without a container.
+  Gdiplus::RectF shadow_at(at.X + 1, at.Y + 1, at.Width, at.Height);
+  Gdiplus::SolidBrush shadow(Gdiplus::Color(180, 0, 0, 0));
+  g.DrawString(text.c_str(), -1, &font, shadow_at, &format, &shadow);
   Gdiplus::SolidBrush ink(ColorOf(argb));
   g.DrawString(text.c_str(), -1, &font, at, &format, &ink);
 }
@@ -182,8 +185,8 @@ void DrawPanel(Gdiplus::Graphics& g, const Panel& panel, double width,
               panel.corner == Panel::Corner::kBottomLeft;
   bool top = panel.corner == Panel::Corner::kTopLeft ||
              panel.corner == Panel::Corner::kTopRight;
-  double x = left ? kMargin : w - kMargin - pw;
-  double y = top ? kMargin : h - kMargin - ph;
+  double x = left ? panel.inset : w - panel.inset - pw;
+  double y = top ? panel.inset : h - panel.inset - ph;
 
   Gdiplus::GraphicsPath shape;
   AddRoundedRect(shape, x + 0.5, y + 0.5, pw - 1, ph - 1, kRadius);

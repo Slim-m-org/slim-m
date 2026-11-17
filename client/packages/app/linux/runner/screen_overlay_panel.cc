@@ -16,7 +16,6 @@ namespace slimm_overlay {
 namespace {
 
 // Sizes follow the 4dp grid and the panel radius of docs/design/design-language.md.
-constexpr double kMargin = 16;
 constexpr double kPadX = 8;
 constexpr double kPadY = 6;
 constexpr double kRowHeight = 28;
@@ -76,6 +75,10 @@ void DrawText(cairo_t* cr, const std::string& text, double x, double cy,
   PangoLayout* layout = TextLayout(cr, text, max_width);
   int tw = 0, th = 0;
   pango_layout_get_pixel_size(layout, &tw, &th);
+  // A soft dark offset copy keeps the name readable over a bright screen without a container.
+  SetColor(cr, 0xFF000000, 0.7);
+  cairo_move_to(cr, x + 1, cy - th / 2.0 + 1);
+  pango_cairo_show_layout(cr, layout);
   SetColor(cr, argb);
   cairo_move_to(cr, x, cy - th / 2.0);
   pango_cairo_show_layout(cr, layout);
@@ -176,8 +179,8 @@ void DrawPanel(cairo_t* cr, const Panel& panel, double w, double h) {
               panel.corner == Panel::Corner::kBottomLeft;
   bool top = panel.corner == Panel::Corner::kTopLeft ||
              panel.corner == Panel::Corner::kTopRight;
-  double x = left ? kMargin : w - kMargin - pw;
-  double y = top ? kMargin : h - kMargin - ph;
+  double x = left ? panel.inset : w - panel.inset - pw;
+  double y = top ? panel.inset : h - panel.inset - ph;
 
   RoundedRect(cr, x + 0.5, y + 0.5, pw - 1, ph - 1, kRadius);
   SetColor(cr, panel.surface);
