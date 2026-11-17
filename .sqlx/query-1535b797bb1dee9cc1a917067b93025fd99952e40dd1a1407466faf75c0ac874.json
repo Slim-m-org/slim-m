@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE reports SET channel_id = NULL\n             WHERE id = ? AND channel_id IS NOT NULL\n               AND (SELECT COUNT(DISTINCT channel_id) FROM screen_stamps WHERE report_id = ?) > 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1535b797bb1dee9cc1a917067b93025fd99952e40dd1a1407466faf75c0ac874"
+}

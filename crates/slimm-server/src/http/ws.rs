@@ -329,6 +329,7 @@ async fn serve(
                                 ended,
                                 allowed,
                                 aspect,
+                                stamps,
                             }) => {
                                 let frame_bytes = text.as_str().len();
                                 signals_screen_annotation::handle_canvas_screen_annotation(
@@ -347,6 +348,7 @@ async fn serve(
                                         ended,
                                         allowed,
                                         aspect,
+                                        stamps,
                                     },
                                     frame_bytes,
                                 )

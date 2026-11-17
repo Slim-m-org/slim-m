@@ -186,3 +186,81 @@ fn a_png_chunk_length_that_overflows_does_not_panic() {
     bytes[8..12].copy_from_slice(&u32::MAX.to_be_bytes());
     assert_eq!(inspect(&bytes), None);
 }
+
+/// A GIF on a `width` x `height` canvas whose frames sit at each `(left, top, width, height)`.
+fn gif_framed(width: u16, height: u16, frames: &[(u16, u16, u16, u16)]) -> Vec<u8> {
+    let mut out = b"GIF89a".to_vec();
+    out.extend_from_slice(&width.to_le_bytes());
+    out.extend_from_slice(&height.to_le_bytes());
+    out.extend_from_slice(&[0, 0, 0]);
+    for &(left, top, w, h) in frames {
+        out.extend_from_slice(&[0x21, 0xF9, 4, 0, 0, 0, 0, 0]);
+        out.push(0x2C);
+        for field in [left, top, w, h] {
+            out.extend_from_slice(&field.to_le_bytes());
+        }
+        out.push(0);
+        out.extend_from_slice(&[2, 2, 0x4C, 0x01, 0]);
+    }
+    out.push(0x3B);
+    out
+}
+
+#[test]
+fn a_gif_frame_past_its_canvas_is_refused() {
+    let bombs = [
+        gif_framed(1, 1, &[(0, 0, 60_000, 60_000)]),
+        gif_framed(64, 64, &[(0, 0, 64, 64), (0, 0, 64, 65)]),
+        gif_framed(64, 64, &[(0, 0, 64, 64), (0, 0, 64, 64), (1, 0, 64, 64)]),
+        gif_framed(64, 64, &[(60, 60, 8, 2)]),
+    ];
+    for (i, bomb) in bombs.iter().enumerate() {
+        assert_eq!(inspect(bomb), None, "bomb {i}");
+        assert_eq!(
+            check_image(bomb, Motion::AnimatedAllowed, MAX_EMOJI_SIDE),
+            Err(ImageProblem::Unsupported),
+            "bomb {i}"
+        );
+    }
+}
+
+#[test]
+fn gif_frames_inside_their_canvas_pass() {
+    let tiled = gif_framed(64, 64, &[(0, 0, 32, 32), (32, 32, 32, 32), (0, 0, 64, 64)]);
+    let header = inspect(&tiled).unwrap();
+    assert_eq!(
+        (header.width, header.height, header.animated),
+        (64, 64, true)
+    );
+    let edge = gif_framed(64, 64, &[(63, 63, 1, 1)]);
+    assert!(!inspect(&edge).unwrap().animated);
+}
+
+#[test]
+fn a_gif_without_its_trailer_still_reads() {
+    let mut moving = gif_framed(64, 64, &[(0, 0, 64, 64), (0, 0, 64, 64)]);
+    moving.pop();
+    assert!(inspect(&moving).unwrap().animated);
+    let mut cut = gif_framed(64, 64, &[(0, 0, 64, 64), (0, 0, 64, 64)]);
+    cut.truncate(cut.len() - 3);
+    assert_eq!(inspect(&cut), None, "a frame cut short is not a picture");
+}
+
+#[tokio::test]
+async fn a_gif_file_is_walked_past_any_probe() {
+    let dir = std::env::temp_dir().join(format!("slimm-gif-walk-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut frames = vec![(0, 0, 64, 64); 40_000];
+    frames.push((0, 0, 64, 65));
+    let late = gif_framed(64, 64, &frames);
+    assert!(late.len() > 256 * 1024);
+    let (bad, good) = (dir.join("late.gif"), dir.join("fine.gif"));
+    std::fs::write(&bad, &late).unwrap();
+    std::fs::write(&good, gif_framed(64, 64, &[(0, 0, 64, 64); 2])).unwrap();
+
+    let (refused, read) = (gif_file(&bad).await, gif_file(&good).await);
+
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(refused, None);
+    assert_eq!(read.map(|h| (h.width, h.animated)), Some((64, true)));
+}

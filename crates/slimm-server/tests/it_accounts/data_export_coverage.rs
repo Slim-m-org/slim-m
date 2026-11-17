@@ -75,6 +75,16 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "uploader_id",
         Fate::Excluded(SPACE_RECORD),
     ),
+    (
+        "screen_stamps",
+        "sender_id",
+        Fate::Excluded("lives at most a day"),
+    ),
+    (
+        "screen_stamps",
+        "target_id",
+        Fate::Excluded("lives at most a day"),
+    ),
     ("space_themes", "author_id", Fate::Excluded(SPACE_RECORD)),
     (
         "data_exports",

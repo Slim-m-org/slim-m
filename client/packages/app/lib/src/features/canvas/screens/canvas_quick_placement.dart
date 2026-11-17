@@ -19,6 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
+import '../../screen_overlay/providers/stamp_content.dart';
 import 'canvas_forbidden_message.dart';
 import '../providers/canvas_text_props.dart';
 import '../widgets/canvas_text_content.dart';
@@ -135,6 +136,25 @@ class CanvasQuickPlacement {
       'shape': canvasShapeKindToWire(shapeKind),
       if (flipX) 'flip_x': true,
       if (flipY) 'flip_y': true,
+    },
+    onError: onError,
+  );
+
+  /// Places [stamp] centred at [world], its longest side [side]; a picture keeps the shape [aspect], its width over its height.
+  Future<api.CanvasObject?> placeStamp(
+    Offset world,
+    StampContent stamp, {
+    required double side,
+    double aspect = 1,
+    required void Function(String message) onError,
+  }) => _place(
+    kind: stamp is EmojiStamp ? 'emoji' : 'image',
+    world: world,
+    w: aspect >= 1 ? side : side * aspect,
+    h: aspect >= 1 ? side / aspect : side,
+    props: switch (stamp) {
+      EmojiStamp(:final key) => {'emoji': key},
+      PictureStamp(:final attachmentId) => {'attachment': attachmentId},
     },
     onError: onError,
   );

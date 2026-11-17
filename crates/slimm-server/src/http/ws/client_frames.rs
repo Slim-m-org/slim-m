@@ -107,6 +107,8 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         allowed: bool,
         aspect: Option<f64>,
+        #[serde(default)]
+        stamps: bool,
     },
     /// The world rectangle this client is looking at, so others can follow it
     /// or be summoned to it; gated like a cursor, see

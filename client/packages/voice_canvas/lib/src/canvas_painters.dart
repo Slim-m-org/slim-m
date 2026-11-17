@@ -294,6 +294,7 @@ class StrokePainter extends CustomPainter {
       final isElevated = stroke.id == elevated;
       switch (stroke.kind) {
         case CanvasObjectKind.image:
+        case CanvasObjectKind.emoji:
           _paintImage(canvas, stroke, camera, elevated: isElevated);
           continue;
         case CanvasObjectKind.note:

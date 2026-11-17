@@ -48,6 +48,7 @@ mod handshake;
 mod memory_guard;
 mod moderation_seq;
 mod screen_annotation;
+mod screen_consent;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::{CanvasEvent, Event, MessageEvent, PresenceChange, RoleChange, RoleLook};
 pub use event_util::ReactionMoved;
@@ -55,7 +56,8 @@ pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};
-pub use screen_annotation::{ScreenAnnotationEvent, ScreenAnnotationKind};
+pub use screen_annotation::{ScreenAnnotationEvent, ScreenAnnotationKind, Stamp, StampContent};
+pub use screen_consent::ScreenConsent;
 
 /// How many events the durable channel buffers per subscriber before the
 /// slowest one starts losing the oldest and receives a `Lagged` error.
@@ -103,6 +105,7 @@ pub struct Hub {
     memory_guard: Arc<MemoryGuard>,
     moderation: Arc<ModerationClock>,
     handshake: handshake::Handshake,
+    screen_consent: ScreenConsent,
 }
 
 /// Default value of [`Hub::idle_poll_interval`]: how often a live connection
@@ -337,6 +340,7 @@ impl Hub {
             memory_guard: Arc::new(MemoryGuard::new()),
             moderation: Arc::new(ModerationClock::new()),
             handshake: handshake::Handshake::new(),
+            screen_consent: ScreenConsent::default(),
         }
     }
 
@@ -505,6 +509,11 @@ impl Hub {
     /// The shared, cloneable presence tracker (a cheap `Arc` clone).
     pub fn presence(&self) -> PresenceTracker {
         self.presence.clone()
+    }
+
+    /// Each sharer's last relayed drawing consent, which the stamp route checks.
+    pub fn screen_consent(&self) -> &ScreenConsent {
+        &self.screen_consent
     }
 
     /// The shared, cloneable typing tracker (a cheap `Arc` clone).

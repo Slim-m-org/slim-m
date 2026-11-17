@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "screen_overlay.h"
+#include "screen_overlay_stamps.h"
 
 namespace {
 
@@ -39,6 +40,13 @@ FlValue* Field(FlValue* map, const char* key) {
   return fl_value_lookup_string(map, key);
 }
 
+std::string Text(FlValue* value) {
+  if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_STRING) {
+    return "";
+  }
+  return fl_value_get_string(value);
+}
+
 slimm_overlay::Shape ShapeFrom(FlValue* map) {
   slimm_overlay::Shape shape;
   FlValue* kind = Field(map, "t");
@@ -59,18 +67,17 @@ slimm_overlay::Shape ShapeFrom(FlValue* map) {
     if (text != nullptr && fl_value_get_type(text) == FL_VALUE_TYPE_STRING) {
       shape.text = fl_value_get_string(text);
     }
+  } else if (name == "stamp") {
+    shape.kind = slimm_overlay::Shape::Kind::kStamp;
+    shape.points = {Number(Field(map, "x")), Number(Field(map, "y"))};
+    shape.image = Text(Field(map, "image"));
+    shape.size = Number(Field(map, "size"));
+    shape.scale = Number(Field(map, "scale"), 1);
   } else {
     shape.kind = slimm_overlay::Shape::Kind::kStroke;
     shape.points = Numbers(Field(map, "points"));
   }
   return shape;
-}
-
-std::string Text(FlValue* value) {
-  if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_STRING) {
-    return "";
-  }
-  return fl_value_get_string(value);
 }
 
 std::vector<uint8_t> Bytes(FlValue* value) {
@@ -171,6 +178,14 @@ void OnMethodCall(FlMethodChannel*, FlMethodCall* call, gpointer) {
     slimm_overlay::SetPanel(args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP
                                 ? slimm_overlay::Panel()
                                 : PanelFrom(args));
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(method, "putImage") == 0) {
+    bool held = slimm_overlay::PutStampImage(Text(Field(args, "key")),
+                                             Bytes(Field(args, "png")));
+    g_autoptr(FlValue) reply = fl_value_new_bool(held);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(reply));
+  } else if (g_strcmp0(method, "dropImage") == 0) {
+    slimm_overlay::DropStampImage(Text(Field(args, "key")));
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (g_strcmp0(method, "appMonitor") == 0) {
     g_autoptr(FlValue) reply = fl_value_new_int(slimm_overlay::AppMonitor());

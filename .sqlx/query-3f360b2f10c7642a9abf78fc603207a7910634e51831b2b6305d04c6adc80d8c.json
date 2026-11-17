@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM screen_stamps WHERE id IN (\n                     SELECT s.id FROM screen_stamps s\n                     LEFT JOIN reports r ON r.id = s.report_id\n                     WHERE s.created_at < ?\n                       AND (s.report_id IS NULL OR r.id IS NULL OR r.resolved_at IS NOT NULL)\n                     LIMIT ?\n                 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3f360b2f10c7642a9abf78fc603207a7910634e51831b2b6305d04c6adc80d8c"
+}

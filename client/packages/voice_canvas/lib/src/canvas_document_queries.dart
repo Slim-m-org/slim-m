@@ -118,6 +118,17 @@ extension CanvasDocumentQueries on CanvasDocument {
               (id: stroke.id, attachmentId: stroke.attachmentId!),
       ];
 
+  /// The on-screen emoji stamps with no bitmap yet, and the emoji each one names.
+  List<({String id, String emoji})> get visibleEmojiAwaitingBitmap => [
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?)
+            if (stroke.kind == CanvasObjectKind.emoji &&
+                stroke.image == null &&
+                !stroke.imageLoadFailed &&
+                stroke.text != null)
+              (id: stroke.id, emoji: stroke.text!),
+      ];
+
   /// Every live slot inside [world] (padded for ink width), in paint order.
   List<int> orderedSlotsIn(ui.Rect world) {
     final pad = cullPad;
@@ -172,6 +183,7 @@ extension CanvasDocumentQueries on CanvasDocument {
       if (stroke == null || !stroke.alive) continue;
       switch (stroke.kind) {
         case CanvasObjectKind.image:
+        case CanvasObjectKind.emoji:
           images++;
         case CanvasObjectKind.note:
           notes++;

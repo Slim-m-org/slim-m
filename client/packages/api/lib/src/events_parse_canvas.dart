@@ -173,6 +173,11 @@ ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
         ended: decoded['ended'] as bool,
         allowed: decoded['allowed'] == true,
         aspect: (decoded['aspect'] as num?)?.toDouble(),
+        size: (decoded['size'] as num?)?.toDouble(),
+        emoji: decoded['emoji'] as String?,
+        attachment: decoded['attachment'] as String?,
+        animated: decoded['animated'] == true,
+        stamps: decoded['stamps'] == true,
       ),
     'canvas.view.updated'
         when decoded['channel_id'] is String &&

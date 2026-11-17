@@ -25,6 +25,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/rate_limit_retry.dart';
 import '../../../providers/bounded_image_decode.dart';
+import 'canvas_emoji_hydrator.dart';
 
 /// A crude bound on total decoded pixel bytes, not a byte-accurate cache.
 ///
@@ -100,10 +101,14 @@ class CanvasImageHydrator {
     required this.document,
     this.maxDecodedBytes = defaultMaxDecodedImageBytes,
     this.wait = sleepFor,
+    this.emoji,
   });
 
   final api.SlimmApi client;
   final CanvasDocument document;
+
+  /// Emoji stamps, which are baked rather than fetched.
+  final CanvasEmojiHydrator? emoji;
   final int maxDecodedBytes;
   final RateLimitWait wait;
 
@@ -145,6 +150,7 @@ class CanvasImageHydrator {
   /// idempotent by id, so calling this on every viewport page or catch-up op
   /// costs nothing once an image has actually landed.
   void hydrate(api.CanvasObject object) {
+    if (object.kind == 'emoji') return emoji?.hydrate(object);
     if (_disposed || object.kind != 'image') return;
     final attachmentId = object.props['attachment'];
     if (attachmentId is! String) return;
@@ -157,6 +163,7 @@ class CanvasImageHydrator {
   /// it without a refetch of the region.
   void hydrateVisible() {
     if (_disposed) return;
+    emoji?.hydrateVisible();
     for (final image in document.visibleImagesAwaitingBitmap) {
       _request(image.id, image.attachmentId);
     }
@@ -344,5 +351,6 @@ class CanvasImageHydrator {
   void dispose() {
     _disposed = true;
     _waiting.clear();
+    emoji?.dispose();
   }
 }

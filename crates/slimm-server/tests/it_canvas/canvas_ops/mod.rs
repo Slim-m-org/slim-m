@@ -10,6 +10,7 @@ mod clear_locks;
 mod clear_scope;
 mod convergence;
 mod edit;
+mod emoji_objects;
 mod export_feed;
 mod feed;
 mod feed_budget;

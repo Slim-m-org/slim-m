@@ -81,6 +81,14 @@ fn a_soundboard_play_is_one_every_three_seconds() {
     assert!((1.0 / refill - 3.0).abs() < 1e-9, "refill {refill}");
 }
 
+/// Three live stamps per person on a screen, so the burst is three and the refill one per 2 s.
+#[test]
+fn a_screen_stamp_is_three_at_once_then_one_every_two_seconds() {
+    let (burst, refill) = Class::ScreenStamp.budget();
+    assert_eq!(burst, 3.0);
+    assert!((1.0 / refill - 2.0).abs() < 1e-9, "refill {refill}");
+}
+
 /// The lockout, not this bucket, has to be what stops somebody grinding a
 /// six-digit code: a per-address budget at or below the per-account failure
 /// limit means the limiter answers first, the lockout never fires, and an

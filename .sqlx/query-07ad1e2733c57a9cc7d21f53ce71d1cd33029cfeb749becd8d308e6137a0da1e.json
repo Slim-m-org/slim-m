@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\", sender_id AS \"sender_id!: UserId\",\n                      target_id AS \"target_id!: UserId\", sha256 AS \"sha256!: Vec<u8>\"\n               FROM screen_stamps WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sender_id!: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "target_id!: UserId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sha256!: Vec<u8>",
+        "ordinal": 3,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "07ad1e2733c57a9cc7d21f53ce71d1cd33029cfeb749becd8d308e6137a0da1e"
+}

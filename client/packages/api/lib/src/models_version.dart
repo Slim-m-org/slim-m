@@ -174,6 +174,11 @@ class Version {
         .toList(growable: false);
   }
 
+  /// Whether viewers can stamp emoji and pictures on a share, and the board
+  /// takes the `emoji` object kind (decision 0121). False on older servers.
+  bool get supportsScreenStamps =>
+      capabilities?.contains('screen_stamps') ?? false;
+
   /// Whether this server supports partial (scoped) clear ops on the canvas.
   /// The server says so itself; one that predates the field is judged by its version, 0.98.0 being where the op arrived.
   bool get supportsPartialClear {

@@ -138,6 +138,40 @@ void main() {
       expect(note, isNot(edited));
       expect(stroke(), isNot(note));
     });
+
+    test('a stamp names its picture and has no points to misread', () {
+      const stamp = OverlayStamp(
+        image: 'a:abc',
+        x: 0.4,
+        y: 0.3,
+        size: 0.12,
+        scale: 0.8,
+        alpha: 0.5,
+      );
+      expect(stamp.toJson(), {
+        't': 'stamp',
+        'image': 'a:abc',
+        'x': 0.4,
+        'y': 0.3,
+        'size': 0.12,
+        'scale': 0.8,
+        'alpha': 0.5,
+      });
+      expect(stamp.toJson().containsKey('points'), isFalse);
+      const settled = OverlayStamp(
+        image: 'a:abc',
+        x: 0.4,
+        y: 0.3,
+        size: 0.12,
+        alpha: 0.5,
+      );
+      expect(stamp, isNot(settled));
+      expect(
+        settled,
+        const OverlayStamp(
+            image: 'a:abc', x: 0.4, y: 0.3, size: 0.12, alpha: 0.5),
+      );
+    });
   });
 
   group('call panel', () {
@@ -322,6 +356,30 @@ void main() {
       expect(calls.single.method, 'draw');
       final shapes = (calls.single.arguments as Map)['shapes'] as List;
       expect((shapes.single as Map)['t'], 'stroke');
+    });
+
+    test('putImage hands over the key and bytes, and says if it was kept',
+        () async {
+      answer((_) => true);
+      final png = Uint8List.fromList([1, 2, 3]);
+      expect(await const ChannelScreenOverlay().putImage('e:x', png), isTrue);
+      expect(calls.single.method, 'putImage');
+      expect(calls.single.arguments, {'key': 'e:x', 'png': png});
+      answer((_) => false);
+      expect(await const ChannelScreenOverlay().putImage('e:x', png), isFalse);
+    });
+
+    test('a runner with no overlay keeps no stamp picture', () async {
+      final png = Uint8List.fromList([1]);
+      expect(await const ChannelScreenOverlay().putImage('e:x', png), isFalse);
+      await const ChannelScreenOverlay().dropImage('e:x');
+    });
+
+    test('dropImage names the key', () async {
+      answer((_) => null);
+      await const ChannelScreenOverlay().dropImage('c:1');
+      expect(calls.single.method, 'dropImage');
+      expect(calls.single.arguments, {'key': 'c:1'});
     });
 
     test('a refusing runner answers false, not an error', () async {

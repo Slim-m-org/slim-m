@@ -18,6 +18,7 @@ mod hold_music_account;
 mod incoming_rings;
 mod member_moderation_evicts_dm_calls;
 mod screen_share_cap;
+mod screen_stamps;
 mod soundboard;
 mod soundboard_emoji;
 mod soundboard_migration;

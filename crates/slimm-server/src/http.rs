@@ -64,6 +64,7 @@ mod escalation;
 mod extract;
 pub mod gifs;
 mod group_dms;
+mod screen_stamps;
 mod soundboard;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
@@ -325,6 +326,7 @@ pub fn router(state: AppState) -> Router {
         .merge(module_slots::routes())
         .merge(emoji::routes())
         .merge(soundboard::routes())
+        .merge(screen_stamps::routes())
         .merge(invites::routes())
         .merge(invite_page::routes())
         .merge(space_link_previews::routes())

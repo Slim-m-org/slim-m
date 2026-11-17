@@ -98,6 +98,7 @@ bool _hits(CanvasStroke stroke, Offset world, double lineSlop, double boxSlop) {
       return _shapeOutlineDistance(stroke, world) <=
           math.max(stroke.width, 1) / 2 + lineSlop;
     case CanvasObjectKind.image:
+    case CanvasObjectKind.emoji:
     case CanvasObjectKind.note:
     case CanvasObjectKind.text:
       return world.dx >= stroke.x - boxSlop &&

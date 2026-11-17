@@ -17,9 +17,10 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use super::Media;
 use super::durable;
+use super::image_header::ImageHeader;
 use super::memory_budget::MemoryBudget;
 pub use super::preview_derive::Variant;
-use super::preview_derive::{decode_estimate, derive_many, derive_one, variant_of};
+use super::preview_derive::{decode_estimate, derive_many, derive_one, probe_header, variant_of};
 
 /// Longest-side widths a preview may be asked for. Bucketing bounds the files kept per attachment.
 pub const BUCKETS: [u32; 3] = [320, 640, 1280];
@@ -114,6 +115,11 @@ impl Previews {
     /// that animates, the ordinary preview of any other.
     pub async fn variant_for(&self, original: &Path) -> Variant {
         variant_of(original).await
+    }
+
+    /// `original`'s header as a preview is planned from it; `None` means a still request gets the original.
+    pub async fn header_for(&self, original: &Path) -> Option<ImageHeader> {
+        probe_header(original).await
     }
 
     /// Resolves the preview of `original` at `bucket`, generating it on first use.

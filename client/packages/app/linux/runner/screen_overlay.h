@@ -19,14 +19,18 @@ struct Monitor {
 };
 
 struct Shape {
-  enum class Kind { kStroke, kEllipse, kNote };
+  enum class Kind { kStroke, kEllipse, kNote, kStamp };
   Kind kind = Kind::kStroke;
-  // Normalised to the monitor: x, y pairs for a stroke, x0 y0 x1 y1 for an ellipse, x y for a note.
+  // Normalised to the monitor: x, y pairs for a stroke, x0 y0 x1 y1 for an ellipse, x y for a note or a stamp's centre.
   std::vector<double> points;
   double width = 4;
   uint32_t argb = 0xFFFF0000;
   double alpha = 1;
   std::string text;
+  // A stamp's picture key, its longest side as a fraction of the monitor's height, and its pop-in scale.
+  std::string image;
+  double size = 0;
+  double scale = 1;
 };
 
 struct PanelRow {

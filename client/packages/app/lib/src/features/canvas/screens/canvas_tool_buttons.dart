@@ -11,8 +11,11 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
+import '../providers/armed_stamp.dart';
 import '../providers/canvas_pen_style.dart';
 import '../widgets/canvas_custom_colours.dart';
+import '../widgets/stamp_picker.dart';
+import '../widgets/stamp_tool_button.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_tool_options.dart';
@@ -42,6 +45,23 @@ class CanvasToolButtons extends ConsumerWidget {
   /// A second press on the armed tool puts it down, like every other dock toggle.
   void _pick(CanvasTool picked) =>
       onToolChanged(tool == picked ? CanvasTool.pan : picked);
+
+  /// With nothing armed yet, the first press opens the picker beside the button.
+  Widget _stampButton(WidgetRef ref) => StampToolButton(
+    active: tool == CanvasTool.stamp,
+    semanticLabel: 'Stamp',
+    tooltip: canDraw ? 'Stamp (M)' : _cannotDrawTooltip,
+    onPressed: !CanvasTool.stamp.isAvailable(canDraw: canDraw)
+        ? null
+        : (anchor) =>
+              tool != CanvasTool.stamp &&
+                  ref.read(armedStampProvider).content == null
+              ? showStampPicker(
+                  anchor,
+                  onPicked: (_) => onToolChanged(CanvasTool.stamp),
+                )
+              : _pick(CanvasTool.stamp),
+  );
 
   /// Options belong to the selected tool only, and only while it can be used.
   List<ControlOptionEntry> _optionsFor(
@@ -167,6 +187,19 @@ class CanvasToolButtons extends ConsumerWidget {
                 : null,
           ),
         ),
+        if (ref.watch(canvasStampsSupportedProvider)) ...[
+          gap,
+          _stampButton(ref),
+          if (tool == CanvasTool.stamp)
+            Builder(
+              builder: (anchor) => AppIconButton(
+                icon: AppIcons.chevronUp,
+                semanticLabel: 'Choose a stamp',
+                tooltip: 'Choose a stamp',
+                onPressed: () => showStampPicker(anchor, onPicked: (_) {}),
+              ),
+            ),
+        ],
         gap,
         AppIconButton(
           icon: AppIcons.eraser,

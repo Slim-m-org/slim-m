@@ -246,6 +246,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) => _connection?.canvasScreenAnnotation(
     channelId,
     targetUserId,
@@ -257,6 +258,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     ended: ended,
     allowed: allowed,
     aspect: aspect,
+    stamps: stamps,
   );
 
   /// Tells the server the world rectangle this user is looking at; the same
