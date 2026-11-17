@@ -19,7 +19,7 @@ class ShellFocusAnchor extends StatefulWidget {
 }
 
 class _ShellFocusAnchorState extends State<ShellFocusAnchor> {
-  final _node = FocusNode(debugLabel: 'shell');
+  final _node = FocusNode(debugLabel: 'shell', skipTraversal: true);
 
   @override
   void initState() {

@@ -65,6 +65,8 @@ class CategoryHeaderMenu extends ConsumerWidget {
     final menu = ContextMenuRegion(
       // A held press lifts the header on a pointer; touch opens this menu from it instead.
       enableLongPress: AppTouchTargets.of(context),
+      // The header's fold button is already its tab stop; a second stop around it was unlabelled.
+      ownsFocusNode: false,
       itemsBuilder: (context, close) => [
         ?markAllReadMenuItem(
           context,

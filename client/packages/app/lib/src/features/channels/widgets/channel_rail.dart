@@ -126,140 +126,147 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     return Container(
       key: ChannelRail.surfaceKey,
       color: AppBackgroundScope.paneColor(context, tokens.surfaceSunken),
-      child: Column(
-        children: [
-          // On every platform, title bar included - 0012's 2026-09-25 addendum.
-          const RailHeader(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s12,
-              AppRhythm.headingTop,
-              AppSpacing.s12,
-              AppRhythm.headingBottom,
-            ),
-            // A real field would take focus and a keyboard; this only opens the
-            // palette, so AbsorbPointer stops events and the trigger gets them.
-            child: LayoutBuilder(
-              builder: (context, constraints) => GestureDetector(
-                key: const Key('rail-search-trigger'),
-                onTap: () => openCommandPalette(context),
-                child: AbsorbPointer(
-                  child: AppInput(
-                    // The whole field is the tap target, so it takes the
-                    // design's 44pt size rather than its 32pt one on a phone.
-                    size: AppTouchTargets.of(context)
-                        ? AppInputSize.lg
-                        : AppInputSize.sm,
-                    placeholder: 'Search',
-                    icon: Icon(
-                      AppIcons.search,
-                      size: AppSizes.icon16,
-                      color: tokens.textSecondary,
-                    ),
-                    // Keycaps only where a keyboard is and the field has room; at compact width the hint crushed the word Search.
-                    trailing:
-                        AppTouchTargets.of(context) ||
-                            constraints.maxWidth <
-                                MediaQuery.textScalerOf(
-                                  context,
-                                ).scale(_searchHintMinWidth)
-                        ? null
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AppKbd('Ctrl'),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                child: Text(
-                                  '+',
-                                  style: AppText.micro.copyWith(
-                                    color: tokens.textSecondary,
+      // One unit to the rest of the shell, so Tab finishes the rail before it leaves.
+      child: FocusTraversalGroup(
+        child: Column(
+          children: [
+            // On every platform, title bar included - 0012's 2026-09-25 addendum.
+            const RailHeader(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s12,
+                AppRhythm.headingTop,
+                AppSpacing.s12,
+                AppRhythm.headingBottom,
+              ),
+              // A real field would take focus and a keyboard; this only opens the
+              // palette, so AbsorbPointer stops events and the trigger gets them.
+              child: LayoutBuilder(
+                builder: (context, constraints) => GestureDetector(
+                  key: const Key('rail-search-trigger'),
+                  onTap: () => openCommandPalette(context),
+                  child: AbsorbPointer(
+                    child: AppInput(
+                      // The whole field is the tap target, so it takes the
+                      // design's 44pt size rather than its 32pt one on a phone.
+                      size: AppTouchTargets.of(context)
+                          ? AppInputSize.lg
+                          : AppInputSize.sm,
+                      placeholder: 'Search',
+                      icon: Icon(
+                        AppIcons.search,
+                        size: AppSizes.icon16,
+                        color: tokens.textSecondary,
+                      ),
+                      // Keycaps only where a keyboard is and the field has room; at compact width the hint crushed the word Search.
+                      trailing:
+                          AppTouchTargets.of(context) ||
+                              constraints.maxWidth <
+                                  MediaQuery.textScalerOf(
+                                    context,
+                                  ).scale(_searchHintMinWidth)
+                          ? null
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const AppKbd('Ctrl'),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  child: Text(
+                                    '+',
+                                    style: AppText.micro.copyWith(
+                                      color: tokens.textSecondary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const AppKbd('K'),
-                            ],
-                          ),
-                    semanticLabel: 'Search channels, members and messages',
+                                const AppKbd('K'),
+                              ],
+                            ),
+                      semanticLabel: 'Search channels, members and messages',
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: _railBody(
-                    storeAsync: storeAsync,
-                    orderState: orderState,
-                    selected: selected,
-                    canManageChannels: canManageChannels,
-                    orderController: orderController,
-                  ),
-                ),
-                // Overlaid on the list, not pushed above it: this answers the drag the reader just made, so it attaches to the list a drag happens in rather than displacing every row above to announce it.
-                if (ref.watch(railMoveFailureProvider) case final failure?)
-                  Positioned(
-                    left: AppSpacing.s8,
-                    right: AppSpacing.s8,
-                    bottom: AppSpacing.s8,
-                    child: AppErrorState(
-                      message: failure,
-                      onDismiss: () =>
-                          ref.read(railMoveFailureProvider.notifier).state =
-                              null,
-                    ),
-                  )
-                else if (ref.watch(notesOpenFailureProvider)
-                    case final failure?)
-                  Positioned(
-                    left: AppSpacing.s8,
-                    right: AppSpacing.s8,
-                    bottom: AppSpacing.s8,
-                    child: AppErrorState(
-                      message: failure,
-                      onDismiss: () =>
-                          ref.read(notesOpenFailureProvider.notifier).state =
-                              null,
-                    ),
-                  )
-                else if (orderState.error != null)
-                  Positioned(
-                    left: AppSpacing.s8,
-                    right: AppSpacing.s8,
-                    bottom: AppSpacing.s8,
-                    child: AppErrorState(
-                      message: orderState.error!,
-                      onRetry: () => unawaited(orderController.retry()),
-                      onDismiss: orderController.dismiss,
-                    ),
-                  )
-                else if (ref.watch(categoryOrderControllerProvider).error
-                    case final error?)
-                  Positioned(
-                    left: AppSpacing.s8,
-                    right: AppSpacing.s8,
-                    bottom: AppSpacing.s8,
-                    child: AppErrorState(
-                      message: error,
-                      onRetry: () => unawaited(
-                        ref
-                            .read(categoryOrderControllerProvider.notifier)
-                            .retry(),
+            Expanded(
+              child: Stack(
+                children: [
+                  // Build order is the list's visual order; geometry sent Tab to every header before any channel.
+                  Positioned.fill(
+                    child: FocusTraversalGroup(
+                      policy: WidgetOrderTraversalPolicy(),
+                      child: _railBody(
+                        storeAsync: storeAsync,
+                        orderState: orderState,
+                        selected: selected,
+                        canManageChannels: canManageChannels,
+                        orderController: orderController,
                       ),
-                      onDismiss: ref
-                          .read(categoryOrderControllerProvider.notifier)
-                          .dismiss,
                     ),
                   ),
-              ],
+                  // Overlaid on the list, not pushed above it: this answers the drag the reader just made, so it attaches to the list a drag happens in rather than displacing every row above to announce it.
+                  if (ref.watch(railMoveFailureProvider) case final failure?)
+                    Positioned(
+                      left: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      bottom: AppSpacing.s8,
+                      child: AppErrorState(
+                        message: failure,
+                        onDismiss: () =>
+                            ref.read(railMoveFailureProvider.notifier).state =
+                                null,
+                      ),
+                    )
+                  else if (ref.watch(notesOpenFailureProvider)
+                      case final failure?)
+                    Positioned(
+                      left: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      bottom: AppSpacing.s8,
+                      child: AppErrorState(
+                        message: failure,
+                        onDismiss: () =>
+                            ref.read(notesOpenFailureProvider.notifier).state =
+                                null,
+                      ),
+                    )
+                  else if (orderState.error != null)
+                    Positioned(
+                      left: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      bottom: AppSpacing.s8,
+                      child: AppErrorState(
+                        message: orderState.error!,
+                        onRetry: () => unawaited(orderController.retry()),
+                        onDismiss: orderController.dismiss,
+                      ),
+                    )
+                  else if (ref.watch(categoryOrderControllerProvider).error
+                      case final error?)
+                    Positioned(
+                      left: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      bottom: AppSpacing.s8,
+                      child: AppErrorState(
+                        message: error,
+                        onRetry: () => unawaited(
+                          ref
+                              .read(categoryOrderControllerProvider.notifier)
+                              .retry(),
+                        ),
+                        onDismiss: ref
+                            .read(categoryOrderControllerProvider.notifier)
+                            .dismiss,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          RailUserFooter(activeChannelId: selected),
-        ],
+            RailUserFooter(activeChannelId: selected),
+          ],
+        ),
       ),
     );
   }

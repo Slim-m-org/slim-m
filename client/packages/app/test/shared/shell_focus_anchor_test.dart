@@ -91,4 +91,18 @@ void main() {
 
     expect(opened, 1);
   });
+
+  testWidgets('the anchor itself is never a Tab stop', (tester) async {
+    final field = FocusNode();
+    addTearDown(field.dispose);
+    await tester.pumpWidget(
+      _Rig(setupOpen: false, onOpen: () {}, field: field),
+    );
+    field.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(FocusManager.instance.primaryFocus?.debugLabel, isNot('shell'));
+  });
 }
