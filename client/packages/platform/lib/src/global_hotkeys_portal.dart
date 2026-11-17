@@ -10,7 +10,7 @@ library;
 import 'dart:async';
 
 import 'package:dbus/dbus.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show setEquals, visibleForTesting;
 
 import 'global_hotkeys.dart';
 import 'global_hotkeys_keys.dart';
@@ -155,8 +155,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     }
     final ids = {for (final binding in bindings) binding.id};
-    // A portal need not drop an id a rebind leaves out, but closing a session releases all of it.
-    if (!ids.containsAll(_boundIds)) await _closeSession();
+    // KDE keeps an id a rebind leaves out and asks again for one it adds, but binds a fresh session silently.
+    if (!setEquals(ids, _boundIds)) await _closeSession();
     try {
       final session = _session ?? await _createSession();
       final results = await _request(

@@ -184,14 +184,18 @@ void main() {
     expect(result.available, isTrue);
   });
 
-  test('dropping a shortcut starts a new session without it', () async {
+  test('a changed set of shortcuts is bound in a fresh session', () async {
     final (source, stop) = await _withPortal();
-    await source.bind([_talk, _mute]);
+    await source.bind([_talk]);
+    await source.bind([_talk, _mute, _deafen]);
     await source.bind([_talk, _mute, _deafen]);
     await source.bind([_talk]);
     final (methods, bound) = await stop();
     expect(methods, [
       'Register',
+      'CreateSession',
+      'BindShortcuts',
+      'Close',
       'CreateSession',
       'BindShortcuts',
       'BindShortcuts',
