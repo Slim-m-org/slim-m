@@ -145,10 +145,13 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.pan:
         _selectDownAt = screen;
         _ownCamera(() => widget.onSelectStart?.call(world));
-      case CanvasTool.note:
       case CanvasTool.text:
         _pendingPlacementTool = tool;
         _pendingPlacementWorld = world;
+      case CanvasTool.note:
+        _pendingPlacementTool = tool;
+        _pendingPlacementWorld = world;
+        _shapeDraft.begin(screen, CanvasShapeKind.rectangle);
       case CanvasTool.shape:
         _pendingPlacementTool = CanvasTool.shape;
         _pendingPlacementWorld = world;
@@ -228,9 +231,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
           _selectDownAt = null;
         }
         _ownCamera(() => widget.onSelectDrag?.call(world));
-      case CanvasTool.note:
       case CanvasTool.text:
         break;
+      case CanvasTool.note:
       case CanvasTool.shape:
         _shapeDraft.update(screen);
       case CanvasTool.stamp:
@@ -376,7 +379,11 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   /// Abandons a pen stroke or shape still being dragged; the pointer's later moves and lift then do nothing.
   bool _cancelDrawing() {
     final tool = _gesture?.tool;
-    if (tool != CanvasTool.pen && tool != CanvasTool.shape) return false;
+    if (tool != CanvasTool.pen &&
+        tool != CanvasTool.shape &&
+        tool != CanvasTool.note) {
+      return false;
+    }
     _cancelGesture();
     return true;
   }
@@ -446,7 +453,8 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     _pendingPlacementWorld = null;
     switch (tool) {
       case CanvasTool.note:
-        widget.onNotePlace?.call(world);
+        final (center, size) = _resolveShapeDrag(world);
+        widget.onNotePlace?.call(center, size);
       case CanvasTool.text:
         widget.onTextPlace?.call(world);
       case CanvasTool.shape:

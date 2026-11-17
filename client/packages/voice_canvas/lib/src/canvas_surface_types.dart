@@ -13,6 +13,9 @@ typedef ShapePlaced = void Function(
   bool flipY,
 });
 
+/// A note placement: the point a tap landed on, or for a drag the dragged box's centre and its world-space size.
+typedef NotePlaced = void Function(Offset worldCenter, [Size? draggedSize]);
+
 /// A Stamp tool placement: its centre in world coordinates and, for a drag, its longest side (twice the drag), or null for a tap.
 typedef StampPlaced = void Function(Offset worldCenter, double? draggedSide);
 

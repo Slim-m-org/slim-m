@@ -89,7 +89,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// real text - nothing is sent, and nothing shows on the shared canvas,
   /// for a sheet the person cancelled or left blank. [_selectPlaced] is what
   /// closes it out.
-  Future<void> _onNotePlace(Offset world) async {
+  Future<void> _onNotePlace(Offset world, [Size? draggedSize]) async {
     final startedWith = _tool;
     var text = await showCanvasNoteSheet(context);
     if (!_mounted) return;
@@ -98,6 +98,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       final placed = await _quickPlacement.placeNote(
         world,
         text,
+        draggedSize: draggedSize,
         onError: _engine.reportError,
       );
       if (placed != null) {

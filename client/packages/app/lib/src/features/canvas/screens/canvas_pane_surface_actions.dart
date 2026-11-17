@@ -60,7 +60,7 @@ class CanvasPaneSurfaceActions {
 
   /// The board's Stamp tool, which places the armed stamp and previews a drag.
   final CanvasStampPlacement? stamping;
-  final ValueChanged<Offset> onNotePlace;
+  final NotePlaced onNotePlace;
   final ValueChanged<Offset>? onTextPlace;
   final ValueChanged<Offset>? onSelectLongPress;
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;

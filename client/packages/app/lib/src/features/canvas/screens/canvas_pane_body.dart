@@ -197,7 +197,7 @@ class CanvasPaneBody extends StatefulWidget {
 
   /// The in-place note editor while one is open, drawn over the surface.
   final Widget? noteEditor;
-  final ValueChanged<Offset> onNotePlace;
+  final NotePlaced onNotePlace;
   final ValueChanged<Offset>? onTextPlace;
   final ValueChanged<Offset>? onSelectLongPress;
   final ShapePlaced onShapePlace;

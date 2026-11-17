@@ -83,7 +83,7 @@ class ObjectPainter {
     );
     canvas.drawRRect(rounded.deflate(0.75), _noteStroke..color = color);
     final text = stroke.text;
-    final fontSize = stroke.fontSize ?? noteWorldFontSize;
+    final fontSize = noteFontSizeFor(stroke.w, stroke.h);
     if (text == null ||
         text.isEmpty ||
         stroke.w <= noteWorldPad * 2 ||
@@ -268,6 +268,21 @@ class ObjectPainter {
 /// A note's padding, font size and line height, in world units.
 const double noteWorldPad = 8;
 const double noteWorldFontSize = 12;
+
+/// The box a note is placed in by default, and the text size that box carries.
+const double noteReferenceWidth = 330;
+const double noteReferenceHeight = 210;
+const double noteReferenceFontSize = 18;
+
+/// A note's text scales with its box, by whichever side limits it, so a resize keeps the text readable.
+double noteFontSizeFor(double w, double h) => math.min(
+      noteFontSizeForWidth(w),
+      h * noteReferenceFontSize / noteReferenceHeight,
+    );
+
+/// The largest text size a note [w] wide can show, which a layout that must always fit plans for.
+double noteFontSizeForWidth(double w) =>
+    w * noteReferenceFontSize / noteReferenceWidth;
 const double noteLineHeight = 1.3;
 
 /// Text smaller than this on screen is a smudge, so it is not laid out or drawn.

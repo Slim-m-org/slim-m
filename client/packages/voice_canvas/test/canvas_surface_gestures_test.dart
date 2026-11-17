@@ -234,7 +234,7 @@ void main() {
   });
 
   testWidgets(
-    'note and shape tools each place once per tap, at the pointer-down point, no drag needed',
+    'a note placement fires once, on the lift, at the centre of what was dragged',
     (tester) async {
       final document = CanvasDocument();
       addTearDown(document.dispose);
@@ -247,7 +247,7 @@ void main() {
             ink: const Color(0xFFE86A5C),
             tool: CanvasTool.note,
             onStroke: (_) {},
-            onNotePlace: notes.add,
+            onNotePlace: (c, [_]) => notes.add(c),
             onShapePlace: (world, _, {flipX = false, flipY = false}) =>
                 shapes.add(world),
           ),
@@ -261,7 +261,7 @@ void main() {
       await gesture.up();
       await tester.pump();
 
-      expect(notes, [const Offset(20, 20)]);
+      expect(notes, [const Offset(40, 30)]);
       expect(shapes, isEmpty, reason: 'the shape tool was never selected');
     },
   );
@@ -286,7 +286,7 @@ void main() {
               ink: const Color(0xFFE86A5C),
               tool: tool,
               onStroke: (_) {},
-              onNotePlace: notes.add,
+              onNotePlace: (c, [_]) => notes.add(c),
               onShapePlace: (world, _, {flipX = false, flipY = false}) =>
                   shapes.add(world),
             ),
@@ -320,7 +320,7 @@ void main() {
             ink: const Color(0xFFE86A5C),
             tool: CanvasTool.note,
             onStroke: (_) {},
-            onNotePlace: notes.add,
+            onNotePlace: (c, [_]) => notes.add(c),
           ),
         ),
       );
