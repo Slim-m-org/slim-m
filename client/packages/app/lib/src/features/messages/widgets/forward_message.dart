@@ -62,7 +62,6 @@ Future<void> forwardMessage(
     context,
     scrolls: true,
     builder: (context) => _ForwardTargetSheet(
-      excludeChannelId: message.channelId,
       forwardedFromId: message.id,
       attachmentIds: attachmentIds,
     ),
@@ -124,12 +123,9 @@ const _headingPadding = EdgeInsets.fromLTRB(
 /// dismissible, and the same row can simply be tapped again.
 class _ForwardTargetSheet extends ConsumerStatefulWidget {
   const _ForwardTargetSheet({
-    required this.excludeChannelId,
     required this.forwardedFromId,
     required this.attachmentIds,
   });
-
-  final String excludeChannelId;
 
   /// The message being forwarded. Only its id travels: the server reads the
   /// original's author, timestamp and text for itself, so this sheet has
@@ -185,7 +181,6 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
   @override
   Widget build(BuildContext context) {
     final ForwardTargetsQuery query = (
-      excludeChannelId: widget.excludeChannelId,
       hasAttachments: widget.attachmentIds.isNotEmpty,
     );
 

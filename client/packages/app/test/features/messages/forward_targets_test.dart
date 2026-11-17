@@ -122,10 +122,7 @@ void main() {
     );
 
     final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'nowhere',
-        hasAttachments: false,
-      )).future,
+      forwardTargetsProvider((hasAttachments: false)).future,
     );
 
     expect(targets.map((t) => t.channelId), ['c1']);
@@ -147,16 +144,13 @@ void main() {
     );
 
     final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'nowhere',
-        hasAttachments: true,
-      )).future,
+      forwardTargetsProvider((hasAttachments: true)).future,
     );
 
     expect(targets.map((t) => t.channelId), ['c2']);
   });
 
-  test('excludes the channel the message already sits in', () async {
+  test('offers the channel the message already sits in', () async {
     final container = _containerWith(
       channels: [
         _channelJson(id: 'c1', name: 'general', permissions: Perm.sendMessages),
@@ -165,13 +159,12 @@ void main() {
     );
 
     final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'c1',
-        hasAttachments: false,
-      )).future,
+      forwardTargetsProvider((hasAttachments: false)).future,
     );
 
-    expect(targets, isEmpty);
+    expect(targets.map((t) => t.channelId), [
+      'c1',
+    ], reason: 'forwarding into the same channel posts a new forwarded copy');
   });
 
   test('offers a DM, labelled with the other participant\'s name', () async {
@@ -181,10 +174,7 @@ void main() {
     );
 
     final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'nowhere',
-        hasAttachments: false,
-      )).future,
+      forwardTargetsProvider((hasAttachments: false)).future,
     );
 
     expect(targets.single.channelId, 'dm1');
@@ -207,10 +197,7 @@ void main() {
     );
 
     final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'nowhere',
-        hasAttachments: false,
-      )).future,
+      forwardTargetsProvider((hasAttachments: false)).future,
     );
 
     expect(targets.single.userId, isNull);
@@ -226,10 +213,7 @@ void main() {
     await container.read(blocksProvider.notifier).refresh();
 
     final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'nowhere',
-        hasAttachments: false,
-      )).future,
+      forwardTargetsProvider((hasAttachments: false)).future,
     );
 
     expect(targets, isEmpty);
@@ -254,10 +238,7 @@ void main() {
       );
       await container.read(blocksProvider.notifier).refresh();
       return container.read(
-        forwardTargetsProvider((
-          excludeChannelId: 'nowhere',
-          hasAttachments: false,
-        )).future,
+        forwardTargetsProvider((hasAttachments: false)).future,
       );
     }
 
@@ -311,10 +292,7 @@ void main() {
       );
 
       final targets = await container.read(
-        forwardTargetsProvider((
-          excludeChannelId: 'nowhere',
-          hasAttachments: false,
-        )).future,
+        forwardTargetsProvider((hasAttachments: false)).future,
       );
 
       expect(targets.single.label, 'Notes');
@@ -338,10 +316,7 @@ void main() {
       );
 
       final targets = await container.read(
-        forwardTargetsProvider((
-          excludeChannelId: 'nowhere',
-          hasAttachments: false,
-        )).future,
+        forwardTargetsProvider((hasAttachments: false)).future,
       );
 
       expect(targets.single.username, 'lovelace');
