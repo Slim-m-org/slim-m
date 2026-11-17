@@ -46,3 +46,29 @@ String visibleText(String text) {
   }
   return out.toString().replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
+
+/// [text] with each unpaired UTF-16 surrogate replaced by U+FFFD, which is
+/// what the web renderer draws anyway; the native one throws on it instead.
+String wellFormedUtf16(String text) {
+  StringBuffer? out;
+  for (var i = 0; i < text.length; i++) {
+    final unit = text.codeUnitAt(i);
+    final paired =
+        _isHighSurrogate(unit) &&
+        i + 1 < text.length &&
+        _isLowSurrogate(text.codeUnitAt(i + 1));
+    if (paired) {
+      out?.write(text.substring(i, i + 2));
+      i++;
+      continue;
+    }
+    final lone = _isHighSurrogate(unit) || _isLowSurrogate(unit);
+    if (lone && out == null) out = StringBuffer(text.substring(0, i));
+    out?.writeCharCode(lone ? 0xFFFD : unit);
+  }
+  return out?.toString() ?? text;
+}
+
+bool _isHighSurrogate(int unit) => unit >= 0xD800 && unit <= 0xDBFF;
+
+bool _isLowSurrogate(int unit) => unit >= 0xDC00 && unit <= 0xDFFF;
