@@ -276,7 +276,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
 /// What a screen reader hears for a Spotify card: the whole title and
 /// summary line, which the card may cut short on screen.
 String _spotifyLabel(LinkPreview preview, SpotifyEntity item) {
-  final title = preview.title ?? 'this item';
+  final title = spotifyItemName(preview, item);
   final subtitle = spotifySubtitle(item.kind, preview.description);
   return [
     'Open $title on Spotify',

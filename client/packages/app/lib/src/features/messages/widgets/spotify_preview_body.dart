@@ -108,7 +108,7 @@ class SpotifyPreviewBody extends ConsumerWidget {
   }
 
   Widget _details(BuildContext context, WidgetRef ref, AppTokens tokens) {
-    final title = preview.title ?? BrandService.spotify.label;
+    final title = preview.title;
     final subtitle = spotifySubtitle(item.kind, preview.description);
     final duration = preview.durationMs;
     return Row(
@@ -125,18 +125,21 @@ class SpotifyPreviewBody extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(
-                  fontWeight: AppWeights.semi,
-                  color: tokens.textPrimary,
+              if (title != null)
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body.copyWith(
+                    fontWeight: AppWeights.semi,
+                    color: tokens.textPrimary,
+                  ),
                 ),
-              ),
               if (subtitle.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.s4),
+                  padding: EdgeInsets.only(
+                    top: title == null ? 0 : AppSpacing.s4,
+                  ),
                   child: Text(
                     subtitle,
                     maxLines: 2,
@@ -157,7 +160,8 @@ class SpotifyPreviewBody extends ConsumerWidget {
                     label: 'Play on Spotify',
                     icon: AppIcons.play,
                     size: AppButtonSize.sm,
-                    semanticLabel: 'Play $title on Spotify',
+                    semanticLabel:
+                        'Play ${spotifyItemName(preview, item)} on Spotify',
                     onPressed: onPlay,
                   ),
                   if (duration != null && duration > 0)
@@ -195,6 +199,10 @@ class SpotifyPreviewBody extends ConsumerWidget {
     );
   }
 }
+
+/// What the card calls the item aloud: its title, or its kind when it has none.
+String spotifyItemName(LinkPreview preview, SpotifyEntity item) =>
+    preview.title ?? 'this ${item.kind.name}';
 
 /// The summary line under the title. A playlist's description is free text,
 /// so it says what it is first.

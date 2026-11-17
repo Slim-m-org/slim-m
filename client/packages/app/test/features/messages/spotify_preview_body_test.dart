@@ -196,6 +196,24 @@ void main() {
     );
   });
 
+  testWidgets('an item with no title is named by its kind aloud', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      preview: const LinkPreview(
+        url: _url,
+        description: 'Box Fan \u00b7 EP \u00b7 2026',
+        videoProvider: LinkPreviewVideoProvider.spotify,
+        videoId: _id,
+        mediaKind: SpotifyKind.album,
+      ),
+    );
+
+    expect(find.text('Spotify'), findsOneWidget, reason: 'only the header');
+    expect(find.bySemanticsLabel('Play this album on Spotify'), findsOneWidget);
+  });
+
   test('lengths read as m:ss, or h:mm:ss past an hour', () {
     expect(formatSpotifyDuration(336000), '5:36');
     expect(formatSpotifyDuration(59999), '0:59');
