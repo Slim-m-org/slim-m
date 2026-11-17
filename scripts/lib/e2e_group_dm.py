@@ -63,7 +63,10 @@ def group_message_reaches_everyone_and_leaving_ends_it(a, b, admin, member, serv
         _wait(lambda: _group_row(b, "Alice", display) is not None, "bob's rail never showed the group")
         b.ev(f"location.hash = '#/channels/{group_id}'")
         b.wait_for(line)
-        assert b.find(L.GROUP_INTRO), "the group's intro still talks to two people"
+        try:
+            b.wait_for(L.GROUP_INTRO, timeout=10)
+        except AssertionError:
+            raise AssertionError("the group's intro still talks to two people") from None
         b.shot("group-dm-received")
         print("  alice's group reaches bob's screen and the third member, and nobody else")
 
