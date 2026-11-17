@@ -222,15 +222,16 @@ impl VoiceTranscriber {
         };
         // Right after the listener was out, a clip is only marked once the listener answers.
         let probing = !self.listener.is_empty();
-        if !probing {
-            match store.begin_voice_transcript(&candidate.sha256).await {
-                Ok(true) => announce(store, hub, candidate, "pending", "").await,
-                Ok(false) => {}
+        let marked = !probing
+            && match store.begin_voice_transcript(&candidate.sha256).await {
+                Ok(started) => started,
                 Err(err) => {
                     tracing::warn!(error = %err, attachment = %candidate.hex, "could not mark a voice message pending");
                     return Step::Later;
                 }
-            }
+            };
+        if marked {
+            announce(store, hub, candidate, "pending", "").await;
         }
         let answer = engine.transcribe(bytes).await;
         if matches!(answer, Err(Failure::Unavailable)) {
@@ -238,6 +239,9 @@ impl VoiceTranscriber {
                 tracing::warn!(
                     "the speech listener is not taking voice messages; their transcripts wait for it"
                 );
+            }
+            if marked && let Err(err) = store.abandon_voice_transcript(&candidate.sha256).await {
+                tracing::warn!(error = %err, attachment = %candidate.hex, "could not unmark a voice message the listener did not take");
             }
             self.listener.failed(LISTENER);
             return Step::NoListener;
@@ -262,20 +266,23 @@ impl VoiceTranscriber {
                 }
             }
         };
-        self.retries.settled(&candidate.sha256);
         match store
             .finish_voice_transcript(&candidate.sha256, outcome)
             .await
         {
-            Ok(Some(done)) => {
-                announce(store, hub, candidate, done.status.as_str(), &done.text).await;
+            Ok(done) => {
+                self.retries.settled(&candidate.sha256);
+                if let Some(done) = done {
+                    announce(store, hub, candidate, done.status.as_str(), &done.text).await;
+                }
+                Step::Settled
             }
-            Ok(None) => {}
             Err(err) => {
                 tracing::warn!(error = %err, attachment = %candidate.hex, "could not store a voice transcript");
+                self.retries.failed(&candidate.sha256);
+                Step::Later
             }
         }
-        Step::Settled
     }
 }
 

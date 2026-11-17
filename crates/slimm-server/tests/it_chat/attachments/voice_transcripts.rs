@@ -20,7 +20,7 @@ use crate::attachments::text_search::{World, world};
 
 pub(super) struct Fake {
     answer: Mutex<Result<Heard, Failure>>,
-    calls: AtomicUsize,
+    pub(super) calls: AtomicUsize,
 }
 
 impl Fake {
@@ -34,7 +34,7 @@ impl Fake {
         }
     }
 
-    fn failing(failure: Failure) -> Self {
+    pub(super) fn failing(failure: Failure) -> Self {
         Self {
             answer: Mutex::new(Err(failure)),
             calls: AtomicUsize::new(0),
@@ -55,7 +55,7 @@ fn waveform() -> String {
 }
 
 /// Sends a voice message and returns its message id and attachment id.
-async fn send_voice(world: &World, tail: u8) -> (String, String) {
+pub(super) async fn send_voice(world: &World, tail: u8) -> (String, String) {
     let uploaded = {
         let mut bytes = b"OggS".to_vec();
         bytes.extend([0, tail, 9, 9]);
@@ -92,7 +92,7 @@ async fn send_voice(world: &World, tail: u8) -> (String, String) {
     (id, uploaded["id"].as_str().unwrap().to_owned())
 }
 
-async fn transcript_of(world: &World, message_id: &str) -> Value {
+pub(super) async fn transcript_of(world: &World, message_id: &str) -> Value {
     let response = world
         .app
         .clone()
@@ -400,12 +400,17 @@ async fn a_clip_sent_while_the_listener_is_down_is_not_shown_transcribing() {
         .set_transcribe_voice_messages(true)
         .await
         .unwrap();
-    send_voice(&world, 14).await;
+    let (first, _) = send_voice(&world, 14).await;
     let transcriber = VoiceTranscriber::with_backoff(std::time::Duration::from_millis(1));
     let down = Fake::failing(Failure::Unavailable);
     transcriber
         .run_pass(&world.store, &world.media, &Hub::new(), &down)
         .await;
+    assert_eq!(
+        transcript_of(&world, &first).await,
+        Value::Null,
+        "the clip that found the listener down"
+    );
     let (later, _) = send_voice(&world, 15).await;
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
     transcriber
