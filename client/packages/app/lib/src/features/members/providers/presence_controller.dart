@@ -40,10 +40,12 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   final Ref _ref;
   late final StreamSubscription<api.ServerEvent> _sub;
 
-  /// A tick per live event, and the tick each member's last one landed at, so
-  /// a batch response can tell which members changed after it was asked for.
+  /// A tick per live event and per lookup, the tick each member's last event
+  /// landed at, and the tick of the newest lookup that asked about them, so a
+  /// batch response applies only to members nothing newer has answered for.
   int _eventClock = 0;
   final Map<String, int> _liveEventAt = {};
+  final Map<String, int> _askedAt = {};
 
   /// Members whose presence this connection has already asked for: live events
   /// keep them current, so a roster that merely rebuilt need not ask again.
@@ -60,13 +62,14 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   /// `SyncController`; this one had neither.
   void clear() {
     _liveEventAt.clear();
+    _askedAt.clear();
     _seeded.clear();
     if (mounted) state = const {};
   }
 
-  /// Forgets which members were asked for, for a fresh connection that may have
-  /// missed their presence events while it was down.
-  void forgetSeeded() => _seeded.clear();
+  /// Asks again about everyone this session has asked about, for a socket that
+  /// just went live: changes before it was subscribed never arrive as events.
+  Future<void> resync() => refresh(_askedAt.keys.toList(growable: false));
 
   /// [refresh] for whichever of [userIds] this connection has not asked about.
   Future<void> seed(Iterable<String> userIds) =>
@@ -88,14 +91,21 @@ class PresenceController extends StateNotifier<Map<String, api.PresenceState>> {
   }
 
   Future<void> _refreshBatch(List<String> ids) async {
-    final askedAt = _eventClock;
+    final askedAt = ++_eventClock;
+    for (final id in ids) {
+      _askedAt[id] = askedAt;
+    }
     try {
       final all = await _ref.read(apiProvider).listPresence(ids);
       if (!mounted) return;
       _seeded.addAll(ids);
-      // A live event newer than the request is fresher than its snapshot.
+      // A live event or a lookup newer than this one is fresher than its snapshot.
       final statuses = all
-          .where((status) => (_liveEventAt[status.userId] ?? 0) <= askedAt)
+          .where(
+            (status) =>
+                (_liveEventAt[status.userId] ?? 0) < askedAt &&
+                _askedAt[status.userId] == askedAt,
+          )
           .toList(growable: false);
       state = {
         ...state,
