@@ -54,4 +54,42 @@ void main() {
     expect(doubledName(node.label, node.tooltip), isNull);
     handle.dispose();
   });
+
+  testWidgets('the shortcut a tooltip adds is kept as the hint', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final node = await _node(
+      tester,
+      CallDockButton(
+        icon: AppIcons.mic,
+        tooltip: 'Mute (Ctrl+Shift+M)',
+        semanticLabel: 'Mute',
+        active: false,
+        onPressed: () {},
+      ),
+    );
+    expect(node.label, 'Mute');
+    expect(node.hint, '(Ctrl+Shift+M)');
+    handle.dispose();
+  });
+
+  testWidgets('an empty label falls back to the tooltip as the name', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final node = await _node(
+      tester,
+      CallDockButton(
+        icon: AppIcons.mic,
+        tooltip: 'Mute',
+        semanticLabel: '',
+        active: false,
+        onPressed: () {},
+      ),
+    );
+    expect(node.label, 'Mute');
+    expect(doubledName(node.label, node.tooltip), isNull);
+    handle.dispose();
+  });
 }

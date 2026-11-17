@@ -56,12 +56,17 @@ class CallDockButton extends StatelessWidget {
   final double? level;
 
   /// What a screen reader hears, when [tooltip] says more than the name (a
-  /// shortcut). Null reads [tooltip].
+  /// shortcut). Null or empty reads [tooltip].
   final String? semanticLabel;
 
   /// The chip's drawn size and glyph, for a row whose other controls are smaller than a dock's.
   final double visualSize;
   final double iconSize;
+
+  String get _label {
+    final label = semanticLabel;
+    return label == null || label.isEmpty ? tooltip : label;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,13 +90,17 @@ class CallDockButton extends StatelessWidget {
         ? const BorderRadius.horizontal(left: Radius.circular(AppRadii.control))
         : BorderRadius.circular(AppRadii.control);
 
+    final label = _label;
+    // A tooltip that adds to the name (a shortcut) is heard as that addition alone, after the name.
+    final extended = tooltip.length > label.length && tooltip.startsWith(label);
+
     return _TooltipOnFocus(
       tooltipKey: tooltipKey,
       builder: (key) => Tooltip(
         key: key,
         message: tooltip,
         showDuration: const Duration(seconds: 3),
-        excludeFromSemantics: tooltip.startsWith(semanticLabel ?? tooltip),
+        excludeFromSemantics: extended || tooltip == label,
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode: joined || holdOpensOptions
             ? TooltipTriggerMode.manual
@@ -99,7 +108,8 @@ class CallDockButton extends StatelessWidget {
         child: Semantics(
           button: true,
           enabled: !unavailable,
-          label: semanticLabel ?? tooltip,
+          label: label,
+          hint: extended ? tooltip.substring(label.length).trim() : null,
           child: _chipFocus(
             joined: joined,
             builder: (context, onFocusChange, focused) => InkWell(
