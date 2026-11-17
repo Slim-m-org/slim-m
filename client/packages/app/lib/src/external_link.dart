@@ -29,8 +29,9 @@ Future<void> openExternalHttpUrl(
 }
 
 /// Opens Steam on the game with [appId] (`steam://run/<id>`), which shows the
-/// store page when the viewer does not own it. This is the one place a
-/// non-http scheme leaves the app, and only for a positive integer id.
+/// store page when the viewer does not own it, and only for a positive
+/// integer id. The other non-http scheme that leaves the app is `spotify:`,
+/// from `openInSpotify` with an id checked the same way.
 Future<void> openSteamGame(
   int appId, {
   ExternalUrlLauncher launcher = launchUrl,
