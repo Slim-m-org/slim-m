@@ -130,4 +130,22 @@ void main() {
     );
     expect(tester.getRect(find.text('Cancel')), before);
   });
+
+  testWidgets('a scheme typed without :// is refused, not read as a host', (
+    tester,
+  ) async {
+    Uri? chosen;
+    await _pump(tester, onChosen: (address) => chosen = address);
+
+    await _submit(tester, 'http:/chat.example');
+    await tester.pump();
+
+    expect(
+      find.text(
+        'Check the start of the address. It should begin with https://',
+      ),
+      findsOneWidget,
+    );
+    expect(chosen, isNull);
+  });
 }

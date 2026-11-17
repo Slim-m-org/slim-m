@@ -47,4 +47,23 @@ void main() {
       Uri.parse('https://chat.example:8443'),
     );
   });
+
+  test('a scheme typed without :// is refused, never read as a host', () {
+    for (final text in [
+      'http:/chat.example',
+      'http//chat.example',
+      'https:/chat.example',
+      'HTTPS//chat.example',
+    ]) {
+      expect(parseServerAddress(text), isNull, reason: text);
+      expect(serverAddressError(text), contains('https://'), reason: text);
+    }
+  });
+
+  test('other text naming no host gets the plain message', () {
+    expect(
+      serverAddressError('not an address'),
+      'That does not look like a server address.',
+    );
+  });
 }

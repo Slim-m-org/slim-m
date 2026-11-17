@@ -115,7 +115,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
     }
     final address = parseServerAddress(_server.text);
     if (address == null) {
-      setState(() => _error = 'That does not look like a server address.');
+      setState(() => _error = serverAddressError(_server.text));
       return;
     }
     if (requireSecureScheme(address) case final schemeError?) {
@@ -357,7 +357,7 @@ class ManualServerDialogState extends ConsumerState<ManualServerDialog> {
     if (_busy) return;
     final address = parseServerAddress(_server.text);
     if (address == null) {
-      setState(() => _error = 'That does not look like a server address.');
+      setState(() => _error = serverAddressError(_server.text));
       return;
     }
 

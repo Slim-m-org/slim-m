@@ -139,10 +139,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// One wording, shared by sign-in and recovery, so the two doors onto the
   /// same field cannot drift apart.
   void _badAddress() => setState(
-    () => _error = (
-      SignInErrorField.server,
-      'That does not look like a server address.',
-    ),
+    () => _error = (SignInErrorField.server, serverAddressError(_server.text)),
   );
 
   /// Asks the server in the field what it is, so the facts worth knowing
