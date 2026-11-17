@@ -58,6 +58,8 @@ import e2e_voice_mic_release
 import e2e_voice_devices
 import e2e_voice_hide_stream
 import e2e_voice_join_time
+import e2e_presence_live
+import e2e_voice_roster_live
 import e2e_voice_multishare
 import e2e_voice_share
 import e2e_share_quality
@@ -407,6 +409,11 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_voice_multishare.two_shares_reach_a_third_viewer(
              a, b, server, secret, admin, sign_in, room_id,
              member.me()["id"])),
+        ("presence: someone coming online or joining a call moves to Online in the member list",
+         lambda: e2e_presence_live.coming_online_shows(a, b, server, secret, admin, sign_in)),
+        ("voice: someone joining shows on the stage and every rail within a second",
+         lambda: e2e_voice_roster_live.a_join_shows_everywhere_at_once(
+             a, b, server, secret, admin, sign_in, room_id, member.me()["id"])),
         ("voice: a share reaches the viewer, measured, with the sender held back",
          lambda: e2e_share_quality.share_quality_under_a_constrained_sender(
              a, b, room_id, member.me()["id"])),

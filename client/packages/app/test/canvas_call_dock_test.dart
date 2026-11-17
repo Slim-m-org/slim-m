@@ -45,10 +45,10 @@ void main() {
   });
 
   for (final (width, rows) in [
-    (743.0, 2),
-    (744.0, 1),
-    (390.0, 3),
-    (391.0, 2),
+    (773.0, 2),
+    (774.0, 1),
+    (391.0, 3),
+    (392.0, 2),
   ]) {
     testWidgets('a $width wide pane draws the dock as $rows row(s)', (
       tester,

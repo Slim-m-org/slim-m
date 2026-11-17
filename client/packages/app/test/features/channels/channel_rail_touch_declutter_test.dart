@@ -258,13 +258,17 @@ void main() {
     tester,
   ) async {
     await _pumpRail(tester, 1280);
-    expect(find.byIcon(AppIcons.moreVertical), findsNWidgets(6));
+    final rowKebabs = find.descendant(
+      of: find.byWidgetPredicate((w) => w is ManagedChannelRow),
+      matching: find.byIcon(AppIcons.moreVertical),
+    );
+    expect(rowKebabs, findsNWidgets(6));
     expect(find.byIcon(AppIcons.dragHandle), findsNothing);
     double opacity() => tester
         .widget<AnimatedOpacity>(
           find
               .ancestor(
-                of: find.byIcon(AppIcons.moreVertical).at(1),
+                of: rowKebabs.at(1),
                 matching: find.byType(AnimatedOpacity),
               )
               .first,

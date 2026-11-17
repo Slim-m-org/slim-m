@@ -11,6 +11,7 @@ ServerEvent? coreFrame(Map<String, dynamic> decoded) {
     'hello' => HelloEvent(protocol: decoded['protocol'] as int? ?? 0),
     'category.changed' => const CategoryChanged(),
     'space.settings_changed' => const SpaceSettingsChanged(),
+    'space.themes_changed' => const SpaceThemesChanged(),
     'reports.changed' => const ReportsChanged(),
     'admin_alerts.changed' => const AdminAlertsChanged(),
     'pong' => const PongEvent(),

@@ -67,7 +67,6 @@ class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -79,19 +78,11 @@ class _CreateRoleSheetState extends ConsumerState<_CreateRoleSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const AppSheetHeader(
             ActionLabels.createRole,
-            style: AppText.heading.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
+            caption: 'Set its permissions, members and display afterward.',
+            padding: EdgeInsets.only(bottom: AppSpacing.s16),
           ),
-          const SizedBox(height: AppSpacing.s4),
-          Text(
-            'Set its permissions, members and display afterward.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.s16),
           AppInput(
             maxLength: api.InputLimits.name,
             controller: _name,

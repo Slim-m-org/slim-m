@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_app/src/features/screen_overlay/providers/screen_overlay_controller.dart';
+import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
@@ -59,7 +60,12 @@ GoRouter _router(ProviderContainer container) => GoRouter(
 );
 
 Future<({ProviderContainer container, InertSession session, SlimmDatabase db})>
-_pump(WidgetTester tester, {bool overlayHosted = false}) async {
+_pump(
+  WidgetTester tester, {
+  bool overlayHosted = false,
+  bool keybinds = true,
+  bool keybindsOptIn = true,
+}) async {
   final session = InertSession();
   final s = setup(
     httpClient: quietClient(),
@@ -69,6 +75,7 @@ _pump(WidgetTester tester, {bool overlayHosted = false}) async {
         (ref) => VoiceController(ref, session: session),
       ),
       screenOverlaySupportedProvider.overrideWithValue(overlayHosted),
+      callKeybindsOptInProvider.overrideWithValue(keybindsOptIn),
     ],
   );
   tester.view.physicalSize = const Size(1400, 900);
@@ -84,6 +91,10 @@ _pump(WidgetTester tester, {bool overlayHosted = false}) async {
     ),
   );
   await tester.pumpAndSettle();
+  await s.container
+      .read(shortcutOverridesProvider.notifier)
+      .setEnabled(keybinds);
+  await tester.pump();
   return (container: s.container, session: session, db: s.db);
 }
 
@@ -97,6 +108,30 @@ Future<void> _ctrlShift(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
+  testWidgets('with call keybinds off, Ctrl+Shift+M does nothing', (
+    tester,
+  ) async {
+    final p = await _pump(tester, keybinds: false);
+    final controller = p.container.read(voiceControllerProvider.notifier);
+    await tester.tap(find.byKey(const Key('composer')));
+    await tester.pump();
+    await _ctrlShift(tester, LogicalKeyboardKey.keyM);
+    expect(controller.state.microphoneEnabled, isTrue);
+    await teardown(tester, p.container, p.db);
+  });
+
+  testWidgets('where keybinds are not opt-in, Ctrl+Shift+M still mutes', (
+    tester,
+  ) async {
+    final p = await _pump(tester, keybinds: false, keybindsOptIn: false);
+    final controller = p.container.read(voiceControllerProvider.notifier);
+    await tester.tap(find.byKey(const Key('composer')));
+    await tester.pump();
+    await _ctrlShift(tester, LogicalKeyboardKey.keyM);
+    expect(controller.state.microphoneEnabled, isFalse);
+    await teardown(tester, p.container, p.db);
+  });
+
   testWidgets('Ctrl+Shift+M mutes while the composer has focus', (
     tester,
   ) async {

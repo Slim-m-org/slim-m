@@ -150,6 +150,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
         },
         Event::CategoryChanged,
         Event::SpaceSettingsChanged,
+        Event::SpaceThemesChanged,
         Event::OverwriteChanged {
             channel_id: channel,
             previously_visible_to: Default::default(),
@@ -184,6 +185,7 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             channel_id: channel,
             ring_id: CallRingId(id(11)),
             caller_id: bob,
+            callees: Arc::from([alice]),
         },
         Event::CallRingEnded {
             channel_id: channel,

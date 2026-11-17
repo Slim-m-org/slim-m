@@ -173,4 +173,62 @@ void main() {
       'Tell an admin.',
     );
   });
+
+  test('a reasoned 403 says why instead of "not allowed"', () {
+    String said(api.ForbiddenException e) =>
+        describeApiFailure('send the message', e);
+    final until = DateTime.now()
+        .add(const Duration(minutes: 90))
+        .millisecondsSinceEpoch;
+    expect(
+      said(
+        api.ForbiddenException(
+          'you are timed out',
+          code: api.ForbiddenException.timedOutCode,
+          timedOutUntil: until,
+          timeoutReason: 'cool off',
+        ),
+      ),
+      'Could not send the message: you are timed out for another 1h. '
+      'Reason: cool off.',
+    );
+    expect(
+      said(
+        const api.ForbiddenException(
+          'x',
+          code: api.ForbiddenException.blockedCode,
+        ),
+      ),
+      'Could not send the message: one of you has blocked the other.',
+    );
+    expect(
+      said(
+        const api.ForbiddenException(
+          'x',
+          code: api.ForbiddenException.leftGroupCode,
+        ),
+      ),
+      'Could not send the message: you are no longer in this group.',
+    );
+    expect(
+      describeApiFailure(
+        'pin the message',
+        const api.ForbiddenException(
+          'x',
+          code: api.ForbiddenException.dmPinsCode,
+        ),
+      ),
+      'Could not pin the message: pins are not available in direct messages.',
+    );
+  });
+
+  test('editing a message someone else wrote says only its author can', () {
+    expect(
+      describeApiFailure(
+        'edit the message',
+        const api.ForbiddenException('x', code: 'not_author'),
+      ),
+      'Could not edit the message: only its author can edit it.',
+    );
+  });
 }

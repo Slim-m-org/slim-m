@@ -9,10 +9,13 @@
 /// and a bottom toast would sit under the composer.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/dock_reservation.dart';
 import '../providers/toasts.dart';
 
 class ToastOverlay extends ConsumerWidget {
@@ -27,12 +30,21 @@ class ToastOverlay extends ConsumerWidget {
     final alignment = compact ? Alignment.topCenter : Alignment.bottomRight;
     // Newest nearest its edge: last in a bottom column, first in a top one.
     final ordered = compact ? toasts.reversed.toList() : toasts;
+    // A bottom toast rises over a call dock or a resting mini-player rather than covering their controls.
+    final lift = compact
+        ? 0.0
+        : math.max(
+            ref.watch(bottomDockReservationProvider),
+            ref.watch(miniPlayerReachProvider),
+          );
 
     return SafeArea(
       child: Align(
         alignment: alignment,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s16),
+          padding: const EdgeInsets.all(
+            AppSpacing.s16,
+          ).copyWith(bottom: AppSpacing.s16 + lift),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: compact

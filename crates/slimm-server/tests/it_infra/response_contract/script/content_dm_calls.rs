@@ -19,6 +19,14 @@ pub(super) async fn dm_call_ring_calls(
     bob_token: &str,
     dm_channel: &str,
 ) {
+    // A ring only goes out once its caller is in the call.
+    c.bare(
+        "sendVoiceHeartbeat",
+        "POST",
+        &format!("/channels/{dm_channel}/voice/heartbeat"),
+        root,
+    )
+    .await;
     c.bare(
         "ringDmCall",
         "POST",

@@ -2,7 +2,7 @@
 /// `openThreadPresenting`, the trigger half of UX1: dock the thread beside the
 /// transcript where the pane fits, otherwise push the modal `/thread/:id`
 /// route. `home_shell_test.dart` proves the shell reacts to
-/// `openThreadProvider`; this proves the trigger sets it at a wide-enough width
+/// `dockedThreadsProvider`; this proves the trigger sets it at a wide-enough width
 /// and falls back to the route below one, the branch a future refactor could
 /// break without either suite noticing on its own.
 library;
@@ -59,10 +59,15 @@ void main() {
       addTearDown(container.dispose);
       final context = await _pumpAtWidth(tester, container, 1400);
 
-      openThreadPresenting(context, container, 'c-thread');
+      openThreadPresenting(
+        context,
+        container,
+        'c-thread',
+        besideChannelId: 'c1',
+      );
       await tester.pumpAndSettle();
 
-      expect(container.read(openThreadProvider), 'c-thread');
+      expect(container.read(dockedThreadsProvider), {'c1': 'c-thread'});
       expect(
         find.text('thread route'),
         findsNothing,
@@ -79,12 +84,17 @@ void main() {
       addTearDown(container.dispose);
       final context = await _pumpAtWidth(tester, container, 500);
 
-      openThreadPresenting(context, container, 'c-thread');
+      openThreadPresenting(
+        context,
+        container,
+        'c-thread',
+        besideChannelId: 'c1',
+      );
       await tester.pumpAndSettle();
 
       expect(
-        container.read(openThreadProvider),
-        isNull,
+        container.read(dockedThreadsProvider),
+        isEmpty,
         reason: 'compact keeps the deep-link modal route, so nothing docks',
       );
       expect(find.text('thread route'), findsOneWidget);

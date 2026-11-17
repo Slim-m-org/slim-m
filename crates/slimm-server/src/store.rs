@@ -134,6 +134,7 @@ mod voice_rooms;
 mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
+mod write_refusal;
 
 pub use account_deletion::{DeleteAccountError, DeletedAccount};
 pub use admin_alerts::{AdminAlert, Raised, ResolvedAlert};
@@ -238,6 +239,7 @@ pub use modules::{
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
 pub use permissions::ChannelOverwrite;
+pub use permissions::permissions_preview::RolePreview;
 pub use pins::{MAX_PINS_PER_CHANNEL, PinError, PinnedMessage};
 pub use poll_runoff::Runoff;
 pub use polls::{
@@ -281,6 +283,7 @@ pub use thread_listing::ThreadListItem;
 pub use threads::{
     MAX_THREADS_PER_CHANNEL, OpenThreadError, OpenedThread, ThreadParent, ThreadSummary,
 };
+pub(crate) use timeouts::TIMEOUT_DENY;
 pub use timeouts::{MAX_TIMEOUT_MS, MemberTimeout, TimeoutError};
 pub use totp::{RECOVERY_CODE_COUNT, TotpEnrolment, TotpError, TotpPolicy, TotpStatus};
 pub use totp_verify::{ChallengeError, TotpChallenge, TotpProof, TotpSignIn};

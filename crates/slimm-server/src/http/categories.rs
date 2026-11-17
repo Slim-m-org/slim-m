@@ -113,22 +113,17 @@ async fn list(
         .base_permissions(ctx.user_id)
         .await?
         .contains(Permissions::MANAGE_CHANNELS);
-    let visible: HashSet<ChannelCategoryId> = if manages {
-        categories.iter().map(|c| c.id).collect()
-    } else {
-        let holding: HashSet<ChannelCategoryId> = state
+    let holding = match manages {
+        true => HashSet::new(),
+        false => state
             .store
             .visible_channels(ctx.user_id)
             .await?
             .into_iter()
             .filter_map(|channel| channel.category_id)
-            .collect();
-        let parents = categories
-            .iter()
-            .filter(|c| holding.contains(&c.id))
-            .filter_map(|c| c.parent_id);
-        parents.chain(holding.iter().copied()).collect()
+            .collect(),
     };
+    let visible = visible_categories(&categories, manages, &holding);
     Ok(Json(
         categories
             .into_iter()
@@ -136,6 +131,22 @@ async fn list(
             .map(CategoryDto::from)
             .collect(),
     ))
+}
+
+/// The category closure: every category for a channel manager, else those in `holding` plus their parents.
+pub(super) fn visible_categories(
+    categories: &[ChannelCategory],
+    manages: bool,
+    holding: &HashSet<ChannelCategoryId>,
+) -> HashSet<ChannelCategoryId> {
+    if manages {
+        return categories.iter().map(|c| c.id).collect();
+    }
+    let parents = categories
+        .iter()
+        .filter(|c| holding.contains(&c.id))
+        .filter_map(|c| c.parent_id);
+    parents.chain(holding.iter().copied()).collect()
 }
 
 async fn create(

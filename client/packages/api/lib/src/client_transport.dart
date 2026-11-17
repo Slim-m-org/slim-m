@@ -292,6 +292,8 @@ extension SlimmApiTransport on SlimmApi {
     var explained = false;
     int? missingPermissions;
     String? code;
+    int? timedOutUntil;
+    String? timeoutReason;
     ItemRefusal? item;
     Duration? bodyRetryAfter;
     try {
@@ -306,6 +308,11 @@ extension SlimmApiTransport on SlimmApi {
       }
       if (decoded is Map<String, dynamic> && decoded['code'] is String) {
         code = decoded['code'] as String;
+      }
+      if (decoded is Map<String, dynamic> &&
+          decoded['timed_out_until'] is int) {
+        timedOutUntil = decoded['timed_out_until'] as int;
+        timeoutReason = decoded['timeout_reason'] as String?;
       }
       if (decoded is Map<String, dynamic> &&
           decoded['item_index'] is int &&
@@ -337,6 +344,8 @@ extension SlimmApiTransport on SlimmApi {
           reason,
           missingPermissions: missingPermissions,
           code: code,
+          timedOutUntil: timedOutUntil,
+          timeoutReason: timeoutReason,
         ),
       404 => NotFoundException(reason, unexplained: !explained),
       409 => ConflictException(reason, item: item),

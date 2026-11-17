@@ -76,6 +76,7 @@ pub struct CreatedChannel {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ChannelDefaults {
     pub join_muted: bool,
+    pub creates_rooms: bool,
     pub notification: NotificationPreference,
 }
 
@@ -137,8 +138,8 @@ impl Store {
 
         let default_notification = defaults.notification.as_str();
         sqlx::query!(
-            "INSERT INTO channels (id, name, kind, position, created_at, category_id, join_muted, default_notification) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO channels (id, name, kind, position, created_at, category_id, join_muted, default_notification, creates_rooms) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             id,
             name,
             kind,
@@ -146,7 +147,8 @@ impl Store {
             now,
             category_id,
             defaults.join_muted,
-            default_notification
+            default_notification,
+            defaults.creates_rooms
         )
         .execute(&mut *tx)
         .await?;
@@ -203,7 +205,10 @@ impl Store {
                 slow_mode_seconds: 0,
                 join_muted: defaults.join_muted,
                 default_notification: defaults.notification,
-                room: super::super::ChannelRoom::default(),
+                room: super::super::ChannelRoom {
+                    creates_rooms: defaults.creates_rooms,
+                    ..Default::default()
+                },
             },
             fresh: true,
         })

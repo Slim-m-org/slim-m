@@ -56,6 +56,8 @@ Applying a theme with a picture hands the bytes to the personal background of 01
   Removing the default theme clears the default.
 - Removals and default changes are audit-logged like other admin writes, whoever removes the theme.
   Publishing is not logged.
+- A publish or removal sends the payload-free `space.themes_changed` frame, and open clients re-read only the store.
+  Any member can cause it, so it stays apart from `space.settings_changed`, which a default change sends and which also makes clients re-read `/version`.
 
 ## The Space default
 

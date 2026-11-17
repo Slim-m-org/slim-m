@@ -28,6 +28,7 @@ import '../features/screen_overlay/providers/screen_overlay_controller.dart';
 import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
+import '../features/voice/providers/voice_server_presence.dart';
 import '../features/voice/providers/voice_notice_controller.dart';
 import '../features/voice/widgets/call_restore_gate.dart';
 import '../features/voice/widgets/voice_notice_banner_host.dart';
@@ -68,6 +69,7 @@ import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_notes_button.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
+import '../widgets/shell_focus_anchor.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
@@ -81,6 +83,8 @@ import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
 import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/background/widgets/app_background_host.dart';
+import '../features/role_preview/providers/role_preview_controller.dart';
+import '../features/role_preview/screens/role_preview_shell.dart';
 import 'home_shell_pane_slots.dart';
 
 /// The shell. One widget handles every width: at compact widths it shows one
@@ -109,18 +113,22 @@ class HomeShell extends ConsumerWidget {
       MediaQuery.sizeOf(context),
       selected,
     );
-    final scaffold = _scaffold(context, ref, layout, facts);
+    final preview = ref.watch(rolePreviewProvider);
+    final scaffold = preview == null
+        ? _scaffold(context, ref, layout, facts)
+        : RolePreviewShell(session: preview);
 
     final shell = WhatsNewGate(
       child: CallRestoreGate(
         child: BotFormGate(
           child: PushToTalkListener(
             child: CallbackShortcuts(
-              bindings: _shortcutBindings(context, ref),
-              // CallbackShortcuts only fires for a focused descendant, so this
-              // default makes the shortcut work the instant the app opens.
-              child: Focus(
-                autofocus: true,
+              bindings: _shortcutBindings(
+                context,
+                ref,
+                previewing: preview != null,
+              ),
+              child: ShellFocusAnchor(
                 child: _LayoutBridge(
                   layout: layout,
                   child: NewDeviceBannerHost(
@@ -163,6 +171,7 @@ class HomeShell extends ConsumerWidget {
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
+    ref.watch(voiceServerPresenceProvider);
     // The notice's state is for its banner host; held here without rebuilding the shell per notice.
     ref.watch(voiceNoticeProvider.select((_) => null));
     ref.watch(liveQualityRestartProvider);
@@ -199,7 +208,10 @@ class HomeShell extends ConsumerWidget {
     // thread takes it, so the roster yields while a thread is open (UX1, and
     // see fitsThreadPane's doc). Below the width that fits a docked pane the
     // thread stays the pushed modal route instead.
-    final openThread = ref.watch(openThreadProvider);
+    final openThread = dockedThreadBeside(
+      ref.watch(dockedThreadsProvider),
+      selected,
+    );
     final threadFits = layout.fitsThreadPane(width);
     final showThread = openThread != null && threadFits && !canvasFullscreen;
     // Once synced, a channel the store lacks is one the viewer cannot see: ChannelNotFound owns the pane, with no roster or members control.
@@ -325,6 +337,7 @@ class HomeShell extends ConsumerWidget {
           if (facts.threadFits)
             ThreadPaneSlot(
               channelId: facts.openThread,
+              besideChannelId: selected,
               requested: facts.showThread,
             ),
           // The pane comes from the edge it lives on: the slot's width
@@ -407,10 +420,12 @@ class HomeShell extends ConsumerWidget {
   }
 
   // Binds the shared shortcut table's own keys, so a future remap reaches every one of these.
+  /// While [previewing] a role, nothing that navigates or shows the caller's own content is bound.
   Map<ShortcutActivator, VoidCallback> _shortcutBindings(
     BuildContext context,
-    WidgetRef ref,
-  ) {
+    WidgetRef ref, {
+    required bool previewing,
+  }) {
     final quickSwitch = activatorFor(AppAction.quickSwitch);
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
@@ -426,24 +441,26 @@ class HomeShell extends ConsumerWidget {
     // Reads the row's handlers when a key arrives, so these are live only while a call row is on screen.
     CallShortcutHandlers? call() => ref.read(callShortcutHandlersProvider);
     return {
-      if (quickSwitch != null) quickSwitch: () => openCommandPalette(context),
-      if (focusComposer != null)
-        focusComposer: () =>
-            ref.read(composerFocusNodeProvider)?.requestFocus(),
+      if (!previewing) ...{
+        if (quickSwitch != null) quickSwitch: () => openCommandPalette(context),
+        if (focusComposer != null)
+          focusComposer: () =>
+              ref.read(composerFocusNodeProvider)?.requestFocus(),
+        if (openInbox != null) openInbox: () => showInboxSheet(context),
+        if (notes != null)
+          notes: () => unawaited(
+            openNotes(
+              ProviderScope.containerOf(context, listen: false),
+              GoRouter.of(context),
+            ),
+          ),
+        if (nextChannel != null)
+          nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
+        if (previousChannel != null)
+          previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
+      },
       if (openSettings != null)
         openSettings: () => context.push(Routes.personalSettings),
-      if (openInbox != null) openInbox: () => showInboxSheet(context),
-      if (notes != null)
-        notes: () => unawaited(
-          openNotes(
-            ProviderScope.containerOf(context, listen: false),
-            GoRouter.of(context),
-          ),
-        ),
-      if (nextChannel != null)
-        nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
-      if (previousChannel != null)
-        previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
       if (muteCall != null)
         muteCall: () => ref
             .read(pushToTalkGateProvider)

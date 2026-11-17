@@ -10,7 +10,7 @@ use slimm_server::permissions::Permissions;
 use super::text;
 use crate::response_contract::world::Contract;
 
-/// Every role route: list, create, update, assign, unassign, a no-op
+/// Every role route: list, create, update, preview, assign, unassign, a no-op
 /// reorder (enough to check `reorderRoles`'s response shape without
 /// disturbing anything else this scenario relies on), then delete.
 pub(super) async fn role_calls(c: &mut Contract, root: &str, bob_id: &str) {
@@ -33,6 +33,8 @@ pub(super) async fn role_calls(c: &mut Contract, root: &str, bob_id: &str) {
         json!({ "name": "moderators" }),
     )
     .await;
+    c.get("previewRole", &format!("/roles/{role}/preview"), root)
+        .await;
     c.bare(
         "assignRole",
         "PUT",

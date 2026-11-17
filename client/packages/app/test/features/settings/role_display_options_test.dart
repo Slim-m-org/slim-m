@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Every control on a role's Display tab sends exactly its own change:
-/// rename, mentionable and delete here; colour and hoist have their own
-/// files. `@everyone` has none of the three.
+/// The Display tab holds name, colour, mentionable and hoist as one draft
+/// behind a single Save bar that sends only what changed; delete asks first.
+/// `@everyone` has none of the editable three.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,6 +11,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/role_display_tab.d
 import 'package:slimm_design_system/design_system.dart';
 
 import '../members/roles_config_harness.dart';
+import '../../support/async_wait.dart';
 
 const _mod = api.Role(
   id: 'role-mod',
@@ -52,19 +53,36 @@ void main() {
     final h = _server();
     await h.pump(tester, const RoleDisplayTab(role: _mod));
 
-    final save = find.widgetWithText(AppButton, 'Save name');
-    expect(tester.widget<AppButton>(save).disabled, isTrue);
+    final save = find.widgetWithText(AppButton, 'Save changes');
+    expect(save, findsNothing);
 
     await tester.enterText(find.byType(TextField), '  Moderators ');
     await tester.pump();
-    expect(tester.widget<AppButton>(save).disabled, isFalse);
+    expect(find.text('1 unsaved change'), findsOneWidget);
+    expect(h.writes, isEmpty);
     await tester.tap(save);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(h.writes.map((r) => '${r.method} ${r.path}'), [
       'PATCH /roles/role-mod',
     ]);
     expect(h.writes.single.body, {'name': 'Moderators'});
+  });
+
+  testWidgets('the first keystroke keeps the name field focused', (
+    tester,
+  ) async {
+    final h = _server();
+    await h.pump(tester, const RoleDisplayTab(role: _mod));
+    final field = find.byWidgetPredicate((w) => w is EditableText);
+
+    await tester.tap(field);
+    await tester.pump();
+    tester.testTextInput.enterText('ModX');
+    await tester.pump();
+
+    expect(find.text('1 unsaved change'), findsOneWidget);
+    expect(tester.widget<EditableText>(field).focusNode.hasFocus, isTrue);
   });
 
   testWidgets('submitting the field renames, and a blank name does not', (
@@ -75,26 +93,68 @@ void main() {
 
     await tester.enterText(find.byType(TextField), '   ');
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     expect(h.writes, isEmpty);
 
-    await tester.enterText(find.byType(TextField), 'Crew');
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'Crew',
+    );
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     expect(h.writes.single.body, {'name': 'Crew'});
   });
 
-  testWidgets('the mentionable toggle sends mentionable and nothing else', (
+  testWidgets('the mentionable toggle waits for Save, then sends only it', (
     tester,
   ) async {
     final h = _server();
     await h.pump(tester, const RoleDisplayTab(role: _mod));
 
     await tester.tap(find.bySemanticsLabel('Anyone can @mention this role'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
+    expect(h.writes, isEmpty);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await pumpFrames(tester);
 
     expect(h.writes.single.method, 'PATCH');
     expect(h.writes.single.body, {'mentionable': true});
+  });
+
+  testWidgets('several edits are one Save, and Discard drops them all', (
+    tester,
+  ) async {
+    final h = _server();
+    await h.pump(tester, const RoleDisplayTab(role: _mod));
+
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'Crew',
+    );
+    await tester.tap(find.bySemanticsLabel('Anyone can @mention this role'));
+    await tester.tap(find.bySemanticsLabel('Role colour: Teal'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 unsaved changes'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 unsaved changes'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'Crew');
+    await tester.tap(find.bySemanticsLabel('Anyone can @mention this role'));
+    await tester.tap(find.bySemanticsLabel('Role colour: Teal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(h.writes, hasLength(1));
+    expect(h.writes.single.body, {
+      'name': 'Crew',
+      'mentionable': true,
+      'color': 9,
+    });
   });
 
   testWidgets('delete asks first, then deletes the role', (tester) async {
@@ -134,7 +194,6 @@ void main() {
     await _server().pump(tester, const RoleDisplayTab(role: _everyone));
 
     expect(find.byType(TextField), findsNothing);
-    expect(find.text('Save name'), findsNothing);
     expect(find.text('Anyone can @mention this role'), findsNothing);
     expect(find.text('Display role members separately'), findsNothing);
     expect(find.text('Delete role'), findsNothing);
@@ -146,7 +205,7 @@ void main() {
   ) async {
     await _server().pump(tester, const RoleDisplayTab(role: _bots));
 
-    expect(find.text('Save name'), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is TextField), findsOneWidget);
     expect(find.text('Delete role'), findsNothing);
   });
 }

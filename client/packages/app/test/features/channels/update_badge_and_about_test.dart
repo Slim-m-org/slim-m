@@ -184,5 +184,31 @@ void main() {
         reason: 'a control that can never find anything is worse than none',
       );
     });
+
+    testWidgets('a build that cannot read its version says so', (tester) async {
+      await tester.pumpWidget(
+        _hosting(
+          UpdateStatusRows(
+            check: ({client, required currentVersion, format}) async => null,
+            shouldRun: () => false,
+          ),
+          [
+            appInfoProvider.overrideWith(
+              (ref) => Future.value(
+                PackageInfo(
+                  appName: 'slim-m',
+                  packageName: 'top.npcserver.slimm',
+                  version: '',
+                  buildNumber: '',
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Version unknown'), findsOneWidget);
+    });
   });
 }

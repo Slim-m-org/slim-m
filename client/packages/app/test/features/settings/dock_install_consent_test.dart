@@ -17,6 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../ui_snapshot_support.dart';
 
 import 'dock_consent_harness.dart';
+import '../../support/toast_host.dart';
 
 Finder _pageButton(String label) => find.text(label);
 
@@ -71,6 +72,7 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, 'Install'));
     await tester.pumpAndSettle();
     expect(installs, hasLength(1));
+    await expireToasts(tester);
   });
 
   testWidgets('the sheet lists each requested capability sentence', (
@@ -111,6 +113,7 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, 'Install'));
     await tester.pumpAndSettle();
     expect(installs, hasLength(1));
+    await expireToasts(tester);
   });
 
   testWidgets('the install sheet asks what the module may do first', (
@@ -212,6 +215,7 @@ void main() {
     await _pressInstall(tester);
     await tester.pumpAndSettle();
     expect(installs, hasLength(1));
+    await expireToasts(tester);
   });
 
   testWidgets('an update asking for new access shows the consent step', (
@@ -253,6 +257,7 @@ void main() {
     await tester.tap(_pageButton('Update to v2.0.0'));
     await tester.pumpAndSettle();
     expect(installs, hasLength(1));
+    await expireToasts(tester);
   });
 
   testWidgets('the Verified badge shows on official modules only', (
@@ -457,6 +462,7 @@ void main() {
       await tester.tap(_pageButton('Update to v2.0.0'));
       await tester.pumpAndSettle();
       expect(installs, hasLength(1));
+      await expireToasts(tester);
     });
   });
 }

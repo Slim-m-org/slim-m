@@ -80,9 +80,15 @@ void main() {
       ];
       expect([...xs]..sort(), xs, reason: 'left to right');
       final gaps = [for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1]];
-      // Pan opens selected and has no caret, so the rhythm is even.
-      for (final gap in gaps) {
-        expect(gap, closeTo(gaps.first, 0.01), reason: 'even rhythm');
+      // Pen and shape reserve a caret slot, so the gap after each is wider.
+      final plain = [gaps[0], gaps[2], gaps[3]];
+      final withCaret = [gaps[1], gaps[4]];
+      for (final gap in plain) {
+        expect(gap, closeTo(plain.first, 0.01), reason: 'even rhythm');
+      }
+      for (final gap in withCaret) {
+        expect(gap, closeTo(withCaret.first, 0.01), reason: 'caret slot');
+        expect(gap, greaterThan(plain.first));
       }
       expect(gaps.first, greaterThan(AppSpacing.s4));
     },

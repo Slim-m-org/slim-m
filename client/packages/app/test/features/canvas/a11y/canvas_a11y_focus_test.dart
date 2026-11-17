@@ -132,7 +132,7 @@ void main() {
     final cases = {
       'Pan': 'Pan (H)',
       'Eraser': 'Eraser (E)',
-      'Mute': 'Mute (Ctrl+Shift+M)',
+      'Mute': 'Mute',
       'Close canvas': 'Close canvas',
     };
     for (final control in cases.entries) {

@@ -53,3 +53,31 @@ List<ChannelOrderGroup> _groups(
   for (var i = 0; i < sections.length; i++)
     ChannelOrderGroup(categoryId: sections[i].$1?.id, channelIds: lists[i]),
 ];
+
+/// The whole rail's arrangement after filing [channelId], and any temporary
+/// rooms under it, at the end of [categoryId] (null for uncategorised), or
+/// null when it is already there or no such section is listed.
+List<ChannelOrderGroup>? groupsAfterMoveTo(
+  List<ChannelSection> sections,
+  String channelId,
+  String? categoryId,
+) {
+  final lists = [
+    for (final (_, channels) in sections) [for (final c in channels) c.id],
+  ];
+  final from = lists.indexWhere((ids) => ids.contains(channelId));
+  final to = sections.indexWhere((s) => s.$1?.id == categoryId);
+  if (from < 0 || to < 0 || from == to) return null;
+  final moving = {
+    channelId,
+    for (final c in sections[from].$2)
+      if (c.roomLobbyId == channelId) c.id,
+  };
+  final carried = [
+    for (final id in lists[from])
+      if (moving.contains(id)) id,
+  ];
+  lists[from].removeWhere(moving.contains);
+  lists[to].addAll(carried);
+  return _groups(sections, lists);
+}

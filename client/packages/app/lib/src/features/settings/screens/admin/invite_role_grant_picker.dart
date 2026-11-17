@@ -10,6 +10,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../permissions.dart';
 import '../../../../providers/admin_providers.dart';
+import '../../../../widgets/anchored_popover_or_sheet.dart';
 import '../../widgets/settings_hairline.dart';
 
 /// The role picker, or nothing at all.
@@ -53,8 +54,10 @@ class InviteRoleGrantPicker extends ConsumerWidget {
       data: (all) {
         // Only what this caller could grant: the server refuses a role
         // carrying a bit they do not hold, so offering it invites a 403.
+        // A bot's own role is for the bot, not for a person redeeming a link.
         final grantable = all
             .where((r) => !r.isEveryone)
+            .where((r) => !r.isBotsRole && !r.isManagedByBot)
             .where((r) => permissions.hasPermission(r.permissions))
             .toList();
         if (grantable.isEmpty) return const SizedBox.shrink();
@@ -64,16 +67,18 @@ class InviteRoleGrantPicker extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SettingsHairline(),
-            AppListRow(
-              label: 'Role granted',
-              meta: chosen?.name ?? 'None',
-              semanticLabel:
-                  'Role granted, currently ${chosen?.name ?? 'none'}',
-              trailing: const Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
+            Builder(
+              builder: (row) => AppListRow(
+                label: 'Role granted',
+                meta: chosen?.name ?? 'None',
+                semanticLabel:
+                    'Role granted, currently ${chosen?.name ?? 'none'}',
+                trailing: const Icon(
+                  AppIcons.chevronRight,
+                  size: AppSizes.icon16,
+                ),
+                onTap: () => _open(row, grantable),
               ),
-              onTap: () => _open(context, grantable),
             ),
           ],
         );
@@ -81,11 +86,11 @@ class InviteRoleGrantPicker extends ConsumerWidget {
     );
   }
 
-  Future<void> _open(BuildContext context, List<api.Role> grantable) async {
-    final picked = await showAppSheet<_Choice>(
-      context,
-      bare: true,
-      builder: (sheetContext) => SafeArea(
+  Future<void> _open(BuildContext row, List<api.Role> grantable) async {
+    final picked = await showAnchoredPopoverOrSheet<_Choice>(
+      row,
+      atTrailingEdge: true,
+      popoverBuilder: (sheetContext) => SafeArea(
         top: false,
         child: AppSheetMenu(
           children: [

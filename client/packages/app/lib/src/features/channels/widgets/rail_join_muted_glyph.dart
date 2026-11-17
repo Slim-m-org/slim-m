@@ -15,6 +15,8 @@ class RailJoinMutedGlyph extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Tooltip(
       message: label,
+      // The icon already names itself.
+      excludeFromSemantics: true,
       child: Icon(
         AppIcons.micOff,
         size: AppSizes.icon16,

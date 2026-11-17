@@ -64,4 +64,20 @@ void main() {
       isNull,
     );
   });
+
+  test('a ring response lists who is on Do not disturb', () {
+    final started = RingStarted.fromJson({
+      'ring_id': 'r1',
+      'timeout_ms': 0,
+      'do_not_disturb': ['u2'],
+    });
+    expect(started.doNotDisturb, ['u2']);
+    expect(started.timeoutMs, 0);
+  });
+
+  test('a ring response from an older server has nobody on Do not disturb', () {
+    final started =
+        RingStarted.fromJson({'ring_id': 'r1', 'timeout_ms': 30000});
+    expect(started.doNotDisturb, isEmpty);
+  });
 }

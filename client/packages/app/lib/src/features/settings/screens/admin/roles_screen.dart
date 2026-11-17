@@ -25,11 +25,13 @@ import '../../../../providers/providers.dart';
 import '../../../../routing/breakpoints.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/hover_reveal.dart';
+import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../members/widgets/role_color.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
 import 'role_create_sheet.dart';
 import 'role_detail.dart';
+import 'role_holder_avatar.dart';
 import '../../../../action_labels.dart';
 
 class RolesScreen extends StatelessWidget {
@@ -300,33 +302,42 @@ class _RoleNavState extends ConsumerState<_RoleNav>
   }
 
   /// A null [dragIndex] draws the row without a handle, keeping its width.
-  Widget _roleRow(
-    api.Role role,
-    int? dragIndex, {
-    bool showHandle = false,
-  }) => AppListRow(
-    key: dragIndex == null ? ValueKey(role.id) : null,
-    leading: DecoratedBox(
-      decoration: BoxDecoration(
-        color: roleDotColor(
-          role.color,
-          Theme.of(context).extension<AppTokens>()!,
-        ),
-        shape: BoxShape.circle,
-      ),
-      child: const SizedBox(width: 10, height: 10),
-    ),
-    label: role.name,
-    meta: '${role.memberCount}',
-    height: 34,
-    selected: widget.showSelection && role.id == widget.selectedId,
-    // Still fully editable and reorderable like any role; the tag only says who owns it (bots are full principals).
-    trailing: role.isManagedByBot
-        ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot')
-        : null,
-    trailingExtra: _dragHandle(dragIndex, showHandle: showHandle),
-    onTap: () => widget.onSelect(role.id),
-  );
+  Widget _roleRow(api.Role role, int? dragIndex, {bool showHandle = false}) {
+    final bot = _botOf(role);
+    return AppListRow(
+      key: dragIndex == null ? ValueKey(role.id) : null,
+      leading: bot != null
+          ? roleHolderAvatar(context, bot, size: AppAvatarSize.s20)
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                color: roleDotColor(
+                  role.color,
+                  Theme.of(context).extension<AppTokens>()!,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const SizedBox(width: 10, height: 10),
+            ),
+      label: role.name,
+      subtitle: bot?.displayName,
+      meta: '${role.memberCount}',
+      height: bot == null ? 34 : null,
+      selected: widget.showSelection && role.id == widget.selectedId,
+      // Rows stay at their real rank (decision 0092); the bot's name under the role's says whose it is.
+      trailing: role.isManagedByBot || role.isBotsRole
+          ? const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot')
+          : null,
+      trailingExtra: _dragHandle(dragIndex, showHandle: showHandle),
+      onTap: () => widget.onSelect(role.id),
+    );
+  }
+
+  api.UserProfile? _botOf(api.Role role) {
+    final botId = role.managedBotId;
+    if (botId == null) return null;
+    final members = ref.watch(membersProvider).valueOrNull;
+    return members?.where((m) => m.id == botId).firstOrNull;
+  }
 
   Widget _dragHandle(int? dragIndex, {required bool showHandle}) {
     // A row that cannot be dragged keeps the handle's width so the member counts line up.

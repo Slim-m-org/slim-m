@@ -43,11 +43,13 @@ Channel _channel(String name) => Channel(
   joinMuted: false,
 );
 
-final _me = api.Me(
+/// Joined before the setup window closed, so setup is offered on this pane
+/// rather than already open over it.
+api.Me _me({Duration age = const Duration(days: 2)}) => api.Me(
   id: 'u1',
   username: 'new',
   displayName: 'New',
-  createdAt: DateTime.now().millisecondsSinceEpoch,
+  createdAt: DateTime.now().subtract(age).millisecondsSinceEpoch,
   permissions: 0,
 );
 
@@ -59,12 +61,13 @@ Future<ProviderContainer> _pump(
   List<InboxEntry> inbox = const [],
   Size size = const Size(1000, 800),
   bool withGate = false,
+  Duration accountAge = const Duration(days: 2),
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final container = ProviderContainer(
     overrides: [
-      meProvider.overrideWith((ref) => _me),
+      meProvider.overrideWith((ref) => _me(age: accountAge)),
       storeProvider.overrideWith((ref) => MessageStore(_db)),
       chosenServerProvider.overrideWith(_Server.new),
       isFreshInstallProvider.overrideWith((ref) => false),
@@ -150,6 +153,19 @@ void main() {
         () => container.read(firstRunControllerProvider.notifier).complete(),
       );
       await tester.pump();
+      expect(find.text('Get started'), findsNothing);
+      expect(find.text('Test Space'), findsOneWidget);
+    });
+
+    testWidgets('while setup is open over it, the pane does not repeat it', (
+      tester,
+    ) async {
+      final container = await _pump(
+        tester,
+        accountAge: const Duration(minutes: 5),
+      );
+      expect(container.read(firstRunControllerProvider).active, isTrue);
+      expect(find.text('Welcome to Test Space'), findsNothing);
       expect(find.text('Get started'), findsNothing);
       expect(find.text('Test Space'), findsOneWidget);
     });

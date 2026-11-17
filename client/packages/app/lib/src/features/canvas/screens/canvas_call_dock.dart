@@ -181,14 +181,14 @@ CallDockData? callDockDataFor(
 
 /// Measured at desktop density (every pane the non-compact dock draws is in a
 /// window of at least [kCompactWidth], so never touch density): the one-row
-/// card is 662dp with the pen or shape caret out, 738dp with the camera-switch
-/// button too. Anything narrower takes two rows.
-const _oneRowMinWidth = 744.0;
+/// card is 768dp now that the pen and shape carets keep their slots whether or
+/// not they are armed. Anything narrower takes two rows.
+const _oneRowMinWidth = 774.0;
 
 /// Measured the same way: tools and undo, redo and more on one row; the call
 /// group beside it must also pass [callRowFitsFor]. Anything narrower gives
 /// the five tools a row of their own.
-const _twoRowMinWidth = 390.0;
+const _twoRowMinWidth = 392.0;
 
 enum _DockLayout { oneRow, twoRows, stacked }
 

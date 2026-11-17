@@ -16,8 +16,10 @@ import '../../first_run/providers/first_run_controller.dart'
 import '../../../default_server.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
+import '../providers/browser_reach.dart';
 import '../providers/sign_in_identity.dart';
 import '../../../routing/routes.dart';
+import '../../../server_address_input.dart';
 import '../../../server_address_reduction.dart';
 import '../../../server_scheme_policy.dart';
 import '../../../widgets/labeled_field.dart';
@@ -137,10 +139,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// One wording, shared by sign-in and recovery, so the two doors onto the
   /// same field cannot drift apart.
   void _badAddress() => setState(
-    () => _error = (
-      SignInErrorField.server,
-      'That does not look like a server address.',
-    ),
+    () => _error = (SignInErrorField.server, serverAddressError(_server.text)),
   );
 
   /// Asks the server in the field what it is, so the facts worth knowing
@@ -269,6 +268,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final pendingInvite = ref.read(pendingInviteProvider.notifier);
     final justRegistered = ref.read(justRegisteredProvider.notifier);
     final push = ref.read(pushControllerProvider.notifier);
+    final firstContact = ref.read(firstContactServersProvider.notifier);
     try {
       final reduced = reduceServerAddress(address);
       if (!await confirmServerIdentity(
@@ -292,6 +292,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           ? await _register(api, identity, invite, justRegistered)
           : await _signIn(api, identity, invite);
       if (!completed) return;
+      endFirstContact(firstContact, reduced);
       TextInput.finishAutofillContext();
       if (invite != null) pendingInvite.state = null;
       unawaited(push.register());
@@ -299,7 +300,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       reportFailure(LogTag.auth, 'sign in', e, stack);
       justRegistered.state = false;
       if (!mounted) return;
-      setState(() => _error = signInErrorFor(e));
+      final error = await explainSignInFailure(
+        e,
+        server: probeTarget(_server.text),
+        reach: ref.read(browserReachProbeProvider),
+        knownSpace: pinnedIdentityCheck(ref.read(keyStoreProvider)),
+      );
+      if (!mounted) return;
+      setState(() => _error = error);
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'sign in', error, stack);
       ref.read(justRegisteredProvider.notifier).state = false;
@@ -311,8 +319,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   /// The typed address when it can be submitted; otherwise shows why not.
   Uri? _submittableAddress() {
-    final address = Uri.tryParse(_server.text.trim());
-    if (address == null || !address.hasScheme || address.host.isEmpty) {
+    final address = parseServerAddress(_server.text);
+    if (address == null) {
       _badAddress();
       return null;
     }
@@ -377,9 +385,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     return true;
   }
 
+  /// Whether this run met the server for the first time just before this
+  /// screen; read once, so a sign-in that pins the key does not retitle it.
+  late final bool _firstContact = ref
+      .read(firstContactServersProvider)
+      .contains(identityHandleFor(ref.read(serverUrlProvider)));
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final firstContact = _firstContact;
+    final identityStatus = _identityStatus ?? ServerIdentityStatus.unknown;
 
     return OnboardingShell(
       // Creating an account is the last of the join steps; signing back in to
@@ -391,7 +407,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            _creatingAccount ? 'Create an account' : 'Welcome back',
+            _creatingAccount
+                ? 'Create an account'
+                : firstContact
+                ? 'Sign in'
+                : 'Welcome back',
             style: AppText.title.copyWith(
               color: tokens.textPrimary,
               fontWeight: AppWeights.semi,
@@ -403,7 +423,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ServerIdentityChip(
               spaceName: version.displayName,
               host: serverHostLabel(_server.text),
-              status: _identityStatus ?? ServerIdentityStatus.unknown,
+              // A key saved moments ago by this connect matches nothing from before.
+              status:
+                  firstContact &&
+                      identityStatus == ServerIdentityStatus.confirmed
+                  ? ServerIdentityStatus.unknown
+                  : identityStatus,
             )
           else
             Padding(

@@ -31,8 +31,9 @@ use super::super::error::ApiError;
 use super::super::extract::{Authed, enforce};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::{ChannelId, UserId};
+use crate::ids::{CallRingId, ChannelId, UserId};
 use crate::permissions::Permissions;
+use crate::presence::Visibility;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, VoiceError};
 
@@ -51,6 +52,8 @@ pub fn routes() -> Router<AppState> {
 struct RingResponse {
     ring_id: String,
     timeout_ms: i64,
+    /// Callees left unrung because they are on Do not disturb.
+    do_not_disturb: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -102,10 +105,17 @@ async fn incoming(
 /// is meaningless for a channel with any other shape, and a caller's own
 /// personal space (a DM with themself) has nobody on the other end to ring.
 /// A group rings everyone else on its roster; the first to join answers for all.
+/// With anyone already in the call the ring ends at once as answered and nobody
+/// is rung: the caller is joining a live call. Nobody on Do not disturb is told;
+/// with only connected ones left it ends at once as a missed call. One offline on
+/// Do not disturb rings silently until the timeout, as anyone offline would.
 ///
 /// A second ring for the same channel replaces whatever was already
 /// outstanding - see [`crate::voice::CallRings`] - since a caller trying
 /// again is the same call, not a second one stacked on top of the first.
+///
+/// Nobody is rung until the caller is in the call: a caller still connecting
+/// is announced by its first heartbeat instead.
 async fn ring(
     Authed(ctx): Authed,
     parts: Parts,
@@ -144,39 +154,158 @@ async fn ring(
         return Err(ApiError::Forbidden);
     }
 
-    let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, &callees);
-    // Announced so the first caller stops ringing out, but not recorded: the call goes on under the new ring, which gets the one record.
-    if let Some((replaced_id, replaced_caller)) = replaced {
-        let outcome = if replaced_caller == ctx.user_id {
-            CallRingOutcome::Canceled
-        } else {
-            CallRingOutcome::Answered
-        };
-        state.hub.publish(Event::CallRingEnded {
-            channel_id,
-            ring_id: replaced_id,
-            outcome,
-        });
+    let in_call = state
+        .voice
+        .in_call_at(channel_id, std::time::Instant::now());
+    if callees.iter().any(|callee| in_call.contains(callee)) {
+        // Pressing Call on a live call joins it: nobody else is rung and nothing is missed.
+        if let Some(own) = state.voice.rings().cancel(channel_id, ctx.user_id) {
+            announce_replaced(&state, channel_id, ctx.user_id, (own.ring_id, ctx.user_id));
+        }
+        let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::Answered);
+        return Ok(Json(RingResponse::ended(ring_id, Vec::new())));
     }
-    state.hub.publish(Event::CallRinging {
-        channel_id,
-        ring_id,
-        caller_id: ctx.user_id,
-    });
-    for callee in callees {
-        state.push.notify_call_ring(
-            state.store.clone(),
+    let DoNotDisturb {
+        rung: callees,
+        quiet,
+        shown: do_not_disturb,
+    } = split_off_do_not_disturb(&state, callees).await?;
+    if callees.is_empty() {
+        // Another participant's own pending ring is theirs to end.
+        if let Some(own) = state.voice.rings().cancel(channel_id, ctx.user_id) {
+            announce_replaced(&state, channel_id, ctx.user_id, (own.ring_id, ctx.user_id));
+        }
+        let ring_id = ended_at_once(&state, channel_id, CallRingOutcome::TimedOut);
+        // Nothing rang, and a missed-call push would disturb them all the same.
+        crate::voice::record_finished_call(
+            &state.store,
+            &state.hub,
+            &crate::push::PushSender::disabled(),
             channel_id,
             ring_id,
             ctx.user_id,
-            callee,
-        );
+            CallRingOutcome::TimedOut,
+        )
+        .await;
+        return Ok(Json(RingResponse::ended(ring_id, do_not_disturb)));
+    }
+
+    let (ring_id, replaced) =
+        state
+            .voice
+            .rings()
+            .start_with_quiet(channel_id, ctx.user_id, &callees, &quiet);
+    if let Some(replaced) = replaced {
+        announce_replaced(&state, channel_id, ctx.user_id, replaced);
+    }
+    // Checked after starting, so a first heartbeat landing in between still announces it.
+    if state.voice.has_heartbeat(ctx.user_id, channel_id) {
+        announce_if_pending(&state, channel_id, ctx.user_id);
     }
 
     Ok(Json(RingResponse {
         ring_id: ring_id.to_string(),
         timeout_ms: crate::voice::RING_TIMEOUT.as_millis() as i64,
+        do_not_disturb,
     }))
+}
+
+impl RingResponse {
+    fn ended(ring_id: CallRingId, do_not_disturb: Vec<String>) -> Self {
+        Self {
+            ring_id: ring_id.to_string(),
+            timeout_ms: 0,
+            do_not_disturb,
+        }
+    }
+}
+
+/// The callees split by Do not disturb, which blocks a ring on every device.
+struct DoNotDisturb {
+    /// Everyone the ring counts as ringing, `quiet` included.
+    rung: Vec<UserId>,
+    /// Offline on Do not disturb: rung but never told, since presence shows them offline whatever they chose.
+    quiet: Vec<UserId>,
+    /// Connected on Do not disturb: not rung, and reported to the caller.
+    shown: Vec<String>,
+}
+
+async fn split_off_do_not_disturb(
+    state: &AppState,
+    callees: Vec<UserId>,
+) -> Result<DoNotDisturb, ApiError> {
+    let visibility = state.store.presence_visibility_many(&callees).await?;
+    let presence = state.hub.presence();
+    let mut split = DoNotDisturb {
+        rung: Vec::new(),
+        quiet: Vec::new(),
+        shown: Vec::new(),
+    };
+    for callee in callees {
+        if visibility.get(&callee) != Some(&Visibility::Dnd) {
+            split.rung.push(callee);
+        } else if presence.is_connected(callee) {
+            split.shown.push(callee.to_string());
+        } else {
+            split.quiet.push(callee);
+            split.rung.push(callee);
+        }
+    }
+    Ok(split)
+}
+
+/// Ends a ring a newer attempt took over. Announced so its caller stops ringing
+/// out, but not recorded: the newer attempt gets the one record.
+fn announce_replaced(
+    state: &AppState,
+    channel_id: ChannelId,
+    caller_id: UserId,
+    (replaced_id, replaced_caller): (CallRingId, UserId),
+) {
+    let outcome = if replaced_caller == caller_id {
+        CallRingOutcome::Canceled
+    } else {
+        CallRingOutcome::Answered
+    };
+    state.hub.publish(Event::CallRingEnded {
+        channel_id,
+        ring_id: replaced_id,
+        outcome,
+    });
+}
+
+/// A ring with nobody left to ring ends as `outcome` before anyone hears it.
+fn ended_at_once(state: &AppState, channel_id: ChannelId, outcome: CallRingOutcome) -> CallRingId {
+    let ring_id = CallRingId::generate();
+    state.hub.publish(Event::CallRingEnded {
+        channel_id,
+        ring_id,
+        outcome,
+    });
+    ring_id
+}
+
+/// Rings the callees of `caller_id`'s pending ring in `channel_id`, once the
+/// caller is in the call; a no-op for a ring already announced or not theirs.
+pub(crate) fn announce_if_pending(state: &AppState, channel_id: ChannelId, caller_id: UserId) {
+    let Some((ring_id, callees)) = state.voice.rings().announce(channel_id, caller_id) else {
+        return;
+    };
+    // A ring whose only callees are offline on Do not disturb tells nobody, not even an empty frame.
+    if callees.is_empty() {
+        return;
+    }
+    state.hub.publish(Event::CallRinging {
+        channel_id,
+        ring_id,
+        caller_id,
+        callees: callees.iter().copied().collect(),
+    });
+    for callee in callees {
+        state
+            .push
+            .notify_call_ring(state.store.clone(), channel_id, ring_id, caller_id, callee);
+    }
 }
 
 /// Declines an incoming DM call ring.
@@ -236,7 +365,7 @@ async fn decline(
 pub(crate) async fn record_call(
     state: &AppState,
     channel_id: ChannelId,
-    ring_id: crate::ids::CallRingId,
+    ring_id: CallRingId,
     caller_id: crate::ids::UserId,
     outcome: CallRingOutcome,
 ) {

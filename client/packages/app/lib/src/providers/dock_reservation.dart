@@ -20,6 +20,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// right now, or 0 when none is. See `DockHeightReporter`, the one writer.
 final bottomDockReservationProvider = StateProvider<double>((ref) => 0);
 
+/// How far above the window's bottom edge the call mini-player reaches while it
+/// rests in the bottom-right corner, where toasts land too; 0 otherwise.
+final miniPlayerReachProvider = StateProvider<double>((ref) => 0);
+
 /// The measured width of that dock, or 0 when none is showing, so a corner
 /// readout can tell whether the centred dock reaches it.
 final bottomDockWidthProvider = StateProvider<double>((ref) => 0);

@@ -197,4 +197,55 @@ void main() {
 
     expect(flip, (x: true, y: true));
   });
+
+  testWidgets('a note drag places at the dragged box, a tap at the point', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    final placed = <(Offset, Size?)>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          tool: CanvasTool.note,
+          onStroke: (_) {},
+          onNotePlace: (world, [size]) => placed.add((world, size)),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final drag = await tester.startGesture(const Offset(20, 20));
+    await drag.moveTo(const Offset(120, 80));
+    await tester.pump();
+    expect(
+      _shapeDraftPainter(tester).draft.rect,
+      const Rect.fromLTWH(20, 20, 100, 60),
+    );
+    await drag.up();
+    await tester.pump();
+    expect(placed.single.$1, const Offset(70, 50));
+    expect(placed.single.$2, const Size(100, 60));
+
+    placed.clear();
+    await tester.tapAt(const Offset(200, 200));
+    await tester.pump();
+    expect(placed.single.$1, const Offset(200, 200));
+    expect(placed.single.$2, isNull);
+
+    placed.clear();
+    final jitter = await tester.startGesture(const Offset(300, 300));
+    await jitter.moveTo(const Offset(310, 306));
+    await jitter.up();
+    await tester.pump();
+    expect(placed.single.$1, const Offset(300, 300));
+    expect(
+      placed.single.$2,
+      isNull,
+      reason:
+          'a jittery tap places the default note, not one too small to read',
+    );
+  });
 }

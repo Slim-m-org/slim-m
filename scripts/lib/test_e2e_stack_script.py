@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
+import urllib.request
 from pathlib import Path
 
 STACK = Path(__file__).resolve().parents[1] / "e2e-stack.sh"
@@ -131,11 +132,64 @@ class StartSfuTest(StackScriptCase):
         for spec in published:
             self.assertTrue(spec.startswith("127.0.0.1:"), spec)
 
+    def test_the_sfu_posts_its_webhook_to_the_server_through_the_bridge(self):
+        port = str(self.serve())
+        self.call("start_sfu", E2E_LK_PORT=port, E2E_API_PORT="18095", WEBHOOK_GATEWAY="172.17.0.1")
+        log = self.docker_log.read_text()
+        self.assertIn("--add-host=host.docker.internal:host-gateway", log)
+        self.assertIn("'http://host.docker.internal:18095/voice/webhook'", log)
+
+    def test_no_bridge_means_no_webhook(self):
+        self.call("start_sfu", E2E_LK_PORT=str(self.serve()))
+        self.assertNotIn("webhook", self.docker_log.read_text())
+
     def test_a_container_that_never_answers_fails_with_its_logs(self):
         result = self.call("start_sfu", E2E_LK_PORT=str(closed_port()))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("livekit never came up", result.stdout)
         self.assertIn("stub livekit: could not bind", result.stdout)
+
+
+class WebhookRelayTest(unittest.TestCase):
+    RELAY = Path(__file__).resolve().parent / "e2e_webhook_relay.py"
+
+    def test_it_refuses_to_listen_on_every_interface(self):
+        result = subprocess.run(["python3", str(self.RELAY), "0.0.0.0", "1", "2"],
+                                capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("every interface", result.stderr)
+
+    def test_it_carries_a_request_to_the_loopback_server(self):
+        class Echo(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers["Content-Length"]))
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(body[::-1])
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Echo)
+        self.addCleanup(server.server_close)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        listen = closed_port()
+        relay = subprocess.Popen(["python3", str(self.RELAY), "127.0.0.1", str(listen),
+                                  str(server.server_address[1])])
+        self.addCleanup(relay.wait)
+        self.addCleanup(relay.kill)
+        for _ in range(50):
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{listen}/voice/webhook",
+                                            data=b"joined", timeout=2) as response:
+                    self.assertEqual(response.read(), b"denioj")
+                    return
+            except OSError:
+                relay.poll()
+                self.assertIsNone(relay.returncode)
+                threading.Event().wait(0.1)
+        self.fail("the relay never answered")
 
 
 class SpeakerDetectionTest(unittest.TestCase):

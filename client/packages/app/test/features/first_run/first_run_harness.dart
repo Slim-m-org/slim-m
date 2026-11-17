@@ -53,11 +53,16 @@ class FakePush extends StateNotifier<PushStatus> implements PushController {
   dynamic noSuchMethod(Invocation invocation) => null;
 }
 
-Channel harnessChannel(String id, String kind, int cursor) => Channel(
+Channel harnessChannel(
+  String id,
+  String kind,
+  int cursor, {
+  int createdAt = 0,
+}) => Channel(
   id: id,
   name: id,
   kind: kind,
-  createdAt: 0,
+  createdAt: createdAt,
   position: 0,
   cursor: cursor,
   lastReadSeq: 0,
@@ -220,8 +225,8 @@ Future<void> settle(WidgetTester tester) async {
 }
 
 final defaultChannels = [
-  harnessChannel('quiet', 'text', 3),
-  harnessChannel('busy', 'text', 40),
+  harnessChannel('busy', 'text', 40, createdAt: 2),
+  harnessChannel('general', 'text', 3, createdAt: 1),
   harnessChannel('lobby', 'voice', 0),
 ];
 

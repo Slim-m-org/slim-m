@@ -112,6 +112,7 @@ pub(crate) mod scene_refresh;
 pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 pub use module_timers::run_due as run_module_timers;
+pub use reactions::rekey_stored_reactions;
 pub use scene_refresh::run_due as run_scene_refreshes;
 pub use storage::BackupStatusDir;
 mod link_preview_removal;
@@ -135,7 +136,7 @@ mod recovery;
 mod reports;
 mod role_ladder;
 mod roles;
-use roles::role_reorder;
+use roles::{role_preview, role_reorder};
 mod data_exports;
 mod favorites;
 mod hold_music;
@@ -177,6 +178,7 @@ mod watch_session;
 mod webhooks;
 mod webhooks_admin;
 mod welcome;
+mod write_refusal;
 mod ws;
 
 /// The wire-protocol envelope version a client negotiates on connect. Bumped
@@ -356,6 +358,7 @@ pub fn router(state: AppState) -> Router {
         .merge(reports::routes())
         .merge(roles::routes())
         .merge(role_reorder::routes())
+        .merge(role_preview::routes())
         .merge(safety::routes())
         .merge(data_exports::routes())
         .merge(dms::routes())

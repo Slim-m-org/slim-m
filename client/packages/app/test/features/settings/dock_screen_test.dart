@@ -21,6 +21,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -222,6 +223,7 @@ void main() {
     expect(find.text('Install v1.2.0'), findsNothing);
     expect(find.text('Enabled'), findsOneWidget);
     expect(find.text('Uninstall'), findsOneWidget);
+    await expireToasts(tester);
   });
 
   testWidgets(

@@ -353,11 +353,11 @@ impl ChannelPoster {
             Err(_) => return Err(PostRefused("message.post is unavailable")),
         }
         self.charge_rate_limits()?;
-        let content = validate_content(content, false)
-            .map_err(|_| PostRefused("content is empty or too long"))?;
         if hides_text(content) {
             return Err(PostRefused("content contains hidden characters"));
         }
+        let content = &*validate_content(content, false)
+            .map_err(|_| PostRefused("content is empty or too long"))?;
         let slow_mode_window_ms = enforce_slow_mode(state, channel_id, self.user_id)
             .await
             .map_err(|_| PostRefused("slow mode is active in that channel"))?;

@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart' show AppThemeChoice;
+import '../../../providers/toasts.dart';
 import 'my_themes.dart';
 import 'stored_theme.dart';
 import 'theme_draft.dart';
@@ -164,11 +165,16 @@ class ThemeGalleryActions {
     }
   });
 
-  Future<void> publish(ThemeDocument document) =>
-      _run('publish the theme', () async {
-        await publishTheme(container, document);
-        return null;
-      });
+  Future<void> publish(ThemeDocument document) => _run(
+    'publish the theme',
+    () async {
+      await publishTheme(container, document);
+      container
+          .read(toastsProvider.notifier)
+          .show('Published to the Space.', severity: AppToastSeverity.success);
+      return null;
+    },
+  );
 
   /// Keeps [document] in Mine; when it is the theme in use, that now comes from Mine.
   Future<void> saveToMine(ThemeDocument document) => _run(

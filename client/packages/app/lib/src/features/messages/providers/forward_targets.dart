@@ -77,6 +77,8 @@ class ForwardTarget {
   /// faces. Null for every target that is not a group.
   final List<String>? groupMemberIds;
 
+  bool get isGroup => groupMemberIds != null;
+
   /// Whether this target answers to [query], which callers pass already
   /// trimmed and lower-cased. Lives here rather than in the picker so the
   /// rule and the fields it reads stay in one place.
@@ -85,25 +87,14 @@ class ForwardTarget {
       (username?.toLowerCase().contains(query) ?? false);
 }
 
-/// What [forwardTargetsProvider] needs to answer "where can this go": the
-/// channel the message already sits in, and whether it carries attachments.
-///
-/// A record, not a plain `String` key: once forwarding could carry
-/// attachments, a channel offering SEND_MESSAGES but not ATTACH_FILES had to
-/// stop being offered for those messages specifically, since the send would
-/// otherwise reach this list only to 403 on the one permission this provider
-/// used to never ask about (`http/messages.rs`'s `send` only demands
-/// ATTACH_FILES when the request actually carries an attachment id).
-typedef ForwardTargetsQuery = ({String excludeChannelId, bool hasAttachments});
+/// Whether the thing being sent carries attachments: a channel that grants
+/// SEND_MESSAGES but not ATTACH_FILES is then left out, since the send would 403.
+typedef ForwardTargetsQuery = ({bool hasAttachments});
 
-/// Every target for forwarding a message currently in
-/// [ForwardTargetsQuery.excludeChannelId] - forwarding into the channel a
-/// message already sits in is excluded, since that would just be a
-/// duplicate of a message already on screen.
+/// Every target for forwarding or sharing, the message's own channel included:
+/// forwarding into it posts a new forwarded copy there, which the server allows.
 ///
-/// Fetched fresh on every watch, matching `myVisibleChannelsProvider` and
-/// `invitesProvider`: this is a picker's own one-shot list, not long-lived
-/// state a live event needs to keep current.
+/// Fetched fresh on every watch: a picker's one-shot list, not live state.
 final forwardTargetsProvider = FutureProvider.autoDispose
     .family<List<ForwardTarget>, ForwardTargetsQuery>((ref, query) async {
       final client = ref.watch(apiProvider);
@@ -114,8 +105,7 @@ final forwardTargetsProvider = FutureProvider.autoDispose
 
       return [
         for (final channel in channels)
-          if (channel.id != query.excludeChannelId &&
-              (channel.permissions ?? 0).hasPermission(Perm.sendMessages) &&
+          if ((channel.permissions ?? 0).hasPermission(Perm.sendMessages) &&
               (!query.hasAttachments ||
                   (channel.permissions ?? 0).hasPermission(Perm.attachFiles)))
             ForwardTarget(
@@ -126,11 +116,10 @@ final forwardTargetsProvider = FutureProvider.autoDispose
               restricted: channel.restricted ?? false,
             ),
         for (final dm in dms)
-          if (dm.channelId != query.excludeChannelId && dm.isGroup)
+          if (dm.isGroup)
             _groupTarget(dm, selfId)
           // `store/dms.rs`: a blocked party is denied SEND_MESSAGES/ATTACH_FILES both ways, and otherwise a DM always grants both to its two participants, so attachments need no extra check here.
-          else if (dm.channelId != query.excludeChannelId &&
-              !blocked.contains(dm.user.id))
+          else if (!blocked.contains(dm.user.id))
             ForwardTarget(
               channelId: dm.channelId,
               label: dm.user.id == selfId

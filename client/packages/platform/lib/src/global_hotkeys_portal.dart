@@ -10,7 +10,7 @@ library;
 import 'dart:async';
 
 import 'package:dbus/dbus.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show setEquals, visibleForTesting;
 
 import 'global_hotkeys.dart';
 import 'global_hotkeys_keys.dart';
@@ -20,7 +20,11 @@ import 'portal_request.dart';
 export 'portal_request.dart' show portalRequestPath;
 
 const _shortcutsInterface = 'org.freedesktop.portal.GlobalShortcuts';
+const _registryInterface = 'org.freedesktop.host.portal.Registry';
 const _sessionInterface = 'org.freedesktop.portal.Session';
+
+/// The id the desktop entry and the GTK window carry.
+const linuxAppId = 'top.npcserver.slimm';
 
 const portalAvailableMessage =
     'Works when slim-m is in the background. Pick the key in System Settings, Shortcuts.';
@@ -97,18 +101,25 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     Stream<DBusSignal> Function(DBusClient bus, DBusObjectPath request)?
         responses,
     Duration approvalTimeout = portalApprovalTimeout,
+    String appId = linuxAppId,
   })  : _clientFactory = clientFactory ?? DBusClient.session,
-        _responses = responses ?? portalResponses,
+        _appId = appId,
+        _responses = responses,
         _approvalTimeout = approvalTimeout;
 
   final DBusClient Function() _clientFactory;
-  final Stream<DBusSignal> Function(DBusClient bus, DBusObjectPath request)
+  final Stream<DBusSignal> Function(DBusClient bus, DBusObjectPath request)?
       _responses;
   final Duration _approvalTimeout;
+  final String _appId;
   final _events = StreamController<GlobalHotkeyEvent>.broadcast();
   final _listening = <StreamSubscription<DBusSignal>>[];
   DBusClient? _client;
+  Future<void>? _registration;
+  String? _owner;
   String? _session;
+  Set<GlobalHotkeyId> _boundIds = const {};
+  final _held = <GlobalHotkeyId>{};
   int _tokenCounter = 0;
 
   @override
@@ -144,6 +155,9 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       await _closeSession();
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     }
+    final ids = {for (final binding in bindings) binding.id};
+    // KDE keeps an id a rebind leaves out and asks again for one it adds, but binds a fresh session silently.
+    if (!setEquals(ids, _boundIds)) await _closeSession();
     try {
       final session = _session ?? await _createSession();
       final results = await _request(
@@ -159,6 +173,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
           portalDeclinedMessage,
         );
       }
+      _boundIds = ids;
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     } on Object catch (error, stack) {
       reportFailure(LogTag.platform, 'bind the global shortcuts', error, stack);
@@ -180,6 +195,14 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     }
     _listening.clear();
     _session = null;
+    _boundIds = const {};
+    // The closed session never delivers these key-ups, so a held push to talk would stay open.
+    for (final id in _held) {
+      if (!_events.isClosed) {
+        _events.add(GlobalHotkeyEvent(id, GlobalHotkeyPhase.released));
+      }
+    }
+    _held.clear();
     try {
       await _bus.callMethod(
         destination: portalBusName,
@@ -198,7 +221,31 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     }
   }
 
+  /// The portal refuses a host app's session without an id, and GTK's own
+  /// registration covers only GTK's connection, not this one.
+  Future<void> _registerApp() => _registration ??= _register();
+
+  Future<void> _register() async {
+    try {
+      await _bus.callMethod(
+        destination: portalBusName,
+        path: DBusObjectPath(portalPath),
+        interface: _registryInterface,
+        name: 'Register',
+        values: [DBusString(_appId), DBusDict.stringVariant({})],
+        replySignature: DBusSignature(''),
+      );
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'The portal kept the app id it already had', error, stack);
+    }
+  }
+
+  Future<String> _portalOwner() async => _owner ??= await portalOwner(_bus);
+
   Future<String> _createSession() async {
+    await _registerApp();
+    _owner = null;
     final results = await _request(
       'CreateSession',
       (token) => createSessionValues(
@@ -214,23 +261,27 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   }
 
   void _watchSession(String handle) {
+    final sender = _owner ?? portalBusName;
     for (final name in const ['Activated', 'Deactivated']) {
       _listening.add(
         DBusSignalStream(
           _bus,
-          sender: portalBusName,
+          sender: sender,
           interface: _shortcutsInterface,
           name: name,
         ).listen((signal) {
           final event = portalEventFromSignal(signal, handle);
-          if (event != null) _events.add(event);
+          if (event == null) return;
+          if (event.phase == GlobalHotkeyPhase.pressed) _held.add(event.id!);
+          if (event.phase == GlobalHotkeyPhase.released) _held.remove(event.id);
+          _events.add(event);
         }),
       );
     }
     _listening.add(
       DBusSignalStream(
         _bus,
-        sender: portalBusName,
+        sender: sender,
         interface: _sessionInterface,
         name: 'Closed',
         path: DBusObjectPath(handle),
@@ -243,6 +294,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       unawaited(subscription.cancel());
     }
     _listening.clear();
+    _boundIds = const {};
+    _held.clear();
     if (_session == null) return;
     _session = null;
     if (!_events.isClosed) _events.add(const GlobalHotkeyEvent.lost());
@@ -255,8 +308,10 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   ) async {
     final token = _token('request');
     final path = DBusObjectPath(portalRequestPath(_bus.uniqueName, token));
+    final responses = _responses?.call(_bus, path) ??
+        portalResponses(_bus, path, sender: await _portalOwner());
     final response = await awaitPortalResponse(
-      responses: _responses(_bus, path),
+      responses: responses,
       call: () => _bus.callMethod(
         destination: portalBusName,
         path: DBusObjectPath(portalPath),
@@ -277,5 +332,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     await _events.close();
     await _client?.close();
     _client = null;
+    _registration = null;
+    _owner = null;
   }
 }

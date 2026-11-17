@@ -52,9 +52,9 @@ class _State extends ConsumerState<BackgroundSettingsCard>
     await _controller.remove();
   }
 
-  Future<void> _openMenu() async {
+  Future<void> _openMenu(BuildContext row) async {
     final has = ref.read(appBackgroundControllerProvider).hasImage;
-    final action = await showBackgroundPictureMenu(context, canRemove: has);
+    final action = await showBackgroundPictureMenu(row, canRemove: has);
     if (action == null || !mounted) return;
     clearActionError();
     switch (action) {
@@ -134,37 +134,39 @@ class _State extends ConsumerState<BackgroundSettingsCard>
   Widget _pictureRow(
     AppTokens tokens,
     AppBackgroundSettings settings,
-  ) => AppListRow(
-    key: BackgroundSettingsCard.pictureRowKey,
-    label: 'Picture',
-    meta: settings.hasImage ? 'Custom' : 'None',
-    trailing: Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: AppSpacing.s8,
-      children: [
-        if (settings.hasImage)
-          AppIconButton(
-            key: BackgroundSettingsCard.removeKey,
-            icon: AppIcons.dismiss,
-            size: AppIconButtonSize.sm,
-            semanticLabel: 'Remove picture',
-            tooltip: 'Remove picture',
-            onPressed: () {
-              clearActionError();
-              unawaited(_remove());
-            },
+  ) => Builder(
+    builder: (row) => AppListRow(
+      key: BackgroundSettingsCard.pictureRowKey,
+      label: 'Picture',
+      meta: settings.hasImage ? 'Custom' : 'None',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: AppSpacing.s8,
+        children: [
+          if (settings.hasImage)
+            AppIconButton(
+              key: BackgroundSettingsCard.removeKey,
+              icon: AppIcons.dismiss,
+              size: AppIconButtonSize.sm,
+              semanticLabel: 'Remove picture',
+              tooltip: 'Remove picture',
+              onPressed: () {
+                clearActionError();
+                unawaited(_remove());
+              },
+            ),
+          // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
+          Icon(
+            MediaQuery.sizeOf(context).width >= kCompactWidth
+                ? AppIcons.chevronDown
+                : AppIcons.chevronRight,
+            size: AppSizes.icon16,
+            color: tokens.textSecondary,
           ),
-        // Down for the menu from 600 wide, right for the sheet below it, like SettingsSelectRow.
-        Icon(
-          MediaQuery.sizeOf(context).width >= kCompactWidth
-              ? AppIcons.chevronDown
-              : AppIcons.chevronRight,
-          size: AppSizes.icon16,
-          color: tokens.textSecondary,
-        ),
-      ],
+        ],
+      ),
+      onTap: () => unawaited(_openMenu(row)),
     ),
-    onTap: () => unawaited(_openMenu()),
   );
 
   List<Widget> _controls(AppTokens tokens, AppBackgroundSettings settings) {

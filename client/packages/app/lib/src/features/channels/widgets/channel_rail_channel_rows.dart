@@ -40,6 +40,7 @@ class ManagedChannelRow extends StatefulWidget {
     required this.canManage,
     required this.reorderable,
     this.menuKey,
+    this.moveToCategory,
     required this.channel,
     required this.row,
   });
@@ -58,6 +59,9 @@ class ManagedChannelRow extends StatefulWidget {
   /// Lets the rail open this row's menu when a held press is released without
   /// moving the row (`channel_rail_reorder.dart`).
   final GlobalKey<ContextMenuRegionState>? menuKey;
+
+  /// Opens the "Move to category" picker; null where this row cannot be filed elsewhere.
+  final VoidCallback? moveToCategory;
 
   /// Builds the row given the kebab to place in its trailing slot, or null
   /// when [canManage] is false. Passed through unconditionally so the row
@@ -87,6 +91,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
         close,
         widget.channel,
         widget.canManage,
+        moveToCategory: widget.moveToCategory,
       );
 
   @override
@@ -236,9 +241,10 @@ class VoiceChannelRow extends ConsumerWidget {
           channelId: channel.id,
           child: AppListRow(
             label: channel.name,
-            // The leading glyph is excluded from semantics, so its privacy is said here.
-            semanticLabel:
-                channel.restricted == true && channel.createsRooms != true
+            // The leading glyph is excluded from semantics, so what it means is said here.
+            semanticLabel: channel.createsRooms == true
+                ? '${channel.name}, ${RailLobbyIcon.label}'
+                : channel.restricted == true
                 ? '${channel.name}, ${ChannelKindIcon.voiceLabel}'
                 : null,
             selected: selected,

@@ -131,6 +131,6 @@ void main() {
     );
 
     expect(find.text(_noServer), findsNothing);
-    expect(find.textContaining("didn't answer"), findsOneWidget);
+    expect(find.textContaining('Could not reach this Space'), findsOneWidget);
   });
 }

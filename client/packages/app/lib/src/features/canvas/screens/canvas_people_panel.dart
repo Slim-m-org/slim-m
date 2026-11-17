@@ -49,14 +49,20 @@ List<CanvasPerson> canvasPeople({
   ];
 }
 
-/// The people in the call that this device's block list leaves visible.
-final canvasCallPeopleProvider = Provider<List<VoiceParticipant>>((ref) {
-  final blocks = ref.watch(blocksProvider);
-  return [
-    for (final p in ref.watch(voiceParticipantsProvider))
-      if (!blocks.contains(p.identity)) p,
-  ];
-});
+/// The people in the call that this device's block list leaves visible, for the canvas of [channelId]; null reads whichever call this device is in.
+final canvasCallPeopleProvider =
+    Provider.family<List<VoiceParticipant>, String?>((ref, channelId) {
+      if (channelId != null &&
+          ref.watch(voiceFlagsProvider.select((f) => f.channelId)) !=
+              channelId) {
+        return const [];
+      }
+      final blocks = ref.watch(blocksProvider);
+      return [
+        for (final p in ref.watch(voiceParticipantsProvider))
+          if (!blocks.contains(p.identity)) p,
+      ];
+    });
 
 Future<bool> _confirmBringEveryone(BuildContext context) =>
     confirmDangerousAction(
@@ -78,7 +84,9 @@ class CanvasPeopleRows extends ConsumerWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final session = CanvasPeopleScope.maybeOf(context);
     final people = canvasPeople(
-      call: ref.watch(canvasCallPeopleProvider),
+      call: ref.watch(
+        canvasCallPeopleProvider(CanvasPeopleScope.channelIdOf(context)),
+      ),
       onCanvas: session?.onCanvas ?? const [],
     );
     final others = people.any((p) => !p.isSelf);

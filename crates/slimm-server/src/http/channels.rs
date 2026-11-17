@@ -88,6 +88,9 @@ struct CreateRequest {
     /// Absent or false leaves the default off.
     #[serde(default)]
     join_muted: Option<bool>,
+    /// True creates a voice lobby that makes a room per person (decision 0065).
+    #[serde(default)]
+    creates_rooms: Option<bool>,
     /// The notification level members get here until they choose their own.
     /// Absent means `everything`. Needs MANAGE_CHANNELS like the rest of create.
     #[serde(default)]
@@ -189,6 +192,9 @@ async fn create(
     if req.join_muted == Some(true) && kind != "voice" {
         return Err(ApiError::BadRequest(JOIN_MUTED_VOICE_ONLY));
     }
+    if req.creates_rooms == Some(true) && kind != "voice" {
+        return Err(ApiError::BadRequest(ROOMS_VOICE_ONLY));
+    }
     let default_notification = req
         .default_notification
         .as_deref()
@@ -224,6 +230,7 @@ async fn create(
             private_to,
             ChannelDefaults {
                 join_muted: req.join_muted == Some(true),
+                creates_rooms: req.creates_rooms == Some(true),
                 notification: default_notification,
             },
         )

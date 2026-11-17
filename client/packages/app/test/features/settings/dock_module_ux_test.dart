@@ -22,6 +22,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_section_header.
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -270,6 +271,7 @@ void main() {
     await _pump(tester, width: 800, location: _modulePage);
     await tester.tap(find.text('Install v0.3.1'));
     await tester.pumpAndSettle();
-    expect(find.text('Dice installed'), findsOneWidget);
+    expect(toastMessages(tester), ['Dice installed']);
+    await expireToasts(tester);
   });
 }

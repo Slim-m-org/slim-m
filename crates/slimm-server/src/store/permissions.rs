@@ -12,6 +12,7 @@ use crate::permissions::{Overwrite, Permissions, evaluate};
 
 pub(super) mod channel_overwrites;
 pub(super) mod permissions_batch;
+pub(super) mod permissions_preview;
 pub(super) mod permissions_resolve;
 
 pub use channel_overwrites::ChannelOverwrite;
@@ -54,6 +55,15 @@ impl RoleContext {
         user_id: UserId,
         overwrites: &[ChannelOverwrite],
     ) -> Evaluated {
+        self.evaluate_as(Some(user_id), overwrites)
+    }
+
+    /// [`Self::evaluate_for`] for a principal that may hold no member overwrite at all, as a role preview does.
+    pub(super) fn evaluate_as(
+        &self,
+        member_id: Option<UserId>,
+        overwrites: &[ChannelOverwrite],
+    ) -> Evaluated {
         let mut everyone = None;
         let mut roles = Vec::new();
         let mut member = None;
@@ -65,7 +75,7 @@ impl RoleContext {
             match row.target_type.as_str() {
                 "role" if Some(row.target_id) == self.everyone_id => everyone = Some(overwrite),
                 "role" if self.role_ids.contains(&row.target_id) => roles.push(overwrite),
-                "member" if row.target_id == user_id.0 => member = Some(overwrite),
+                "member" if Some(UserId(row.target_id)) == member_id => member = Some(overwrite),
                 _ => {}
             }
         }

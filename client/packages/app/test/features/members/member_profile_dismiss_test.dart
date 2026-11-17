@@ -51,6 +51,7 @@ import 'package:slimm_platform/testing.dart';
 import '../../support/reduced_motion_harness.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -212,6 +213,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(wired.requests, contains('POST /reports'));
+    await expireToasts(tester);
   });
 
   testWidgets('Block reaches the API rather than throwing past the dismiss', (
@@ -225,6 +227,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(wired.requests, contains('POST /blocks/user-maya'));
+    await expireToasts(tester);
   });
 
   testWidgets('Unblock reaches the API rather than throwing past the dismiss', (
@@ -238,5 +241,6 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(wired.requests, contains('DELETE /blocks/user-maya'));
+    await expireToasts(tester);
   });
 }

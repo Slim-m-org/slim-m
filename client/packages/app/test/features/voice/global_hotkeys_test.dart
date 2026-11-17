@@ -27,6 +27,7 @@ void main() {
   setUp(
     () => SharedPreferences.setMockInitialValues({
       'slimm.voice.push_to_talk_enabled': true,
+      'slimm.voice.call_keybinds_enabled': true,
     }),
   );
   tearDown(harness.dispose);

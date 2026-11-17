@@ -9,6 +9,7 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
+import 'format.dart';
 import 'permissions.dart';
 
 /// Turns [e] into a plain sentence for [whatFailed] ("join the call"),
@@ -39,6 +40,20 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
     'Could not $whatFailed: ${e.message}.',
   api.ForbiddenException(needsOwnSecondFactor: true) =>
     'Could not $whatFailed: turn on two-factor sign-in on your own account first.',
+  api.ForbiddenException(
+    code: api.ForbiddenException.timedOutCode,
+    :final timedOutUntil,
+    :final timeoutReason,
+  ) =>
+    'Could not $whatFailed: ${_timedOut(timedOutUntil, timeoutReason)}',
+  api.ForbiddenException(code: api.ForbiddenException.blockedCode) =>
+    'Could not $whatFailed: one of you has blocked the other.',
+  api.ForbiddenException(code: api.ForbiddenException.leftGroupCode) =>
+    'Could not $whatFailed: you are no longer in this group.',
+  api.ForbiddenException(code: api.ForbiddenException.dmPinsCode) =>
+    'Could not $whatFailed: pins are not available in direct messages.',
+  api.ForbiddenException(code: api.ForbiddenException.notAuthorCode) =>
+    'Could not $whatFailed: only its author can edit it.',
   api.ForbiddenException() =>
     'Could not $whatFailed: you are not allowed to do that.',
   api.UnauthorizedException() =>
@@ -54,6 +69,19 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
         'Nothing was changed.',
   api.ApiException() => 'Could not $whatFailed.',
 };
+
+/// How long a timeout has left, and its reason when the moderator gave one.
+String _timedOut(int? until, String? reason) {
+  final left = until == null
+      ? null
+      : DateTime.fromMillisecondsSinceEpoch(until).difference(DateTime.now());
+  final when = left == null || left.isNegative
+      ? 'you are timed out.'
+      : 'you are timed out for another ${formatRemaining(left)}.';
+  return reason == null || reason.trim().isEmpty
+      ? when
+      : '$when ${sentenceCase('reason: ${reason.trim()}')}';
+}
 
 /// The one error-handling entry for a caught failure: classifies [error],
 /// logs it once under [tag], and returns the sentence to render.

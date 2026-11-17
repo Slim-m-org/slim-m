@@ -69,7 +69,9 @@ class _CanvasPeopleClusterState extends ConsumerState<CanvasPeopleCluster> {
   Widget build(BuildContext context) {
     final session = CanvasPeopleScope.maybeOf(context);
     final people = canvasPeople(
-      call: ref.watch(canvasCallPeopleProvider),
+      call: ref.watch(
+        canvasCallPeopleProvider(CanvasPeopleScope.channelIdOf(context)),
+      ),
       onCanvas: session?.onCanvas ?? const [],
     );
     if (!people.any((p) => !p.isSelf)) return const SizedBox.shrink();

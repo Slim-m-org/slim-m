@@ -75,6 +75,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
+        | Event::SpaceThemesChanged
         | Event::ReportsChanged
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }

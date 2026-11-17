@@ -36,6 +36,7 @@ import '../../messages/widgets/message_transcript_widgets.dart' show DmAudience;
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
+import '../../composer/widgets/composer_text_controller.dart';
 import '../widgets/channel_search.dart';
 import '../widgets/compact_channel_search.dart';
 import 'channel_composer_area.dart';
@@ -147,7 +148,7 @@ class ChannelScreen extends ConsumerStatefulWidget {
 }
 
 class _ChannelScreenState extends ConsumerState<ChannelScreen> {
-  final _composer = TextEditingController();
+  final _composer = ComposerTextController();
 
   /// The query text only; the search itself (open, hits, failure) lives in
   /// [channelSearchProvider], which the compact app bar drives too.
@@ -448,6 +449,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   ? ChannelSearchBar(
                       controller: _searchController,
                       onChanged: _search,
+                      label: channel?.kind == 'dm'
+                          ? 'Search this conversation'
+                          : 'Search this channel',
                     )
                   : null,
             ),

@@ -491,7 +491,7 @@ client/packages/app/test/features/messages/edit_history_sheet_test.dart 5 2
 client/packages/app/test/features/messages/ephemeral_row_rich_test.dart 1 3
 client/packages/app/test/features/messages/ephemeral_row_test.dart 5 8
 client/packages/app/test/features/messages/forward_message_send_test.dart 3 6
-client/packages/app/test/features/messages/forward_picker_glyph_test.dart 2 1
+client/packages/app/test/features/messages/forward_picker_glyph_test.dart 1 1
 client/packages/app/test/features/messages/forwarded_message_card_test.dart 4 3
 client/packages/app/test/features/messages/fullscreen_image_decode_test.dart 1 0
 client/packages/app/test/features/messages/fullscreen_image_export_test.dart 4 1

@@ -14,11 +14,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show GroupDmChannel;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/call_recap.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/dm_call.dart';
+import '../providers/dm_call_ring_controller.dart';
 import '../../../providers/providers.dart';
 import '../providers/voice_roster.dart';
 import '../../../routing/routes.dart';
@@ -233,10 +235,24 @@ class VoiceRejoinScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final ringEnd = isDm && errorMessage == null
+        ? ref.watch(
+            dmCallRingControllerProvider.select(
+              (s) => s.endedUnansweredIn(channelId),
+            ),
+          )
+        : null;
+    final callee = ref.watch(
+      channelByIdProvider(channelId).select((c) {
+        final channel = c.valueOrNull;
+        return channel == null || channel.isGroupDm ? null : channel.name;
+      }),
+    );
     // Whether the plain "You left this call." fallback, not the error or CallRecapCard, is next.
     final showsPlainLeftNotice =
         wasInCall &&
         errorMessage == null &&
+        ringEnd == null &&
         (recap == null || !recap!.isWorthShowing);
     final joinsMuted =
         !isDm &&
@@ -281,14 +297,19 @@ class VoiceRejoinScreen extends ConsumerWidget {
                       const JoinMutedNote(),
                     ],
                     const SizedBox(height: AppSpacing.s16),
-                    _WhoIsHere(
-                      rosterAsync: rosterAsync,
-                      mergeLeftNotice: showsPlainLeftNotice,
-                    ),
-                    const SizedBox(height: AppSpacing.s16),
+                    if (ringEnd == null || !rosterConfirmedEmpty) ...[
+                      _WhoIsHere(
+                        rosterAsync: rosterAsync,
+                        mergeLeftNotice: showsPlainLeftNotice,
+                      ),
+                      const SizedBox(height: AppSpacing.s16),
+                    ],
                     ..._statusRows(
                       tokens,
                       rosterConfirmedEmpty: rosterConfirmedEmpty,
+                      ringEnd: ringEnd == null
+                          ? null
+                          : _ringEndLine(ringEnd, callee),
                     ),
                     // No button for a failure a retry cannot fix.
                     if (canRetry) ...[
@@ -318,11 +339,18 @@ class VoiceRejoinScreen extends ConsumerWidget {
   List<Widget> _statusRows(
     AppTokens tokens, {
     required bool rosterConfirmedEmpty,
+    String? ringEnd,
   }) {
     final error = errorMessage;
     final Widget? row;
     if (error != null) {
       row = AppErrorState(message: error);
+    } else if (ringEnd != null) {
+      row = Text(
+        ringEnd,
+        textAlign: TextAlign.center,
+        style: AppText.body.copyWith(color: tokens.textPrimary),
+      );
     } else if (recap case final recap? when recap.isWorthShowing) {
       row = CallRecapCard(recap: recap);
     } else if (wasInCall && !rosterConfirmedEmpty) {
@@ -360,6 +388,20 @@ class VoiceRejoinScreen extends ConsumerWidget {
       child: Text(_retryLabel),
     );
   }
+}
+
+/// What the caller is told when nobody picked up; [callee] is null for a group.
+String _ringEndLine(OutgoingRingEndReason reason, String? callee) {
+  final who = callee == null || callee.isEmpty ? null : callee;
+  return switch (reason) {
+    OutgoingRingEndReason.noAnswer => 'No answer',
+    OutgoingRingEndReason.declined =>
+      who == null ? 'Call declined' : '$who declined the call',
+    OutgoingRingEndReason.doNotDisturb =>
+      who == null
+          ? 'Everyone is on Do not disturb'
+          : '$who is on Do not disturb',
+  };
 }
 
 /// Who is already in the call, above the rejoin button.

@@ -106,6 +106,12 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
 
   @override
   void setSpeakingSensitivity(double sensitivity) {}
+
+  @override
+  void participantLeftByServer(String identity) {}
+
+  @override
+  void participantJoinedByServer(String identity) {}
   @override
   bool get canFlipCamera => false;
   @override

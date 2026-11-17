@@ -131,6 +131,11 @@ void main() {
     expect(wire.requests, contains('DELETE /messages/m1/save'));
     expect(find.text('kept for later'), findsNothing);
     expect(find.textContaining('Nothing saved yet'), findsOneWidget);
+    expect(
+      find.byIcon(AppIcons.bookmark),
+      findsOneWidget,
+      reason: 'the same empty card the settings panes use',
+    );
   });
 
   testWidgets('a failed removal keeps the row and says so inline', (

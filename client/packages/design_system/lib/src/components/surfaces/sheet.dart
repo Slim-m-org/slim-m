@@ -26,6 +26,7 @@ import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import 'in_window_dialog.dart';
+import 'sheet_dialog_scope.dart';
 
 /// How wide a dialog is allowed to get, when it is one.
 ///
@@ -275,14 +276,16 @@ class _SheetDialog extends StatelessWidget {
               side: BorderSide(color: tokens.borderSubtle),
             ),
       // explicitChildNodes: see the route-naming paragraph in showAppSheet's doc.
-      child: Semantics(
-        container: true,
-        explicitChildNodes: true,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: ceiling),
-          child: Padding(
-            padding: EdgeInsets.only(top: bare ? 0 : kSheetDialogTopInset),
-            child: scrolls ? child : SingleChildScrollView(child: child),
+      child: SheetDialogScope(
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: ceiling),
+            child: Padding(
+              padding: EdgeInsets.only(top: bare ? 0 : kSheetDialogTopInset),
+              child: scrolls ? child : SingleChildScrollView(child: child),
+            ),
           ),
         ),
       ),

@@ -12,14 +12,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
-import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/channel_by_id_provider.dart';
+import '../providers/view_access.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
+import 'who_can_see.dart';
 
 /// Denies `@everyone` the view of [channelId] and grants it to [selfId],
 /// keeping every other bit both overwrites already carry.
@@ -30,26 +31,9 @@ Future<void> makeChannelPrivate(
   required String selfId,
 }) async {
   final existing = await client.getChannelOverwrites(channelId);
-  api.ChannelOverwrite? find(api.OverwriteTarget kind, String id) =>
-      existing.where((o) => o.kind == kind && o.id == id).firstOrNull;
-  final everyone = find(api.OverwriteTarget.role, everyoneRoleId);
-  final self = find(api.OverwriteTarget.member, selfId);
-  await client.batchSetChannelOverwrites(
-    channelId: channelId,
-    overwrites: [
-      api.ChannelOverwriteEdit(
-        kind: api.OverwriteTarget.member,
-        id: selfId,
-        allow: (self?.allow ?? 0) | Perm.viewChannel,
-        deny: (self?.deny ?? 0) & ~Perm.viewChannel,
-      ),
-      api.ChannelOverwriteEdit(
-        kind: api.OverwriteTarget.role,
-        id: everyoneRoleId,
-        allow: (everyone?.allow ?? 0) & ~Perm.viewChannel,
-        deny: (everyone?.deny ?? 0) | Perm.viewChannel,
-      ),
-    ],
+  await ChannelViewTarget(channelId).write(
+    client,
+    privateEdits(existing, everyoneRoleId: everyoneRoleId, selfId: selfId),
   );
 }
 
@@ -60,23 +44,10 @@ Future<void> makeChannelPublic(
   required String channelId,
   required String everyoneRoleId,
 }) async {
-  final everyone = (await client.getChannelOverwrites(channelId))
-      .where(
-        (o) => o.kind == api.OverwriteTarget.role && o.id == everyoneRoleId,
-      )
-      .firstOrNull;
-  if (everyone == null) return;
-  await client.batchSetChannelOverwrites(
-    channelId: channelId,
-    overwrites: [
-      api.ChannelOverwriteEdit(
-        kind: api.OverwriteTarget.role,
-        id: everyoneRoleId,
-        allow: everyone.allow,
-        deny: everyone.deny & ~Perm.viewChannel,
-      ),
-    ],
-  );
+  final existing = await client.getChannelOverwrites(channelId);
+  await ChannelViewTarget(
+    channelId,
+  ).write(client, publicEdits(existing, everyoneRoleId: everyoneRoleId));
 }
 
 class ChannelPrivateRow extends ConsumerStatefulWidget {
@@ -173,6 +144,10 @@ class _ChannelPrivateRowState extends ConsumerState<ChannelPrivateRow>
             error: actionError,
             onDismissError: clearActionError,
           ),
+        WhoCanSee(
+          target: ChannelViewTarget(widget.channel.id),
+          private: _optimistic,
+        ),
       ],
     );
   }

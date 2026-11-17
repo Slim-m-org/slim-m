@@ -23,23 +23,23 @@ use crate::push_endpoints::harness::{
 };
 use crate::push_endpoints::missed_call::{open_dm, voice};
 
-struct World {
-    app: Router,
-    store: Store,
+pub(crate) struct World {
+    pub(crate) app: Router,
+    pub(crate) store: Store,
     pool: sqlx::SqlitePool,
     owner: UserId,
-    mock: MockRelay,
+    pub(crate) mock: MockRelay,
     durable: Receiver<Event>,
     ephemeral: Receiver<Event>,
     _guard: crate::support::TestDbGuard,
 }
 
-struct Member {
-    id: UserId,
-    token: String,
+pub(crate) struct Member {
+    pub(crate) id: UserId,
+    pub(crate) token: String,
 }
 
-async fn world() -> World {
+pub(crate) async fn world() -> World {
     let (store, pool, guard) = crate::support::new_store_with_pool("slimm-ring-refusals").await;
     let (mock, relay_url) = spawn_mock_relay().await;
     let push = PushSender::with_debounce_window_ms(&push_config(&relay_url), SHORT_DEBOUNCE_MS)
@@ -64,7 +64,7 @@ async fn world() -> World {
 
 impl World {
     /// A member with a session and a push device named after them.
-    async fn member(&self, name: &str) -> Member {
+    pub(crate) async fn member(&self, name: &str) -> Member {
         let account = self.store.create_account(name, name, "x").await.unwrap();
         let tokens = self.store.open_session(account.id, "cli").await.unwrap();
         let _secret = register_device(
@@ -82,6 +82,17 @@ impl World {
     }
 
     async fn ring(&self, channel_id: &str, who: &Member) -> StatusCode {
+        // Joined first, so a refusal means the ring gate, not an empty room.
+        self.app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/channels/{channel_id}/voice/heartbeat"),
+                Some(&who.token),
+                None,
+            ))
+            .await
+            .unwrap();
         self.app
             .clone()
             .oneshot(request(
@@ -95,7 +106,7 @@ impl World {
             .status()
     }
 
-    fn rang_on_the_wire(&mut self) -> bool {
+    pub(crate) fn rang_on_the_wire(&mut self) -> bool {
         let mut rang = false;
         for rx in [&mut self.durable, &mut self.ephemeral] {
             while let Ok(event) = rx.try_recv() {
@@ -106,7 +117,7 @@ impl World {
     }
 
     /// Outlasts the debounce window, so a push that was going to fire has.
-    async fn settle(&self) {
+    pub(crate) async fn settle(&self) {
         tokio::time::sleep(Duration::from_millis((SHORT_DEBOUNCE_MS * 3) as u64)).await;
     }
 

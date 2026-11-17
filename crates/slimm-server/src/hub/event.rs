@@ -164,8 +164,10 @@ pub enum Event {
     /// A category was created, renamed, moved or deleted. Payload-free because it is broadcast
     /// unfiltered while `GET /categories` filters per viewer; clients re-fetch both lists.
     CategoryChanged,
-    /// A deployment-wide Space display setting changed; carries nothing, a client re-reads `/version`.
+    /// A deployment-wide Space display setting or the default theme changed; carries nothing, a client re-reads what it shows.
     SpaceSettingsChanged,
+    /// A theme was published to or removed from the Space store; carries nothing, a client re-reads the store.
+    SpaceThemesChanged,
     /// A channel permission overwrite was set or cleared for one role or one
     /// member. Carries only the channel id: the allow/deny mask is exactly
     /// the kind of privileged detail [`Event::RoleChanged`] withholds, and for
@@ -281,9 +283,8 @@ pub enum Event {
     /// retry, and so [`Event::CallRingEnded`] can name exactly which ring it
     /// concerns.
     ///
-    /// Reaches only the two DM participants, the ordinary `VIEW_CHANNEL`
-    /// check every voice event already uses - a DM's own permission model
-    /// (`store/dms.rs`) grants that to nobody else, `ADMINISTRATOR` included.
+    /// Reaches only `callees`, on top of the ordinary `VIEW_CHANNEL` check:
+    /// the caller already knows its own ring from the route's response.
     /// A blocked party is refused before this is ever published: `CONNECT`
     /// is one of the bits a block removes, and starting a ring is gated on
     /// it the same way minting a token already is.
@@ -291,6 +292,8 @@ pub enum Event {
         channel_id: ChannelId,
         ring_id: CallRingId,
         caller_id: UserId,
+        /// Who is actually rung; the frame reaches nobody else, the caller included.
+        callees: Arc<[UserId]>,
     },
     /// A ring (started by [`Event::CallRinging`]) reached a terminal state:
     /// answered, declined, canceled by the caller, or timed out unanswered.

@@ -199,11 +199,12 @@ fn rewrite_step(reply: &Value, carries_more: bool) -> Result<Step, String> {
     let Some(content) = content.as_str() else {
         return Err("content is not text".into());
     };
-    validate_content(content, carries_more).map_err(|_| "rewritten text is not allowed")?;
+    let stored =
+        validate_content(content, carries_more).map_err(|_| "rewritten text is not allowed")?;
     if crate::http::module_host::hides_text(content) {
         return Err("rewritten text hides characters".into());
     }
-    Ok(Step::Rewrite(content.to_owned()))
+    Ok(Step::Rewrite(stored.into_owned()))
 }
 
 /// What the module is sent: only the fields its manifest declared.
@@ -298,5 +299,14 @@ mod tests {
         assert!(verdict_step(ok(r#"{"content":""}"#), "rewrite", false).is_err());
         assert!(verdict_step(ok(r#"{"content":""}"#), "rewrite", true).is_ok());
         assert!(verdict_step(Verdict::Unavailable, "reject", false).is_err());
+    }
+
+    #[test]
+    fn a_rewrite_is_stored_the_way_a_direct_send_would_be() {
+        let reply = Verdict::Reply(r#"{"content":"one\r\ntwo\rthree"}"#.into());
+        assert!(matches!(
+            verdict_step(reply, "rewrite", false),
+            Ok(Step::Rewrite(text)) if text == "one\ntwo\nthree"
+        ));
     }
 }

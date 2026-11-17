@@ -2,15 +2,10 @@
 /// The one-line context a reply shows above its own avatar: the parent's
 /// author and a snippet of its content, tappable to jump to it.
 ///
-/// Deliberately resolves nothing itself. The parent's content, author and
-/// liveness all come from [ReplyQuote.resolved], which the transcript
-/// already looked up against whatever it currently has loaded - and that
-/// lookup is where blocking and deletion are already handled, so this
-/// widget cannot leak either: a blocked author's message is absent from it
-/// exactly as it is absent from its own row, and a deleted message was
-/// discarded from the local store entirely rather than merely marked. Both
-/// causes, and a parent simply not paged in yet, collapse into the same
-/// null and the same honest placeholder - never a guess at which one it was.
+/// The parent comes from [ReplyQuote.resolved], the transcript's own lookup
+/// against what it has loaded, where blocking and deletion are handled. A
+/// parent not paged in is read by id ([replyParentProvider]); only one the
+/// server no longer has, or a blocked author's, reads as unavailable.
 library;
 
 import 'dart:math' as math;
@@ -23,6 +18,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../message_preview.dart';
 import '../providers/message_extras.dart';
+import '../providers/reply_parent.dart';
+import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/role_color.dart';
 import '../../members/widgets/user_avatar.dart';
@@ -57,7 +54,14 @@ class ReplyQuote extends ConsumerWidget {
     required this.resolved,
     required this.onTap,
     this.pinged = false,
+    this.channelId,
+    this.parentId,
   });
+
+  /// Where the reply sits and what it answers, so a parent the transcript has
+  /// not loaded can be read by id; without them it reads as unavailable.
+  final String? channelId;
+  final String? parentId;
 
   /// The reply mentioned this viewer, so the author is shown as "@Name".
   final bool pinged;
@@ -94,7 +98,9 @@ class ReplyQuote extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final resolved = this.resolved;
+    final fetched = _fetched(ref);
+    final resolved = this.resolved ?? fetched?.valueOrNull;
+    final loading = resolved == null && (fetched?.isLoading ?? false);
     final resolution = resolved == null
         ? null
         : ref.watch(
@@ -115,6 +121,7 @@ class ReplyQuote extends ConsumerWidget {
         resolved != null && plainPreview(resolved.content).isNotEmpty;
     final showThumb = resolved != null && !hasText && attachments.length == 1;
     final snippet = switch (resolved) {
+      null when loading => 'Loading...',
       null => 'Message unavailable',
       _ when !hasText && attachments.isNotEmpty => attachmentKindLabel(
         attachments,
@@ -126,9 +133,11 @@ class ReplyQuote extends ConsumerWidget {
       alignment: Alignment.topLeft,
       child: Semantics(
         button: true,
-        label: label == null
-            ? 'Reply to a message that is not available'
-            : 'Reply to $label: $snippet',
+        label: switch (label) {
+          null when loading => 'Reply to a message that is loading',
+          null => 'Reply to a message that is not available',
+          _ => 'Reply to $label: $snippet',
+        },
         child: AppFocusRing(
           radius: AppRadii.control,
           builder: (context, onFocusChange) => InkWell(
@@ -153,6 +162,22 @@ class ReplyQuote extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// The parent read by id when the transcript has not loaded it, with a
+  /// blocked author's treated as unavailable just as the transcript does.
+  AsyncValue<Message?>? _fetched(WidgetRef ref) {
+    final channel = channelId;
+    final parent = parentId;
+    if (resolved != null || channel == null || parent == null) return null;
+    final fetched = ref.watch(
+      replyParentProvider((channelId: channel, messageId: parent)),
+    );
+    final author = fetched.valueOrNull?.authorId;
+    final blocked = ref.watch(
+      blocksProvider.select((s) => author != null && s.ids.contains(author)),
+    );
+    return blocked ? const AsyncData(null) : fetched;
   }
 
   String? _nameFor(Message? resolved, AuthorResolution? resolution) {

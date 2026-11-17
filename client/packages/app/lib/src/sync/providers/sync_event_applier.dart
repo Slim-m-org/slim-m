@@ -12,6 +12,7 @@ import '../../features/channels/providers/channel_notification_overrides_control
 import '../../features/channels/providers/channel_refresher.dart';
 import '../../features/channels/providers/last_text_channel.dart';
 import '../../features/channels/providers/open_channel_rehydrate.dart';
+import '../../features/settings/providers/theme_store.dart';
 import '../../providers/op_adjacency.dart';
 
 class SyncEventApplier {
@@ -113,12 +114,19 @@ class SyncEventApplier {
         );
       case SpaceSettingsChanged():
         unawaited(rehydrateIfTranscriptsTurnedOn(_ref));
+        _refetchSpaceThemes();
+      case SpaceThemesChanged():
+        _refetchSpaceThemes();
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
         unawaited(_resyncAfterLag());
       case _:
         break;
     }
+  }
+
+  void _refetchSpaceThemes() {
+    if (_ref.exists(spaceThemesProvider)) _ref.invalidate(spaceThemesProvider);
   }
 
   Future<void> _onMessageCreated(

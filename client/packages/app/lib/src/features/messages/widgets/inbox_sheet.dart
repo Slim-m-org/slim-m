@@ -16,6 +16,7 @@ import '../../../routing/routes.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/sheet_item_list.dart';
 import '../../channels/widgets/channel_label.dart';
+import '../../channels/widgets/conversation_glyph.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/user_avatar.dart';
@@ -88,11 +89,17 @@ class _InboxSheetState extends ConsumerState<_InboxSheet>
               AppSpacing.s16,
               AppSpacing.s8,
             ),
-            trailing: AppButton(
-              label: 'Mark all read',
-              variant: AppButtonVariant.ghost,
-              icon: AppIcons.check,
-              onPressed: entries.isEmpty || _busy ? null : _markAllRead,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppButton(
+                  label: 'Mark all read',
+                  variant: AppButtonVariant.ghost,
+                  icon: AppIcons.check,
+                  onPressed: entries.isEmpty || _busy ? null : _markAllRead,
+                ),
+                const AppSheetCloseButton(),
+              ],
             ),
           ),
           if (actionError case final error?)
@@ -195,10 +202,10 @@ class InboxRow extends ConsumerWidget {
               name: author,
               size: density.listAvatarSize,
             )
-          : SizedBox(
-              width: density.listAvatarSize,
-              height: density.listAvatarSize,
-              child: Icon(
+          : ConversationGlyph(
+              channel: entry.channel,
+              size: density.listAvatarSize,
+              fallback: Icon(
                 entry.mentioned ? AppIcons.mentions : AppIcons.hash,
                 size: AppSizes.icon20,
                 color: tokens.textSecondary,

@@ -26,6 +26,9 @@ void declineRing(WidgetRef ref, IncomingDmCallRing ring) =>
 /// rather than contesting a focus a sibling scope already has. An explicit
 /// [FocusNode.requestFocus] call has no such deference, which is exactly
 /// what "steal focus" means here - with no tab stop needed to reach it first.
+///
+/// Except from a dialog or the palette: someone typing there keeps the
+/// keyboard, and the card is still a click away.
 class RingShortcuts extends ConsumerStatefulWidget {
   const RingShortcuts({super.key, required this.ring, required this.child});
 
@@ -42,7 +45,17 @@ class _RingShortcutsState extends ConsumerState<RingShortcuts> {
   @override
   void initState() {
     super.initState();
-    _focusNode.requestFocus();
+    // After the frame, once a card this one replaced has left the tree.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_aDialogHoldsFocus()) _focusNode.requestFocus();
+    });
+  }
+
+  static bool _aDialogHoldsFocus() {
+    final focused = FocusManager.instance.primaryFocus?.context;
+    return focused != null &&
+        focused.mounted &&
+        ModalRoute.of(focused) is PopupRoute;
   }
 
   @override

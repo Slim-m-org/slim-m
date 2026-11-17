@@ -16,7 +16,9 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../settings/widgets/settings_empty.dart';
 import '../../channels/providers/threads.dart';
+import '../../channels/widgets/channel_rail.dart' show routedChannelId;
 import '../../../routing/breakpoints.dart';
 import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
@@ -55,6 +57,7 @@ class _ThreadsSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final threads = ref.watch(threadsListProvider(channelId));
     final hasList = threads.valueOrNull?.isNotEmpty ?? false;
+    final isEmpty = threads.valueOrNull?.isEmpty ?? false;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -63,12 +66,12 @@ class _ThreadsSheet extends ConsumerWidget {
         const AppSheetHeader('Threads'),
         ConstrainedBox(
           key: threadsBodyBoxKey,
-          // A ceiling for a real list, via `_Body`'s own shrinkWrap ListView; an empty or loading state keeps a modest fixed box instead.
+          // A ceiling for a real list, via `_Body`'s own shrinkWrap ListView; a loading or failed state keeps a modest fixed box, and the empty card its own taller one.
           constraints: hasList
               ? BoxConstraints(
                   maxHeight: MediaQuery.sizeOf(context).height * 0.6,
                 )
-              : const BoxConstraints.tightFor(height: 160),
+              : BoxConstraints.tightFor(height: isEmpty ? 240 : 160),
           child: _Body(channelId: channelId, threads: threads, router: router),
         ),
       ],
@@ -98,9 +101,14 @@ class _Body extends ConsumerWidget {
       onRetry: forbidden
           ? null
           : () => ref.invalidate(threadsListProvider(channelId)),
-      emptyMessage: 'No threads yet.',
-      isEmpty: (list) => list.isEmpty,
       data: (context, list) {
+        if (list.isEmpty) {
+          return const SettingsEmptyState(
+            icon: AppIcons.thread,
+            title: 'No threads yet',
+            detail: 'Reply to a message in a thread to start one.',
+          );
+        }
         resolveAuthorProfiles(ref, list.map((t) => t.parentAuthorId));
         return SheetItemList(
           itemCount: list.length,
@@ -143,7 +151,11 @@ class ThreadRow extends ConsumerWidget {
         final width = MediaQuery.sizeOf(context).width;
         Navigator.of(context).pop();
         if (LayoutClass.fromWidth(width).fitsThreadPane(width)) {
-          dockThread(container, thread.id);
+          dockThread(
+            container,
+            thread.id,
+            besideChannelId: routedChannelId(router),
+          );
         } else {
           router.push(Routes.thread(thread.id));
         }

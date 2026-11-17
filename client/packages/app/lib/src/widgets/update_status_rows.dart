@@ -130,9 +130,11 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
     );
   }
 
-  String _versionLabel(PackageInfo i) => i.buildNumber.isEmpty
-      ? 'Version ${i.version}'
-      : 'Version ${i.version} (${i.buildNumber})';
+  String _versionLabel(PackageInfo i) => switch (i) {
+    PackageInfo(version: '') => 'Version unknown',
+    PackageInfo(buildNumber: '') => 'Version ${i.version}',
+    _ => 'Version ${i.version} (${i.buildNumber})',
+  };
 
   @override
   Widget build(BuildContext context) {

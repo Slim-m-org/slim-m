@@ -133,4 +133,24 @@ void main() {
     final blocks = splitMarkdownBlocks('# one\n\n# two');
     expect(blocks, [isA<HeadingBlock>(), isA<HeadingBlock>()]);
   });
+
+  test('a run of blank lines is cut to two, and none hang off either end', () {
+    final blocks = splitMarkdownBlocks('\n\ntop${'\n' * 2000}bottom\n\n\n');
+    expect((blocks.single as ParagraphBlock).text, 'top\n\n\nbottom');
+  });
+
+  test('lines that draw nothing count as blank', () {
+    final braille = List.filled(50, '⠀ ​').join('\n');
+    final blocks = splitMarkdownBlocks('one\n$braille\ntwo');
+    expect((blocks.single as ParagraphBlock).text, 'one\n\n\ntwo');
+  });
+
+  test('a message of nothing but blank lines has no blocks at all', () {
+    expect(splitMarkdownBlocks('\n' * 2000), isEmpty);
+  });
+
+  test('a quote keeps a single blank line but not a long run', () {
+    final blocks = splitMarkdownBlocks('> a\n>\n> b${'\n>' * 50}\n> c');
+    expect((blocks.single as QuoteBlock).text, 'a\n\nb\n\n\nc');
+  });
 }

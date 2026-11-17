@@ -50,6 +50,7 @@ final _optionFormatters = [LengthLimitingTextInputFormatter(_maxOptionChars)];
 Future<void> showPollComposerSheet(BuildContext context, String channelId) {
   return showAppSheet<void>(
     context,
+    semanticLabel: 'New poll',
     builder: (context) => _PollComposerSheet(channelId: channelId),
   );
 }
@@ -313,13 +314,15 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
             const SizedBox(height: AppSpacing.s4),
             // Inert: nothing here can be voted on, and a closed badge would not be true of a poll that does not exist yet.
             IgnorePointer(
-              child: Opacity(
-                opacity: 0.7,
-                child: ExcludeSemantics(
-                  child: PollView(
-                    poll: _previewPoll,
-                    onVote: (_) {},
-                    onRank: (_) {},
+              child: ExcludeFocus(
+                child: Opacity(
+                  opacity: 0.7,
+                  child: ExcludeSemantics(
+                    child: PollView(
+                      poll: _previewPoll,
+                      onVote: (_) {},
+                      onRank: (_) {},
+                    ),
                   ),
                 ),
               ),

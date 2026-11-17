@@ -19,13 +19,15 @@ class VoicePingReadout extends ConsumerWidget {
     final ms = ref.watch(voicePingProvider);
     if (ms == null) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final color = switch (voicePingTier(ms)) {
+    final tier = voicePingTier(ms);
+    final color = switch (tier) {
       VoicePingTier.good => tokens.textSecondary,
       VoicePingTier.fair => tokens.warnText,
       VoicePingTier.poor => tokens.dangerText,
     };
     return Semantics(
-      label: 'Voice ping ${voicePingLabel(ms)}',
+      // The tier, not the number: a figure that moves every sample would churn what a screen reader hears.
+      label: 'Voice ping ${tier.name}',
       excludeSemantics: true,
       child: Text(voicePingLabel(ms), style: style.copyWith(color: color)),
     );

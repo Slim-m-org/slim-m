@@ -8,8 +8,8 @@ use sha2::Sha256;
 
 use super::token::{Claims, VideoGrant, unix_secs};
 use super::{
-    ADMIN_TOKEN_TTL_SECS, DEAFENED_ATTRIBUTE, DEAFENED_ATTRIBUTE_ON, Enabled, VoiceError,
-    VoiceService, room_for_channel,
+    ADMIN_TOKEN_TTL_SECS, ANNOUNCE_ATTRIBUTE, DEAFENED_ATTRIBUTE, DEAFENED_ATTRIBUTE_ON, Enabled,
+    VoiceError, VoiceService, room_for_channel,
 };
 use crate::ids::{ChannelId, UserId};
 
@@ -68,6 +68,34 @@ impl VoiceService {
                 "room": room,
                 "identity": user_id.to_string(),
                 "attributes": { (DEAFENED_ATTRIBUTE): value },
+            }),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Makes the SFU tell everyone in the call about `user_id` now rather than on its next batch.
+    ///
+    /// LiveKit holds a participant who has published nothing (someone who joined muted) for up to
+    /// 3 s before announcing them, while any attribute update goes out at once; clearing an
+    /// attribute nobody has changes nothing else.
+    pub async fn announce_participant(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+    ) -> Result<(), VoiceError> {
+        let Some(enabled) = self.inner.as_ref() else {
+            return Err(VoiceError::Unavailable);
+        };
+        let room = room_for_channel(channel_id);
+        self.room_service_call(
+            enabled,
+            "UpdateParticipant",
+            &room,
+            serde_json::json!({
+                "room": room,
+                "identity": user_id.to_string(),
+                "attributes": { (ANNOUNCE_ATTRIBUTE): "" },
             }),
         )
         .await?;

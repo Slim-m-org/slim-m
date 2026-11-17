@@ -16,5 +16,6 @@ export 'surfaces/menu_cascade.dart';
 export 'surfaces/menu_rows.dart';
 export 'surfaces/reveal_band.dart';
 export 'surfaces/sheet.dart';
+export 'surfaces/sheet_dialog_scope.dart';
 export 'surfaces/sheet_header.dart';
 export 'surfaces/toast.dart';

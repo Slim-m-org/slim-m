@@ -224,6 +224,36 @@ void main() {
     expect(find.text('Incoming call'), findsNothing);
   });
 
+  testWidgets('a ring leaves the keyboard with an open dialog or palette', (
+    tester,
+  ) async {
+    final s = await _pump(tester);
+    final field = FocusNode(debugLabel: 'palette search');
+    addTearDown(field.dispose);
+    unawaited(
+      showGeneralDialog<void>(
+        context: s.router.routerDelegate.navigatorKey.currentContext!,
+        pageBuilder: (_, __, ___) => Material(
+          child: TextField(
+            key: const Key('palette-search'),
+            focusNode: field,
+            autofocus: true,
+          ),
+        ),
+      ),
+    );
+    await _frames(tester);
+    expect(field.hasPrimaryFocus, isTrue, reason: 'sanity: the field has it');
+
+    _emitRing(s);
+    await _frames(tester);
+
+    expect(find.text('Incoming call'), findsOneWidget);
+    expect(field.hasPrimaryFocus, isTrue);
+    await tester.enterText(find.byKey(const Key('palette-search')), 'squad');
+    expect(find.text('squad'), findsOneWidget);
+  });
+
   testWidgets('a second ring replaces the card and is the one accepted', (
     tester,
   ) async {

@@ -34,6 +34,7 @@ class MemberPaneSlot extends ConsumerWidget {
   });
 
   final String? channelId;
+
   final bool requested;
 
   @override
@@ -65,16 +66,20 @@ class MemberPaneSlot extends ConsumerWidget {
 /// The docked thread, beside the transcript at expanded widths (UX1). Mirrors
 /// [MemberPaneSlot]'s reveal exactly - a snapped width that unmounts its
 /// content when closed so a hidden pane stops fetching - but wraps
-/// [ThreadScreen], whose close affordance clears [openThreadProvider] rather
+/// [ThreadScreen], whose close affordance clears [dockedThreadsProvider] rather
 /// than popping, since docked there is no route entry to pop.
 class ThreadPaneSlot extends ConsumerWidget {
   const ThreadPaneSlot({
     super.key,
     required this.channelId,
+    required this.besideChannelId,
     required this.requested,
   });
 
   final String? channelId;
+
+  /// The channel the thread is docked beside, whose entry its close clears.
+  final String? besideChannelId;
   final bool requested;
 
   @override
@@ -102,8 +107,10 @@ class ThreadPaneSlot extends ConsumerWidget {
                     fromLeft: false,
                     child: ThreadScreen(
                       channelId: id,
-                      onClose: () =>
-                          ref.read(openThreadProvider.notifier).state = null,
+                      onClose: () => closeDockedThread(
+                        ref.read(dockedThreadsProvider.notifier),
+                        besideChannelId,
+                      ),
                     ),
                   ),
                 ),

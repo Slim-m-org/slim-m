@@ -261,6 +261,14 @@ void main() {
     expect(find.textContaining('not to slim-m'), findsOneWidget);
   });
 
+  for (final width in [1280.0, 390.0]) {
+    testWidgets('the form has one close button at $width wide', (tester) async {
+      final h = await _pump(tester, width: width);
+      await _open(tester, h);
+      expect(find.byTooltip('Close'), findsOneWidget);
+    });
+  }
+
   testWidgets('the form names the bot that opened it', (tester) async {
     final h = await _pump(
       tester,

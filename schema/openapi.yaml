@@ -3517,6 +3517,44 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /roles/{roleId}/preview:
+    parameters:
+      - name: roleId
+        in: path
+        required: true
+        description: The role's UUID; `@everyone`'s previews a member with no other role.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: previewRole
+      tags: [roles]
+      summary: What a member holding only this role sees. Requires MANAGE_ROLES.
+      description: >
+        Evaluates `@everyone` plus this role through the same evaluator and
+        category closure as `listChannels` and `listCategories`: never the
+        owner, no member overwrite, no timeout. Structure only, never message
+        content. Trimmed to what the caller can see, so no name leaks upward.
+        The role must sit below the caller's highest role (the Space owner
+        previews any); a refusal is a 403 with `code` `role_hierarchy`.
+        Audited as `role.preview`, once per role per ten minutes (decision 0124).
+      responses:
+        "200":
+          description: The role's view of the server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RolePreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /roles/{roleId}/module-permissions:
     parameters:
       - name: roleId
@@ -4420,7 +4458,12 @@ paths:
       operationId: editMessage
       tags: [messages]
       summary: Edit a message.
-      description: Allowed for the author, or a member with MANAGE_MESSAGES.
+      description: >
+        Allowed for the author only, who also needs SEND_MESSAGES. Nobody
+        else edits a message, a member with MANAGE_MESSAGES or ADMINISTRATOR
+        included: they can delete it instead. A caller who can see the
+        channel but did not write the message gets a 403 with
+        `code: not_author`.
       requestBody:
         required: true
         content:
@@ -6116,8 +6159,12 @@ paths:
         least one of `q` and those filters is required. Results are
         permission-filtered exactly like listing and keyset paginated on
         `seq` the same way. A `q` that is not valid FTS5 syntax, such as
-        `.iso`, searches its words as prefixes instead. Attachment file names
-        are searched along with message text and extracted file text. `in` is the one filter with an oracle-safety rule of its
+        `.iso`, searches its words as prefixes instead, and one with no
+        words left, such as a lone `*`, answers 400. Attachment file names
+        are searched along with message text and extracted file text. With
+        `include_threads=true`, replies in the channel's live threads are
+        searched with it, and each such hit carries `thread_parent_channel_id`;
+        page those with `before_id`, since a thread's `seq` is its own. `in` is the one filter with an oracle-safety rule of its
         own: a channel name that does not exist, or that exists but the
         caller cannot view, answers with an empty array rather than a 403 or
         404, so it cannot be used to learn a hidden channel exists.
@@ -6198,6 +6245,15 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_threads
+          in: query
+          description: >
+            `true` also searches the live threads of the channels in scope,
+            and each hit inside one carries `thread_parent_channel_id`. Off
+            when absent, so a client that predates thread hits never gets one
+            it would open as if the thread were a channel.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Matching messages, newest first.
@@ -6226,8 +6282,8 @@ paths:
         /channels/{channelId}/messages/search`: same query language, same
         operators, same result shape, but with no path channel to scope it.
         By default the scope is every channel the caller holds VIEW_CHANNEL
-        in (DMs and threads excluded, the same set `GET /channels` lists);
-        `in` narrows that to one named channel exactly as it does on the
+        in (DMs excluded, the same set `GET /channels` lists), plus the
+        live threads hanging off those channels when `include_threads=true`; `in` narrows that to one named channel exactly as it does on the
         per-channel route, with the same oracle-safety answer for an
         unviewable or nonexistent name. `q` is optional under the same rule
         as the per-channel route: at least one of `q` and the other filters
@@ -6311,6 +6367,15 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_threads
+          in: query
+          description: >
+            `true` also searches the live threads of the channels in scope,
+            and each hit inside one carries `thread_parent_channel_id`. Off
+            when absent, so a client that predates thread hits never gets one
+            it would open as if the thread were a channel.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Matching messages across every viewable channel, newest first.
@@ -6343,6 +6408,9 @@ paths:
           The reaction, URL-encoded: one emoji, the `:shortcode:` of a custom
           emoji, or a custom emoji's id. Anything else is refused with 400 when
           adding; removing is not checked, so an old reaction can always go.
+          An emoji is stored in the form the app's picker uses whether or not
+          it was sent with U+FE0F, so U+2764 and U+2764 U+FE0F are one
+          reaction keyed `\u2764\ufe0f`, on add, remove and this list alike.
         schema:
           type: string
     get:
@@ -8762,6 +8830,20 @@ paths:
         ringing is meaningless for any other channel shape, and a caller's own
         personal space has nobody on the other end to ring. A group DM rings
         every other participant, and the first to join answers for all.
+        When anyone is already in the call the caller is joining a live call:
+        nobody is rung, the ring ends as `answered` at once and `timeout_ms`
+        is 0. "In the call" means a recent heartbeat with no leave reported by
+        the SFU since.
+
+
+        Nobody on Do not disturb is rung, on any device, push included; those
+        currently connected are listed in `do_not_disturb`. One who is offline
+        is left out of it, since presence shows them offline, and the ring runs
+        its full timeout as it would for anyone offline. When only connected
+        ones are left the ring ends at once as `timed_out` (`timeout_ms` 0) and
+        leaves a missed call in the DM, without a push. The caller's own ring
+        still outstanding for the channel is ended first, without a record of
+        its own; another participant's is left alone.
 
 
         Publishes a live `call.ringing` event to the other participants and, in
@@ -8769,6 +8851,12 @@ paths:
         notification preference allows it - see `call.ringing`'s own schema doc for exactly
         what that means. A second ring for the same channel replaces whatever
         was already outstanding rather than stacking a second one.
+
+
+        Nobody is rung into an empty room: until the caller is in the call
+        (their first `POST /channels/{channelId}/voice/heartbeat`) the ring is
+        held, and one whose caller never joins ends as `canceled` without a
+        call record.
 
 
         The response's `timeout_ms` is how long the server itself will wait
@@ -13239,8 +13327,27 @@ components:
             role, or the member's highest role, is not strictly below the
             caller's own highest role, or the member is the Space owner.
             `role_follows_bot` on a 409 from granting or revoking by hand a role
-            a bot holds by being a bot. Absent on every other error; read an
-            unknown value as a refusal for another reason.
+            a bot holds by being a bot. On a 403 from sending, editing,
+            reacting or making a poll in a channel the caller can see:
+            `timed_out` (with `timed_out_until` and `timeout_reason`),
+            `blocked` in a direct message where either side blocked the other,
+            and `left_group` for a group the caller posted in and is no longer
+            on. `dm_pins_unavailable` on a 403 from pinning or unpinning in a
+            direct message. `not_author` on a 403 from editing a message the
+            caller did not write. A channel the caller cannot see, or one that does
+            not exist, still answers the bare 403 with no code. Absent on every
+            other error; read an unknown value as a refusal for another reason.
+        timed_out_until:
+          type: integer
+          format: int64
+          description: >
+            With `code: timed_out` only: when the caller's timeout lifts, unix
+            milliseconds.
+        timeout_reason:
+          type: string
+          description: >
+            With `code: timed_out` only, and only when the moderator gave one:
+            the timeout's reason.
 
     Version:
       type: object
@@ -17572,6 +17679,12 @@ components:
           type: string
           format: uuid
           description: Present only on a temporary room, naming its owner.
+        room_lobby_id:
+          type: string
+          format: uuid
+          description: >
+            Present only on a temporary room, naming the lobby that made it,
+            so a client can list the room under its lobby.
         room_locked:
           type: boolean
           description: Present only on a temporary room; nobody new may join.
@@ -17601,6 +17714,53 @@ components:
             too old to send it or from any other response, which a client
             must treat as unknown rather than assuming public.
 
+    RolePreview:
+      type: object
+      required: [role_id, permissions, categories, channels]
+      properties:
+        role_id:
+          type: string
+          format: uuid
+        permissions:
+          type: integer
+          format: int64
+          description: The deployment-level grant of `@everyone` plus this role.
+        categories:
+          type: array
+          description: The categories this role is listed, in tree order.
+          items:
+            $ref: "#/components/schemas/ChannelCategory"
+        channels:
+          type: array
+          description: The channels this role can view, in rail order.
+          items:
+            $ref: "#/components/schemas/RolePreviewChannel"
+    RolePreviewChannel:
+      type: object
+      required: [id, name, kind, position, category_id, permissions, restricted]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [text, voice]
+        position:
+          type: integer
+          format: int64
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        permissions:
+          type: integer
+          format: int64
+          description: The role's effective bits here; VIEW_CHANNEL is always among them.
+        restricted:
+          type: boolean
+          description: Whether `@everyone` itself lacks VIEW_CHANNEL here.
     ChannelCategory:
       type: object
       required: [id, name, position, created_at]
@@ -17756,6 +17916,12 @@ components:
           description: >
             True creates a voice channel whose joins start with the mic off.
             Absent or false leaves the default off. Refused on a text channel.
+        creates_rooms:
+          type: boolean
+          description: >
+            True creates a voice lobby that makes each person who opens it a
+            temporary room (decision 0065). Absent or false creates a plain
+            channel. Refused on a text channel.
         default_notification:
           type: string
           enum: [everything, mentions, nothing]
@@ -18693,6 +18859,13 @@ components:
             attachment whose extracted text or file name matched. Absent when the message's
             own text matched. Text and code files and the text layer of PDFs
             are searched; there is no OCR for images.
+        thread_parent_channel_id:
+          type: string
+          format: uuid
+          description: >-
+            Only on a search result posted inside a thread: the channel the
+            thread's parent message is in, so a client can open the thread
+            rather than the thread's own channel id as if it were a channel.
         link_previews_removed:
           type: boolean
           description: >-
@@ -19233,7 +19406,16 @@ components:
           description: >-
             How long the server waits for an answer before giving up on this
             ring on its own; a client renders its own countdown from this
-            value rather than a hard-coded duration.
+            value rather than a hard-coded duration. 0 when the ring already
+            ended because nobody was left to ring.
+        do_not_disturb:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >-
+            Connected participants left unrung because they are on Do not
+            disturb. Absent from servers older than this field.
 
     IncomingDmCallRings:
       type: object
@@ -19546,7 +19728,13 @@ components:
             Must not be blank unless the message carries something else:
             `attachment_ids` is non-empty, or `forwarded_from_id` is set. A
             message carrying a file or a forward needs no text of its own,
-            and a blank one carrying neither is a 400.
+            and a blank one carrying neither is a 400. Blank includes text of
+            only characters that draw nothing (zero-width spaces, joiners,
+            braille and hangul blanks, variation selectors). Control
+            characters other than line breaks and tabs, and the bidi
+            overrides U+202D and U+202E, are removed before the message is
+            stored, here and on an edit; bidi embeddings and isolates are
+            kept. `\r\n` and a lone `\r` are stored as `\n`.
         attachment_ids:
           type: array
           description: >
@@ -19708,6 +19896,9 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+          description: >
+            Held to `SendMessageRequest.content`'s rules: blank text is a 400,
+            and control and bidi override characters are removed.
         embeds:
           type: array
           description: >-
@@ -20770,6 +20961,7 @@ components:
         - $ref: "#/components/schemas/OverwriteChanged"
         - $ref: "#/components/schemas/CategoryChanged"
         - $ref: "#/components/schemas/SpaceSettingsChanged"
+        - $ref: "#/components/schemas/SpaceThemesChanged"
         - $ref: "#/components/schemas/VoiceActivityChanged"
         - $ref: "#/components/schemas/VoiceParticipantJoined"
         - $ref: "#/components/schemas/VoiceParticipantLeft"
@@ -22161,12 +22353,26 @@ components:
       required: [type]
       description: >
         A Space setting that `/version` shows changed: the name, description
-        or icon, or a Space-wide display switch. Carries no fields; a receiving
-        client re-reads `/version`, which every member can read.
+        or icon, a Space-wide display switch, or the default theme. Carries no
+        fields; a receiving client re-reads `/version` and `/space/themes`,
+        which every member can read.
       properties:
         type:
           type: string
           enum: [space.settings_changed]
+
+    SpaceThemesChanged:
+      type: object
+      required: [type]
+      description: >
+        A theme was published to or removed from the Space theme store. Any
+        member can cause it, so it is kept apart from `space.settings_changed`
+        and a client re-reads only `/space/themes`. Carries no fields; a client
+        that does not know the frame drops it.
+      properties:
+        type:
+          type: string
+          enum: [space.themes_changed]
 
     ReportsChanged:
       type: object
@@ -22801,9 +23007,10 @@ components:
       type: object
       required: [type, channel_id, ring_id, caller_id]
       description: >
-        A DM call ring started. Reaches only the two DM participants, the
-        ordinary VIEW_CHANNEL check every voice event already uses - a DM's
-        own permission model grants that to nobody else, ADMINISTRATOR
+        A DM call ring started. Reaches only the participants actually being
+        rung, never the caller, who already has the ring from its own
+        response. A DM's own permission model grants VIEW_CHANNEL to nobody
+        outside it, ADMINISTRATOR
         included, and a blocked party is refused before a ring can ever be
         started (CONNECT is one of the bits a block removes). `ring_id` names
         this specific attempt, distinguishing it from an immediate retry, so

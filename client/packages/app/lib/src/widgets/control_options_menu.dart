@@ -68,12 +68,16 @@ class ControlOptionsMenu extends StatefulWidget {
     this.caretHeight = AppSizes.controlMd,
     this.opensAbove = true,
     this.showCaret = true,
+    this.reserveCaretSlot = false,
     this.menuWidth = 200,
   });
 
   /// False opens the options by long press or right-click alone, for a row
   /// with no width to spare for a caret.
   final bool showCaret;
+
+  /// Leaves the caret's room empty while [options] is empty, so siblings keep their place.
+  final bool reserveCaretSlot;
 
   final Widget child;
   final List<ControlOptionEntry> options;
@@ -115,7 +119,16 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
     );
     // Looked up now: the menu reports closing from dispose, when this context can no longer be asked.
     final reveal = HoverRevealScope.maybeOf(context);
-    if (widget.options.isEmpty) return child;
+    if (widget.options.isEmpty) {
+      return widget.showCaret && widget.reserveCaretSlot
+          ? AppControlWithOptions(
+              onOpenOptions: null,
+              reserveSlot: true,
+              optionsLabel: widget.optionsLabel,
+              child: child,
+            )
+          : child;
+    }
     return ContextMenuRegion(
       key: _region,
       // The wrapped control is already a tab stop, and owns the long-press.

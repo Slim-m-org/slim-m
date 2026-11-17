@@ -129,10 +129,12 @@ PaletteReason? memberMatchReason(api.UserProfile member, String query) {
 
 const int paletteResultLimit = 8;
 
-/// Channels matching [query], text and voice alike. A DM is a person and is
-/// found under Members, so listing it here too showed everyone twice; only the
-/// personal space, Notes, which has no member row, stays - found by its name
-/// or by the caller's own display name (via [channelMatchesQuery]).
+/// Channels matching [query], text and voice alike. A one-to-one DM is a
+/// person and is found under Members, so listing it here too showed everyone
+/// twice; only the personal space, Notes, which has no member row, stays -
+/// found by its name or by the caller's own display name (via
+/// [channelMatchesQuery]). Group DMs have no single member row and are found
+/// by [buildGroupDmItems].
 List<PaletteResultItem> buildChannelItems(
   List<Channel> channels,
   String query, {
@@ -158,20 +160,52 @@ List<PaletteResultItem> buildChannelItems(
     ),
 ];
 
-/// Members matching [query], excluding [selfId]. A DM with yourself is a
-/// personal space now and opens fine, but it is Notes, listed under Channels
-/// and reached from the rail's Notes button - finding it under People by
-/// your own name would be the opposite of obvious.
+/// Group DMs matching [query], by the name the rail lists them under.
+List<PaletteResultItem> buildGroupDmItems(
+  List<Channel> channels,
+  String query, {
+  String? currentChannelId,
+}) => [
+  for (final channel
+      in channels
+          .where((c) => c.isGroupDm)
+          .where((c) => channelMatchesQuery(c, query))
+          .take(paletteResultLimit))
+    PaletteResultItem(
+      label: channel.name,
+      kind: PaletteKind.channel,
+      channel: channel,
+      isCurrent: channel.id == currentChannelId,
+      onSelect: (context, ref) async => context.go(Routes.channel(channel.id)),
+    ),
+];
+
+/// [members] with everyone in [around] ahead of everyone who is not, each
+/// side keeping its own order.
+List<api.UserProfile> onlineFirst(
+  List<api.UserProfile> members,
+  Set<String> around,
+) => [
+  ...members.where((m) => around.contains(m.id)),
+  ...members.where((m) => !around.contains(m.id)),
+];
+
+/// Members matching [query], excluding [selfId], with no cap: the list
+/// scrolls, and a person past the eighth was otherwise unreachable by
+/// browsing. [around] puts the people who are around first. A DM with
+/// yourself is a personal space now and opens fine, but it is Notes, listed
+/// under Channels and reached from the rail's Notes button - finding it under
+/// People by your own name would be the opposite of obvious.
 List<PaletteResultItem> buildMemberItems(
   List<api.UserProfile> members,
   String query,
-  String? selfId,
-) => [
-  for (final member
-      in members
-          .where((m) => m.id != selfId)
-          .where((m) => memberMatchesQuery(m, query))
-          .take(paletteResultLimit))
+  String? selfId, {
+  Set<String> around = const {},
+}) => [
+  for (final member in onlineFirst(
+    members,
+    around,
+  ).where((m) => m.id != selfId).where((m) => memberMatchesQuery(m, query)))
     PaletteResultItem(
       label: member.displayName,
       kind: PaletteKind.person,
@@ -204,7 +238,7 @@ List<PaletteResultItem> buildMessageItems(
   for (final message in messages)
     messageResultItem(
       message,
-      channelLabel: paletteChannelLabel(channelsById[message.channelId]),
+      channelLabel: paletteHitChannelLabel(message, channelsById),
       mentionNames: mentionNames,
       onSelect: (context, ref) async => jumpToMessage(
         GoRouter.of(context),
@@ -212,6 +246,7 @@ List<PaletteResultItem> buildMessageItems(
         currentChannelId: currentChannelId,
         channelId: message.channelId,
         messageId: message.id,
+        inThread: message.threadParentChannelId != null,
       ),
     ),
 ];
@@ -273,6 +308,15 @@ String paletteChannelLabel(Channel? channel) => switch (channel) {
   Channel(kind: dmChannelKind) => 'a direct message',
   Channel(:final name) when name.isEmpty => 'a thread',
   Channel(:final name) => '#$name',
+};
+
+/// Where a message hit was said; a thread reply names the channel its thread hangs off.
+String paletteHitChannelLabel(
+  api.Message message,
+  Map<String, Channel> channelsById,
+) => switch (message.threadParentChannelId) {
+  null => paletteChannelLabel(channelsById[message.channelId]),
+  final parent => 'a thread in ${paletteChannelLabel(channelsById[parent])}',
 };
 
 /// A message hit's trailing author label: selects only its own author's

@@ -6,7 +6,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'settings_beside_or_below.dart';
 import 'settings_control_column.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
@@ -59,26 +58,58 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
     );
     final column = SettingsControlColumn.widthOf(context);
     if (column != null) return _inColumn(text, column, metrics);
-    final control = AppSegmentedControl.inline(
-      semanticLabel: label,
-      options: _options,
-      selectedIndex: _selected,
-      onSegmentSelected: _select,
-    );
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: metrics.minHeight),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: metrics.inset,
-          vertical: metrics.vertical,
-        ),
-        child: SettingsBesideOrBelow(
-          minLeadWidth: minLabelWidth,
-          children: [text, control],
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, box) {
+        final room = box.maxWidth - 2 * metrics.inset;
+        final inline = AppSegmentedControl.inlineWidth(context, _options);
+        final beside = room - inline - AppSpacing.s16 >= minLabelWidth;
+        return _padded(
+          metrics,
+          beside
+              ? Row(
+                  children: [
+                    Expanded(child: text),
+                    const SizedBox(width: AppSpacing.s16),
+                    AppSegmentedControl.inline(
+                      semanticLabel: label,
+                      options: _options,
+                      selectedIndex: _selected,
+                      onSegmentSelected: _select,
+                    ),
+                  ],
+                )
+              : _stacked(text),
+        );
+      },
     );
   }
+
+  Widget _padded(SettingsRowMetrics metrics, Widget child) => ConstrainedBox(
+    constraints: BoxConstraints(minHeight: metrics.minHeight),
+    child: Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: metrics.inset,
+        vertical: metrics.vertical,
+      ),
+      child: child,
+    ),
+  );
+
+  /// The label over a control spanning the row, so rows stack to one width.
+  Widget _stacked(Widget text) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    spacing: AppSpacing.s8,
+    children: [
+      text,
+      AppSegmentedControl.fill(
+        semanticLabel: label,
+        options: _options,
+        selectedIndex: _selected,
+        onSegmentSelected: _select,
+      ),
+    ],
+  );
 
   List<AppSegmentedOption> get _options => [
     for (final c in choices)

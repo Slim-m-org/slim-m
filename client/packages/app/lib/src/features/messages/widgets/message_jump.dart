@@ -20,7 +20,7 @@ import '../../../widgets/app_snackbar.dart';
 /// open, then asks [MessageJumpController] to bring [messageId] into view
 /// and flash it there - paging backwards first if it is not loaded yet.
 /// Routes with `openChat` so a voice channel's chat opens without joining
-/// its call.
+/// its call, and to the thread route when [inThread] says [channelId] is one.
 ///
 /// Takes a [GoRouter] and a [ProviderReader] rather than a [BuildContext]:
 /// every call site either already has both to hand or pops a sheet, a dialog
@@ -35,9 +35,14 @@ void jumpToMessage(
   required String? currentChannelId,
   required String channelId,
   required String messageId,
+  bool inThread = false,
 }) {
   if (currentChannelId != channelId) {
-    router.go(Routes.channel(channelId, openChat: true));
+    router.go(
+      inThread
+          ? Routes.thread(channelId)
+          : Routes.channel(channelId, openChat: true),
+    );
   }
   unawaited(read(messageJumpProvider.notifier).jumpTo(channelId, messageId));
 }

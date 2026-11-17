@@ -24,6 +24,7 @@ const _every = {
   'has': 'link',
   'after_date': '2026-01-01',
   'before_date': '2026-02-01',
+  'include_threads': 'true',
 };
 
 void main() {
@@ -76,5 +77,15 @@ void main() {
     );
     expect(url.path, '/search/messages');
     expect(url.queryParameters, _every);
+  });
+
+  test('both routes ask for thread hits, which this client can open', () async {
+    for (final call in <Future<void> Function(SlimmApi)>[
+      (api) => api.searchMessages('c1', q: 'hello'),
+      (api) => api.searchAllMessages(q: 'hello'),
+    ]) {
+      final url = await capture(call);
+      expect(url.queryParameters['include_threads'], 'true');
+    }
   });
 }

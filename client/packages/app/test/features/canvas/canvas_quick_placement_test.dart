@@ -5,6 +5,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -80,6 +81,61 @@ void main() {
       );
     },
   );
+
+  testWidgets('a dragged note takes the box that was dragged', (tester) async {
+    final requests = <Map<String, dynamic>>[];
+    final client = testApi(
+      (request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests.add(body);
+        return http.Response(
+          jsonEncode({
+            'id': body['id'],
+            'kind': 'note',
+            'z_index': 1,
+            'x': body['x'],
+            'y': body['y'],
+            'w': body['w'],
+            'h': body['h'],
+            'props': body['props'],
+            'author_id': 'me',
+            'seq': 1,
+            'created_at': 0,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      },
+      session: api.SessionStore(
+        tokens: const api.TokenPair(
+          userId: 'me',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ),
+    );
+    final placement = CanvasQuickPlacement(
+      client: client,
+      channelId: 'c1',
+      document: CanvasDocument(),
+      timedOutUntil: () => null,
+    );
+
+    await placement.placeNote(
+      const Offset(500, 400),
+      'hi',
+      draggedSize: const Size(660, 420),
+      onError: (_) => fail('must not error'),
+    );
+
+    final body = requests.single;
+    expect(body['x'], 170);
+    expect(body['y'], 190);
+    expect(body['w'], 660);
+    expect(body['h'], 420);
+    expect(body['props']['font_size'], defaultNoteFontSize * 2);
+  });
 
   testWidgets(
     'a timed-out caller hears the freeze named, not a generic refusal',

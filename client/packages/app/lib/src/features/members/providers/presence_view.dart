@@ -83,3 +83,13 @@ Map<String, AppPresence> presenceOfAll(Ref ref, Iterable<String> userIds) {
       ),
   };
 }
+
+/// The people the server reports as anything but offline, for a list that
+/// puts those ahead of the rest.
+final aroundUserIdsProvider = Provider.autoDispose<Set<String>>((ref) {
+  final reported = ref.watch(presenceControllerProvider);
+  return {
+    for (final entry in reported.entries)
+      if (entry.value != api.PresenceState.offline) entry.key,
+  };
+});

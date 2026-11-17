@@ -136,18 +136,15 @@ class _BotFormSheetState extends ConsumerState<_BotFormSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: AppSheetHeader(form.title, padding: EdgeInsets.zero),
-              ),
-              AppIconButton(
-                icon: AppIcons.dismiss,
-                semanticLabel: 'Close',
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+          AppSheetHeader(
+            form.title,
+            padding: EdgeInsets.zero,
+            trailing: AppIconButton(
+              icon: AppIcons.dismiss,
+              semanticLabel: 'Close',
+              tooltip: 'Close',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),

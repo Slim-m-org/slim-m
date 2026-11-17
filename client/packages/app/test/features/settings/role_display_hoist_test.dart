@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/role_display_tab.d
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -89,6 +90,8 @@ void main() {
     expect(toggle, findsOneWidget);
     await tester.ensureVisible(toggle);
     await tester.tap(toggle);
+    await pumpFrames(tester);
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
     await tester.pumpAndSettle();
 
     expect(patches, [
@@ -111,7 +114,10 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('Role name'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byWidgetPredicate((w) => w is TextField)).label,
+      contains('Role name'),
+    );
     semantics.dispose();
   });
 

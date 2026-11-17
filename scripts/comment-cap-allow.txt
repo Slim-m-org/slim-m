@@ -37,7 +37,7 @@ client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
 client/packages/app/lib/src/features/settings/screens/admin/invite_role_grant_picker.dart 1
 client/packages/app/lib/src/features/channels/screens/channel_screen.dart 4
-client/packages/app/lib/src/screens/home_shell.dart 5
+client/packages/app/lib/src/screens/home_shell.dart 4
 client/packages/app/lib/src/features/auth/screens/onboarding_screen.dart 2
 client/packages/app/lib/src/features/auth/screens/sign_in_screen.dart 4
 client/packages/app/lib/src/features/voice/widgets/voice_call_controls.dart 3
@@ -154,7 +154,7 @@ crates/slimm-server/src/http/channels.rs 2
 crates/slimm-server/src/http/dms.rs 1
 crates/slimm-server/src/http/error.rs 1
 crates/slimm-server/src/http/invites.rs 1
-crates/slimm-server/src/http/messages.rs 6
+crates/slimm-server/src/http/messages.rs 5
 crates/slimm-server/src/http/overwrites.rs 2
 crates/slimm-server/src/http/pins.rs 1
 crates/slimm-server/src/http/polls.rs 2

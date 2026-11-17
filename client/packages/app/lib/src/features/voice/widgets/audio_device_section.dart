@@ -26,6 +26,7 @@ import 'audio_route_picker.dart';
 import '../providers/speaker_route_provider.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_hairline.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_select_row.dart';
@@ -262,10 +263,15 @@ class _DevicePickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!supported) {
-      return AppListRow(
-        label: label,
-        subtitle: unsupportedCaption,
-        meta: 'Default',
+      return SettingsDetailRow(
+        title: label,
+        detail: unsupportedCaption,
+        trailing: Text(
+          'Default',
+          style: AppText.caption.copyWith(
+            color: Theme.of(context).extension<AppTokens>()!.textSecondary,
+          ),
+        ),
       );
     }
 

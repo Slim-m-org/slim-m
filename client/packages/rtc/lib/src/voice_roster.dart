@@ -31,6 +31,12 @@ class VoiceRosterHost {
   final bool Function() deafened;
 }
 
+/// The longest someone the server says left stays hidden while the SFU still lists them.
+///
+/// LiveKit holds a participant who never published for up to 3 s before saying they left;
+/// past this, the room's own list wins again, so a wrong leave cannot hide anyone for long.
+const kServerLeaveHold = Duration(seconds: 5);
+
 /// Builds the roster from the live room and emits it only when it changed.
 class VoiceRoster {
   VoiceRoster(this._host);
@@ -40,6 +46,7 @@ class VoiceRoster {
   final _localLevels = StreamController<double>.broadcast();
   final SpeakingHold _hold = SpeakingHold();
   Timer? _holdTimer;
+  final Map<String, Timer> _leftByServer = {};
   List<VoiceParticipant> _participants = const [];
   double _sensitivity = 1.0;
   double _lastLocalLevel = 0;
@@ -71,11 +78,14 @@ class VoiceRoster {
     }
     final localVoice = _host.localVoice();
     final (next, recheck) = _hold.apply(
-      snapshotParticipants(
+      _withoutLeft(
         room,
-        speakingSensitivity: _sensitivity,
-        localVoice: localVoice,
-        localDeafened: _host.deafened(),
+        snapshotParticipants(
+          room,
+          speakingSensitivity: _sensitivity,
+          localVoice: localVoice,
+          localDeafened: _host.deafened(),
+        ),
       ),
       skipLocal: localVoice != null,
     );
@@ -87,6 +97,38 @@ class VoiceRoster {
       return;
     }
     set(List.unmodifiable(next));
+  }
+
+  /// The server saw [identity] leave; hides them until the room drops them too, or [kServerLeaveHold] passes.
+  void leftByServer(String identity) {
+    _leftByServer.remove(identity)?.cancel();
+    _leftByServer[identity] = Timer(kServerLeaveHold, () {
+      _leftByServer.remove(identity);
+      _host.refresh();
+    });
+    _host.refresh();
+  }
+
+  /// The server saw [identity] join, which ends any hiding [leftByServer] began.
+  void joinedByServer(String identity) {
+    final timer = _leftByServer.remove(identity);
+    if (timer == null) return;
+    timer.cancel();
+    _host.refresh();
+  }
+
+  List<VoiceParticipant> _withoutLeft(
+      lk.Room room, List<VoiceParticipant> all) {
+    if (_leftByServer.isEmpty) return all;
+    final listed = {for (final p in room.remoteParticipants.values) p.identity};
+    for (final gone
+        in _leftByServer.keys.where((id) => !listed.contains(id)).toList()) {
+      _leftByServer.remove(gone)?.cancel();
+    }
+    return [
+      for (final p in all)
+        if (p.isLocal || !_leftByServer.containsKey(p.identity)) p,
+    ];
   }
 
   bool _restartPending(lk.Room room) {
@@ -108,10 +150,14 @@ class VoiceRoster {
     if (!_controller.isClosed) _controller.add(next);
   }
 
-  /// Stops the pending speaking-hold recheck, for a call that is ending.
+  /// Stops the pending speaking-hold recheck and forgets the server's leaves, for a call that is ending.
   void cancelHold() {
     _holdTimer?.cancel();
     _holdTimer = null;
+    for (final timer in _leftByServer.values) {
+      timer.cancel();
+    }
+    _leftByServer.clear();
   }
 
   void _reportLocalLevel(List<VoiceParticipant> roster) {
@@ -122,6 +168,7 @@ class VoiceRoster {
   }
 
   Future<void> dispose() async {
+    cancelHold();
     await _localLevels.close();
     await _controller.close();
   }

@@ -27,10 +27,14 @@ class ChannelSearchBar extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    this.label = 'Search this channel',
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+
+  /// The field's placeholder and spoken name.
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +54,7 @@ class ChannelSearchBar extends StatelessWidget {
           AppInput(
             maxLength: api.InputLimits.searchQuery,
             controller: controller,
-            placeholder: 'Search this channel',
+            placeholder: label,
             icon: Icon(
               AppIcons.search,
               size: AppSizes.icon16,
@@ -58,7 +62,7 @@ class ChannelSearchBar extends StatelessWidget {
             ),
             autofocus: true,
             onChanged: onChanged,
-            semanticLabel: 'Search this channel',
+            semanticLabel: label,
           ),
         ],
       ),

@@ -98,7 +98,6 @@ class _NewGroupDmSheetState extends ConsumerState<_NewGroupDmSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -111,20 +110,13 @@ class _NewGroupDmSheetState extends ConsumerState<_NewGroupDmSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const AppSheetHeader(
               'New group message',
-              style: AppText.heading.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
+              caption:
+                  'Pick $_minOthers to $_maxOthers people. Up to '
+                  '$groupDmMaxPeople can be in a group, you included.',
+              padding: EdgeInsets.only(bottom: AppSpacing.s12),
             ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              'Pick $_minOthers to $_maxOthers people. Up to $groupDmMaxPeople '
-              'can be in a group, you included.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.s12),
             GroupDmPeopleList(
               exclude: const {},
               selected: _picked,

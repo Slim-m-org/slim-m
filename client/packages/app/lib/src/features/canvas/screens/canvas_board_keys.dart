@@ -156,7 +156,10 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       LogicalKeyboardKey.bracketLeft => once && _step(-1),
       LogicalKeyboardKey.enter ||
       LogicalKeyboardKey.numpadEnter => once && _activate(),
-      LogicalKeyboardKey.escape => once && _deselect(),
+      LogicalKeyboardKey.escape =>
+        once &&
+            (widget.tool ?? CanvasTool.pan) == CanvasTool.pan &&
+            _deselect(),
       LogicalKeyboardKey.contextMenu => once && _openMenu(),
       LogicalKeyboardKey.f10 => once && keys.isShiftPressed && _openMenu(),
       _ => false,

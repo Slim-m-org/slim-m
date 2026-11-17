@@ -27,6 +27,7 @@ class Channel {
     this.createsRooms = false,
     this.userLimit = 0,
     this.roomOwnerId,
+    this.roomLobbyId,
     this.roomLocked = false,
   });
 
@@ -125,6 +126,9 @@ class Channel {
   /// Set only on a temporary room: who owns it.
   final String? roomOwnerId;
 
+  /// Set only on a temporary room: the lobby that made it.
+  final String? roomLobbyId;
+
   /// Whether nobody new may join this temporary room.
   final bool roomLocked;
 
@@ -155,6 +159,7 @@ class Channel {
         createsRooms: json['creates_rooms'] as bool? ?? false,
         userLimit: json['user_limit'] as int? ?? 0,
         roomOwnerId: json['room_owner_id'] as String?,
+        roomLobbyId: json['room_lobby_id'] as String?,
         roomLocked: json['room_locked'] as bool? ?? false,
       );
 }

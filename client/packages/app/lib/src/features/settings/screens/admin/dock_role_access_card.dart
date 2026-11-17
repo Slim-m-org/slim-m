@@ -198,9 +198,11 @@ class _DockRoleAccessCardState extends ConsumerState<DockRoleAccessCard>
               mainAxisSize: MainAxisSize.min,
               spacing: 6,
               children: [
-                Text(
-                  summary,
-                  style: AppText.ui.copyWith(color: tokens.textPrimary),
+                ExcludeSemantics(
+                  child: Text(
+                    summary,
+                    style: AppText.ui.copyWith(color: tokens.textPrimary),
+                  ),
                 ),
                 Icon(
                   AppIcons.chevronDown,

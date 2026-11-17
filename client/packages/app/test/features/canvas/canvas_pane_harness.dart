@@ -464,13 +464,24 @@ Future<void> pumpCanvasPane(
   ProviderContainer container, {
   bool board = false,
   String? tool = 'Pen',
+  Widget? below,
 }) async {
+  const pane = CanvasPane(channelId: 'c1');
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const Scaffold(body: CanvasPane(channelId: 'c1')),
+        home: Scaffold(
+          body: below == null
+              ? pane
+              : Column(
+                  children: [
+                    const Expanded(child: pane),
+                    below,
+                  ],
+                ),
+        ),
       ),
     ),
   );

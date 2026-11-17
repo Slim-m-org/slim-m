@@ -206,6 +206,8 @@ class MessageRow extends ConsumerWidget {
     final parentAuthor = replyTo?.authorId;
     return ReplyQuote(
       resolved: replyTo,
+      channelId: message.channelId,
+      parentId: message.replyToId,
       onTap: callbacks.onReplyTap ?? () {},
       pinged:
           extras.mentionsMe && parentAuthor != null && parentAuthor == selfId,

@@ -10,6 +10,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../hidden_characters.dart';
+
 sealed class MarkdownBlock {
   const MarkdownBlock();
 }
@@ -70,13 +72,35 @@ int _depthOf(String indent) => (indent.length ~/ 2).clamp(0, kMaxListDepth - 1);
 /// Splits [text] into the block elements above.
 ///
 /// A run of lines with none of the leading markers becomes one
-/// [ParagraphBlock], any blank lines inside it preserved exactly as before
-/// this file existed: a plain message with no markdown at all still becomes
-/// exactly one block holding the whole text, unchanged.
+/// [ParagraphBlock]: a plain message with no markdown at all still becomes
+/// exactly one block. Its blank lines are tidied by [tidyBlankLines].
 List<MarkdownBlock> splitMarkdownBlocks(String text) {
   final splitter = _BlockSplitter();
   text.split('\n').forEach(splitter.addLine);
   return splitter.finish();
+}
+
+/// Most blank lines a paragraph or quote keeps in a row; a longer run only pushes the rest of the transcript away.
+const kMaxBlankLineRun = 2;
+
+/// [lines] with blank ones dropped from both ends and any longer run cut to
+/// [kMaxBlankLineRun]. A line that draws nothing (spaces, zero-width or
+/// braille blanks) counts as blank and becomes empty.
+List<String> tidyBlankLines(List<String> lines) {
+  final out = <String>[];
+  var run = 0;
+  for (final line in lines) {
+    if (visibleText(line).isNotEmpty) {
+      run = 0;
+      out.add(line);
+    } else if (out.isNotEmpty && ++run <= kMaxBlankLineRun) {
+      out.add('');
+    }
+  }
+  while (out.isNotEmpty && out.last.isEmpty) {
+    out.removeLast();
+  }
+  return out;
 }
 
 class _BlockSplitter {
@@ -139,15 +163,15 @@ class _BlockSplitter {
 
   void _flushParagraph() {
     if (_paragraph.isEmpty) return;
-    final text = _paragraph.join('\n');
+    final text = tidyBlankLines(_paragraph).join('\n');
     // A blank line between two other blocks lands here as an empty paragraph; drop it, not a real block.
-    if (text.trim().isNotEmpty) _blocks.add(ParagraphBlock(text));
+    if (text.isNotEmpty) _blocks.add(ParagraphBlock(text));
     _paragraph.clear();
   }
 
   void _flushQuote() {
     if (_quote.isEmpty) return;
-    _blocks.add(QuoteBlock(_quote.join('\n')));
+    _blocks.add(QuoteBlock(tidyBlankLines(_quote).join('\n')));
     _quote.clear();
   }
 

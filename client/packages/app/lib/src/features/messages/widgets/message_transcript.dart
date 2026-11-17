@@ -28,6 +28,7 @@ import 'transcript_items.dart';
 import 'transcript_selection.dart';
 import 'message_transcript_widgets.dart';
 import 'transcript_slots.dart';
+import '../../../widgets/floating_clearance.dart';
 
 /// What a viewer may do to one message, decided by the screen because it is
 /// the screen that knows who is looking and what they hold. The bool is
@@ -380,7 +381,9 @@ class _MessageTranscriptState extends State<MessageTranscript> {
         controller: widget.scrollController,
         reverse: true,
         shrinkWrap: shrinkWrap,
-        padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+        padding: EdgeInsets.only(
+          bottom: AppSpacing.s8 + FloatingClearance.bottomOf(context),
+        ),
         semanticChildCount: items.length + 1,
         childrenDelegate: TranscriptChildDelegate(
           (context, i) => _itemAt(context, frame, i),

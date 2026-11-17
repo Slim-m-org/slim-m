@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/invite_role_grant_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -40,6 +41,22 @@ const _roles = [
     'name': 'moderator',
     'permissions': Perm.manageMessages,
     'is_everyone': false,
+    'created_at': 0,
+  },
+  {
+    'id': 'r-bots',
+    'name': 'Bots',
+    'permissions': Perm.manageMessages,
+    'is_everyone': false,
+    'is_bots_role': true,
+    'created_at': 0,
+  },
+  {
+    'id': 'r-ci',
+    'name': 'ci-bot',
+    'permissions': Perm.manageMessages,
+    'is_everyone': false,
+    'managed_bot_id': 'bot-1',
     'created_at': 0,
   },
   {
@@ -132,6 +149,21 @@ void main() {
     },
   );
 
+  testWidgets('on a wide window the role menu hangs off the row, not the '
+      'middle of the window', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester, Perm.manageRoles | Perm.manageMessages);
+
+    final row = tester.getRect(find.text('Role granted'));
+    await tester.tap(find.text('Role granted'));
+    await pumpFrames(tester);
+
+    final menu = tester.getRect(find.text('moderator'));
+    expect((menu.center.dy - row.center.dy).abs(), lessThan(150));
+  });
+
   testWidgets('only roles the caller could grant are offered', (tester) async {
     await _pump(tester, Perm.manageRoles | Perm.manageMessages);
 
@@ -151,6 +183,17 @@ void main() {
       find.descendant(of: find.byType(AppMenu), matching: find.text('None')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('roles that exist for bots are never offered', (tester) async {
+    await _pump(tester, Perm.manageRoles | Perm.manageMessages);
+
+    await tester.tap(find.text('Role granted'));
+    await pumpFrames(tester);
+
+    expect(find.text('moderator'), findsOneWidget);
+    expect(find.text('Bots'), findsNothing);
+    expect(find.text('ci-bot'), findsNothing);
   });
 
   testWidgets('an administrator can grant every role', (tester) async {

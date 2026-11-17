@@ -24,6 +24,7 @@ import '../../../providers/admin_providers.dart';
 import '../../../routing/modal_page.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
+import '../../members/providers/presence_view.dart' show aroundUserIdsProvider;
 import '../../messages/providers/message_search.dart';
 import '../../voice/providers/transcript_search.dart';
 import '../../../providers/providers.dart';
@@ -63,8 +64,13 @@ Future<void> openCommandPalette(BuildContext context) async {
     barrierColor: kScrimColor,
     // The same 180ms AppMotion.base `modalPage` and `showAppSheet` use.
     transitionDuration: AppMotion.reduced(context, AppMotion.base),
-    pageBuilder: (context, animation, secondaryAnimation) =>
-        _CommandPaletteContent(currentChannelId: channelId),
+    pageBuilder: (context, animation, secondaryAnimation) => Semantics(
+      namesRoute: true,
+      scopesRoute: true,
+      explicitChildNodes: true,
+      label: 'Command palette',
+      child: _CommandPaletteContent(currentChannelId: channelId),
+    ),
     // member_profile.dart's authored entrance: a curved fade with an 8px rise.
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
@@ -384,8 +390,25 @@ class _CommandPaletteContentState extends ConsumerState<_CommandPaletteContent>
             currentChannelId: widget.currentChannelId,
           ),
         ),
+      if (everything || scope == PaletteScope.channels)
+        (
+          'Group chats',
+          buildGroupDmItems(
+            inputs.channels,
+            query,
+            currentChannelId: widget.currentChannelId,
+          ),
+        ),
       if (everything || scope == PaletteScope.people)
-        ('People', buildMemberItems(inputs.members, query, inputs.me?.id)),
+        (
+          'People',
+          buildMemberItems(
+            inputs.members,
+            query,
+            inputs.me?.id,
+            around: ref.watch(aroundUserIdsProvider),
+          ),
+        ),
       if (everything && !_messagesForbidden)
         (
           'Messages',

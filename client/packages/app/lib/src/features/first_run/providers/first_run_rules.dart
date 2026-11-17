@@ -28,18 +28,18 @@ bool firstRunDue({
   return age < firstRunWindow;
 }
 
-/// The text channel with the most history, earliest in the rail on a tie.
+/// The Space's first text channel: the oldest one this member can read,
+/// earliest in the rail on a tie.
 ///
-/// The local store only holds channels this member can read, and its `cursor`
-/// is the highest message sequence seen, which is the cheapest honest measure
-/// of how active a channel is.
+/// That is the channel a Space starts with, usually #general, where a
+/// newcomer is expected; the busiest one can be any long-running thread.
 Channel? pickLandingChannel(List<Channel> channels) {
-  Channel? best;
+  Channel? first;
   for (final channel in channels) {
     if (channel.kind != 'text') continue;
-    if (best == null || channel.cursor > best.cursor) best = channel;
+    if (first == null || channel.createdAt < first.createdAt) first = channel;
   }
-  return best;
+  return first;
 }
 
 /// Whether the notifications step should ask the OS before offering levels.

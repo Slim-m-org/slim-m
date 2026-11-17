@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'create_channel_sheet.dart';
@@ -188,7 +189,11 @@ class AddChannelGlyph extends StatelessWidget {
     required this.categoryName,
     required this.revealed,
     required this.onFocusChange,
+    this.initialKind = 'text',
   });
+
+  /// The kind the sheet starts on: `voice` from a category for calls.
+  final String initialKind;
 
   /// Null for the implicit uncategorised section, which is what the create
   /// route already means by an absent category.
@@ -205,12 +210,46 @@ class AddChannelGlyph extends StatelessWidget {
       semanticLabel: 'Create a channel in $categoryName',
       onPressed: () => showCreateChannelSheet(
         context,
-        initialKind: 'text',
+        initialKind: initialKind,
         categoryId: categoryId,
-        categoryName: categoryId == null ? null : categoryName,
       ),
     );
   }
+}
+
+/// The kebab on a category header, opening the same menu a right-click does.
+class CategoryMenuGlyph extends StatelessWidget {
+  const CategoryMenuGlyph({
+    super.key,
+    required this.categoryName,
+    required this.revealed,
+    required this.onFocusChange,
+    required this.onPressed,
+  });
+
+  final String categoryName;
+  final bool revealed;
+  final ValueChanged<bool> onFocusChange;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SectionAddGlyph(
+    revealed: revealed,
+    onFocusChange: onFocusChange,
+    semanticLabel: 'Manage $categoryName',
+    icon: AppIcons.moreVertical,
+    onPressed: onPressed,
+  );
+}
+
+/// `voice` for a category of calls: every channel in it is voice, or it has
+/// none yet and its name says voice. Anything else starts on `text`.
+String kindToAddIn(ChannelCategoryRow? category, List<Channel> channels) {
+  if (category == null) return 'text';
+  final forCalls = channels.isEmpty
+      ? category.name.toLowerCase().contains('voice')
+      : channels.every((c) => c.kind == 'voice');
+  return forCalls ? 'voice' : 'text';
 }
 
 /// The reveal and spacing every section header's `+` shares; what it does is
@@ -222,8 +261,10 @@ class SectionAddGlyph extends StatelessWidget {
     required this.onFocusChange,
     required this.semanticLabel,
     required this.onPressed,
+    this.icon = AppIcons.add,
   });
 
+  final IconData icon;
   final bool revealed;
   final ValueChanged<bool> onFocusChange;
   final String semanticLabel;
@@ -245,7 +286,7 @@ class SectionAddGlyph extends StatelessWidget {
           // Hidden from the eye is not hidden from a screen reader.
           alwaysIncludeSemantics: true,
           child: AppIconButton(
-            icon: AppIcons.add,
+            icon: icon,
             semanticLabel: semanticLabel,
             size: AppIconButtonSize.sm,
             onPressed: onPressed,

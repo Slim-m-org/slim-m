@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_platform/platform.dart' show KeyStore;
 
 import '../../../providers/providers.dart';
 import '../../../routing/page_transitions.dart';
@@ -24,6 +25,56 @@ import 'server_identity_changed_step.dart';
 /// a session token is per-account, but this is a property of the address
 /// itself and must survive across every account ever signed into it.
 String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
+
+/// Whether a slim-m server at an address has had its identity pinned in [keyStore].
+Future<bool> Function(Uri server) pinnedIdentityCheck(KeyStore keyStore) =>
+    (server) async => await keyStore.read(identityHandleFor(server)) != null;
+
+/// Identity handles of the addresses first met during this run, so the
+/// sign-in that follows does not treat a key saved a moment ago as known.
+final firstContactServersProvider = StateProvider<Set<String>>(
+  (ref) => const {},
+);
+
+/// Ends [server]'s first contact once a sign-in to it succeeds, so the next
+/// visit in this run is a return to a Space whose key is now known.
+void endFirstContact(StateController<Set<String>> firstContact, Uri server) {
+  final handle = identityHandleFor(server);
+  firstContact.update((handles) => {...handles}..remove(handle));
+}
+
+/// What `/version` said about a server's identity, read before deciding
+/// anything: [known] is false when it could not answer as a slim-m server.
+typedef ServerIdentityProbe = ({bool known, api.ServerIdentity? identity});
+
+/// Reads [server]'s identity without pinning or navigating, so a dialog can
+/// show it is waiting and close before [settleServerIdentity] runs.
+///
+/// [requireSlimServer] makes an address that answers without a slim-m
+/// `/version` throw [api.NotASlimServerException] instead of counting as unknown.
+Future<ServerIdentityProbe> probeServerIdentity(
+  WidgetRef ref,
+  Uri server, {
+  bool requireSlimServer = false,
+}) async {
+  final client = ref.read(probeApiProvider)(server);
+  try {
+    return (known: true, identity: (await client.version()).identity);
+  } on api.NotASlimServerException {
+    if (requireSlimServer) rethrow;
+    return (known: false, identity: null);
+  } catch (error, stack) {
+    api.reportFailure(
+      api.LogTag.auth,
+      'confirm the server identity',
+      error,
+      stack,
+    );
+    return (known: false, identity: null);
+  } finally {
+    client.close();
+  }
+}
 
 /// Probes the chosen address's identity and pins it, trust-on-first-use
 /// style: the first key seen is pinned silently, a match is silent, and a
@@ -35,38 +86,38 @@ String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 /// A server that reports no identity is unknown only while nothing is pinned
 /// for it; once a key is pinned, leaving the identity out is a change, and goes
 /// through the same warning as a different key.
-///
-/// [requireSlimServer] makes an address that answers without a slim-m
-/// `/version` throw [api.NotASlimServerException] instead of counting as unknown.
 Future<bool> confirmServerIdentity(
   BuildContext context,
   WidgetRef ref,
   Uri server, {
   bool requireSlimServer = false,
 }) async {
-  final client = ref.read(probeApiProvider)(server);
-  api.ServerIdentity? identity;
-  try {
-    identity = (await client.version()).identity;
-  } on api.NotASlimServerException {
-    if (requireSlimServer) rethrow;
-    return true;
-  } catch (error, stack) {
-    api.reportFailure(
-      api.LogTag.auth,
-      'confirm the server identity',
-      error,
-      stack,
-    );
-    return true;
-  } finally {
-    client.close();
-  }
+  final probe = await probeServerIdentity(
+    ref,
+    server,
+    requireSlimServer: requireSlimServer,
+  );
   if (!context.mounted) return false;
+  return settleServerIdentity(context, ref, server, probe);
+}
 
+/// The pin half of [confirmServerIdentity], for a [probe] already read.
+Future<bool> settleServerIdentity(
+  BuildContext context,
+  WidgetRef ref,
+  Uri server,
+  ServerIdentityProbe probe,
+) async {
   final keyStore = ref.read(keyStoreProvider);
   final handle = identityHandleFor(server);
   final pinned = await keyStore.read(handle);
+  if (pinned == null) {
+    ref
+        .read(firstContactServersProvider.notifier)
+        .update((handles) => {...handles, handle});
+  }
+  if (!probe.known) return true;
+  final identity = probe.identity;
 
   if (identity == null && pinned == null) return true;
   if (pinned != null && pinned == identity?.publicKey) return true;

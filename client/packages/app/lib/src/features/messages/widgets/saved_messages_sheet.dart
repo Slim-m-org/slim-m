@@ -19,6 +19,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../settings/widgets/settings_empty.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/saved_messages_controller.dart';
 import '../../settings/providers/display_density.dart';
@@ -88,11 +89,14 @@ class _SavedMessagesSheet extends ConsumerWidget {
               value: AppAsyncState(data: saved.valueOrNull, error: saved.error),
               errorMessage: 'Could not load your saved messages.',
               onRetry: () => ref.invalidate(savedMessagesProvider),
-              emptyMessage:
-                  'Nothing saved yet. Save a message from its menu to keep it '
-                  'here.',
-              isEmpty: (list) => list.isEmpty,
               data: (context, list) {
+                if (list.isEmpty) {
+                  return const SettingsEmptyState(
+                    icon: AppIcons.bookmark,
+                    title: 'Nothing saved yet',
+                    detail: 'Save a message from its menu to keep it here.',
+                  );
+                }
                 resolveAuthorProfiles(ref, list.map((s) => s.message.authorId));
                 return SheetItemList(
                   itemCount: list.length,

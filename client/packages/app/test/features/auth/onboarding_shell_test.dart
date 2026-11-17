@@ -344,4 +344,20 @@ void main() {
       reason: 'nothing to show until the version has been read',
     );
   });
+
+  testWidgets('a blank version shows no lone v', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: const OnboardingShell(version: '', child: SizedBox.shrink()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('v'), findsNothing);
+  });
 }

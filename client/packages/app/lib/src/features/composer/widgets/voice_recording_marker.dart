@@ -15,6 +15,7 @@ import '../../../routing/routes.dart';
 import '../../../widgets/voice_waveform.dart' show formatVoiceDuration;
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../channels/providers/threads.dart';
+import '../../channels/widgets/channel_rail.dart' show routedChannelId;
 import '../../channels/widgets/channel_label.dart';
 import '../../channels/widgets/rail_footer_press_target.dart';
 import '../../voice/widgets/call_strip_press_area.dart';
@@ -34,7 +35,8 @@ String? recordingElsewhere(
   if (id == null || id == activeChannelId) return null;
   final width = MediaQuery.sizeOf(context).width;
   final docked =
-      ref.watch(openThreadProvider) == id &&
+      dockedThreadBeside(ref.watch(dockedThreadsProvider), activeChannelId) ==
+          id &&
       LayoutClass.fromWidth(width).fitsThreadPane(width);
   return docked ? null : id;
 }
@@ -153,7 +155,11 @@ void _goBack(BuildContext context, String channelId, Channel? channel) {
   final width = MediaQuery.sizeOf(context).width;
   if (channel?.parentMessageId != null &&
       LayoutClass.fromWidth(width).fitsThreadPane(width)) {
-    dockThread(ProviderScope.containerOf(context, listen: false), channelId);
+    dockThread(
+      ProviderScope.containerOf(context, listen: false),
+      channelId,
+      besideChannelId: routedChannelId(GoRouter.of(context)),
+    );
   } else {
     context.go(Routes.channel(channelId));
   }

@@ -195,6 +195,8 @@ class DockVerifiedBadge extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final badge = Tooltip(
       message: message,
+      // The Semantics below already names it.
+      excludeFromSemantics: true,
       triggerMode: tapToShow ? TooltipTriggerMode.tap : null,
       child: Semantics(
         label: message,

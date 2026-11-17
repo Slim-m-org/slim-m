@@ -74,14 +74,20 @@ void main() {
     expect(callOverlayRows(people.take(8).toList()).more, 0);
   });
 
-  test('the panel is faint: a mostly see-through surface and text at 90%', () {
-    final panel = callOverlayPanel(
-      [_person('a')],
-      monitor: 0,
-      corner: OverlayCorner.topLeft,
-    );
-    expect(panel.surface.a, closeTo(0.6, 0.01));
-    expect(panel.text.a, closeTo(0.9, 0.01));
-    expect(panel.textMuted.a, closeTo(0.9, 0.01));
-  });
+  test(
+    'the panel is faint: a near-clear container, a faint edge and a tight corner inset',
+    () {
+      final panel = callOverlayPanel(
+        [_person('a')],
+        monitor: 0,
+        corner: OverlayCorner.topLeft,
+      );
+      expect(panel.surface.a, closeTo(0.3, 0.01));
+      expect(panel.border.a, lessThan(0.3));
+      expect(panel.text.a, closeTo(0.85, 0.01));
+      expect(panel.textMuted.a, closeTo(0.85, 0.01));
+      expect(panel.inset, 4);
+      expect(panel.toJson()['inset'], 4);
+    },
+  );
 }

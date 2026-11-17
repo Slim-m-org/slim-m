@@ -90,7 +90,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
       text,
       width: bounds.w,
       minHeight: bounds.h,
-      fontSize: document.noteFontSizeOf(objectId) ?? noteWorldFontSize,
+      fontSize: noteFontSizeForWidth(bounds.w),
     );
     if (box.height <= bounds.h) return;
     final to = document.boxOnBoard(

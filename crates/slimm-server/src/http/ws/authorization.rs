@@ -97,6 +97,11 @@ pub(super) async fn authorize_unstamped(
     {
         return Authorization::Withhold;
     }
+    if let Event::CallRinging { callees, .. } = &event
+        && !callees.contains(&ctx.user_id)
+    {
+        return Authorization::Withhold;
+    }
     // The one event whose subject may have just lost this very view.
     let held_it_before = matches!(
         &event,
@@ -480,6 +485,7 @@ async fn channel_frame(
             channel_id,
             ring_id,
             caller_id,
+            ..
         } => ServerFrame::CallRinging {
             channel_id: channel_id.to_string(),
             ring_id: ring_id.to_string(),
@@ -531,6 +537,7 @@ async fn channel_frame(
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
+        | Event::SpaceThemesChanged
         | Event::ReportsChanged
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }

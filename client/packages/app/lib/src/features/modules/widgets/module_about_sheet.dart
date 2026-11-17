@@ -92,22 +92,14 @@ class _AboutSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          AppSheetHeader(
             module.name,
-            style: AppText.heading.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s4),
-          Text(
-            module.verified
+            caption: module.verified
                 ? 'A module from the official registry.'
                 : 'A module from outside the official registry. slim-m has not '
                       'reviewed it.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s12),
           ),
-          const SizedBox(height: AppSpacing.s12),
           Text(
             lines.isEmpty
                 ? 'It runs on this server and can only answer what you give it.'

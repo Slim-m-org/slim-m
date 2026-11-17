@@ -117,27 +117,50 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     String? selfId,
     bool touch,
   ) {
+    final grab = _handleAt(world, manageCanvas, selfId, touch);
+    if (grab == null) return false;
+    final (selected, bounds, corner) = grab;
+    _resize = _ResizeState(
+      selected,
+      corner,
+      bounds,
+      resizeHandleCorners(bounds)[corner]! - world,
+    );
+    document.elevatedObjectId.value = selected;
+    return true;
+  }
+
+  /// Whether [world] lands on a resize handle of the selection this person may resize.
+  bool hitsResizeHandle(
+    Offset world, {
+    required bool manageCanvas,
+    required String? selfId,
+    bool touch = false,
+  }) => _handleAt(world, manageCanvas, selfId, touch) != null;
+
+  (String, ({double x, double y, double w, double h}), ResizeCorner)? _handleAt(
+    Offset world,
+    bool manageCanvas,
+    String? selfId,
+    bool touch,
+  ) {
     final selected = document.selectedObjectId.value;
     if (selected == null ||
         document.kindOf(selected) == CanvasObjectKind.stroke) {
-      return false;
+      return null;
     }
     final owns =
         !isLocked(selected) &&
         (manageCanvas || document.authorIdOf(selected) == selfId);
     final bounds = document.objectBounds(selected);
-    if (!owns || bounds == null || _isDeepInterior(bounds, world)) return false;
+    if (!owns || bounds == null || _isDeepInterior(bounds, world)) return null;
     final corner = hitTestResizeHandle(
       bounds,
       world,
       document.camera.zoom,
       hitRadius: touch ? touchResizeHandleHitRadius : resizeHandleHitRadius,
     );
-    if (corner == null) return false;
-    final grab = resizeHandleCorners(bounds)[corner]! - world;
-    _resize = _ResizeState(selected, corner, bounds, grab);
-    document.elevatedObjectId.value = selected;
-    return true;
+    return corner == null ? null : (selected, bounds, corner);
   }
 
   /// Whether [world] lands in the innermost half of [bounds], where a plain move-drag always wins.

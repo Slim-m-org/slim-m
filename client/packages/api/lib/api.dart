@@ -118,6 +118,7 @@ export 'src/events.dart'
         CallRingEnded,
         CategoryChanged,
         SpaceSettingsChanged,
+        SpaceThemesChanged,
         DmChanged,
         ChannelCreated,
         ChannelDeleted,

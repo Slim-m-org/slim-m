@@ -71,14 +71,10 @@ class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          const AppSheetHeader(
             'Community sources',
-            style: AppText.heading.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
+            padding: EdgeInsets.only(bottom: AppSpacing.s12),
           ),
-          const SizedBox(height: AppSpacing.s12),
           if (actionError case final message?) ...[
             AppErrorState(message: message, onDismiss: clearActionError),
             const SizedBox(height: AppSpacing.s12),

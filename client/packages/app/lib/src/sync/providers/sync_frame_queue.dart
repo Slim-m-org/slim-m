@@ -56,7 +56,8 @@ bool isAppliedToStore(api.ServerEvent event) => switch (event) {
   api.RoleChanged() ||
   api.MemberRoleChanged() ||
   api.CategoryChanged() ||
-  api.SpaceSettingsChanged() => true,
+  api.SpaceSettingsChanged() ||
+  api.SpaceThemesChanged() => true,
   api.ErrorEvent(:final needsResync) => needsResync,
   _ => false,
 };

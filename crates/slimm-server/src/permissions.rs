@@ -38,7 +38,7 @@ impl Permissions {
     pub const VIEW_CHANNEL: Self = Self(1 << 1);
     /// Post messages in a channel.
     pub const SEND_MESSAGES: Self = Self(1 << 2);
-    /// Edit or delete other members' messages.
+    /// Delete or pin other members' messages; nobody edits another's (owner decision 2026-11-17).
     pub const MANAGE_MESSAGES: Self = Self(1 << 3);
     /// Create, edit, and delete channels.
     pub const MANAGE_CHANNELS: Self = Self(1 << 4);

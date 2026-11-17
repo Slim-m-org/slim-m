@@ -146,6 +146,35 @@ void main() {
     });
 
     test(
+      'dropping the glyphs keeps a picture and forgets a standard emoji',
+      () async {
+        const glyph = EmojiStamp('\u{1F600}');
+        await cache.load(glyph);
+        await cache.load(const PictureStamp('p'));
+        expect(cache.holds(glyph), isTrue);
+
+        cache.dropGlyphs();
+
+        expect(cache.holds(glyph), isFalse);
+        expect(cache.holds(const PictureStamp('p')), isTrue);
+      },
+    );
+
+    test(
+      'a glyph still baking when the glyphs are dropped is not kept',
+      () async {
+        const glyph = EmojiStamp('\u{1F600}');
+        final stale = cache.load(glyph);
+        cache.dropGlyphs();
+        final fresh = cache.load(glyph);
+        await stale;
+        expect(cache.holds(glyph), isFalse, reason: 'baked before the drop');
+        await fresh;
+        expect(cache.holds(glyph), isTrue);
+      },
+    );
+
+    test(
       'the call ending drops everything, and a load in flight is thrown away',
       () async {
         final slow = Completer<Uint8List>();

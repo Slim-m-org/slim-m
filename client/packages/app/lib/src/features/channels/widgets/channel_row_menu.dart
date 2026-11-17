@@ -52,8 +52,9 @@ List<Widget> channelRowMenuItems(
   BuildContext context,
   VoidCallback close,
   Channel channel,
-  bool canManage,
-) {
+  bool canManage, {
+  VoidCallback? moveToCategory,
+}) {
   final container = ProviderScope.containerOf(context, listen: false);
   // Coarse deployment-wide gate like the channel-manage one; the overwrite screen re-checks this channel's own MANAGE_ROLES on open.
   final canManageRoles =
@@ -101,6 +102,15 @@ List<Widget> channelRowMenuItems(
           onTap: () {
             close();
             unawaited(showVoiceRoomSettingsSheet(context, room: channel));
+          },
+        ),
+      if (moveToCategory != null)
+        AppMenuItem(
+          label: 'Move to category...',
+          leading: AppIcons.moveIntoCategory,
+          onTap: () {
+            close();
+            moveToCategory();
           },
         ),
       if (canManage || canManageRoles)

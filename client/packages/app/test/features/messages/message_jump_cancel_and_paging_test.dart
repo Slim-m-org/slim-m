@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../support/toast_host.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/features/messages/providers/message_page_size.dart';
 
@@ -16,6 +17,7 @@ List<int> _range(int from, int to) => [
 ];
 
 Future<void> _unmount(WidgetTester tester) async {
+  await expireToasts(tester);
   await tester.pumpWidget(const SizedBox.shrink());
   for (var i = 0; i < 5; i++) {
     await tester.pump(const Duration(milliseconds: 1));

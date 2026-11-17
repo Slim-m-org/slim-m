@@ -84,7 +84,9 @@ class _AccountSwitcherTriggerState
                 Flexible(child: widget.child),
                 if (elsewhere.any)
                   Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.s4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s8,
+                    ),
                     child: AccountUnreadBadge(unread: elsewhere),
                   ),
                 Icon(

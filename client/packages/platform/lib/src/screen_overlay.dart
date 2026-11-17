@@ -335,7 +335,11 @@ class OverlayPanel {
     required this.textMuted,
     required this.accent,
     required this.danger,
+    this.inset = defaultInset,
   });
+
+  /// Logical pixels between the panel and the screen edges it sits against.
+  static const double defaultInset = 4;
 
   /// Index into [OverlaySupport.monitors].
   final int monitor;
@@ -345,6 +349,7 @@ class OverlayPanel {
   /// People past the rows shown.
   final int more;
   final Color surface, border, text, textMuted, accent, danger;
+  final double inset;
 
   OverlayPanel withRows(List<OverlayPanelRow> rows) => OverlayPanel(
         monitor: monitor,
@@ -357,6 +362,7 @@ class OverlayPanel {
         textMuted: textMuted,
         accent: accent,
         danger: danger,
+        inset: inset,
       );
 
   Map<String, Object?> toJson() => {
@@ -370,6 +376,7 @@ class OverlayPanel {
         'textMuted': textMuted.toARGB32(),
         'accent': accent.toARGB32(),
         'danger': danger.toARGB32(),
+        'inset': inset,
       };
 
   @override
@@ -384,6 +391,7 @@ class OverlayPanel {
       other.textMuted == textMuted &&
       other.accent == accent &&
       other.danger == danger &&
+      other.inset == inset &&
       listEquals(other.rows, rows);
 
   @override
@@ -397,6 +405,7 @@ class OverlayPanel {
         textMuted,
         accent,
         danger,
+        inset,
         Object.hashAll(rows),
       );
 }

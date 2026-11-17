@@ -185,16 +185,15 @@ pub(crate) async fn honored_for_send(
 }
 
 /// `raw` built into a replacement for a message's embeds, only when the edit
-/// carries embeds and comes from the bot that wrote the message; anyone
-/// else's are dropped, as on send.
+/// carries embeds and the caller (always the author) is a bot; a person's are
+/// dropped, as on send.
 pub(crate) async fn honored_for_edit(
     state: &AppState,
     caller: UserId,
-    is_author: bool,
     raw: Option<Vec<RawEmbed>>,
 ) -> Result<Option<Vec<NewEmbed>>, ApiError> {
     let Some(raw) = raw else { return Ok(None) };
-    if !is_author || !state.store.is_bot(caller).await? {
+    if !state.store.is_bot(caller).await? {
         return Ok(None);
     }
     build_embeds(raw, &state.link_previews).map(Some)

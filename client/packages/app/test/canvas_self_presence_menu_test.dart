@@ -17,6 +17,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'features/canvas/canvas_pane_harness.dart';
 import 'features/voice/voice_controller_harness.dart';
 import 'support/fake_blocks.dart';
+import 'support/async_wait.dart';
 
 const _local = VoiceParticipant(
   identity: 'me',
@@ -57,14 +58,17 @@ void main() {
       expect(find.byType(CanvasPresenceBubble), findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pumpAndSettle();
+      await pumpFrames(tester);
       await tester.tap(find.text('Hide my camera bubble'));
       await tester.pump();
 
-      expect(find.byType(CanvasPresenceBubble), findsNothing);
+      expect(
+        find.byWidgetPredicate((w) => w is CanvasPresenceBubble),
+        findsNothing,
+      );
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pumpAndSettle();
+      await pumpFrames(tester);
       expect(find.text('Show my camera bubble'), findsOneWidget);
 
       await tester.tap(find.text('Show my camera bubble'));
@@ -73,6 +77,30 @@ void main() {
       expect(find.byType(CanvasPresenceBubble), findsOneWidget);
     },
   );
+
+  testWidgets('on a phone the overflow menu is a bottom sheet that closes on '
+      'a pick', (tester) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final container = _containerWithSelfInCall();
+    addTearDown(container.dispose);
+    await pumpCanvasPane(tester, container);
+
+    await tester.tap(find.bySemanticsLabel('More canvas actions'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.text('Hide my camera bubble')).bottom,
+      greaterThan(600),
+      reason: 'sits against the bottom edge',
+    );
+
+    await tester.tap(find.text('Hide my camera bubble'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Show my camera bubble'), findsNothing);
+    expect(find.byType(CanvasPresenceBubble), findsNothing);
+  });
 
   testWidgets('hiding persists across reopening the canvas', (tester) async {
     final first = _containerWithSelfInCall();

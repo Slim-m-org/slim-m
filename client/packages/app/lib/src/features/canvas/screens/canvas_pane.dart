@@ -64,7 +64,8 @@ import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../members/providers/mention_names.dart' show mentionNamesProvider;
 import '../../channels/providers/channel_permissions.dart';
-import '../../channels/providers/threads.dart' show openThreadProvider;
+import '../../channels/providers/threads.dart'
+    show closeDockedThread, dockedThreadBeside, dockedThreadsProvider;
 import '../../../providers/server_info.dart';
 import '../../../providers/providers.dart';
 import '../../voice/providers/fullscreen_video.dart';
@@ -409,6 +410,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onSelectDrag: _onSelectDrag,
                   onSelectEnd: () => unawaited(_onSelectEnd()),
                   onSelectTap: _onSelectTap,
+                  grabsHandleAt: _grabsHandleAt,
                   onEditNote: _onEditNote,
                   noteSpans: (text, base) =>
                       buildNoteSpans(text, base, noteSpanStyle),
@@ -419,7 +421,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                     onEditClosed: () => _refresh(() => _editingNoteId = null),
                     onNoteSave: _onNoteEditSave,
                   ),
-                  onNotePlace: (world) => unawaited(_onNotePlace(world)),
+                  onNotePlace: (world, [size]) =>
+                      unawaited(_onNotePlace(world, size)),
                   onTextPlace: _text.place,
                   onSelectLongPress: _text.longPress,
                   onShapePlace: (world, size, {flipX = false, flipY = false}) =>

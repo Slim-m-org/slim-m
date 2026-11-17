@@ -26,6 +26,12 @@ const spaceSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry('invites', 'Active invites'),
+  SettingsEntry(
+    'invites',
+    'Past invites',
+    keywords: ['expired', 'revoked'],
+    conditional: true,
+  ),
   SettingsEntry('invites', 'New invite', keywords: ['invite link']),
   SettingsEntry('invites', 'Expires'),
   SettingsEntry('invites', 'Joining', keywords: ['join policy']),

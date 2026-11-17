@@ -47,7 +47,7 @@ class CanvasTextEditor extends ConsumerStatefulWidget {
 class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
   late final _controller = TextEditingController(text: widget.initial.text)
     ..selection = TextSelection.collapsed(offset: widget.initial.text.length);
-  final _focus = FocusNode();
+  late final _focus = FocusNode()..addListener(_onFocusChange);
   late String _size = widget.initial.size;
   late String _colorKey = widget.initial.colorKey;
   bool _done = false;
@@ -169,8 +169,29 @@ class _CanvasTextEditorState extends ConsumerState<CanvasTextEditor> {
     );
   }
 
+  /// A press anywhere else in the app saves, unless a dialog opened from the editor is what was pressed.
+  /// The field's menu and handles share the panel's tap group; another field is caught by [_onFocusChange].
+  void _onTapOutside(BuildContext context) {
+    if (ModalRoute.of(context)?.isCurrent ?? true) _save();
+  }
+
+  void _onFocusChange() {
+    if (_focus.hasFocus || _done || !mounted) return;
+    final now = FocusManager.instance.primaryFocus?.context;
+    if (now?.findAncestorWidgetOfExactType<EditableText>() == null) return;
+    _onTapOutside(context);
+  }
+
   Widget _panel(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    return TapRegion(
+      groupId: EditableText,
+      onTapOutside: (_) => _onTapOutside(context),
+      child: _panelBody(context, tokens),
+    );
+  }
+
+  Widget _panelBody(BuildContext context, AppTokens tokens) {
     return Material(
       type: MaterialType.transparency,
       child: Container(

@@ -16,6 +16,7 @@ import '../../../providers/startup_restores.dart';
 import '../../emoji/providers/emoji_catalog_provider.dart';
 import '../../emoji/providers/emoji_image_cache.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
+import '../../voice/providers/shortcut_overrides.dart';
 import 'account_host.dart';
 import 'account_providers.dart';
 import 'account_restore.dart';
@@ -40,6 +41,8 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
   );
   // One for every account, so a call joined in any of them makes the others' sounds give way.
   final callStartYields = CallStartYields();
+  // The keybinds switch is per device, so a server not on screen drops its system-wide grabs too.
+  final callKeybinds = CallKeybindsStore(optIn: isDesktopHost);
   late final AccountHost host;
   host = AccountHost(
     store: accounts,
@@ -54,6 +57,7 @@ AccountHost createAccountHost(DesktopWindowShell shell) {
         accountSlotProvider.overrideWithValue(slot),
         accountHostProvider.overrideWith((ref) => host),
         callStartYieldsProvider.overrideWithValue(callStartYields),
+        callKeybindsStoreProvider.overrideWithValue(callKeybinds),
         desktopWindowShellProvider.overrideWithValue(shell),
       ],
     ),

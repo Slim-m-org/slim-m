@@ -2,6 +2,7 @@
 /// Parse results kept per message text, so a rebuild reads the tree it already has.
 library;
 
+import '../../../hidden_characters.dart';
 import 'message_inline.dart';
 import 'message_fences.dart';
 import 'message_markdown_blocks.dart';
@@ -33,11 +34,13 @@ class ParseCache<T> {
   }
 }
 
-final _blocks = ParseCache<List<MessageBlock>>(splitMessageBlocks);
+final _blocks = ParseCache<List<MessageBlock>>(
+  (text) => splitMessageBlocks(wellFormedUtf16(text)),
+);
 final _markdown = ParseCache<List<MarkdownBlock>>(splitMarkdownBlocks);
 final _inline = ParseCache<List<InlineNode>>(parseInline);
 
-/// Cached [splitMessageBlocks]; the returned list is shared, never mutate it.
+/// Cached [splitMessageBlocks] of [content] made well-formed; the returned list is shared, never mutate it.
 List<MessageBlock> cachedMessageBlocks(String content) => _blocks.of(content);
 
 /// Cached [splitMarkdownBlocks]; the returned list is shared, never mutate it.

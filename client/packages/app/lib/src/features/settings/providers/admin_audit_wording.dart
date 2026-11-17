@@ -159,6 +159,7 @@ class _Describer {
       'removed ${_role(change.param('role_id'))} from ${_user()}',
     'role.module_grant' => 'granted a module permission to ${_role()}',
     'role.module_revoke' => 'revoked a module permission from ${_role()}',
+    'role.preview' => 'viewed the server as ${_role()}',
     'bot.prefix' => _botPrefix(),
     'channel.create' => 'created ${_channel()}',
     'channel.reorder' => 'reordered channels',

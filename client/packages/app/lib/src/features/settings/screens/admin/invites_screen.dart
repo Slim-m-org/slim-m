@@ -84,7 +84,7 @@ class InvitesPane extends ConsumerWidget {
   }
 }
 
-/// Every invite in force, for whoever may issue one.
+/// Every invite, the ones still in force first and the used, expired and revoked ones apart.
 class _InviteList extends ConsumerWidget {
   const _InviteList();
 
@@ -96,39 +96,69 @@ class _InviteList extends ConsumerWidget {
       center: false,
       errorMessage: 'Could not load invites.',
       onRetry: () => ref.invalidate(invitesProvider),
-      data: (context, page) => SettingsSectionCard(
-        title: 'Active invites',
-        children: [
-          if (page.items.isEmpty)
-            const SettingsEmptyState(
-              icon: AppIcons.invite,
-              title: 'No invites yet',
-              detail: 'Invites you create are listed here, to copy or revoke.',
-            )
-          else
-            for (final invite in page.items)
-              _InviteRow(key: ValueKey(invite.code), invite: invite),
-          if (page.moreFailed)
-            LoadErrorBlock(
-              message: 'Could not load more invites.',
-              onRetry: () => ref.read(invitesProvider.notifier).loadMore(),
-            )
-          else if (page.hasMore)
-            SettingsCardBlock(
+      data: (context, page) {
+        final active = [
+          for (final invite in page.items)
+            if (invite.usable) invite,
+        ];
+        final past = [
+          for (final invite in page.items)
+            if (!invite.usable) invite,
+        ];
+        final more = _moreBlock(ref, page);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SettingsSectionCard(
+              title: 'Active invites',
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: AppButton(
-                    label: 'Show more',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () =>
-                        ref.read(invitesProvider.notifier).loadMore(),
-                  ),
-                ),
+                if (active.isEmpty)
+                  const SettingsEmptyState(
+                    icon: AppIcons.invite,
+                    title: 'No active invites',
+                    detail:
+                        'Invites you create are listed here, to copy or revoke.',
+                  )
+                else
+                  for (final invite in active)
+                    _InviteRow(key: ValueKey(invite.code), invite: invite),
+                if (past.isEmpty) ?more,
               ],
             ),
-        ],
-      ),
+            if (past.isNotEmpty)
+              SettingsSectionCard(
+                title: 'Past invites',
+                children: [
+                  for (final invite in past)
+                    _InviteRow(key: ValueKey(invite.code), invite: invite),
+                  ?more,
+                ],
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget? _moreBlock(WidgetRef ref, InviteList page) {
+    if (page.moreFailed) {
+      return LoadErrorBlock(
+        message: 'Could not load more invites.',
+        onRetry: () => ref.read(invitesProvider.notifier).loadMore(),
+      );
+    }
+    if (!page.hasMore) return null;
+    return SettingsCardBlock(
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: AppButton(
+            label: 'Show more',
+            variant: AppButtonVariant.secondary,
+            onPressed: () => ref.read(invitesProvider.notifier).loadMore(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -440,7 +470,7 @@ class _InviteRowState extends ConsumerState<_InviteRow>
           semanticLabel: 'Copy invite code',
           onPressed: () => _copyInviteCode(ref, invite.code),
         ),
-        if (!invite.revoked)
+        if (invite.usable)
           AppIconButton(
             icon: AppIcons.revoke,
             semanticLabel: 'Revoke invite',

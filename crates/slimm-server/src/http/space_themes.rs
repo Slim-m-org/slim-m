@@ -3,7 +3,8 @@
 //!
 //! Any member publishes; the author or a `MANAGE_SERVER` holder removes;
 //! only `MANAGE_SERVER` picks the Space default. Applying a theme is local to
-//! the device and calls nothing here.
+//! the device and calls nothing here. A publish or remove sends
+//! `Event::SpaceThemesChanged`; a new default sends `Event::SpaceSettingsChanged`.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -20,6 +21,7 @@ use super::error::ApiError;
 use super::extract::{
     ASSET, AUTHED_READ, Authed, AuthedLimited, Json, enforce, require_manage_server,
 };
+use crate::hub::Event;
 use crate::ids::{ThemeId, UserId};
 use crate::ratelimit::Class;
 use crate::space_theme::{self, MAX_PICTURE_BYTES};
@@ -120,6 +122,7 @@ async fn publish(
                 "you have published 5 themes already - remove one to publish another",
             ),
         })?;
+    state.hub.publish(Event::SpaceThemesChanged);
     Ok((StatusCode::CREATED, Json(dto(created))))
 }
 
@@ -140,6 +143,7 @@ async fn remove(
         require_manage_server(&state, ctx.user_id).await?;
     }
     state.store.delete_space_theme(id).await?;
+    state.hub.publish(Event::SpaceThemesChanged);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -176,5 +180,6 @@ async fn set_default(
         return Err(ApiError::NotFound("theme not found"));
     }
     state.store.set_default_space_theme(id).await?;
+    state.hub.publish(Event::SpaceSettingsChanged);
     Ok(StatusCode::NO_CONTENT)
 }

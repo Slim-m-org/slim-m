@@ -125,6 +125,7 @@ slimm_overlay::Panel PanelOf(const EncodableMap& map) {
   panel.text_muted = ArgbOf(map, "textMuted", panel.text_muted);
   panel.accent = ArgbOf(map, "accent", panel.accent);
   panel.danger = ArgbOf(map, "danger", panel.danger);
+  panel.inset = NumberOf(Field(map, "inset"), panel.inset);
   const EncodableValue* rows = Field(map, "rows");
   const auto* list = rows == nullptr ? nullptr : std::get_if<EncodableList>(rows);
   if (list != nullptr) {

@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/member_moderation_error.dart';
+import '../providers/member_presence.dart';
 import '../providers/member_selection.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
@@ -52,6 +53,7 @@ Future<void> confirmAndRemoveSelectedMembers(BuildContext context) async {
     container.read(memberModerationErrorProvider.notifier).state = failure;
     return;
   }
+  refreshRostersAfterModeration(container);
   container.read(memberSelectionProvider.notifier).clear();
 }
 
@@ -80,5 +82,6 @@ Future<void> timeOutSelectedMembers(
     container.read(memberModerationErrorProvider.notifier).state = failure;
     return;
   }
+  refreshRostersAfterModeration(container);
   container.read(memberSelectionProvider.notifier).clear();
 }
