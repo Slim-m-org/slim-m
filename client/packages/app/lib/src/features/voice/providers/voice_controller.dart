@@ -132,7 +132,10 @@ class VoiceController extends StateNotifier<VoiceState> {
       _session.health.reconnect.active,
       access,
     );
-    _states = _session.states.listen(_sync.onSessionState);
+    _states = _session.states.listen((s) {
+      _rosterHeld = false;
+      _sync.onSessionState(s);
+    });
     _transportRestarts = _session.transportRestarts.listen(
       (_) => _sync.onTransportRestarted(),
     );
@@ -141,6 +144,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     );
     _cameraJoinOpens = _session.cameraJoinOpens.listen(_onCameraJoinOpen);
     _participants = _session.participantChanges.listen((p) {
+      if (_rosterHeld) return;
       _activity.observe(p);
       unawaited(_callClock.adoptServerStart(access));
       // Trust the session's view of the local participant over the local
@@ -205,6 +209,9 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
   int _callGeneration = 0;
 
+  /// Set when a switch or a hang-up lets go of a room, so its roster cannot land on the next call; the session's next state clears it.
+  bool _rosterHeld = false;
+
   /// Changes whenever a call starts or ends, for work that must not outlive its call.
   int get callGeneration => _callGeneration;
 
@@ -247,6 +254,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     final keepMic = _keepMicNextJoin || state.channelId == channelId;
     _keepMicNextJoin = false;
     final callStarts = state.channelId == null;
+    final switching = !callStarts && state.channelId != channelId;
     // A recap belongs to the call that just ended, never to this new one.
     _activity.reset();
     if (state.channelId != channelId) _shareResume.forget();
@@ -269,6 +277,15 @@ class VoiceController extends StateNotifier<VoiceState> {
       rejoining: _rejoin.autoAttemptChannel == channelId,
       clearJustLeft: true,
     );
+    // The old room stays connected until the session tears it down, which a stalled SFU can hold for seconds.
+    if (switching) {
+      _rosterHeld = true;
+      state = state.copyWith(
+        state: VoiceSessionState.idle,
+        participants: const [],
+        clearConnectedAt: true,
+      );
+    }
     // Before the token round trip, so a muted join that fails there is retried muted.
     if (mutedByCaller) state = _joinMuted.showMuted(state);
     if (callStarts) await _ref.read(callStartYieldsProvider).callStarting();
@@ -299,18 +316,22 @@ class VoiceController extends StateNotifier<VoiceState> {
     _autoRejoin.reset();
     _callClock.forget();
     _ref.read(joinTimingsProvider).finish();
-    await _session.leave();
-    if (generation != _callGeneration) return;
-    // Best-effort and fire-and-forget: this client already disconnected.
-    if (channelId != null) unawaited(_heartbeat.forget(channelId));
     // The mic/camera preference survives the reset (no lobby left to re-set them on); justLeftChannelId/justLeftAt are set only here, see VoiceState.rejoinGuardWindow.
-    state = VoiceState(
+    final left = VoiceState(
       microphoneEnabled: _joinMuted.preferenceAtLeave(state.microphoneEnabled),
       cameraEnabled: _cameraPreference.atLeave(state.cameraEnabled),
       recap: recap,
       justLeftChannelId: channelId,
       justLeftAt: channelId == null ? null : _now(),
     );
+    // Shown before the teardown, which a stalled SFU can hold for seconds, and written again after it.
+    _rosterHeld = true;
+    state = left;
+    await _session.leave();
+    if (generation != _callGeneration) return;
+    // Best-effort and fire-and-forget: this client already disconnected.
+    if (channelId != null) unawaited(_heartbeat.forget(channelId));
+    state = left;
   }
 
   /// Guarded by the call generation like [join] and [leave]: the SFU round
