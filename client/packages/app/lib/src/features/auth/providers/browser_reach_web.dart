@@ -8,6 +8,7 @@ library;
 
 import 'dart:js_interop';
 
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:web/web.dart' as web;
 
 Future<bool?> answersOutsideBrowserRules(Uri server) async {
@@ -21,7 +22,13 @@ Future<bool?> answersOutsideBrowserRules(Uri server) async {
         .toDart
         .timeout(const Duration(seconds: 8));
     return true;
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.auth,
+      'Nothing answered the reachability probe',
+      error,
+      stack,
+    );
     return false;
   }
 }
