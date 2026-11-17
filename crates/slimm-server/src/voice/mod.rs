@@ -122,6 +122,10 @@ pub const LISTENER_IDENTITY_PREFIX: &str = "listener-";
 pub const DEAFENED_ATTRIBUTE: &str = "deafened";
 const DEAFENED_ATTRIBUTE_ON: &str = "true";
 
+/// An attribute no participant ever carries, cleared to make the SFU announce someone at once;
+/// see [`VoiceService::announce_participant`].
+pub const ANNOUNCE_ATTRIBUTE: &str = "announce";
+
 /// The participant attribute carrying the [`VoiceService::device_tag`] a token was minted for,
 /// so the roster can tell a member's own device apart.
 pub const DEVICE_ATTRIBUTE: &str = "slimm.device";

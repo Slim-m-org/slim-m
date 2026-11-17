@@ -28,6 +28,7 @@ import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
 import 'voice_camera_failure.dart';
 import 'voice_camera_hiding.dart';
+import 'voice_server_presence.dart';
 import 'voice_camera_preference.dart';
 import 'voice_input_settings.dart';
 import 'voice_join_muted.dart';
@@ -88,6 +89,7 @@ class VoiceController extends StateNotifier<VoiceState> {
     devices = VoiceAudioDevices(_session, _ref, access);
     volumes = VoiceParticipantVolumes(_session, _ref, _log);
     cameras = VoiceCameraHiding(_session, _ref, access);
+    serverPresence = VoiceServerPresence(_session, access);
     video = VoiceVideoControls(_session, access, () => _callGeneration);
     share = VoiceScreenShare(
       _session,
@@ -178,6 +180,9 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   /// Whose camera this listener chose not to watch.
   late final VoiceCameraHiding cameras;
+
+  /// The server's joins and leaves for this call; see [voiceServerPresenceProvider].
+  late final VoiceServerPresence serverPresence;
 
   /// Video tiles and camera selection.
   late final VoiceVideoControls video;

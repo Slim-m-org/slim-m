@@ -170,6 +170,14 @@ class VoiceSession {
   void setSpeakingSensitivity(double sensitivity) =>
       _core.roster.setSensitivity(sensitivity);
 
+  /// See [VoiceRoster.leftByServer].
+  void participantLeftByServer(String identity) =>
+      _core.roster.leftByServer(identity);
+
+  /// See [VoiceRoster.joinedByServer].
+  void participantJoinedByServer(String identity) =>
+      _core.roster.joinedByServer(identity);
+
   // Microphone.
 
   /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.

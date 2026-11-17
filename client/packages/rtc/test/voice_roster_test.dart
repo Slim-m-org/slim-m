@@ -2,9 +2,11 @@
 /// The roster a call reports: emitted only on a real change, with your own level fed apart.
 library;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/src/voice_roster.dart';
 
+import 'support/reconnect_fakes.dart';
 import 'support/session_fakes.dart';
 
 void main() {
@@ -85,6 +87,82 @@ void main() {
 
     expect(roster.participants, isEmpty);
     expect(levels, [0.4, 0.0]);
+  });
+
+  group('the server saying someone left', () {
+    List<String> shown() => [for (final p in roster.participants) p.identity];
+
+    PeopleRoom withBob() => PeopleRoom()..people['bob'] = FakePeer('bob');
+
+    test('hides them while the room still lists them', () {
+      final room = withBob();
+      roster.update(room);
+
+      roster.leftByServer('bob');
+      roster.update(room);
+
+      expect(shown(), ['me']);
+      expect(refreshes, 1);
+    });
+
+    test('forgets them once the room drops them, so a later join shows', () {
+      final room = withBob();
+      roster.leftByServer('bob');
+      room.people.remove('bob');
+      roster.update(room);
+
+      room.people['bob'] = FakePeer('bob');
+      roster.update(room);
+
+      expect(shown(), ['me', 'bob']);
+    });
+
+    test('ends at their next join', () {
+      final room = withBob();
+      roster.leftByServer('bob');
+      roster.update(room);
+
+      roster.joinedByServer('bob');
+      roster.update(room);
+
+      expect(shown(), ['me', 'bob']);
+    });
+
+    test('lasts no longer than the hold while the room keeps listing them', () {
+      fakeAsync((clock) {
+        final room = withBob();
+        roster.leftByServer('bob');
+        roster.update(room);
+        clock.elapse(kServerLeaveHold - const Duration(milliseconds: 1));
+        roster.update(room);
+        expect(shown(), ['me']);
+
+        clock.elapse(const Duration(milliseconds: 1));
+        roster.update(room);
+
+        expect(shown(), ['me', 'bob']);
+        expect(refreshes, 2);
+        // The emits above were queued in this zone; the stream cannot close over them otherwise.
+        clock.flushMicrotasks();
+      });
+    });
+
+    test('never hides you', () {
+      final room = withBob();
+      roster.leftByServer('me');
+      roster.update(room);
+
+      expect(shown(), ['me', 'bob']);
+    });
+
+    test('is forgotten when the call ends', () {
+      final room = withBob();
+      roster.leftByServer('bob');
+      roster.cancelHold();
+      roster.update(room);
+
+      expect(shown(), ['me', 'bob']);
+    });
   });
 
   test('a change in sensitivity asks the session for a refresh', () {

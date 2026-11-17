@@ -28,6 +28,7 @@ import '../features/screen_overlay/providers/screen_overlay_controller.dart';
 import '../features/screen_overlay/widgets/call_overlay_shortcut.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
+import '../features/voice/providers/voice_server_presence.dart';
 import '../features/voice/providers/voice_notice_controller.dart';
 import '../features/voice/widgets/call_restore_gate.dart';
 import '../features/voice/widgets/voice_notice_banner_host.dart';
@@ -168,6 +169,7 @@ class HomeShell extends ConsumerWidget {
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
+    ref.watch(voiceServerPresenceProvider);
     // The notice's state is for its banner host; held here without rebuilding the shell per notice.
     ref.watch(voiceNoticeProvider.select((_) => null));
     ref.watch(liveQualityRestartProvider);

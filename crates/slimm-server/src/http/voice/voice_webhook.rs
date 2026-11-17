@@ -53,9 +53,26 @@ async fn receive(
     track_session(&state, &event).await;
     let room_finished = room_finished_channel(&event);
     reconcile_roster(&state, &event).await;
+    let published = event.participant.as_ref().is_some_and(|p| p.is_publisher);
     let presence = apply(&state, event);
+    if let Some((channel_id, user_id, true)) = presence
+        && !published
+    {
+        announce_now(&state, channel_id, user_id);
+    }
     track_call_audio(&state, room_finished, presence).await;
     StatusCode::NO_CONTENT
+}
+
+/// Has the SFU announce a join that published nothing, which it would otherwise batch for up to
+/// 3 s; detached, since a failure only costs that wait.
+fn announce_now(state: &AppState, channel_id: ChannelId, user_id: UserId) {
+    let voice = state.voice.clone();
+    tokio::spawn(async move {
+        if let Err(err) = voice.announce_participant(channel_id, user_id).await {
+            tracing::warn!(?err, %channel_id, "could not announce a join to the call");
+        }
+    });
 }
 
 /// Keeps the member's voice session row (decision 0091) in step with the
