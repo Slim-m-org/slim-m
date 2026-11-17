@@ -45,13 +45,28 @@ class ScreenAnnotationFeed extends ChangeNotifier {
   final Future<void> Function(StampContent content) _loadStamp;
   final _consent = ScreenAnnotationConsent();
   final Map<String, ScreenAnnotationBoard> _boards = {};
+  late final _rosterHold = RosterHold(
+    callChannelId: _callChannelId,
+    callMembers: _callMembers,
+    release: _admit,
+  );
 
   /// Folds in a frame from the socket. A mark counts only between two people
   /// in my call, and the relay's echo of my own marks is skipped.
   void handle(api.ServerEvent event) {
     if (event is! api.CanvasScreenAnnotation) return;
-    if (event.kind != 'consent' && !_acceptsMark(event)) return;
-    _fold(event);
+    if (event.kind == 'consent') {
+      _fold(event);
+    } else if (event.userId == _selfId() || !_rosterHold.holds(event)) {
+      _admit(event);
+    }
+  }
+
+  /// Call when my call or its roster changes, so a held mark can show or go.
+  void rosterChanged() => _rosterHold.recheck();
+
+  void _admit(api.CanvasScreenAnnotation mark) {
+    if (_acceptsMark(mark)) _fold(mark);
   }
 
   bool _acceptsMark(api.CanvasScreenAnnotation mark) =>
@@ -129,6 +144,12 @@ class ScreenAnnotationFeed extends ChangeNotifier {
 
   @visibleForTesting
   int get boardCount => _boards.length;
+
+  @override
+  void dispose() {
+    _rosterHold.dispose();
+    super.dispose();
+  }
 }
 
 final screenAnnotationFeedProvider = Provider<ScreenAnnotationFeed>((ref) {
@@ -144,6 +165,8 @@ final screenAnnotationFeedProvider = Provider<ScreenAnnotationFeed>((ref) {
     isBlocked: (userId) => ref.read(blocksProvider).contains(userId),
     loadStamp: (content) => ref.read(stampImageCacheProvider).load(content),
   );
+  ref.listen(voiceParticipantsProvider, (_, _) => feed.rosterChanged());
+  ref.listen(voiceFlagsProvider, (_, _) => feed.rosterChanged());
   final sub = ref
       .read(syncControllerProvider.notifier)
       .liveEvents

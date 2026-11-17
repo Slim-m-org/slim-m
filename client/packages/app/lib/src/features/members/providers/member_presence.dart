@@ -57,11 +57,14 @@ final channelMembersProvider = FutureProvider.autoDispose
       (ref, channelId) => _pagedMembers(ref, ref.watch(apiProvider), channelId),
     );
 
+/// Rebuilt on every sign-in: a reader that keeps the roster alive (the desktop
+/// notifier) would otherwise hold a stale session's failure past the next one.
 Future<List<api.UserProfile>> _pagedMembers(
   Ref ref,
   api.SlimmApi client,
   String? channelId,
 ) async {
+  if (!ref.watch(sessionProvider).isSignedIn) return const [];
   var superseded = false;
   ref.onDispose(() => superseded = true);
   final members = <api.UserProfile>[];

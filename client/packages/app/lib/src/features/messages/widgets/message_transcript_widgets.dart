@@ -19,6 +19,9 @@ import '../providers/message_extras.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../routing/breakpoints.dart';
 
+/// Who a DM is between, which picks its start-of-history copy and mark.
+enum DmAudience { pair, group, self }
+
 /// The block at the very top of a channel's history: a mark, the channel's
 /// name, and its topic if it has one. It fills what would otherwise be a wide
 /// empty band above a short conversation (the list is bottom-anchored), and is
@@ -46,7 +49,7 @@ class ChannelStartHeader extends StatelessWidget {
     this.topic,
     this.isThread = false,
     this.isVoice = false,
-    this.isGroup = false,
+    this.audience = DmAudience.pair,
   });
 
   final String? name;
@@ -58,8 +61,8 @@ class ChannelStartHeader extends StatelessWidget {
   /// A voice channel's chat: [name] is its name, shown without a hash.
   final bool isVoice;
 
-  /// A group DM, which is more than "the two of you".
-  final bool isGroup;
+  /// Who a DM ([name] null) is between: a pair, a group, or only yourself (Notes).
+  final DmAudience audience;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +107,8 @@ class ChannelStartHeader extends StatelessWidget {
                   ? AppIcons.voice
                   : name != null
                   ? AppIcons.hash
+                  : audience == DmAudience.self
+                  ? AppIcons.notebook
                   : AppIcons.members,
               size: 26,
               color: tokens.textSecondary,
@@ -115,6 +120,8 @@ class ChannelStartHeader extends StatelessWidget {
                 ? 'Chat for $name'
                 : name != null
                 ? 'Welcome to #$name'
+                : audience == DmAudience.self
+                ? 'Your notes'
                 : 'This is the start of your conversation.',
             style: AppText.title.copyWith(color: tokens.textPrimary),
           ),
@@ -124,9 +131,14 @@ class ChannelStartHeader extends StatelessWidget {
               topic ??
                   'This is the start of the chat for the $n voice channel.',
             final String n => topic ?? 'This is the start of the #$n channel.',
-            null when isGroup =>
-              'Messages sent here are just between the people in this group.',
-            null => 'Messages sent here are just between the two of you.',
+            null => switch (audience) {
+              DmAudience.group =>
+                'Messages sent here are just between the people in this group.',
+              DmAudience.self =>
+                'A place for drafts, links and reminders. Only you can see it.',
+              DmAudience.pair =>
+                'Messages sent here are just between the two of you.',
+            },
           }, style: AppText.body.copyWith(color: tokens.textSecondary)),
         ],
       ),

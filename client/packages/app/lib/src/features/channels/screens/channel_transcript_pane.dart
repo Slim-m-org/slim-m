@@ -48,6 +48,7 @@ import '../../messages/widgets/ephemeral_report.dart';
 import '../../messages/widgets/jump_to_latest_button.dart';
 import '../../messages/widgets/message_jump.dart';
 import '../../messages/widgets/message_transcript.dart';
+import '../../messages/widgets/message_transcript_widgets.dart';
 import '../../messages/widgets/thread_parent_card.dart';
 import 'channel_message_actions.dart';
 import 'channel_screen.dart' show knownRoleNamesFrom, knownUsernamesFrom;
@@ -82,7 +83,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
     required this.channelTopic,
     required this.isThread,
     this.isVoice = false,
-    this.isGroup = false,
+    this.dmAudience = DmAudience.pair,
     this.searchPage = false,
     required this.lastReadSeq,
     required this.syncedSeq,
@@ -107,8 +108,8 @@ class ChannelTranscriptPane extends ConsumerWidget {
   /// A voice channel's chat, whose empty state is not the text channel's.
   final bool isVoice;
 
-  /// A group DM, whose empty state speaks to a group rather than a pair.
-  final bool isGroup;
+  /// Who a DM is between, whose empty state speaks to a pair, a group or only you.
+  final DmAudience dmAudience;
 
   /// The phone's search page is up: it shows in place of the transcript even
   /// before a query, and a jump arriving from elsewhere closes it.
@@ -289,7 +290,7 @@ class ChannelTranscriptPane extends ConsumerWidget {
           channelName: hashChannelName,
           channelIsThread: isThread,
           channelIsVoice: isVoice,
-          channelIsGroup: isGroup,
+          dmAudience: dmAudience,
           channelTopic: channelTopic,
           threadParent: isThread
               ? ThreadParentSlot(channelId: channelId)

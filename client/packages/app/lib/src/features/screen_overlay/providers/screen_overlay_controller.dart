@@ -33,6 +33,7 @@ import 'overlay_marks.dart';
 import 'screen_annotation_board.dart';
 import 'screen_annotation_consent.dart';
 import 'screen_annotation_mapping.dart';
+import 'screen_annotation_call.dart';
 import 'screen_overlay_frame.dart';
 import 'stamp_images.dart';
 
@@ -99,10 +100,14 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _ref.listen(voiceFlagsProvider, (prev, next) {
       if (prev?.channelId == null && next.channelId != null) _reprobe();
       _reconcile();
+      _rosterHold.recheck();
     });
     _ref.listen(screenOverlaySupportProvider, (_, _) => _reconcile());
     localShareCapturedSize.addListener(_onCapturedSize);
-    _ref.listen(voiceParticipantsProvider, (_, _) => _syncPanel());
+    _ref.listen(voiceParticipantsProvider, (_, _) {
+      _syncPanel();
+      _rosterHold.recheck();
+    });
     _events = _sync.liveEvents.listen(_onEvent);
     _displays = _window.displaysChanged.listen((_) => _onDisplaysChanged());
     _reconcile();
@@ -118,6 +123,11 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     _window,
     clock: _clock,
     stamps: () => _ref.read(stampImageCacheProvider),
+  );
+  late final _rosterHold = RosterHold(
+    callChannelId: _stillInCall,
+    callMembers: _callMembers,
+    release: _admit,
   );
   StreamSubscription<api.ServerEvent>? _events;
   StreamSubscription<void>? _displays;
@@ -484,13 +494,25 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   }
 
   void _onEvent(api.ServerEvent event) {
-    if (event is! api.CanvasScreenAnnotation) return;
+    if (event is! api.CanvasScreenAnnotation || event.kind == 'consent') return;
+    final mine = state.active && event.targetUserId == _selfId;
+    if (!mine || !_rosterHold.holds(event)) _admit(event);
+  }
+
+  /// The call my consent went out in, or null once I have left or switched it.
+  String? _stillInCall() =>
+      _ref.read(voiceFlagsProvider).channelId == _channelId ? _channelId : null;
+
+  Iterable<String> _callMembers() =>
+      _ref.read(voiceParticipantsProvider).map((p) => p.identity);
+
+  void _admit(api.CanvasScreenAnnotation event) {
     final accepted = overlayAccepts(
       event,
       overlayActive: state.active,
       selfId: _selfId,
       callChannelId: _channelId,
-      callMembers: _ref.read(voiceParticipantsProvider).map((p) => p.identity),
+      callMembers: _callMembers(),
     );
     if (!accepted || _ref.read(blocksProvider).contains(event.userId)) return;
     _marks.add(event);
@@ -500,6 +522,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
   void dispose() {
     localShareCapturedSize.removeListener(_onCapturedSize);
     _heartbeat?.cancel();
+    _rosterHold.dispose();
     unawaited(_events?.cancel());
     unawaited(_displays?.cancel());
     _marks.dispose();

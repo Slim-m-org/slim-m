@@ -32,6 +32,7 @@ import '../../../providers/providers.dart';
 import '../../messages/providers/reply_mention_preference.dart';
 import '../../../routing/breakpoints.dart';
 import '../../members/widgets/blocked_dm_notice.dart';
+import '../../messages/widgets/message_transcript_widgets.dart' show DmAudience;
 import '../widgets/channel_attachment_drop_zone.dart';
 import '../widgets/channel_header.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
@@ -396,9 +397,11 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final blockedDm = dmPartnerId != null && blocked.contains(dmPartnerId);
     // Ored with the store's own answer; see isThread's doc comment.
     final isThread = widget.isThread || channel?.parentMessageId != null;
-    // Only a real named channel gets "#name"; shared so the transcript and composer cannot drift.
-    final hashChannelName = channel?.kind == 'text' ? channelName : null;
     final isVoice = channel?.kind == 'voice';
+    // Only a real named channel (text or voice) gets its name; shared so the transcript and composer cannot drift.
+    final hashChannelName = channel?.kind == 'text' || isVoice
+        ? channelName
+        : null;
     // Below kCompactWidth an open search is a page of its own, not a bar over the transcript.
     final searchPage = !layout.showsBothPanes && search.open;
 
@@ -432,7 +435,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               CompactChannelSearchBar(
                 controller: _searchController,
                 scope: channelSearchScope(
-                  name: isVoice ? channelName : hashChannelName,
+                  name: hashChannelName,
                   isVoice: isVoice,
                   isThread: isThread,
                 ),
@@ -454,9 +457,13 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               streams: _streams,
               scrollTracker: _scrollTracker,
               composer: _composer,
-              hashChannelName: isVoice ? channelName : hashChannelName,
+              hashChannelName: hashChannelName,
               isVoice: isVoice,
-              isGroup: channel?.isGroupDm ?? false,
+              dmAudience: channel?.isPersonalSpace ?? false
+                  ? DmAudience.self
+                  : channel?.isGroupDm ?? false
+                  ? DmAudience.group
+                  : DmAudience.pair,
               searchPage: searchPage,
               channelTopic: channel?.topic,
               isThread: isThread,

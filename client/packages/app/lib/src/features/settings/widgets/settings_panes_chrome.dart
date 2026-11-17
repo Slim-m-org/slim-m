@@ -73,8 +73,8 @@ class NavHeader extends StatelessWidget {
   /// Runs instead of closing straight away, for a page that asks first.
   final VoidCallback? onBack;
 
-  /// False while a pane's sub-page shows its own back beside it; the arrow
-  /// fades but keeps its place, so the title does not move.
+  /// False while a pane's sub-page shows its own back beside it; the title
+  /// then takes the arrow's place rather than keeping an empty indent.
   final bool showBack;
 
   @override
@@ -86,26 +86,13 @@ class NavHeader extends StatelessWidget {
       child: Row(
         spacing: AppSpacing.s8,
         children: [
-          ExcludeFocus(
-            excluding: !showBack,
-            child: ExcludeSemantics(
-              excluding: !showBack,
-              child: IgnorePointer(
-                ignoring: !showBack,
-                child: AnimatedOpacity(
-                  opacity: showBack ? 1 : 0,
-                  duration: AppMotion.reduced(context, AppMotion.fast),
-                  child: AppIconButton(
-                    icon: AppIcons.back,
-                    semanticLabel: backTooltip,
-                    tooltip: backTooltip,
-                    onPressed:
-                        onBack ?? () => closeScreen(context, backFallback),
-                  ),
-                ),
-              ),
+          if (showBack)
+            AppIconButton(
+              icon: AppIcons.back,
+              semanticLabel: backTooltip,
+              tooltip: backTooltip,
+              onPressed: onBack ?? () => closeScreen(context, backFallback),
             ),
-          ),
           Expanded(
             child: Semantics(
               header: true,

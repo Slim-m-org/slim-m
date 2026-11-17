@@ -300,21 +300,27 @@ void main() {
     });
   });
 
-  test('the caller\'s own personal space is labelled "Notes"', () async {
-    final container = _containerWith(
-      channels: const [],
-      dms: [_dmJson(channelId: 'dm-self', userId: 'self', displayName: 'Self')],
-    );
+  test(
+    'the caller\'s own personal space is labelled "Notes" and flagged',
+    () async {
+      final container = _containerWith(
+        channels: const [],
+        dms: [
+          _dmJson(channelId: 'dm-self', userId: 'self', displayName: 'Self'),
+        ],
+      );
 
-    final targets = await container.read(
-      forwardTargetsProvider((
-        excludeChannelId: 'nowhere',
-        hasAttachments: false,
-      )).future,
-    );
+      final targets = await container.read(
+        forwardTargetsProvider((
+          excludeChannelId: 'nowhere',
+          hasAttachments: false,
+        )).future,
+      );
 
-    expect(targets.single.label, 'Notes');
-  });
+      expect(targets.single.label, 'Notes');
+      expect(targets.single.isPersonalSpace, isTrue);
+    },
+  );
 
   test(
     'a DM target carries the partner\'s username, so it can be searched',

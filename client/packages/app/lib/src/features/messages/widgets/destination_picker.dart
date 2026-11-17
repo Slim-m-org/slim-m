@@ -128,6 +128,13 @@ class DestinationList extends ConsumerWidget {
         size: AppAvatarSize.s24,
       );
     }
+    if (target.isPersonalSpace) {
+      return Icon(
+        AppIcons.notebook,
+        size: AppSizes.icon20,
+        color: tokens.textSecondary,
+      );
+    }
     // A DM is a person; one generic glyph made them all look alike.
     final userId = target.userId;
     if (target.isDm && userId != null) {

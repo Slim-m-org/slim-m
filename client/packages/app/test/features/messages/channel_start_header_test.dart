@@ -47,7 +47,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _harness(const ChannelStartHeader(name: null, isGroup: true)),
+      _harness(
+        const ChannelStartHeader(name: null, audience: DmAudience.group),
+      ),
     );
 
     expect(
@@ -73,5 +75,18 @@ void main() {
     );
     expect(find.textContaining('between the two of you'), findsNothing);
     expect(find.byIcon(AppIcons.voice), findsOneWidget);
+  });
+
+  testWidgets('your own notes read as notes, not a conversation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(const ChannelStartHeader(name: null, audience: DmAudience.self)),
+    );
+
+    expect(find.text('Your notes'), findsOneWidget);
+    expect(find.textContaining('the two of you'), findsNothing);
+    expect(find.byIcon(AppIcons.notebook), findsOneWidget);
+    expect(find.byIcon(AppIcons.members), findsNothing);
   });
 }
