@@ -16,6 +16,7 @@ import '../../first_run/providers/first_run_controller.dart'
 import '../../../default_server.dart';
 import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
+import '../providers/browser_reach.dart';
 import '../providers/sign_in_identity.dart';
 import '../../../routing/routes.dart';
 import '../../../server_address_input.dart';
@@ -300,7 +301,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       reportFailure(LogTag.auth, 'sign in', e, stack);
       justRegistered.state = false;
       if (!mounted) return;
-      setState(() => _error = signInErrorFor(e));
+      final error = await explainSignInFailure(
+        e,
+        server: probeTarget(_server.text),
+        reach: ref.read(browserReachProbeProvider),
+      );
+      if (!mounted) return;
+      setState(() => _error = error);
     } catch (error, stack) {
       reportFailure(LogTag.auth, 'sign in', error, stack);
       ref.read(justRegisteredProvider.notifier).state = false;
