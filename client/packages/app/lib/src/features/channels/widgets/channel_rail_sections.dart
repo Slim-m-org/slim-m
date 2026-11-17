@@ -288,7 +288,8 @@ class _ChannelCategorySectionsState
                   revealed: revealed && !carried,
                   onFocusChange: onFocusChange,
                 ),
-                if (menuKey != null)
+                // A phone header's menu opens from the held press, as a row's does.
+                if (menuKey != null && !AppTouchTargets.of(context))
                   CategoryMenuGlyph(
                     categoryName: place,
                     revealed: revealed,
