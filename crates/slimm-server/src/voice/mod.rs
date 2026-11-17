@@ -54,7 +54,7 @@ pub(crate) use call_record::record_finished_call;
 use heartbeat::{CallHeartbeats, STALE_AFTER as HEARTBEAT_STALE_AFTER};
 pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
-pub use ring::{CallRingOutcome, CallRings, Declined, RING_TIMEOUT};
+pub use ring::{CallRingOutcome, CallRings, Declined, RING_TIMEOUT, StaleRing};
 pub use roster::{RoomParticipant, RosterCache};
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
 pub use webhook::{WebhookError, WebhookEvent, channel_for_room, is_screen_share_source};

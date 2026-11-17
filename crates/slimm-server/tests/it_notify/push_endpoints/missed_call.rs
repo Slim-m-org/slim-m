@@ -56,6 +56,21 @@ pub(crate) async fn open_dm(app: &axum::Router, token: &str, target_id: &str) ->
         .to_owned()
 }
 
+/// The caller's first heartbeat: a ring only goes out once they are in the call.
+pub(crate) async fn join(app: &axum::Router, channel_id: &str, token: &str) {
+    let response = app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/channels/{channel_id}/voice/heartbeat"),
+            Some(token),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::NO_CONTENT);
+}
+
 /// Every token the relay was asked to wake, across all calls.
 fn woken(messages: &[Value]) -> Vec<String> {
     messages
@@ -79,6 +94,7 @@ async fn a_ring_nobody_answered_wakes_the_callee() {
     let _bob_secret = register_device(&app, &bob_token, "android", "bobs-token", None).await;
 
     let channel_id = open_dm(&app, &alice_token, &bob_id).await;
+    join(&app, &channel_id, &alice_token).await;
     let rang = app
         .clone()
         .oneshot(request(
@@ -148,6 +164,7 @@ async fn the_caller_is_not_woken_by_their_own_missed_call() {
     let _bob_secret = register_device(&app, &bob_token, "android", "bobs-token", None).await;
 
     let channel_id = open_dm(&app, &alice_token, &bob_id).await;
+    join(&app, &channel_id, &alice_token).await;
     app.clone()
         .oneshot(request(
             "POST",
@@ -201,6 +218,7 @@ async fn a_disabled_sender_pushes_nothing_for_a_missed_call() {
     let (bob_token, bob_id) = register_user(&store, "bob").await;
     let _bob_secret = register_device(&app, &bob_token, "android", "bobs-token", None).await;
     let channel_id = open_dm(&app, &alice_token, &bob_id).await;
+    join(&app, &channel_id, &alice_token).await;
     app.clone()
         .oneshot(request(
             "POST",
@@ -261,6 +279,7 @@ async fn a_ring_still_wakes_the_callee_in_off_hours_nothing_mode() {
         .unwrap();
 
     let channel_id = open_dm(&app, &alice_token, &bob_id).await;
+    join(&app, &channel_id, &alice_token).await;
     let rang = app
         .clone()
         .oneshot(request(

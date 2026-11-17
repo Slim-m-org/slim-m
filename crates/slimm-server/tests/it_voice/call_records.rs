@@ -73,7 +73,16 @@ async fn open_dm(app: &Router, token: &str, target_id: &str) -> String {
         .to_owned()
 }
 
+/// The caller joins the call first: a ring only goes out once they are in it.
 async fn ring(app: &Router, channel_id: &str, token: &str) -> StatusCode {
+    app.clone()
+        .oneshot(request(
+            "POST",
+            &format!("/channels/{channel_id}/voice/heartbeat"),
+            Some(token),
+        ))
+        .await
+        .unwrap();
     app.clone()
         .oneshot(request(
             "POST",

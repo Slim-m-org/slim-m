@@ -106,6 +106,9 @@ async fn incoming(
 /// A second ring for the same channel replaces whatever was already
 /// outstanding - see [`crate::voice::CallRings`] - since a caller trying
 /// again is the same call, not a second one stacked on top of the first.
+///
+/// Nobody is rung until the caller is in the call: a caller still connecting
+/// is announced by its first heartbeat instead.
 async fn ring(
     Authed(ctx): Authed,
     parts: Parts,
@@ -158,26 +161,34 @@ async fn ring(
             outcome,
         });
     }
-    state.hub.publish(Event::CallRinging {
-        channel_id,
-        ring_id,
-        caller_id: ctx.user_id,
-        callees: callees.iter().copied().collect(),
-    });
-    for callee in callees {
-        state.push.notify_call_ring(
-            state.store.clone(),
-            channel_id,
-            ring_id,
-            ctx.user_id,
-            callee,
-        );
+    // Checked after starting, so a first heartbeat landing in between still announces it.
+    if state.voice.has_heartbeat(ctx.user_id, channel_id) {
+        announce_if_pending(&state, channel_id, ctx.user_id);
     }
 
     Ok(Json(RingResponse {
         ring_id: ring_id.to_string(),
         timeout_ms: crate::voice::RING_TIMEOUT.as_millis() as i64,
     }))
+}
+
+/// Rings the callees of `caller_id`'s pending ring in `channel_id`, once the
+/// caller is in the call; a no-op for a ring already announced or not theirs.
+pub(crate) fn announce_if_pending(state: &AppState, channel_id: ChannelId, caller_id: UserId) {
+    let Some((ring_id, callees)) = state.voice.rings().announce(channel_id, caller_id) else {
+        return;
+    };
+    state.hub.publish(Event::CallRinging {
+        channel_id,
+        ring_id,
+        caller_id,
+        callees: callees.iter().copied().collect(),
+    });
+    for callee in callees {
+        state
+            .push
+            .notify_call_ring(state.store.clone(), channel_id, ring_id, caller_id, callee);
+    }
 }
 
 /// Declines an incoming DM call ring.

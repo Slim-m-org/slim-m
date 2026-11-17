@@ -8809,6 +8809,12 @@ paths:
         was already outstanding rather than stacking a second one.
 
 
+        Nobody is rung into an empty room: until the caller is in the call
+        (their first `POST /channels/{channelId}/voice/heartbeat`) the ring is
+        held, and one whose caller never joins ends as `canceled` without a
+        call record.
+
+
         The response's `timeout_ms` is how long the server itself will wait
         before giving up on this ring if nobody answers; a client renders its
         own countdown from it rather than hard-coding a duration that could

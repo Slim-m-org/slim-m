@@ -104,3 +104,18 @@ async fn the_caller_is_not_sent_its_own_ring() {
     assert_eq!(frame["caller_id"], alice.id);
     assert_no_frame_of_type(&mut alice.ws, "call.ringing").await;
 }
+
+#[tokio::test]
+async fn nobody_is_rung_until_the_caller_is_in_the_call() {
+    let rig = rig("slimm-ring-audience-empty-room").await;
+    let alice = rig.person("alice").await;
+    let mut bob = rig.person("bob").await;
+    let channel = rig.open_dm(&alice, &bob).await;
+
+    let started = rig.ring(&channel, &alice).await;
+    assert_no_frame_of_type(&mut bob.ws, "call.ringing").await;
+
+    rig.heartbeat(&channel, &alice).await;
+    let frame = read_frame_of_type(&mut bob.ws, "call.ringing").await;
+    assert_eq!(frame["ring_id"], started["ring_id"]);
+}

@@ -82,6 +82,17 @@ impl World {
     }
 
     async fn ring(&self, channel_id: &str, who: &Member) -> StatusCode {
+        // Joined first, so a refusal means the ring gate, not an empty room.
+        self.app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/channels/{channel_id}/voice/heartbeat"),
+                Some(&who.token),
+                None,
+            ))
+            .await
+            .unwrap();
         self.app
             .clone()
             .oneshot(request(

@@ -67,7 +67,20 @@ async fn open_dm(app: &Router, token: &str, target_id: &str) -> String {
         .to_owned()
 }
 
+/// The caller joins the call first: a ring only goes out once they are in it.
 async fn ring(app: &Router, channel_id: &str, token: &str) -> StatusCode {
+    app.clone()
+        .oneshot(request(
+            "POST",
+            &format!("/channels/{channel_id}/voice/heartbeat"),
+            Some(token),
+        ))
+        .await
+        .unwrap();
+    ring_without_joining(app, channel_id, token).await
+}
+
+async fn ring_without_joining(app: &Router, channel_id: &str, token: &str) -> StatusCode {
     app.clone()
         .oneshot(request(
             "POST",
@@ -202,7 +215,11 @@ async fn a_ring_replaced_by_the_other_side_is_reported_ended() {
     let mut durable = h.hub.subscribe();
     let mut ephemeral = h.hub.subscribe_ephemeral();
 
-    assert_eq!(ring(&h.app, &channel_id, &bob_token).await, StatusCode::OK);
+    // Before joining, which would answer alice's ring instead.
+    assert_eq!(
+        ring_without_joining(&h.app, &channel_id, &bob_token).await,
+        StatusCode::OK
+    );
 
     let mut ended = Vec::new();
     let mut records = 0;
