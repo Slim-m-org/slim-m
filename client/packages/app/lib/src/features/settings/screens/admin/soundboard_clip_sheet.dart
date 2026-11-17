@@ -123,7 +123,14 @@ class _ClipSheetState extends ConsumerState<_ClipSheet>
   }
 
   Future<void> _dropped(List<DropItem> files) async {
-    final pick = await readDroppedSoundClip(files);
+    final SoundClipPick? pick;
+    try {
+      pick = await readDroppedSoundClip(files);
+    } on Object catch (error, stack) {
+      api.reportFailure(api.LogTag.media, 'choose a clip file', error, stack);
+      if (mounted) setActionError('Could not read that file.');
+      return;
+    }
     if (pick != null && mounted) _use(pick);
   }
 

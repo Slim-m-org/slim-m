@@ -151,13 +151,14 @@ class RecordingClipPlayer implements SoundClipPlayer {
   }) async => played.add((bytes: bytes, mimeType: mimeType, volume: volume));
 }
 
-/// Mounts the pane; the picker hands out [picks] in turn, then [pick].
+/// Mounts the pane; the picker hands out [picks] in turn, then [pick], unless [picker] replaces it.
 Future<void> pumpSoundboard(
   WidgetTester tester,
   SoundboardWire wire, {
   SoundClipPick? pick,
   List<SoundClipPick>? picks,
   SoundClipPlayer? player,
+  SoundClipPicker? picker,
   double width = 1280,
 }) async {
   final queue = [...?picks];
@@ -170,7 +171,7 @@ Future<void> pumpSoundboard(
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         mockApiOverride(wire.handle),
         soundClipPickerProvider.overrideWithValue(
-          () async => queue.isEmpty ? pick : queue.removeAt(0),
+          picker ?? () async => queue.isEmpty ? pick : queue.removeAt(0),
         ),
         if (player != null) soundClipPlayerProvider.overrideWithValue(player),
       ],
