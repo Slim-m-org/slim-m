@@ -152,6 +152,10 @@ pub(super) async fn edited(
         .previews_removed(store, message_id)
         .await
         .map_err(|_| ())?;
+    dto.edited_by_moderator = lookups
+        .moderator_edited(store, message_id)
+        .await
+        .map_err(|_| ())?;
     Ok(ServerFrame::MessageEdited {
         channel_id,
         seq,

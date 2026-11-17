@@ -4458,7 +4458,11 @@ paths:
       operationId: editMessage
       tags: [messages]
       summary: Edit a message.
-      description: Allowed for the author, or a member with MANAGE_MESSAGES.
+      description: >
+        Allowed for the author, or a member with MANAGE_MESSAGES. An edit of
+        someone else's message is recorded in the moderation history as
+        `message_edited`, and the message carries `edited_by_moderator` until
+        its author edits it again.
       requestBody:
         required: true
         content:
@@ -16397,10 +16401,12 @@ components:
             - voice_move
             - owner_handoff
             - owner_timeout_ended
+            - message_edited
           description: >
             `owner_handoff` means ownership passed to the subject, and
             `owner_timeout_ended` that the subject's timeout ended because
-            they became the owner.
+            they became the owner. `message_edited` means the actor changed
+            the text of one of the subject's messages.
         reason:
           type: [string, "null"]
         until:
@@ -18817,6 +18823,13 @@ components:
             link-preview cards. Set on reads, on an edit response and on a
             `message.edited` frame; a `message.created` frame says false, and
             `message.link_previews_removed` carries the change.
+        edited_by_moderator:
+          type: boolean
+          description: >-
+            Present and true when the message's current text is a moderator's
+            edit rather than the author's; absent otherwise. Set on reads, on
+            an edit response and on a `message.edited` frame. Never says which
+            moderator; the moderation history does.
         webhook_username:
           type: [string, "null"]
           description: >-
@@ -20467,6 +20480,11 @@ components:
           description: >
             On an `edit`, present and true when the message's link-preview
             cards were removed. Applies even when `content` is absent.
+        edited_by_moderator:
+          type: boolean
+          description: >
+            On an `edit`, present and true when the message's current text is
+            a moderator's edit, the same as `Message.edited_by_moderator`.
 
     ClientFrame:
       description: A frame sent by the client over the WebSocket.

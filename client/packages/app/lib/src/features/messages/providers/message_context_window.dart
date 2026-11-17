@@ -91,6 +91,7 @@ Message _rowFor(api.Message m) => Message(
           removed: m.forwarded!.removed,
         ),
   linkPreviewsRemoved: m.linkPreviewsRemoved,
+  editedByModerator: m.editedByModerator,
   pending: false,
   failed: false,
 );

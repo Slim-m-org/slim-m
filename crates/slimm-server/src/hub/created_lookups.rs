@@ -12,7 +12,7 @@ use crate::store::Store;
 /// Shared by every clone of one `MessageEvent::Created`, so the first
 /// connection to build a frame pays the two lookups and the rest reuse them.
 #[derive(Debug, Default)]
-pub struct CreatedLookups(OnceCell<CreatedFacts>, OnceCell<bool>);
+pub struct CreatedLookups(OnceCell<CreatedFacts>, OnceCell<bool>, OnceCell<bool>);
 
 /// The per-message facts a frame needs: who it mentions, and a webhook post's
 /// display label and the module that posted it. Both are written with the message, before it is published.
@@ -46,6 +46,18 @@ impl CreatedLookups {
     ) -> anyhow::Result<bool> {
         self.1
             .get_or_try_init(|| store.link_previews_suppressed(message_id))
+            .await
+            .copied()
+    }
+
+    /// Whether the message's current text is a moderator's edit; only an edit frame asks.
+    pub async fn moderator_edited(
+        &self,
+        store: &Store,
+        message_id: MessageId,
+    ) -> anyhow::Result<bool> {
+        self.2
+            .get_or_try_init(|| store.moderator_edited(message_id))
             .await
             .copied()
     }

@@ -1393,6 +1393,16 @@ class $MessagesTable extends Messages
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("link_previews_removed" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _editedByModeratorMeta =
+      const VerificationMeta('editedByModerator');
+  @override
+  late final GeneratedColumn<bool> editedByModerator = GeneratedColumn<bool>(
+      'edited_by_moderator', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("edited_by_moderator" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _mentionsMeMeta =
       const VerificationMeta('mentionsMe');
   @override
@@ -1448,6 +1458,7 @@ class $MessagesTable extends Messages
         forwardedContent,
         forwardedRemoved,
         linkPreviewsRemoved,
+        editedByModerator,
         mentionsMe,
         pending,
         failed,
@@ -1566,6 +1577,12 @@ class $MessagesTable extends Messages
           linkPreviewsRemoved.isAcceptableOrUnknown(
               data['link_previews_removed']!, _linkPreviewsRemovedMeta));
     }
+    if (data.containsKey('edited_by_moderator')) {
+      context.handle(
+          _editedByModeratorMeta,
+          editedByModerator.isAcceptableOrUnknown(
+              data['edited_by_moderator']!, _editedByModeratorMeta));
+    }
     if (data.containsKey('mentions_me')) {
       context.handle(
           _mentionsMeMeta,
@@ -1633,6 +1650,8 @@ class $MessagesTable extends Messages
           DriftSqlType.bool, data['${effectivePrefix}forwarded_removed'])!,
       linkPreviewsRemoved: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}link_previews_removed'])!,
+      editedByModerator: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}edited_by_moderator'])!,
       mentionsMe: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}mentions_me'])!,
       pending: attachedDatabase.typeMapping
@@ -1694,6 +1713,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   /// Stored so a cold start hides them without a REST read; nothing clears it.
   final bool linkPreviewsRemoved;
 
+  /// The current text is a moderator's edit; every server copy restates it.
+  final bool editedByModerator;
+
   /// Whether this message mentions the reader, as the server last said.
   /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
   final bool mentionsMe;
@@ -1728,6 +1750,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       this.forwardedContent,
       required this.forwardedRemoved,
       required this.linkPreviewsRemoved,
+      required this.editedByModerator,
       required this.mentionsMe,
       required this.pending,
       required this.failed,
@@ -1777,6 +1800,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     }
     map['forwarded_removed'] = Variable<bool>(forwardedRemoved);
     map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved);
+    map['edited_by_moderator'] = Variable<bool>(editedByModerator);
     map['mentions_me'] = Variable<bool>(mentionsMe);
     map['pending'] = Variable<bool>(pending);
     map['failed'] = Variable<bool>(failed);
@@ -1830,6 +1854,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           : Value(forwardedContent),
       forwardedRemoved: Value(forwardedRemoved),
       linkPreviewsRemoved: Value(linkPreviewsRemoved),
+      editedByModerator: Value(editedByModerator),
       mentionsMe: Value(mentionsMe),
       pending: Value(pending),
       failed: Value(failed),
@@ -1868,6 +1893,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       forwardedRemoved: serializer.fromJson<bool>(json['forwardedRemoved']),
       linkPreviewsRemoved:
           serializer.fromJson<bool>(json['linkPreviewsRemoved']),
+      editedByModerator: serializer.fromJson<bool>(json['editedByModerator']),
       mentionsMe: serializer.fromJson<bool>(json['mentionsMe']),
       pending: serializer.fromJson<bool>(json['pending']),
       failed: serializer.fromJson<bool>(json['failed']),
@@ -1898,6 +1924,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'forwardedContent': serializer.toJson<String?>(forwardedContent),
       'forwardedRemoved': serializer.toJson<bool>(forwardedRemoved),
       'linkPreviewsRemoved': serializer.toJson<bool>(linkPreviewsRemoved),
+      'editedByModerator': serializer.toJson<bool>(editedByModerator),
       'mentionsMe': serializer.toJson<bool>(mentionsMe),
       'pending': serializer.toJson<bool>(pending),
       'failed': serializer.toJson<bool>(failed),
@@ -1924,6 +1951,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           Value<String?> forwardedContent = const Value.absent(),
           bool? forwardedRemoved,
           bool? linkPreviewsRemoved,
+          bool? editedByModerator,
           bool? mentionsMe,
           bool? pending,
           bool? failed,
@@ -1963,6 +1991,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
             : this.forwardedContent,
         forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
         linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
+        editedByModerator: editedByModerator ?? this.editedByModerator,
         mentionsMe: mentionsMe ?? this.mentionsMe,
         pending: pending ?? this.pending,
         failed: failed ?? this.failed,
@@ -2010,6 +2039,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       linkPreviewsRemoved: data.linkPreviewsRemoved.present
           ? data.linkPreviewsRemoved.value
           : this.linkPreviewsRemoved,
+      editedByModerator: data.editedByModerator.present
+          ? data.editedByModerator.value
+          : this.editedByModerator,
       mentionsMe:
           data.mentionsMe.present ? data.mentionsMe.value : this.mentionsMe,
       pending: data.pending.present ? data.pending.value : this.pending,
@@ -2042,6 +2074,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
           ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
+          ..write('editedByModerator: $editedByModerator, ')
           ..write('mentionsMe: $mentionsMe, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
@@ -2070,6 +2103,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
         forwardedContent,
         forwardedRemoved,
         linkPreviewsRemoved,
+        editedByModerator,
         mentionsMe,
         pending,
         failed,
@@ -2098,6 +2132,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.forwardedContent == this.forwardedContent &&
           other.forwardedRemoved == this.forwardedRemoved &&
           other.linkPreviewsRemoved == this.linkPreviewsRemoved &&
+          other.editedByModerator == this.editedByModerator &&
           other.mentionsMe == this.mentionsMe &&
           other.pending == this.pending &&
           other.failed == this.failed &&
@@ -2123,6 +2158,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
   final Value<String?> forwardedContent;
   final Value<bool> forwardedRemoved;
   final Value<bool> linkPreviewsRemoved;
+  final Value<bool> editedByModerator;
   final Value<bool> mentionsMe;
   final Value<bool> pending;
   final Value<bool> failed;
@@ -2147,6 +2183,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
     this.linkPreviewsRemoved = const Value.absent(),
+    this.editedByModerator = const Value.absent(),
     this.mentionsMe = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
@@ -2172,6 +2209,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
     this.linkPreviewsRemoved = const Value.absent(),
+    this.editedByModerator = const Value.absent(),
     this.mentionsMe = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
@@ -2200,6 +2238,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     Expression<String>? forwardedContent,
     Expression<bool>? forwardedRemoved,
     Expression<bool>? linkPreviewsRemoved,
+    Expression<bool>? editedByModerator,
     Expression<bool>? mentionsMe,
     Expression<bool>? pending,
     Expression<bool>? failed,
@@ -2231,6 +2270,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       if (forwardedRemoved != null) 'forwarded_removed': forwardedRemoved,
       if (linkPreviewsRemoved != null)
         'link_previews_removed': linkPreviewsRemoved,
+      if (editedByModerator != null) 'edited_by_moderator': editedByModerator,
       if (mentionsMe != null) 'mentions_me': mentionsMe,
       if (pending != null) 'pending': pending,
       if (failed != null) 'failed': failed,
@@ -2258,6 +2298,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       Value<String?>? forwardedContent,
       Value<bool>? forwardedRemoved,
       Value<bool>? linkPreviewsRemoved,
+      Value<bool>? editedByModerator,
       Value<bool>? mentionsMe,
       Value<bool>? pending,
       Value<bool>? failed,
@@ -2284,6 +2325,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       forwardedContent: forwardedContent ?? this.forwardedContent,
       forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
       linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
+      editedByModerator: editedByModerator ?? this.editedByModerator,
       mentionsMe: mentionsMe ?? this.mentionsMe,
       pending: pending ?? this.pending,
       failed: failed ?? this.failed,
@@ -2351,6 +2393,9 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     if (linkPreviewsRemoved.present) {
       map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved.value);
     }
+    if (editedByModerator.present) {
+      map['edited_by_moderator'] = Variable<bool>(editedByModerator.value);
+    }
     if (mentionsMe.present) {
       map['mentions_me'] = Variable<bool>(mentionsMe.value);
     }
@@ -2391,6 +2436,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
           ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
+          ..write('editedByModerator: $editedByModerator, ')
           ..write('mentionsMe: $mentionsMe, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
@@ -3958,6 +4004,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
   Value<bool> linkPreviewsRemoved,
+  Value<bool> editedByModerator,
   Value<bool> mentionsMe,
   Value<bool> pending,
   Value<bool> failed,
@@ -3983,6 +4030,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
   Value<bool> linkPreviewsRemoved,
+  Value<bool> editedByModerator,
   Value<bool> mentionsMe,
   Value<bool> pending,
   Value<bool> failed,
@@ -4061,6 +4109,10 @@ class $$MessagesTableFilterComposer
 
   ColumnFilters<bool> get linkPreviewsRemoved => $composableBuilder(
       column: $table.linkPreviewsRemoved,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get editedByModerator => $composableBuilder(
+      column: $table.editedByModerator,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get mentionsMe => $composableBuilder(
@@ -4149,6 +4201,10 @@ class $$MessagesTableOrderingComposer
       column: $table.linkPreviewsRemoved,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get editedByModerator => $composableBuilder(
+      column: $table.editedByModerator,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get mentionsMe => $composableBuilder(
       column: $table.mentionsMe, builder: (column) => ColumnOrderings(column));
 
@@ -4227,6 +4283,9 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<bool> get linkPreviewsRemoved => $composableBuilder(
       column: $table.linkPreviewsRemoved, builder: (column) => column);
 
+  GeneratedColumn<bool> get editedByModerator => $composableBuilder(
+      column: $table.editedByModerator, builder: (column) => column);
+
   GeneratedColumn<bool> get mentionsMe => $composableBuilder(
       column: $table.mentionsMe, builder: (column) => column);
 
@@ -4281,6 +4340,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
             Value<bool> linkPreviewsRemoved = const Value.absent(),
+            Value<bool> editedByModerator = const Value.absent(),
             Value<bool> mentionsMe = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
@@ -4306,6 +4366,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
             linkPreviewsRemoved: linkPreviewsRemoved,
+            editedByModerator: editedByModerator,
             mentionsMe: mentionsMe,
             pending: pending,
             failed: failed,
@@ -4331,6 +4392,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
             Value<bool> linkPreviewsRemoved = const Value.absent(),
+            Value<bool> editedByModerator = const Value.absent(),
             Value<bool> mentionsMe = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
@@ -4356,6 +4418,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
             linkPreviewsRemoved: linkPreviewsRemoved,
+            editedByModerator: editedByModerator,
             mentionsMe: mentionsMe,
             pending: pending,
             failed: failed,

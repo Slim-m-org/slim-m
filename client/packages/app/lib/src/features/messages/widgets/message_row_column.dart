@@ -110,7 +110,10 @@ class MessageRowColumn extends ConsumerWidget {
   Widget? _editedWidget(bool isBot) {
     // A bot edits its own status as it goes, so the marker says nothing.
     final editedMarker = message.editedAt != null && !editing && !isBot
-        ? EditedMarker(onTap: callbacks.onViewEditHistory)
+        ? EditedMarker(
+            onTap: callbacks.onViewEditHistory,
+            byModerator: message.editedByModerator,
+          )
         : null;
     final time = hoverTime;
     if (time == null) return editedMarker;

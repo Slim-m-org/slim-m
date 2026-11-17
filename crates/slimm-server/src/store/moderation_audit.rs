@@ -40,11 +40,12 @@ pub(crate) enum ModerationAction {
     VoiceMove,
     OwnerHandoff,
     OwnerTimeoutEnded,
+    MessageEdited,
 }
 
 impl ModerationAction {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 20] = [
+    pub(crate) const ALL: [Self; 21] = [
         Self::Remove,
         Self::Restore,
         Self::Timeout,
@@ -65,6 +66,7 @@ impl ModerationAction {
         Self::VoiceMove,
         Self::OwnerHandoff,
         Self::OwnerTimeoutEnded,
+        Self::MessageEdited,
     ];
 
     pub(crate) fn as_str(self) -> &'static str {
@@ -89,6 +91,7 @@ impl ModerationAction {
             Self::VoiceMove => "voice_move",
             Self::OwnerHandoff => "owner_handoff",
             Self::OwnerTimeoutEnded => "owner_timeout_ended",
+            Self::MessageEdited => "message_edited",
         }
     }
 }
@@ -212,6 +215,7 @@ mod tests {
                 ModerationAction::BotTokenReissue => 17,
                 ModerationAction::OwnerHandoff => 18,
                 ModerationAction::OwnerTimeoutEnded => 19,
+                ModerationAction::MessageEdited => 20,
             }
         }
         let mut seen = vec![false; ModerationAction::ALL.len()];

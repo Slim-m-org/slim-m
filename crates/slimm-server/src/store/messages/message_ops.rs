@@ -57,6 +57,9 @@ pub struct MessageOpEntry {
     /// The message's link-preview cards were removed, joined at read time like
     /// `forwarded_removed`. Only ever true on an `edit`.
     pub link_previews_removed: bool,
+    /// The message's current text is a moderator's edit, joined at read time
+    /// like `content`. Only ever true on an `edit`.
+    pub edited_by_moderator: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -157,7 +160,12 @@ impl Store {
                       o.created_at AS "created_at!: i64",
                       m.content AS "content?: String", m.edited_at AS "edited_at?: i64",
                       (f.origin_removed_at IS NOT NULL) AS "forwarded_removed!: bool",
-                      (s.message_id IS NOT NULL) AS "link_previews_removed!: bool"
+                      (s.message_id IS NOT NULL) AS "link_previews_removed!: bool",
+                      (m.id IS NOT NULL AND EXISTS (SELECT 1 FROM message_ops e
+                         WHERE e.channel_id = m.channel_id AND e.message_id = m.id
+                           AND e.kind = 'edit' AND e.created_at = m.edited_at
+                           AND e.actor_id IS NOT NULL AND e.actor_id != m.author_id))
+                        AS "edited_by_moderator!: bool"
                FROM message_ops o
                LEFT JOIN messages m
                  ON m.id = o.message_id AND o.kind = 'edit' AND m.deleted_at IS NULL
@@ -187,6 +195,7 @@ impl Store {
                     edited_at: row.edited_at,
                     forwarded_removed: row.forwarded_removed,
                     link_previews_removed: row.link_previews_removed,
+                    edited_by_moderator: row.edited_by_moderator,
                 })
             })
             .collect();

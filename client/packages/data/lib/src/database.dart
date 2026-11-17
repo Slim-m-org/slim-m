@@ -267,6 +267,10 @@ class Messages extends Table {
   BoolColumn get linkPreviewsRemoved =>
       boolean().withDefault(const Constant(false))();
 
+  /// The current text is a moderator's edit; every server copy restates it.
+  BoolColumn get editedByModerator =>
+      boolean().withDefault(const Constant(false))();
+
   /// Whether this message mentions the reader, as the server last said.
   /// Lets a deleted mention walk the channel's `mentionedSeq` back to the one before it.
   BoolColumn get mentionsMe => boolean().withDefault(const Constant(false))();
@@ -318,6 +322,7 @@ extension MessageRowMapping on MessageRow {
                 removed: forwardedRemoved,
               ),
         linkPreviewsRemoved: linkPreviewsRemoved,
+        editedByModerator: editedByModerator,
         pending: pending,
         failed: failed,
         failureReason: failureReason,
@@ -338,7 +343,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -463,6 +468,8 @@ class SlimmDatabase extends _$SlimmDatabase {
             31,
             () => _addColumnOnce(
                 m, channelCategories, channelCategories.parentId)),
+        _UpgradeStep(
+            32, () => _addColumnOnce(m, messages, messages.editedByModerator)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

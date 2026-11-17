@@ -37,6 +37,7 @@ pub(super) mod message_forwards;
 pub(super) mod message_history;
 pub(super) mod message_link_previews;
 pub(super) mod message_mentions;
+pub(super) mod message_moderator_edits;
 pub(super) mod message_module_origins;
 pub(super) mod message_ops;
 pub(super) mod message_reads;
@@ -259,6 +260,23 @@ impl Store {
         let message = fetch_message(&mut *tx, id)
             .await?
             .context("a message this transaction just edited vanished in it")?;
+        // A moderator rewriting someone else's words is audited like deleting them.
+        if let Some(author_id) = message.author_id
+            && author_id != actor_id
+        {
+            record_moderation_audit(
+                &mut tx,
+                ModerationAudit {
+                    actor_id,
+                    subject_id: author_id,
+                    action: ModerationAction::MessageEdited,
+                    reason: None,
+                    until: None,
+                    created_at: now,
+                },
+            )
+            .await?;
+        }
         tx.commit().await?;
         Ok(Edited::Edited {
             message,
