@@ -169,6 +169,11 @@ void main() {
     );
     expect(capture.started, isFalse);
     expect(voiceButton(tester, 'Send voice message').onPressed, isNull);
+    expect(
+      find.bySemanticsLabel('Send voice message'),
+      findsNothing,
+      reason: 'a refusal has nothing it could ever send',
+    );
   });
 
   testWidgets('a call starting stops the recording, keeps it and says why', (
