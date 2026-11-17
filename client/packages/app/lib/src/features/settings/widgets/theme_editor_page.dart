@@ -158,7 +158,8 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
       return false;
     }
     final applied = ref.read(customThemeProvider);
-    if (applied != null && applied.toJsonText() == before) {
+    if (applied != null &&
+        (applied.toJsonText() == before || themeMatchText(applied) == before)) {
       await ref.read(customThemeProvider.notifier).set(_draft.document);
       await ref
           .read(customThemeSourceProvider.notifier)

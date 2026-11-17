@@ -113,4 +113,22 @@ void main() {
     expect(container.read(appBackgroundControllerProvider), before);
     expect(container.read(backgroundFromThemeProvider), isNull);
   });
+
+  testWidgets('without the picture bytes none of its settings apply', (
+    tester,
+  ) async {
+    final (container, ref) = await _pump(tester);
+    final before = container.read(appBackgroundControllerProvider);
+
+    await tester.runAsync(
+      () => applyThemeDocument(
+        ref,
+        _document,
+        source: const SpaceThemeSource('pine'),
+      ),
+    );
+
+    expect(container.read(appBackgroundControllerProvider), before);
+    expect(container.read(backgroundFromThemeProvider), isNull);
+  });
 }

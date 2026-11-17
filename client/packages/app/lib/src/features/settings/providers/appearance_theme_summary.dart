@@ -124,19 +124,22 @@ ThemeGalleryEntry? _entryFor(RecentTheme recent, ThemeGallery gallery) {
   ].where((e) => e.source == recent.source).firstOrNull;
   if (listed != null) return listed;
   final kept = recent.theme;
-  if (recent.source is! SpaceThemeSource ||
+  final source = recent.source;
+  if (source is! SpaceThemeSource ||
       kept == null ||
       gallery.spaceState == ThemeGallerySpaceState.loaded) {
     return null;
   }
   final author = kept.author.trim();
   return ThemeGalleryEntry(
-    source: recent.source,
+    source: source,
     kind: ThemeGalleryKind.space,
     name: kept.name,
     tokens: kept.tokens,
     brightness: kept.brightness,
     author: author.isEmpty ? null : author,
+    // The store keeps picture settings only beside a picture, so the kept copy says one exists.
+    pictureId: kept.picture == null ? null : source.id,
     document: kept,
   );
 }

@@ -54,12 +54,10 @@ Future<void> applyThemeDocument(
       .select(AppThemeChoice.custom);
   await _recordSwitch(ref, leaving, source, theme: document);
   final picture = document.picture;
-  if (picture == null || !background) return;
+  if (picture == null || pictureBytes == null || !background) return;
   final layer = ref.read(appBackgroundControllerProvider.notifier);
   // The file's picture settings describe a picture that is not there, so a failed import applies none of them.
-  if (pictureBytes != null && !await layer.importPicture(pictureBytes)) {
-    return;
-  }
+  if (!await layer.importPicture(pictureBytes)) return;
   await layer.setDim(picture.dim);
   await layer.setVignette(picture.vignette);
   await layer.setBlur(picture.blur);

@@ -227,6 +227,24 @@ void main() {
       expect(gone.map((t) => t.name), ['dark']);
     });
 
+    test('a Space recent with a picture fetches it when applied', () {
+      final pine = _doc('Pine at dusk');
+      final pictured = ThemeDocument(
+        name: pine.name,
+        author: pine.author,
+        base: pine.base,
+        brightness: pine.brightness,
+        colours: pine.colours,
+        picture: const ThemePicture(dim: 0.4, vignette: true, blur: 0.2),
+      );
+      final tiles =
+          recentThemeTiles(_gallery(state: ThemeGallerySpaceState.failed), [
+            _recent(const SpaceThemeSource('p'), theme: pictured),
+            _recent(const SpaceThemeSource('q'), theme: pine),
+          ], max: 5);
+      expect(tiles.map((t) => t.pictureId), [null, 'p', null]);
+    });
+
     test('a Not saved theme in use leads the row', () {
       final lilac = _entry(
         const FileThemeSource(),

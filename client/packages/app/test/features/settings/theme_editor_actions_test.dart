@@ -154,6 +154,29 @@ void main() {
     );
   });
 
+  testWidgets('saving the theme in use updates it when the applied copy '
+      'carries picture settings that Mine drops', (tester) async {
+    final rig = EditorRig();
+    final mine = ThemeEditorSeed.fromBase(
+      'dark',
+    ).document.copyWith(name: 'In use');
+    final applied = ThemeDocument(
+      name: mine.name,
+      author: mine.author,
+      base: mine.base,
+      brightness: mine.brightness,
+      colours: mine.colours,
+      picture: const ThemePicture(dim: 0.4, vignette: true, blur: 0.2),
+    );
+    await rig.open(tester, seed: ThemeEditorSeed(mine, mineId: 'm1'));
+    await rig.container.read(customThemeProvider.notifier).set(applied);
+
+    await _rename(tester, 'In use, renamed');
+    await tapIn(tester, byKey('theme-editor-save'));
+
+    expect(rig.container.read(customThemeProvider)!.name, 'In use, renamed');
+  });
+
   testWidgets('publishing posts the theme file under the member name', (
     tester,
   ) async {
