@@ -31,6 +31,7 @@ class ForwardTarget {
     required this.isDm,
     this.isVoice = false,
     this.restricted = false,
+    this.isPersonalSpace = false,
     this.userId,
     this.username,
     this.avatarUpdatedAt,
@@ -52,6 +53,9 @@ class ForwardTarget {
 
   /// Mirrors `Channel.restricted`: the picker draws the rail's lock.
   final bool restricted;
+
+  /// The caller's own Notes, drawn with the rail's notebook rather than their avatar.
+  final bool isPersonalSpace;
 
   /// The DM partner, so the picker can draw their real picture rather than a
   /// generic person glyph. Null for an ordinary channel, which has none.
@@ -133,6 +137,7 @@ final forwardTargetsProvider = FutureProvider.autoDispose
                   ? personalSpaceName
                   : dm.user.displayName,
               isDm: true,
+              isPersonalSpace: dm.user.id == selfId,
               userId: dm.user.id,
               username: dm.user.username,
               avatarUpdatedAt: dm.user.avatarUpdatedAt,
