@@ -23,6 +23,7 @@ import 'package:slimm_platform/testing.dart';
 
 import '../../dock_manifest_fixture.dart';
 import '../../ui_snapshot_support.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -292,6 +293,7 @@ void main() {
     final h = await _pump(tester, asks: ['kv.store']);
     await _install(tester);
     expect(h.installs.single['reviewed_digest'], 'digest-of-what-was-shown');
+    await expireToasts(tester);
   });
 
   testWidgets('approve_local_network is sent false while left off', (
@@ -302,6 +304,7 @@ void main() {
     await _flip(tester, 'Reach the internet');
     await _install(tester);
     expect(h.installs.single['approve_local_network'], false);
+    await expireToasts(tester);
   });
 
   testWidgets('approve_local_network is sent true once switched on', (
@@ -314,6 +317,7 @@ void main() {
     await _install(tester);
     expect(on.installs.single['approve_local_network'], true);
     expect(on.installs.single['approved_host_capabilities'], ['net.fetch']);
+    await expireToasts(tester);
   });
 
   testWidgets('switching net.fetch off drops the local yes', (tester) async {
@@ -333,6 +337,7 @@ void main() {
 
     await _flip(tester, 'Reach the internet');
     expect(_on(tester, 'Private network'), isFalse, reason: 'not remembered');
+    await expireToasts(tester);
   });
 
   testWidgets('the consent sheet lists Private network as its own line', (

@@ -6,6 +6,8 @@
 /// rather than also carrying an overlay menu's wiring.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,71 +36,83 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
 
   @override
   Widget build(BuildContext context) {
-    final permissions = ref.watch(myPermissionsProvider);
-
     return AnchoredMenu(
       controller: _controller,
-      menu: AppMenu(
-        width: 200,
-        children: [
-          AppMenuItem(
-            label: 'Inbox',
-            leading: AppIcons.inbox,
-            onTap: () {
-              _controller.hide();
-              showInboxSheet(context);
-            },
-          ),
-          markSpaceReadMenuItem(
-            context,
-            ProviderScope.containerOf(context, listen: false),
-            _controller.hide,
-          ),
-          // Above settings and outside the manage gate: keeping messages is something every member does.
-          AppMenuItem(
-            label: 'Saved messages',
-            leading: AppIcons.bookmark,
-            onTap: () {
-              _controller.hide();
-              showSavedMessagesSheet(context);
-            },
-          ),
-          if (watchCanInviteFriend(ref))
-            AppMenuItem(
-              label: 'Invite a friend',
-              leading: AppIcons.invite,
-              onTap: () {
-                _controller.hide();
-                inviteAFriend(context);
-              },
-            ),
-          // Space settings is the way in for anyone who holds a settings permission; a member who may only invite has none, so this is theirs.
-          if (watchCanInviteFriend(ref) && !spaceSettingsReachable(permissions))
-            AppMenuItem(
-              label: 'My invites',
-              leading: AppIcons.link,
-              onTap: () {
-                _controller.hide();
-                context.push(Routes.adminInvites);
-              },
-            ),
-          // Settings stays behind the gate that makes its screen worth opening.
-          if (spaceSettingsReachable(permissions))
-            AppMenuItem(
-              label: 'Space settings',
-              leading: AppIcons.settings,
-              onTap: () {
-                _controller.hide();
-                context.push(Routes.spaceSettings);
-              },
-            ),
-        ],
-      ),
+      menu: AppMenu(width: 200, children: _items(ref, _controller.hide)),
       child: AppIconButton(
         icon: AppIcons.chevronDown,
         semanticLabel: 'Space menu',
-        onPressed: _controller.toggle,
+        onPressed: () => MediaQuery.sizeOf(context).width < kCompactWidth
+            ? unawaited(_openSheet())
+            : _controller.toggle(),
       ),
     );
+  }
+
+  /// A phone gets the sheet every other phone menu is, per `desktop-vs-mobile.md`.
+  Future<void> _openSheet() => showAppSheet<void>(
+    context,
+    bare: true,
+    builder: (sheet) => Consumer(
+      builder: (context, ref, _) =>
+          AppSheetMenu(children: _items(ref, () => Navigator.of(sheet).pop())),
+    ),
+  );
+
+  List<Widget> _items(WidgetRef ref, VoidCallback close) {
+    final permissions = ref.watch(myPermissionsProvider);
+    return [
+      AppMenuItem(
+        label: 'Inbox',
+        leading: AppIcons.inbox,
+        onTap: () {
+          close();
+          showInboxSheet(context);
+        },
+      ),
+      markSpaceReadMenuItem(
+        context,
+        ProviderScope.containerOf(context, listen: false),
+        close,
+      ),
+      // Above settings and outside the manage gate: keeping messages is something every member does.
+      AppMenuItem(
+        label: 'Saved messages',
+        leading: AppIcons.bookmark,
+        onTap: () {
+          close();
+          showSavedMessagesSheet(context);
+        },
+      ),
+      if (watchCanInviteFriend(ref))
+        AppMenuItem(
+          label: 'Invite a friend',
+          leading: AppIcons.invite,
+          onTap: () {
+            close();
+            inviteAFriend(context);
+          },
+        ),
+      // Space settings is the way in for anyone who holds a settings permission; a member who may only invite has none, so this is theirs.
+      if (watchCanInviteFriend(ref) && !spaceSettingsReachable(permissions))
+        AppMenuItem(
+          label: 'My invites',
+          leading: AppIcons.link,
+          onTap: () {
+            close();
+            context.push(Routes.adminInvites);
+          },
+        ),
+      // Settings stays behind the gate that makes its screen worth opening.
+      if (spaceSettingsReachable(permissions))
+        AppMenuItem(
+          label: 'Space settings',
+          leading: AppIcons.settings,
+          onTap: () {
+            close();
+            context.push(Routes.spaceSettings);
+          },
+        ),
+    ];
   }
 }

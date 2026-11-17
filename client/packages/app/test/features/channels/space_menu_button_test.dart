@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import '../../support/fake_api.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -112,12 +113,32 @@ void main() {
     await _pump(tester, container);
 
     await tester.tap(find.bySemanticsLabel('Space menu'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(find.text('Mark all as read'), findsOneWidget);
     expect(find.text('Saved messages'), findsOneWidget);
     expect(find.text('Space settings'), findsOneWidget);
     expect(find.text(ActionLabels.createChannel), findsNothing);
     expect(find.text(ActionLabels.createCategory), findsNothing);
+  });
+
+  testWidgets('on a phone the menu is a bottom sheet, not a popover', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final container = _setup(Perm.manageChannels);
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await pumpFrames(tester);
+
+    final item = tester.getRect(find.text('Saved messages'));
+    expect(item.center.dy, greaterThan(400), reason: 'sits at the bottom');
+    await tester.tap(find.text('Saved messages'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mark all as read'), findsNothing);
   });
 }

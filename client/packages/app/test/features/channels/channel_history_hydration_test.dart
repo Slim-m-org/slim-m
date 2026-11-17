@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/features/messages/providers/retention_sweep.dart';
 
 import '../../channel_history_harness.dart';
+import '../../support/toast_host.dart';
 
 List<int> _range(int from, int to) => [
   for (var seq = from; seq <= to; seq++) seq,
@@ -151,10 +152,10 @@ void main() {
     expect(seen.whereType<MessageJumpArrived>(), isEmpty);
     expect(seen.whereType<MessageJumpFailed>(), hasLength(1));
     expect(harness.container.read(channelHistoryProvider('c1')).window, 200);
-    expect(
-      find.text('Could not load older messages to find it. Try again.'),
-      findsOneWidget,
-    );
+    expect(toastMessages(tester), [
+      'Could not load older messages to find it. Try again.',
+    ]);
+    await expireToasts(tester);
     await _unmount(tester);
   });
 

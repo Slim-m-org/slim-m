@@ -88,11 +88,17 @@ class _InboxSheetState extends ConsumerState<_InboxSheet>
               AppSpacing.s16,
               AppSpacing.s8,
             ),
-            trailing: AppButton(
-              label: 'Mark all read',
-              variant: AppButtonVariant.ghost,
-              icon: AppIcons.check,
-              onPressed: entries.isEmpty || _busy ? null : _markAllRead,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppButton(
+                  label: 'Mark all read',
+                  variant: AppButtonVariant.ghost,
+                  icon: AppIcons.check,
+                  onPressed: entries.isEmpty || _busy ? null : _markAllRead,
+                ),
+                const AppSheetCloseButton(),
+              ],
             ),
           ),
           if (actionError case final error?)

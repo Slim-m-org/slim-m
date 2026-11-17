@@ -17,8 +17,10 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_design_system/design_system.dart' show AppText;
 
 import 'voice_settings_screen_harness.dart';
+import '../../support/async_wait.dart';
 
 const _mic1 = AudioDevice(id: 'mic-1', label: 'Built-in microphone');
 const _mic2 = AudioDevice(id: 'mic-2', label: 'USB headset');
@@ -58,14 +60,14 @@ void main() {
       audioOutputDeviceList: const [_speaker1],
     );
     await tester.pumpWidget(_pumpWith(session));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     await tester.scrollUntilVisible(
       _pickerRow('Input device'),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find.byWidgetPredicate((w) => w is Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     await tester.tap(_pickerRow('Input device'));
     await tester.pumpAndSettle();
 
@@ -122,6 +124,27 @@ void main() {
       );
     },
   );
+
+  testWidgets('the unsupported-output caption wraps on a phone, not ellipsis', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final session = FakeSettingsSession(supportsAudioOutputSelection: false);
+    await tester.pumpWidget(_pumpWith(session));
+    await tester.pumpAndSettle();
+    final caption = find.textContaining('always plays a call through');
+    await tester.scrollUntilVisible(
+      caption,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    final lineHeight = AppText.caption.fontSize! * AppText.caption.height!;
+    expect(tester.getSize(caption).height, greaterThan(lineHeight * 1.5));
+  });
 
   testWidgets(
     'a device unplugged since it was chosen falls back to the default '

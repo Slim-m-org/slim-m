@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/voice/widgets/screen_stamps_received_shee
 import 'package:slimm_app/src/providers/providers.dart';
 
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 final _fiveMinutesAgo = DateTime.now()
     .subtract(const Duration(minutes: 5))
@@ -170,6 +171,7 @@ void main() {
       (reports.single['subject_kind'], reports.single['subject_id']),
       ('screen_stamp', 'latest-a'),
     );
+    await expireToasts(tester);
   });
 
   testWidgets('none in the last day says so', (tester) async {

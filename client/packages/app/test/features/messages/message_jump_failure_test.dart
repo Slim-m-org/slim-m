@@ -8,12 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 
 import '../../channel_history_harness.dart';
+import '../../support/toast_host.dart';
 
 List<int> _range(int from, int to) => [
   for (var seq = from; seq <= to; seq++) seq,
 ];
 
 Future<void> _unmount(WidgetTester tester) async {
+  await expireToasts(tester);
   await tester.pumpWidget(const SizedBox.shrink());
   for (var i = 0; i < 5; i++) {
     await tester.pump(const Duration(milliseconds: 1));
@@ -57,11 +59,9 @@ void main() {
           .jumpTo('c1', 'm100');
       await flush(tester);
 
-      expect(
-        find.text('Could not load older messages to find it. Try again.'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Could not find that message'), findsNothing);
+      expect(toastMessages(tester), [
+        'Could not load older messages to find it. Try again.',
+      ]);
       expect(
         harness.container.read(messageJumpProvider),
         isA<MessageJumpIdle>(),

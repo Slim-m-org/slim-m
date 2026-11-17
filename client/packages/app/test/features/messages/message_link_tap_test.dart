@@ -23,6 +23,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/toast_host.dart';
 
 const _here = 'https://slim.example';
 const _elsewhere = 'https://other.example';
@@ -142,7 +143,8 @@ void main() {
     _tapLink(tester);
     await tester.pumpAndSettle();
 
-    expect(find.text('That link is for a different server.'), findsOneWidget);
+    expect(toastMessages(tester), ['That link is for a different server.']);
+    await expireToasts(tester);
     expect(
       h.location,
       Routes.channel('c-here'),

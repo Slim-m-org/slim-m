@@ -149,14 +149,45 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   /// Mirrors the portal's visibility for the trigger's expanded state.
   final _open = ValueNotifier<bool>(false);
 
+  /// The context of the phone sheet while one is up, which `_hide` pops.
+  BuildContext? _sheet;
+
   void _hide() {
+    final sheet = _sheet;
+    if (sheet != null) {
+      _sheet = null;
+      Navigator.of(sheet).pop();
+    }
     _controller.hide();
     _open.value = false;
   }
 
   void _toggle() {
+    if (MediaQuery.sizeOf(context).width < kCompactWidth) {
+      unawaited(_openSheet());
+      return;
+    }
     _controller.toggle();
     _open.value = _controller.isShowing;
+  }
+
+  /// A phone gets the sheet every other phone menu is, per `desktop-vs-mobile.md`.
+  Future<void> _openSheet() async {
+    _open.value = true;
+    await showAppSheet<void>(
+      context,
+      bare: true,
+      builder: (sheet) {
+        _sheet = sheet;
+        return ValueListenableBuilder<String?>(
+          valueListenable: widget.selection,
+          builder: (context, selected, _) =>
+              AppSheetMenu(children: _menuItems(context, selected)),
+        );
+      },
+    );
+    _sheet = null;
+    if (mounted) _open.value = false;
   }
 
   @override

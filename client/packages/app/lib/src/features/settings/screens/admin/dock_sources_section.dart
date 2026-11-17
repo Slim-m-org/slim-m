@@ -129,7 +129,6 @@ class _AddSourceSheetState extends ConsumerState<_AddSourceSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -141,20 +140,13 @@ class _AddSourceSheetState extends ConsumerState<_AddSourceSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const AppSheetHeader(
             'Add a community source',
-            style: AppText.heading.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
-            ),
+            caption:
+                'A GitHub repo (owner/repo) with an index.json; its modules '
+                'are unreviewed.',
+            padding: EdgeInsets.only(bottom: AppSpacing.s16),
           ),
-          const SizedBox(height: AppSpacing.s4),
-          Text(
-            'A GitHub repo (owner/repo) with an index.json; its modules are '
-            'unreviewed.',
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.s16),
           AppInput(
             controller: _repo,
             placeholder: 'owner/repo',

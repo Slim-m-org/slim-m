@@ -138,12 +138,9 @@ class _CategoryUnsyncedNoticeState extends ConsumerState<CategoryUnsyncedNotice>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
+          AppSheetHeader(
+            '#${channel.name} · Permissions',
             padding: const EdgeInsets.all(AppSpacing.s16),
-            child: Text(
-              '#${channel.name} · Permissions',
-              style: AppText.heading,
-            ),
           ),
           ChannelPermissionsGrid(channel: channel),
         ],

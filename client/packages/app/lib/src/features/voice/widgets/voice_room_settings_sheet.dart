@@ -94,8 +94,10 @@ class _VoiceRoomSettingsSheetState extends ConsumerState<VoiceRoomSettingsSheet>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Room options', style: AppText.heading),
-          const SizedBox(height: AppSpacing.s16),
+          const AppSheetHeader(
+            'Room options',
+            padding: EdgeInsets.only(bottom: AppSpacing.s16),
+          ),
           AppInput(
             counterMax: entityNameMaxChars,
             controller: _name,

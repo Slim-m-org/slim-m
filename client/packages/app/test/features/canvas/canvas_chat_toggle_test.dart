@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import '../../support/async_wait.dart';
 
 Channel _channel({
   String kind = 'voice',
@@ -203,12 +204,11 @@ void main() {
       expect(find.byKey(voiceChatUnreadKey), findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pump(const Duration(milliseconds: 600));
+      await pumpFrames(tester);
       expect(find.text('Text chat, new messages'), findsOneWidget);
 
       await tester.tap(find.text('Text chat, new messages'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await pumpFrames(tester);
       expect(find.bySemanticsLabel('Text chat'), findsOneWidget);
     });
 

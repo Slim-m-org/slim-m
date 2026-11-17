@@ -17,6 +17,7 @@ import 'package:slimm_app/src/features/members/widgets/role_color.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -84,7 +85,10 @@ void main() {
     final teal = find.bySemanticsLabel('Role colour: Teal');
     await tester.ensureVisible(teal);
     await tester.tap(teal);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
+    expect(patches, isEmpty);
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await pumpFrames(tester);
     expect(patches, [
       {'color': 9},
     ]);
@@ -118,6 +122,8 @@ void main() {
     await tester.ensureVisible(none);
     await tester.tap(none);
     await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
+    await tester.pumpAndSettle();
     expect(patches, [
       {'color': null},
     ]);

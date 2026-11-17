@@ -46,14 +46,14 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
 
   /// Fires the same tick every other tappable in this system does, since a
   /// plain [InkWell] carries none of that on its own.
-  void _onTapChange(bool hasAvatar) {
+  void _onTapChange(bool hasAvatar, BuildContext button) {
     AppHaptics.selection();
-    unawaited(_openMenu(hasAvatar));
+    unawaited(_openMenu(hasAvatar, button));
   }
 
-  Future<void> _openMenu(bool hasAvatar) async {
+  Future<void> _openMenu(bool hasAvatar, BuildContext button) async {
     final action = await showAvatarPhotoMenu(
-      context,
+      button,
       canTake: ref.read(avatarCameraCaptureProvider) != null,
       canRemove: hasAvatar,
     );
@@ -172,10 +172,14 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
             title: 'Picture',
             caption: 'Square images work best.',
             trailing: [
-              AppButton(
-                label: 'Change',
-                semanticLabel: 'Change profile picture',
-                onPressed: enabled ? () => _onTapChange(hasAvatar) : null,
+              Builder(
+                builder: (button) => AppButton(
+                  label: 'Change',
+                  semanticLabel: 'Change profile picture',
+                  onPressed: enabled
+                      ? () => _onTapChange(hasAvatar, button)
+                      : null,
+                ),
               ),
             ],
           ),

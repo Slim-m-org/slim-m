@@ -67,6 +67,32 @@ class AppSegmentedControl extends StatelessWidget {
   /// The trough's padding and border on both sides, so a filled control on touch totals a full touch row.
   static const double _troughInset = 8;
 
+  /// The width an [AppSegmentedControl.inline] takes when nothing wraps it, for a row deciding whether the control fits beside its label.
+  static double inlineWidth(
+    BuildContext context,
+    List<AppSegmentedOption> options,
+  ) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    var width = 2 * (3 + 1) + AppSpacing.s4 * (options.length - 1);
+    for (final option in options) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: option.label,
+          style: AppText.caption.copyWith(
+            fontFamily: AppFonts.sans,
+            fontWeight: AppWeights.medium,
+          ),
+        ),
+        textDirection: direction,
+        textScaler: scaler,
+      )..layout();
+      width += painter.width + 2 * AppSpacing.s12 + 2;
+      painter.dispose();
+    }
+    return width;
+  }
+
   final List<AppSegmentedOption> options;
   final int selectedIndex;
   final ValueChanged<int> onSegmentSelected;

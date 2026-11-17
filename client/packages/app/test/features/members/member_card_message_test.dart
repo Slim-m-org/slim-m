@@ -23,6 +23,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -131,10 +132,8 @@ void main() {
     expect(run.requests, contains('POST /dms/user-maya'));
     expect(run.closed, hasLength(1));
     expect(tester.takeException(), isNull);
-    expect(
-      find.textContaining('Could not open a conversation'),
-      findsOneWidget,
-    );
+    expect(toastMessages(tester), [contains('Could not open a conversation')]);
+    await expireToasts(tester);
   });
 
   testWidgets('a network failure is reported the same way', (tester) async {
@@ -147,10 +146,8 @@ void main() {
 
     expect(run.requests, contains('POST /dms/user-maya'));
     expect(tester.takeException(), isNull);
-    expect(
-      find.textContaining('Could not open a conversation'),
-      findsOneWidget,
-    );
+    expect(toastMessages(tester), [contains('Could not open a conversation')]);
+    await expireToasts(tester);
   });
 
   testWidgets('a DM that opens goes to the conversation and says nothing', (

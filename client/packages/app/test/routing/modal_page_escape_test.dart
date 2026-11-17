@@ -81,4 +81,16 @@ void main() {
 
     expect(find.bySemanticsLabel(_toggleLabel), findsNothing);
   });
+
+  testWidgets('Escape closes a modal page nothing inside has focused yet', (
+    tester,
+  ) async {
+    await _open(tester);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.bySemanticsLabel(_toggleLabel), findsNothing);
+  });
 }

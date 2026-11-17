@@ -136,16 +136,10 @@ class _GroupDmMembersSheetState extends ConsumerState<_GroupDmMembersSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            AppSheetHeader(
               shownName,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.heading.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: AppWeights.semi,
-              ),
+              padding: const EdgeInsets.only(bottom: AppSpacing.s12),
             ),
-            const SizedBox(height: AppSpacing.s12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

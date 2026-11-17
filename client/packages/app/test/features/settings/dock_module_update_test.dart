@@ -30,6 +30,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/dock_page_helpers.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -272,6 +273,7 @@ void main() {
       findsOneWidget,
       reason: 'it stays on the module screen',
     );
+    await expireToasts(tester);
   });
 
   testWidgets('a disabled module can still be updated', (tester) async {
@@ -286,5 +288,6 @@ void main() {
     await tester.tap(find.text('Update to v0.3.0'));
     await tester.pumpAndSettle();
     expect(installs, ['0.3.0']);
+    await expireToasts(tester);
   });
 }
