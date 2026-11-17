@@ -109,4 +109,46 @@ void main() {
     expect(started, 2);
     await c.cancel();
   });
+
+  test('a pactl subscribe that exits mid-call is started again', () async {
+    var started = 0;
+    late StreamController<String> upstream;
+    final shared = sharedWhileListened(() {
+      started++;
+      upstream = StreamController<String>();
+      return upstream.stream;
+    }, restartAfter: const Duration(milliseconds: 1));
+
+    final seen = <String>[];
+    final a = shared().listen(seen.add);
+    final b = shared().listen((_) {});
+    await pumpEventQueue();
+    await upstream.close();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(started, 2);
+    upstream.add("Event 'new' on sink-input #9");
+    await pumpEventQueue();
+    expect(seen, ["Event 'new' on sink-input #9"]);
+    await a.cancel();
+    await b.cancel();
+  });
+
+  test('a pactl subscribe nobody listens to is not started again', () async {
+    var started = 0;
+    late StreamController<String> upstream;
+    final shared = sharedWhileListened(() {
+      started++;
+      upstream = StreamController<String>();
+      return upstream.stream;
+    }, restartAfter: const Duration(milliseconds: 1));
+
+    final a = shared().listen((_) {});
+    await pumpEventQueue();
+    await a.cancel();
+    await upstream.close();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(started, 1);
+  });
 }

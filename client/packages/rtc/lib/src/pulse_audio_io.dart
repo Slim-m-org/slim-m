@@ -46,8 +46,8 @@ Stream<String> subscribePactl({ProcessStarter start = Process.start}) {
         unawaited(started.stderr.drain<void>());
         unawaited(started.exitCode.then((code) {
           if (cancelled) return;
-          AppLog.warning(LogTag.voice,
-              'pactl subscribe exited with code $code; device changes are no longer followed');
+          AppLog.warning(
+              LogTag.voice, 'pactl subscribe exited with code $code');
         }));
         started.stdout
             .transform(utf8.decoder)

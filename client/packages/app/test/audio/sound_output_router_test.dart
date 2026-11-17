@@ -49,10 +49,61 @@ SoundOutputRouter _router(
   delays: const [Duration.zero, Duration(milliseconds: 1)],
 );
 
+/// A sound server whose own streams sit on a sink and show up from a given listing on.
+class _SinkServer {
+  /// Stream id to (sink index, the sink-input listing it first appears in).
+  _SinkServer(Map<int, (int, int)> streams)
+    : sinkOf = {for (final e in streams.entries) e.key: e.value.$1},
+      _appears = {for (final e in streams.entries) e.key: e.value.$2};
+
+  final Map<int, int> sinkOf;
+  final Map<int, int> _appears;
+  final moves = <List<String>>[];
+  var _listings = 0;
+
+  Future<ProcessResult> run(List<String> args) async {
+    if (args.first.startsWith('move-')) {
+      moves.add(args);
+      sinkOf[int.parse(args[1])] = args[2] == 'sink_b' ? 1 : 0;
+      return ProcessResult(0, 0, '', '');
+    }
+    final out = switch (args) {
+      [..., 'sinks'] => [
+        {'index': 0, 'name': 'sink_a'},
+        {'index': 1, 'name': 'sink_b'},
+      ],
+      [..., 'sink-inputs'] => _streams(_listings++),
+      _ => const <Object>[],
+    };
+    return ProcessResult(0, 0, jsonEncode(out), '');
+  }
+
+  List<Object> _streams(int listing) => [
+    for (final id in sinkOf.keys)
+      if (_appears[id]! <= listing)
+        {
+          'index': id,
+          'sink': sinkOf[id],
+          'properties': {'application.process.id': '$_pid'},
+        },
+  ];
+}
+
+SoundOutputRouter _routerOn(_SinkServer server) => SoundOutputRouter(
+  () => 'pulse:sink_b',
+  pulse: PulseAudio(run: server.run, processId: _pid),
+  supported: true,
+  delays: const [
+    Duration.zero,
+    Duration(milliseconds: 1),
+    Duration(milliseconds: 2),
+  ],
+);
+
 void main() {
   test('moves this app\'s playing stream to the chosen sink once', () async {
-    final server = _Server();
-    await _router(server, 'pulse:sink_b').followChosenOutput();
+    final server = _SinkServer({7: (0, 0)});
+    await _routerOn(server).followChosenOutput();
 
     expect(server.moves, [
       ['move-sink-input', '7', 'sink_b'],
@@ -60,43 +111,24 @@ void main() {
   });
 
   test('a stream already on the chosen sink waits for the new one', () async {
-    final moves = <List<String>>[];
-    var listings = 0;
-    Future<ProcessResult> run(List<String> args) async {
-      if (args.first.startsWith('move-')) moves.add(args);
-      final out = switch (args) {
-        [..., 'sinks'] => [
-          {'index': 1, 'name': 'sink_b'},
-        ],
-        [..., 'sink-inputs'] => [
-          {
-            'index': 7,
-            'sink': 1,
-            'properties': {'application.process.id': '$_pid'},
-          },
-          if (++listings > 1)
-            {
-              'index': 9,
-              'sink': 0,
-              'properties': {'application.process.id': '$_pid'},
-            },
-        ],
-        _ => const <Object>[],
-      };
-      return ProcessResult(0, 0, jsonEncode(out), '');
-    }
+    final server = _SinkServer({7: (1, 0), 9: (0, 1)});
+    await _routerOn(server).followChosenOutput();
 
-    final router = SoundOutputRouter(
-      () => 'pulse:sink_b',
-      pulse: PulseAudio(run: run, processId: _pid),
-      supported: true,
-      delays: const [Duration.zero, Duration(milliseconds: 1)],
-    );
-    await router.followChosenOutput();
-
-    expect(moves, [
+    expect(server.moves, [
       ['move-sink-input', '9', 'sink_b'],
     ]);
+  });
+
+  test('the call\'s stream moving first does not stop the cue\'s from '
+      'following', () async {
+    final server = _SinkServer({7: (0, 0), 9: (0, 2)});
+    await _routerOn(server).followChosenOutput();
+
+    expect(server.moves, [
+      ['move-sink-input', '7', 'sink_b'],
+      ['move-sink-input', '9', 'sink_b'],
+    ]);
+    expect(server.sinkOf, {7: 1, 9: 1});
   });
 
   test('the system default moves nothing', () async {

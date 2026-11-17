@@ -33,16 +33,41 @@ PactlRunner sharingDeviceQueries(PactlRunner run) {
 }
 
 /// One subscription to [source] however many listen, held while anyone does.
-PactlSubscriber sharedWhileListened(PactlSubscriber source) {
+///
+/// A sound server restart ends `pactl subscribe` mid-call, so it is started
+/// again after [restartAfter], doubling up to [_restartCap], while anyone listens.
+PactlSubscriber sharedWhileListened(
+  PactlSubscriber source, {
+  Duration restartAfter = const Duration(seconds: 1),
+}) {
   StreamSubscription<String>? upstream;
+  Timer? restart;
+  var delay = restartAfter;
   late final StreamController<String> lines;
-  lines = StreamController<String>.broadcast(
-    onListen: () => upstream = source().listen(
-      lines.add,
+  void start() {
+    upstream = source().listen(
+      (line) {
+        delay = restartAfter;
+        lines.add(line);
+      },
       onError: lines.addError,
-      onDone: () => upstream = null,
-    ),
+      onDone: () {
+        upstream = null;
+        if (!lines.hasListener) return;
+        restart = Timer(delay, () {
+          restart = null;
+          if (lines.hasListener && upstream == null) start();
+        });
+        delay = delay * 2 > _restartCap ? _restartCap : delay * 2;
+      },
+    );
+  }
+
+  lines = StreamController<String>.broadcast(
+    onListen: start,
     onCancel: () {
+      restart?.cancel();
+      restart = null;
       final ending = upstream;
       upstream = null;
       unawaited(ending?.cancel());
@@ -50,3 +75,5 @@ PactlSubscriber sharedWhileListened(PactlSubscriber source) {
   );
   return () => lines.stream;
 }
+
+const _restartCap = Duration(seconds: 30);
