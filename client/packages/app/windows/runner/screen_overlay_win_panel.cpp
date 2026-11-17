@@ -6,9 +6,12 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace slimm_overlay {
 namespace {
+
+using Gdiplus::REAL;
 
 // Sizes follow the 4dp grid and the panel radius of docs/design/design-language.md.
 constexpr double kPadX = 8;
@@ -24,8 +27,11 @@ constexpr double kMarkGap = 8;
 constexpr double kGlyph = 14;
 constexpr double kMaxName = 180;
 constexpr double kFontPx = 11;
-
-using Gdiplus::REAL;
+constexpr uint32_t kHalo = 0xFF000000;
+constexpr double kHaloAlpha = 0.45;
+constexpr std::pair<REAL, REAL> kHaloOffsets[] = {
+    {-1.0f, -1.0f}, {0.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f, 0.0f},
+    {1.0f, 0.0f},   {-1.0f, 1.0f}, {0.0f, 1.0f},  {1.0f, 1.0f}};
 
 // Pictures by user id, decoded from the PNG the app sends once per picture.
 std::map<std::string, std::unique_ptr<Gdiplus::Bitmap>> g_avatars;
@@ -75,10 +81,12 @@ void DrawText(Gdiplus::Graphics& g, const Gdiplus::Font& font,
                     static_cast<REAL>(kMaxName), static_cast<REAL>(kRowHeight));
   Gdiplus::StringFormat format;
   ConfigureName(format);
-  // A soft dark offset copy keeps the name readable over a bright screen without a container.
-  Gdiplus::RectF shadow_at(at.X + 1, at.Y + 1, at.Width, at.Height);
-  Gdiplus::SolidBrush shadow(Gdiplus::Color(180, 0, 0, 0));
-  g.DrawString(text.c_str(), -1, &font, shadow_at, &format, &shadow);
+  // A dark halo all round keeps the name readable over a bright screen, since the container is nearly clear.
+  Gdiplus::SolidBrush halo(ColorOf(kHalo, kHaloAlpha));
+  for (const auto& [dx, dy] : kHaloOffsets) {
+    Gdiplus::RectF halo_at(at.X + dx, at.Y + dy, at.Width, at.Height);
+    g.DrawString(text.c_str(), -1, &font, halo_at, &format, &halo);
+  }
   Gdiplus::SolidBrush ink(ColorOf(argb));
   g.DrawString(text.c_str(), -1, &font, at, &format, &ink);
 }
@@ -96,6 +104,8 @@ void DrawAvatar(Gdiplus::Graphics& g, const Panel& panel, const PanelRow& row,
                 double cx, double cy) {
   auto found = g_avatars.find(row.id);
   if (found == g_avatars.end()) {
+    Gdiplus::SolidBrush backing(ColorOf(kHalo, kHaloAlpha));
+    DrawEllipseAt(g, nullptr, &backing, cx, cy, kAvatar / 2);
     Gdiplus::SolidBrush dim(ColorOf(panel.text_muted, 0.4));
     DrawEllipseAt(g, nullptr, &dim, cx, cy, kAvatar / 2);
   } else {

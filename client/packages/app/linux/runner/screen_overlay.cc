@@ -168,6 +168,27 @@ int MonitorOf(GtkWidget* window) {
   return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "slimm-monitor"));
 }
 
+// The monitor's work area in the window's own coordinates; GTK reports the whole monitor where it cannot tell.
+Area WorkAreaOf(GtkWidget* window, double w, double h) {
+  Area area{0, 0, w, h};
+  GdkDisplay* display = gdk_display_get_default();
+  int index = MonitorOf(window);
+  if (display == nullptr || index < 0 || index >= gdk_display_get_n_monitors(display)) {
+    return area;
+  }
+  GdkMonitor* monitor = gdk_display_get_monitor(display, index);
+  GdkRectangle geometry, work;
+  gdk_monitor_get_geometry(monitor, &geometry);
+  gdk_monitor_get_workarea(monitor, &work);
+  GdkRectangle inside;
+  if (!gdk_rectangle_intersect(&geometry, &work, &inside)) return area;
+  area.x = inside.x - geometry.x;
+  area.y = inside.y - geometry.y;
+  area.w = std::fmin(inside.width, w - area.x);
+  area.h = std::fmin(inside.height, h - area.y);
+  return area;
+}
+
 gboolean OnDraw(GtkWidget* widget, cairo_t* cr, gpointer) {
   cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
   cairo_set_source_rgba(cr, 0, 0, 0, 0);
@@ -184,7 +205,7 @@ gboolean OnDraw(GtkWidget* widget, cairo_t* cr, gpointer) {
     }
   }
   if (g_panel.present && MonitorOf(widget) == g_panel.monitor) {
-    DrawPanel(cr, g_panel, w, h);
+    DrawPanel(cr, g_panel, WorkAreaOf(widget, w, h));
   }
   return TRUE;
 }
