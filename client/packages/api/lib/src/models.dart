@@ -63,6 +63,7 @@ export 'models_pins.dart';
 export 'models_polls.dart';
 export 'models_presence.dart';
 export 'models_reactions.dart';
+export 'models_role_preview.dart';
 export 'models_roles.dart';
 export 'models_space.dart';
 export 'models_space_analytics.dart';
