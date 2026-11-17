@@ -60,12 +60,9 @@ class _RailFooterPressTargetState extends State<RailFooterPressTarget> {
             onTapUp: (_) => _press(false),
             onTapCancel: () => _press(false),
             onTap: _activate,
-            child: Container(
-              foregroundDecoration: _focused
-                  ? BoxDecoration(
-                      border: Border.all(color: tokens.focusRing, width: 2),
-                      borderRadius: BorderRadius.circular(AppRadii.control),
-                    )
+            child: CustomPaint(
+              foregroundPainter: _focused
+                  ? _OutsetRing(tokens.focusRing)
                   : null,
               child: AnimatedOpacity(
                 opacity: _pressed ? 0.6 : 1,
@@ -78,4 +75,30 @@ class _RailFooterPressTargetState extends State<RailFooterPressTarget> {
       ),
     );
   }
+}
+
+/// The focus ring drawn [focusRingGap] outside the row, so it never touches
+/// text that starts at the row's own edge, and without moving the row.
+class _OutsetRing extends CustomPainter {
+  _OutsetRing(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).inflate(focusRingGap);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        rect,
+        const Radius.circular(AppRadii.control + focusRingGap),
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = focusRingWidth
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_OutsetRing old) => old.color != color;
 }
