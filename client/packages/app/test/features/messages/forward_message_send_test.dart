@@ -205,7 +205,7 @@ const _unreachable =
     'Nothing was changed.';
 
 final _noteField = find.ancestor(
-  of: find.text('Say something about it (optional)'),
+  of: find.text('Add a message (optional)'),
   matching: find.byType(TextField),
 );
 
