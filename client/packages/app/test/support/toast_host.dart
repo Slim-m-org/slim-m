@@ -22,5 +22,5 @@ Future<void> expireToasts(WidgetTester tester) =>
 
 /// The messages of the toasts currently up, read without needing the layer mounted.
 List<String> toastMessages(WidgetTester tester) => ProviderScope.containerOf(
-  tester.element(find.byType(Navigator).first),
+  tester.element(find.byWidgetPredicate((w) => w is Navigator).first),
 ).read(toastsProvider).map((t) => t.message).toList();

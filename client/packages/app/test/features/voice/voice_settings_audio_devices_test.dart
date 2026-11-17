@@ -20,6 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_design_system/design_system.dart' show AppText;
 
 import 'voice_settings_screen_harness.dart';
+import '../../support/async_wait.dart';
 
 const _mic1 = AudioDevice(id: 'mic-1', label: 'Built-in microphone');
 const _mic2 = AudioDevice(id: 'mic-2', label: 'USB headset');
@@ -59,14 +60,14 @@ void main() {
       audioOutputDeviceList: const [_speaker1],
     );
     await tester.pumpWidget(_pumpWith(session));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     await tester.scrollUntilVisible(
       _pickerRow('Input device'),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find.byWidgetPredicate((w) => w is Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     await tester.tap(_pickerRow('Input device'));
     await tester.pumpAndSettle();
 

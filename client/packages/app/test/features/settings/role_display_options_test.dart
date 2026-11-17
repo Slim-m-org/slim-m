@@ -11,6 +11,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/role_display_tab.d
 import 'package:slimm_design_system/design_system.dart';
 
 import '../members/roles_config_harness.dart';
+import '../../support/async_wait.dart';
 
 const _mod = api.Role(
   id: 'role-mod',
@@ -60,7 +61,7 @@ void main() {
     expect(find.text('1 unsaved change'), findsOneWidget);
     expect(h.writes, isEmpty);
     await tester.tap(save);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(h.writes.map((r) => '${r.method} ${r.path}'), [
       'PATCH /roles/role-mod',
@@ -76,12 +77,15 @@ void main() {
 
     await tester.enterText(find.byType(TextField), '   ');
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     expect(h.writes, isEmpty);
 
-    await tester.enterText(find.byType(TextField), 'Crew');
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'Crew',
+    );
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     expect(h.writes.single.body, {'name': 'Crew'});
   });
 
@@ -92,11 +96,11 @@ void main() {
     await h.pump(tester, const RoleDisplayTab(role: _mod));
 
     await tester.tap(find.bySemanticsLabel('Anyone can @mention this role'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
     expect(h.writes, isEmpty);
 
     await tester.tap(find.widgetWithText(AppButton, 'Save changes'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(h.writes.single.method, 'PATCH');
     expect(h.writes.single.body, {'mentionable': true});
@@ -108,7 +112,10 @@ void main() {
     final h = _server();
     await h.pump(tester, const RoleDisplayTab(role: _mod));
 
-    await tester.enterText(find.byType(TextField), 'Crew');
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField),
+      'Crew',
+    );
     await tester.tap(find.bySemanticsLabel('Anyone can @mention this role'));
     await tester.tap(find.bySemanticsLabel('Role colour: Teal'));
     await tester.pumpAndSettle();
@@ -182,7 +189,7 @@ void main() {
   ) async {
     await _server().pump(tester, const RoleDisplayTab(role: _bots));
 
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is TextField), findsOneWidget);
     expect(find.text('Delete role'), findsNothing);
   });
 }

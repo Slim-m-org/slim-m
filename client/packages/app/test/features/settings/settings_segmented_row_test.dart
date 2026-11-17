@@ -132,7 +132,8 @@ void main() {
     );
 
     final widths = {
-      for (final e in find.byType(AppSegmentedControl).evaluate())
+      for (final e
+          in find.byWidgetPredicate((w) => w is AppSegmentedControl).evaluate())
         tester.getSize(find.byWidget(e.widget)).width,
     };
     expect(widths, hasLength(1), reason: 'ragged: $widths');

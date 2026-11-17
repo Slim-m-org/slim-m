@@ -40,9 +40,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('a message'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is SnackBar), findsNothing);
     final container = ProviderScope.containerOf(
-      tester.element(find.byType(Scaffold)),
+      tester.element(find.byWidgetPredicate((w) => w is Scaffold)),
     );
     expect(container.read(toastsProvider), hasLength(1));
     await tester.pump(ToastsController.defaultDuration);

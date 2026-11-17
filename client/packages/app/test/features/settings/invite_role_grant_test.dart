@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/invite_role_grant_picker.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -141,7 +142,7 @@ void main() {
 
     final row = tester.getRect(find.text('Role granted'));
     await tester.tap(find.text('Role granted'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     final menu = tester.getRect(find.text('moderator'));
     expect((menu.center.dy - row.center.dy).abs(), lessThan(150));

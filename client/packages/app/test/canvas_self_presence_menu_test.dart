@@ -17,6 +17,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'features/canvas/canvas_pane_harness.dart';
 import 'features/voice/voice_controller_harness.dart';
 import 'support/fake_blocks.dart';
+import 'support/async_wait.dart';
 
 const _local = VoiceParticipant(
   identity: 'me',
@@ -57,14 +58,17 @@ void main() {
       expect(find.byType(CanvasPresenceBubble), findsOneWidget);
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pumpAndSettle();
+      await pumpFrames(tester);
       await tester.tap(find.text('Hide my camera bubble'));
       await tester.pump();
 
-      expect(find.byType(CanvasPresenceBubble), findsNothing);
+      expect(
+        find.byWidgetPredicate((w) => w is CanvasPresenceBubble),
+        findsNothing,
+      );
 
       await tester.tap(find.bySemanticsLabel('More canvas actions'));
-      await tester.pumpAndSettle();
+      await pumpFrames(tester);
       expect(find.text('Show my camera bubble'), findsOneWidget);
 
       await tester.tap(find.text('Show my camera bubble'));

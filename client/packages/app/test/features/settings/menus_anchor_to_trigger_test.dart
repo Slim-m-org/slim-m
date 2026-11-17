@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../support/fake_api.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -63,13 +64,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     final button = tester.getRect(
       find.bySemanticsLabel('Change profile picture'),
     );
     await tester.tap(find.bySemanticsLabel('Change profile picture'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     final menu = tester.getRect(find.text('Choose photo'));
     expect((menu.center - button.center).distance, lessThan(300));

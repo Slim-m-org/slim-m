@@ -305,7 +305,7 @@ void main() {
         await tester.tap(find.text('Display'));
         await pumpFrames(tester);
         expect(find.text('Delete role'), findsNothing);
-        expect(find.byType(TextField), findsNothing);
+        expect(find.byWidgetPredicate((w) => w is TextField), findsNothing);
 
         await tester.tap(find.text('junior'));
         await pumpFrames(tester);

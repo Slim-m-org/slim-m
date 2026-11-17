@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import '../../support/fake_api.dart';
+import '../../support/async_wait.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -112,7 +113,7 @@ void main() {
     await _pump(tester, container);
 
     await tester.tap(find.bySemanticsLabel('Space menu'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     expect(find.text('Mark all as read'), findsOneWidget);
     expect(find.text('Saved messages'), findsOneWidget);
@@ -132,7 +133,7 @@ void main() {
     await _pump(tester, container);
 
     await tester.tap(find.bySemanticsLabel('Space menu'));
-    await tester.pumpAndSettle();
+    await pumpFrames(tester);
 
     final item = tester.getRect(find.text('Saved messages'));
     expect(item.center.dy, greaterThan(400), reason: 'sits at the bottom');
