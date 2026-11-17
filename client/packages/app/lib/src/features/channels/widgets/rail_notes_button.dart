@@ -20,9 +20,14 @@ import '../../../widgets/shortcut_label.dart';
 /// Why the last attempt to open Notes failed, shown over the rail until dismissed.
 final notesOpenFailureProvider = StateProvider<String?>((ref) => null);
 
-/// Opens Notes in [router], creating it on the server the first time this
-/// account has none. Shared by the button and its shortcut.
+/// Where Notes was opened from, so a second press goes back there.
+final notesReturnLocationProvider = StateProvider<String?>((ref) => null);
+
+/// Toggles Notes in [router]: opens it, creating it on the server the first
+/// time this account has none, or leaves it for where it was opened from.
+/// Shared by the button and its shortcut.
 Future<void> openNotes(ProviderContainer container, GoRouter router) async {
+  final here = router.routerDelegate.currentConfiguration.uri.toString();
   String? channelId;
   final failure = await runGuarded(
     whatFailed: 'open Notes',
@@ -30,7 +35,16 @@ Future<void> openNotes(ProviderContainer container, GoRouter router) async {
   );
   container.read(notesOpenFailureProvider.notifier).state = failure;
   final id = channelId;
-  if (failure == null && id != null) router.go(Routes.channel(id));
+  if (failure != null || id == null) return;
+  final notes = Routes.channel(id);
+  final back = container.read(notesReturnLocationProvider.notifier);
+  if (Uri.parse(here).path == notes) {
+    router.go(back.state ?? Routes.channels);
+    back.state = null;
+    return;
+  }
+  back.state = here;
+  router.go(notes);
 }
 
 /// Shows as active while Notes is the channel on screen.
