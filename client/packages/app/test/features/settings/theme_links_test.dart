@@ -131,6 +131,20 @@ void main() {
     expect(draft.dirty, isFalse);
   });
 
+  test('a cancelled pick keeps a name and mode changed while it was open', () {
+    final draft = _draft();
+    final before = draft.document.colours['accent'];
+    final mark = draft.mark();
+    draft
+      ..setColour('accent', const Color(0xFF884488))
+      ..setName('Ocean')
+      ..setBrightness(Brightness.light);
+    draft.restore(mark);
+    expect(draft.document.colours['accent'], before);
+    expect(draft.document.name, 'Ocean');
+    expect(draft.document.brightness, Brightness.light);
+  });
+
   test('the note names what a colour sets or follows', () {
     final links = ThemeLinks.start(themeBases['dark']!.toColourMap());
     expect(

@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/providers/my_themes.dart';
 import 'package:slimm_app/src/features/settings/providers/theme_draft.dart';
@@ -139,6 +140,23 @@ void main() {
     expect(byKey('theme-picker-accent'), findsNothing);
   });
 
+  testWidgets('Cancel on the inline picker keeps a name typed while it was '
+      'open', (tester) async {
+    final rig = EditorRig();
+    await rig.open(tester);
+
+    await tapIn(tester, byKey('theme-main-accent'));
+    await _typeHex(tester, '#FFB000');
+    await tester.enterText(byKey('theme-editor-name'), 'Ocean');
+    await settle(tester);
+    await tapIn(tester, find.text('Cancel'));
+    await tapIn(tester, byKey('theme-editor-save'));
+
+    final saved = rig.container.read(myThemesProvider).single.document;
+    expect(saved.name, 'Ocean');
+    expect(saved.colours['accent'], isNot(const Color(0xFFFFB000)));
+  });
+
   testWidgets('Done keeps a typed colour and closes the picker', (
     tester,
   ) async {
@@ -201,6 +219,24 @@ void main() {
     expect(base.left, greaterThan(sunken.right));
     expect(raised.left, sunken.left);
     expect(raised.top, greaterThan(sunken.bottom));
+  });
+
+  testWidgets('a tile in All colours opens its picker from a screen reader', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final rig = EditorRig();
+    await rig.open(tester);
+    final tile = byKey('theme-token-accentFill');
+    await tester.ensureVisible(tile);
+    await settle(tester);
+
+    final node = tester.getSemantics(tile);
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    node.owner!.performAction(node.id, SemanticsAction.tap);
+    await settle(tester);
+    expect(byKey('theme-picker-accentFill'), findsOneWidget);
+    handle.dispose();
   });
 
   testWidgets('on a phone All colours folds into six groups at 358', (
