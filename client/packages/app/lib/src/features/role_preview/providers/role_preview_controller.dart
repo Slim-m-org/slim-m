@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/providers.dart';
+import '../../accounts/providers/account_slot.dart' show accountActiveProvider;
 
 /// One preview: the role it is for, the server's answer, and the channel opened in it.
 class RolePreviewSession {
@@ -49,8 +50,16 @@ final rolePreviewProvider =
     );
 
 class RolePreviewController extends Notifier<RolePreviewSession?> {
+  /// Dropped when the account signs out, signs in as someone else, changes
+  /// server or stops being the one on screen.
   @override
-  RolePreviewSession? build() => null;
+  RolePreviewSession? build() {
+    ref
+      ..watch(sessionProvider)
+      ..watch(serverUrlProvider)
+      ..watch(accountActiveProvider);
+    return null;
+  }
 
   /// Starts showing the server as [role], loading its structure from the server.
   Future<void> enter(api.Role role) async {

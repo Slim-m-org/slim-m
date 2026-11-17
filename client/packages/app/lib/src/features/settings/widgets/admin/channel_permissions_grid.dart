@@ -34,6 +34,7 @@ import 'channel_permissions_grid_rows.dart';
 import 'channel_permissions_card.dart';
 import 'channel_permissions_columns.dart';
 import 'channel_permissions_picker.dart';
+import 'channel_permissions_rebase.dart';
 import '../../providers/settings_actions.dart';
 import '../viewport_pin.dart';
 
@@ -101,25 +102,19 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     _pending = {..._original};
   }
 
-  /// Applies what another admin changed without touching a cell, column or
-  /// removal the local admin has already edited.
+  /// Applies what another admin or the Private switch changed, keeping every
+  /// cell, column or removal the local admin has already edited.
   void _mergeRemote(List<api.ChannelOverwrite> overwrites) {
     final fresh = {
       for (final o in overwrites) '${o.kind.wire}:${o.id}': (o.allow, o.deny),
     };
     setState(() {
-      for (final key in {..._original.keys, ...fresh.keys}) {
-        final edited =
-            _removed.contains(key) ||
-            (_pending.containsKey(key) && _pending[key] != _original[key]);
-        if (edited) {
-          if (!fresh.containsKey(key)) _removed.remove(key);
-        } else if (fresh.containsKey(key)) {
-          _pending[key] = fresh[key]!;
-        } else {
-          _pending.remove(key);
-        }
-      }
+      mergeRemoteRows(
+        original: _original,
+        pending: _pending,
+        removed: _removed,
+        fresh: fresh,
+      );
       _original = fresh;
     });
   }
