@@ -156,9 +156,10 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
     _positions = backend.positions.listen((position) {
       if (state.playing) state = state.copyWith(position: position);
     });
-    _done = backend.completed.listen(
-      (_) => state = VoicePlaybackState(speed: state.speed),
-    );
+    _done = backend.completed.listen((_) {
+      // A clip already stopped for another one can still report its end.
+      if (state.playing) state = VoicePlaybackState(speed: state.speed);
+    });
     return _backend = backend;
   }
 
@@ -211,11 +212,14 @@ class VoicePlayback extends Notifier<VoicePlaybackState> {
 
   Future<void> _start(Attachment voice) async {
     if (_refusedInCall(voice)) return;
+    final previous = state.attachmentId;
     state = VoicePlaybackState(
       attachmentId: voice.id,
       loading: true,
       speed: state.speed,
     );
+    // The clip that was chosen before stops now, not once this one has downloaded.
+    if (previous != null) await _backend?.stop();
     try {
       final bytes = await ref.read(attachmentBytesProvider(voice.id).future);
       if (state.attachmentId != voice.id) return;
