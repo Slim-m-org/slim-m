@@ -137,3 +137,20 @@ List<String> semanticsProblems(
   }
   return problems;
 }
+
+/// The route node a modal surface names itself with: `scopesRoute` and
+/// `namesRoute` set and [label] as its name, or null when the surface is not
+/// exposed as a dialog at all.
+SemanticsNode? namedRoute(WidgetTester tester, String label) {
+  for (final node in _allNodes(tester)) {
+    final flags = node.getSemanticsData().flagsCollection;
+    if (flags.scopesRoute && flags.namesRoute && node.label == label) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/// Whether any node a screen reader can walk to announces [text].
+bool announces(WidgetTester tester, String text) =>
+    _naming(_allNodes(tester), text).isNotEmpty;
