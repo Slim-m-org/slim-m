@@ -30,12 +30,13 @@ Map<String, dynamic> _textJson(String id, {String authorId = 'me'}) => {
 Future<CanvasPaneFixture> _openPane(
   WidgetTester tester, {
   List<Map<String, dynamic>> objects = const [],
+  Widget? below,
 }) async {
   final fixture = CanvasPaneFixture()..objects = [...objects];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
-  await pumpCanvasPane(tester, container);
+  await pumpCanvasPane(tester, container, below: below);
   await tester.pumpAndSettle();
   return fixture;
 }
@@ -112,6 +113,38 @@ void main() {
 
     expect(find.text('Save'), findsNothing);
     expect(fixture.posted.single['props']['text'], 'typed then clicked away');
+  });
+
+  testWidgets('a press on the field\'s own selection menu keeps editing', (
+    tester,
+  ) async {
+    final fixture = await _openPane(tester);
+
+    await _placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(_field, 'pick a word');
+    await tester.longPress(_field);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Select all'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Save'), findsOneWidget);
+    expect(fixture.posted, isEmpty);
+  });
+
+  testWidgets('a press on another text field saves the text', (tester) async {
+    const elsewhere = Key('elsewhere');
+    final fixture = await _openPane(
+      tester,
+      below: const SizedBox(height: 48, child: TextField(key: elsewhere)),
+    );
+
+    await _placeWithTool(tester, const Offset(150, 150));
+    await tester.enterText(_field, 'typed then moved on');
+    await tester.tap(find.byKey(elsewhere));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Save'), findsNothing);
+    expect(fixture.posted.single['props']['text'], 'typed then moved on');
   });
 
   testWidgets('Cancel and an empty box place nothing', (tester) async {
