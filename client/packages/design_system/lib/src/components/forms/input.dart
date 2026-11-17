@@ -195,37 +195,34 @@ class _AppInputState extends State<AppInput> {
     final hasMessage = (widget.errorText ?? '').isNotEmpty;
     final hasError = hasMessage || widget.invalid;
 
-    return Semantics(
-      label: widget.obscureText ? null : widget.semanticLabel,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ring(tokens, _field(tokens, hasError)),
-          if (widget.counterMax case final max?) ...[
-            const SizedBox(height: AppSpacing.s4),
-            // Its own node, so the count never merges into the field's label.
-            Semantics(
-              container: true,
-              child: Padding(
-                padding: _beneathTheBorder,
-                child: _counter(tokens, max),
-              ),
-            ),
-          ],
-          if (hasMessage) ...[
-            const SizedBox(height: AppSpacing.s4),
-            Padding(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ring(tokens, _field(tokens, hasError)),
+        if (widget.counterMax case final max?) ...[
+          const SizedBox(height: AppSpacing.s4),
+          // Its own node, so the count never merges into the field's label.
+          Semantics(
+            container: true,
+            child: Padding(
               padding: _beneathTheBorder,
-              child: Text(
-                widget.errorText!,
-                style: AppText.caption.copyWith(
-                    color: tokens.dangerText, fontFamily: AppFonts.sans),
-              ),
+              child: _counter(tokens, max),
             ),
-          ],
+          ),
         ],
-      ),
+        if (hasMessage) ...[
+          const SizedBox(height: AppSpacing.s4),
+          Padding(
+            padding: _beneathTheBorder,
+            child: Text(
+              widget.errorText!,
+              style: AppText.caption.copyWith(
+                  color: tokens.dangerText, fontFamily: AppFonts.sans),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -261,14 +258,12 @@ class _AppInputState extends State<AppInput> {
             widget.icon!,
             const SizedBox(width: AppSpacing.s8)
           ],
-          // The reveal toggle is its own node, so the label must sit on the field itself.
+          // On the field itself: a trailing button or the reveal toggle is a node of its own, and a label above both named neither.
           Expanded(
-            child: widget.obscureText
-                ? Semantics(
-                    label: widget.semanticLabel,
-                    child: _textField(tokens, textStyle),
-                  )
-                : _textField(tokens, textStyle),
+            child: Semantics(
+              label: widget.semanticLabel,
+              child: _textField(tokens, textStyle),
+            ),
           ),
           if (widget.obscureText) ...[
             const SizedBox(width: AppSpacing.s8),
