@@ -57,6 +57,16 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
   final _scroll = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // The applied theme holds the store all session, so only a re-read on open shows what members published since.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(spaceThemesProvider).isLoading) return;
+      ref.invalidate(spaceThemesProvider);
+    });
+  }
+
+  @override
   void dispose() {
     _scroll.dispose();
     super.dispose();
@@ -304,7 +314,7 @@ class _ThemeGalleryPageState extends ConsumerState<ThemeGalleryPage> {
         const ThemeGalleryEmptyTile(
           key: Key('theme-store-empty'),
           title: 'No shared themes yet.',
-          next: 'Publish one from Mine to share it here.',
+          next: 'Themes members publish from Mine show up here.',
         ),
       ),
       ThemeGallerySpaceState.loaded => _grid(

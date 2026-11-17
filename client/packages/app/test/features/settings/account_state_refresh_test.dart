@@ -314,6 +314,29 @@ void main() {
     }
   });
 
+  testWidgets('a Space settings frame refetches the Space themes', (
+    tester,
+  ) async {
+    final rig = _Rig(tester);
+    await rig.start();
+    try {
+      await rig.signInAndConnect();
+      rig.defaultThemeId = 'moss-1';
+
+      await tester.runAsync(() async {
+        rig.server.pushEvent({'type': 'space.settings_changed'});
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+
+      expect(
+        rig.container.read(spaceThemesProvider).valueOrNull?.defaultThemeId,
+        'moss-1',
+      );
+    } finally {
+      await rig.close();
+    }
+  });
+
   testWidgets('a reconnect picks up a snooze and a preference set elsewhere', (
     tester,
   ) async {

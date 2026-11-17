@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A change to anything `/version` shows about the Space reaches every
 //! connected member as `Event::SpaceSettingsChanged`, so their clients re-read
-//! it: the name, the description and the icon, not only the module switches.
+//! it: the name, the description, the icon and the theme store, not only the
+//! module switches.
 
 use axum::Router;
 use axum::body::Body;
@@ -111,5 +112,33 @@ async fn setting_and_clearing_the_icon_each_publish() {
     assert_eq!(settings_changed(&w.published()), 1);
 
     w.icon("DELETE", Vec::new()).await;
+    assert_eq!(settings_changed(&w.published()), 1);
+}
+
+#[tokio::test]
+async fn publishing_removing_and_defaulting_a_theme_each_publish() {
+    let mut w = world().await;
+    let file: serde_json::Value =
+        serde_json::from_str(include_str!("../fixtures/space_themes/forest.json")).unwrap();
+    let (status, created) = call_as(&w.router, "POST", "/space/themes", &w.admin, Some(file)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(settings_changed(&w.published()), 1);
+    let id = created["id"].as_str().unwrap();
+
+    let body = json!({ "theme_id": id });
+    let (status, _) = call_as(
+        &w.router,
+        "PUT",
+        "/space/default-theme",
+        &w.admin,
+        Some(body),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(settings_changed(&w.published()), 1);
+
+    let uri = format!("/space/themes/{id}");
+    let (status, _) = call_as(&w.router, "DELETE", &uri, &w.admin, None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
     assert_eq!(settings_changed(&w.published()), 1);
 }

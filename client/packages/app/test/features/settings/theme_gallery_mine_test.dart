@@ -216,6 +216,20 @@ void main() {
     await _tap(tester, find.text('Publish to Space'));
     expect(rig.calls, contains('POST /space/themes'));
     expect(find.textContaining('theme limit'), findsOneWidget);
+    expect(rig.toasts, isEmpty);
+  });
+
+  testWidgets('publish from a card says it was published', (tester) async {
+    final rig = await _page(tester);
+    final id = await rig.container
+        .read(myThemesProvider.notifier)
+        .save(_doc('Pine'));
+    await tester.pump();
+
+    await _tap(tester, _key('theme-mine-$id-menu'));
+    await _tap(tester, find.text('Publish to Space'));
+    expect(rig.calls, contains('POST /space/themes'));
+    expect(rig.toasts, ['Published to the Space.']);
   });
 
   testWidgets('a publish that lands after leaving Themes still succeeds', (
