@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The Private switch's own row for a caller without Administrator: written
-/// only when no role of theirs keeps them in, and lifted again by Off.
+/// only when no role of theirs keeps them in, lifted again by Off, and asked
+/// about before Who can see removes it.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/widgets/category_private_section.dart';
 import 'package:slimm_app/src/permissions.dart';
 
+import '../../support/async_wait.dart';
 import 'category_private_fixture.dart';
 
 const _section = CategoryPrivateSection(categoryId: 'cat', name: 'Admin');
@@ -109,6 +111,36 @@ void main() {
 
     expect(server.rows['/categories/cat'], [
       {'kind': 'member', 'id': 'self', 'allow': Perm.sendMessages, 'deny': 0},
+    ]);
+  });
+
+  testWidgets('removing your own row asks first', (tester) async {
+    final server = OverwriteServer({
+      '/categories/cat': [
+        {
+          'kind': 'role',
+          'id': 'everyone',
+          'allow': 0,
+          'deny': Perm.viewChannel,
+        },
+        {'kind': 'member', 'id': 'self', 'allow': Perm.viewChannel, 'deny': 0},
+      ],
+    });
+    await pumpPrivate(
+      tester,
+      server,
+      _section,
+      permissions: Perm.manageRoles,
+      members: [_self(), ...privateMembers],
+    );
+
+    await tester.tap(find.bySemanticsLabel('Remove Self'));
+    await pumpFrames(tester);
+    expect(server.writes, isEmpty, reason: 'nothing is sent before Remove');
+
+    await tapAndWait(tester, find.text('Remove me'), server);
+    expect(server.writes['/categories/cat'], [
+      {'kind': 'member', 'id': 'self', 'allow': 0, 'deny': 0},
     ]);
   });
 }

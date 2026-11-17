@@ -11,7 +11,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
-import '../../../providers/providers.dart' show meProvider;
+import '../../../providers/providers.dart' show meProvider, sessionProvider;
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../members/widgets/bot_avatar_placeholder.dart';
@@ -70,6 +71,29 @@ class _WhoCanSeeState extends ConsumerState<WhoCanSee>
     if (mounted) setState(() => _busy = false);
   }
 
+  /// Removing your own row can lock you out, so it asks first, as the Private switch does.
+  Future<void> _remove(
+    List<api.ChannelOverwrite> existing,
+    GridColumn column,
+  ) async {
+    final self =
+        column.kind == api.OverwriteTarget.member &&
+        column.id == ref.read(sessionProvider).tokens?.userId;
+    if (self &&
+        !await confirmDangerousAction(
+          context,
+          title: 'Remove yourself?',
+          message:
+              'You will lose access unless a role of yours or '
+              'Administrator still lets you in.',
+          confirmLabel: 'Remove me',
+        )) {
+      return;
+    }
+    if (!mounted) return;
+    await _setViewer(existing, column, allowed: false);
+  }
+
   Future<void> _add(
     List<api.ChannelOverwrite> existing,
     ViewAccess access,
@@ -125,9 +149,7 @@ class _WhoCanSeeState extends ConsumerState<WhoCanSee>
                 label: column.label,
                 column: column,
                 onRemove: reach.reaches(column.key) && !_busy
-                    ? () => unawaited(
-                        _setViewer(overwrites, column, allowed: false),
-                      )
+                    ? () => unawaited(_remove(overwrites, column))
                     : null,
               ),
           Padding(
