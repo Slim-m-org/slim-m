@@ -58,5 +58,6 @@
   "{\"type\":\"owner.changed\",\"user_id\":\"BOB\"}",
   "{\"type\":\"profile.changed\",\"user_id\":\"BOB\"}",
   "{\"type\":\"reports.changed\"}",
-  "{\"type\":\"space.settings_changed\"}"
+  "{\"type\":\"space.settings_changed\"}",
+  "{\"type\":\"space.themes_changed\"}"
 ]

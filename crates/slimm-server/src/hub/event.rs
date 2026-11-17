@@ -164,8 +164,10 @@ pub enum Event {
     /// A category was created, renamed, moved or deleted. Payload-free because it is broadcast
     /// unfiltered while `GET /categories` filters per viewer; clients re-fetch both lists.
     CategoryChanged,
-    /// A deployment-wide Space display setting or the theme store changed; carries nothing, a client re-reads what it shows.
+    /// A deployment-wide Space display setting or the default theme changed; carries nothing, a client re-reads what it shows.
     SpaceSettingsChanged,
+    /// A theme was published to or removed from the Space store; carries nothing, a client re-reads the store.
+    SpaceThemesChanged,
     /// A channel permission overwrite was set or cleared for one role or one
     /// member. Carries only the channel id: the allow/deny mask is exactly
     /// the kind of privileged detail [`Event::RoleChanged`] withholds, and for

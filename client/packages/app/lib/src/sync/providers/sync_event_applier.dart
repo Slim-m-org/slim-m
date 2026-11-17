@@ -114,15 +114,19 @@ class SyncEventApplier {
         );
       case SpaceSettingsChanged():
         unawaited(rehydrateIfTranscriptsTurnedOn(_ref));
-        if (_ref.exists(spaceThemesProvider)) {
-          _ref.invalidate(spaceThemesProvider);
-        }
+        _refetchSpaceThemes();
+      case SpaceThemesChanged():
+        _refetchSpaceThemes();
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
         unawaited(_resyncAfterLag());
       case _:
         break;
     }
+  }
+
+  void _refetchSpaceThemes() {
+    if (_ref.exists(spaceThemesProvider)) _ref.invalidate(spaceThemesProvider);
   }
 
   Future<void> _onMessageCreated(

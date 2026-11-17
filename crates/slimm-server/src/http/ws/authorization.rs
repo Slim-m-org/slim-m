@@ -537,6 +537,7 @@ async fn channel_frame(
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
+        | Event::SpaceThemesChanged
         | Event::ReportsChanged
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }

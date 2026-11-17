@@ -326,6 +326,11 @@ class SpaceSettingsChanged extends ServerEvent {
   const SpaceSettingsChanged();
 }
 
+/// A theme was published to or removed from the Space store; a receiver re-reads `/space/themes`.
+class SpaceThemesChanged extends ServerEvent {
+  const SpaceThemesChanged();
+}
+
 /// Someone's presence on a channel's voice call changed: a join, a clean
 /// hangup, or the stale-heartbeat sweep evicting someone. Carries only the
 /// channel id, never who - unlike [ThreadUpdated]'s reply count, a voice

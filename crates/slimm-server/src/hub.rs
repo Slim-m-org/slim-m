@@ -188,6 +188,7 @@ fn moves_permissions(event: &Event) -> bool {
         // A category grants and denies nothing (docs/decisions/0006).
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
+        | Event::SpaceThemesChanged
         // A report being filed or resolved changes no permission's answer either.
         | Event::ReportsChanged
         | Event::AdminAlertsChanged
@@ -281,6 +282,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
+        | Event::SpaceThemesChanged
         | Event::Canvas(CanvasEvent::ObjectPlaced { .. })
         | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
         | Event::Canvas(CanvasEvent::Cleared { .. })

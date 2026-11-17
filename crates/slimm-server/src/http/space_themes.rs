@@ -3,8 +3,8 @@
 //!
 //! Any member publishes; the author or a `MANAGE_SERVER` holder removes;
 //! only `MANAGE_SERVER` picks the Space default. Applying a theme is local to
-//! the device and calls nothing here. Each change publishes
-//! `Event::SpaceSettingsChanged`, so open clients re-read the store.
+//! the device and calls nothing here. A publish or remove sends
+//! `Event::SpaceThemesChanged`; a new default sends `Event::SpaceSettingsChanged`.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -122,7 +122,7 @@ async fn publish(
                 "you have published 5 themes already - remove one to publish another",
             ),
         })?;
-    state.hub.publish(Event::SpaceSettingsChanged);
+    state.hub.publish(Event::SpaceThemesChanged);
     Ok((StatusCode::CREATED, Json(dto(created))))
 }
 
@@ -143,7 +143,7 @@ async fn remove(
         require_manage_server(&state, ctx.user_id).await?;
     }
     state.store.delete_space_theme(id).await?;
-    state.hub.publish(Event::SpaceSettingsChanged);
+    state.hub.publish(Event::SpaceThemesChanged);
     Ok(StatusCode::NO_CONTENT)
 }
 

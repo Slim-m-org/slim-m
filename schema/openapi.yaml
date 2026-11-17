@@ -20894,6 +20894,7 @@ components:
         - $ref: "#/components/schemas/OverwriteChanged"
         - $ref: "#/components/schemas/CategoryChanged"
         - $ref: "#/components/schemas/SpaceSettingsChanged"
+        - $ref: "#/components/schemas/SpaceThemesChanged"
         - $ref: "#/components/schemas/VoiceActivityChanged"
         - $ref: "#/components/schemas/VoiceParticipantJoined"
         - $ref: "#/components/schemas/VoiceParticipantLeft"
@@ -22285,14 +22286,26 @@ components:
       required: [type]
       description: >
         A Space setting that `/version` shows changed: the name, description
-        or icon, or a Space-wide display switch; or the theme store changed (a
-        theme published or removed, or the default set). Carries no fields; a
-        receiving client re-reads `/version` and `/space/themes`, which every
-        member can read.
+        or icon, a Space-wide display switch, or the default theme. Carries no
+        fields; a receiving client re-reads `/version` and `/space/themes`,
+        which every member can read.
       properties:
         type:
           type: string
           enum: [space.settings_changed]
+
+    SpaceThemesChanged:
+      type: object
+      required: [type]
+      description: >
+        A theme was published to or removed from the Space theme store. Any
+        member can cause it, so it is kept apart from `space.settings_changed`
+        and a client re-reads only `/space/themes`. Carries no fields; a client
+        that does not know the frame drops it.
+      properties:
+        type:
+          type: string
+          enum: [space.themes_changed]
 
     ReportsChanged:
       type: object

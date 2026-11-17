@@ -77,6 +77,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
         | Event::SpaceSettingsChanged
+        | Event::SpaceThemesChanged
         | Event::ReportsChanged
         | Event::AdminAlertsChanged
         | Event::ReadStateChanged { .. }

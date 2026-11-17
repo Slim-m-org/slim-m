@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A change to anything `/version` shows about the Space reaches every
 //! connected member as `Event::SpaceSettingsChanged`, so their clients re-read
-//! it: the name, the description, the icon and the theme store, not only the
-//! module switches.
+//! it: the name, the description, the icon and the Space default theme, not only
+//! the module switches. Publishing or removing a theme, which any member may do,
+//! publishes only `Event::SpaceThemesChanged`, so it never refetches `/version`.
 
 use axum::Router;
 use axum::body::Body;
@@ -73,6 +74,13 @@ fn settings_changed(events: &[Event]) -> usize {
         .count()
 }
 
+fn themes_changed(events: &[Event]) -> usize {
+    events
+        .iter()
+        .filter(|event| matches!(event, Event::SpaceThemesChanged))
+        .count()
+}
+
 #[tokio::test]
 async fn renaming_the_space_publishes_one_settings_event() {
     let mut w = world().await;
@@ -116,13 +124,14 @@ async fn setting_and_clearing_the_icon_each_publish() {
 }
 
 #[tokio::test]
-async fn publishing_removing_and_defaulting_a_theme_each_publish() {
+async fn theme_churn_publishes_the_themes_event_and_defaulting_the_settings_event() {
     let mut w = world().await;
     let file: serde_json::Value =
         serde_json::from_str(include_str!("../fixtures/space_themes/forest.json")).unwrap();
     let (status, created) = call_as(&w.router, "POST", "/space/themes", &w.admin, Some(file)).await;
     assert_eq!(status, StatusCode::CREATED);
-    assert_eq!(settings_changed(&w.published()), 1);
+    let events = w.published();
+    assert_eq!((settings_changed(&events), themes_changed(&events)), (0, 1));
     let id = created["id"].as_str().unwrap();
 
     let body = json!({ "theme_id": id });
@@ -135,10 +144,12 @@ async fn publishing_removing_and_defaulting_a_theme_each_publish() {
     )
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
-    assert_eq!(settings_changed(&w.published()), 1);
+    let events = w.published();
+    assert_eq!((settings_changed(&events), themes_changed(&events)), (1, 0));
 
     let uri = format!("/space/themes/{id}");
     let (status, _) = call_as(&w.router, "DELETE", &uri, &w.admin, None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
-    assert_eq!(settings_changed(&w.published()), 1);
+    let events = w.published();
+    assert_eq!((settings_changed(&events), themes_changed(&events)), (0, 1));
 }

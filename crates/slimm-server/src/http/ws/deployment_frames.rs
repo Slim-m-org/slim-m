@@ -169,6 +169,7 @@ fn broadcast_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
         },
         Event::CategoryChanged => ServerFrame::CategoryChanged,
         Event::SpaceSettingsChanged => ServerFrame::SpaceSettingsChanged,
+        Event::SpaceThemesChanged => ServerFrame::SpaceThemesChanged,
         other => return Err(Box::new(other)),
     })
 }
