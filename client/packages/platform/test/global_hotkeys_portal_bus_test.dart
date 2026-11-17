@@ -18,6 +18,8 @@ class _Portal extends DBusObject {
 
   final methods = <String>[];
   final registered = <String>{};
+  final bound = <List<String>>[];
+  var sessions = 0;
 
   @override
   Future<DBusMethodResponse> getProperty(String interface, String name) async =>
@@ -40,14 +42,22 @@ class _Portal extends DBusObject {
     final options = call.values.last.asStringVariantDict();
     final token = options['handle_token']!.asString();
     final request = portalRequestPath(sender, token);
-    final results = call.name == 'CreateSession'
-        ? {
-            'session_handle': DBusString(
-              '/org/freedesktop/portal/desktop/session/'
-              '${sender.substring(1).replaceAll('.', '_')}/s',
-            ),
-          }
-        : <String, DBusValue>{};
+    final results = <String, DBusValue>{};
+    if (call.name == 'CreateSession') {
+      final session = _Session(
+        '/org/freedesktop/portal/desktop/session/'
+        '${sender.substring(1).replaceAll('.', '_')}/s${sessions++}',
+        methods,
+      );
+      await client!.registerObject(session);
+      results['session_handle'] = DBusString(session.path.value);
+    }
+    if (call.name == 'BindShortcuts') {
+      bound.add([
+        for (final entry in call.values[1].asArray())
+          (entry as DBusStruct).children.first.asString(),
+      ]);
+    }
     unawaited(
       client!.emitSignal(
         path: DBusObjectPath(request),
@@ -57,6 +67,19 @@ class _Portal extends DBusObject {
       ),
     );
     return DBusMethodSuccessResponse([DBusObjectPath(request)]);
+  }
+}
+
+class _Session extends DBusObject {
+  _Session(String path, this.methods) : super(DBusObjectPath(path));
+
+  final List<String> methods;
+
+  @override
+  Future<DBusMethodResponse> handleMethodCall(DBusMethodCall call) async {
+    methods.add(call.name);
+    if (call.name == 'Close') await client!.unregisterObject(this);
+    return DBusMethodSuccessResponse();
   }
 }
 
@@ -73,7 +96,7 @@ Future<void> _hostPortal(SendPort reply) async {
   final commands = ReceivePort();
   reply.send((address.value, commands.sendPort));
   await for (final _ in commands) {
-    reply.send(portal.methods);
+    reply.send((portal.methods, portal.bound));
     await bus.close();
     await server.close();
     dir.deleteSync(recursive: true);
@@ -113,31 +136,70 @@ class _BusyClient extends DBusClient {
   }
 }
 
-void main() {
-  test('an answer read in the same batch as the name lookup is not lost',
-      () async {
-    final replies = ReceivePort();
-    final isolate = await Isolate.spawn(_hostPortal, replies.sendPort);
-    final inbox = StreamIterator(replies);
-    await inbox.moveNext();
-    final (address, commands) = inbox.current as (String, SendPort);
-    final source = PortalGlobalHotkeySource(
-      clientFactory: () => _BusyClient(DBusAddress(address)),
-      approvalTimeout: const Duration(seconds: 2),
-    );
-    final result = await source.bind(const [
-      GlobalHotkeyBinding(
-        id: GlobalHotkeyId.toggleMute,
-        description: 'Mute or unmute',
-        chord: HotkeyChord(LogicalKeyboardKey.keyM, ctrl: true, shift: true),
-      ),
-    ]);
+typedef _Seen = (List<String> methods, List<List<String>> bound);
+
+/// A source wired to a stand-in portal, and a stop that returns what the portal saw.
+Future<(PortalGlobalHotkeySource, Future<_Seen> Function())> _withPortal({
+  DBusClient Function(DBusAddress address) client = DBusClient.new,
+}) async {
+  final replies = ReceivePort();
+  final isolate = await Isolate.spawn(_hostPortal, replies.sendPort);
+  final inbox = StreamIterator(replies);
+  await inbox.moveNext();
+  final (address, commands) = inbox.current as (String, SendPort);
+  final source = PortalGlobalHotkeySource(
+    clientFactory: () => client(DBusAddress(address)),
+    approvalTimeout: const Duration(seconds: 2),
+  );
+  Future<_Seen> stop() async {
     await source.dispose();
     commands.send('stop');
     await inbox.moveNext();
     replies.close();
     isolate.kill();
-    expect(inbox.current, ['Register', 'CreateSession', 'BindShortcuts']);
+    return inbox.current as _Seen;
+  }
+
+  return (source, stop);
+}
+
+GlobalHotkeyBinding _binding(GlobalHotkeyId id, LogicalKeyboardKey key) =>
+    GlobalHotkeyBinding(
+      id: id,
+      description: id.name,
+      chord: HotkeyChord(key, ctrl: true, shift: true),
+    );
+
+final _mute = _binding(GlobalHotkeyId.toggleMute, LogicalKeyboardKey.keyM);
+final _deafen = _binding(GlobalHotkeyId.toggleDeafen, LogicalKeyboardKey.keyD);
+final _talk = _binding(GlobalHotkeyId.pushToTalk, LogicalKeyboardKey.keyV);
+
+void main() {
+  test('an answer read in the same batch as the name lookup is not lost',
+      () async {
+    final (source, stop) = await _withPortal(client: _BusyClient.new);
+    final result = await source.bind([_mute]);
+    final (methods, _) = await stop();
+    expect(methods, ['Register', 'CreateSession', 'BindShortcuts', 'Close']);
     expect(result.available, isTrue);
+  });
+
+  test('dropping a shortcut starts a new session without it', () async {
+    final (source, stop) = await _withPortal();
+    await source.bind([_talk, _mute]);
+    await source.bind([_talk, _mute, _deafen]);
+    await source.bind([_talk]);
+    final (methods, bound) = await stop();
+    expect(methods, [
+      'Register',
+      'CreateSession',
+      'BindShortcuts',
+      'BindShortcuts',
+      'Close',
+      'CreateSession',
+      'BindShortcuts',
+      'Close',
+    ]);
+    expect(bound.last, ['pushToTalk']);
   });
 }

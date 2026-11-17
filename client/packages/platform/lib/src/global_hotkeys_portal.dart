@@ -118,6 +118,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
   Future<void>? _registration;
   String? _owner;
   String? _session;
+  Set<GlobalHotkeyId> _boundIds = const {};
   int _tokenCounter = 0;
 
   @override
@@ -153,6 +154,9 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       await _closeSession();
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     }
+    final ids = {for (final binding in bindings) binding.id};
+    // A portal need not drop an id a rebind leaves out, but closing a session releases all of it.
+    if (!ids.containsAll(_boundIds)) await _closeSession();
     try {
       final session = _session ?? await _createSession();
       final results = await _request(
@@ -168,6 +172,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
           portalDeclinedMessage,
         );
       }
+      _boundIds = ids;
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     } on Object catch (error, stack) {
       reportFailure(LogTag.platform, 'bind the global shortcuts', error, stack);
@@ -189,6 +194,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     }
     _listening.clear();
     _session = null;
+    _boundIds = const {};
     try {
       await _bus.callMethod(
         destination: portalBusName,
@@ -277,6 +283,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       unawaited(subscription.cancel());
     }
     _listening.clear();
+    _boundIds = const {};
     if (_session == null) return;
     _session = null;
     if (!_events.isClosed) _events.add(const GlobalHotkeyEvent.lost());
