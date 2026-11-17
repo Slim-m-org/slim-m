@@ -5,7 +5,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show SingleActivator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
@@ -23,10 +22,10 @@ const noGlobalCaptureMessage =
 const captureLostMessage =
     'Background capture stopped, so this works only while slim-m is focused.';
 
-/// The chord [action] currently has, which global capture registers too.
-HotkeyChord chordFor(AppAction action, HotkeyChord fallback) {
+/// The chord [action] currently has, or null once it is unbound or keybinds are off.
+HotkeyChord? chordFor(AppAction action) {
   final activator = activatorFor(action);
-  if (activator is! SingleActivator) return fallback;
+  if (activator is! SingleActivator) return null;
   return HotkeyChord(
     activator.trigger,
     ctrl: activator.control,
@@ -35,21 +34,6 @@ HotkeyChord chordFor(AppAction action, HotkeyChord fallback) {
     meta: activator.meta,
   );
 }
-
-HotkeyChord get muteChord => chordFor(
-  AppAction.toggleMuteCall,
-  const HotkeyChord(LogicalKeyboardKey.keyM, ctrl: true, shift: true),
-);
-
-HotkeyChord get deafenChord => chordFor(
-  AppAction.toggleDeafenCall,
-  const HotkeyChord(LogicalKeyboardKey.keyD, ctrl: true, shift: true),
-);
-
-HotkeyChord get callOverlayChord => chordFor(
-  AppAction.toggleCallOverlay,
-  const HotkeyChord(LogicalKeyboardKey.keyO, ctrl: true, shift: true),
-);
 
 final globalHotkeySourceProvider = Provider<GlobalHotkeySource?>((ref) {
   if (!isDesktopHost) return null;
@@ -103,6 +87,20 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     final settings = _ref.read(voiceSettingsControllerProvider);
     final inCall =
         _ref.read(voiceControllerProvider).state == VoiceSessionState.connected;
+    GlobalHotkeyBinding? call(
+      GlobalHotkeyId id,
+      AppAction action,
+      String description,
+    ) {
+      final chord = inCall ? chordFor(action) : null;
+      if (chord == null) return null;
+      return GlobalHotkeyBinding(
+        id: id,
+        description: description,
+        chord: chord,
+      );
+    }
+
     return [
       if (settings.pushToTalkEnabled)
         GlobalHotkeyBinding(
@@ -110,23 +108,21 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
           description: 'Push to talk',
           chord: HotkeyChord(settings.pushToTalkKey),
         ),
-      if (inCall)
-        GlobalHotkeyBinding(
-          id: GlobalHotkeyId.toggleMute,
-          description: 'Mute or unmute',
-          chord: muteChord,
-        ),
-      if (inCall)
-        GlobalHotkeyBinding(
-          id: GlobalHotkeyId.toggleDeafen,
-          description: 'Deafen or undeafen',
-          chord: deafenChord,
-        ),
-      if (inCall && _ref.read(screenOverlaySupportedProvider))
-        GlobalHotkeyBinding(
-          id: GlobalHotkeyId.toggleCallOverlay,
-          description: 'Show or hide the call overlay',
-          chord: callOverlayChord,
+      ?call(
+        GlobalHotkeyId.toggleMute,
+        AppAction.toggleMuteCall,
+        'Mute or unmute',
+      ),
+      ?call(
+        GlobalHotkeyId.toggleDeafen,
+        AppAction.toggleDeafenCall,
+        'Deafen or undeafen',
+      ),
+      if (_ref.read(screenOverlaySupportedProvider))
+        ?call(
+          GlobalHotkeyId.toggleCallOverlay,
+          AppAction.toggleCallOverlay,
+          'Show or hide the call overlay',
         ),
     ];
   }

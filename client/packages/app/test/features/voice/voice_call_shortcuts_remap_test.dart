@@ -26,7 +26,9 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   bool overlayHosted = false,
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues({
+    'slimm.voice.call_keybinds_enabled': true,
+  });
   final container = ProviderContainer(
     overrides: [
       screenOverlaySupportedProvider.overrideWithValue(overlayHosted),
@@ -150,7 +152,7 @@ void main() {
     final now = activatorFor(AppAction.leaveCall)! as SingleActivator;
     expect(sameChord(now, _ctrlU), isTrue);
     expect(
-      container.read(shortcutOverridesProvider)[AppAction.leaveCall],
+      container.read(shortcutOverridesProvider).overrides[AppAction.leaveCall],
       isNotNull,
     );
     expect(find.text('Ctrl+U'), findsOneWidget);

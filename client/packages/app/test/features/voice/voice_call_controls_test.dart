@@ -30,7 +30,10 @@ import 'voice_call_controls_harness.dart';
 
 /// The shortcut hint every tooltip now carries, exactly as the control row
 /// builds it, so a key rebind here cannot silently desync from the widget.
-String _hint(AppAction action) => ' (${describeAppAction(action).join('+')})';
+String _hint(AppAction action) {
+  final keys = describeAppAction(action);
+  return keys.isEmpty ? '' : ' (${keys.join('+')})';
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));

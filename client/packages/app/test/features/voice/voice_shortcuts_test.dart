@@ -28,7 +28,11 @@ bool _focusIsInRow(String title) {
 const _ctrlU = SingleActivator(LogicalKeyboardKey.keyU, control: true);
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(
+    () => SharedPreferences.setMockInitialValues({
+      'slimm.voice.call_keybinds_enabled': true,
+    }),
+  );
   tearDown(() => userShortcutOverrides = const {});
 
   group('rules', () {
@@ -139,7 +143,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
       expect(
-        reopened.read(shortcutOverridesProvider)[AppAction.toggleMuteCall],
+        reopened
+            .read(shortcutOverridesProvider)
+            .overrides[AppAction.toggleMuteCall],
         isNotNull,
       );
       expect(describeAppAction(AppAction.toggleMuteCall), ['Ctrl', 'U']);
@@ -204,7 +210,9 @@ void main() {
       await chord(tester, LogicalKeyboardKey.keyU, control: true);
       expect(find.text('Ctrl+U'), findsOneWidget);
       expect(
-        container.read(shortcutOverridesProvider)[AppAction.toggleMuteCall],
+        container
+            .read(shortcutOverridesProvider)
+            .overrides[AppAction.toggleMuteCall],
         isNotNull,
       );
     });
@@ -217,7 +225,7 @@ void main() {
       await tester.pump();
       await chord(tester, LogicalKeyboardKey.keyK, control: true);
       expect(find.text('Already used for Quick switcher.'), findsOneWidget);
-      expect(container.read(shortcutOverridesProvider), isEmpty);
+      expect(container.read(shortcutOverridesProvider).overrides, isEmpty);
       expect(find.text('Cancel'), findsOneWidget);
     });
 
@@ -232,7 +240,7 @@ void main() {
       expect(find.text('Cancel'), findsOneWidget);
       await chord(tester, LogicalKeyboardKey.keyU);
       expect(find.textContaining('Hold Ctrl, Alt or Cmd'), findsOneWidget);
-      expect(container.read(shortcutOverridesProvider), isEmpty);
+      expect(container.read(shortcutOverridesProvider).overrides, isEmpty);
     });
 
     testWidgets('Escape cancels and keeps the old chord', (tester) async {
@@ -256,7 +264,9 @@ void main() {
       expect(find.text('Cancel'), findsOneWidget);
       await chord(tester, LogicalKeyboardKey.keyU, control: true);
       expect(
-        container.read(shortcutOverridesProvider)[AppAction.toggleDeafenCall],
+        container
+            .read(shortcutOverridesProvider)
+            .overrides[AppAction.toggleDeafenCall],
         isNotNull,
       );
     });
@@ -265,7 +275,7 @@ void main() {
       tester,
     ) async {
       final container = await pump(tester);
-      expect(find.text('Reset shortcuts'), findsNothing);
+      expect(find.text('Reset keybinds'), findsNothing);
       await container
           .read(shortcutOverridesProvider.notifier)
           .set(AppAction.toggleDeafenCall, _ctrlU);
@@ -273,14 +283,14 @@ void main() {
           .read(voiceSettingsControllerProvider.notifier)
           .setPushToTalkKey(LogicalKeyboardKey.f8);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Reset shortcuts'));
+      await tester.tap(find.text('Reset keybinds'));
       await tester.pumpAndSettle();
-      expect(container.read(shortcutOverridesProvider), isEmpty);
+      expect(container.read(shortcutOverridesProvider).overrides, isEmpty);
       expect(
         container.read(voiceSettingsControllerProvider).pushToTalkKey,
         LogicalKeyboardKey.keyV,
       );
-      expect(find.text('Reset shortcuts'), findsNothing);
+      expect(find.text('Reset keybinds'), findsNothing);
     });
   });
 }

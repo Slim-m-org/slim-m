@@ -27,7 +27,10 @@ import 'voice_call_controls_harness.dart';
 
 /// The shortcut hint every tooltip now carries; see the identical helper in
 /// `voice_call_controls_test.dart`.
-String _hint(AppAction action) => ' (${describeAppAction(action).join('+')})';
+String _hint(AppAction action) {
+  final keys = describeAppAction(action);
+  return keys.isEmpty ? '' : ' (${keys.join('+')})';
+}
 
 const _phone = Size(390, 844);
 const _desktop = Size(1400, 900);
@@ -56,13 +59,14 @@ Future<void> _pumpAt(WidgetTester tester, Size size) async {
   );
 }
 
-void main() {
-  final labels = [
-    'Mute${_hint(AppAction.toggleMuteCall)}',
-    'Turn on camera${_hint(AppAction.toggleCameraCall)}',
-    'Share a screen${_hint(AppAction.toggleShareCall)}',
-  ];
+/// Read after the pump, once the call keybinds setting has loaded.
+List<String> get _labels => [
+  'Mute${_hint(AppAction.toggleMuteCall)}',
+  'Turn on camera${_hint(AppAction.toggleCameraCall)}',
+  'Share a screen${_hint(AppAction.toggleShareCall)}',
+];
 
+void main() {
   testWidgets(
     'a pointer-width dock shrinks every call control below the old flat '
     '44dp chip',
@@ -70,7 +74,7 @@ void main() {
       await _pumpAt(tester, _desktop);
 
       final expected = AppSizes.controlMd + _focusRingOverhead;
-      for (final label in labels) {
+      for (final label in _labels) {
         final size = tester.getSize(find.bySemanticsLabel(label));
         expect(
           size,
@@ -92,7 +96,7 @@ void main() {
       await _pumpAt(tester, _phone);
 
       final expected = AppSizes.rowTouch + _focusRingOverhead;
-      for (final label in labels) {
+      for (final label in _labels) {
         final size = tester.getSize(find.bySemanticsLabel(label));
         expect(size, Size(expected, expected), reason: label);
         expect(

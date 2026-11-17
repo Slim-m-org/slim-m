@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call shortcuts a person remapped, kept on this device.
 ///
-/// An absent entry means the default. The map is mirrored into
-/// [userShortcutOverrides] so every hint and binding follows the change.
+/// Off until the person turns them on. An absent entry means the default; the
+/// effective map is mirrored into [userShortcutOverrides] for every hint and binding.
 library;
 
 import 'dart:convert';
@@ -29,6 +29,7 @@ const remappableActions = [
 const kDefaultPushToTalkKey = LogicalKeyboardKey.keyV;
 
 const _storeKey = 'slimm.voice.shortcut_overrides';
+const _enabledKey = 'slimm.voice.call_keybinds_enabled';
 
 /// Whether [a] and [b] fire on exactly the same chord.
 bool sameChord(SingleActivator a, SingleActivator b) =>
@@ -122,27 +123,36 @@ String? pushToTalkConflict(
   overrides: overrides,
 );
 
-String encodeOverrides(Map<AppAction, SingleActivator> overrides) =>
+/// Null for an action means the person cleared its shortcut.
+String encodeOverrides(Map<AppAction, SingleActivator?> overrides) =>
     jsonEncode({
       for (final e in overrides.entries)
-        e.key.name: {
-          'key': e.value.trigger.keyId,
-          'ctrl': e.value.control,
-          'alt': e.value.alt,
-          'shift': e.value.shift,
-          'meta': e.value.meta,
+        e.key.name: switch (e.value) {
+          null => null,
+          final chord => {
+            'key': chord.trigger.keyId,
+            'ctrl': chord.control,
+            'alt': chord.alt,
+            'shift': chord.shift,
+            'meta': chord.meta,
+          },
         },
     });
 
 /// The stored overrides; anything unreadable or no longer remappable is dropped.
-Map<AppAction, SingleActivator> decodeOverrides(String? stored) {
+Map<AppAction, SingleActivator?> decodeOverrides(String? stored) {
   if (stored == null) return const {};
   try {
     final json = jsonDecode(stored);
     if (json is! Map) return const {};
-    final out = <AppAction, SingleActivator>{};
+    final out = <AppAction, SingleActivator?>{};
     for (final action in remappableActions) {
+      if (!json.containsKey(action.name)) continue;
       final entry = json[action.name];
+      if (entry == null) {
+        out[action] = null;
+        continue;
+      }
       if (entry is! Map || entry['key'] is! int) continue;
       out[action] = SingleActivator(
         LogicalKeyboardKey(entry['key'] as int),
@@ -164,9 +174,23 @@ Map<AppAction, SingleActivator> decodeOverrides(String? stored) {
   }
 }
 
-class ShortcutOverridesController
-    extends StateNotifier<Map<AppAction, SingleActivator>> {
-  ShortcutOverridesController(this._ref) : super(const {}) {
+/// Whether the call keybinds are on, and how the person changed them.
+class CallKeybinds {
+  const CallKeybinds({this.enabled = false, this.overrides = const {}});
+
+  /// Off means no call shortcut is bound, in the window or system-wide.
+  final bool enabled;
+  final Map<AppAction, SingleActivator?> overrides;
+
+  /// What every hint and binding reads: all call actions unbound while off.
+  Map<AppAction, SingleActivator?> get effective => enabled
+      ? overrides
+      : {for (final action in remappableActions) action: null};
+}
+
+class ShortcutOverridesController extends StateNotifier<CallKeybinds> {
+  ShortcutOverridesController(this._ref) : super(const CallKeybinds()) {
+    _apply(state);
     _ready = _load();
   }
 
@@ -176,24 +200,42 @@ class ShortcutOverridesController
   Future<void> _load() async {
     final prefs = await _ref.read(preferencesProvider.future);
     if (!mounted) return;
-    _apply(decodeOverrides(prefs.getString(_storeKey)));
+    final stored = prefs.getString(_storeKey);
+    final enabled = prefs.getBool(_enabledKey);
+    // Someone who already remapped a shortcut asked for keybinds, so they stay on.
+    final migrated = enabled ?? stored != null;
+    if (enabled == null) await prefs.setBool(_enabledKey, migrated);
+    if (!mounted) return;
+    _apply(CallKeybinds(enabled: migrated, overrides: decodeOverrides(stored)));
   }
 
-  void _apply(Map<AppAction, SingleActivator> next) {
-    userShortcutOverrides = Map.unmodifiable(next);
+  void _apply(CallKeybinds next) {
+    userShortcutOverrides = Map.unmodifiable(next.effective);
     state = next;
   }
 
+  Future<void> setEnabled(bool on) async {
+    await _ready;
+    if (!mounted) return;
+    _apply(CallKeybinds(enabled: on, overrides: state.overrides));
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_enabledKey, on);
+  }
+
   Future<void> set(AppAction action, SingleActivator chord) =>
-      _ready.then((_) => _save({...state, action: chord}));
+      _ready.then((_) => _save({...state.overrides, action: chord}));
+
+  /// Leaves [action] with no shortcut at all.
+  Future<void> clear(AppAction action) =>
+      _ready.then((_) => _save({...state.overrides, action: null}));
 
   /// Back to the default chord for every action.
   Future<void> reset() => _save(const {});
 
-  Future<void> _save(Map<AppAction, SingleActivator> next) async {
+  Future<void> _save(Map<AppAction, SingleActivator?> next) async {
     await _ready;
     if (!mounted) return;
-    _apply(next);
+    _apply(CallKeybinds(enabled: state.enabled, overrides: next));
     final prefs = await _ref.read(preferencesProvider.future);
     if (next.isEmpty) {
       await prefs.remove(_storeKey);
@@ -210,7 +252,6 @@ class ShortcutOverridesController
 }
 
 final shortcutOverridesProvider =
-    StateNotifierProvider<
-      ShortcutOverridesController,
-      Map<AppAction, SingleActivator>
-    >(ShortcutOverridesController.new);
+    StateNotifierProvider<ShortcutOverridesController, CallKeybinds>(
+      ShortcutOverridesController.new,
+    );

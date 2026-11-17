@@ -30,7 +30,10 @@ import 'voice_call_controls_harness.dart';
 
 /// The shortcut hint every tooltip now carries; see the identical helper in
 /// `voice_call_controls_test.dart`.
-String _hint(AppAction action) => ' (${describeAppAction(action).join('+')})';
+String _hint(AppAction action) {
+  final keys = describeAppAction(action);
+  return keys.isEmpty ? '' : ' (${keys.join('+')})';
+}
 
 const _sources = [
   ScreenShareSource(id: '1', name: 'Screen 1'),
