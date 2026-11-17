@@ -18,6 +18,7 @@ use support::ws::{
 pub(crate) struct Rig {
     pub app: Router,
     pub store: Store,
+    pub state: slimm_server::http::AppState,
     pub addr: std::net::SocketAddr,
     _guard: support::TestDbGuard,
 }
@@ -40,6 +41,7 @@ pub(crate) async fn rig(prefix: &str) -> Rig {
     Rig {
         app: http::router(state.clone()),
         store,
+        state,
         addr,
         _guard: guard,
     }

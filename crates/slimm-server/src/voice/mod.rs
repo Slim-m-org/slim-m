@@ -51,7 +51,7 @@ mod token;
 mod watch_viewing;
 mod webhook;
 pub(crate) use call_record::record_finished_call;
-use heartbeat::{CallHeartbeats, STALE_AFTER as HEARTBEAT_STALE_AFTER};
+use heartbeat::{CallHeartbeats, IN_CALL_WITHIN, STALE_AFTER as HEARTBEAT_STALE_AFTER};
 pub use live_state::RoomLiveState;
 pub use notice_windows::{NOTICE_WINDOW_MS, NoticeWindows};
 pub use ring::{CallRingOutcome, CallRings, Declined, RING_TIMEOUT, StaleRing};
@@ -415,6 +415,16 @@ impl VoiceService {
     /// the same question without the race a separate read-then-write opens.
     pub fn has_heartbeat(&self, user_id: UserId, channel_id: ChannelId) -> bool {
         self.heartbeats.contains(user_id, channel_id)
+    }
+
+    /// Who is in `channel_id`'s call as of `now`, for deciding who to ring: a recent
+    /// heartbeat, and no leave from the SFU since, so a dropped device is not counted.
+    pub fn in_call_at(&self, channel_id: ChannelId, now: std::time::Instant) -> Vec<UserId> {
+        self.heartbeats
+            .fresh_in_at(channel_id, IN_CALL_WITHIN, now)
+            .into_iter()
+            .filter(|user| !self.live_state.has_left(channel_id, *user))
+            .collect()
     }
 
     /// [`Self::record_heartbeat_reporting_new`] with an explicit clock, so a test can put a

@@ -246,6 +246,13 @@ impl RoomLiveState {
             .is_some_and(|entry| entry.announced)
     }
 
+    /// Whether a leave webhook was the last word on `user_id` in `channel_id`.
+    pub fn has_left(&self, channel_id: ChannelId, user_id: UserId) -> bool {
+        let state = lock(&self.state);
+        let key = (channel_id, user_id);
+        !state.participants.contains_key(&key) && state.ended.contains_key(&key)
+    }
+
     /// Forgets everyone in a room LiveKit reports finished, so no entry
     /// outlives the room it was about.
     pub fn forget_room(&self, channel_id: ChannelId) {

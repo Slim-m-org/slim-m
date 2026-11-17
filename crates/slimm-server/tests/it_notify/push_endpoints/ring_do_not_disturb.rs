@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Do not disturb blocks a ring on every device: no `call.ringing`, no ring push,
-//! and the caller is told why, while the callee keeps a missed call.
+//! and the caller is told why when presence would show it, while the callee keeps a missed call.
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
@@ -64,6 +64,7 @@ async fn calls_in(w: &World, channel: &str, who: &Member) -> Vec<Value> {
         .collect()
 }
 
+/// Bob has no socket open, so presence shows him offline and the caller is not told why.
 #[tokio::test]
 async fn a_callee_on_do_not_disturb_is_not_rung_on_any_device() {
     let mut w = world().await;
@@ -76,7 +77,7 @@ async fn a_callee_on_do_not_disturb_is_not_rung_on_any_device() {
 
     let started = ring(&w, &channel, &alice).await;
 
-    assert_eq!(started["do_not_disturb"], json!([bob.id.to_string()]));
+    assert_eq!(started["do_not_disturb"], json!([]));
     assert_eq!(started["timeout_ms"], 0);
     w.settle().await;
     assert!(!w.rang_on_the_wire(), "call.ringing was published");
@@ -115,7 +116,11 @@ async fn a_group_rings_everyone_but_the_member_on_do_not_disturb() {
 
     let started = ring(&w, &channel, &alice).await;
 
-    assert_eq!(started["do_not_disturb"], json!([bob.id.to_string()]));
+    assert_eq!(
+        started["do_not_disturb"],
+        json!([]),
+        "bob has no socket, so reads as offline"
+    );
     assert!(started["timeout_ms"].as_i64().unwrap() > 0);
     assert!(w.rang_on_the_wire(), "cleo is still rung");
 }

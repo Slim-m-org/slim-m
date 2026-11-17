@@ -116,7 +116,7 @@ class RingStarted {
   /// already ended because nobody was left to ring.
   final int timeoutMs;
 
-  /// The people left unrung because they are on Do not disturb.
+  /// The connected people left unrung because they are on Do not disturb.
   final List<String> doNotDisturb;
 
   factory RingStarted.fromJson(Map<String, dynamic> json) => RingStarted(

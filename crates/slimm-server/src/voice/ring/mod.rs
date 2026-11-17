@@ -157,6 +157,13 @@ impl CallRings {
             .map(|ring| (ring.ring_id, ring.announced))
     }
 
+    /// Removes whatever ring is outstanding for this channel, reporting its id
+    /// and caller the way [`Self::start`] reports one it replaces.
+    pub fn take(&self, channel_id: ChannelId) -> Option<(CallRingId, UserId)> {
+        self.take_if(channel_id, |_| true)
+            .map(|ring| (ring.ring_id, ring.caller_id))
+    }
+
     fn take_if(
         &self,
         channel_id: ChannelId,

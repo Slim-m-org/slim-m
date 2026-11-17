@@ -195,6 +195,19 @@ pub async fn sweep_stale_call_rings_at(
             });
             continue;
         }
+        // Someone else is with the caller, so the call goes on and nobody missed it.
+        let live = voice
+            .in_call_at(channel_id, now)
+            .iter()
+            .any(|user| *user != caller_id);
+        if live {
+            hub.publish(hub::Event::CallRingEnded {
+                channel_id,
+                ring_id,
+                outcome: voice::CallRingOutcome::Answered,
+            });
+            continue;
+        }
         hub.publish(hub::Event::CallRingEnded {
             channel_id,
             ring_id,

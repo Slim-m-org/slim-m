@@ -8800,14 +8800,18 @@ paths:
         ringing is meaningless for any other channel shape, and a caller's own
         personal space has nobody on the other end to ring. A group DM rings
         every other participant, and the first to join answers for all.
-        Someone already in the call is not rung; with nobody left to ring,
-        the ring ends as `answered` at once and `timeout_ms` is 0.
+        When anyone is already in the call the caller is joining a live call:
+        nobody is rung, the ring ends as `answered` at once and `timeout_ms`
+        is 0. "In the call" means a recent heartbeat with no leave reported by
+        the SFU since.
 
 
-        Nobody on Do not disturb is rung, on any device, push included; they
-        are listed in `do_not_disturb`. When nobody else is left the ring ends
-        at once as `timed_out` (`timeout_ms` 0) and leaves a missed call in
-        the DM, without a push.
+        Nobody on Do not disturb is rung, on any device, push included; those
+        currently connected are listed in `do_not_disturb` (presence shows the
+        rest offline). When nobody else is left the ring ends at once as
+        `timed_out` (`timeout_ms` 0) and leaves a missed call in the DM,
+        without a push. A ring still outstanding for the channel is ended
+        first, without a record of its own.
 
 
         Publishes a live `call.ringing` event to the other participants and, in
@@ -19352,8 +19356,8 @@ components:
             type: string
             format: uuid
           description: >-
-            Participants left unrung because they are on Do not disturb.
-            Absent from servers older than this field.
+            Connected participants left unrung because they are on Do not
+            disturb. Absent from servers older than this field.
 
     IncomingDmCallRings:
       type: object

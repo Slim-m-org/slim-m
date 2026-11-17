@@ -38,6 +38,11 @@ const CLIENT_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 /// somebody still genuinely on the call.
 pub const STALE_AFTER: Duration = Duration::from_secs(CLIENT_HEARTBEAT_INTERVAL.as_secs() * 8 / 3);
 
+/// How recent a heartbeat must be to count as being in the call when deciding
+/// who to ring: one late beat, well short of the eviction sweep's [`STALE_AFTER`].
+pub const IN_CALL_WITHIN: Duration =
+    Duration::from_millis(CLIENT_HEARTBEAT_INTERVAL.as_millis() as u64 * 3 / 2);
+
 /// Tracks the last heartbeat seen for each `(user, channel)` voice session.
 #[derive(Clone, Default)]
 pub struct CallHeartbeats {
@@ -89,6 +94,22 @@ impl CallHeartbeats {
     /// read-then-write opens.
     pub fn contains(&self, user_id: UserId, channel_id: ChannelId) -> bool {
         lock(&self.state).contains_key(&(user_id, channel_id))
+    }
+
+    /// Everyone on `channel_id` whose last heartbeat is under `within` old as of `now`.
+    pub fn fresh_in_at(
+        &self,
+        channel_id: ChannelId,
+        within: Duration,
+        now: Instant,
+    ) -> Vec<UserId> {
+        lock(&self.state)
+            .iter()
+            .filter(|&(&(_, channel), &last)| {
+                channel == channel_id && now.duration_since(last) < within
+            })
+            .map(|(&(user, _), _)| user)
+            .collect()
     }
 
     /// Drops a tracked session outright, e.g. once it has already been
