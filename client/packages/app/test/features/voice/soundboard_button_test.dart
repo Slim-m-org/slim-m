@@ -5,7 +5,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:ui' show SemanticsFlag;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -316,7 +315,7 @@ void main() {
           final node = tester.getSemantics(
             find.byElementPredicate((x) => x == e),
           );
-          return node.getSemanticsData().hasFlag(SemanticsFlag.namesRoute);
+          return node.getSemanticsData().flagsCollection.namesRoute;
         }),
         isNotEmpty,
         reason: 'a screen reader hears the sheet named',
