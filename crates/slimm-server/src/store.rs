@@ -238,6 +238,7 @@ pub use modules::{
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
 pub use permissions::ChannelOverwrite;
+pub use permissions::permissions_preview::RolePreview;
 pub use pins::{MAX_PINS_PER_CHANNEL, PinError, PinnedMessage};
 pub use poll_runoff::Runoff;
 pub use polls::{

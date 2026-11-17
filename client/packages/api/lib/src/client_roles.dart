@@ -103,6 +103,13 @@ extension SlimmApiRoles on SlimmApi {
         .toList(growable: false);
   }
 
+  /// The categories and channels a member holding only `@everyone` and [roleId] sees, trimmed
+  /// to what the caller sees. Requires MANAGE_ROLES and a role below the caller's highest.
+  Future<RolePreview> previewRole(String roleId) async {
+    final json = await send('GET', '/roles/$roleId/preview');
+    return RolePreview.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Clears a channel permission overwrite. Requires MANAGE_ROLES in this
   /// channel. Idempotent: clearing one that was never set still succeeds.
   Future<void> deleteChannelOverwrite({

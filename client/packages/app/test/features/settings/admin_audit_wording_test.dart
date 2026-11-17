@@ -109,6 +109,10 @@ void main() {
       'revoked a module permission from role Moderators',
     ),
     (
+      _change('role.preview', target: 'r1'),
+      'viewed the server as role Moderators',
+    ),
+    (
       _change('channel.create', target: 'c9', detail: {'name': 'lounge'}),
       'created #lounge',
     ),
