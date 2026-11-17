@@ -208,15 +208,63 @@ fn attr(inner: &str, name: &str) -> Option<String> {
     None
 }
 
-/// Decodes the handful of HTML entities that actually show up in OG values.
-/// `&amp;` must run last so it does not re-decode an already-decoded `&`.
+/// The longest entity name decoded, `#x10FFFF`; anything longer stays literal text.
+const MAX_ENTITY_NAME: usize = 8;
+
+/// Decodes the named entities that show up in OG values plus numeric ones,
+/// in one pass so a decoded `&` is never read as the start of another entity.
 fn decode_entities(s: &str) -> String {
-    s.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        let tail = &rest[amp..];
+        match decode_entity(tail) {
+            Some((ch, len)) => {
+                out.push(ch);
+                rest = &tail[len..];
+            }
+            None => {
+                out.push('&');
+                rest = &tail[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The character [tail]'s leading entity stands for, and how many bytes it spans.
+fn decode_entity(tail: &str) -> Option<(char, usize)> {
+    let semi = tail
+        .bytes()
+        .skip(1)
+        .take(MAX_ENTITY_NAME + 1)
+        .position(|b| b == b';')?
+        + 1;
+    let ch = match &tail[1..semi] {
+        "lt" => '<',
+        "gt" => '>',
+        "quot" => '"',
+        "apos" => '\'',
+        "amp" => '&',
+        name => numeric_entity(name)?,
+    };
+    Some((ch, semi + 1))
+}
+
+/// `#NNN` or `#xHH`, refusing NUL, surrogates and anything past Unicode's range.
+fn numeric_entity(name: &str) -> Option<char> {
+    let digits = name.strip_prefix('#')?;
+    let (digits, radix) = match digits.strip_prefix(['x', 'X']) {
+        Some(hex) => (hex, 16),
+        None => (digits, 10),
+    };
+    if digits.is_empty() || !digits.chars().all(|c| c.is_digit(radix)) {
+        return None;
+    }
+    let code = u32::from_str_radix(digits, radix).ok()?;
+    char::from_u32(code).filter(|&c| c != '\0')
 }
 
 #[cfg(test)]
@@ -302,6 +350,55 @@ mod tests {
         let p = extract(html).unwrap();
         assert_eq!(p.title.as_deref(), Some("Fine"));
         assert_eq!(p.description, None);
+    }
+
+    #[test]
+    fn decodes_numeric_entities_in_one_pass() {
+        assert_eq!(decode_entities("Don&#x27;t"), "Don't");
+        assert_eq!(decode_entities("Don&#X27;t &#8217;"), "Don't \u{2019}");
+        assert_eq!(decode_entities("&amp;#39;"), "&#39;");
+        assert_eq!(
+            decode_entities("&lt;b&gt; &quot;x&quot; &apos;"),
+            "<b> \"x\" '"
+        );
+    }
+
+    #[test]
+    fn a_malformed_entity_stays_literal() {
+        for raw in [
+            "&#xZZ;",
+            "&#;",
+            "&#x;",
+            "&#0;",
+            "&#xD800;",
+            "&#x110000;",
+            "&#+65;",
+            "&#99999999999;",
+            "&nbsp;",
+            "AT&T",
+            "&amp",
+            "&",
+        ] {
+            assert_eq!(decode_entities(raw), raw);
+        }
+    }
+
+    #[test]
+    fn an_entity_beside_multibyte_text_decodes() {
+        assert_eq!(
+            decode_entities("Caf\u{e9}&amp;\u{e9}t\u{e9}"),
+            "Caf\u{e9}&\u{e9}t\u{e9}"
+        );
+        assert_eq!(
+            decode_entities("&\u{e9}\u{e9}\u{e9}\u{e9};"),
+            "&\u{e9}\u{e9}\u{e9}\u{e9};"
+        );
+    }
+
+    #[test]
+    fn spotify_writes_apostrophes_as_hex_entities() {
+        let html = r#"<meta property="og:title" content="Don&#x27;t Stop"/>"#;
+        assert_eq!(extract(html).unwrap().title.as_deref(), Some("Don't Stop"));
     }
 
     /// Hostile pages fill the whole 256 KiB fetch bound; each must scan in linear time.

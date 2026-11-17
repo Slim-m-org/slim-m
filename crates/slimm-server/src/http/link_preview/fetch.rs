@@ -110,6 +110,52 @@ pub(super) async fn read_capped(
         .map_err(|_| FetchError::Unavailable)
 }
 
+const HEAD_CLOSE: &[u8] = b"</head>";
+
+/// Reads the start of an HTML page: at most [cap] bytes, keeping the first
+/// [cap] of a longer page instead of refusing it, and stopping at `</head>`
+/// once the head alone already gives a titled preview.
+pub(super) async fn read_head(
+    mut response: reqwest::Response,
+    cap: usize,
+) -> Result<Vec<u8>, FetchError> {
+    let mut body = Vec::new();
+    let mut head_checked = false;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| FetchError::Unavailable)?
+    {
+        let search_from = body.len().saturating_sub(HEAD_CLOSE.len() - 1);
+        let room = cap - body.len();
+        body.extend_from_slice(&chunk[..chunk.len().min(room)]);
+        if body.len() >= cap {
+            break;
+        }
+        if !head_checked && let Some(end) = find_head_close(&body, search_from) {
+            head_checked = true;
+            // A page that streams its tags into the body (Next.js metadata streaming) keeps reading.
+            if head_has_title(&body[..end]) {
+                body.truncate(end);
+                break;
+            }
+        }
+    }
+    Ok(body)
+}
+
+/// The byte offset just past the first `</head>` at or after [from], in any letter case.
+fn find_head_close(body: &[u8], from: usize) -> Option<usize> {
+    body.get(from..)?
+        .windows(HEAD_CLOSE.len())
+        .position(|w| w.eq_ignore_ascii_case(HEAD_CLOSE))
+        .map(|at| from + at + HEAD_CLOSE.len())
+}
+
+fn head_has_title(head: &[u8]) -> bool {
+    extract(&String::from_utf8_lossy(head)).is_some_and(|p| p.title.is_some())
+}
+
 fn content_type(response: &reqwest::Response) -> String {
     response
         .headers()
@@ -141,7 +187,7 @@ pub(super) async fn fetch_preview(
     if !ctype.contains("text/html") && !ctype.contains("application/xhtml") {
         return Ok(None);
     }
-    let body = read_capped(response, MAX_HTML_BYTES).await?;
+    let body = read_head(response, MAX_HTML_BYTES).await?;
     let html = String::from_utf8_lossy(&body);
     let Some(mut preview) = extract(&html) else {
         return Ok(None);
