@@ -64,10 +64,7 @@ class _ShareDestinationStepState extends ConsumerState<ShareDestinationStep> {
 
   @override
   Widget build(BuildContext context) {
-    final ForwardTargetsQuery query = (
-      excludeChannelId: '',
-      hasAttachments: widget.share.hasFiles,
-    );
+    final ForwardTargetsQuery query = (hasAttachments: widget.share.hasFiles);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
