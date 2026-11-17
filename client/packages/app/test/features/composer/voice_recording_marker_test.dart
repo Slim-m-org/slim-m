@@ -191,8 +191,8 @@ void main() {
   ) async {
     final shell = _Shell(tester);
     await shell.open(const Size(1280, 900));
-    final thread = shell.container.read(openThreadProvider.notifier);
-    thread.state = (threadId: 'c-thread', besideChannelId: 'c-design');
+    final thread = shell.container.read(dockedThreadsProvider.notifier);
+    thread.state = {'c-design': 'c-thread'};
     await tester.pump(const Duration(milliseconds: 350));
     shell.container.read(voiceRecorderProvider('c-thread').notifier).now = () =>
         shell.clock;
@@ -202,13 +202,13 @@ void main() {
     expect(shell.container.read(recordingVoiceChannelProvider), 'c-thread');
     expect(_marker, findsNothing, reason: 'the docked thread shows it');
 
-    thread.state = null;
+    thread.state = const {};
     await tester.pump(const Duration(milliseconds: 350));
     expect(_inMarker('Recording a voice message'), findsOneWidget);
 
     await tester.tap(_marker);
     await tester.pump(const Duration(milliseconds: 350));
-    expect(thread.state, (threadId: 'c-thread', besideChannelId: 'c-design'));
+    expect(thread.state, {'c-design': 'c-thread'});
     expect(shell.path, '/channels/c-design');
     expect(_marker, findsNothing);
     await shell.close();

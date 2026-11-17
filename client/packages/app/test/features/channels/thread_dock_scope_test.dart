@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The beta report: a thread docked beside #beta-lounge stayed open, still
 /// titled for that channel, after moving to another one. A docked thread
-/// belongs to the channel it was opened beside.
+/// belongs to the channel it was opened beside, and each channel remembers its own.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +51,31 @@ void main() {
 
     await _go(tester, '/channels/c1');
     expect(_threadPane, findsOneWidget, reason: 'back beside its own channel');
+
+    await teardown(tester, s.container, s.db);
+  });
+
+  testWidgets('each channel remembers its own docked thread', (tester) async {
+    final s = setup(httpClient: quietClient(), signedIn: true);
+    await MessageStore(s.db).upsertChannels([
+      const api.Channel(id: 'c1', name: 'one', kind: 'text', createdAt: 0),
+      const api.Channel(id: 'c2', name: 'two', kind: 'text', createdAt: 0),
+    ]);
+    await pumpAtWidth(tester, s.container, 1400, location: '/channels/c1');
+    String shown() => tester.widget<ThreadScreen>(_threadPane).channelId;
+
+    dockThread(s.container, 'thread-a', besideChannelId: 'c1');
+    await pumpFrames(tester, frames: 40);
+    await _go(tester, '/channels/c2');
+    dockThread(s.container, 'thread-b', besideChannelId: 'c2');
+    await pumpFrames(tester, frames: 40);
+    expect(shown(), 'thread-b');
+
+    await _go(tester, '/channels/c1');
+    expect(shown(), 'thread-a', reason: 'docking beside two replaced one');
+
+    await _go(tester, '/channels/c2');
+    expect(shown(), 'thread-b');
 
     await teardown(tester, s.container, s.db);
   });

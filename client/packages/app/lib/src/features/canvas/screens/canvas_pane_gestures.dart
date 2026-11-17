@@ -272,11 +272,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
 
   bool get _threadPaneDocked =>
-      dockedThreadBeside(ref.read(openThreadProvider), widget.channelId) !=
+      dockedThreadBeside(ref.read(dockedThreadsProvider), widget.channelId) !=
           null &&
       LayoutClass.of(context).fitsThreadPane(MediaQuery.sizeOf(context).width);
 
-  void _closeThreadPane() => ref.read(openThreadProvider.notifier).state = null;
+  void _closeThreadPane() => closeDockedThread(
+    ref.read(dockedThreadsProvider.notifier),
+    widget.channelId,
+  );
 
   void _closeMemberPane() =>
       ref.read(memberPaneVisibleProvider.notifier).state = false;

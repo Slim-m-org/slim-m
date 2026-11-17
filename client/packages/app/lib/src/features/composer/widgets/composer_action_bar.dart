@@ -99,7 +99,7 @@ class ComposerActionBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // True only for the docked thread pane's own copy (`home_shell_pane_slots.dart`), where the parent channel's identical controls are also on screen.
-    final isThread = ref.watch(openThreadProvider)?.threadId == channelId;
+    final isThread = ref.watch(dockedThreadsProvider).containsValue(channelId);
     final recording = ref.watch(
       voiceRecorderProvider(channelId).select((s) => s.isActive),
     );

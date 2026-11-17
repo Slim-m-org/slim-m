@@ -24,7 +24,7 @@ import 'package:slimm_app/src/features/messages/providers/ephemeral_messages.dar
 import 'package:slimm_app/src/providers/sync_controller.dart'
     show SyncStatus, initialSyncCompleteProvider, syncControllerProvider;
 import 'package:slimm_app/src/features/channels/providers/threads.dart'
-    show openThreadProvider;
+    show dockedThreadsProvider;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart'
     show canvasOpenProvider;
@@ -195,8 +195,8 @@ final _shellStateSurfaces =
         route: '/channels/c-general',
         viewports: const ['expanded-999', 'expanded-1000'],
         overrides: () => [
-          openThreadProvider.overrideWith(
-            (ref) => (threadId: 'c-thread', besideChannelId: 'c-general'),
+          dockedThreadsProvider.overrideWith(
+            (ref) => {'c-general': 'c-thread'},
           ),
         ],
       ),

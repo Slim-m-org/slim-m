@@ -35,7 +35,7 @@ String? recordingElsewhere(
   if (id == null || id == activeChannelId) return null;
   final width = MediaQuery.sizeOf(context).width;
   final docked =
-      dockedThreadBeside(ref.watch(openThreadProvider), activeChannelId) ==
+      dockedThreadBeside(ref.watch(dockedThreadsProvider), activeChannelId) ==
           id &&
       LayoutClass.fromWidth(width).fitsThreadPane(width);
   return docked ? null : id;

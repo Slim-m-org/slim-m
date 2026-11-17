@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The deep-link/reload half of UX1: a cold-opened `/thread/:id` on a wide
-/// viewport resolves its parent channel, sets `openThreadProvider`, and lands
+/// viewport resolves its parent channel, sets `dockedThreadsProvider`, and lands
 /// on that channel - so a reload, a notification tap or a pasted link reaches
 /// the same docked pane an in-app "open thread" does, rather than the modal
 /// that used to cover the transcript. `home_shell_test` covers the docked
@@ -134,10 +134,9 @@ void main() {
         Routes.channel('c1'),
         reason: 'docked: the cold thread redirected onto its parent channel',
       );
-      expect(container.read(openThreadProvider), (
-        threadId: 'c-thread',
-        besideChannelId: 'c1',
-      ), reason: 'with the thread itself open in the docked pane');
+      expect(container.read(dockedThreadsProvider), {
+        'c1': 'c-thread',
+      }, reason: 'with the thread itself open in the docked pane');
 
       await _teardown(tester, container, db);
     },

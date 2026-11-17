@@ -211,7 +211,7 @@ class HomeShell extends ConsumerWidget {
     // see fitsThreadPane's doc). Below the width that fits a docked pane the
     // thread stays the pushed modal route instead.
     final openThread = dockedThreadBeside(
-      ref.watch(openThreadProvider),
+      ref.watch(dockedThreadsProvider),
       selected,
     );
     final threadFits = layout.fitsThreadPane(width);
@@ -339,6 +339,7 @@ class HomeShell extends ConsumerWidget {
           if (facts.threadFits)
             ThreadPaneSlot(
               channelId: facts.openThread,
+              besideChannelId: selected,
               requested: facts.showThread,
             ),
           // The pane comes from the edge it lives on: the slot's width

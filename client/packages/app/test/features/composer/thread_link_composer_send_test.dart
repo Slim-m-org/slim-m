@@ -151,7 +151,7 @@ void main() {
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      container.read(openThreadProvider.notifier).state = null;
+      closeDockedThread(container.read(dockedThreadsProvider.notifier), 'c1');
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -159,7 +159,7 @@ void main() {
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(container.read(openThreadProvider)?.threadId, 'c-thread');
+      expect(container.read(dockedThreadsProvider).values, ['c-thread']);
 
       final threadField = find.descendant(
         of: find.byType(ThreadScreen),
