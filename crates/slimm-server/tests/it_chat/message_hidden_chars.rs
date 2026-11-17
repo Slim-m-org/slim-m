@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A message made only of characters that draw nothing is empty, the same
 //! rule names follow, and control and text-direction override characters are
-//! stripped from what is stored, on a send and on an edit alike.
+//! stripped from what is stored, on a send and on an edit alike. Embeddings
+//! and isolates stay, so mixed right-to-left text reads as it was typed.
 
 use axum::Router;
 use axum::http::StatusCode;
@@ -81,8 +82,15 @@ async fn controls_and_direction_overrides_are_stripped_and_text_kept() {
         ("bell\u{7} and nul\u{0} gone", "bell and nul gone"),
         ("esc\u{1B}[31m red", "esc[31m red"),
         ("invoice\u{202E}fdp.exe", "invoicefdp.exe"),
-        ("a\u{2066}b\u{2069}c", "abc"),
+        ("a\u{202D}b", "ab"),
+        ("a\u{2066}b\u{2069}c", "a\u{2066}b\u{2069}c"),
+        (
+            "\u{5E9}\u{5DC}\u{5D5}\u{5DD} \u{2068}Ava 42\u{2069}",
+            "\u{5E9}\u{5DC}\u{5D5}\u{5DD} \u{2068}Ava 42\u{2069}",
+        ),
+        ("x\u{202B}y\u{202C}z", "x\u{202B}y\u{202C}z"),
         ("line one\r\nline two\tend", "line one\nline two\tend"),
+        ("line one\rline two", "line one\nline two"),
         (
             "family \u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}",
             "family \u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}",

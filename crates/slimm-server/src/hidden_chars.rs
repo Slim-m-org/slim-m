@@ -49,20 +49,20 @@ pub(crate) fn draws_nothing(text: &str) -> bool {
         .all(|c| c.is_whitespace() || is_hidden_char(c) || is_variation_selector(c))
 }
 
-/// A control other than a line break or tab, or a bidi embedding, override or isolate.
-/// These rewrite how the text around them reads (a spoofed `.exe`, a terminal escape),
-/// and nothing a person types needs them in a message.
+/// A control other than a line break or tab, or a bidi override. These rewrite how the
+/// text around them reads (a spoofed `.exe`, a terminal escape), and nothing a person
+/// types needs them; embeddings and isolates stay, since mixed-direction text relies on them.
 fn rewrites_reading(c: char) -> bool {
-    (c.is_control() && c != '\n' && c != '\t')
-        || matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+    (c.is_control() && c != '\n' && c != '\t') || matches!(c, '\u{202D}' | '\u{202E}')
 }
 
-/// `text` without [`rewrites_reading`] characters; `\r\n` becomes `\n` on the way.
+/// `text` without [`rewrites_reading`] characters; `\r\n` and a lone `\r` become `\n`.
 pub(crate) fn strip_reading_rewrites(text: &str) -> Cow<'_, str> {
-    match text.chars().any(rewrites_reading) {
-        true => Cow::Owned(text.chars().filter(|c| !rewrites_reading(*c)).collect()),
-        false => Cow::Borrowed(text),
+    if !text.chars().any(rewrites_reading) {
+        return Cow::Borrowed(text);
     }
+    let lines = text.replace("\r\n", "\n").replace('\r', "\n");
+    Cow::Owned(lines.chars().filter(|c| !rewrites_reading(*c)).collect())
 }
 
 const ZWJ: char = '\u{200D}';
@@ -152,13 +152,30 @@ mod tests {
     fn controls_and_overrides_are_stripped_and_line_breaks_kept() {
         assert_eq!(strip_reading_rewrites("a\r\nb\tc\nd"), "a\nb\tc\nd");
         assert_eq!(
-            strip_reading_rewrites("x\u{0}\u{1B}\u{85}\u{202E}\u{2067}y"),
+            strip_reading_rewrites("x\u{0}\u{1B}\u{85}\u{202D}\u{202E}y"),
             "xy"
         );
         assert_eq!(
             strip_reading_rewrites("\u{200E}keep\u{200F}"),
             "\u{200E}keep\u{200F}"
         );
+    }
+
+    #[test]
+    fn a_lone_carriage_return_is_a_line_break() {
+        assert_eq!(strip_reading_rewrites("one\rtwo"), "one\ntwo");
+        assert_eq!(strip_reading_rewrites("a\r\rb\r\n\rc"), "a\n\nb\n\nc");
+    }
+
+    #[test]
+    fn bidi_embeddings_and_isolates_are_kept_for_mixed_direction_text() {
+        for kept in [
+            "\u{5E9}\u{5DC}\u{5D5}\u{5DD} \u{2068}abc 123\u{2069}",
+            "\u{2066}ltr\u{2069} \u{2067}rtl\u{2069}",
+            "\u{202A}ltr\u{202C} \u{202B}rtl\u{202C}",
+        ] {
+            assert_eq!(strip_reading_rewrites(kept), kept, "{kept:?}");
+        }
     }
 
     #[test]

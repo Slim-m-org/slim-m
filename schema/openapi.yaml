@@ -19679,9 +19679,10 @@ components:
             and a blank one carrying neither is a 400. Blank includes text of
             only characters that draw nothing (zero-width spaces, joiners,
             braille and hangul blanks, variation selectors). Control
-            characters other than line breaks and tabs, and bidi embeddings,
-            overrides and isolates, are removed before the message is stored,
-            here and on an edit; `\r\n` is stored as `\n`.
+            characters other than line breaks and tabs, and the bidi
+            overrides U+202D and U+202E, are removed before the message is
+            stored, here and on an edit; bidi embeddings and isolates are
+            kept. `\r\n` and a lone `\r` are stored as `\n`.
         attachment_ids:
           type: array
           description: >
