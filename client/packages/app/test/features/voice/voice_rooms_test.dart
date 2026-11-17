@@ -240,7 +240,7 @@ void main() {
     await _pumpRow(tester, _voiceRow(createsRooms: true));
     expect(find.byType(RailLobbyIcon), findsOneWidget);
     expect(find.byIcon(AppIcons.voice), findsNothing);
-    expect(find.byTooltip(RailLobbyIcon.label), findsOneWidget);
+    expect(find.byTooltip('Join to get your own room'), findsOneWidget);
   });
 
   testWidgets('a locked, capped room says so on its row', (tester) async {

@@ -18,6 +18,7 @@ const _room = {
   'creates_rooms': false,
   'user_limit': 4,
   'room_owner_id': 'alice',
+  'room_lobby_id': 'lobby',
   'room_locked': true,
 };
 
@@ -43,6 +44,7 @@ void main() {
     final room = Channel.fromJson(_room);
     expect(room.isRoom, isTrue);
     expect(room.roomOwnerId, 'alice');
+    expect(room.roomLobbyId, 'lobby');
     expect(room.roomLocked, isTrue);
     expect(room.userLimit, 4);
   });

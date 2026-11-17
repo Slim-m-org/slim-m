@@ -39,6 +39,7 @@ Future<void> upsertChannels(
           createsRooms: Value(channel.createsRooms),
           userLimit: Value(channel.userLimit),
           roomOwnerId: Value(channel.roomOwnerId),
+          roomLobbyId: Value(channel.roomLobbyId),
           roomLocked: Value(channel.roomLocked),
         ),
         onConflict: DoUpdate(
@@ -59,6 +60,7 @@ Future<void> upsertChannels(
             createsRooms: Variable(channel.createsRooms),
             userLimit: Variable(channel.userLimit),
             roomOwnerId: Variable(channel.roomOwnerId),
+            roomLobbyId: Variable(channel.roomLobbyId),
             roomLocked: Variable(channel.roomLocked),
           ),
         ),

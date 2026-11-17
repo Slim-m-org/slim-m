@@ -17572,6 +17572,12 @@ components:
           type: string
           format: uuid
           description: Present only on a temporary room, naming its owner.
+        room_lobby_id:
+          type: string
+          format: uuid
+          description: >
+            Present only on a temporary room, naming the lobby that made it,
+            so a client can list the room under its lobby.
         room_locked:
           type: boolean
           description: Present only on a temporary room; nobody new may join.

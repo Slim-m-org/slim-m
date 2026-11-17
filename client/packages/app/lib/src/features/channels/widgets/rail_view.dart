@@ -8,6 +8,7 @@ import 'package:slimm_data/data.dart';
 import '../../messages/providers/unread_indicator_rules.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import 'category_tree.dart';
+import 'channel_grouping.dart' show isRoomUnderLobby;
 import 'channel_rail_reorder.dart' show ChannelSection;
 
 class RailView {
@@ -56,6 +57,10 @@ class RailView {
 
   List<Channel> channelsOf(ChannelCategoryRow? category) =>
       byCategory[category?.id] ?? const [];
+
+  /// A temporary room listed under its lobby, one step further in.
+  bool nestedRoom(Channel channel) =>
+      isRoomUnderLobby(channel, byCategory[channel.categoryId] ?? const []);
 
   /// A category's own channels and every one of its sub-categories'.
   List<Channel> channelsBeneath(ChannelCategoryRow category) => [
