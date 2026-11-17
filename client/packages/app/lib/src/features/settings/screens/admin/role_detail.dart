@@ -8,14 +8,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:go_router/go_router.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../permissions.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../routing/routes.dart';
 import '../../../role_preview/providers/role_preview_controller.dart';
+import '../../../members/providers/member_presence.dart' show membersProvider;
 import '../../../members/widgets/role_color.dart';
 import '../../widgets/settings_tab_strip.dart';
 import 'role_display_tab.dart';
@@ -29,6 +30,10 @@ const lockedRoleCaption = 'Only roles below your highest role can be changed.';
 
 /// Opens the shell as this role sees it (decision 0124).
 const viewAsRoleKey = Key('role-detail-view-as');
+
+/// Shown on a hand-made role that no person holds.
+const botOnlyRoleHint =
+    'Only bots hold this role. Give the bots these permissions directly instead.';
 
 class RoleDetail extends ConsumerStatefulWidget {
   const RoleDetail({super.key, required this.role});
@@ -54,6 +59,13 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
   void _viewAs(api.Role role) {
     unawaited(ref.read(rolePreviewProvider.notifier).enter(role));
     context.go(Routes.channels);
+  }
+
+  bool _heldOnlyByBots(api.Role role) {
+    if (role.isEveryone || role.isBotsRole || role.isManagedByBot) return false;
+    final members = ref.watch(membersProvider).valueOrNull ?? const [];
+    final holders = members.where((m) => m.roleIds.contains(role.id));
+    return holders.isNotEmpty && holders.every((m) => m.isBot);
   }
 
   @override
@@ -131,6 +143,28 @@ class _RoleDetailState extends ConsumerState<RoleDetail> {
             ],
           ),
         ),
+        if (_heldOnlyByBots(role))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s24,
+              0,
+              AppSpacing.s24,
+              AppSpacing.s12,
+            ),
+            child: AppCallout(
+              tone: AppCalloutTone.info,
+              child: Row(
+                children: [
+                  const Expanded(child: Text(botOnlyRoleHint)),
+                  AppButton(
+                    label: 'Open bots',
+                    variant: AppButtonVariant.ghost,
+                    onPressed: () => context.push(Routes.adminBots),
+                  ),
+                ],
+              ),
+            ),
+          ),
         SettingsTabStrip<_RoleDetailTab>(
           selected: _tab,
           onSelected: (tab) => setState(() => _tab = tab),

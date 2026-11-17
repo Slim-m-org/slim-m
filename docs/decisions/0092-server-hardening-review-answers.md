@@ -136,3 +136,9 @@ A bot's own role and the shared Bots role follow their bots, so nobody grants or
 That refusal is a 409 with `code` `role_follows_bot`.
 Deleting a bot's own role by hand stays allowed, under the ladder.
 
+### Bot roles in the Roles list (owner decision, 2026-11-17)
+
+The Roles list keeps every role at its real position, so a bot's own role is never moved out of its place on the ladder.
+The shared Bots role shows as "All bots" and a bot's own role shows the bot's avatar and name, both with a Bot tag, in the same order the ladder has them.
+A grouped, re-indented list was rejected because dragging inside it would have to lie about rank or need a server rule that keeps bot roles together.
+A hand-made role that only bots hold shows a hint in its editor that points to the Bots page; such roles are not deleted.
