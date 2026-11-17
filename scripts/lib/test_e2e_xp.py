@@ -26,6 +26,8 @@ class StubClient:
             return json.dumps(self.events)
         if "log('click')" in expr:
             self.order.append("log")
+        if "watchLabels" in expr:
+            self.order.append("watch")
         return None
 
     def wait_for(self, _label):
@@ -46,13 +48,13 @@ def _label(text):
 class TimedJoin(unittest.TestCase):
     ROWS = [{"t": "Manage lounge", "x": 1, "y": 1}, {"t": "lounge\n1", "x": 50, "y": 60}]
 
-    def test_the_row_is_tapped_not_the_manage_kebab_and_the_click_is_logged_first(self):
+    def test_the_row_not_the_manage_kebab_is_tapped_after_the_watch_and_the_click_log(self):
         events = [_label(L.IN_CALL), {"n": "first-packet", "t": 2.0}, {"n": "first-energy", "t": 3.0}]
         client = StubClient(events, self.ROWS)
         got = xp.timed_join(client, timeout=1)
         self.assertEqual(got, events)
         self.assertEqual(client.tapped, [(50, 60)])
-        self.assertEqual(client.order, ["log", "tap"])
+        self.assertEqual(client.order, ["watch", "log", "tap"])
 
     def test_a_join_whose_call_never_shows_raises(self):
         client = StubClient([{"n": "first-packet", "t": 2.0}], self.ROWS)

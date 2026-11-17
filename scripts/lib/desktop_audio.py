@@ -7,6 +7,7 @@ The owner's default devices, display and files are never touched, and every modu
 import contextlib
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -128,6 +129,40 @@ def kwin_env(base, private):
         env[var] = os.path.join(private, sub)
         os.makedirs(env[var], exist_ok=True)
     return env
+
+
+BUS_CONFIG = """<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <type>session</type>
+  <listen>unix:tmpdir=/tmp</listen>
+  <auth>EXTERNAL</auth>
+  <servicedir>{services}</servicedir>
+  <policy context="default">
+    <allow send_destination="*" eavesdrop="true"/>
+    <allow eavesdrop="true"/>
+    <allow own="*"/>
+  </policy>
+</busconfig>
+"""
+PORTAL_SERVICE = re.compile(r"^org\.freedesktop\.(impl\.)?portal\.")
+SYSTEM_SERVICE_DIRS = ("/usr/share/dbus-1/services", "/usr/local/share/dbus-1/services")
+
+
+def bus_config(root, service_dirs=SYSTEM_SERVICE_DIRS):
+    """A session bus config whose activatable services leave out every portal, so no portal backend starts on the owner's machine."""
+    services = os.path.join(root, "bus-services")
+    os.makedirs(services, exist_ok=True)
+    for directory in service_dirs:
+        if not os.path.isdir(directory):
+            continue
+        for name in os.listdir(directory):
+            if name.endswith(".service") and not PORTAL_SERVICE.match(name):
+                shutil.copy(os.path.join(directory, name), os.path.join(services, name))
+    path = os.path.join(root, "bus.conf")
+    with open(path, "w") as fh:
+        fh.write(BUS_CONFIG.format(services=services))
+    return path
 
 
 def kwin_command(width=1280, height=800, xwayland=False):
@@ -286,7 +321,8 @@ class Desktop:
                    PULSE_SOURCE=MIC, PULSE_SINK=OUT)
         self.out = open(self.log, "wb")
         self.proc = subprocess.Popen(
-            ["dbus-run-session", "--", os.path.join(self.bundle, "slimm_app"),
+            ["dbus-run-session", f"--config-file={bus_config(self.root)}", "--",
+             os.path.join(self.bundle, "slimm_app"),
              f"--voice-harness-channel={self.channel}", *self.extra_args],
             env=env, stdout=self.out, stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL, start_new_session=True)
