@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.112.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.111.0...server-v0.112.0) (2026-11-17)
+
+
+### Features
+
+* 0.130.0 - profiles and a role ladder, stamps, nested categories, theme gallery, spotify cards, soundboard, voice messages, windows notifications and the call fixes ([#2412](https://github.com/Slim-m-org/slim-m/issues/2412)) ([7db42ee](https://github.com/Slim-m-org/slim-m/commit/7db42ee2bb3909e9a36affc2835dea5fd782a25e))
+
+
+### Bug Fixes
+
+* **listener:** finish what was said when a call ends, and say what was heard ([#2406](https://github.com/Slim-m-org/slim-m/issues/2406)) ([55eae25](https://github.com/Slim-m-org/slim-m/commit/55eae25e80260b97af824344c4f2781cdffda52f))
+
 ## [0.111.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.110.0...server-v0.111.0) (2026-11-11)
 
 
