@@ -37,7 +37,11 @@ class CategoryHeaderMenu extends ConsumerWidget {
     required this.label,
     this.channels = const [],
     this.canManage = true,
+    this.menuKey,
   });
+
+  /// Lets the header's kebab open this menu, as a channel row's does.
+  final GlobalKey<ContextMenuRegionState>? menuKey;
 
   final ChannelCategoryRow category;
 
@@ -63,6 +67,7 @@ class CategoryHeaderMenu extends ConsumerWidget {
     );
     if (!canManage && !hasUnread) return label;
     final menu = ContextMenuRegion(
+      key: menuKey,
       // A held press lifts the header on a pointer; touch opens this menu from it instead.
       enableLongPress: AppTouchTargets.of(context),
       itemsBuilder: (context, close) => [

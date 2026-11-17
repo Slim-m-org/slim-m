@@ -23,7 +23,6 @@ Future<void> _openSheet(
   WidgetTester tester, {
   int permissions = 0,
   String? categoryId,
-  String? categoryName,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -47,7 +46,6 @@ Future<void> _openSheet(
                 context,
                 initialKind: 'text',
                 categoryId: categoryId,
-                categoryName: categoryName,
               ),
               child: const Text('open'),
             ),
@@ -85,7 +83,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      await _openSheet(tester, categoryId: 'cat-1', categoryName: 'Lounge');
+      await _openSheet(tester, categoryId: 'cat-1');
 
       expect(tester.takeException(), isNull);
       expect(find.text('Create a channel'), findsOneWidget);
@@ -146,22 +144,6 @@ void main() {
       ),
       findsOneWidget,
     );
-  });
-
-  testWidgets('names the category the channel lands in when one is implied', (
-    tester,
-  ) async {
-    await _openSheet(tester, categoryId: 'cat-1', categoryName: 'Voice chat');
-
-    expect(find.text('Adding to Voice chat'), findsOneWidget);
-  });
-
-  testWidgets('says nothing about a category when none is implied', (
-    tester,
-  ) async {
-    await _openSheet(tester);
-
-    expect(find.textContaining('Adding to'), findsNothing);
   });
 
   testWidgets('names what is missing rather than sitting disabled mute', (

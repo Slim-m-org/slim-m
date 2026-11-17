@@ -27,6 +27,8 @@ import 'category_header_menu.dart';
 import 'category_tree.dart';
 import 'channel_grouping.dart';
 import 'channel_kind_icon.dart';
+import 'channel_move.dart' show groupsAfterMoveTo;
+import 'move_channel_sheet.dart';
 import 'channel_rail_channel_rows.dart';
 import 'channel_rail_reorder.dart';
 import 'channel_rail_section_label.dart';
@@ -134,6 +136,7 @@ class _ChannelCategorySectionsState
 
   /// One per channel, so a lifted-and-dropped row can open its own menu.
   final _menuKeys = <String, GlobalKey<ContextMenuRegionState>>{};
+  final _categoryMenuKeys = <String, GlobalKey<ContextMenuRegionState>>{};
 
   @override
   Widget build(BuildContext context) {
@@ -214,10 +217,30 @@ class _ChannelCategorySectionsState
               channel.id,
               GlobalKey<ContextMenuRegionState>.new,
             ),
+            moveToCategory: _moveToCategory(view, channel),
             channel: channel,
             row: body,
           ),
         ),
+      ),
+    );
+  }
+
+  VoidCallback? _moveToCategory(RailView view, Channel channel) {
+    final movable =
+        widget.canManage &&
+        channel.roomLobbyId == null &&
+        widget.categories.isNotEmpty;
+    if (!movable) return null;
+    return () => unawaited(
+      showMoveChannelSheet(
+        context,
+        channel: channel,
+        categories: widget.categories,
+        onPick: (id) {
+          final groups = groupsAfterMoveTo(view.sections, channel.id, id);
+          if (groups != null) widget.onReorder(groups);
+        },
       ),
     );
   }
@@ -235,6 +258,12 @@ class _ChannelCategorySectionsState
       return const SizedBox.shrink();
     }
     final place = category == null ? 'Channels' : view.tree.pathOf(category);
+    final menuKey = category == null || carried || !widget.canManage
+        ? null
+        : _categoryMenuKeys.putIfAbsent(
+            category.id,
+            GlobalKey<ContextMenuRegionState>.new,
+          );
     // Any section, the implicit uncategorised one included: it is a real place a channel can live.
     final label = SectionLabel(
       category?.name ?? 'Channels',
@@ -249,11 +278,23 @@ class _ChannelCategorySectionsState
             ),
       trailingBuilder: !widget.canManage
           ? null
-          : (revealed, onFocusChange) => AddChannelGlyph(
-              categoryId: category?.id,
-              categoryName: place,
-              revealed: revealed && !carried,
-              onFocusChange: onFocusChange,
+          : (revealed, onFocusChange) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AddChannelGlyph(
+                  categoryId: category?.id,
+                  categoryName: place,
+                  revealed: revealed && !carried,
+                  onFocusChange: onFocusChange,
+                ),
+                if (menuKey != null)
+                  CategoryMenuGlyph(
+                    categoryName: place,
+                    revealed: revealed,
+                    onFocusChange: onFocusChange,
+                    onPressed: () => menuKey.currentState?.open(),
+                  ),
+              ],
             ),
     );
     // Only a real category has a menu; the null section is the id-less implicit 'Channels' bucket.
@@ -266,6 +307,7 @@ class _ChannelCategorySectionsState
       label: label,
       channels: view.channelsBeneath(category),
       canManage: widget.canManage,
+      menuKey: menuKey,
     );
     return depth == 0
         ? header

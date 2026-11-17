@@ -207,10 +207,34 @@ class AddChannelGlyph extends StatelessWidget {
         context,
         initialKind: 'text',
         categoryId: categoryId,
-        categoryName: categoryId == null ? null : categoryName,
       ),
     );
   }
+}
+
+/// The kebab on a category header, opening the same menu a right-click does.
+class CategoryMenuGlyph extends StatelessWidget {
+  const CategoryMenuGlyph({
+    super.key,
+    required this.categoryName,
+    required this.revealed,
+    required this.onFocusChange,
+    required this.onPressed,
+  });
+
+  final String categoryName;
+  final bool revealed;
+  final ValueChanged<bool> onFocusChange;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SectionAddGlyph(
+    revealed: revealed,
+    onFocusChange: onFocusChange,
+    semanticLabel: 'Manage $categoryName',
+    icon: AppIcons.moreVertical,
+    onPressed: onPressed,
+  );
 }
 
 /// The reveal and spacing every section header's `+` shares; what it does is
@@ -222,8 +246,10 @@ class SectionAddGlyph extends StatelessWidget {
     required this.onFocusChange,
     required this.semanticLabel,
     required this.onPressed,
+    this.icon = AppIcons.add,
   });
 
+  final IconData icon;
   final bool revealed;
   final ValueChanged<bool> onFocusChange;
   final String semanticLabel;
@@ -245,7 +271,7 @@ class SectionAddGlyph extends StatelessWidget {
           // Hidden from the eye is not hidden from a screen reader.
           alwaysIncludeSemantics: true,
           child: AppIconButton(
-            icon: AppIcons.add,
+            icon: icon,
             semanticLabel: semanticLabel,
             size: AppIconButtonSize.sm,
             onPressed: onPressed,
