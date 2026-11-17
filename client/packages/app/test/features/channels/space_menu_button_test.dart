@@ -120,4 +120,24 @@ void main() {
     expect(find.text(ActionLabels.createChannel), findsNothing);
     expect(find.text(ActionLabels.createCategory), findsNothing);
   });
+
+  testWidgets('on a phone the menu is a bottom sheet, not a popover', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final container = _setup(Perm.manageChannels);
+    addTearDown(container.dispose);
+    await _pump(tester, container);
+
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await tester.pumpAndSettle();
+
+    final item = tester.getRect(find.text('Saved messages'));
+    expect(item.center.dy, greaterThan(400), reason: 'sits at the bottom');
+    await tester.tap(find.text('Saved messages'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mark all as read'), findsNothing);
+  });
 }
