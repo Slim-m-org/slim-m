@@ -123,13 +123,15 @@ void main() {
     final a = shared().listen(seen.add);
     final b = shared().listen((_) {});
     await pumpEventQueue();
+    upstream.add("Event 'change' on server");
+    await pumpEventQueue();
     await upstream.close();
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(started, 2);
     upstream.add("Event 'new' on sink-input #9");
     await pumpEventQueue();
-    expect(seen, ["Event 'new' on sink-input #9"]);
+    expect(seen, ["Event 'change' on server", "Event 'new' on sink-input #9"]);
     await a.cancel();
     await b.cancel();
   });
@@ -150,5 +152,20 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(started, 1);
+  });
+
+  test('a pactl subscribe that never delivered a line is not started again',
+      () async {
+    var started = 0;
+    final shared = sharedWhileListened(() {
+      started++;
+      return const Stream<String>.empty();
+    }, restartAfter: const Duration(milliseconds: 1));
+
+    final a = shared().listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(started, 1);
+    await a.cancel();
   });
 }

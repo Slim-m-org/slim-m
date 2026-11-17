@@ -36,6 +36,7 @@ PactlRunner sharingDeviceQueries(PactlRunner run) {
 ///
 /// A sound server restart ends `pactl subscribe` mid-call, so it is started
 /// again after [restartAfter], doubling up to [_restartCap], while anyone listens.
+/// A host where it never delivered a line has no working `pactl`, so it is not retried.
 PactlSubscriber sharedWhileListened(
   PactlSubscriber source, {
   Duration restartAfter = const Duration(seconds: 1),
@@ -43,17 +44,19 @@ PactlSubscriber sharedWhileListened(
   StreamSubscription<String>? upstream;
   Timer? restart;
   var delay = restartAfter;
+  var everHeard = false;
   late final StreamController<String> lines;
   void start() {
     upstream = source().listen(
       (line) {
         delay = restartAfter;
+        everHeard = true;
         lines.add(line);
       },
       onError: lines.addError,
       onDone: () {
         upstream = null;
-        if (!lines.hasListener) return;
+        if (!lines.hasListener || !everHeard) return;
         restart = Timer(delay, () {
           restart = null;
           if (lines.hasListener && upstream == null) start();
