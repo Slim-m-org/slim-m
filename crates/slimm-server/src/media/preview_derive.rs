@@ -138,13 +138,19 @@ pub(super) async fn decode_estimate(original: &Path, variant: Variant) -> Option
     plan(variant, &probe, len).map(|plan| plan.estimate())
 }
 
-/// [`Variant::Still`] for a picture that animates, [`Variant::Preview`] for any other.
-pub(super) async fn variant_of(original: &Path) -> Variant {
-    let animated = read_probe(original)
+/// `original`'s header as the planner reads it, from the probe alone.
+pub(super) async fn probe_header(original: &Path) -> Option<ImageHeader> {
+    read_probe(original)
         .await
         .and_then(|(probe, _)| header_of(&probe))
-        .is_some_and(|header| animates(&header));
-    if animated {
+}
+
+/// [`Variant::Still`] for a picture that animates, [`Variant::Preview`] for any other.
+pub(super) async fn variant_of(original: &Path) -> Variant {
+    if probe_header(original)
+        .await
+        .is_some_and(|header| animates(&header))
+    {
         Variant::Still
     } else {
         Variant::Preview

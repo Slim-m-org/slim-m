@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.id AS \"id!: ChannelCategoryId\", c.name AS \"name!\",\n                      c.position AS \"position!: i64\", c.created_at AS \"created_at!\",\n                      c.parent_id AS \"parent_id: ChannelCategoryId\"\n               FROM channel_categories c\n               LEFT JOIN channel_categories p ON p.id = c.parent_id\n               WHERE c.deleted_at IS NULL\n               ORDER BY COALESCE(p.position, c.position), COALESCE(p.created_at, c.created_at),\n                        COALESCE(p.id, c.id), c.parent_id IS NOT NULL,\n                        c.position, c.created_at, c.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelCategoryId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "parent_id: ChannelCategoryId",
+        "ordinal": 4,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "20da5e27108d7e9874d632366d05690065a00d7dd28be802645d151fc95f86a6"
+}

@@ -32,9 +32,13 @@ class ShareMenuActions {
     required this.onStop,
     required this.onChangeSource,
     required this.onPickSource,
+    this.onPicturesOnScreen,
   });
 
   final VoidCallback onStop;
+
+  /// Opens the pictures viewers stamped on this screen (decision 0121), where the server keeps them.
+  final VoidCallback? onPicturesOnScreen;
 
   /// Opens the platform's own picker, where this app has no list of its own.
   final VoidCallback onChangeSource;
@@ -70,6 +74,12 @@ List<ControlOptionEntry> shareMenuEntries(
         onChanged: (value) =>
             unawaited(notifier.setScreenShareAllowAnnotations(value)),
       ),
+      if (sharing && actions.onPicturesOnScreen != null)
+        ControlOption(
+          label: 'Pictures on your screen',
+          icon: AppIcons.image,
+          onSelected: actions.onPicturesOnScreen!,
+        ),
       ControlSwitch(
         label: 'Show my cursor',
         value: settings.screenShareShowCursor,

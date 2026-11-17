@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(MAX(position), -1) + 1 AS \"next!: i64\" FROM channels\n           WHERE category_id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "next!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "452b5a2cf218f14456e20dbd9728cb5956fbbeac6c18f48a5818c692bb0bfb9d"
+}

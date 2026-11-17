@@ -17,12 +17,14 @@ pub(super) mod permissions_resolve;
 pub use channel_overwrites::ChannelOverwrite;
 pub(super) use channel_overwrites::{everyone_role_id, set_overwrite};
 
-/// A user's roles, resolved once and reused by both permission read paths.
+/// A user's roles, resolved once and reused by every permission read path.
 pub(super) struct RoleContext {
     pub(super) everyone_id: Option<Uuid>,
     pub(super) everyone_perms: Permissions,
     pub(super) role_perms: Vec<Permissions>,
     pub(super) role_ids: Vec<Uuid>,
+    /// The Space owner holds every permission whatever their roles and any overwrite say.
+    pub(super) owner: bool,
 }
 
 impl RoleContext {
@@ -33,7 +35,16 @@ impl RoleContext {
             everyone_perms: Permissions::NONE,
             role_perms: Vec::new(),
             role_ids: Vec::new(),
+            owner: false,
         }
+    }
+
+    /// The deployment-level grant, before any timeout or join gate is subtracted.
+    pub(super) fn base(&self) -> Permissions {
+        if self.owner {
+            return Permissions::ALL;
+        }
+        evaluate(self.everyone_perms, &self.role_perms, None, &[], None)
     }
 
     /// Sorts `overwrites` into the tiers `user_id` is subject to and runs the
@@ -58,14 +69,18 @@ impl RoleContext {
                 _ => {}
             }
         }
-        Evaluated {
-            permissions: evaluate(
+        let permissions = match self.owner {
+            true => Permissions::ALL,
+            false => evaluate(
                 self.everyone_perms,
                 &self.role_perms,
                 everyone,
                 &roles,
                 member,
             ),
+        };
+        Evaluated {
+            permissions,
             everyone_overwrite: everyone,
         }
     }
@@ -129,13 +144,14 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         super::category_overwrites::mark_unsynced(&mut *tx, channel_id).await?;
+        super::voice_rooms::copy_lobby_overwrites_into_rooms(&mut tx, channel_id).await?;
         tx.commit().await?;
         Ok(())
     }
 
     /// The user's guild-level permissions, ignoring any channel. Applies the
-    /// `@everyone` base, the role union, and the administrator bypass, then
-    /// subtracts any timeout in force and the join gate.
+    /// `@everyone` base, the role union, and the owner and administrator
+    /// bypasses, then subtracts any timeout in force and the join gate.
     pub async fn base_permissions(&self, user_id: UserId) -> anyhow::Result<Permissions> {
         Ok(self
             .granted_base_permissions(user_id)
@@ -148,14 +164,7 @@ impl Store {
     /// compare against so that timing somebody out cannot itself be what
     /// makes them look junior enough to time out again.
     pub async fn granted_base_permissions(&self, user_id: UserId) -> anyhow::Result<Permissions> {
-        let roles = self.load_roles(user_id).await?;
-        Ok(evaluate(
-            roles.everyone_perms,
-            &roles.role_perms,
-            None,
-            &[],
-            None,
-        ))
+        Ok(self.load_roles(user_id).await?.base())
     }
 
     /// The user's effective permissions in a specific channel, applying the base
@@ -321,6 +330,7 @@ impl Store {
         }
 
         let (everyone_id, everyone_perms) = self.everyone_role().await?;
+        let owner = self.space_owner().await? == Some(user_id);
 
         let rows = sqlx::query!(
             r#"SELECT r.id AS "id!: RoleId", r.permissions AS "permissions!: Permissions"
@@ -340,6 +350,7 @@ impl Store {
             everyone_perms,
             role_perms,
             role_ids,
+            owner,
         })
     }
 }

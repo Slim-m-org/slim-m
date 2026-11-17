@@ -77,7 +77,7 @@ class SoundboardPane extends ConsumerWidget {
           !ref.watch(soundClipCreatingProvider),
       label: 'Drop to create a clip',
       icon: AppIcons.music,
-      onDrop: (files) => unawaited(_dropped(context, ref, files)),
+      onDrop: (files, _) => unawaited(_dropped(context, ref, files)),
       child: AppAsyncView<List<api.SoundClip>>(
         value: AppAsyncState(data: clips.valueOrNull, error: clips.error),
         center: false,

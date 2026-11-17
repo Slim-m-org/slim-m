@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: ChannelCategoryId\", name AS \"name!\",\n                  position AS \"position!: i64\", created_at AS \"created_at!\",\n                  parent_id AS \"parent_id: ChannelCategoryId\",\n                  deleted_at IS NULL AS \"live!: bool\"\n           FROM channel_categories WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: ChannelCategoryId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "position!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "parent_id: ChannelCategoryId",
+        "ordinal": 4,
+        "type_info": "Blob"
+      },
+      {
+        "name": "live!: bool",
+        "ordinal": 5,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "49b9264e3cb65faba6b2a9b78a1c46803c79144ac87f7618781a4288a498c936"
+}

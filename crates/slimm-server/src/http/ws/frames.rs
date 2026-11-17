@@ -198,6 +198,8 @@ pub(super) enum ServerFrame {
     },
     #[serde(rename = "member.joined")]
     MemberJoined { user_id: String },
+    #[serde(rename = "owner.changed")]
+    OwnerChanged { user_id: String },
     #[serde(rename = "profile.changed")]
     ProfileChanged { user_id: String },
     #[serde(rename = "bot_ui.changed")]
@@ -426,6 +428,16 @@ pub(super) enum ServerFrame {
         allowed: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
         aspect: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        size: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        emoji: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        attachment: Option<String>,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        animated: bool,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        stamps: bool,
     },
     #[serde(rename = "canvas.view.updated")]
     CanvasView {

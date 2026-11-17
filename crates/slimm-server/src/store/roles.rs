@@ -18,6 +18,7 @@ use sqlx::{QueryBuilder, SqliteConnection};
 use super::{Store, now_ms};
 use crate::ids::{RoleId, UserId};
 use crate::permissions::Permissions;
+use role_hoist::HeldRole;
 
 pub(super) mod role_bots;
 pub(super) mod role_hierarchy;
@@ -46,8 +47,8 @@ pub struct Role {
     /// The one role every bot holds; it cannot be deleted. See ADR 0028.
     pub is_bots_role: bool,
     /// Hierarchy order: higher sorts first in [`Store::list_roles`] and is
-    /// the value `store::role_reorder`'s escalation guard compares a caller's
-    /// own highest role against. `@everyone` stays at its bootstrap default
+    /// what `http::role_ladder` compares a caller's own highest role against.
+    /// `@everyone` stays at its bootstrap default
     /// (0) forever - it is never a member of `member_roles`, so nothing ever
     /// reorders it - and every other role's position only ever comes from an
     /// explicit reorder or the column's own `DEFAULT 0` at creation.
@@ -55,7 +56,7 @@ pub struct Role {
     /// Whether the member pane gives this role's members their own section.
     pub hoist: bool,
     /// An index into the client's role palette, below [`ROLE_COLOR_COUNT`];
-    /// `None` leaves the colour the client derives from the id.
+    /// `None` is no colour.
     pub color: Option<i64>,
 }
 
@@ -342,7 +343,7 @@ impl Store {
         Ok(Some(()))
     }
 
-    /// Non-`@everyone` roles for a batch of users, as (id, name) pairs, in one query no
+    /// Non-`@everyone` roles for a batch of users, highest position first, in one query no
     /// matter how many are asked about - the same batching shape
     /// [`Store::reactions_for_messages`] uses to keep a page of messages from
     /// paying one query per row. `GET /members` is the caller that actually
@@ -364,7 +365,7 @@ impl Store {
     pub async fn roles_for_users(
         &self,
         user_ids: &[UserId],
-    ) -> anyhow::Result<Vec<(UserId, Vec<(RoleId, String)>)>> {
+    ) -> anyhow::Result<Vec<(UserId, Vec<HeldRole>)>> {
         if user_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -372,7 +373,8 @@ impl Store {
         // Built rather than a fixed `query!` because the id list is variable
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
-            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name \
+            "SELECT mr.user_id AS user_id, r.id AS role_id, r.name AS name, r.color AS color, \
+             r.position AS position \
              FROM member_roles mr JOIN roles r ON r.id = mr.role_id \
              WHERE r.is_everyone = 0 AND mr.user_id IN (",
         );
@@ -385,13 +387,19 @@ impl Store {
         let rows = builder.build().fetch_all(&self.pool).await?;
 
         use sqlx::Row;
-        let mut grouped: Vec<(UserId, Vec<(RoleId, String)>)> = Vec::new();
+        let mut grouped: Vec<(UserId, Vec<HeldRole>)> = Vec::new();
         for row in rows {
             let user_id: UserId = row.try_get("user_id")?;
-            let role = (row.try_get("role_id")?, row.try_get("name")?);
-            match grouped.iter_mut().find(|(id, _)| *id == user_id) {
-                Some((_, roles)) => roles.push(role),
-                None => grouped.push((user_id, vec![role])),
+            let role = HeldRole {
+                id: row.try_get("role_id")?,
+                name: row.try_get("name")?,
+                color: row.try_get("color")?,
+                position: row.try_get("position")?,
+            };
+            // Rows arrive grouped by user, so a member's roles are always the last entry.
+            match grouped.last_mut() {
+                Some((id, roles)) if *id == user_id => roles.push(role),
+                _ => grouped.push((user_id, vec![role])),
             }
         }
         Ok(grouped)
@@ -424,8 +432,11 @@ impl Store {
 }
 
 /// Counts live users who currently hold ADMINISTRATOR, whether through the
-/// `@everyone` base (which applies with no explicit assignment) or a role
-/// assigned to them directly.
+/// `@everyone` base (which applies with no explicit assignment), a role
+/// assigned to them directly, or being the Space owner, who holds every permission.
+///
+/// Only people the Space owner can pass to count, the same set `space_owner::hand_on_owner`
+/// picks an heir from: a bot or a member still waiting at the join gate cannot recover roles.
 ///
 /// Excludes a webhook's principal even though it is a live `users` row that
 /// would otherwise inherit `@everyone`'s grant like anyone else: a webhook
@@ -441,9 +452,11 @@ pub(super) async fn administrator_count(conn: &mut SqliteConnection) -> Result<i
     let admin_bit = Permissions::ADMINISTRATOR.bits();
     sqlx::query_scalar!(
         r#"SELECT COUNT(*) AS "count!: i64" FROM users u
-           WHERE u.deleted_at IS NULL AND u.is_webhook = 0
-           AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id) AND (
-               EXISTS (SELECT 1 FROM roles WHERE is_everyone = 1 AND (permissions & ?) != 0)
+           WHERE u.deleted_at IS NULL AND u.is_webhook = 0 AND u.is_bot = 0
+           AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)
+           AND NOT EXISTS (SELECT 1 FROM pending_members pm WHERE pm.user_id = u.id) AND (
+               u.id = (SELECT owner_id FROM space_settings WHERE id = 1)
+               OR EXISTS (SELECT 1 FROM roles WHERE is_everyone = 1 AND (permissions & ?) != 0)
                OR EXISTS (
                    SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                    WHERE mr.user_id = u.id AND (r.permissions & ?) != 0

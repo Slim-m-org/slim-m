@@ -27,15 +27,19 @@ struct Monitor {
 };
 
 struct Shape {
-  enum class Kind { kStroke, kEllipse, kNote };
+  enum class Kind { kStroke, kEllipse, kNote, kStamp };
   Kind kind = Kind::kStroke;
   // Normalised to the monitor: x, y pairs for a stroke, x0 y0 x1 y1 for an
-  // ellipse, x y for a note.
+  // ellipse, x y for a note or a stamp's centre.
   std::vector<double> points;
   double width = 4;
   uint32_t argb = 0xFFFF0000;
   double alpha = 1;
   std::wstring text;
+  // A stamp's picture key, its longest side as a fraction of the layer's height, and its pop-in scale.
+  std::string image;
+  double size = 0;
+  double scale = 1;
 };
 
 struct PanelRow {
@@ -87,6 +91,14 @@ void SetPanel(Panel panel);
 
 // The index of the monitor the app's own window is on, or -1 when that cannot be told.
 int AppMonitor();
+
+// Holds a stamp's PNG under [key], replacing any picture already there; false when it is too big or will not decode.
+bool PutStampImage(const std::string& key, const std::vector<uint8_t>& png);
+
+void DropStampImage(const std::string& key);
+
+// Empties the stamp pictures, once the window they served is gone.
+void ForgetStampImages();
 
 // Runs [handler] once a monitor layout or scale change settles, since open overlay windows still cover the old layout.
 void SetDisplaysChangedHandler(std::function<void()> handler);

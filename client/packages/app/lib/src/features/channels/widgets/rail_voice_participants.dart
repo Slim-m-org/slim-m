@@ -152,6 +152,7 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
         name: participant.name,
         fromChannelId: widget.channelId,
       ),
+      member: profile,
       child: ContextMenuRegion(
         menuWidth: kParticipantMenuWidth,
         itemsBuilder: (menuContext, close) => participantCallMenuItems(

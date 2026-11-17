@@ -36,6 +36,8 @@ use canvas::{
     canvas_ops_write, canvas_purge,
 };
 mod categories;
+mod category_delete;
+mod category_order;
 mod category_overwrites;
 mod channels;
 pub(crate) use channels::channel_slow_mode;
@@ -104,16 +106,20 @@ mod login_throttle;
 mod media_compression;
 mod safety;
 mod saved_messages;
+mod screen_stamps;
 mod sessions;
 mod sign_in_alert;
 mod space;
 mod space_landing;
 mod space_link_previews;
 mod space_module_display;
+mod space_owner;
 mod space_setup;
 mod space_themes;
 mod space_welcome;
+mod stamp_reports;
 mod storage;
+mod sub_category_overwrites;
 mod thread_listing;
 mod threads;
 mod timeouts;
@@ -129,7 +135,7 @@ mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
 
-pub use account_deletion::DeleteAccountError;
+pub use account_deletion::{DeleteAccountError, DeletedAccount};
 pub use admin_alerts::{AdminAlert, Raised, ResolvedAlert};
 pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
@@ -172,7 +178,8 @@ pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };
 pub use canvas_purge::PurgeError;
-pub use categories::CreatedCategory;
+pub use categories::{CategoryUpdate, CategoryWriteError, CreatedCategory};
+pub use category_order::{CategoryOrderGroup, CategoryReorderOutcome, ReorderCategoriesError};
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;
 pub use channel_order::{ChannelOrderGroup, ReorderChannelsError, ReorderOutcome};
@@ -253,6 +260,9 @@ pub use role_update::RoleChanges;
 pub use roles::{CreateRoleError, CreatedRole, ROLE_COLOR_COUNT, Role, RoleGuardError};
 pub use safety::Device;
 pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
+pub use screen_stamps::{
+    NewScreenStamp, ReportPicture, SCREEN_STAMP_TTL_MS, ScreenStamp, StampInsert, StampSender,
+};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use soundboard::{
     ClipEmoji, MAX_SOUNDBOARD_CLIPS, SoundClip, SoundClipChange, SoundClipError, StarterClipRow,
@@ -261,9 +271,11 @@ pub use soundboard::{
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
 pub use space_module_display::ModuleDisplay;
+pub use space_owner::{Handoff, Ownership};
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
+pub use stamp_reports::SCREEN_STAMP_KIND;
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{

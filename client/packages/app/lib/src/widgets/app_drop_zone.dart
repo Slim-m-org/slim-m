@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A generic OS-file drop target: a visible overlay while a drag is over it,
-/// and one callback with whatever landed. Callers (the channel view, the
-/// emoji card, `ImageDropZone`) never invent their own drag handling; they
-/// only decide what a drop means for them.
+/// and one callback with whatever landed and where. Callers (the channel view,
+/// the emoji card, `ImageDropZone`, a shared screen's tile) never invent their
+/// own drag handling; they only decide what a drop means for them.
+///
+/// The plugin tells every enabled target whose box holds the pointer, even one
+/// clipped away, under a sibling or under a pushed page. So a zone takes a drop
+/// only when it is the first zone a hit test at that point reaches.
 ///
 /// See `docs/dependencies.md` for why `desktop_drop` over
 /// `super_drag_and_drop`, and why this needs no `dart.library.*` conditional
@@ -12,7 +16,9 @@ library;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/gestures.dart' show HitTestResult;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderMetaData;
 import 'package:slimm_design_system/design_system.dart';
 
 /// Whether this platform delivers OS drag-and-drop events at all: every
@@ -57,7 +63,9 @@ class AppDropZone extends StatefulWidget {
   /// progress: "Drop to attach", "Drop to import emoji".
   final String label;
   final IconData icon;
-  final ValueChanged<List<DropItem>> onDrop;
+
+  /// What landed, and where in this zone's own coordinates.
+  final void Function(List<DropItem> items, Offset at) onDrop;
   final Widget child;
 
   @override
@@ -66,30 +74,64 @@ class AppDropZone extends StatefulWidget {
 
 class _AppDropZoneState extends State<AppDropZone> {
   bool _dragging = false;
+  int? _viewId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _viewId = View.of(context).viewId;
+  }
+
+  /// Whether a drop at [global] is this zone's: the first enabled zone a hit test there reaches.
+  bool _takes(Offset global) {
+    final viewId = _viewId;
+    if (!widget.enabled || viewId == null) return false;
+    final hits = HitTestResult();
+    WidgetsBinding.instance.hitTestInView(hits, global, viewId);
+    for (final entry in hits.path) {
+      final target = entry.target;
+      if (target is! RenderMetaData) continue;
+      final zone = target.metaData;
+      if (zone is _AppDropZoneState && zone.widget.enabled) {
+        return identical(zone, this);
+      }
+    }
+    return false;
+  }
 
   void _setDragging(bool value) {
     if (_dragging != value) setState(() => _dragging = value);
   }
+
+  void _hover(DropEventDetails details) =>
+      _setDragging(_takes(details.globalPosition));
 
   @override
   Widget build(BuildContext context) {
     if (!dropZoneSupported()) return widget.child;
     return DropTarget(
       enable: widget.enabled,
-      onDragEntered: (_) => _setDragging(true),
+      onDragEntered: _hover,
+      onDragUpdated: _hover,
       onDragExited: (_) => _setDragging(false),
       onDragDone: (details) {
         _setDragging(false);
-        widget.onDrop(details.files);
+        if (!_takes(details.globalPosition)) return;
+        widget.onDrop(details.files, details.localPosition);
       },
-      child: Stack(
-        children: [
-          widget.child,
-          if (_dragging)
-            Positioned.fill(
-              child: AppDropOverlay(label: widget.label, icon: widget.icon),
-            ),
-        ],
+      // Translucent: on the hit path wherever this zone is, while what is under it still gets taps.
+      child: MetaData(
+        metaData: this,
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            widget.child,
+            if (_dragging)
+              Positioned.fill(
+                child: AppDropOverlay(label: widget.label, icon: widget.icon),
+              ),
+          ],
+        ),
       ),
     );
   }

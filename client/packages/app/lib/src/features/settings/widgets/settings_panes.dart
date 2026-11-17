@@ -17,6 +17,8 @@
 /// is the same widget the wide layout puts on the right.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -30,9 +32,12 @@ import 'settings_search.dart';
 import '../providers/settings_index.dart';
 
 import 'settings_pane.dart';
+import 'settings_pane_body.dart';
 import 'settings_panes_chrome.dart';
+import 'settings_sub_pages.dart';
 
 export 'settings_pane.dart';
+export 'settings_sub_pages.dart';
 
 class SettingsPanesScaffold extends StatefulWidget {
   const SettingsPanesScaffold({
@@ -43,7 +48,9 @@ class SettingsPanesScaffold extends StatefulWidget {
     required this.backFallback,
     this.footer,
     this.initialPaneId,
+    this.initialPageId,
     this.onPaneChanged,
+    this.onPageChanged,
     this.searchEntries = const [],
   });
 
@@ -58,9 +65,15 @@ class SettingsPanesScaffold extends StatefulWidget {
   /// selection follows, which is how a pane in the URL reaches this widget.
   final String? initialPaneId;
 
+  /// A key of the pane's [SettingsPane.subPages], opened on top of it.
+  final String? initialPageId;
+
   /// Told the pane the user picked, or null for the nav on a phone, so the
   /// route can carry it in its location and a reload lands on the same pane.
   final ValueChanged<String?>? onPaneChanged;
+
+  /// Told the [SettingsSubPage.urlId] on top of a pane whenever it changes.
+  final void Function(String paneId, String? pageId)? onPageChanged;
   final List<SettingsPaneGroup> groups;
 
   /// Names the destination, not just "Back"; see [BackToButton].
@@ -78,10 +91,25 @@ class SettingsPanesScaffold extends StatefulWidget {
 class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
   late String? _selectedId = widget.initialPaneId;
   final _highlight = ValueNotifier<String?>(null);
+  final _stacks = <String, SettingsSubPageStack>{};
+  final _pageKeys = Expando<GlobalKey>();
+
+  /// The page last told to the route, so its own answer is not replayed.
+  String? _toldPage;
+  bool _quiet = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _openPages(widget.initialPaneId, widget.initialPageId);
+  }
 
   @override
   void dispose() {
     _highlight.dispose();
+    for (final stack in _stacks.values) {
+      stack.dispose();
+    }
     super.dispose();
   }
 
@@ -91,6 +119,9 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
     if (widget.initialPaneId != oldWidget.initialPaneId) {
       _selectedId = widget.initialPaneId;
     }
+    if (widget.initialPageId != _toldPage) {
+      _openPages(widget.initialPaneId, widget.initialPageId);
+    }
   }
 
   // One per pane, so its content keeps its state when the window crosses the width that swaps the two-pane layout for the drill-in.
@@ -98,6 +129,65 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
 
   GlobalKey _contentKey(SettingsPane pane) =>
       _contentKeys.putIfAbsent(pane.id, GlobalKey.new);
+
+  GlobalKey _pageKey(SettingsSubPage page) => _pageKeys[page] ??= GlobalKey();
+
+  SettingsSubPageStack _stackFor(String paneId) => _stacks.putIfAbsent(
+    paneId,
+    () => SettingsSubPageStack()..addListener(() => _onStack(paneId)),
+  );
+
+  void _onStack(String paneId) {
+    if (!mounted || _quiet) return;
+    setState(() {});
+    final page = _stacks[paneId]!.urlId;
+    if (page == _toldPage) return;
+    _toldPage = page;
+    widget.onPageChanged?.call(paneId, page);
+  }
+
+  /// Opens the pages a link names, without telling the route what it said.
+  void _openPages(String? paneId, String? pageId) {
+    final pane = _allPanes.where((p) => p.id == paneId).firstOrNull;
+    _toldPage = pageId;
+    if (pane == null) return;
+    final pages = pageId == null ? null : pane.subPages[pageId];
+    _quietly(() {
+      for (final entry in _stacks.entries) {
+        if (entry.key != pane.id) entry.value.clear();
+      }
+      _stackFor(pane.id).replace(pages?.call() ?? const []);
+    });
+  }
+
+  void _quietly(VoidCallback change) {
+    _quiet = true;
+    try {
+      change();
+    } finally {
+      _quiet = false;
+    }
+  }
+
+  SettingsSubPageStack? get _openStack =>
+      _stacks.values.where((s) => !s.isEmpty).firstOrNull;
+
+  /// Runs [then] once the open page lets go; every stack is cleared first.
+  Future<void> _leave(VoidCallback then) async {
+    final stack = _openStack;
+    if (stack != null && !await stack.canLeave()) return;
+    if (!mounted) return;
+    _quietly(() {
+      for (final s in _stacks.values) {
+        s.clear();
+      }
+    });
+    _toldPage = null;
+    then();
+  }
+
+  void _close() =>
+      unawaited(_leave(() => closeScreen(context, widget.backFallback)));
 
   void _select(String? id) {
     setState(() => _selectedId = id);
@@ -115,45 +205,81 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SettingsHighlight(notifier: _highlight, child: _layout(context));
-
-  Widget _layout(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
+  Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= kSettingsTwoPaneWidth;
     final panes = _allPanes;
-
     // Wide always shows something: an empty pane beside a nav is a hole.
     final selected = wide ? (_selected ?? panes.firstOrNull) : _selected;
+    final stack = selected == null ? null : _stackFor(selected.id);
+    final blocking = stack?.blocking ?? false;
+    return PopScope(
+      canPop: (wide || (stack?.isEmpty ?? true)) && !blocking,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || stack == null) return;
+        if (!wide && !stack.isEmpty) {
+          unawaited(stack.pop());
+          return;
+        }
+        _close();
+      },
+      child: SettingsHighlight(
+        notifier: _highlight,
+        child: _layout(context, wide, selected, stack),
+      ),
+    );
+  }
 
-    if (!wide && selected != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(selected.label),
-          leading: IconButton(
-            icon: const Icon(AppIcons.back),
-            tooltip: 'Back to ${widget.title.toLowerCase()}',
-            onPressed: () => _select(null),
-          ),
-          actions: selected.actions,
+  Widget _compactPane(SettingsPane pane, SettingsSubPageStack stack) {
+    final page = stack.top;
+    final body = SafeArea(
+      top: false,
+      bottom: false,
+      child: SettingsPaneBody(
+        pane: pane,
+        contentKey: _contentKey(pane),
+        stack: stack,
+        pageKey: _pageKey,
+      ),
+    );
+    if (page != null && page.ownsHeader) return Scaffold(body: body);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(page?.title ?? pane.label),
+        leading: IconButton(
+          icon: const Icon(AppIcons.back),
+          tooltip: page?.backLabel ?? 'Back to ${widget.title.toLowerCase()}',
+          onPressed: page != null
+              ? () => unawaited(stack.pop())
+              : () => _select(null),
         ),
-        body: SafeArea(
-          top: false,
-          bottom: false,
-          child: _PaneBody(pane: selected, contentKey: _contentKey(selected)),
-        ),
-      );
-    }
+        actions: page == null ? pane.actions : null,
+      ),
+      body: body,
+    );
+  }
 
-    void onSelect(String id) {
-      final pane = panes.where((p) => p.id == id).firstOrNull;
-      final route = pane?.compactRoute;
-      if (!wide && route != null) {
-        context.push(route);
-        return;
-      }
-      _select(id);
-    }
+  Widget _layout(
+    BuildContext context,
+    bool wide,
+    SettingsPane? selected,
+    SettingsSubPageStack? stack,
+  ) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final panes = _allPanes;
+
+    if (!wide && selected != null) return _compactPane(selected, stack!);
+
+    void onSelect(String id) => unawaited(
+      _leave(() {
+        final pane = panes.where((p) => p.id == id).firstOrNull;
+        final route = pane?.compactRoute;
+        if (!wide && route != null) {
+          context.push(route);
+          return;
+        }
+        _select(id);
+      }),
+    );
 
     final nav = _Nav(
       groups: widget.groups,
@@ -212,6 +338,8 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
                         title: widget.title,
                         backTooltip: widget.backTooltip,
                         backFallback: widget.backFallback,
+                        onBack: _close,
+                        showBack: stack?.isEmpty ?? true,
                       ),
                       Expanded(child: nav),
                     ],
@@ -222,124 +350,19 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
             Expanded(
               child: selected == null
                   ? const SizedBox.shrink()
-                  : _PaneBody(
+                  : SettingsPaneBody(
                       pane: selected,
                       contentKey: _contentKey(selected),
+                      stack: stack!,
+                      pageKey: _pageKey,
                       showHeading: true,
-                      onClose: () => closeScreen(context, widget.backFallback),
+                      onClose: _close,
                     ),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-/// A pane's own content, keyed by its id so switching panes does not carry the
-/// previous one's scroll offset or form state across - and faded in on that
-/// same key, so choosing a pane hands the eye the new content rather than
-/// teleporting it.
-///
-/// Capped at [AppContentColumn]'s own width and centred, or a pane's rows
-/// stretch across whatever the window happens to be - the owner's own "very
-/// flat" report on a wide desktop window, where the nav's 240px left nothing
-/// else bounding it.
-class _PaneBody extends StatelessWidget {
-  const _PaneBody({
-    required this.pane,
-    required this.contentKey,
-    this.showHeading = false,
-    this.onClose,
-  });
-
-  /// Beside a nav: the pane's own close, at the right of its heading.
-  final VoidCallback? onClose;
-
-  /// The redesign's pane inset beside a nav, for a pane that kept the default.
-  static const _wideInset = EdgeInsets.fromLTRB(32, 24, 32, 40);
-
-  EdgeInsets _padding(BuildContext context) {
-    final base =
-        showHeading && pane.padding == const EdgeInsets.all(AppSpacing.s16)
-        ? _wideInset
-        : pane.padding;
-    return base + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom);
-  }
-
-  Widget _heading(BuildContext context) =>
-      pane.headingBuilder?.call(context, onClose) ??
-      SettingsPaneHeading(pane.label, actions: pane.actions, onClose: onClose);
-
-  final SettingsPane pane;
-
-  /// Owned by the scaffold, so the pane's own state outlives this widget.
-  final GlobalKey contentKey;
-
-  /// Wide only: beside the nav nothing else names the pane, where on compact
-  /// the app bar already does.
-  final bool showHeading;
-
-  @override
-  Widget build(BuildContext context) => AppFadeIn(
-    key: ValueKey(pane.id),
-    duration: AppMotion.fast,
-    offset: 0,
-    child: AppContentColumn(
-      maxWidth: pane.wide ? kSettingsWideContentMax : kContentColumnMax,
-      child: _body(context),
-    ),
-  );
-
-  Widget _body(BuildContext context) {
-    final padding = _padding(context);
-    return pane.scrollable
-        ? ListView(
-            padding: padding,
-            children: [
-              if (showHeading) _heading(context),
-              KeyedSubtree(
-                key: contentKey,
-                child: Builder(builder: pane.builder),
-              ),
-            ],
-          )
-        : showHeading
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  padding.left,
-                  padding.top,
-                  padding.right,
-                  0,
-                ),
-                child: _heading(context),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    padding.left,
-                    0,
-                    padding.right,
-                    padding.bottom,
-                  ),
-                  child: KeyedSubtree(
-                    key: contentKey,
-                    child: Builder(builder: pane.builder),
-                  ),
-                ),
-              ),
-            ],
-          )
-        : Padding(
-            padding: padding,
-            child: KeyedSubtree(
-              key: contentKey,
-              child: Builder(builder: pane.builder),
-            ),
-          );
   }
 }
 

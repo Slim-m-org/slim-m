@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' show Brightness;
+import 'dart:ui' show Brightness, Color;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -81,6 +81,21 @@ void main() {
       (json['tokens'] as Map<String, dynamic>)['textPrimary'] = '#1C2027';
       expect(
           problems(json), contains('textPrimary on surfaceBase is below 4.5'));
+    });
+
+    test('contrast unchecked reads a theme that fails only its floors', () {
+      final json = _json('dark');
+      (json['tokens'] as Map<String, dynamic>)['textPrimary'] = '#1C2027';
+      final parsed = parseThemeJson(json, checkContrast: false);
+      expect(parsed.problems, isEmpty);
+      expect(parsed.document!.colours['textPrimary'], const Color(0xFF1C2027));
+    });
+
+    test('contrast unchecked still refuses a file that is not a theme', () {
+      final json = _json('dark')..['base'] = 'neon';
+      final parsed = parseThemeJson(json, checkContrast: false);
+      expect(parsed.document, isNull);
+      expect(parsed.problems.join('|'), contains('base must be one of'));
     });
 
     test('wrong format, base, brightness, name and extra keys', () {

@@ -16,6 +16,22 @@ class ChannelOverwriteSet {
   final bool synced;
 }
 
+/// A category's overwrites with, for a sub-category, whether they follow its
+/// parent (decision 0120).
+class CategoryOverwriteSet {
+  const CategoryOverwriteSet({required this.overwrites, this.synced});
+
+  final List<ChannelOverwrite> overwrites;
+
+  /// Null for a top-level category, which never follows anything.
+  final bool? synced;
+}
+
+CategoryOverwriteSet _categorySetOf(Object? json) => CategoryOverwriteSet(
+      overwrites: _overwritesOf(json),
+      synced: (json as Map<String, dynamic>)['synced'] as bool?,
+    );
+
 List<ChannelOverwrite> _overwritesOf(Object? json) =>
     ((json as Map<String, dynamic>)['overwrites'] as List<dynamic>)
         .map((o) => ChannelOverwrite.fromJson(o as Map<String, dynamic>))
@@ -42,8 +58,23 @@ extension SlimmApiCategoryPermissions on SlimmApi {
         await send('GET', '/categories/$categoryId/overwrites'),
       );
 
-  /// Applies the edits to the category (an all-zero pair removes that target)
-  /// and copies the result into every channel synced to it.
+  /// A category's overwrites and, for a sub-category, whether they follow its parent.
+  Future<CategoryOverwriteSet> getCategoryOverwriteSet(
+    String categoryId,
+  ) async =>
+      _categorySetOf(await send('GET', '/categories/$categoryId/overwrites'));
+
+  /// Makes a sub-category follow its parent again, copying on into its synced
+  /// channels. A 409 on a top-level category.
+  Future<CategoryOverwriteSet> syncCategoryOverwrites(
+    String categoryId,
+  ) async =>
+      _categorySetOf(
+        await send('POST', '/categories/$categoryId/overwrites/sync'),
+      );
+
+  /// Applies the edits (an all-zero pair removes that target) and copies the result
+  /// into everything synced beneath; a sub-category's own save stops it following.
   Future<List<ChannelOverwrite>> batchSetCategoryOverwrites({
     required String categoryId,
     required List<ChannelOverwriteEdit> overwrites,

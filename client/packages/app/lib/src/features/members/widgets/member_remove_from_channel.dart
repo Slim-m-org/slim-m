@@ -38,14 +38,16 @@ bool offersRemoveFromChannel(
   return settled && !memberIsAdministrator(profile, roles.valueOrNull);
 }
 
-/// Whether [profile]'s roles carry administrator, which no overwrite can deny.
+/// Whether no overwrite can deny [profile]: the Space owner, or a member whose
+/// roles carry administrator.
 bool memberIsAdministrator(api.UserProfile profile, List<api.Role>? roles) =>
-    roles?.any(
-      (r) =>
-          profile.roleIds.contains(r.id) &&
-          r.permissions.hasPermission(Perm.administrator),
-    ) ??
-    false;
+    profile.isOwner ||
+    (roles?.any(
+          (r) =>
+              profile.roleIds.contains(r.id) &&
+              r.permissions.hasPermission(Perm.administrator),
+        ) ??
+        false);
 
 /// Denies [memberId] the channel, keeping whatever else their overwrite says.
 Future<void> denyMemberChannel(

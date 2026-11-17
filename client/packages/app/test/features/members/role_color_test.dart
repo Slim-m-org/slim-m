@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The role Display tab's colour picker and how a role's colour is resolved.
+/// The role Display tab's colour picker, its No colour swatch, and how a
+/// role's colour is resolved.
 library;
 
 import 'dart:convert';
@@ -89,23 +90,48 @@ void main() {
     ]);
   });
 
-  testWidgets('an unchosen role shows its hashed colour as selected', (
-    tester,
-  ) async {
+  testWidgets('an unchosen role shows No colour as selected', (tester) async {
     final semantics = tester.ensureSemantics();
     await _pump(tester, role);
-    final hashed = rolePalette[rolePaletteIndex(role.id, null)].name;
     final node = tester.getSemantics(
-      find.bySemanticsLabel('Role colour: $hashed'),
+      find.bySemanticsLabel('Role colour: No colour'),
     );
     expect(node.getSemanticsData().flagsCollection.isSelected, Tristate.isTrue);
     semantics.dispose();
   });
 
-  test('a chosen colour wins over the hashed one, and junk falls back', () {
-    expect(roleColor('r1', color: 6), rolePalette[6].color);
-    expect(roleColor('r1', color: 42), roleColor('r1'));
-    expect(roleColor('r1', color: -1), roleColor('r1'));
-    expect(rolePalette, hasLength(api.InputLimits.roleColors));
+  testWidgets('No colour clears a chosen colour with an explicit null', (
+    tester,
+  ) async {
+    final patches = await _pump(
+      tester,
+      const api.Role(
+        id: 'r1',
+        name: 'Mod',
+        permissions: 0,
+        isEveryone: false,
+        createdAt: 0,
+        color: 6,
+      ),
+    );
+    final none = find.bySemanticsLabel('Role colour: No colour');
+    await tester.ensureVisible(none);
+    await tester.tap(none);
+    await tester.pump();
+    expect(patches, [
+      {'color': null},
+    ]);
   });
+
+  test(
+    'only a chosen colour in range colours a role, else the neutral dot',
+    () {
+      expect(chosenRoleColor(6), rolePalette[6].color);
+      expect(chosenRoleColor(42), isNull);
+      expect(chosenRoleColor(-1), isNull);
+      expect(roleDotColor(null, AppTokens.dark), AppTokens.dark.borderStrong);
+      expect(roleDotColor(6, AppTokens.dark), rolePalette[6].color);
+      expect(rolePalette, hasLength(api.InputLimits.roleColors));
+    },
+  );
 }

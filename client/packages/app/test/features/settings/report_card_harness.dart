@@ -40,6 +40,7 @@ String reportJson({
   String? subjectAuthorId,
   String reason = 'this is not okay',
   int? channelPermissions,
+  List<String> pictureIds = const [],
 }) => jsonEncode({
   'id': id,
   'reporter_id': reporterId,
@@ -51,6 +52,7 @@ String reportJson({
   'subject_author_id': subjectAuthorId,
   'created_at': 0,
   'channel_permissions': channelPermissions,
+  if (pictureIds.isNotEmpty) 'picture_ids': pictureIds,
 });
 
 String profileJson(String id, String displayName) => jsonEncode({

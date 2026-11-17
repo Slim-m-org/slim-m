@@ -8,12 +8,14 @@ import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 
-/// A sheet's heading with an optional one-line [caption] and [trailing] action.
+/// A sheet's heading with an optional one-line [caption], a [leading] mark
+/// before the text and a [trailing] action.
 class AppSheetHeader extends StatelessWidget {
   const AppSheetHeader(
     this.title, {
     super.key,
     this.caption,
+    this.leading,
     this.trailing,
     this.padding = const EdgeInsets.fromLTRB(
       AppSpacing.s16,
@@ -25,6 +27,9 @@ class AppSheetHeader extends StatelessWidget {
 
   final String title;
   final String? caption;
+
+  /// A thumbnail or chip naming what the sheet acts on, centred on the text.
+  final Widget? leading;
   final Widget? trailing;
   final EdgeInsetsGeometry padding;
 
@@ -39,7 +44,10 @@ class AppSheetHeader extends StatelessWidget {
           header: true,
           child: Text(
             title,
-            style: AppText.heading.copyWith(color: tokens.textPrimary),
+            style: AppText.heading.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: AppWeights.semi,
+            ),
           ),
         ),
         if (caption case final caption?) ...[
@@ -53,12 +61,16 @@ class AppSheetHeader extends StatelessWidget {
     );
     return Padding(
       padding: padding,
-      child: trailing == null
+      child: trailing == null && leading == null
           ? SizedBox(width: double.infinity, child: text)
           : Row(
               children: [
+                if (leading case final leading?) ...[
+                  leading,
+                  const SizedBox(width: AppSpacing.s12),
+                ],
                 Expanded(child: text),
-                trailing!,
+                if (trailing case final trailing?) trailing,
               ],
             ),
     );

@@ -19,7 +19,7 @@ final adminAlertsProvider = FutureProvider.autoDispose<api.AdminAlerts?>((
   ref,
 ) async {
   final me = await ref.watch(meProvider.future);
-  if (!me.permissions.hasPermission(Perm.manageServer)) return null;
+  if (!me.heldPermissions.hasPermission(Perm.manageServer)) return null;
   final subscription = ref.watch(liveEventsProvider).listen((event) {
     if (event is api.AdminAlertsChanged) ref.invalidateSelf();
   });

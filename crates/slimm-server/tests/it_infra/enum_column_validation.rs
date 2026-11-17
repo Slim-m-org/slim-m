@@ -94,7 +94,7 @@ async fn a_report_subject_kind_must_be_one_the_server_knows() {
     let (status, error) = call(&router, "POST", "/reports", &token, body).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{error}");
     assert!(
-        error.contains("subject_kind must be message, user or ephemeral_message"),
+        error.contains("subject_kind must be message, user, ephemeral_message or screen_stamp"),
         "{error}"
     );
 }

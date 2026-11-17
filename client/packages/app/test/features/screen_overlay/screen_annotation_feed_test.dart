@@ -116,12 +116,13 @@ void main() {
     expect(feed.marksFor('sharer'), isEmpty);
   });
 
-  test('the rest of a mark in progress lands after consent is withdrawn', () {
+  test('withdrawn consent takes every mark off the screen at once', () {
     feed.handle(_consent('sharer'));
     feed.handle(_stroke('sharer', ended: false));
     feed.handle(_consent('sharer', allowed: false));
+    expect(feed.marksFor('sharer'), isEmpty);
     feed.handle(_stroke('sharer', ended: true));
-    expect(feed.marksFor('sharer').single.finishedAt, isNotNull);
+    expect(feed.marksFor('sharer'), isEmpty);
   });
 
   test('a board with nothing left is dropped when the next frame folds', () {

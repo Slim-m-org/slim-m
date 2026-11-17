@@ -14,9 +14,10 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::escalation::{escalation_guard, role_rank_guard};
+use super::escalation::escalation_guard;
 use super::extract::{Authed, enforce};
 use super::messages::parse_uuid;
+use super::role_ladder::Ladder;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -398,7 +399,7 @@ async fn set_deafened(
 
 /// Evicts a participant from a channel's voice room, gated on `KICK_MEMBERS`
 /// in that channel (so the escalation check compares channel-scoped grants)
-/// and on outranking the target by role position, unless an administrator.
+/// and on outranking the target on the role ladder, unless the Space owner.
 /// Idempotent, since the SFU is the authority on who is connected; taking
 /// away `CONNECT` is what keeps them out afterwards.
 async fn kick(
@@ -429,16 +430,10 @@ async fn kick(
         .await?;
     escalation_guard(caller_granted, target_granted)?;
     if ctx.user_id != target {
-        let caller_is_admin = state
-            .store
-            .granted_base_permissions(ctx.user_id)
+        Ladder::of(&state, ctx.user_id)
             .await?
-            .contains(Permissions::ADMINISTRATOR);
-        role_rank_guard(
-            caller_is_admin,
-            state.store.highest_role_position(ctx.user_id).await?,
-            state.store.highest_role_position(target).await?,
-        )?;
+            .reach_member(&state, target)
+            .await?;
     }
 
     match state.voice.remove_participant(channel_id, target).await {

@@ -19,14 +19,16 @@ api.Channel _channel(
   String? categoryId,
   int position = 0,
   bool restricted = false,
+  String? roomOwnerId,
 }) => api.Channel(
   id: id,
   name: name,
-  kind: 'text',
+  kind: roomOwnerId == null ? 'text' : 'voice',
   createdAt: 0,
   position: position,
   categoryId: categoryId,
   restricted: restricted,
+  roomOwnerId: roomOwnerId,
 );
 
 Future<data.MessageStore> _store(WidgetTester tester) async {
@@ -40,6 +42,7 @@ Future<data.MessageStore> _store(WidgetTester tester) async {
       _channel('c1', 'general'),
       _channel('c2', 'minecraft', categoryId: 'k1'),
       _channel('c3', 'staff', categoryId: 'k1', position: 1, restricted: true),
+      _channel('c4', "Pat's room", categoryId: 'k1', roomOwnerId: 'u2'),
     ]);
   });
   return store;
@@ -77,6 +80,11 @@ void main() {
     expect(
       find.byTooltip('Restricted channel: not visible to everyone'),
       findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('perm-channel-c4')),
+      findsNothing,
+      reason: "a temporary room holds its lobby's permissions",
     );
 
     await tester.tap(row);

@@ -13,6 +13,9 @@ typedef ShapePlaced = void Function(
   bool flipY,
 });
 
+/// A Stamp tool placement: its centre in world coordinates and, for a drag, its longest side (twice the drag), or null for a tap.
+typedef StampPlaced = void Function(Offset worldCenter, double? draggedSide);
+
 /// This pointer moved to a world position, on every hover and drag alike.
 /// The caller decides whether and how often to relay it.
 typedef PointerMoved = void Function(Offset worldPoint);
@@ -28,9 +31,16 @@ enum CanvasTool {
   note,
   text,
   shape,
-  eraser;
+  eraser,
+
+  /// An emoji or a picture (decision 0121).
+  stamp;
 
   /// Whether a press starts a new mark, as opposed to selecting or erasing.
   bool get placesInk =>
-      this == pen || this == note || this == text || this == shape;
+      this == pen ||
+      this == note ||
+      this == text ||
+      this == shape ||
+      this == stamp;
 }

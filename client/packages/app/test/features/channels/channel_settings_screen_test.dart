@@ -21,6 +21,7 @@ import 'package:slimm_app/src/features/channels/screens/channel_settings_screen.
 import 'package:slimm_data/data.dart' show Channel, MessageStore, SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/async_wait.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -44,11 +45,31 @@ const _channel = Channel(
   isPersonalSpace: false,
 );
 
+const _room = Channel(
+  id: 'r1',
+  name: "Pat's room",
+  kind: 'voice',
+  createdAt: 0,
+  position: 0,
+  cursor: 0,
+  lastReadSeq: 0,
+  mentionedSeq: 0,
+  slowModeSeconds: 0,
+  joinMuted: false,
+  isPersonalSpace: false,
+  roomOwnerId: 'user-2',
+);
+
 /// A caller holding [permissions], looking at the Channel settings screen
-/// for [_channel]. `/channels/c1/permissions` (the "Allow" gate's source in
+/// for [channel]. `/channels/c1/permissions` (the "Allow" gate's source in
 /// the embedded permissions pane) answers with the same bitmask, so a caller
 /// who can reach the pane at all also reads as able to allow every bit in it.
-Widget _harness(int permissions) => UncontrolledProviderScope(
+/// Every request path lands in [requested].
+Widget _harness(
+  int permissions, {
+  Channel channel = _channel,
+  List<String>? requested,
+}) => UncontrolledProviderScope(
   container: ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -63,6 +84,7 @@ Widget _harness(int permissions) => UncontrolledProviderScope(
         ),
       ),
       mockApiOverride((request) async {
+        requested?.add(request.url.path);
         if (request.url.path == '/channels/c1/permissions') {
           return http.Response(
             jsonEncode({'permissions': permissions}),
@@ -95,8 +117,8 @@ Widget _harness(int permissions) => UncontrolledProviderScope(
   ),
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
-    home: const ChannelSettingsScreen(
-      args: ChannelSettingsRouteArgs(channel: _channel, wasOpen: false),
+    home: ChannelSettingsScreen(
+      args: ChannelSettingsRouteArgs(channel: channel, wasOpen: false),
     ),
   ),
 );
@@ -156,6 +178,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Choose a channel'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a temporary room says it uses its lobby\'s permissions, with no pane or '
+    'Private row to edit them',
+    (tester) async {
+      final requested = <String>[];
+      await tester.pumpWidget(
+        _harness(
+          Perm.manageChannels | Perm.manageRoles,
+          channel: _room,
+          requested: requested,
+        ),
+      );
+      await pumpFrames(tester);
+
+      expect(
+        find.text("This room uses its lobby's permissions."),
+        findsOneWidget,
+      );
+      expect(find.text('Private'), findsNothing);
+      expect(find.text('General'), findsOneWidget);
+      expect(requested, isNot(contains('/channels/r1/overwrites')));
     },
   );
 }

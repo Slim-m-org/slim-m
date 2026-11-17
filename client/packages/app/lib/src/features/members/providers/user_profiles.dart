@@ -68,16 +68,27 @@ final userProfileProvider = FutureProvider.autoDispose
 /// `widgets/author_label.dart`): a [api.ProfileChanged] frame evicts the
 /// renamed id so the next [resolve] re-asks for it, rather than carrying the
 /// new name on the frame itself, which would make this map a second place
-/// the value could be wrong.
+/// the value could be wrong. A role event re-asks for the members it touches
+/// while their entries stay on screen, so a name's colour changes in place
+/// rather than blinking through the default.
 class BatchProfilesController
     extends StateNotifier<Map<String, api.UserProfile?>> {
   BatchProfilesController(this._ref) : super(const {}) {
     _sub = _ref.read(liveEventsProvider).listen((event) {
-      if (event is! api.ProfileChanged) return;
-      if (state.containsKey(event.userId)) {
-        state = {...state}..remove(event.userId);
-      } else if (_isInFlight(event.userId)) {
-        _changedInFlight.add(event.userId);
+      switch (event) {
+        case api.ProfileChanged(:final userId):
+          _evict(userId);
+        case api.MemberRoleChanged(:final userId):
+        // An invite redeemed by someone already here can grant them a role.
+        case api.MemberJoined(:final userId):
+          _refresh([userId]);
+        case api.RoleChanged(:final roleId):
+          _refresh([
+            for (final entry in state.entries)
+              if (entry.value?.roleIds.contains(roleId) ?? false) entry.key,
+          ]);
+        default:
+          break;
       }
     });
   }
@@ -98,6 +109,26 @@ class BatchProfilesController
 
   bool _isInFlight(String id) =>
       _waiting.containsKey(id) && !_unsent.contains(id);
+
+  void _evict(String id) {
+    if (_isInFlight(id)) _changedInFlight.add(id);
+    if (state.containsKey(id)) state = {...state}..remove(id);
+  }
+
+  /// Re-asks for [ids] already held, keeping each entry until its answer lands.
+  void _refresh(Iterable<String> ids) {
+    final queued = <String>{};
+    for (final id in ids) {
+      if (_isInFlight(id)) {
+        _changedInFlight.add(id);
+      } else if (state[id] != null && !_waiting.containsKey(id)) {
+        // Nobody awaits a refresh, so a failed one must not surface as uncaught.
+        (_waiting[id] = Completer<api.UserProfile?>()).future.ignore();
+        queued.add(id);
+      }
+    }
+    _requeue(queued);
+  }
 
   /// [id]'s profile, from the cache or from the next batch.
   ///

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
+import '../features/channels/providers/category_nesting.dart';
 import '../features/channels/providers/channel_refresher.dart';
 import '../features/channels/providers/last_text_channel.dart';
 import 'providers.dart';
@@ -124,6 +125,8 @@ class SyncController extends StateNotifier<SyncStatus> {
       final notifier = _ref.read(lostChannelsProvider.notifier);
       notifier.state = {...notifier.state, ...lost};
     },
+    onCategoriesNest: (nests) =>
+        _ref.read(categoriesNestProvider.notifier).state = nests,
   );
 
   /// Whether this controller has been live before, which tells a reconnect from
@@ -243,6 +246,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) => _connection?.canvasScreenAnnotation(
     channelId,
     targetUserId,
@@ -254,6 +258,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     ended: ended,
     allowed: allowed,
     aspect: aspect,
+    stamps: stamps,
   );
 
   /// Tells the server the world rectangle this user is looking at; the same

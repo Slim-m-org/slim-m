@@ -27,6 +27,7 @@ impl Class {
             Class::LinkPreview => "link_preview",
             Class::Ring => "ring",
             Class::Soundboard => "soundboard",
+            Class::ScreenStamp => "screen_stamp",
             Class::AuthedRead => "authed_read",
             Class::Module => "module",
             Class::CodeRunner => "code_runner",

@@ -111,6 +111,14 @@ void main() {
       expect(accepts(_frame(), members: const ['me']), isFalse);
     });
 
+    test('a stamp is held to the same call as any other mark', () {
+      expect(accepts(_frame(kind: 'stamp', points: [0.5, 0.5])), isTrue);
+      expect(
+        accepts(_frame(kind: 'stamp', from: 'stranger', points: [0.5, 0.5])),
+        isFalse,
+      );
+    });
+
     test('consent frames are never marks', () {
       expect(accepts(_frame(kind: 'consent')), isFalse);
     });

@@ -13,6 +13,7 @@ library;
 import 'package:slimm_data/data.dart';
 
 import '../providers/dms.dart';
+import 'category_tree.dart';
 
 /// Every DM in [channels] but the caller's own Notes, in listing order: Notes
 /// is the footer's button, not a row (decision 0111).
@@ -37,9 +38,10 @@ Map<String?, List<Channel>> channelsByCategory(List<Channel> channels) {
 
 /// [channels] grouped and ordered the way the rail renders them: direct
 /// messages in listing order, then every non-DM channel bucketed by category -
-/// uncategorised first, then each of [categories] in its own position order -
-/// mixed kind within a bucket, ordered by the channel's own position. Notes is
-/// not a row, so cycling never lands on it.
+/// uncategorised first, then each of [categories] in tree order (a parent's
+/// own channels before its sub-categories') - mixed kind within a bucket,
+/// ordered by the channel's own position. Notes is not a row, so cycling
+/// never lands on it.
 List<Channel> orderedChannels(
   List<Channel> channels,
   List<ChannelCategoryRow> categories,
@@ -52,6 +54,7 @@ List<Channel> orderedChannels(
   return [
     ...railDirectMessages(channels),
     ...byCategory[null] ?? const [],
-    for (final category in categories) ...byCategory[category.id] ?? const [],
+    for (final category in CategoryTree(categories).ordered)
+      ...byCategory[category.id] ?? const [],
   ];
 }

@@ -90,7 +90,11 @@ void main() {
 
       final future = controller.reorder(['a', 'b']);
       expect(
-        container.read(categoryOrderControllerProvider).pendingOrder,
+        container
+            .read(categoryOrderControllerProvider)
+            .pendingOrder
+            ?.single
+            .categoryIds,
         ['a', 'b'],
         reason:
             'the drag already happened; nothing should wait for the N '

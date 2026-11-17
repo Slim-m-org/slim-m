@@ -188,7 +188,8 @@ void main() {
         findsNothing,
         reason: 'the bio is not the status',
       );
-      expect(find.text('MEMBER'), findsOneWidget);
+      expect(find.text('ROLES'), findsOneWidget);
+      expect(find.text('member'), findsOneWidget);
       expect(find.textContaining('Joined'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
       expect(find.byTooltip('Add note'), findsOneWidget);

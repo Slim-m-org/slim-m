@@ -122,7 +122,8 @@ class _RolesPaneState extends ConsumerState<RolesPane> {
 }
 
 /// The role list: highest position first, a colour dot, member count, and a
-/// drag handle once there are at least two non-`@everyone` roles to reorder.
+/// drag handle on each role below the viewer's highest once there are at
+/// least two non-`@everyone` roles to reorder.
 class _RoleNav extends ConsumerStatefulWidget {
   const _RoleNav({
     required this.roles,
@@ -199,8 +200,11 @@ class _RoleNavState extends ConsumerState<_RoleNav>
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final ladder = ref.watch(roleLadderProvider);
     final ordered = _ordered;
     final reorderable = ordered.where((r) => !r.isEveryone).toList();
+    final canReorder =
+        reorderable.length >= 2 && reorderable.any(ladder.reachesRole);
 
     return Column(
       children: [
@@ -219,12 +223,14 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                   style: AppText.label.copyWith(color: tokens.textSecondary),
                 ),
               ),
-              AppIconButton(
-                icon: AppIcons.add,
-                semanticLabel: ActionLabels.createRole,
-                tooltip: ActionLabels.createRole,
-                onPressed: () => showCreateRoleSheet(context),
-              ),
+              // A new role starts at the bottom, which only someone above it may then manage.
+              if (ladder.reachesPosition(0))
+                AppIconButton(
+                  icon: AppIcons.add,
+                  semanticLabel: ActionLabels.createRole,
+                  tooltip: ActionLabels.createRole,
+                  onPressed: () => showCreateRoleSheet(context),
+                ),
             ],
           ),
         ),
@@ -237,7 +243,7 @@ class _RoleNavState extends ConsumerState<_RoleNav>
             child: AppErrorState(message: error, onDismiss: clearActionError),
           ),
         Expanded(
-          child: reorderable.length < 2
+          child: !canReorder
               ? ListView(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.s8,
@@ -281,7 +287,7 @@ class _RoleNavState extends ConsumerState<_RoleNav>
                         child: HoverReveal(
                           builder: (context, hovered, _, focused) => _roleRow(
                             reorderable[i],
-                            i,
+                            ladder.reachesRole(reorderable[i]) ? i : null,
                             showHandle: hovered || focused,
                           ),
                         ),
@@ -293,6 +299,7 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     );
   }
 
+  /// A null [dragIndex] draws the row without a handle, keeping its width.
   Widget _roleRow(
     api.Role role,
     int? dragIndex, {
@@ -301,7 +308,10 @@ class _RoleNavState extends ConsumerState<_RoleNav>
     key: dragIndex == null ? ValueKey(role.id) : null,
     leading: DecoratedBox(
       decoration: BoxDecoration(
-        color: roleColor(role.id, color: role.color),
+        color: roleDotColor(
+          role.color,
+          Theme.of(context).extension<AppTokens>()!,
+        ),
         shape: BoxShape.circle,
       ),
       child: const SizedBox(width: 10, height: 10),
@@ -319,7 +329,7 @@ class _RoleNavState extends ConsumerState<_RoleNav>
   );
 
   Widget _dragHandle(int? dragIndex, {required bool showHandle}) {
-    // @everyone cannot be dragged but keeps the handle's width so the member counts line up.
+    // A row that cannot be dragged keeps the handle's width so the member counts line up.
     if (dragIndex == null) return const SizedBox(width: AppSizes.icon16);
     final visible = showHandle || AppTouchTargets.of(context);
     return ReorderableDragStartListener(

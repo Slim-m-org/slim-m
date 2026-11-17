@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT parent_id IS NOT NULL AS \"nested!: bool\",\n                      permissions_synced AS \"synced!: bool\"\n               FROM channel_categories WHERE id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "nested!: bool",
+        "ordinal": 0,
+        "type_info": "Null"
+      },
+      {
+        "name": "synced!: bool",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "2939b11a6dd5f42183dea7244a8e09110f3a52039f30a6d7031a4f5ced619aa3"
+}

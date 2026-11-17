@@ -8,8 +8,10 @@ use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
+use super::super::escalation::escalation_guard;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
+use super::super::role_ladder::Ladder;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
@@ -23,7 +25,8 @@ pub(super) struct MoveRequest {
 }
 
 /// Needs `MOVE_MEMBERS` and `VIEW_CHANNEL` in both calls, and the person
-/// to be on the source call and allowed into the destination.
+/// to be on the source call and allowed into the destination. Moving someone
+/// else takes them out of their call, so it is gated like a voice kick.
 pub(super) async fn move_participant(
     Authed(ctx): Authed,
     parts: Parts,
@@ -50,6 +53,21 @@ pub(super) async fn move_participant(
         if !held.contains(needed) {
             return Err(ApiError::Forbidden);
         }
+    }
+    if ctx.user_id != target {
+        let caller_granted = state
+            .store
+            .granted_permissions_in_channel(ctx.user_id, from_id)
+            .await?;
+        let target_granted = state
+            .store
+            .granted_permissions_in_channel(target, from_id)
+            .await?;
+        escalation_guard(caller_granted, target_granted)?;
+        Ladder::of(&state, ctx.user_id)
+            .await?
+            .reach_member(&state, target)
+            .await?;
     }
     let from = voice_channel(&state, from_id).await?;
     let to = voice_channel(&state, to_id).await?;

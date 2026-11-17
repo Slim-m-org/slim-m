@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use super::CanvasObjectDto;
 use super::frames::ServerFrame;
-use crate::hub::{CanvasEvent, Event, ScreenAnnotationEvent};
+use crate::hub::{CanvasEvent, Event, ScreenAnnotationEvent, StampContent};
 use crate::ids::ChannelId;
 
 /// The channel a canvas event concerns, or `None` for anything else.
@@ -286,6 +286,15 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
 }
 
 fn annotation_frame(a: ScreenAnnotationEvent) -> ServerFrame {
+    let size = a.stamp.as_ref().map(|s| s.size);
+    let (emoji, attachment, animated) = match a.stamp.map(|s| s.content) {
+        Some(StampContent::Emoji(emoji)) => (Some(emoji), None, false),
+        Some(StampContent::Picture {
+            attachment,
+            animated,
+        }) => (None, Some(attachment), animated),
+        None => (None, None, false),
+    };
     ServerFrame::CanvasScreenAnnotation {
         channel_id: a.channel_id.to_string(),
         user_id: a.user_id.to_string(),
@@ -298,5 +307,10 @@ fn annotation_frame(a: ScreenAnnotationEvent) -> ServerFrame {
         ended: a.ended,
         allowed: a.allowed,
         aspect: a.aspect,
+        size,
+        emoji,
+        attachment,
+        animated,
+        stamps: a.stamps,
     }
 }

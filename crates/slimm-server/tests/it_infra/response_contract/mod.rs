@@ -138,6 +138,12 @@ const UNCOVERED: &[(&str, &str)] = &[
          it against a fake room service.",
     ),
     (
+        "placeScreenStamp",
+        "its 204 needs a reachable LiveKit room service to see both people in the call and the \
+         target sharing, which this harness has none of, and has no body to check; \
+         tests/it_voice/screen_stamps drives every outcome of it against a fake room service.",
+    ),
+    (
         "kickVoiceParticipant",
         "the only path to its 204 goes through a reachable LiveKit room service, \
          which this harness has none of. Nothing is lost by not driving it: the \

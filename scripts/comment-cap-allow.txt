@@ -48,7 +48,7 @@ client/packages/app/lib/src/features/channels/widgets/channel_header.dart 3
 client/packages/app/lib/src/features/channels/widgets/channel_rail.dart 2
 client/packages/app/lib/src/features/channels/widgets/channel_rail_channel_rows.dart 1
 client/packages/app/lib/src/features/channels/widgets/channel_rail_frame.dart 3
-client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart 2
+client/packages/app/lib/src/features/channels/widgets/channel_rail_sections.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer.dart 1
@@ -216,7 +216,7 @@ crates/slimm-server/tests/it_infra/response_contract/script.rs 2
 crates/slimm-server/tests/it_infra/response_contract/script/content.rs 1
 crates/slimm-server/tests/it_infra/response_contract/verdict.rs 1
 crates/slimm-server/tests/it_infra/response_contract/world.rs 1
-crates/slimm-server/tests/it_spaces/roles.rs 2
+crates/slimm-server/tests/it_spaces/roles.rs 1
 crates/slimm-server/tests/it_infra/safety.rs 3
 crates/slimm-server/tests/it_infra/token_sweep.rs 1
 crates/slimm-server/tests/it_realtime/typing.rs 6

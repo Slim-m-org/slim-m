@@ -26,7 +26,9 @@ class PermissionToggleRow extends StatelessWidget {
   final String title;
   final String description;
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// Null shows the toggle without letting it change, as on a role out of reach.
+  final ValueChanged<bool>? onChanged;
   final String semanticLabel;
 
   /// Flags a permission that can do damage in the wrong hands.

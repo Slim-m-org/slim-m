@@ -52,7 +52,7 @@ pub use admission::Reservation;
 pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
 pub use image_header::{
     ImageHeader, ImageProblem, MAX_EMOJI_SIDE, MAX_IMAGE_PIXELS, MAX_PROFILE_IMAGE_SIDE, Motion,
-    check_image,
+    check_image, gif_file,
 };
 pub use names::{from_hex, rfc5987_encode, sanitize_display_filename, sanitize_filename, to_hex};
 pub use stream::{PendingAttachment, StreamError};

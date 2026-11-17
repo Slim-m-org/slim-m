@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM member_timeouts WHERE user_id = ? RETURNING until",
+  "describe": {
+    "columns": [
+      {
+        "name": "until",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c917f821e188978e563eceb9b51456663720cc4fbd8b575f2355417d823f0c35"
+}

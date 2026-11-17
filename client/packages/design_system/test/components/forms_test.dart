@@ -312,6 +312,25 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('a disabled toggle swaps to the disabled tokens, on or off',
+        (tester) async {
+      Color? track() {
+        final box = tester.widget<Container>(find
+            .descendant(
+              of: find.byType(AppToggle),
+              matching: find.byWidgetPredicate(
+                  (w) => w is Container && w.constraints?.maxWidth == 40),
+            )
+            .first);
+        return (box.decoration as BoxDecoration).color;
+      }
+
+      await tester.pumpWidget(_wrap(AppToggle(value: true, onChanged: (_) {})));
+      expect(track(), AppTokens.light.accentFill);
+      await tester.pumpWidget(_wrap(const AppToggle(value: true)));
+      expect(track(), AppTokens.light.textDisabled);
+    });
+
     testWidgets('a locked toggle reports on but wires no tap handler',
         (tester) async {
       var called = false;

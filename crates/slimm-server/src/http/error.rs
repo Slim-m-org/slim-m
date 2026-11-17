@@ -43,6 +43,12 @@ pub(crate) enum ApiError {
     ForbiddenBecause(&'static str),
     /// Like [`ApiError::ForbiddenBecause`], where a module supplied the reason.
     ForbiddenDetail(String),
+    /// A refusal with a stable `code` beside its sentence, so a client never reads the sentence.
+    Coded {
+        status: StatusCode,
+        message: &'static str,
+        code: &'static str,
+    },
     NotFound(&'static str),
     Conflict(&'static str),
     /// Like [`ApiError::Conflict`], naming the other party, which is only known at request time.
@@ -110,6 +116,9 @@ struct ErrorBody {
     item_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     item_code: Option<&'static str>,
+    /// Only [`ApiError::Coded`] sets this: why, as a stable word.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code: Option<&'static str>,
 }
 
 impl IntoResponse for ApiError {
@@ -131,6 +140,10 @@ impl IntoResponse for ApiError {
             ApiError::AtItem { index, code, .. } => (Some(*index), Some(*code)),
             _ => (None, None),
         };
+        let code = match &self {
+            ApiError::Coded { code, .. } => Some(*code),
+            _ => None,
+        };
         let (status, error): (StatusCode, Cow<'static, str>) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.into()),
             ApiError::BadRequestDetail(message) => (StatusCode::BAD_REQUEST, message.into()),
@@ -146,6 +159,9 @@ impl IntoResponse for ApiError {
             ApiError::ForbiddenDetail(message) => (StatusCode::FORBIDDEN, message.into()),
             ApiError::ConflictDetail(message) => (StatusCode::CONFLICT, message.into()),
             ApiError::AtItem {
+                status, message, ..
+            } => (status, message.into()),
+            ApiError::Coded {
                 status, message, ..
             } => (status, message.into()),
             ApiError::TooManyRequests => {
@@ -187,6 +203,7 @@ impl IntoResponse for ApiError {
                 missing_permissions,
                 item_index,
                 item_code,
+                code,
             }),
         )
             .into_response();

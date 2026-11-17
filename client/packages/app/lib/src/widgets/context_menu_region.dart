@@ -65,6 +65,7 @@ class ContextMenuRegion extends StatefulWidget {
     this.focusNode,
     this.menuWidth = 200,
     this.tapRegionGroupId,
+    this.sheetHeaderBuilder,
   });
 
   /// Builds the menu's items given a callback that closes it. Called fresh
@@ -128,6 +129,10 @@ class ContextMenuRegion extends StatefulWidget {
 
   /// Taps inside a [TapRegion] of this group do not count as outside the menu, so a trigger can toggle it.
   final Object? tapRegionGroupId;
+
+  /// Names what the compact sheet acts on, drawn above its items; the anchored
+  /// menu stays untitled because it opens beside the thing itself.
+  final WidgetBuilder? sheetHeaderBuilder;
 
   @override
   State<ContextMenuRegion> createState() => ContextMenuRegionState();
@@ -256,7 +261,18 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
             () => Navigator.of(sheetContext).pop(),
           );
         }
-        return SafeArea(top: false, child: AppSheetMenu(children: _sheetItems));
+        final menu = AppSheetMenu(children: _sheetItems);
+        final header = widget.sheetHeaderBuilder?.call(sheetContext);
+        return SafeArea(
+          top: false,
+          child: header == null
+              ? menu
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [header, menu],
+                ),
+        );
       },
     ).whenComplete(_onSheetClosed);
   }

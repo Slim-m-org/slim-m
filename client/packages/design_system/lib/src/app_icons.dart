@@ -166,6 +166,13 @@ abstract final class AppIcons {
   /// or a video before it finishes buffering. See `downloads/downloads_controller.dart`.
   static const IconData download = LucideIcons.download300;
 
+  /// Bringing a file in, [download]'s counterpart: importing a theme file.
+  static const IconData upload = LucideIcons.upload300;
+
+  /// A light or a dark theme, on its card in the theme gallery.
+  static const IconData themeLight = LucideIcons.sun300;
+  static const IconData themeDark = LucideIcons.moon300;
+
   /// Handing an opened image to the system share sheet; see `image_export.dart`.
   static const IconData share = LucideIcons.share2300;
 
@@ -232,6 +239,12 @@ abstract final class AppIcons {
   /// Making a new channel category, beside [add] (a new channel) in the rail's
   /// own menu, so the two "create" items read as different things at a glance.
   static const IconData addCategory = LucideIcons.folderPlus300;
+
+  /// A category as a place things are filed under, and moving one into
+  /// another, then back out to the top level (decision 0120).
+  static const IconData category = LucideIcons.folder300;
+  static const IconData moveIntoCategory = LucideIcons.folderInput300;
+  static const IconData moveOutOfCategory = LucideIcons.folderOutput300;
   static const IconData canvas = LucideIcons.pencilRuler300;
 
   /// The canvas's own draw/erase toggle. Distinct constants from [edit] even
@@ -250,6 +263,9 @@ abstract final class AppIcons {
   /// typed text, and the shape tool's primitives are picked from the overflow
   /// menu while it is active.
   static const IconData note = LucideIcons.stickyNote300;
+
+  /// The Stamp tool (decision 0121): puts an emoji or a picture on a shared screen or the board.
+  static const IconData stamp = LucideIcons.stamp300;
 
   /// The text tool: type straight onto the canvas with no card behind it.
   static const IconData textBox = LucideIcons.type300;
@@ -371,6 +387,12 @@ abstract final class AppIcons {
   /// an invite link carries its server too, where [copy] takes the code alone.
   static const IconData link = LucideIcons.link300;
 
+  /// A theme colour that follows its main colour until it is changed itself.
+  static const IconData linkedColour = LucideIcons.link2300;
+
+  /// Every check passed, where a bare [check] would read as a selection.
+  static const IconData allPassed = LucideIcons.circleCheck300;
+
   /// A fourth, distinct shape for "not known", never to be confused with
   /// [danger]'s "known not to work".
   static const IconData unknown = LucideIcons.circleHelp300;
@@ -392,6 +414,9 @@ abstract final class AppIcons {
 
   static const IconData delete = LucideIcons.trash2300;
   static const IconData revoke = LucideIcons.ban300;
+
+  /// A drop or a step that is not allowed here, such as a third category level.
+  static const IconData notAllowed = LucideIcons.ban300;
 
   /// Undoing a block. Distinct from [revoke]: "Block" and "Unblock" are
   /// opposite actions that used to share [revoke]'s glyph, which drew the

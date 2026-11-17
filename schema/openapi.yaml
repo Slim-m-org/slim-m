@@ -630,6 +630,7 @@ paths:
         the account and writes a totp_cleared entry to the moderation audit log,
         so it cannot be done quietly. A person must send their own password in
         the body; a bot has none and sends no body.
+        Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`. A caller's own account needs no rank.
       requestBody:
         required: false
         content:
@@ -669,6 +670,7 @@ paths:
         expires on its own even if nobody redeems it. Issuing one is written to
         the moderation audit log as `reset_code_issue`. A person must send their
         own password in the body; a bot has none and sends no body.
+        Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`. A caller's own account needs no rank.
       requestBody:
         required: false
         content:
@@ -2041,7 +2043,9 @@ paths:
         Without CREATE_INVITE, while the space lets members invite, the
         invite defaults to one use and 24 hours, may not exceed 10 uses or
         7 days, and may not grant a role. With `reuse`, the caller's live invite
-        of the same limits and no role is returned instead of a new one.
+        of the same limits and no role is returned instead of a new one. A
+        `role_grant` is checked as `assignRole` checks a grant, the role ladder
+        and the bot-role lock included.
       requestBody:
         required: true
         content:
@@ -2061,6 +2065,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2761,16 +2767,22 @@ paths:
       tags: [channels]
       summary: List the channel categories the caller can see.
       description: >
-        Every category for a caller with MANAGE_CHANNELS, empty ones included;
-        for anyone else only the categories holding a channel they can view,
-        so a private category's name does not reach members kept out of all
-        of it. Split out of
-        `listChannels`'s own response, which used to embed this list until
-        that reshaped an existing response the wire's additive-only rule
-        does not allow; a new route is additive.
+        Every category at both levels for a caller with MANAGE_CHANNELS at the
+        deployment level, empty ones included; for anyone else each category
+        holding a channel they can view, plus the parent of each such
+        sub-category (decision 0120), so a private category's name does not
+        reach members kept out of all of it. The closure runs upward only: a
+        parent listed for a visible sub-category is a heading with none of its
+        own channels, and a visible parent never lists a sub-category the
+        caller cannot view into. Every listed `parent_id` names a category in
+        the same answer. In tree order: each top-level category by position,
+        then its sub-categories by position. Split out of `listChannels`'s own
+        response, which used to embed this list until that reshaped an
+        existing response the wire's additive-only rule does not allow; a new
+        route is additive.
       responses:
         "200":
-          description: Every live category.
+          description: The live categories the caller can see, in tree order.
           content:
             application/json:
               schema:
@@ -2787,7 +2799,12 @@ paths:
       summary: Create a channel category.
       description: >
         Requires MANAGE_CHANNELS at the deployment level, the same check
-        `createChannel` uses. Appended after every live category.
+        `createChannel` uses. Appended after its live siblings: the top-level
+        categories, or the sub-categories of `parent_id`. A sub-category
+        starts following its parent's permissions with a copy of its
+        overwrites (decision 0120). A `parent_id` that is not a live category
+        is a 400; one that is itself a sub-category is a 409, since categories
+        nest two levels at most.
       requestBody:
         required: true
         content:
@@ -2807,6 +2824,52 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /categories/order:
+    put:
+      operationId: reorderCategories
+      tags: [channels]
+      summary: Set the whole category arrangement, levels included.
+      description: >
+        Requires MANAGE_CHANNELS at the deployment level. What a drag in the
+        rail sends (decision 0120): every live category named exactly once,
+        grouped by parent, with the top level as the group whose `parent_id`
+        is null. Position `i` within a group goes to the category at index
+        `i`. Applied in one transaction. A list that is not exactly the live
+        categories is a 400 naming the missing and extra ids, as
+        `reorderChannels` does; two groups naming the same parent, or a
+        parent that is not a live category, is a 400; a parent that is not
+        in the top-level group is a 409, since categories nest two levels at
+        most. A category whose parent changes keeps its overwrites and stops
+        following any parent's. Publishes one `category.changed` only when
+        something moved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderCategoriesRequest"
+      responses:
+        "200":
+          description: Every live category, in tree order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChannelCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -2824,7 +2887,9 @@ paths:
       summary: List a category's permission overwrites.
       description: >
         Decision 0064. Requires MANAGE_ROLES deployment-wide. A channel synced
-        to the category carries an exact copy of these.
+        to the category carries an exact copy of these. For a sub-category,
+        `synced` says whether it follows its parent (decision 0120); it is
+        absent for a top-level category.
       responses:
         "200":
           description: The category's overwrites.
@@ -2850,8 +2915,13 @@ paths:
         The same checks as batchSetChannelOverwrites, with the caller's
         deployment-wide permissions as the ceiling. An entry whose allow and
         deny are both zero removes that target. Every synced channel in the
-        category gets a copy of the result in the same transaction, and an
-        overwrite.changed frame each.
+        category gets a copy of the result in the same transaction. Saving a
+        top-level category also copies it into each sub-category that follows
+        it and on into their synced channels, stopping at any that does not
+        (decision 0120); saving a sub-category's own stops it following its
+        parent. Every channel the save touched gets an overwrite.changed
+        frame.
+        Every entry follows the role ladder `setChannelOverwrite` describes; one out of reach refuses the whole batch.
       requestBody:
         required: true
         content:
@@ -2875,6 +2945,45 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /categories/{categoryId}/overwrites/sync:
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: syncCategoryOverwrites
+      tags: [roles]
+      summary: Make a sub-category follow its parent category's permissions again.
+      description: >
+        Decision 0120. Replaces the sub-category's overwrites with a copy of
+        its parent's, marks it synced, and copies the result into its synced
+        channels, each of which gets an overwrite.changed frame. Requires
+        MANAGE_ROLES deployment-wide, every bit the parent allows, and every
+        bit the sync would stop denying. 409 on a top-level category, which
+        has no parent to follow.
+        Every overwrite the sync adds, changes or drops follows the role ladder `setChannelOverwrite` describes.
+      responses:
+        "200":
+          description: The sub-category's overwrites after the sync, with `synced` true.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelOverwrites"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /categories/{categoryId}:
     parameters:
       - name: categoryId
@@ -2886,10 +2995,15 @@ paths:
     patch:
       operationId: updateCategory
       tags: [channels]
-      summary: Rename and/or reposition a category.
+      summary: Rename, reposition and/or re-parent a category.
       description: >
         Requires MANAGE_CHANNELS at the deployment level, the same check
-        `updateChannel` uses.
+        `updateChannel` uses. A `parent_id` moves the category (decision
+        0120): appended after its new siblings unless `position` says where,
+        keeping its overwrites and no longer following any parent's. A parent
+        that is not a live category, or the category itself, is a 400; a
+        parent that is itself a sub-category, or moving a category that holds
+        sub-categories under another, is a 409.
       requestBody:
         required: true
         content:
@@ -2911,6 +3025,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -2918,8 +3034,12 @@ paths:
       tags: [channels]
       summary: Soft-delete a category.
       description: >
-        Requires MANAGE_CHANNELS at the deployment level. Its channels are
-        never deleted with it - they fall back to uncategorised. Deleting an
+        Requires MANAGE_CHANNELS at the deployment level. Nothing in it is
+        deleted with it; its contents move up one level (decision 0120). A
+        sub-category's channels move to the end of its parent; a top-level
+        category's channels fall back to uncategorised and its sub-categories
+        become top-level categories in its place. Everything moved keeps its
+        overwrites and stops following any category's. Deleting an
         already-deleted category is not an error.
       responses:
         "204":
@@ -3224,6 +3344,9 @@ paths:
         Idempotent by the optional client-supplied `id`: a retry with the
         same id returns the role already stored under it. An id already used
         by the `@everyone` role is a conflict rather than a wrong-typed 200.
+        A new role starts at position 0, so the role ladder refuses a caller
+        whose own highest role is not above that, unless they are the Space
+        owner (403, `code` `role_hierarchy`).
       requestBody:
         required: true
         content:
@@ -3263,9 +3386,9 @@ paths:
 
         A second guard beyond MANAGE_ROLES: a caller may only touch a role
         whose old or new position sits strictly below the highest position
-        among roles they themselves hold - the position-hierarchy sibling of
-        the bit-based escalation check every other role route already
-        applies. An administrator bypasses it.
+        among roles they themselves hold - the role ladder every other role
+        route applies too. Only the Space owner bypasses it; a refusal is a
+        403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -3304,10 +3427,11 @@ paths:
       tags: [roles]
       summary: Rename a role or change its permissions. Requires MANAGE_ROLES.
       description: >
-        Both fields are optional; a field left out is unchanged. A
-        permissions change is checked the same way `createRole` checks one,
-        and is refused if it would leave the deployment with no
-        administrator.
+        Every field is optional; a field left out is unchanged, and a null
+        `color` clears the colour. A permissions change is checked the same
+        way `createRole` checks one, and is refused if it would leave the
+        deployment with no administrator. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
+        The Space owner holds every permission whatever their roles, so counts as an administrator here.
       requestBody:
         required: true
         content:
@@ -3340,7 +3464,9 @@ paths:
       description: >
         Refuses to delete `@everyone` (exactly one always exists) and refuses
         if this role is the deployment's only remaining source of
-        ADMINISTRATOR.
+        ADMINISTRATOR. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A bot's own role may be deleted
+        under the same rule.
+        The Space owner holds every permission whatever their roles, so counts as an administrator here.
       responses:
         "204":
           description: The role was deleted.
@@ -3437,6 +3563,7 @@ paths:
       description: >
         Idempotent. Refused with 404 if no installed module currently
         declares `(moduleId, permKey)`.
+        Role ladder: the role must sit strictly below the caller's own highest role, administrators included, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
           description: The role now holds the permission.
@@ -3454,7 +3581,9 @@ paths:
       operationId: revokeModulePermission
       tags: [roles]
       summary: Revoke a module permission from a role. Requires MANAGE_ROLES.
-      description: Idempotent - revoking one not held still succeeds.
+      description: >
+        Idempotent - revoking one not held still succeeds.
+        Role ladder: the role must sit strictly below the caller's own highest role, administrators included, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
           description: The role no longer holds the permission.
@@ -3494,7 +3623,10 @@ paths:
         whatever it carries. A bot is a role holder like any other, ADMINISTRATOR
         included; see docs/decisions/0028-bot-accounts.md. A member that does
         not exist or was deleted is a 404, and a webhook, which holds no roles,
-        is a 400.
+        is a 400. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may grant themselves a role this
+        way too. A bot's own role and the shared Bots role follow their bots
+        and are never granted by hand (409, `code` `role_follows_bot`).
+        Nobody but the Space owner gives the owner a role (a 403 with `code` `role_hierarchy`).
       responses:
         "204":
           description: The role is assigned.
@@ -3506,6 +3638,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -3515,7 +3649,11 @@ paths:
       description: >
         Idempotent: revoking a role the member does not hold changes nothing
         and publishes nothing. Refused if it would leave the deployment with no
-        administrator.
+        administrator, the Space owner always counting as one. Role ladder: the role must sit strictly below the caller's own highest role, unless the caller is the Space owner; refused as a 403 with `code` `role_hierarchy`. A member may take away their own roles
+        below their highest this way, never their highest itself, and nobody
+        but the owner takes a role away from the Space owner (403, `code`
+        `role_hierarchy`). A bot's own role and the shared Bots role are never
+        revoked by hand (409, `code` `role_follows_bot`).
       responses:
         "204":
           description: The role is no longer assigned (or never was).
@@ -3544,7 +3682,8 @@ paths:
         administrator, which rolls the whole batch back. Repeated ids collapse
         to one act with one audit row. Each removal publishes its own
         `member.removed`, and every session it revoked its own
-        `session.revoked`.
+        `session.revoked`. The role ladder applies per target as in
+        `removeMember`.
       requestBody:
         required: true
         content:
@@ -3597,7 +3736,8 @@ paths:
         member in it comes back at the same moment. Replaces any timeout
         already in force on a named member, as the single verb does. Nothing is
         applied unless every target passes; an id that is not a member answers
-        404 for the whole batch.
+        404 for the whole batch. The role ladder applies per target as in
+        `timeOutMember`.
       requestBody:
         required: true
         content:
@@ -3716,7 +3856,7 @@ paths:
         it in its own profile. Replaces any nickname already set. Refused on
         yourself, on an account whose granted permissions the caller's own do
         not contain, and for a blank, hidden-character or over-64-character
-        name. Audited as nickname_set.
+        name. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`. Audited as nickname_set.
       requestBody:
         required: true
         content:
@@ -3778,7 +3918,7 @@ paths:
         reading. It lapses on its own at `until` with nothing needing to run.
         Re-issuing replaces any timeout already in force, which is also how
         one is shortened. Refused on yourself, and on a member whose granted
-        permissions the caller's own do not contain.
+        permissions the caller's own do not contain. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
       requestBody:
         required: true
         content:
@@ -3874,7 +4014,9 @@ paths:
         Refused on yourself - delete your own account with `deleteAccount`,
         so that an administrator can leave without needing another one to do
         it for them - and on the last administrator. An account that is
-        already deleted, or never existed, answers 404.
+        already deleted, or never existed, answers 404. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
+        Deleting the Space owner's own account passes ownership to the
+        earliest-joined remaining administrator, else the earliest-joined member.
       responses:
         "204":
           description: The account is deleted.
@@ -3915,7 +4057,8 @@ paths:
         a Space whose join policy is open.
 
         Refused on yourself, on a member whose granted permissions the
-        caller's own do not contain, and on the last administrator.
+        caller's own do not contain, and on the last administrator. Role
+        ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
       requestBody:
         required: false
         content:
@@ -3948,6 +4091,7 @@ paths:
       description: >
         Restores the right to sign in. Their sessions stay revoked, so every
         device signs in again rather than resuming.
+        A removed member keeps their roles, so restoring one is gated like removing them: their granted permissions must be within the caller's. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       responses:
         "204":
           description: The member may sign in again.
@@ -4004,6 +4148,9 @@ paths:
         so one entry failing refuses the whole request rather than partially
         applying it. An entry that allows and denies the same bit, and a
         request that names one role or member twice, are refused with 400.
+        Every entry follows the role ladder `setChannelOverwrite` describes; one out of reach refuses the whole batch.
+        409 on a temporary room, which holds its lobby's overwrites (decision
+        0065).
       requestBody:
         required: true
         content:
@@ -4025,6 +4172,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4037,9 +4186,11 @@ paths:
       summary: Make a channel follow its category's permissions again.
       description: >
         Replaces the channel's overwrites with a copy of its category's and
-        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel
-        and every bit the category allows. 409 when the channel is not in a
-        category.
+        marks it synced (decision 0064). Requires MANAGE_ROLES in the channel,
+        every bit the category allows, and every bit the sync would stop
+        denying. 409 when the channel is not in a category, or is a temporary
+        room, which follows its lobby instead.
+        Every overwrite the sync adds, changes or drops follows the role ladder `setChannelOverwrite` describes.
       responses:
         "200":
           description: The channel's overwrites after the sync.
@@ -4085,7 +4236,9 @@ paths:
         itself grant or deny MANAGE_ROLES there. `allow` is checked against
         the caller's own effective permissions in this channel and refused
         if it would force on a bit the caller does not hold; `deny` is a
-        restriction, not a grant, and carries no such check.
+        restriction, not a grant, and carries no such check. 409 on a
+        temporary room, which holds its lobby's overwrites (decision 0065).
+        Role ladder: a role target must sit strictly below the caller's own highest role (`@everyone` always does), and a member target must rank below the caller unless it is the caller; nobody but the Space owner targets the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -4103,6 +4256,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
     delete:
@@ -4111,7 +4266,9 @@ paths:
       summary: Clear a channel permission overwrite.
       description: >
         Requires MANAGE_ROLES in this channel. Idempotent: clearing one that
-        was never set still succeeds.
+        was never set still succeeds. 409 on a temporary room, which holds its
+        lobby's overwrites (decision 0065).
+        Follows the same role ladder as setting one.
       responses:
         "204":
           description: The overwrite is cleared (or never existed).
@@ -4121,6 +4278,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -4747,7 +4906,11 @@ paths:
         channel that has a live message or a canvas object attaching it,
         including a canvas object that was erased and can still be restored -
         the same permission reading that message already requires, not a
-        bare "the id is hard to guess". An id nothing attaches (or already
+        bare "the id is hard to guess". A picture stamped on a shared screen
+        (`placeScreenStamp`) is also readable for 24 hours by its sharer and
+        by anyone in that call who can view the channel, and by a moderator
+        of a report it is part of; that grant is fetch-only and never lets
+        anyone attach the picture to a message. An id nothing attaches (or already
         reclaimed) answers 404 for everyone but its uploader. The response always carries
         `X-Content-Type-Options: nosniff` and a Content-Disposition that
         forces a download for every content type except the handful of
@@ -8387,6 +8550,9 @@ paths:
         This does not prevent the target requesting a new token. Removing
         CONNECT is what bars someone from a room; this is what makes that take
         effect immediately rather than when their current token expires.
+
+
+        Kicking somebody else follows the role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`, the equal-rank case with the reason `you cannot act on someone of equal rank`.
       responses:
         "204":
           description: The participant is no longer in the room.
@@ -8476,6 +8642,7 @@ paths:
         not full. Sends the moved account a `voice.moved` frame, takes them out
         of the source room, and records a `voice_move` entry in the moderation
         history.
+        Moving somebody else is gated like a voice kick: their permissions in the source call must be within the caller's there. Role ladder: the target's highest role must also sit strictly below the caller's own, and nobody but the Space owner acts on the owner; refused as a 403 with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -8875,6 +9042,7 @@ paths:
         refuses a command registration that clashes with another live bot's
         (see `setBotCommands`). A `prefix` follows the same shape rules as one
         registered with commands.
+        The new bot holds the shared Bots role, so the caller must also hold every bit that role grants and, unless the Space owner, stand strictly above it on the role ladder (a 403 with `code` `role_hierarchy`).
       requestBody:
         required: true
         content:
@@ -8939,6 +9107,7 @@ paths:
         Stops the bot on its next request. The account and its roles stay, so
         what it wrote stays attributed to it, exactly as revoking a person's
         session does.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder; refused as a 403, with `code` `role_hierarchy` for the ladder.
       responses:
         "204":
           description: Revoked.
@@ -8973,6 +9142,7 @@ paths:
         role and what it wrote are kept. Refused for a caller that is itself a
         bot, and for a bot that has been removed from the Space (restore it
         first). Recorded in the moderation history as `bot_token_reissue`.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder, since its token acts with all of it; refused as a 403, with `code` `role_hierarchy` for the ladder.
       responses:
         "200":
           description: The bot, and its new token once.
@@ -9660,6 +9830,7 @@ paths:
         already be held by the caller, and the role's *current* bits must not
         already exceed what the caller holds. See
         docs/decisions/0028-bot-accounts.md.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot and its role on the role ladder; refused as a 403, with `code` `role_hierarchy` for the ladder.
       requestBody:
         required: true
         content:
@@ -9709,6 +9880,7 @@ paths:
         registers under the old prefix afterwards is refused with 409 until it
         reconnects and reads the new one from `/me`. Recorded in the admin
         audit log as `bot.prefix`.
+        The caller must hold every bit the bot's roles grant and rank strictly above the bot on the role ladder; refused as a 403, with `code` `role_hierarchy` for the ladder.
       requestBody:
         required: true
         content:
@@ -12328,6 +12500,118 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           $ref: "#/components/responses/Unavailable"
+  /channels/{channelId}/voice/screen-stamps:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: placeScreenStamp
+      tags: [voice]
+      summary: Stamp an emoji or a picture on someone's shared screen.
+      description: >
+        Decision 0121. The stamp is relayed to the people connected to the
+        channel's call as a `canvas.screen_annotation.updated` frame of kind
+        `stamp`, faded by each receiver like any other screen mark, and never
+        written to the board. Needs VIEW_CHANNEL and USE_CANVAS in the channel with no
+        timeout in force, and ATTACH_FILES as well for a picture. Both people
+        must be in the channel's call, the target must be sharing a screen,
+        and the target's own consent frame from the last 15 seconds must say
+        both `allowed` and `stamps`; otherwise 403 or 409. A picture must be
+        a PNG, JPEG, GIF or WebP of at most 8 MiB that the caller could
+        attach to a message, or the answer is 404; it is then kept for 24
+        hours so the sharer and the call can fetch it and the sharer can
+        report it. Idempotent by `id`: a reused id answers 204 and relays
+        nothing, whatever it carries. If the target has blocked the caller,
+        the answer is still 204 and nothing is stored or relayed, and the
+        caller never hears its own stamp relayed back, so a block cannot be
+        told from a delivery. Three stamps at once per caller,
+        then one every 2 seconds; a faster caller gets 429 with
+        `retry_after_seconds`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenStampRequest"
+      responses:
+        "204":
+          description: Placed, replayed, or silently dropped for a block.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /voice/screen-stamps/received:
+    get:
+      operationId: listReceivedScreenStamps
+      tags: [voice]
+      summary: Who stamped pictures on the caller's screen in the last day.
+      description: >
+        Decision 0121. One entry per sender, by their latest picture: those
+        with a picture no report holds yet first, then newest first. Every
+        sender of the day is listed, so a sharer can report someone after
+        their pictures faded and no number of senders pushes one off the
+        list. `listReceivedScreenStampsFrom` lists one sender's pictures.
+        Emoji stamps are never stored and never listed.
+      responses:
+        "200":
+          description: The senders.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenStampSenders"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /voice/screen-stamps/received/{senderId}:
+    parameters:
+      - name: senderId
+        in: path
+        required: true
+        description: The user who stamped the pictures.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listReceivedScreenStampsFrom
+      tags: [voice]
+      summary: The pictures one person stamped on the caller's screen in the last day.
+      description: >
+        Decision 0121. Newest first, at most 100. Empty for someone who
+        stamped nothing on the caller's screen in the last day.
+      responses:
+        "200":
+          description: The pictures.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceivedScreenStamps"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /emoji/bulk:
     post:
       operationId: bulkUploadCustomEmoji
@@ -12764,6 +13048,109 @@ components:
             Shown beside the name, in the encoding reactions use: one emoji, or a
             custom emoji's id. Null when the clip has none, or once its custom
             emoji was deleted.
+    ScreenStampRequest:
+      type: object
+      description: >-
+        An emoji or a picture to place on `target_user_id`'s shared screen.
+        Exactly one of `emoji` or `attachment_id` is present.
+      required: [id, target_user_id, x, y, size]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client-generated UUIDv7; keys the stamp everywhere.
+        target_user_id:
+          type: string
+          format: uuid
+          description: The sharer whose screen it goes on.
+        x:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: The centre, 0 to 1 across the shared screen.
+        y:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: The centre, 0 to 1 down the shared screen.
+        size:
+          type: number
+          format: double
+          description: >-
+            The longest side as a fraction of the shared screen's height;
+            clamped to 0.04 to 0.30.
+        emoji:
+          type: string
+          description: >-
+            One emoji, a `:shortcode:`, or the id of one of this Space's
+            custom emoji.
+        attachment_id:
+          type: string
+          description: The hex id of a PNG, JPEG, GIF or WebP attachment.
+    ScreenStampSenders:
+      type: object
+      required: [senders]
+      properties:
+        senders:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScreenStampSender"
+    ScreenStampSender:
+      type: object
+      description: >-
+        Someone who stamped pictures on the caller's screen in the last day.
+        A `screen_stamp` report naming `latest.id` is about them and takes
+        every picture of theirs in that day.
+      required: [sender_id, count, reported, latest]
+      properties:
+        sender_id:
+          type: string
+          format: uuid
+        count:
+          type: integer
+          format: int64
+          description: How many pictures they stamped in the last day.
+        reported:
+          type: boolean
+          description: Whether a report from the caller holds every one of them.
+        latest:
+          $ref: "#/components/schemas/ReceivedScreenStamp"
+    ReceivedScreenStamps:
+      type: object
+      required: [stamps]
+      properties:
+        stamps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReceivedScreenStamp"
+    ReceivedScreenStamp:
+      type: object
+      description: >-
+        A picture stamped on the caller's screen. Its `id` is what a
+        `screen_stamp` report names.
+      required: [id, channel_id, sender_id, attachment_id, created_at, reported]
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        attachment_id:
+          type: string
+          description: Fetched with `getAttachment`, by the caller, for a day.
+        created_at:
+          type: integer
+          format: int64
+          description: Unix milliseconds.
+        reported:
+          type: boolean
+          description: Whether the caller has reported it.
     CustomEmoji:
       type: object
       description: >-
@@ -12825,6 +13212,16 @@ components:
             `unsupported_type`, `too_many_pixels`, `name_taken`,
             `builtin_name` or `full`. Present only with `item_index`; read
             an unknown value as a refusal of that image for another reason.
+        code:
+          type: string
+          description: >
+            Why the request was refused, as a stable word, so a client never
+            reads `error`. `role_hierarchy` on a 403 from the role ladder: the
+            role, or the member's highest role, is not strictly below the
+            caller's own highest role, or the member is the Space owner.
+            `role_follows_bot` on a 409 from granting or revoking by hand a role
+            a bot holds by being a bot. Absent on every other error; read an
+            unknown value as a refusal for another reason.
 
     Version:
       type: object
@@ -12986,7 +13383,7 @@ components:
           type: array
           items:
             type: string
-            enum: [block, report, webhooks, upload_sessions]
+            enum: [block, report, webhooks, upload_sessions, screen_stamps]
           description: >
             The optional features this build serves, read off the router at
             runtime rather than declared, so the list cannot drift from what
@@ -13279,14 +13676,12 @@ components:
           items:
             type: string
           description: >
-            Role names this member holds, for a client to render a badge
-            (e.g. "Op") beside them. Excludes `@everyone`: every member holds
-            that one, so including it would put a meaningless badge on every
-            row. Empty rather than absent for a member with nothing beyond
-            it. Deliberately no colour field: badges use the design system's
-            accent, not a per-role one. Absent on servers older than this
-            field, which a client must treat as unknown rather than "no
-            roles".
+            Role names this member holds, highest position first. Excludes
+            `@everyone`: every member holds that one, so including it would
+            put a meaningless badge on every row. Empty rather than absent
+            for a member with nothing beyond it. Absent on servers older
+            than this field, which a client must treat as unknown rather
+            than "no roles".
         role_ids:
           type: array
           items:
@@ -13298,6 +13693,18 @@ components:
             made against the id. Nothing stops two roles sharing a name, so a
             client deciding "does this member hold that role" by name would
             answer yes for both of them.
+        role_colors:
+          type: array
+          items:
+            type: [integer, "null"]
+            format: int64
+          description: >
+            The same roles' colours, positionally matching `roles`: an index
+            into the role palette (the `color` a `Role` carries), or null for
+            a role nobody gave a colour. A member's name wears the first
+            non-null entry, so any member can colour names without `GET
+            /roles`, which needs MANAGE_ROLES. Absent on servers older than
+            this field, which reads as no colours.
         hoisted_role_id:
           type: [string, "null"]
           format: uuid
@@ -13370,6 +13777,25 @@ components:
             A webhook never appears in `GET /members`, so this is only ever
             seen by resolving a message's own author id. Absent on servers
             older than this field, which a client reads as not a webhook.
+        top_role_position:
+          type: [integer, "null"]
+          format: int64
+          description: >
+            The position of this member's highest role, or null when they hold
+            none, which ranks below every role. The role ladder lets a caller
+            moderate only members whose highest role sits strictly below their
+            own, so a client can leave out what the server would refuse. Absent
+            on servers older than this field.
+        is_owner:
+          type: boolean
+          description: >
+            Whether this member is the Space owner: the account that claimed
+            the deployment, or whoever ownership passed to. The owner holds
+            every permission whatever their roles, and no overwrite takes one
+            away; nobody else can moderate the owner or change their roles. Not drawn anywhere; a
+            client uses it only to leave out what the server would refuse.
+            Absent on servers older than this field, which a client reads as
+            not the owner.
         invite_code:
           type: [string, "null"]
           description: >
@@ -13436,9 +13862,9 @@ components:
           format: int64
           description: >
             The caller's base (deployment-level) permission bitmask, ignoring
-            any per-channel overwrite. A UI nicety for hiding actions the
-            caller cannot perform; every write is still re-authorized
-            server-side regardless of what this says.
+            any per-channel overwrite, and every bit for the Space owner. A UI
+            nicety for hiding actions the caller cannot perform; every write is
+            still re-authorized server-side regardless of what this says.
 
             Already has any timeout subtracted, so a client that greys the
             composer on a missing SEND_MESSAGES bit needs no separate rule
@@ -13487,6 +13913,21 @@ components:
           description: >-
             For a bot, the command prefix an admin assigned it; absent for a
             person and for a bot with none.
+        is_owner:
+          type: boolean
+          description: >-
+            Whether the caller is the Space owner, who holds every permission
+            whatever their roles and stands above every role on the role
+            ladder. Absent on servers older than this field.
+        top_role_position:
+          type: [integer, "null"]
+          format: int64
+          description: >-
+            The highest position among the caller's roles, or null when they
+            hold none, which ranks below every role. The role ladder lets the
+            caller manage only roles, and moderate only members whose highest
+            role is, strictly below this; a member with no role is below any
+            role. Absent on servers older than this field.
 
     UpdateMeRequest:
       type: object
@@ -13967,7 +14408,7 @@ components:
           type: string
           description: >
             Stable snake_case identifier, for example `token`, `attachments`,
-            `canvas_ops`, `message_retention`.
+            `screen_stamps`, `canvas_ops`, `message_retention`.
         last_run_at:
           type: integer
           description: Unix milliseconds of the sweep's most recent pass.
@@ -15609,12 +16050,17 @@ components:
             retry cannot be told apart from a second report.
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
           description: >-
-            For `ephemeral_message`, the private message's own id.
+            For `ephemeral_message`, the private message's own id. For
+            `screen_stamp`, the id of a picture stamped on the reporter's
+            own screen in the last day (`listReceivedScreenStamps`); the
+            report is then about whoever sent it and takes every picture they
+            stamped on the reporter's screen that day. A later picture from
+            them joins the reporter's open report, whose id is answered.
         reason:
           type: string
           minLength: 1
@@ -15662,7 +16108,7 @@ components:
           description: Null once the reporter's account has been anonymized.
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
@@ -15703,6 +16149,16 @@ components:
             since no one holds that permission in a DM. Absent on servers
             older than this field, which a client must treat as unknown
             rather than assuming zero.
+        picture_ids:
+          type: array
+          items: { type: string }
+          description: >
+            Only on a `screen_stamp` report: the attachment ids of the
+            pictures it carries from channels the caller may read reports
+            from, oldest first, which the caller may fetch. Empty once they
+            are swept. A report whose pictures came from more than one
+            channel has a null `channel_id`, so it reaches the moderators of
+            each.
 
     MyReportStatus:
       type: object
@@ -15719,7 +16175,7 @@ components:
           format: uuid
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
@@ -15774,7 +16230,7 @@ components:
           description: Null once the reporter's account has been anonymized.
         subject_kind:
           type: string
-          enum: [message, user, ephemeral_message]
+          enum: [message, user, ephemeral_message, screen_stamp]
         subject_id:
           type: string
           format: uuid
@@ -15806,6 +16262,13 @@ components:
         resolution:
           type: [string, "null"]
           enum: [resolved, dismissed, null]
+        picture_ids:
+          type: array
+          items: { type: string }
+          description: >
+            Only on a `screen_stamp` report: its pictures, as on `Report`.
+            Empty once they are swept, the first sweep after the report
+            closed.
 
     AuditLogHistoryEntry:
       type: object
@@ -15822,7 +16285,10 @@ components:
         actor_id:
           type: [string, "null"]
           format: uuid
-          description: Null once the actor's account has been anonymized.
+          description: >
+            Null once the actor's account has been anonymized, and always null
+            for `owner_handoff` and `owner_timeout_ended`, which the server
+            does on its own when ownership passes on (decision 0092).
         subject_id:
           type: string
           format: uuid
@@ -15847,6 +16313,12 @@ components:
             - nickname_set
             - nickname_clear
             - voice_move
+            - owner_handoff
+            - owner_timeout_ended
+          description: >
+            `owner_handoff` means ownership passed to the subject, and
+            `owner_timeout_ended` that the subject's timeout ended because
+            they became the owner.
         reason:
           type: [string, "null"]
         until:
@@ -17116,6 +17588,8 @@ components:
       description: >
         A rail section a channel of any kind may be filed under. Carries no
         permission of its own; see docs/decisions/0006-channel-categories.md.
+        Nests two levels deep: a top-level category may hold sub-categories
+        (decision 0120).
       properties:
         id:
           type: string
@@ -17126,12 +17600,20 @@ components:
           type: integer
           format: int64
           description: >
-            Sort key among the deployment's live categories: lower sorts
-            first.
+            Sort key among its siblings, lower first: the top-level
+            categories, or one parent's sub-categories.
         created_at:
           type: integer
           format: int64
           description: Unix milliseconds.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The top-level category this one sits in, or null for a top-level
+            category. Always sent by a server that nests; absent on servers
+            older than this field, which a client reads as a server that does
+            not nest.
 
     CreateCategoryRequest:
       type: object
@@ -17147,13 +17629,20 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The top-level category to create this under. Absent or null
+            creates a top-level category. A retry with an id already used
+            returns the stored category whatever this says.
 
     UpdateCategoryRequest:
       type: object
       description: >
-        At least one of `name` and `position` must be present; a request
-        with neither is a 400. Each is independent, the same convention
-        `UpdateChannelRequest` follows for its own two optional fields.
+        At least one of `name`, `position` and `parent_id` must be present; a
+        request with none is a 400. Each is independent, the same convention
+        `UpdateChannelRequest` follows for its own optional fields.
       properties:
         name:
           type: string
@@ -17162,6 +17651,40 @@ components:
         position:
           type: integer
           format: int64
+          description: >
+            The place among its siblings, the new ones when `parent_id`
+            moves it.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Absent leaves the placement alone, null moves the category to the
+            top level, and an id files it under that top-level category.
+
+    ReorderCategoriesRequest:
+      type: object
+      required: [groups]
+      description: >
+        Every live category named exactly once, grouped by parent. Every
+        non-null `parent_id` must be a category named in the group whose
+        `parent_id` is null.
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            required: [parent_id, category_ids]
+            properties:
+              parent_id:
+                type: [string, "null"]
+                format: uuid
+                description: The parent category, or null for the top level.
+              category_ids:
+                type: array
+                description: The group's categories in display order.
+                items:
+                  type: string
+                  format: uuid
 
     CreateChannelRequest:
       type: object
@@ -17381,7 +17904,7 @@ components:
         color:
           type: [integer, "null"]
           format: int64
-          description: An index into the client's ten-colour role palette, or null for the colour the client derives from the role id.
+          description: An index into the client's ten-colour role palette, or null for no colour.
         created_at:
           type: integer
           format: int64
@@ -17480,9 +18003,9 @@ components:
         hoist:
           type: boolean
         color:
-          type: integer
+          type: [integer, "null"]
           format: int64
-          description: A role palette index from 0 to 9.
+          description: A role palette index from 0 to 9, or null to clear the colour.
 
     ReorderRolesRequest:
       type: object
@@ -17621,7 +18144,12 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [stroke, image, note, shape, text]
+          enum: [stroke, image, note, shape, text, emoji]
+          description: >
+            `emoji` is a stamp on the board (decision 0121): its
+            `props.emoji` must be one emoji, a `:shortcode:` or a custom
+            emoji id, and anything else is a 400. Offered when `/version`
+            lists `screen_stamps`.
         x:
           type: number
           format: double
@@ -17832,7 +18360,7 @@ components:
             canvas `seq` is removed.
         kinds:
           type: array
-          items: { type: string, enum: [stroke, image, note, shape, text] }
+          items: { type: string, enum: [stroke, image, note, shape, text, emoji] }
           description: >-
             `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
@@ -19473,7 +20001,9 @@ components:
           type: boolean
           description: >
             A channel's: whether its overwrites follow its category (decision
-            0064). Absent for a category's own list.
+            0064). A sub-category's: whether its overwrites follow its parent
+            category (decision 0120). Absent for a top-level category's own
+            list.
         overwrites:
           type: array
           description: Every overwrite set on the channel, role and member alike.
@@ -20044,7 +20574,8 @@ components:
         relayed when its sender and `target_user_id` are both connected to
         that channel's call. Either kind is delivered only to the people
         connected to that call. Charged by wire size against the
-        stroke-preview budget.
+        stroke-preview budget. A `stamp` never enters here; it goes through
+        `placeScreenStamp`, and a socket frame of that kind is dropped.
       properties:
         type:
           type: string
@@ -20086,6 +20617,13 @@ components:
           description: >
             Consent only - the shared screen's width over its height, so
             viewers can map their marks past a letterbox.
+        stamps:
+          type: boolean
+          default: false
+          description: >
+            Consent only - whether this sharer's client can show stamps. The
+            server remembers it for 15 seconds, and `placeScreenStamp` needs
+            it true together with `allowed`.
 
     ClientCanvasMediaSlotPreview:
       type: object
@@ -20184,6 +20722,7 @@ components:
         - $ref: "#/components/schemas/MemberRemoved"
         - $ref: "#/components/schemas/MemberRestored"
         - $ref: "#/components/schemas/MemberJoined"
+        - $ref: "#/components/schemas/OwnerChanged"
         - $ref: "#/components/schemas/ProfileChanged"
         - $ref: "#/components/schemas/BotUiChanged"
         - $ref: "#/components/schemas/TypingStarted"
@@ -20543,7 +21082,10 @@ components:
         marks, on a channel's canvas, sent only to the people connected to
         that channel's call and gated for them the same way
         `canvas.stroke_preview.updated` is. Carries no `seq` and is never
-        stored. Clients that do not know this frame ignore it.
+        stored. Clients that do not know this frame ignore it. A `stamp` is
+        published only by the server, from `placeScreenStamp`: `points` is
+        its centre, `ended` is true, and it carries `size` with either
+        `emoji` or `attachment`; clients that do not know the kind ignore it.
       properties:
         type:
           type: string
@@ -20560,7 +21102,7 @@ components:
           format: uuid
         kind:
           type: string
-          enum: [consent, stroke, shape, note]
+          enum: [consent, stroke, shape, note, stamp]
         annotation_id:
           type: string
           format: uuid
@@ -20578,6 +21120,29 @@ components:
         aspect:
           type: number
           format: double
+        size:
+          type: number
+          format: double
+          description: >
+            Stamp only - its longest side as a fraction of the shared
+            screen's height, between 0.04 and 0.30.
+        emoji:
+          type: string
+          description: >
+            Stamp only - one emoji, a `:shortcode:` or a custom emoji id.
+        attachment:
+          type: string
+          description: >
+            Stamp only - the attachment id of a picture, fetched with
+            `getAttachment` (`w=640&still=true` for a still).
+        animated:
+          type: boolean
+          description: >
+            Stamp only - a GIF of at most 4 MiB, which an in-app tile may
+            animate. Decided by the server; absent means false.
+        stamps:
+          type: boolean
+          description: Consent only - the sharer's client can show stamps.
 
     CanvasObjectPreviewUpdated:
       type: object
@@ -21305,6 +21870,26 @@ components:
           type: string
           format: uuid
 
+    OwnerChanged:
+      type: object
+      required: [type, user_id]
+      description: >
+        Space ownership passed to this member, because the owner's account was
+        deleted or the owner is no longer a member. They now hold every
+        permission, so their own client re-reads `/me`, its channel
+        permissions and the channel list. A `profile.changed` for the same id
+        comes with it, so every client re-reads their profile's `is_owner`,
+        and a `member.timeout` lifting any timeout on them, since nobody can
+        act on the owner. Broadcast to every connection like
+        `member.joined`.
+      properties:
+        type:
+          type: string
+          enum: [owner.changed]
+        user_id:
+          type: string
+          format: uuid
+
     ProfileChanged:
       type: object
       required: [type, user_id]
@@ -21522,12 +22107,13 @@ components:
       type: object
       required: [type]
       description: >
-        A channel category was created, renamed, repositioned, or deleted.
-        Carries no fields at all: a category is organisational only (see
-        docs/decisions/0006-channel-categories.md), so there is nothing
-        privileged to withhold and nothing per-viewer to resolve. A receiving
-        client re-fetches `listChannels`, the same path a `channel.created`,
-        `channel.updated`, or `channel.deleted` frame already drives.
+        A channel category was created, renamed, repositioned, re-parented,
+        or deleted with the moves a delete makes (decision 0120). Carries no
+        fields at all: it is broadcast to every connection while
+        `listCategories` filters names per viewer, so it never names a
+        category. A receiving client re-fetches `listCategories` and
+        `listChannels`, the same path a `channel.created`, `channel.updated`,
+        or `channel.deleted` frame already drives.
       properties:
         type:
           type: string

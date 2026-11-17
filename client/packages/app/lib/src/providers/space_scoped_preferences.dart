@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const Set<String> spaceScopedKeys = {
   'slimm.appearance.theme',
   'slimm.appearance.space_default_theme',
+  'slimm.appearance.recent_themes',
   'slimm.appearance.time_format',
   'slimm.appearance.message_density',
   'slimm.appearance.group_spacing',

@@ -16,7 +16,7 @@ import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../widgets/image_decode.dart';
-import '../../../emoji/widgets/standard_emoji.dart';
+import '../../../emoji/providers/standard_emoji.dart';
 import '../../widgets/settings_file_thumb.dart';
 import 'emoji_bulk_plan.dart';
 import 'emoji_name.dart';

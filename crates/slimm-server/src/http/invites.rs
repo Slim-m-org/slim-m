@@ -24,6 +24,7 @@ use super::error::ApiError;
 use super::extract::{
     AUTHED_READ, Authed, AuthedLimited, INVITE_CHECK, Json, RateLimited, WRITE, enforce,
 };
+use super::role_ladder::{Ladder, hand_assignable};
 use crate::hub::Event;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -125,10 +126,10 @@ struct InviteCommunity {
 ///
 /// An invite that grants a role assigns that role to whoever redeems it, so it
 /// is role assignment with a delay and must be gated exactly as `PUT
-/// /members/{id}/roles/{id}` is: MANAGE_ROLES on top of CREATE_INVITE, and the
-/// role's permissions already held by the caller. Without the second check,
-/// CREATE_INVITE plus MANAGE_ROLES would mint an administrator account for
-/// somebody holding neither bit.
+/// /members/{id}/roles/{id}` is: MANAGE_ROLES on top of CREATE_INVITE, the
+/// role below the caller's own on the role ladder, and its permissions already
+/// held by the caller. Without the bit check, CREATE_INVITE plus MANAGE_ROLES
+/// would mint an administrator account for somebody holding neither bit.
 async fn resolve_grant(
     state: &AppState,
     caller: crate::ids::UserId,
@@ -147,6 +148,8 @@ async fn resolve_grant(
         .role(role_id)
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
+    hand_assignable(&role)?;
+    Ladder::of(state, caller).await?.reach_role(role.position)?;
     if !permissions.contains(role.permissions) {
         return Err(ApiError::Forbidden);
     }

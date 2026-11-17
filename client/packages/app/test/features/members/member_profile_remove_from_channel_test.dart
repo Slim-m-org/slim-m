@@ -196,6 +196,21 @@ void main() {
     expect(find.text(label), findsNothing);
   });
 
+  testWidgets('hidden for the Space owner, whom no overwrite denies', (
+    tester,
+  ) async {
+    const owner = api.UserProfile(
+      id: 'user-maya',
+      username: 'maya',
+      displayName: 'maya',
+      createdAt: 0,
+      isOwner: true,
+    );
+    final wired = _wire(channelPermissions: Perm.manageRoles, member: owner);
+    await _open(tester, wired.container, profile: owner);
+    expect(find.text(label), findsNothing);
+  });
+
   testWidgets('hidden against yourself', (tester) async {
     final wired = _wire(
       channelPermissions: Perm.manageRoles,

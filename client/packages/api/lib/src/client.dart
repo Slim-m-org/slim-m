@@ -29,6 +29,7 @@ export 'client_dms.dart' show SlimmApiDms;
 export 'client_dock.dart' show SlimmApiDock;
 export 'client_emoji.dart' show SlimmApiEmoji;
 export 'client_soundboard.dart' show SlimmApiSoundboard;
+export 'client_screen_stamps.dart' show SlimmApiScreenStamps;
 export 'client_space_themes.dart' show SlimmApiSpaceThemes;
 export 'client_exports.dart' show SlimmApiExports;
 export 'client_favorites.dart' show SlimmApiFavorites;
@@ -53,7 +54,7 @@ export 'client_module_settings.dart' show SlimmApiModuleSettings;
 export 'client_module_slots.dart' show SlimmApiModuleSlots;
 export 'client_bots.dart' show Bot, NewBot, SlimmApiBots;
 export 'client_category_permissions.dart'
-    show ChannelOverwriteSet, SlimmApiCategoryPermissions;
+    show CategoryOverwriteSet, ChannelOverwriteSet, SlimmApiCategoryPermissions;
 export 'client_linked_accounts.dart' show SlimmApiLinkedAccounts;
 export 'client_notification_schedule.dart' show SlimmApiNotificationSchedule;
 export 'client_presence.dart' show SlimmApiPresence;

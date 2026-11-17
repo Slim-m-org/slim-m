@@ -198,14 +198,15 @@ impl Store {
         Ok(())
     }
 
-    /// Unmuted accounts that hold `MANAGE_SERVER`, the audience of an alert.
+    /// Unmuted accounts that hold `MANAGE_SERVER`, the audience of an alert, the Space owner included.
     pub async fn admin_alert_recipients(&self) -> anyhow::Result<Vec<UserId>> {
         let mask = Permissions::ADMINISTRATOR.bits() | Permissions::MANAGE_SERVER.bits();
         let candidates: Vec<UserId> = sqlx::query_scalar!(
             r#"SELECT u.id AS "id!: UserId" FROM users u
                WHERE u.deleted_at IS NULL AND u.is_webhook = 0 AND u.admin_alerts_muted = 0
                AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id) AND (
-                   EXISTS (SELECT 1 FROM roles WHERE is_everyone = 1 AND (permissions & ?) != 0)
+                   u.id = (SELECT owner_id FROM space_settings WHERE id = 1)
+                   OR EXISTS (SELECT 1 FROM roles WHERE is_everyone = 1 AND (permissions & ?) != 0)
                    OR EXISTS (
                        SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                        WHERE mr.user_id = u.id AND (r.permissions & ?) != 0

@@ -13,12 +13,16 @@ class AppListRowLabel extends StatelessWidget {
     required this.labelStyle,
     this.subtitle,
     this.subtitleIcon,
+    this.subtitleColor,
     super.key,
   });
 
   final String label;
   final String? subtitle;
   final IconData? subtitleIcon;
+
+  /// Wins over `textSecondary` for the subtitle and its icon.
+  final Color? subtitleColor;
   final TextStyle labelStyle;
 
   @override
@@ -32,6 +36,7 @@ class AppListRowLabel extends StatelessWidget {
     final subtitle = this.subtitle;
     if (subtitle == null) return text;
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final subtitleColor = this.subtitleColor ?? tokens.textSecondary;
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -41,7 +46,7 @@ class AppListRowLabel extends StatelessWidget {
         Row(
           children: [
             if (subtitleIcon != null) ...[
-              Icon(subtitleIcon, size: 12, color: tokens.textSecondary),
+              Icon(subtitleIcon, size: 12, color: subtitleColor),
               const SizedBox(width: AppSpacing.s4),
             ],
             Expanded(
@@ -49,7 +54,7 @@ class AppListRowLabel extends StatelessWidget {
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
+                style: AppText.caption.copyWith(color: subtitleColor),
               ),
             ),
           ],

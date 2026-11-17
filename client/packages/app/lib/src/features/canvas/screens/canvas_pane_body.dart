@@ -45,6 +45,7 @@ import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
 import 'canvas_banners.dart';
+import 'canvas_stamp_placement.dart';
 
 part 'canvas_pane_body_builders.dart';
 
@@ -85,6 +86,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.onTextPlace,
     this.onSelectLongPress,
     required this.onShapePlace,
+    this.stamping,
     required this.shapeKind,
     required this.onShapeKindChanged,
     required this.pen,
@@ -199,6 +201,9 @@ class CanvasPaneBody extends StatefulWidget {
   final ValueChanged<Offset>? onTextPlace;
   final ValueChanged<Offset>? onSelectLongPress;
   final ShapePlaced onShapePlace;
+
+  /// The board's Stamp tool, null where the board offers none.
+  final CanvasStampPlacement? stamping;
 
   /// The primitive the next tap with the shape tool places, and the bar's
   /// own picker for changing it.

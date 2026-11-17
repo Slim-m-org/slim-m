@@ -89,6 +89,15 @@ class SyncEventApplier {
       case ChannelCreated(:final channel):
       case ChannelUpdated(:final channel):
         await store.upsertChannels([channel]);
+        // A heading this device never held would leave the channel drawn nowhere, or under the wrong one.
+        if (await _namesUnheldCategory(channel.categoryId, store)) {
+          if (!isCurrent()) return;
+          await _channelRefresher.refreshAfterChange(
+            api,
+            store,
+            isCurrent: isCurrent,
+          );
+        }
       case ChannelDeleted(:final channelId):
         await _onChannelDeleted(channelId, store);
       case OverwriteChanged():
@@ -125,6 +134,19 @@ class SyncEventApplier {
       return;
     }
     await store.applyMessage(message);
+  }
+
+  /// Whether [categoryId], or the parent it sits under, is missing locally.
+  Future<bool> _namesUnheldCategory(
+    String? categoryId,
+    MessageStore store,
+  ) async {
+    if (categoryId == null) return false;
+    final held = {for (final c in await store.allCategories()) c.id: c};
+    final category = held[categoryId];
+    if (category == null) return true;
+    final parentId = category.parentId;
+    return parentId != null && !held.containsKey(parentId);
   }
 
   Future<void> _onChannelDeleted(String channelId, MessageStore store) async {

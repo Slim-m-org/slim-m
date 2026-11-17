@@ -242,16 +242,16 @@ void main() {
     expect(joined.dx, name.dx);
     expect(joined.dy, greaterThanOrEqualTo(handle.dy));
     expect(
-      tester.getTopLeft(find.text('MEMBER')).dy,
+      tester.getTopLeft(find.text('member')).dy,
       greaterThan(joined.dy),
-      reason: 'the role badges follow the identity block',
+      reason: 'the role pills follow the identity block',
     );
   });
 
   testWidgets('no roles leaves no row behind', (tester) async {
     await _pump(tester, _user('Tester'));
 
-    expect(find.text('MEMBER'), findsNothing);
+    expect(find.text('ROLES'), findsNothing);
     expect(find.text('Joined Nov 2026'), findsOneWidget);
   });
 }

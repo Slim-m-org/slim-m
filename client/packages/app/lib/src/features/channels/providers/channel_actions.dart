@@ -8,6 +8,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart' hide Channel;
 
 import '../../../providers/providers.dart';
+import 'category_nesting.dart';
 
 class ChannelActions {
   ChannelActions(this._ref);
@@ -58,8 +59,16 @@ class ChannelActions {
     await store.removeChannel(channelId);
   }
 
-  Future<void> createCategory(String name, {String? id}) async {
-    final created = await _api.createCategory(name, id: id);
+  /// [parentId] files it under that top-level category (decision 0120).
+  Future<void> createCategory(
+    String name, {
+    String? id,
+    String? parentId,
+  }) async {
+    final created = await _api.createCategory(name, id: id, parentId: parentId);
+    if (created.serverNests) {
+      _ref.read(categoriesNestProvider.notifier).state = true;
+    }
     final store = await _ref.read(storeProvider.future);
     await store.upsertCategory(created);
   }

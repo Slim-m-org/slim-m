@@ -68,6 +68,15 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     }
   }
 
+  CanvasStampPlacement get _stampPlacement =>
+      _stampPlacementHelper ??= CanvasStampPlacement(
+        placement: () => _quickPlacement,
+        armed: () => ref.read(armedStampProvider).content,
+        aspectOf: ref.read(stampImageCacheProvider).aspectOf,
+        onShown: _engine.hydrator.hydrateVisible,
+        onError: _engine.reportError,
+      );
+
   CanvasQuickPlacement get _quickPlacement =>
       _quickPlacementHelper ??= CanvasQuickPlacement(
         client: ref.read(apiProvider),

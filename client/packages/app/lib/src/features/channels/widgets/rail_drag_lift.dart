@@ -55,10 +55,18 @@ class _RailGrabFeedbackState extends State<RailGrabFeedback> {
 /// The carried copy of a row while a reorder drag is in flight; the
 /// `proxyDecorator` of the rail's [ReorderableListView].
 class RailDragLift extends StatelessWidget {
-  const RailDragLift({super.key, required this.animation, required this.child});
+  const RailDragLift({
+    super.key,
+    required this.animation,
+    this.refused = false,
+    required this.child,
+  });
 
   /// The list's own lift animation: 0 at pick-up, 1 once fully carried.
   final Animation<double> animation;
+
+  /// Held over a place it cannot land, which a danger-toned edge says.
+  final bool refused;
   final Widget child;
 
   /// A hair above resting size, enough to read as lifted without the row
@@ -79,7 +87,9 @@ class RailDragLift extends StatelessWidget {
             decoration: BoxDecoration(
               color: tokens.surfaceRaised,
               borderRadius: BorderRadius.circular(AppRadii.control),
-              border: Border.all(color: tokens.accent),
+              border: Border.all(
+                color: refused ? tokens.dangerBorder : tokens.accent,
+              ),
               boxShadow: AppShadows.menu,
             ),
             child: child,

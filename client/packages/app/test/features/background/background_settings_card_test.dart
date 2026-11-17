@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Background card: choosing a picture, removing it, its controls, and
-/// the note shown while high contrast keeps panes plain.
+/// The Background card: choosing a picture, removing it, its controls, the
+/// preview beside them in the control column, the note while a theme's
+/// settings are in use, and the note shown while high contrast keeps panes
+/// plain.
 library;
 
 import 'dart:io';
@@ -16,8 +18,11 @@ import 'package:slimm_app/src/features/background/providers/background_image_sto
 import 'package:slimm_app/src/features/messages/widgets/attachment_picker.dart';
 import 'package:slimm_app/src/providers/providers.dart'
     show preferencesProvider;
+import 'package:slimm_app/src/features/settings/providers/background_from_theme.dart';
 import 'package:slimm_app/src/features/settings/providers/display_preferences.dart';
+import 'package:slimm_app/src/features/settings/widgets/background_preview.dart';
 import 'package:slimm_app/src/features/settings/widgets/background_settings_card.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_control_column.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../composer/composer_harness.dart' show FakePlatformFile;
@@ -27,6 +32,7 @@ Future<ProviderContainer> _mount(
   double width = 900,
   PlatformFile? picked,
   Object? failure,
+  bool column = false,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -50,8 +56,12 @@ Future<ProviderContainer> _mount(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),
-        home: const Scaffold(
-          body: SingleChildScrollView(child: BackgroundSettingsCard()),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: column
+                ? const SettingsControlColumn(child: BackgroundSettingsCard())
+                : const BackgroundSettingsCard(),
+          ),
         ),
       ),
     ),
@@ -68,8 +78,143 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+final _forest = File('test/fixtures/background_forest.png').readAsBytesSync();
+
+Future<void> _withPicture(WidgetTester tester, ProviderContainer c) async {
+  await tester.runAsync(
+    () =>
+        c.read(appBackgroundControllerProvider.notifier).importPicture(_forest),
+  );
+  await tester.runAsync(() => c.read(backgroundPictureProvider.future));
+  await tester.pump();
+}
+
+const _note = 'Dim, blur and vignette came with Pine at dusk.';
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  for (final (width, beside) in [(900.0, true), (390.0, false)]) {
+    testWidgets('at $width wide the preview is ${beside ? 'beside' : 'above'} '
+        'the controls', (tester) async {
+      final container = await _mount(tester, width: width, column: true);
+      await _withPicture(tester, container);
+
+      final preview = tester.getRect(find.byKey(BackgroundPreview.previewKey));
+      final dim = tester.getRect(
+        find.byKey(BackgroundSettingsCard.dimSliderKey),
+      );
+      if (beside) {
+        expect(dim.left + AppSlider.trackInset - preview.right, 16);
+        expect(preview.height, greaterThanOrEqualTo(BackgroundPreview.height));
+      } else {
+        expect(preview.bottom, lessThan(dim.top));
+        expect(preview.width, width - 32);
+        expect(preview.height, BackgroundPreview.height);
+      }
+    });
+  }
+
+  for (final (width, panes) in [(1280.0, 3), (390.0, 1)]) {
+    testWidgets('at $width wide the preview shows the panes the shell has '
+        'there', (tester) async {
+      final container = await _mount(tester, width: width, column: true);
+      await _withPicture(tester, container);
+
+      expect(
+        find.descendant(
+          of: find.byKey(BackgroundPreview.previewKey),
+          matching: find.byWidgetPredicate((w) => w is PaneSurface),
+        ),
+        findsNWidgets(panes),
+      );
+    });
+  }
+
+  testWidgets('the two sliders sit together, then the vignette', (
+    tester,
+  ) async {
+    final container = await _mount(tester, width: 390, column: true);
+    await _withPicture(tester, container);
+
+    final dim = tester.getTopLeft(find.text('Dim')).dy;
+    final blur = tester.getTopLeft(find.text('Blur')).dy;
+    final vignette = tester.getTopLeft(find.text('Vignette')).dy;
+    expect(dim, lessThan(blur));
+    expect(blur, lessThan(vignette));
+  });
+
+  testWidgets('a theme\'s settings are noted until one is changed here', (
+    tester,
+  ) async {
+    final container = await _mount(tester, column: true);
+    await _withPicture(tester, container);
+    await tester.runAsync(
+      () => container
+          .read(backgroundFromThemeProvider.notifier)
+          .set('Pine at dusk'),
+    );
+    await tester.pump();
+    expect(find.text(_note), findsOneWidget);
+
+    await tester.drag(
+      find.byKey(BackgroundSettingsCard.blurSliderKey),
+      const Offset(60, 0),
+    );
+    await tester.pump();
+    await _settle(tester);
+
+    expect(find.text(_note), findsNothing);
+    expect(container.read(backgroundFromThemeProvider), isNull);
+  });
+
+  testWidgets('turning the vignette off makes the settings the person\'s', (
+    tester,
+  ) async {
+    final container = await _mount(tester);
+    await _withPicture(tester, container);
+    await tester.runAsync(
+      () => container
+          .read(backgroundFromThemeProvider.notifier)
+          .set('Pine at dusk'),
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Vignette'),
+          matching: find.byWidgetPredicate((w) => w is Row),
+        ),
+        matching: find.byWidgetPredicate((w) => w is AppToggle),
+      ),
+    );
+    await _settle(tester);
+
+    expect(container.read(backgroundFromThemeProvider), isNull);
+  });
+
+  testWidgets('on a phone the picture sheet says what it is for', (
+    tester,
+  ) async {
+    await _mount(tester, width: 390);
+    await tester.tap(find.byKey(BackgroundSettingsCard.pictureRowKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Background picture'), findsOneWidget);
+    expect(find.text('Choose photo'), findsOneWidget);
+  });
+
+  testWidgets('beside the pointer the picture menu needs no title', (
+    tester,
+  ) async {
+    await _mount(tester);
+    await tester.tap(find.byKey(BackgroundSettingsCard.pictureRowKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Background picture'), findsNothing);
+    expect(find.text('Choose photo'), findsOneWidget);
+  });
 
   for (final (width, glyph) in [
     (900.0, AppIcons.chevronDown),
@@ -99,10 +244,14 @@ void main() {
   testWidgets('choosing a photo sets it and shows the controls', (
     tester,
   ) async {
-    final bytes = File('test/fixtures/background_forest.png').readAsBytesSync();
     final container = await _mount(
       tester,
-      picked: FakePlatformFile('f.png', bytes),
+      picked: FakePlatformFile('f.png', _forest),
+    );
+    await tester.runAsync(
+      () => container
+          .read(backgroundFromThemeProvider.notifier)
+          .set('Pine at dusk'),
     );
     await tester.tap(find.byKey(BackgroundSettingsCard.pictureRowKey));
     await tester.pump();
@@ -115,6 +264,11 @@ void main() {
     expect(find.byKey(BackgroundSettingsCard.dimSliderKey), findsOneWidget);
     expect(find.text('Vignette'), findsOneWidget);
     expect(find.byKey(BackgroundSettingsCard.blurSliderKey), findsOneWidget);
+    expect(
+      container.read(backgroundFromThemeProvider),
+      isNull,
+      reason: 'a picture chosen here is the person\'s own',
+    );
   });
 
   testWidgets('None removes the picture again', (tester) async {
@@ -154,10 +308,16 @@ void main() {
       () => container.read(backgroundPictureProvider.future),
     );
     await tester.pump();
+    await tester.runAsync(
+      () => container
+          .read(backgroundFromThemeProvider.notifier)
+          .set('Pine at dusk'),
+    );
     await tester.tap(find.byKey(BackgroundSettingsCard.removeKey));
     await tester.pump();
     await _settle(tester);
     expect(container.read(appBackgroundControllerProvider).hasImage, isFalse);
+    expect(container.read(backgroundFromThemeProvider), isNull);
     expect(find.text('Choose photo'), findsNothing);
     expect(find.byKey(BackgroundSettingsCard.removeKey), findsNothing);
   });

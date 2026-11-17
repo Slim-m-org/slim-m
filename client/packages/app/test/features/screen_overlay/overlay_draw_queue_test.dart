@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' show Color;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +36,10 @@ class _SlowOverlay implements ScreenOverlay {
   Future<bool> show(List<int> monitors, {int? window}) async => true;
   @override
   Future<void> hide() async {}
+  @override
+  Future<bool> putImage(String key, Uint8List png) async => true;
+  @override
+  Future<void> dropImage(String key) async {}
   @override
   Future<void> panel(OverlayPanel? panel) async {}
   @override

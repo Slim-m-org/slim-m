@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.id AS \"id!: UserId\" FROM space_settings s JOIN users u ON u.id = s.owner_id\n           WHERE s.id = 1 AND u.deleted_at IS NULL AND u.is_bot = 0 AND u.is_webhook = 0\n             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)\n             AND NOT EXISTS (SELECT 1 FROM pending_members pm WHERE pm.user_id = u.id)",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "268fe9b69e199be361898656ee6b5fd2e3df4dcb79bc273cfe13b2bc1a81a949"
+}

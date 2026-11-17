@@ -10,21 +10,10 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/emoji_catalog_provider.dart';
 import 'custom_emoji_image.dart';
 import 'emoji_names.dart';
-import 'standard_emoji.dart';
+import '../providers/emoji_keys.dart';
+import '../providers/standard_emoji.dart';
 
-final _emojiId = RegExp(
-  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-  caseSensitive: false,
-);
-
-/// The custom emoji [value] names, by id or `:shortcode:`, or null for a
-/// standard one. [index] is `customEmojiIndexProvider`'s name-to-id map.
-///
-/// An id the catalog has not loaded yet still counts, so it draws as an image.
-String? storedCustomEmojiId(String value, Map<String, String> index) {
-  if (_emojiId.hasMatch(value) || index.containsValue(value)) return value;
-  return customEmojiIdFor(value, index);
-}
+export '../providers/emoji_keys.dart' show storedCustomEmojiId;
 
 /// What the emoji picker hands back, as it is stored: a custom emoji's
 /// `:shortcode:` becomes its id.

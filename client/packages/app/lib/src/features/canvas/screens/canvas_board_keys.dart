@@ -220,7 +220,11 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       case CanvasTool.shape:
         widget.onPlaceShape(centre);
         return true;
-      case CanvasTool.pen || CanvasTool.eraser || CanvasTool.pan || null:
+      case CanvasTool.pen ||
+          CanvasTool.eraser ||
+          CanvasTool.pan ||
+          CanvasTool.stamp ||
+          null:
         final selected = _document.selectedObjectId.value;
         if (selected == null) return _step(1);
         widget.onOpenActions(selected);

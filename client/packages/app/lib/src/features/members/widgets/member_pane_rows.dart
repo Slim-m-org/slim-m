@@ -24,6 +24,7 @@ import '../providers/status_text.dart';
 import 'member_profile.dart';
 import 'member_row_badges.dart';
 import 'module_row_badges.dart';
+import 'role_color.dart';
 import '../../modules/providers/module_display_settings.dart';
 import '../../voice/providers/member_voice_channel.dart';
 import 'member_voice_chip.dart';
@@ -41,7 +42,7 @@ final Map<String, int> debugMemberRowBuildCounts = {};
 @visibleForTesting
 void debugResetMemberRowBuildCounts() => debugMemberRowBuildCounts.clear();
 
-/// Below this row width a badge and a chip together crowd the name out.
+/// Below this row width module badges beside a voice chip crowd the name out.
 const double _badgeAndChipMinRow = 300;
 
 class MemberGroupLabel extends StatelessWidget {
@@ -75,9 +76,14 @@ class MemberGroupLabel extends StatelessWidget {
   }
 }
 
-/// A row is muted (dimmed, per [AppListRow.muted]) only once fully offline;
-/// away and do-not-disturb still read as present, matching the grouping
-/// rule the pane applies.
+/// A row is dimmed only once fully offline, name and status line with the
+/// avatar, so a role colour does not shout from the offline section; away and
+/// do-not-disturb still read as present, matching the grouping rule the pane
+/// applies.
+///
+/// Roles show the way Discord shows them: the name wears the highest
+/// coloured role's colour and the full list waits on the card, so the row
+/// carries no role chip.
 ///
 /// A right-click reaches the same profile popover a tap already does, rather
 /// than a second, narrower menu: every verb this row could offer already
@@ -92,7 +98,6 @@ class MemberRow extends ConsumerWidget {
     required this.profile,
     required this.isSelf,
     this.channelId,
-    this.sectionRoleId,
     super.key,
   });
 
@@ -100,9 +105,6 @@ class MemberRow extends ConsumerWidget {
   final String? channelId;
 
   final api.UserProfile profile;
-
-  /// The role section this row sits under; its badge would only repeat the heading.
-  final String? sectionRoleId;
 
   /// Nothing opens a DM with yourself: `POST /dms/{userId}` has no concept
   /// of one, and a self-conversation would just be a second copy of the
@@ -127,8 +129,7 @@ class MemberRow extends ConsumerWidget {
     final statusText = ref.watch(
       statusTextProvider((userId: profile.id, snapshot: profile.statusText)),
     );
-    // One slot only in a 236px pane; bot beats a role, whose names are a tap away.
-    final badge = _badgeLabel(displayed);
+    final tag = displayed.isBot ? 'Bot' : null;
     final showModuleBadges = ref.watch(moduleMemberBadgesShownProvider);
     // Off is the Space default, so an off row asks for nothing; the flag is watched and the row asks when it flips on.
     if (showModuleBadges) {
@@ -172,20 +173,29 @@ class MemberRow extends ConsumerWidget {
       onTap = selecting ? null : open;
     }
 
-    // The chip is capped to a share of the row so a long role name ellipsizes there and never takes the member's own name.
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final offline = status == AppPresence.offline;
+    final nameColor = memberNameColor(displayed, tokens.surfaceSunken);
+    Color dimmed(Color? colour) => offlineNameColor(
+      colour,
+      neutral: tokens.textSecondary,
+      surface: tokens.surfaceSunken,
+    );
     final row = LayoutBuilder(
       builder: (context, box) => AppListRow(
         // Taller than a channel row: a 28px avatar's corner status dot crops at the default height.
         height: 36,
         label: displayed.displayName,
+        labelColor: offline ? dimmed(nameColor) : nameColor,
         // What they are playing wins over a typed status; the card shows the activity.
         subtitle: personLine(activity, statusText),
         subtitleIcon: activity == null ? null : activityIcon(activity.kind),
-        muted: status == AppPresence.offline,
+        subtitleColor: offline ? dimmed(null) : null,
+        muted: offline,
         // On screen presence is only a dot and an opacity; this is how it is spoken.
         stateDescription: status.word,
         trailing: _trailing(
-          badge,
+          tag,
           moduleBadges,
           displayed.isBot,
           box.maxWidth,
@@ -223,15 +233,7 @@ class MemberRow extends ConsumerWidget {
     );
   }
 
-  String? _badgeLabel(api.UserProfile displayed) {
-    if (displayed.isBot) return 'Bot';
-    if (displayed.roles.isEmpty) return null;
-    final underOwnHeading =
-        sectionRoleId != null && displayed.roleIds.firstOrNull == sectionRoleId;
-    return underOwnHeading ? null : displayed.roles.first;
-  }
-
-  /// A narrow row that is in a call drops its role badge, which is one tap
+  /// A narrow row that is in a call drops its module badges, which are one tap
   /// away on the card; a Bot tag stays, since it is what marks a bot.
   Widget? _trailing(
     String? label,
@@ -275,11 +277,12 @@ class MemberRow extends ConsumerWidget {
     double room,
   ) {
     if (room <= 0 || (label == null && moduleBadges.isEmpty)) return null;
-    final variant = isBot ? AppBadgeVariant.tag : AppBadgeVariant.role;
     return MemberRowBadges(
       maxWidth: room,
-      roleLabel: label,
-      roleChip: label == null ? null : AppBadge(variant: variant, label: label),
+      tagLabel: label,
+      tag: label == null
+          ? null
+          : AppBadge(variant: AppBadgeVariant.tag, label: label),
       moduleBadges: moduleBadges,
     );
   }

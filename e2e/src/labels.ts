@@ -15,7 +15,7 @@ export const L = {
   "CHANGE_AVATAR": "Change profile picture",
   "CROP_TITLE": "Crop your picture",
   "USE_PICTURE": "Use picture",
-  "THEME_ROW": "Color theme",
+  "THEME_ROW": "Browse themes",
   "THEME_DARK": "Dark",
   "BACK_TO_APPEARANCE": "Back to Appearance",
   "BACK_TO_CHANNELS": "Back to channels",

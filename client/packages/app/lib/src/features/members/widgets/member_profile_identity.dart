@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The profile-first content around the header: an about line, role badges,
-/// and a join date. Split out of `member_profile_sections.dart` to keep that
-/// file under the review budget.
+/// The profile-first content around the header: an about line and a join
+/// date; the roles are `member_profile_roles.dart`'s. Split out of
+/// `member_profile_sections.dart` to keep that file under the review budget.
 ///
 /// Each piece is *absent* rather than present-and-empty, the same rule the
 /// rest of the card follows: an account with no about line shows no about
@@ -123,33 +123,5 @@ class MemberProfileJoined extends StatelessWidget {
       ),
       null => joined,
     };
-  }
-}
-
-/// The member's role badges, absent when they hold none.
-class MemberProfileRoles extends StatelessWidget {
-  const MemberProfileRoles({super.key, required this.roles});
-
-  final List<String> roles;
-
-  @override
-  Widget build(BuildContext context) {
-    if (roles.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s12,
-      ),
-      child: Wrap(
-        spacing: AppSpacing.s4,
-        runSpacing: AppSpacing.s4,
-        children: [
-          for (final role in roles)
-            AppBadge(variant: AppBadgeVariant.tag, label: role),
-        ],
-      ),
-    );
   }
 }

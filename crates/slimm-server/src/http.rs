@@ -42,6 +42,7 @@ pub mod uplink_test;
 use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;
 mod categories;
+mod category_order;
 mod category_overwrites;
 mod channels;
 use channels::{
@@ -63,6 +64,7 @@ mod escalation;
 mod extract;
 pub mod gifs;
 mod group_dms;
+mod screen_stamps;
 mod soundboard;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
@@ -115,6 +117,7 @@ pub use storage::BackupStatusDir;
 mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;
+mod overwrite_changes;
 mod overwrites;
 mod page_shell;
 pub mod panic_guard;
@@ -130,6 +133,7 @@ mod read_sync;
 mod reauth;
 mod recovery;
 mod reports;
+mod role_ladder;
 mod roles;
 use roles::role_reorder;
 mod data_exports;
@@ -146,6 +150,7 @@ mod space;
 mod space_banner;
 mod space_icon;
 mod space_link_previews;
+mod space_owner;
 mod space_setup;
 mod space_themes;
 mod still_picture;
@@ -309,6 +314,7 @@ pub fn router(state: AppState) -> Router {
         .merge(canvas_object_locks::routes())
         .merge(canvas_purge::routes())
         .merge(categories::routes())
+        .merge(category_order::routes())
         .merge(category_overwrites::routes())
         .merge(channel_notification_prefs::routes())
         .merge(channels::routes())
@@ -320,6 +326,7 @@ pub fn router(state: AppState) -> Router {
         .merge(module_slots::routes())
         .merge(emoji::routes())
         .merge(soundboard::routes())
+        .merge(screen_stamps::routes())
         .merge(invites::routes())
         .merge(invite_page::routes())
         .merge(space_link_previews::routes())

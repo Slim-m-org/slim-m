@@ -67,6 +67,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::MemberRemoved(_)
         | Event::MemberRestored(_)
         | Event::MemberJoined(_)
+        | Event::OwnerChanged(_)
         | Event::ProfileChanged(_)
         | Event::BotUiChanged(_)
         | Event::RoleChanged { .. }

@@ -1,13 +1,49 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Temporary voice rooms (decision 0065): a lobby makes one room per person,
-//! a copy of its overwrites included, and an emptied room is removed.
+//! which keeps a copy of its overwrites, and an emptied room is removed.
 
 use uuid::Uuid;
 
 use super::{Channel, Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 
+/// Replaces each live room's overwrites with `lobby`'s; every write to a lobby's
+/// rows calls it in the same transaction, so a room never lets in anyone its lobby does not.
+pub(super) async fn copy_lobby_overwrites_into_rooms(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    lobby: ChannelId,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "DELETE FROM channel_overwrites WHERE channel_id IN
+           (SELECT id FROM channels WHERE room_lobby_id = ? AND deleted_at IS NULL)",
+        lobby
+    )
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)
+         SELECT r.id, o.target_type, o.target_id, o.allow, o.deny
+         FROM channels r JOIN channel_overwrites o ON o.channel_id = r.room_lobby_id
+         WHERE r.room_lobby_id = ? AND r.deleted_at IS NULL",
+        lobby
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
 impl Store {
+    /// The live rooms `lobby` made, which a change to its overwrites changes too.
+    pub async fn live_rooms_of(&self, lobby: ChannelId) -> anyhow::Result<Vec<ChannelId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT id AS "id!: ChannelId" FROM channels
+               WHERE room_lobby_id = ? AND deleted_at IS NULL ORDER BY id"#,
+            lobby
+        )
+        .fetch_all(&self.pool)
+        .await?)
+    }
+
     /// `owner`'s live room from `lobby`, if they already have one.
     pub async fn voice_room_of(
         &self,
@@ -30,8 +66,7 @@ impl Store {
     }
 
     /// Creates `owner`'s room beside `lobby`: same category and position
-    /// (created later, so it sorts right after the lobby), and a copy of the
-    /// lobby's overwrites, so exactly the same people can see it.
+    /// (created later, so it sorts right after the lobby), and the lobby's overwrites.
     pub async fn create_voice_room(
         &self,
         lobby: &Channel,
@@ -55,15 +90,7 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
-        sqlx::query!(
-            "INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)
-             SELECT ?, target_type, target_id, allow, deny
-             FROM channel_overwrites WHERE channel_id = ?",
-            id,
-            lobby.id
-        )
-        .execute(&mut *tx)
-        .await?;
+        copy_lobby_overwrites_into_rooms(&mut tx, lobby.id).await?;
         sqlx::query!(
             "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)
              VALUES (?, 'message', 1), (?, 'canvas', 1)",

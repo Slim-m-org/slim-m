@@ -254,8 +254,9 @@ class EventConnection {
       );
 
   /// Relays a mark over [targetUserId]'s shared screen, or (kind `consent`,
-  /// sent by that sharer) whether viewers may draw. Coordinates are 0 to 1 on
-  /// the shared screen. Ephemeral and rate-limited like [canvasStrokePreview].
+  /// sent by that sharer) whether viewers may draw and, with [stamps], whether
+  /// this client can show stamps. Coordinates are 0 to 1 on the shared screen.
+  /// Ephemeral and rate-limited like [canvasStrokePreview].
   void canvasScreenAnnotation(
     String channelId,
     String targetUserId,
@@ -267,6 +268,7 @@ class EventConnection {
     bool ended = false,
     bool allowed = false,
     double? aspect,
+    bool stamps = false,
   }) =>
       _channel.sink.add(
         jsonEncode({
@@ -281,6 +283,7 @@ class EventConnection {
           'ended': ended,
           'allowed': allowed,
           if (aspect != null) 'aspect': aspect,
+          if (stamps) 'stamps': true,
         }),
       );
 

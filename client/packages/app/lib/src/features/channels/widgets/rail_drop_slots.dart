@@ -31,28 +31,47 @@ class RailBox {
 
 /// A gap a carried item can drop into, and the y the insertion line shows at.
 class DropSlot {
-  const DropSlot(this.section, this.index, this.y);
+  const DropSlot(
+    this.section,
+    this.index,
+    this.y, {
+    this.parentId,
+    this.inset = 0,
+    this.refused = false,
+  });
 
-  /// For a channel, its section; for a category, unused.
+  /// For a channel, its section; for a category, the section the gap sits by.
   final int section;
 
   /// For a channel, its place among that section's channels before the carried
-  /// one is taken out; for a category, its place among the named categories.
+  /// one is taken out; for a category, its place among its new siblings.
   final int index;
   final double y;
+
+  /// For a category, the top-level one it would land under; null for the top.
+  final String? parentId;
+
+  /// How far right of a top-level heading's edge the line starts.
+  final double inset;
+
+  /// Where a third level would be (decision 0120): shown, never sent.
+  final bool refused;
 
   @override
   bool operator ==(Object other) =>
       other is DropSlot &&
       other.section == section &&
       other.index == index &&
-      other.y == y;
+      other.y == y &&
+      other.parentId == parentId &&
+      other.inset == inset &&
+      other.refused == refused;
 
   @override
-  int get hashCode => Object.hash(section, index, y);
+  int get hashCode => Object.hash(section, index, y, parentId, inset, refused);
 }
 
-DropSlot? _nearest(Iterable<DropSlot> slots, double pointerY) {
+DropSlot? nearestSlot(Iterable<DropSlot> slots, double pointerY) {
   DropSlot? best;
   for (final slot in slots) {
     if (best == null ||
@@ -67,20 +86,23 @@ DropSlot? _nearest(Iterable<DropSlot> slots, double pointerY) {
 /// category has no visible gap to drop into). An empty section whose header is
 /// not drawn - the idle uncategorised one - is still a gap, at its header's
 /// own edge, so reaching it never shifts the rail under the pointer.
+/// [insetOf] gives a section's line inset, deeper for a sub-category.
 DropSlot? channelSlotAt(
   List<RailBox> boxes,
   Set<int> closedSections,
-  double pointerY,
-) {
+  double pointerY, {
+  double Function(int section)? insetOf,
+}) {
   final sections = {for (final b in boxes) b.section}.toList()..sort();
   final slots = <DropSlot>[
     for (final section in sections)
-      if (!closedSections.contains(section)) ..._sectionSlots(boxes, section),
+      if (!closedSections.contains(section))
+        ..._sectionSlots(boxes, section, insetOf?.call(section) ?? 0),
   ];
-  return _nearest(slots, pointerY);
+  return nearestSlot(slots, pointerY);
 }
 
-List<DropSlot> _sectionSlots(List<RailBox> boxes, int section) {
+List<DropSlot> _sectionSlots(List<RailBox> boxes, int section, double inset) {
   final header = boxes.where(
     (b) => b.section == section && b.kind == RailBoxKind.header,
   );
@@ -89,9 +111,9 @@ List<DropSlot> _sectionSlots(List<RailBox> boxes, int section) {
       .toList();
   if (header.isEmpty && rows.isEmpty) return const [];
   return [
-    DropSlot(section, 0, _firstGapY(header, rows)),
+    DropSlot(section, 0, _firstGapY(header, rows), inset: inset),
     for (var k = 1; k <= rows.length; k++)
-      DropSlot(section, k, rows[k - 1].bottom),
+      DropSlot(section, k, rows[k - 1].bottom, inset: inset),
   ];
 }
 
@@ -99,33 +121,6 @@ double _firstGapY(Iterable<RailBox> header, List<RailBox> rows) {
   if (header.isNotEmpty && header.first.visible) return header.first.bottom;
   if (rows.isEmpty) return header.first.top;
   return rows.first.top;
-}
-
-/// The gap between category blocks nearest [pointerY]; [named] are the
-/// section indices of the real categories, in order. A block runs from its
-/// header to its last visible row.
-DropSlot? categorySlotAt(
-  List<RailBox> boxes,
-  List<int> named,
-  double pointerY,
-) {
-  final slots = <DropSlot>[];
-  for (var j = 0; j < named.length; j++) {
-    final section = named[j];
-    final header = boxes.firstWhere(
-      (b) => b.section == section && b.kind == RailBoxKind.header,
-    );
-    slots.add(DropSlot(section, j, header.top));
-    if (j == named.length - 1) {
-      final rows = boxes.where(
-        (b) =>
-            b.section == section && b.kind == RailBoxKind.channel && b.visible,
-      );
-      final bottom = rows.isEmpty ? header.bottom : rows.last.bottom;
-      slots.add(DropSlot(section, named.length, bottom));
-    }
-  }
-  return _nearest(slots, pointerY);
 }
 
 /// The rail's arrangement after dropping [channelId] into [slot], or null
@@ -153,18 +148,4 @@ List<ChannelOrderGroup>? groupsAfterDrop(
     for (var i = 0; i < sections.length; i++)
       ChannelOrderGroup(categoryId: sections[i].$1?.id, channelIds: lists[i]),
   ];
-}
-
-/// The category order after dropping [movedId] into gap [slotIndex] of
-/// [ids], or null when it is already there.
-List<String>? categoryIdsAfterDrop(
-  List<String> ids,
-  String movedId,
-  int slotIndex,
-) {
-  final at = ids.indexOf(movedId);
-  if (at < 0 || slotIndex == at || slotIndex == at + 1) return null;
-  final next = [...ids]..removeAt(at);
-  next.insert(slotIndex > at ? slotIndex - 1 : slotIndex, movedId);
-  return next;
 }

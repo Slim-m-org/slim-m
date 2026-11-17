@@ -80,7 +80,8 @@ impl Store {
     /// category the thing that orders sections. An uncategorised channel
     /// (`category_id IS NULL`) sorts before every named category regardless
     /// of that category's own position, rendering as the implicit section
-    /// the decision record describes.
+    /// the decision record describes. Within a top-level category its own
+    /// channels come first, then each sub-category's (decision 0120).
     pub async fn list_channels(&self) -> anyhow::Result<Vec<super::Channel>> {
         let rows = sqlx::query_as!(
             ChannelRow,
@@ -99,8 +100,12 @@ impl Store {
                       c.room_locked AS "room_locked!: bool"
                FROM channels c
                LEFT JOIN channel_categories cc ON cc.id = c.category_id
+               LEFT JOIN channel_categories cp ON cp.id = cc.parent_id
                WHERE c.deleted_at IS NULL AND c.kind != 'dm' AND c.parent_message_id IS NULL
-               ORDER BY CASE WHEN c.category_id IS NULL THEN -1 ELSE cc.position END,
+               ORDER BY c.category_id IS NOT NULL,
+                        COALESCE(cp.position, cc.position), COALESCE(cp.created_at, cc.created_at),
+                        COALESCE(cp.id, cc.id), cc.parent_id IS NOT NULL,
+                        cc.position, cc.created_at, cc.id,
                         c.position, c.created_at"#
         )
         .fetch_all(&self.pool)
@@ -160,7 +165,8 @@ pub(super) async fn claim_in(
     .await?;
 
     sqlx::query!(
-        "UPDATE space_settings SET setup_claimed_by = ? WHERE id = 1",
+        "UPDATE space_settings SET setup_claimed_by = ?, owner_id = ? WHERE id = 1",
+        user_id,
         user_id
     )
     .execute(&mut **tx)

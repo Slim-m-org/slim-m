@@ -183,7 +183,7 @@ class _ClipSheetState extends ConsumerState<_ClipSheet>
       enabled: _creating && !_busy,
       label: 'Drop to use another file',
       icon: AppIcons.music,
-      onDrop: (files) => unawaited(_dropped(files)),
+      onDrop: (files, _) => unawaited(_dropped(files)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.s16,

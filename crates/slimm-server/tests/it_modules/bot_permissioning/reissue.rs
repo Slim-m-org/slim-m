@@ -9,7 +9,7 @@ use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
 use crate::bot_permissioning::harness::{
-    admin, app, create_bot, harness, json_body, member, request,
+    admin, app, create_bot, harness, json_body, member, request, someone_else_owns,
 };
 
 async fn status_of(app: &axum::Router, token: &str, uri: &str) -> StatusCode {
@@ -147,6 +147,7 @@ async fn a_weaker_caller_cannot_reissue_or_revoke_a_stronger_bot() {
         .await
         .unwrap();
     let (admin_id, root) = admin(&store, "root").await;
+    someone_else_owns(&store, &pool, admin_id).await;
     assert!(
         !store
             .base_permissions(admin_id)

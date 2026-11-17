@@ -29,15 +29,19 @@ pub enum Capability {
     /// Whether large files can be sent as resumable parts; a client falls
     /// back to one request when this is absent.
     UploadSessions,
+    /// Whether viewers can stamp an emoji or picture on a shared screen, and the
+    /// board takes the `emoji` object kind (decision 0121).
+    ScreenStamps,
 }
 
 impl Capability {
     /// Every capability `/version` speaks about, in the order it reports them.
-    pub const ALL: [Capability; 4] = [
+    pub const ALL: [Capability; 5] = [
         Capability::Block,
         Capability::Report,
         Capability::Webhook,
         Capability::UploadSessions,
+        Capability::ScreenStamps,
     ];
 
     /// The name this goes over the wire under.
@@ -47,6 +51,7 @@ impl Capability {
             Capability::Report => "report",
             Capability::Webhook => "webhooks",
             Capability::UploadSessions => "upload_sessions",
+            Capability::ScreenStamps => "screen_stamps",
         }
     }
 
@@ -66,6 +71,10 @@ impl Capability {
                 "/webhooks/00000000-0000-0000-0000-000000000000/probe",
             ),
             Capability::UploadSessions => (Method::POST, "/attachments/uploads"),
+            Capability::ScreenStamps => (
+                Method::POST,
+                "/channels/00000000-0000-0000-0000-000000000000/voice/screen-stamps",
+            ),
         }
     }
 }
