@@ -19,8 +19,6 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/async_wait.dart';
 
-import '../../support/async_wait.dart';
-
 const _tokens = api.TokenPair(
   userId: 'me',
   accessToken: 'access',
