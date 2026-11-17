@@ -23,6 +23,7 @@ class MemberHandleLine extends ConsumerStatefulWidget {
     required this.extras,
     required this.style,
     this.nameStyle,
+    this.name,
   });
 
   final String username;
@@ -30,6 +31,9 @@ class MemberHandleLine extends ConsumerStatefulWidget {
   /// Draws the bare username in this style, as the card's name, for someone
   /// whose display name is only their username; null draws the `@handle`.
   final TextStyle? nameStyle;
+
+  /// What [nameStyle] draws, when the display name differs from the username only by case.
+  final String? name;
 
   /// Pronouns and the like, drawn after the copy button.
   final List<String> extras;
@@ -72,7 +76,7 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
             child: Text(
               widget.nameStyle == null
                   ? '@${widget.username}'
-                  : widget.username,
+                  : widget.name ?? widget.username,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style:
