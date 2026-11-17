@@ -11,6 +11,7 @@ import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_jump.dart';
 
 import '../../channel_history_harness.dart';
+import '../../support/toast_host.dart';
 
 List<int> _range(int from, int to) => [
   for (var seq = from; seq <= to; seq++) seq,
@@ -18,6 +19,7 @@ List<int> _range(int from, int to) => [
 
 /// Unmounting deliberately; see `channel_history_test.dart` for why.
 Future<void> _unmount(WidgetTester tester) async {
+  await expireToasts(tester);
   await tester.pumpWidget(const SizedBox.shrink());
   for (var i = 0; i < 5; i++) {
     await tester.pump(const Duration(milliseconds: 1));
@@ -105,13 +107,13 @@ void main() {
       await harness.container
           .read(messageJumpProvider.notifier)
           .jumpTo('c1', 'does-not-exist');
-      // Short of the SnackBar's own default auto-dismiss so it is still up.
+      // Short of the toast's own auto-dismiss so it is still up.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(
-        find.textContaining('Could not find that message'),
-        findsOneWidget,
+        toastMessages(tester),
+        [contains('Could not find that message')],
         reason:
             'a message that cannot be reached must say so plainly, never '
             'scroll to nothing and stay silent about it',

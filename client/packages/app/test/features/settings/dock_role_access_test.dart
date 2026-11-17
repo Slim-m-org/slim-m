@@ -25,6 +25,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -196,6 +197,7 @@ void main() {
       contains('/roles/r-mods/module-permissions/game-of-life/play'),
       reason: 'the toggle must grant this module every key it declares',
     );
+    await expireToasts(tester);
   });
 
   testWidgets('granting a role turns the module on, because an install lands '
@@ -299,5 +301,6 @@ void main() {
           'saying who may use it is the decision the install deliberately '
           'left open, so it is the moment to act on it',
     );
+    await expireToasts(tester);
   });
 }

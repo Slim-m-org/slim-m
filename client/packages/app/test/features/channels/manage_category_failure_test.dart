@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The header menu's delete and move-up/down run after their menu has closed.
-/// A refused delete lands in a SnackBar; a refused move stays in the category
+/// A refused delete lands in a toast; a refused move stays in the category
 /// order controller, which the rail shows inline with a retry. The happy paths
 /// are covered by `manage_category_sheet_test.dart`; this pins the failures.
 library;
@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_order_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/channels/widgets/manage_category_sheet.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -94,12 +95,11 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsOneWidget);
-    expect(
-      find.textContaining('Could not delete the category'),
-      findsOneWidget,
-    );
+    expect(r.container.read(toastsProvider).map((t) => t.message), [
+      contains('Could not delete the category'),
+    ]);
     expect(await r.store.allCategories(), hasLength(2));
+    await tester.pump(ToastsController.defaultDuration);
   });
 
   testWidgets('a refused move answered after the header is gone still '

@@ -22,6 +22,7 @@ import 'package:slimm_app/src/features/messages/widgets/ephemeral_report.dart';
 import 'package:slimm_app/src/features/messages/widgets/ephemeral_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'alice',
@@ -167,6 +168,7 @@ void main() {
     expect(body['channel_id'], 'c1');
     expect(body['author_id'], 'bot-1');
     expect(body['reason'], 'it asked for a password');
+    await expireToasts(tester);
     final snapshot = body['snapshot'] as String;
     expect(snapshot, contains('you have 500 chips'));
     expect(snapshot, contains('Balance'));

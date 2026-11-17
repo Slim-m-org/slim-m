@@ -24,6 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -152,7 +153,8 @@ void main() {
 
         final thrown = tester.takeException();
         expect(thrown, isNull, reason: 'uncaught async error: $thrown');
-        expect(find.textContaining('Could not'), findsOneWidget);
+        expect(toastMessages(tester), [contains('Could not')]);
+        await expireToasts(tester);
       });
     }
   }

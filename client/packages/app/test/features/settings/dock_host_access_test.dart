@@ -21,6 +21,7 @@ import 'package:slimm_platform/testing.dart';
 
 import '../../support/dock_page_helpers.dart';
 import '../../ui_snapshot_support.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -209,6 +210,7 @@ void main() {
     await tester.tap(find.text('Install'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['message.post']);
+    await expireToasts(tester);
   });
 
   testWidgets('an installed module shows what was approved and saves changes', (
@@ -229,6 +231,7 @@ void main() {
       'kv.store',
       'message.post',
     ]);
+    await expireToasts(tester);
   });
 
   testWidgets('a new build must be approved for posting again', (tester) async {
@@ -246,6 +249,7 @@ void main() {
     await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
     expect(installs.single['approved_host_capabilities'], ['kv.store']);
+    await expireToasts(tester);
   });
 
   group('a hook on the same version', () {

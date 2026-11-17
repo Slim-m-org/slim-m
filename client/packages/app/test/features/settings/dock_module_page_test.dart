@@ -19,6 +19,7 @@ import 'package:slimm_platform/testing.dart';
 
 import '../../dock_manifest_fixture.dart';
 import '../../support/fake_api.dart';
+import '../../support/toast_host.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',
@@ -244,6 +245,7 @@ void main() {
       'kv.store',
       'message.post',
     ]);
+    await expireToasts(tester);
   });
 
   testWidgets('the health banner leads the page', (tester) async {
