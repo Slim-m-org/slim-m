@@ -43,6 +43,22 @@ const _roles = [
     'created_at': 0,
   },
   {
+    'id': 'r-bots',
+    'name': 'Bots',
+    'permissions': Perm.manageMessages,
+    'is_everyone': false,
+    'is_bots_role': true,
+    'created_at': 0,
+  },
+  {
+    'id': 'r-ci',
+    'name': 'ci-bot',
+    'permissions': Perm.manageMessages,
+    'is_everyone': false,
+    'managed_bot_id': 'bot-1',
+    'created_at': 0,
+  },
+  {
     'id': 'r-admin',
     'name': 'superuser',
     'permissions': Perm.administrator,
@@ -151,6 +167,17 @@ void main() {
       find.descendant(of: find.byType(AppMenu), matching: find.text('None')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('roles that exist for bots are never offered', (tester) async {
+    await _pump(tester, Perm.manageRoles | Perm.manageMessages);
+
+    await tester.tap(find.text('Role granted'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('moderator'), findsOneWidget);
+    expect(find.text('Bots'), findsNothing);
+    expect(find.text('ci-bot'), findsNothing);
   });
 
   testWidgets('an administrator can grant every role', (tester) async {

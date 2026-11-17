@@ -17,6 +17,7 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/invites_screen.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_entity_row.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
@@ -66,7 +67,47 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+String _past(String code, {required bool revoked}) => jsonEncode({
+  'code': code,
+  'max_uses': 1,
+  'uses': revoked ? 0 : 1,
+  'expires_at': null,
+  'created_at': 0,
+  'revoked': revoked,
+  'usable': false,
+  'role_grant': null,
+});
+
 void main() {
+  testWidgets('used and revoked invites are set apart from the active ones', (
+    tester,
+  ) async {
+    await _pump(tester, (request) async {
+      final list = [
+        _inv('code-live'),
+        _past('code-used', revoked: false),
+        _past('code-gone', revoked: true),
+      ];
+      return http.Response('[${list.join(',')}]', 200, headers: _json);
+    });
+
+    Finder within(String title, String code) => find.descendant(
+      of: find.byWidgetPredicate(
+        (w) => w is SettingsSectionCard && w.title == title,
+      ),
+      matching: find.text(code),
+    );
+    expect(within('Active invites', 'code-live'), findsOneWidget);
+    expect(within('Active invites', 'code-used'), findsNothing);
+    expect(within('Past invites', 'code-used'), findsOneWidget);
+    expect(within('Past invites', 'code-gone'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Revoke invite'),
+      findsOneWidget,
+      reason: 'only the invite still in force can be revoked',
+    );
+  });
+
   testWidgets(
     'a revoke error stays on its own invite when a new one is added',
     (tester) async {
