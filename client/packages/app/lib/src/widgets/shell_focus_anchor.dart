@@ -4,7 +4,8 @@
 /// Shortcuts only see keys from a focused descendant. Focus that falls back to
 /// a scope above the shell (first-run setup closing, a dialog whose opener is
 /// gone, a click on empty space) left Ctrl+K dead until a pointer click landed
-/// somewhere focusable; this takes it back whenever that happens.
+/// somewhere focusable; this takes it back whenever that happens, except while
+/// the app is inactive (Flutter restores focus itself) or a modal covers it.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -20,6 +21,7 @@ class ShellFocusAnchor extends StatefulWidget {
 
 class _ShellFocusAnchorState extends State<ShellFocusAnchor> {
   final _node = FocusNode(debugLabel: 'shell', skipTraversal: true);
+  ModalRoute<Object?>? _route;
 
   @override
   void initState() {
@@ -34,12 +36,26 @@ class _ShellFocusAnchorState extends State<ShellFocusAnchor> {
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+  }
+
+  bool get _appActive {
+    final state = WidgetsBinding.instance.lifecycleState;
+    return state == null || state == AppLifecycleState.resumed;
+  }
+
+  bool get _uncovered => _route?.isCurrent ?? true;
+
   void _reclaim() {
     final primary = FocusManager.instance.primaryFocus;
     final fellAbove =
         primary == null ||
         (primary is FocusScopeNode && _node.ancestors.contains(primary));
-    if (fellAbove && _node.context != null) _node.requestFocus();
+    if (!fellAbove || _node.context == null) return;
+    if (_appActive && _uncovered) _node.requestFocus();
   }
 
   @override
