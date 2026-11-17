@@ -48,7 +48,11 @@ impl Store {
         record_redemption(&mut tx, code, user_id, now).await?;
 
         if let Some(role_id) = role_grant {
-            apply_role_grant(&mut tx, code, user_id, role_id).await?;
+            if redeemer_may_take(&mut tx, user_id, role_id).await? {
+                apply_role_grant(&mut tx, code, user_id, role_id).await?;
+            } else {
+                tracing::info!(%role_id, "a manager redeemed an invite for a role they could not grant; joined without it");
+            }
         }
 
         tx.commit().await?;
@@ -192,35 +196,85 @@ async fn creator_still_grants(
     let Some(grant) = grant.filter(|g| !g.bot_held) else {
         return Ok(false);
     };
-    let is_owner = live_owner(tx).await? == Some(grant.creator);
-    let held = sqlx::query!(
-        r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64",
+    let creator = Standing::of(tx, grant.creator).await?;
+    Ok(creator.grants(grant.position, grant.permissions))
+}
+
+/// Refuses a manager climbing the ladder through an invite: someone who manages roles gets the
+/// invite's role only if they could have granted it to themselves by hand.
+async fn redeemer_may_take(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    redeemer: UserId,
+    role_id: RoleId,
+) -> Result<bool, sqlx::Error> {
+    let role = sqlx::query!(
+        r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64"
+           FROM roles WHERE id = ?"#,
+        role_id
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    let Some(role) = role else {
+        return Ok(false);
+    };
+    let standing = Standing::of(tx, redeemer).await?;
+    Ok(!standing.granted.contains(Permissions::MANAGE_ROLES)
+        || standing.grants(role.position, role.permissions))
+}
+
+/// Where one account stands for granting a role by hand, read inside the redemption.
+struct Standing {
+    is_owner: bool,
+    granted: Permissions,
+    top: Option<i64>,
+}
+
+impl Standing {
+    async fn of(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        user_id: UserId,
+    ) -> Result<Self, sqlx::Error> {
+        let is_owner = live_owner(tx).await? == Some(user_id);
+        let held = sqlx::query!(
+            r#"SELECT permissions AS "permissions!: Permissions", position AS "position!: i64",
                   is_everyone AS "is_everyone!: bool"
            FROM roles
            WHERE is_everyone = 1
               OR id IN (SELECT role_id FROM member_roles WHERE user_id = ?)"#,
-        grant.creator
-    )
-    .fetch_all(&mut **tx)
-    .await?;
-    let everyone = held
-        .iter()
-        .filter(|r| r.is_everyone)
-        .fold(Permissions::NONE, |bits, r| bits.union(r.permissions));
-    let roles: Vec<Permissions> = held
-        .iter()
-        .filter(|r| !r.is_everyone)
-        .map(|r| r.permissions)
-        .collect();
-    let granted = match is_owner {
-        true => Permissions::ALL,
-        false => evaluate(everyone, &roles, None, &[], None),
-    };
-    let top = held
-        .iter()
-        .filter(|r| !r.is_everyone)
-        .map(|r| r.position)
-        .max();
-    let ranks = is_owner || top.is_some_and(|top| grant.position < top);
-    Ok(ranks && granted.contains(Permissions::MANAGE_ROLES) && granted.contains(grant.permissions))
+            user_id
+        )
+        .fetch_all(&mut **tx)
+        .await?;
+        let everyone = held
+            .iter()
+            .filter(|r| r.is_everyone)
+            .fold(Permissions::NONE, |bits, r| bits.union(r.permissions));
+        let roles: Vec<Permissions> = held
+            .iter()
+            .filter(|r| !r.is_everyone)
+            .map(|r| r.permissions)
+            .collect();
+        let granted = match is_owner {
+            true => Permissions::ALL,
+            false => evaluate(everyone, &roles, None, &[], None),
+        };
+        let top = held
+            .iter()
+            .filter(|r| !r.is_everyone)
+            .map(|r| r.position)
+            .max();
+        Ok(Self {
+            is_owner,
+            granted,
+            top,
+        })
+    }
+
+    /// Whether this account could grant a role at `position` carrying `permissions` by hand.
+    fn grants(&self, position: i64, permissions: Permissions) -> bool {
+        let ranks = self.is_owner || self.top.is_some_and(|top| position < top);
+        ranks
+            && self.granted.contains(Permissions::MANAGE_ROLES)
+            && self.granted.contains(permissions)
+    }
 }

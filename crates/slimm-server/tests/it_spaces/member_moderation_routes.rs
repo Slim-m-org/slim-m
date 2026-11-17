@@ -357,19 +357,13 @@ async fn refused_as_equal_rank(
     );
 }
 
-/// Two moderators holding the same bits are peers, and neither may act on the other.
+/// Two moderators whose highest role is the same one are peers, and neither may act on the other.
 #[tokio::test]
 async fn a_moderator_cannot_act_on_an_equal_rank_peer() {
     let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
     let (admin_token, _admin_id, mod_token, mod_id, member_id) = people(&store).await;
-    let peer_role = store
-        .create_role(
-            "mod-two",
-            Permissions::KICK_MEMBERS.union(Permissions::BAN_MEMBERS),
-            false,
-        )
-        .await
-        .unwrap();
+    let roles = store.list_roles().await.unwrap();
+    let peer_role = roles.iter().find(|r| r.name == "mod").unwrap().id;
     let peer = store
         .create_account("peer", "Peer", "not-a-real-hash")
         .await

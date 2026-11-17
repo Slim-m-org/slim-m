@@ -2007,6 +2007,9 @@ paths:
         clamped to 1-100. `before` is the code of the last invite of the
         previous page; a page shorter than `limit` is the last one. Invites
         revoked, expired or spent for more than 30 days are deleted.
+        A caller with CREATE_INVITE and MANAGE_ROLES sees everyone's invites,
+        except, below the Space owner, another person's invite granting a
+        role they could not grant by hand; anyone else sees only their own.
       parameters:
         - name: limit
           in: query
@@ -2426,6 +2429,10 @@ paths:
       operationId: redeemInvite
       tags: [invites]
       summary: Redeem an invite for the calling account.
+      description: >
+        A caller who manages roles receives the invite's role only if they
+        could have granted it to themselves by hand; otherwise the invite is
+        still spent and they get no role.
       responses:
         "204":
           description: The invite was redeemed.
@@ -3344,9 +3351,10 @@ paths:
         Idempotent by the optional client-supplied `id`: a retry with the
         same id returns the role already stored under it. An id already used
         by the `@everyone` role is a conflict rather than a wrong-typed 200.
-        A new role starts at position 0, so the role ladder refuses a caller
-        whose own highest role is not above that, unless they are the Space
-        owner (403, `code` `role_hierarchy`).
+        A new role enters at the bottom, position 1 just above `@everyone`,
+        and every other role moves up one, so no two roles share a position.
+        The role ladder refuses a caller who holds no role of their own,
+        unless they are the Space owner (403, `code` `role_hierarchy`).
       requestBody:
         required: true
         content:
@@ -3379,16 +3387,16 @@ paths:
       description: >
         `role_ids` must name exactly the live non-`@everyone` roles, top to
         bottom - no id missing, repeated, unknown, or naming `@everyone`
-        itself, which never reorders. The first id gets the highest
-        position and the last gets 1, so a reordered role always outranks
-        `@everyone`'s bootstrap default of 0.
+        itself, which never reorders. The last id gets position 1, so a
+        reordered role always outranks `@everyone` at 0.
 
 
-        A second guard beyond MANAGE_ROLES: a caller may only touch a role
-        whose old or new position sits strictly below the highest position
-        among roles they themselves hold - the role ladder every other role
-        route applies too. Only the Space owner bypasses it; a refusal is a
-        403 with `code` `role_hierarchy`.
+        A second guard beyond MANAGE_ROLES, the role ladder every other role
+        route applies too: the roles at or above the caller's own highest
+        role must lead the list in their current order, and they keep that
+        order and any ties; only the roles below are renumbered, from 1 up. Only the
+        Space owner bypasses it and renumbers every role; a refusal is a 403
+        with `code` `role_hierarchy`.
       requestBody:
         required: true
         content:
@@ -12535,8 +12543,11 @@ paths:
         report it. Idempotent by `id`: a reused id answers 204 and relays
         nothing, whatever it carries. If the target has blocked the caller,
         the answer is still 204 and nothing is stored or relayed, and the
-        caller never hears its own stamp relayed back, so a block cannot be
-        told from a delivery. Three stamps at once per caller,
+        caller never hears its own stamp relayed back, so neither this
+        answer nor the relay tells a block from a delivery. A sharer whose
+        overlay lands in the stream (Linux) still shows it in the video,
+        where a delivered stamp appears and a blocked one never does.
+        Three stamps at once per caller,
         then one every 2 seconds; a faster caller gets 429 with
         `retry_after_seconds`.
       requestBody:
@@ -21573,7 +21584,9 @@ components:
       description: >
         A voice message's transcript started, finished or failed, for everyone
         who can view the channel. Never persisted; reading the message is the
-        catch-up.
+        catch-up. `none` takes back a `pending` the listener never took up,
+        so the message is no longer shown transcribing; it has no transcript
+        until it is tried again.
       properties:
         type:
           type: string
@@ -21588,7 +21601,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, ready, failed]
+          enum: [pending, ready, failed, none]
         text:
           type: string
 

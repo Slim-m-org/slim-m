@@ -240,8 +240,13 @@ impl VoiceTranscriber {
                     "the speech listener is not taking voice messages; their transcripts wait for it"
                 );
             }
-            if marked && let Err(err) = store.abandon_voice_transcript(&candidate.sha256).await {
-                tracing::warn!(error = %err, attachment = %candidate.hex, "could not unmark a voice message the listener did not take");
+            // Also clears a mark left by a crash or an unstored result, which nothing would finish.
+            match store.abandon_voice_transcript(&candidate.sha256).await {
+                Ok(true) => announce(store, hub, candidate, "none", "").await,
+                Ok(false) => {}
+                Err(err) => {
+                    tracing::warn!(error = %err, attachment = %candidate.hex, "could not unmark a voice message the listener did not take");
+                }
             }
             self.listener.failed(LISTENER);
             return Step::NoListener;

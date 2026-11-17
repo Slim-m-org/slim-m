@@ -51,6 +51,11 @@ impl Ladder {
         self.owner == Some(self.caller)
     }
 
+    /// The caller's highest role's position, `None` when they hold no role.
+    pub(in crate::http) fn top(&self) -> Option<i64> {
+        self.top
+    }
+
     /// Refuses unless a role at `position` sits strictly below the caller's highest role.
     pub(in crate::http) fn reach_role(&self, position: i64) -> Result<(), ApiError> {
         if self.exempt() || self.top.is_some_and(|top| position < top) {
@@ -58,6 +63,20 @@ impl Ladder {
         } else {
             Err(refusal(ROLE_NOT_BELOW_YOU))
         }
+    }
+
+    /// [`Self::reach_role`] for an existing role; `@everyone` sits below every real role, so always.
+    pub(in crate::http) fn reach(&self, role: &Role) -> Result<(), ApiError> {
+        if role.is_everyone {
+            Ok(())
+        } else {
+            self.reach_role(role.position)
+        }
+    }
+
+    /// The refusal [`Self::reach_role`] gives, for a check made elsewhere.
+    pub(in crate::http) fn role_out_of_reach(&self) -> ApiError {
+        refusal(ROLE_NOT_BELOW_YOU)
     }
 
     /// Refuses unless `target` is not the owner and ranks strictly below the caller.

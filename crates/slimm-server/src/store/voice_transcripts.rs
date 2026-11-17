@@ -162,15 +162,17 @@ impl Store {
         Ok(started == 1)
     }
 
-    /// Takes back a `pending` mark the listener never acted on, so the message is not shown transcribing.
-    pub async fn abandon_voice_transcript(&self, sha256: &[u8]) -> anyhow::Result<()> {
-        sqlx::query!(
+    /// Takes back a `pending` mark the listener never acted on, so the message is not shown
+    /// transcribing; answers whether there was one.
+    pub async fn abandon_voice_transcript(&self, sha256: &[u8]) -> anyhow::Result<bool> {
+        let removed = sqlx::query!(
             "DELETE FROM attachment_transcripts WHERE sha256 = ? AND status = 'pending'",
             sha256
         )
         .execute(&self.pool)
-        .await?;
-        Ok(())
+        .await?
+        .rows_affected();
+        Ok(removed > 0)
     }
 
     /// Settles a transcript and indexes its words for search, in one write.

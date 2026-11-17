@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The data backfills inside migrations 0125 (a bot's assigned prefix), 0144
-//! (a canvas clear's affected count), 0194 (voice data per message) and 0197
-//! (the Space owner), run against rows that existed before them.
+//! (a canvas clear's affected count), 0194 (voice data per message), 0197
+//! (the Space owner) and 0198 (distinct role positions), run against rows that existed before them.
 
 use std::path::Path;
 use std::time::Duration;
@@ -332,5 +332,51 @@ async fn without_a_live_claimer_the_space_owner_is_the_first_administrator_and_n
         timed_out,
         vec![vec![6u8; 16]],
         "only the owner's timeout ends"
+    );
+}
+
+#[tokio::test]
+async fn roles_tied_at_the_default_take_distinct_positions_in_the_order_they_were_shown() {
+    // The Bots role is older than the tied human roles and still ranks below them.
+    let (pool, full, _guard) = pool_before(198).await;
+    seed(
+        &pool,
+        &format!(
+            "DELETE FROM roles;
+             INSERT INTO roles (id, name, permissions, position, is_everyone, created_at, is_bots_role)
+             VALUES ({everyone}, '@everyone', 0, 0, 1, 0, 0),
+                    ({admin}, 'admin', 1, 100, 0, 1, 0),
+                    ({early}, 'early', 0, 0, 0, 2, 0),
+                    ({late}, 'late', 0, 0, 0, 3, 0),
+                    ({bots}, 'Bots', 0, 0, 0, 1, 1),
+                    ({placed}, 'placed', 0, 5, 0, 5, 0)",
+            everyone = id(1),
+            admin = id(2),
+            early = id(3),
+            late = id(4),
+            bots = id(5),
+            placed = id(6),
+        ),
+    )
+    .await;
+
+    full.run(&pool).await.unwrap();
+
+    let positions: Vec<(String, i64)> =
+        sqlx::query_as("SELECT name, position FROM roles ORDER BY position DESC")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    let expected = [
+        ("admin", 5),
+        ("placed", 4),
+        ("early", 3),
+        ("late", 2),
+        ("Bots", 1),
+        ("@everyone", 0),
+    ];
+    assert_eq!(
+        positions,
+        expected.map(|(name, at)| (name.to_owned(), at)).to_vec()
     );
 }

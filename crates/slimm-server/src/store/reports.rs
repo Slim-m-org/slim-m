@@ -301,14 +301,7 @@ impl Store {
             builder.push_bind(id);
             builder.push("))");
         }
-        if !hidden_channels.is_empty() {
-            builder.push(" AND (r.channel_id IS NULL OR r.channel_id NOT IN (");
-            let mut separated = builder.separated(", ");
-            for channel_id in hidden_channels {
-                separated.push_bind(*channel_id);
-            }
-            builder.push("))");
-        }
+        super::stamp_reports::push_hidden_channel_filter(&mut builder, hidden_channels);
         builder.push(" ORDER BY r.created_at, r.id LIMIT ");
         builder.push_bind(limit);
 

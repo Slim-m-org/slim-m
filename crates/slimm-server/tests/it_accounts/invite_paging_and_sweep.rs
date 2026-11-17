@@ -108,7 +108,10 @@ async fn the_sweep_drops_long_dead_invites_and_keeps_the_rest() {
         .await
         .unwrap();
     let revoked = store.create_invite(admin, None, None, None).await.unwrap();
-    store.revoke_invite(&revoked.code, None).await.unwrap();
+    store
+        .revoke_invite(&revoked.code, slimm_server::store::InviteScope::all())
+        .await
+        .unwrap();
 
     // A far-future clock makes "revoked a while ago" true without editing rows.
     assert_eq!(store.sweep_dead_invites_at(now).await.unwrap(), 1);
@@ -121,7 +124,7 @@ async fn the_sweep_drops_long_dead_invites_and_keeps_the_rest() {
     );
 
     let left: Vec<String> = store
-        .list_invites(None, None, 100)
+        .list_invites(slimm_server::store::InviteScope::all(), None, 100)
         .await
         .unwrap()
         .into_iter()

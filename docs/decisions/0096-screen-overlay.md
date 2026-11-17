@@ -118,6 +118,7 @@ Nothing is persisted and there is no migration.
 - Only the sharer's own screen, only while they share it, only a mark a call member drew.
   A mark from someone the sharer has blocked is dropped before it is painted, on the sharer's overlay and on a viewer's tile alike.
   So is a mark sent in another call, or drawn by or over someone not in this one, on every surface (2026-11-16).
+  Where the overlay lands in the stream (Linux), someone the sharer blocked can see from the video that their mark never appears, so a block is detectable there.
 - Off by default, per user, and the setting survives a restart but the overlay never starts without a live share.
 - There is no banner while the overlay is up (owner decision, 2026-11-02).
   A short info toast says viewers can draw when it opens, and the share menu keeps the toggle.

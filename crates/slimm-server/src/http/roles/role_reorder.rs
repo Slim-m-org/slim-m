@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Setting the deployment's role order: `PATCH /roles/reorder`. Each role that moves must sit
-//! below the caller's highest role both before and after; see [`super::super::role_ladder`].
-
-use std::collections::HashMap;
+//! Setting the deployment's role order: `PATCH /roles/reorder`. The roles at or above the caller's
+//! highest stay where they are and every role moved stays below them; see [`super::super::role_ladder`].
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
@@ -40,13 +38,6 @@ struct ReorderRolesRequest {
     role_ids: Vec<String>,
 }
 
-/// The position [`crate::store::Store::reorder_roles`] would assign the role
-/// at `index` of a request naming `total` roles - computed identically here
-/// so the escalation guard below can be checked before that write runs.
-fn position_for(total: usize, index: usize) -> i64 {
-    total as i64 - index as i64
-}
-
 /// Sets the deployment's role order. Requires MANAGE_ROLES. Publishes
 /// `RoleChanged` for every role the store reports actually moved, so a
 /// no-op resubmission (the list unchanged) publishes nothing.
@@ -66,29 +57,8 @@ async fn reorder(
         .collect::<Result<Vec<_>, _>>()?;
 
     let ladder = Ladder::of(&state, ctx.user_id).await?;
-    if !ladder.exempt() {
-        let current: HashMap<RoleId, i64> = state
-            .store
-            .list_roles()
-            .await?
-            .into_iter()
-            .filter(|r| !r.is_everyone)
-            .map(|r| (r.id, r.position))
-            .collect();
-        let total = ordered.len();
-        for (index, id) in ordered.iter().enumerate() {
-            let new_position = position_for(total, index);
-            let old_position = current.get(id).copied().unwrap_or(new_position);
-            // The full live set is always required below, so a non-moving role must not trip this.
-            if old_position == new_position {
-                continue;
-            }
-            ladder.reach_role(old_position)?;
-            ladder.reach_role(new_position)?;
-        }
-    }
-
-    match state.store.reorder_roles(&ordered).await {
+    let caller = (!ladder.exempt()).then_some(ctx.user_id);
+    match state.store.reorder_roles_below(&ordered, caller).await {
         Ok(outcome) => {
             for role_id in &outcome.moved {
                 state.hub.publish(Event::RoleChanged {
@@ -102,6 +72,7 @@ async fn reorder(
         Err(ReorderRolesError::Mismatch { missing, extra }) => Err(ApiError::BadRequestDetail(
             mismatch_message(&missing, &extra),
         )),
+        Err(ReorderRolesError::AboveCaller) => Err(ladder.role_out_of_reach()),
         Err(ReorderRolesError::Internal(e)) => Err(e.into()),
     }
 }
@@ -128,19 +99,4 @@ fn join_ids(ids: &[RoleId]) -> String {
         .map(RoleId::to_string)
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::position_for;
-
-    /// The first id (top of the pane's list) gets the highest position, and
-    /// the last gets 1 - never 0, so every reordered role always outranks
-    /// `@everyone`'s bootstrap default.
-    #[test]
-    fn position_for_ranks_the_first_id_highest_and_never_reaches_zero() {
-        assert_eq!(position_for(3, 0), 3);
-        assert_eq!(position_for(3, 1), 2);
-        assert_eq!(position_for(3, 2), 1);
-    }
 }

@@ -22,6 +22,41 @@ use rand_core::{OsRng, RngCore};
 
 use super::{Store, now_ms};
 use crate::ids::{RoleId, UserId};
+use crate::permissions::Permissions;
+
+/// Whose invites a caller sees and revokes.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct InviteScope {
+    /// Only this account's own; `None` for everyone's.
+    pub creator: Option<UserId>,
+    /// Besides their own, only invites granting a role this manager could grant by hand.
+    pub grants: Option<GrantReach>,
+}
+
+/// Where a manager stands for granting a role by hand: [`InviteScope::grants`].
+#[derive(Debug, Clone, Copy)]
+pub struct GrantReach {
+    pub manager: UserId,
+    /// Only roles strictly below this position.
+    pub below: i64,
+    /// Only roles whose permissions all lie within these.
+    pub holds: Permissions,
+}
+
+impl InviteScope {
+    /// Every invite in the deployment.
+    pub fn all() -> Self {
+        Self::default()
+    }
+
+    fn parts(self) -> (Option<UserId>, Option<UserId>, i64, i64) {
+        let creator = self.creator;
+        match self.grants {
+            Some(g) => (creator, Some(g.manager), g.below, g.holds.bits()),
+            None => (creator, None, 0, 0),
+        }
+    }
+}
 
 /// A code someone can join with.
 #[derive(Debug, Clone)]
@@ -236,8 +271,8 @@ impl Store {
         .flatten())
     }
 
-    /// Invites, newest first. `created_by` scopes the answer to one
-    /// account's own; `None` asks for every invite in the deployment.
+    /// Invites, newest first, within `scope`: one account's own, or everyone's, or everyone's but
+    /// the role-granting codes a manager could not grant by hand.
     ///
     /// The filter exists because a code is a credential. An invite row carries
     /// its own `code` and its `role_grant`, so an unscoped listing hands
@@ -246,16 +281,17 @@ impl Store {
     /// person a role. `redeem` gives that role to whoever spends the code, so
     /// reading another account's code is enough to take the role meant for
     /// them. Only MANAGE_ROLES, which is what minting such an invite already
-    /// requires, passes `None`.
+    /// requires, sees everyone's, and then only the roles it could grant itself.
     ///
     /// One page of at most `limit` rows, starting after the invite `before`
     /// names; an unknown `before` starts from the top rather than failing.
     pub async fn list_invites(
         &self,
-        created_by: Option<UserId>,
+        scope: InviteScope,
         before: Option<&str>,
         limit: i64,
     ) -> anyhow::Result<Vec<Invite>> {
+        let (created_by, manager, below, holds) = scope.parts();
         let rows = sqlx::query!(
             r#"SELECT i.code AS "code!", i.max_uses, i.uses AS "uses!", i.expires_at,
                       i.created_at AS "created_at!", i.revoked_at,
@@ -266,11 +302,19 @@ impl Store {
                WHERE (?1 IS NULL OR i.created_by = ?1)
                  AND (?2 IS NULL OR NOT EXISTS (SELECT 1 FROM invites c WHERE c.code = ?2)
                       OR (i.created_at, i.code) < (SELECT c.created_at, c.code FROM invites c WHERE c.code = ?2))
+                 AND (?4 IS NULL OR i.role_grant IS NULL OR i.created_by = ?4
+                      OR EXISTS (SELECT 1 FROM roles r WHERE r.id = i.role_grant
+                                 AND r.is_everyone = 0 AND r.is_bots_role = 0
+                                 AND r.managed_bot_id IS NULL AND r.position < ?5
+                                 AND (r.permissions & ?6) = r.permissions))
                ORDER BY i.created_at DESC, i.code DESC
                LIMIT ?3"#,
             created_by,
             before,
-            limit
+            limit,
+            manager,
+            below,
+            holds
         )
         .fetch_all(&self.pool)
         .await?;
@@ -289,7 +333,7 @@ impl Store {
             .collect())
     }
 
-    /// Revokes an invite, optionally only if `required_creator` issued it.
+    /// Revokes an invite, only if it lies within `scope`.
     ///
     /// Answers whether a row changed, so a caller can tell "revoked" from
     /// "not yours, or already revoked, or never existed" - deliberately one
@@ -299,36 +343,45 @@ impl Store {
     /// The ownership test is a clause in the UPDATE rather than a read before
     /// it: checked separately, two requests could both read an invite as
     /// theirs to revoke and only one of them be right.
-    pub async fn revoke_invite(
-        &self,
-        code: &str,
-        required_creator: Option<UserId>,
-    ) -> anyhow::Result<bool> {
+    pub async fn revoke_invite(&self, code: &str, scope: InviteScope) -> anyhow::Result<bool> {
         let now = now_ms();
+        let (required_creator, manager, below, holds) = scope.parts();
         let result = sqlx::query!(
-            "UPDATE invites SET revoked_at = ?
-             WHERE code = ? AND revoked_at IS NULL AND (?3 IS NULL OR created_by = ?3)",
+            "UPDATE invites SET revoked_at = ?1
+             WHERE code = ?2 AND revoked_at IS NULL AND (?3 IS NULL OR created_by = ?3)
+               AND (?4 IS NULL OR role_grant IS NULL OR created_by = ?4
+                    OR EXISTS (SELECT 1 FROM roles r WHERE r.id = invites.role_grant
+                               AND r.is_everyone = 0 AND r.is_bots_role = 0
+                               AND r.managed_bot_id IS NULL AND r.position < ?5
+                               AND (r.permissions & ?6) = r.permissions))",
             now,
             code,
-            required_creator
+            required_creator,
+            manager,
+            below,
+            holds
         )
         .execute(&self.pool)
         .await?;
         Ok(result.rows_affected() > 0)
     }
 
-    /// Whether `code` names an invite `required_creator` could have revoked,
-    /// revoked already or not.
-    pub async fn invite_exists(
-        &self,
-        code: &str,
-        required_creator: Option<UserId>,
-    ) -> anyhow::Result<bool> {
+    /// Whether `code` names an invite `scope` could have revoked, revoked already or not.
+    pub async fn invite_exists(&self, code: &str, scope: InviteScope) -> anyhow::Result<bool> {
+        let (required_creator, manager, below, holds) = scope.parts();
         let row = sqlx::query_scalar!(
-            r#"SELECT 1 AS "one!: i64" FROM invites
-               WHERE code = ? AND (?2 IS NULL OR created_by = ?2)"#,
+            r#"SELECT 1 AS "one!: i64" FROM invites i
+               WHERE i.code = ?1 AND (?2 IS NULL OR i.created_by = ?2)
+                 AND (?3 IS NULL OR i.role_grant IS NULL OR i.created_by = ?3
+                      OR EXISTS (SELECT 1 FROM roles r WHERE r.id = i.role_grant
+                                 AND r.is_everyone = 0 AND r.is_bots_role = 0
+                                 AND r.managed_bot_id IS NULL AND r.position < ?4
+                                 AND (r.permissions & ?5) = r.permissions))"#,
             code,
-            required_creator
+            required_creator,
+            manager,
+            below,
+            holds
         )
         .fetch_optional(&self.pool)
         .await?;

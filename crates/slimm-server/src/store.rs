@@ -205,7 +205,7 @@ pub use group_dms::{
     GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,
 };
 pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
-pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
+pub use invites::{GrantReach, Invite, InviteCheck, InviteMetadata, InviteScope, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount, PendingLink, normalize_handoff};
 pub use login_throttle::{
     ACCOUNT_FREE_FAILURES, ACCOUNT_MAX_DELAY_MS, FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS,
@@ -275,7 +275,7 @@ pub use space_owner::{Handoff, Ownership};
 pub use space_setup::SpaceSetup;
 pub use space_themes::{PublishError, SpaceTheme, ThemePicture};
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
-pub use stamp_reports::SCREEN_STAMP_KIND;
+pub use stamp_reports::{MAX_REASON_CHARS, SCREEN_STAMP_KIND};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT 1 AS \"one!: i64\" FROM invites i\n               WHERE i.code = ?1 AND (?2 IS NULL OR i.created_by = ?2)\n                 AND (?3 IS NULL OR i.role_grant IS NULL OR i.created_by = ?3\n                      OR EXISTS (SELECT 1 FROM roles r WHERE r.id = i.role_grant\n                                 AND r.is_everyone = 0 AND r.is_bots_role = 0\n                                 AND r.managed_bot_id IS NULL AND r.position < ?4\n                                 AND (r.permissions & ?5) = r.permissions))",
+  "describe": {
+    "columns": [
+      {
+        "name": "one!: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1123ad87f30f5ddeaafeaafe191c321a1a7f406529e634e134673d6e0bc0830c"
+}

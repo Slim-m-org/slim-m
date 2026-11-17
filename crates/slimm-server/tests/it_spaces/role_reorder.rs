@@ -137,9 +137,7 @@ async fn reorder_refuses_naming_everyone() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
-/// A MANAGE_ROLES holder with no elevated role of their own cannot move
-/// `admin` at all: its old position already sits at or above their ceiling
-/// (which is zero, since they hold nothing beyond `@everyone`).
+/// A manager cannot lift their own role over `admin`, which sits above it.
 #[tokio::test]
 async fn cannot_move_a_role_at_or_above_the_callers_own_ceiling() {
     let (store, _guard) = support::new_store("slimm-role-reorder-test").await;
@@ -166,9 +164,10 @@ async fn cannot_move_a_role_at_or_above_the_callers_own_ceiling() {
         .id
         .to_string();
 
-    // bob only reorders the two roles that exist beyond `@everyone`.
-    let response = reorder(&app, &bob_token, &[&admin_role, &manager_role]).await;
+    let response = reorder(&app, &bob_token, &[&manager_role, &admin_role]).await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let unchanged = reorder(&app, &bob_token, &[&admin_role, &manager_role]).await;
+    assert_eq!(unchanged.status(), StatusCode::OK);
 }
 
 /// The same caller *can* rearrange roles that are all strictly below their

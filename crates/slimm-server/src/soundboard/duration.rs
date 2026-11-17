@@ -104,9 +104,10 @@ const BITRATES_V2: [[u32; 15]; 2] = [
     [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
 ];
 
-/// Bytes after the last whole frame left uncounted: a cut-off frame of the largest size and an
-/// ID3v1 tag. Even at the slowest bitrate that is under two seconds of sound.
-const MAX_TAIL_BYTES: usize = 1441 + 128;
+/// Bytes after the last whole frame, before any trailing tags, left uncounted: a cut-off frame
+/// of the largest size, MPEG-1 layer II at 384 kbps and 32 kHz. At the slowest bitrate that is
+/// under two seconds of sound.
+const MAX_CUT_FRAME_BYTES: usize = 1729;
 
 struct Frame {
     len: usize,
@@ -203,10 +204,75 @@ fn mp3(bytes: &[u8]) -> Option<i64> {
         micros += u64::from(f.samples) * 1_000_000 / u64::from(f.sample_rate);
         at += f.len;
     }
-    let tail = &bytes[at..];
+    let rest = &bytes[at..];
+    let (cut, tags) = rest.split_at(before_trailing_tags(rest));
     let quiet =
-        tail.len() <= MAX_TAIL_BYTES && !(0..tail.len()).any(|i| is_free_format(&tail[i..]));
-    quiet.then_some((micros / 1000) as i64)
+        cut.len() <= MAX_CUT_FRAME_BYTES && !(0..cut.len()).any(|i| is_free_format(&cut[i..]));
+    quiet.then_some(((micros + frames_hidden_in(tags)) / 1000) as i64)
+}
+
+/// How much of `rest` comes before the tags players skip at a file's end: ID3v1 last, and any
+/// APEv2 and Lyrics3 tags before it, each read by its own stated size.
+fn before_trailing_tags(rest: &[u8]) -> usize {
+    let mut end = rest.len();
+    if end >= 128 && rest[end - 128..].starts_with(b"TAG") {
+        end -= 128;
+    }
+    while let Some(len) = ape_tag_len(&rest[..end]).or_else(|| lyrics3_len(&rest[..end])) {
+        end -= len;
+    }
+    end
+}
+
+/// The length of an APEv2 or APEv1 tag ending `bytes`, read from its footer.
+fn ape_tag_len(bytes: &[u8]) -> Option<usize> {
+    let footer = bytes.get(bytes.len().checked_sub(32)?..)?;
+    if !footer.starts_with(b"APETAGEX") || !matches!(le32(footer, 8)?, 1000 | 2000) {
+        return None;
+    }
+    let with_header = le32(footer, 20)? & 0x8000_0000 != 0;
+    let len = le32(footer, 12)? as usize + if with_header { 32 } else { 0 };
+    let start = bytes.len().checked_sub(len).filter(|_| len >= 32)?;
+    (!with_header || bytes[start..].starts_with(b"APETAGEX")).then_some(len)
+}
+
+/// Lyrics3 v1 holds at most this many bytes of lyrics between its markers.
+const LYRICS3_V1_MAX: usize = 5100;
+
+/// The length of a Lyrics3 tag ending `bytes`: v2 by its stated size, v1 by its start marker.
+fn lyrics3_len(bytes: &[u8]) -> Option<usize> {
+    if bytes.ends_with(b"LYRICS200") {
+        let digits = bytes.get(bytes.len().checked_sub(15)?..bytes.len() - 9)?;
+        let size: usize = std::str::from_utf8(digits).ok()?.parse().ok()?;
+        let len = size.checked_add(15)?;
+        let start = bytes.len().checked_sub(len)?;
+        return bytes[start..].starts_with(b"LYRICSBEGIN").then_some(len);
+    }
+    if !bytes.ends_with(b"LYRICSEND") {
+        return None;
+    }
+    let window = bytes.len().min(LYRICS3_V1_MAX + 20);
+    let tail = &bytes[bytes.len() - window..];
+    let begin = (0..tail.len())
+        .rev()
+        .find(|&i| tail[i..].starts_with(b"LYRICSBEGIN"))?;
+    Some(window - begin)
+}
+
+/// The sound, in microseconds, of every whole frame a decoder could find inside skipped tags,
+/// so a tag's stated size can never hide audio from the count.
+fn frames_hidden_in(tags: &[u8]) -> u64 {
+    let (mut at, mut micros) = (0, 0);
+    while at + 4 <= tags.len() {
+        match frame_at(tags, at) {
+            Some(f) => {
+                micros += u64::from(f.samples) * 1_000_000 / u64::from(f.sample_rate);
+                at += f.len;
+            }
+            None => at += 1,
+        }
+    }
+    micros
 }
 
 #[cfg(test)]
