@@ -10,6 +10,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'theme_gallery_frame.dart';
 
+const _menuWidth = 250.0;
+
 class ThemeMenuRegion extends StatefulWidget {
   const ThemeMenuRegion({
     super.key,
@@ -46,7 +48,7 @@ class _ThemeMenuRegionState extends State<ThemeMenuRegion> {
       child: ContextMenuRegion(
         key: _region,
         ownsFocusNode: false,
-        menuWidth: 250,
+        menuWidth: _menuWidth,
         tapRegionGroupId: _group,
         itemsBuilder: (context, close) =>
             items == null || !widget.enabled ? const [] : items(context, close),
@@ -72,7 +74,8 @@ class _ThemeMenuScope extends InheritedWidget {
 }
 
 /// The kebab inside a [ThemeMenuRegion]: a press opens its menu under the
-/// kebab, and a second press closes it.
+/// kebab, its right edge on the kebab's so it stays over the theme, and a
+/// second press closes it.
 class ThemeMenuKebab extends StatelessWidget {
   const ThemeMenuKebab({super.key, required this.label, this.card = true});
 
@@ -88,7 +91,9 @@ class ThemeMenuKebab extends StatelessWidget {
     void toggle() {
       final box = context.findRenderObject() as RenderBox?;
       scope?.region.currentState?.toggle(
-        at: box?.localToGlobal(Offset(0, box.size.height)),
+        at: box?.localToGlobal(
+          Offset(box.size.width - _menuWidth, box.size.height),
+        ),
       );
     }
 

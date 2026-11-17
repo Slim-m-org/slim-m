@@ -113,12 +113,6 @@ class _ThemeGalleryCardState extends ConsumerState<ThemeGalleryCard> {
               Expanded(child: _foot(tokens)),
             ],
           ),
-          if (_entry.isSpaceDefault)
-            const Positioned(
-              left: AppSpacing.s8,
-              top: AppSpacing.s8,
-              child: _DefaultTag(),
-            ),
           if (_entry.inUse)
             const Positioned(
               right: AppSpacing.s8,
@@ -239,7 +233,8 @@ String _semantics(ThemeGalleryEntry entry) => [
   if (entry.inUse) 'in use',
 ].join(', ');
 
-/// The line under a card's name: In use, or the theme's mode and author.
+/// The line under a card's name: In use, the Space default, or the theme's
+/// mode and author.
 class _Meta extends StatelessWidget {
   const _Meta({required this.entry});
 
@@ -249,25 +244,32 @@ class _Meta extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final light = entry.brightness == Brightness.light;
-    final mode = light ? 'Light' : 'Dark';
+    final mode = light ? AppIcons.themeLight : AppIcons.themeDark;
+    final author = entry.author;
     final (icons, text) = entry.inUse
-        ? ([AppIcons.check], 'In use')
+        ? (
+            [AppIcons.check],
+            entry.isSpaceDefault ? 'In use · Default' : 'In use',
+          )
         : entry.choice == AppThemeChoice.system
         ? ([AppIcons.deviceDesktop], 'Follows your device')
-        : entry.broken != null
-        ? (
-            const <IconData>[],
-            entry.author == null ? 'Space' : 'By ${entry.author}',
-          )
+        : entry.isSpaceDefault
+        ? ([AppIcons.pin], author == null ? 'Default' : 'Default · by $author')
         : (
             [
-              light ? AppIcons.themeLight : AppIcons.themeDark,
+              // A file that cannot be read has no mode to show.
+              if (entry.tokens != null) mode,
               if (entry.pictureId != null) AppIcons.image,
             ],
-            entry.author == null ? mode : 'By ${entry.author}',
+            author != null
+                ? 'By $author'
+                : entry.broken != null
+                ? 'Space'
+                : (light ? 'Light' : 'Dark'),
           );
     final colour = entry.inUse ? tokens.accent : tokens.textSecondary;
     return Row(
+      key: entry.isSpaceDefault ? const Key('theme-store-default-badge') : null,
       spacing: AppSpacing.s4,
       children: [
         for (final icon in icons)
@@ -281,30 +283,6 @@ class _Meta extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// The Space default tag, on the miniature so it never narrows the name.
-class _DefaultTag extends StatelessWidget {
-  const _DefaultTag();
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return ExcludeSemantics(
-      child: DecoratedBox(
-        key: const Key('theme-store-default-badge'),
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          borderRadius: BorderRadius.circular(AppRadii.control),
-        ),
-        child: const AppBadge(
-          variant: AppBadgeVariant.tag,
-          label: 'Space default',
-          markerIcon: AppIcons.pin,
-        ),
-      ),
     );
   }
 }

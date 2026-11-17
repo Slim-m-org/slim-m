@@ -153,6 +153,20 @@ void main() {
     expect(find.text('Edit a copy'), findsNothing);
   });
 
+  testWidgets('a kebab\'s menu drops under it, ending where it ends', (
+    tester,
+  ) async {
+    await GalleryRig().pump(tester, size: const Size(1280, 1600));
+    await _openMenu(tester, 'theme-menu-t1');
+
+    final kebab = tester.getRect(_key('theme-menu-t1'));
+    final menu = tester.getRect(
+      find.byWidgetPredicate((w) => w is AppMenu).last,
+    );
+    expect(menu.top, greaterThanOrEqualTo(kebab.bottom));
+    expect(menu.right, closeTo(kebab.right, AppSpacing.s4));
+  });
+
   testWidgets('an administrator removes any theme and sets the default', (
     tester,
   ) async {

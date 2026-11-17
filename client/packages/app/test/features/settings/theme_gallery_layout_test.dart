@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The gallery's geometry, measured: three columns beside the nav and two on a
-/// phone, names on one edge in every section, the Space default tag off the
-/// name, Mine's buttons centred on its title, and a lazy, steady grid.
+/// phone, names on one edge in every section, the Space default on the text
+/// line, Mine's buttons centred on its title, and a lazy, steady grid.
 library;
 
 import 'package:flutter/material.dart';
@@ -87,6 +87,40 @@ void main() {
         (e.renderObject! as RenderBox).size,
     ];
     expect(tagged, plain);
+  });
+
+  testWidgets('the Space default is said on the text line, off the miniature', (
+    tester,
+  ) async {
+    await GalleryRig(defaultId: 't1').pump(tester);
+    final card = tester.getRect(_key('theme-store-t1'));
+    final tag = tester.getRect(_key('theme-store-default-badge'));
+    expect(
+      tag.top,
+      greaterThan(card.top + card.width / ThemeMiniatureGeometry.aspect),
+    );
+    expect(tag.bottom, lessThanOrEqualTo(card.bottom));
+  });
+
+  testWidgets('a card that fails contrast leads its line with its mode too', (
+    tester,
+  ) async {
+    await GalleryRig(
+      themes: [
+        stored('t1', 'Fine'),
+        stored('t2', 'Faint', file: failingFile('Faint')),
+      ],
+    ).pump(tester);
+    double lead(String id) {
+      final line = find.descendant(
+        of: _key('theme-store-$id'),
+        matching: find.text('By Ren'),
+      );
+      return tester.getTopLeft(line).dx -
+          tester.getTopLeft(_key('theme-store-$id')).dx;
+    }
+
+    expect(lead('t2'), lead('t1'));
   });
 
   for (final size in [_laptop, _phone]) {
