@@ -10,6 +10,10 @@ from e2e_voice import _tap_label, participants_with_mics
 
 PROMPT = "Rejoin the call?"
 
+# The call record's key in shared_preferences' localStorage, whatever Space prefix it carries.
+RESTORE_KEYS = ("Object.keys(localStorage)"
+                ".filter(k => k.endsWith('slimm.voice.call_in_progress'))")
+
 
 def _reload(client):
     client.come_back(client.go_away())
@@ -30,7 +34,9 @@ def reload_mid_call_offers_to_rejoin(client, room_id):
     print(f"  {client.name} reloaded mid-call, was asked, and Rejoin put her back, ACTIVE at the SFU")
 
     _tap_label(client, L.LEAVE_CALL, settle=3)
+    kept = client.ev(RESTORE_KEYS)
+    assert not kept, f"leaving on purpose kept the restore record: {kept}"
     _reload(client)
     client.wait_for(L.VOICE_CHANNEL)
-    assert not client.find(PROMPT), "a call left on purpose was offered back after a reload"
-    print("  after leaving on purpose, a reload offers nothing")
+    client.never_shows(PROMPT, seconds=8)
+    print("  after leaving on purpose, the record is gone and a reload offers nothing")

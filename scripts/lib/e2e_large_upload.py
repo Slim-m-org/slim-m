@@ -14,9 +14,11 @@ downloads it and gets the same bytes.
 """
 import hashlib
 import json
+import re
 import time
 
 import e2e_api
+import e2e_client
 import e2e_labels as L
 
 SIZE = 40 * 1024 * 1024
@@ -64,6 +66,32 @@ def _send_state(client):
     return client.ev(_SEND_STATE)
 
 
+_PART = re.compile(r"/attachments/uploads/([^/?]+)\?(?:.*&)?offset=(\d+)")
+
+
+def upload_parts(urls):
+    """`{session id: sorted part offsets}` among the request `urls`."""
+    parts = {}
+    for url in urls:
+        found = _PART.search(url)
+        if found:
+            parts.setdefault(found.group(1), set()).add(int(found.group(2)))
+    return {sid: sorted(offsets) for sid, offsets in parts.items()}
+
+
+def resume_problem(before_drop, after_drop):
+    """Why the parts sent around a network drop are not one session resuming, or None."""
+    sessions = upload_parts(before_drop | after_drop)
+    if len(sessions) != 1:
+        return f"{len(sessions)} upload sessions: {sorted(sessions)}"
+    later = [o for offsets in upload_parts(after_drop).values() for o in offsets]
+    if not later:
+        return "no part was sent after the drop"
+    if min(later) == 0:
+        return "the upload started over from byte 0 after the drop"
+    return None
+
+
 def _download(member, attachment_id):
     req = e2e_api.urllib.request.Request(
         f"{member.base}/attachments/{attachment_id}",
@@ -94,30 +122,31 @@ def large_file_survives_a_switch_and_a_dropped_network(a, b, admin, member):
         sha = a.ev("window.__e2eMadeSha")
         a.wait_for(NAME)
         time.sleep(3)
-        state = _send_state(a)
-        mid_upload = state == "disabled"
-        if not mid_upload:
-            # CI's Chrome does not always honour the throttle; the checks below still hold for a finished upload.
-            a.shot("large-upload-not-uploading")
-            print(f"  the throttle did not hold (Send read {state!r} after 3 s); "
-                  "the switch and network drop below run on a finished upload")
-
+        mid_switch = _send_state(a) == "disabled"
         a.click(L.NOTES, settle=2)
         a.click(name, settle=2)
         assert a.find(NAME), "switching channels dropped the staged upload"
-        print("  switching channels " + ("mid-upload" if mid_upload else "after the upload")
-              + " keeps the file staged")
-
+        mid_drop = _send_state(a) == "disabled"
+        before_drop = set(e2e_client.REQUEST_URLS)
         a.go_offline()
         time.sleep(4)
         _throttle(a, UPLOAD_BYTES_PER_SECOND)
-        print("  the network dropped for four seconds and came back")
 
         deadline = time.time() + SEND_TIMEOUT
         while _send_state(a) != "ready":
             assert time.time() < deadline, "the upload never finished after the network came back"
             time.sleep(0.5)
         a.go_online()
+        if mid_switch and mid_drop:
+            why = resume_problem(before_drop, set(e2e_client.REQUEST_URLS) - before_drop)
+            assert why is None, f"the upload did not resume after the drop: {why}"
+            print("  a channel switch and a four-second network drop mid-upload, "
+                  "and the one session resumed where it stopped")
+        else:
+            # CI's Chrome does not always honour the throttle; the bytes are still checked below.
+            a.shot("large-upload-not-uploading")
+            print("  SKIPPED the mid-upload half: the throttle did not hold, so the upload "
+                  f"had finished before the {'switch' if not mid_switch else 'drop'}")
         a.click(L.SEND, settle=3)
 
         deadline = time.time() + 30

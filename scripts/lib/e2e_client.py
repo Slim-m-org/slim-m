@@ -250,6 +250,15 @@ class Client:
         print(f"  {self.name}: elements holding {label!r}: {self.ev(e2e_js.holders(label))}")
         raise AssertionError(f"{self.name}: never saw {label!r}")
 
+    def never_shows(self, label, seconds):
+        """Fails if `label` shows at any sample over `seconds`: one look passes what appears a moment late."""
+        deadline = time.time() + seconds
+        while time.time() < deadline:
+            if self.find(label):
+                self.shot(f"unwanted-{label[:20].replace(' ', '-')}")
+                raise AssertionError(f"{self.name}: {label!r} showed")
+            time.sleep(POLL_SECONDS)
+
     def wheel_until(self, anchor, target, step=300, tries=8):
         """Scrolls the pane under `anchor` until `target` is inside the window.
 

@@ -16,6 +16,7 @@ import e2e_labels as L
 TIMEOUT = 20
 SEARCH_BUTTON = "Search messages"
 SEARCH_FIELD = "Search this channel"
+NO_MATCHES = "No matches."
 
 
 def _hits(client, word):
@@ -70,7 +71,10 @@ def search_follows_the_index(a, admin):
         a.type_into(SEARCH_FIELD, "")
         I.clear_field(a)
         a.type_into(SEARCH_FIELD, word)
-        _wait_hits(a, word, 0)
+        # The empty state draws only once this query came back empty, unlike the bare list shown while it runs.
+        a.wait_for(NO_MATCHES, timeout=TIMEOUT)
+        rows = [n["t"] for n in a.nodes() if n["t"].startswith("Message from")]
+        assert not rows, f"the search came back empty yet shows {rows}"
         _wait_server_hits(admin, channel_id, word, [])
         print("  after the message is edited away from the word, nothing is found")
 
