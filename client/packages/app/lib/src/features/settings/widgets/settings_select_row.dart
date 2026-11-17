@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_choice_picker.dart';
+import 'settings_detail_row.dart';
 import 'settings_section_header.dart';
 import 'settings_search.dart';
 
@@ -225,29 +226,40 @@ class SettingsSelectRow<T> extends StatelessWidget {
 
   Widget _valueRow(BuildContext context, Widget chevron, double rowWidth) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final value = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: rowWidth * _valueShare),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 6,
+        children: [
+          if (_currentChoice?.leading != null) _currentChoice!.leading!,
+          Flexible(
+            child: Text(
+              _currentLabel,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.ui.copyWith(color: tokens.textPrimary),
+            ),
+          ),
+          // Down on desktop for a dropdown, right on a phone for a sheet.
+          chevron,
+        ],
+      ),
+    );
+    final semanticLabel = '$label, currently $_currentLabel';
+    // A description wraps; AppListRow keeps one fixed-height line and cut it off.
+    if (description != null) {
+      return SettingsDetailRow(
+        title: label,
+        detail: description,
+        trailing: value,
+        onTap: () => _open(context),
+        onTapSemanticLabel: semanticLabel,
+      );
+    }
     return AppListRow(
       label: label,
-      subtitle: description,
-      semanticLabel: '$label, currently $_currentLabel',
-      trailing: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: rowWidth * _valueShare),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 6,
-          children: [
-            if (_currentChoice?.leading != null) _currentChoice!.leading!,
-            Flexible(
-              child: Text(
-                _currentLabel,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.ui.copyWith(color: tokens.textPrimary),
-              ),
-            ),
-            // Down on desktop for a dropdown, right on a phone for a sheet.
-            chevron,
-          ],
-        ),
-      ),
+      semanticLabel: semanticLabel,
+      trailing: value,
       onTap: () => _open(context),
     );
   }
