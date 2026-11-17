@@ -148,8 +148,9 @@ Future<PortalResponse> _requestBackground(bool autostart) async {
   try {
     await client.ping();
     final path = DBusObjectPath(portalRequestPath(client.uniqueName, token));
+    final owner = await portalOwner(client);
     return await awaitPortalResponse(
-      responses: portalResponses(client, path),
+      responses: portalResponses(client, path, sender: owner),
       call: () => client.callMethod(
         destination: portalBusName,
         path: DBusObjectPath(portalPath),

@@ -23,11 +23,22 @@ String portalRequestPath(String uniqueName, String token) {
   return '/org/freedesktop/portal/desktop/request/$sender/$token';
 }
 
-/// The `Response` signals for the request at [path].
-Stream<DBusSignal> portalResponses(DBusClient bus, DBusObjectPath path) =>
+/// The portal's unique name, which a signal match must use.
+///
+/// dbus.dart maps a well-known sender to its owner only after its own lookup
+/// lands, and drops a signal read in the same batch as that lookup's reply.
+Future<String> portalOwner(DBusClient bus) async =>
+    await bus.getNameOwner(portalBusName) ?? portalBusName;
+
+/// The `Response` signals from [sender] for the request at [path].
+Stream<DBusSignal> portalResponses(
+  DBusClient bus,
+  DBusObjectPath path, {
+  required String sender,
+}) =>
     DBusSignalStream(
       bus,
-      sender: portalBusName,
+      sender: sender,
       interface: portalRequestInterface,
       name: 'Response',
       path: path,
