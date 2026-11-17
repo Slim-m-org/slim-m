@@ -54,8 +54,10 @@ class InviteRoleGrantPicker extends ConsumerWidget {
       data: (all) {
         // Only what this caller could grant: the server refuses a role
         // carrying a bit they do not hold, so offering it invites a 403.
+        // A bot's own role is for the bot, not for a person redeeming a link.
         final grantable = all
             .where((r) => !r.isEveryone)
+            .where((r) => !r.isBotsRole && !r.isManagedByBot)
             .where((r) => permissions.hasPermission(r.permissions))
             .toList();
         if (grantable.isEmpty) return const SizedBox.shrink();

@@ -11,7 +11,11 @@ import '../../messages/providers/message_search.dart'
 import '../../messages/providers/message_search_query.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../providers/providers.dart' show sessionProvider;
+import 'package:slimm_data/data.dart';
 import '../../channels/widgets/channel_kind_icon.dart';
+import '../../channels/widgets/group_avatar_stack.dart';
 import 'command_palette_items.dart';
 import 'palette_highlight.dart';
 import 'palette_message_text.dart';
@@ -218,7 +222,16 @@ class PaletteResultRow extends StatelessWidget {
 
   Widget _channel(AppTokens tokens) {
     final channel = item.channel!;
-    final glyph = channel.kind == 'voice' || channel.kind == 'text'
+    final glyph = channel.isGroupDm
+        ? Consumer(
+            builder: (context, ref, _) => GroupAvatarStack(
+              memberIds: [
+                for (final id in channel.groupMemberIds)
+                  if (id != ref.watch(sessionProvider).tokens?.userId) id,
+              ],
+            ),
+          )
+        : channel.kind == 'voice' || channel.kind == 'text'
         ? ChannelKindIcon(
             isVoice: channel.kind == 'voice',
             restricted: channel.restricted ?? false,

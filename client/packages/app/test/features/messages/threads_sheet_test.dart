@@ -105,7 +105,7 @@ void main() {
         reason: 'a failed fetch is the shared persistent error, not bare text',
       );
       expect(
-        find.text('No threads yet.'),
+        find.text('No threads yet'),
         findsNothing,
         reason: 'a failed load must never read as an honest empty state',
       );
@@ -115,7 +115,12 @@ void main() {
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
 
-      expect(find.text('No threads yet.'), findsOneWidget);
+      expect(find.text('No threads yet'), findsOneWidget);
+      expect(
+        find.byIcon(AppIcons.thread),
+        findsOneWidget,
+        reason: 'the same empty card the settings panes use',
+      );
       expect(find.text('Could not load threads.'), findsNothing);
     },
   );
@@ -136,7 +141,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('No threads yet.'), findsOneWidget);
+    expect(find.text('No threads yet'), findsOneWidget);
   });
 
   testWidgets('a 403 explains the denial and offers no retry', (tester) async {
@@ -197,7 +202,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('No threads yet.'),
+      find.text('No threads yet'),
       findsNothing,
       reason: 'the sheet must close on the way to the thread',
     );

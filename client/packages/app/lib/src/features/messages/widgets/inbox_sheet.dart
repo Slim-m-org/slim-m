@@ -16,6 +16,7 @@ import '../../../routing/routes.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/sheet_item_list.dart';
 import '../../channels/widgets/channel_label.dart';
+import '../../channels/widgets/conversation_glyph.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
 import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/user_avatar.dart';
@@ -201,10 +202,10 @@ class InboxRow extends ConsumerWidget {
               name: author,
               size: density.listAvatarSize,
             )
-          : SizedBox(
-              width: density.listAvatarSize,
-              height: density.listAvatarSize,
-              child: Icon(
+          : ConversationGlyph(
+              channel: entry.channel,
+              size: density.listAvatarSize,
+              fallback: Icon(
                 entry.mentioned ? AppIcons.mentions : AppIcons.hash,
                 size: AppSizes.icon20,
                 color: tokens.textSecondary,

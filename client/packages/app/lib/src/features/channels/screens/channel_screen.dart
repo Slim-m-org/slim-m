@@ -449,6 +449,9 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   ? ChannelSearchBar(
                       controller: _searchController,
                       onChanged: _search,
+                      label: channel?.kind == 'dm'
+                          ? 'Search this conversation'
+                          : 'Search this channel',
                     )
                   : null,
             ),

@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/routes.dart';
 import '../../channels/widgets/channel_label.dart';
+import '../../channels/widgets/conversation_glyph.dart';
 import '../../messages/providers/inbox.dart';
 import '../../messages/widgets/inbox_sheet.dart';
 
@@ -75,10 +76,14 @@ class _UnreadRow extends StatelessWidget {
           child: Row(
             spacing: AppSpacing.s12,
             children: [
-              Icon(
-                entry.mentioned ? AppIcons.mentions : AppIcons.hash,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
+              ConversationGlyph(
+                channel: entry.channel,
+                size: AppAvatarSize.s24,
+                fallback: Icon(
+                  entry.mentioned ? AppIcons.mentions : AppIcons.hash,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
               ),
               Expanded(
                 child: Text(

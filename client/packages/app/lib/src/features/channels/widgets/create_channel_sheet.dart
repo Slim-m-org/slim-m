@@ -5,18 +5,17 @@
 /// `POST /channels` (`SlimmApi.createChannel`).
 ///
 /// Opened from the Space menu's "Add channel", and from the `+` on a
-/// category header in the rail - which passes that category so the channel
-/// lands in the section the person asked from, rather than appearing
-/// uncategorised and needing a drag straight afterwards.
+/// category header in the rail - which passes that category so the sheet
+/// starts on the section the person asked from. A category picker lets them
+/// change it, so a channel never has to land uncategorised and be dragged.
 ///
 /// The toggle exists to close the window a create-then-restrict two-step
 /// otherwise leaves open: every new channel is public by construction (see
 /// `EVERYONE_DEFAULTS` in `crates/slimm-server/src/store/bootstrap.rs`), so
 /// without it a channel meant to be private is briefly visible to everyone
 /// between creation and a follow-up permissions edit. It denies `@everyone`
-/// and grants only the creator - no role picker, for the same reason
-/// [categoryId] is not one either: others are added afterwards through the
-/// existing channel-permissions surface.
+/// and grants only the creator - no role picker: others are added afterwards
+/// through the existing channel-permissions surface.
 ///
 /// Absent, not disabled, for a caller without MANAGE_ROLES: the server
 /// refuses that combination outright (see `create`'s own doc in
@@ -27,17 +26,21 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
+import '../../../providers/providers.dart';
+import '../../../providers/store_stream.dart';
 import '../../../routing/routes.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
 import 'channel_settings_rooms_section.dart'
     show lobbyDescription, lobbyLabel, lobbySemanticLabel;
+import 'category_choice_row.dart';
 import 'private_audience_picker.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../providers/channel_actions.dart';
@@ -46,41 +49,25 @@ import '../providers/channel_actions.dart';
 /// changeable inside the sheet, since it is only a starting guess, not a
 /// hard constraint the server enforces.
 ///
-/// [categoryId] is not offered as a field, unlike [initialKind]. It is
-/// decided by where the sheet was opened from and is not second-guessed
-/// here: someone who pressed `+` on a category has already said which one,
-/// and someone who used the Space menu named no category at all. Moving a
-/// channel afterwards is a drag in the rail, which is a better answer than
-/// a picker duplicating it. [categoryName] is display-only, for the sheet to
-/// say which category that is; a caller with no category to imply (the
-/// Space menu, or the rail's uncategorised `+`) leaves it null and the sheet
-/// says nothing about one.
+/// [categoryId] is only where the category picker starts: a `+` on a category
+/// passes that one, and the Space menu or the rail's uncategorised `+` pass none.
 Future<void> showCreateChannelSheet(
   BuildContext context, {
   required String initialKind,
   String? categoryId,
-  String? categoryName,
 }) {
   return showAppSheet<void>(
     context,
-    builder: (context) => _CreateChannelSheet(
-      initialKind: initialKind,
-      categoryId: categoryId,
-      categoryName: categoryName,
-    ),
+    builder: (context) =>
+        _CreateChannelSheet(initialKind: initialKind, categoryId: categoryId),
   );
 }
 
 class _CreateChannelSheet extends ConsumerStatefulWidget {
-  const _CreateChannelSheet({
-    required this.initialKind,
-    this.categoryId,
-    this.categoryName,
-  });
+  const _CreateChannelSheet({required this.initialKind, this.categoryId});
 
   final String initialKind;
   final String? categoryId;
-  final String? categoryName;
 
   @override
   ConsumerState<_CreateChannelSheet> createState() =>
@@ -89,6 +76,10 @@ class _CreateChannelSheet extends ConsumerStatefulWidget {
 
 class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   late String _kind = widget.initialKind;
+  late String _category = widget.categoryId ?? noCategory;
+  final _categories = StoreStream<List<ChannelCategoryRow>>(
+    (s) => s.watchCategories(),
+  );
   bool _restricted = false;
   bool _lobby = false;
   final Set<String> _audience = {};
@@ -100,7 +91,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         .createChannel(
           name: name,
           kind: _kind,
-          categoryId: widget.categoryId,
+          categoryId: _category == noCategory ? null : _category,
           restricted: _restricted,
           createsRooms: _kind == 'voice' && _lobby,
           id: _createId,
@@ -136,6 +127,16 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final store = ref.watch(storeProvider).valueOrNull;
+    if (store == null) return _sheet(context, const []);
+    return StreamBuilder<List<ChannelCategoryRow>>(
+      stream: _categories.of(store),
+      builder: (context, snapshot) =>
+          _sheet(context, snapshot.data ?? const []),
+    );
+  }
+
+  Widget _sheet(BuildContext context, List<ChannelCategoryRow> categories) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // Absent, not disabled, for a caller without MANAGE_ROLES - see this class's own doc.
     final canRestrict = ref
@@ -145,12 +146,17 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
     return NameEntrySheet(
       noun: 'channel',
       title: 'Create a channel',
-      subtitle: widget.categoryName == null
-          ? null
-          : 'Adding to ${widget.categoryName}',
       onCreate: _create,
       extraFields: [
         const SizedBox(height: AppSpacing.s8),
+        if (categories.isNotEmpty) ...[
+          CategoryChoiceRow(
+            categories: categories,
+            value: _category,
+            onChanged: (id) => setState(() => _category = id),
+          ),
+          const SizedBox(height: AppSpacing.s8),
+        ],
         AppSegmentedControl.inline(
           semanticLabel: 'Channel kind',
           options: const [

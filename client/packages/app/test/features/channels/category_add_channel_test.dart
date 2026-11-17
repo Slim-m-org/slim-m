@@ -89,21 +89,23 @@ void main() {
     expect(find.bySemanticsLabel('Create a channel in Lounge'), findsNothing);
   });
 
-  testWidgets('the + and a row kebab land on the same right edge', (
+  testWidgets('the header kebab and a row kebab land on the same right edge', (
     tester,
   ) async {
     await _pump(tester, canManage: true);
 
     // The kebab is hover-revealed by opacity, so it is laid out and measurable without one.
+    final header = tester.getRect(find.bySemanticsLabel('Manage Lounge'));
+    final kebab = tester.getRect(find.bySemanticsLabel('Manage general'));
     final add = tester.getRect(
       find.bySemanticsLabel('Create a channel in Lounge'),
     );
-    final kebab = tester.getRect(find.bySemanticsLabel('Manage general'));
 
     expect(
-      add.right,
+      header.right,
       moreOrLessEquals(kebab.right, epsilon: 0.5),
       reason: 'ChannelRow\'s kebab comment claims this; it has to be true',
     );
+    expect(add.right, lessThanOrEqualTo(header.left));
   });
 }
