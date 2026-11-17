@@ -218,6 +218,7 @@ class SlimmApi {
     String? categoryId,
     bool restricted = false,
     bool joinMuted = false,
+    bool createsRooms = false,
     NotificationPreference defaultNotification =
         NotificationPreference.everything,
     String? id,
@@ -232,6 +233,7 @@ class SlimmApi {
         if (categoryId != null) 'category_id': categoryId,
         if (restricted) 'restricted': true,
         if (joinMuted) 'join_muted': true,
+        if (createsRooms) 'creates_rooms': true,
         if (defaultNotification != NotificationPreference.everything)
           'default_notification': defaultNotification.wire,
       },

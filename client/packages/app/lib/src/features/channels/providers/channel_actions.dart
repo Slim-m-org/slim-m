@@ -23,19 +23,28 @@ class ChannelActions {
     String? categoryId,
     bool restricted = false,
     bool joinMuted = false,
+    bool createsRooms = false,
     NotificationPreference defaultNotification =
         NotificationPreference.everything,
     String? id,
   }) async {
-    final created = await _api.createChannel(
+    var created = await _api.createChannel(
       name: name,
       kind: kind,
       categoryId: categoryId,
       restricted: restricted,
       joinMuted: joinMuted,
+      createsRooms: createsRooms,
       defaultNotification: defaultNotification,
       id: id,
     );
+    // A server older than lobby-on-create ignores the field; the settings route has always taken it.
+    if (createsRooms && !created.createsRooms) {
+      created = await _api.updateChannel(
+        created.id,
+        const ChannelUpdate(createsRooms: true),
+      );
+    }
     final store = await _ref.read(storeProvider.future);
     await store.upsertChannels([created]);
     return created;
