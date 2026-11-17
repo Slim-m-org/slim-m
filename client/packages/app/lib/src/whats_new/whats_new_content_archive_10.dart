@@ -101,6 +101,12 @@ const List<WhatsNewEntry> whatsNewArchiveEntries10 = [
         'sent a picture for a day from Pictures on your screen.',
       ),
       WhatsNewPoint(
+        'A Spotify link shows its cover, name and length, with a Play on '
+        'Spotify button. On the web it plays in the chat; elsewhere it opens '
+        'in Spotify. Long pages such as GitHub and Wikipedia get a preview '
+        'now too.',
+      ),
+      WhatsNewPoint(
         'A mention reads as the name people use in this Space. Hover it to '
         'see the username.',
       ),
