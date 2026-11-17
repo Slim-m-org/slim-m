@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The menu the background row opens: choose a photo, browse files, or none.
 ///
-/// One `showAppSheet` call, so it is a titled bottom sheet under
-/// `kCompactWidth` and the floating menu above it (rule 3 of
-/// `docs/design/desktop-vs-mobile.md`).
+/// A titled bottom sheet under `kCompactWidth` and a menu anchored to the row
+/// above it (rule 3 of `docs/design/desktop-vs-mobile.md`).
 library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/anchored_popover_or_sheet.dart';
+
 enum BackgroundPictureAction { choose, browse, remove }
 
 Future<BackgroundPictureAction?> showBackgroundPictureMenu(
-  BuildContext context, {
+  BuildContext anchor, {
   required bool canRemove,
 }) {
-  return showAppSheet<BackgroundPictureAction>(
-    context,
-    bare: true,
-    builder: (sheetContext) {
+  return showAnchoredPopoverOrSheet<BackgroundPictureAction>(
+    anchor,
+    atTrailingEdge: true,
+    popoverBuilder: (sheetContext) {
       void pick(BackgroundPictureAction action) =>
           Navigator.of(sheetContext).pop(action);
       final menu = AppSheetMenu(

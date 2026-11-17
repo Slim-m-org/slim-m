@@ -15,6 +15,7 @@ import 'floating_dock_card.dart';
 /// picks the surface, per `desktop-vs-mobile.md`.
 ///
 /// [above] opens the popover over the floating dock [anchor] sits in, as the dock's own menus do.
+/// [atTrailingEdge] hangs it off the end of a full-width row rather than beside the whole row.
 Future<T?> showAnchoredPopoverOrSheet<T>(
   BuildContext anchor, {
   required WidgetBuilder popoverBuilder,
@@ -24,6 +25,7 @@ Future<T?> showAnchoredPopoverOrSheet<T>(
   bool sheetHandleOverContent = false,
   String? semanticLabel,
   bool above = false,
+  bool atTrailingEdge = false,
 }) {
   if (MediaQuery.sizeOf(anchor).width < kCompactWidth) {
     return showAppSheet<T>(
@@ -34,7 +36,10 @@ Future<T?> showAnchoredPopoverOrSheet<T>(
       builder: sheetBuilder ?? popoverBuilder,
     );
   }
-  final rect = anchorRect ?? _rectOf(anchor, above: above);
+  final measured = anchorRect ?? _rectOf(anchor, above: above);
+  final rect = atTrailingEdge
+      ? Rect.fromLTWH(measured.right, measured.top, 0, measured.height)
+      : measured;
   return showGeneralDialog<T>(
     context: anchor,
     barrierDismissible: true,

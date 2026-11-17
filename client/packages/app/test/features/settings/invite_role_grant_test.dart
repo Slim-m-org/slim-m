@@ -132,6 +132,21 @@ void main() {
     },
   );
 
+  testWidgets('on a wide window the role menu hangs off the row, not the '
+      'middle of the window', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester, Perm.manageRoles | Perm.manageMessages);
+
+    final row = tester.getRect(find.text('Role granted'));
+    await tester.tap(find.text('Role granted'));
+    await tester.pumpAndSettle();
+
+    final menu = tester.getRect(find.text('moderator'));
+    expect((menu.center.dy - row.center.dy).abs(), lessThan(150));
+  });
+
   testWidgets('only roles the caller could grant are offered', (tester) async {
     await _pump(tester, Perm.manageRoles | Perm.manageMessages);
 

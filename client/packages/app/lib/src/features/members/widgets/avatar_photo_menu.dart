@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The menu the profile picture opens: take, choose, browse, remove.
 ///
-/// One `showAppSheet` call, so it is a bottom sheet with handle and 44dp rows
-/// under `kCompactWidth` and the floating menu above it (rule 3 of
-/// `docs/design/desktop-vs-mobile.md`).
+/// A bottom sheet with handle and 44dp rows under `kCompactWidth` and a menu
+/// anchored to [anchor] above it (rule 3 of `docs/design/desktop-vs-mobile.md`).
 library;
 
 import 'dart:typed_data';
@@ -12,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/anchored_popover_or_sheet.dart';
 import 'avatar_camera_none.dart'
     if (dart.library.io) 'avatar_camera_native.dart';
 
@@ -27,14 +27,13 @@ final avatarCameraCaptureProvider = Provider<AvatarCameraCapture?>(
 );
 
 Future<AvatarPhotoAction?> showAvatarPhotoMenu(
-  BuildContext context, {
+  BuildContext anchor, {
   required bool canTake,
   required bool canRemove,
 }) {
-  return showAppSheet<AvatarPhotoAction>(
-    context,
-    bare: true,
-    builder: (sheetContext) {
+  return showAnchoredPopoverOrSheet<AvatarPhotoAction>(
+    anchor,
+    popoverBuilder: (sheetContext) {
       void pick(AvatarPhotoAction action) =>
           Navigator.of(sheetContext).pop(action);
       return AppSheetMenu(
