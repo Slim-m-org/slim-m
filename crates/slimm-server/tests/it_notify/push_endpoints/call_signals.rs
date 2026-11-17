@@ -115,7 +115,12 @@ impl Call {
         response.status()
     }
 
+    /// Joins first: a ring only goes out once its caller is in the call.
     async fn ring(&self) {
+        assert_eq!(
+            self.send("POST", "heartbeat", &self.alice_token).await,
+            axum::http::StatusCode::NO_CONTENT
+        );
         assert_eq!(
             self.send("POST", "ring", &self.alice_token).await,
             axum::http::StatusCode::OK

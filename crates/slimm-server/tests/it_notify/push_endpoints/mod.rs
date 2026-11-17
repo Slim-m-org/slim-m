@@ -21,5 +21,6 @@ mod harness;
 mod mass_authority;
 mod missed_call;
 mod reply_ping;
+mod ring_do_not_disturb;
 mod ring_refusals;
 mod voice_notice;

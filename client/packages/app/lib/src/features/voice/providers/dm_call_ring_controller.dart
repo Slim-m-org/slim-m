@@ -14,8 +14,9 @@
 ///   No system message is written, so this feature needed no migration and
 ///   adds no new moderation surface; a transcript of who called whom is a
 ///   deliberate absence, not an oversight.
-/// - **Ringing is not gated on quiet hours**, and follows the account's own
-///   notification preference the same way an ordinary DM message already
+/// - **Do not disturb blocks a ring outright**, on the server, so it never
+///   reaches this controller. Quiet hours do not; ringing follows the
+///   account's own notification preference the same way an ordinary DM message already
 ///   does: a `nothing` preference silences it, `mentions`/`everything` both
 ///   let it through, since a DM already counts as addressed to that account
 ///   either way. See `push::call_ring`'s own module doc on the server for
@@ -35,64 +36,10 @@ import 'dm_call.dart';
 import '../../channels/providers/ensure_dm_channel.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import 'dm_call_ring_state.dart';
 import 'voice_controller.dart';
 
-/// An incoming ring this account has not yet answered or declined.
-class IncomingDmCallRing {
-  const IncomingDmCallRing({
-    required this.channelId,
-    required this.ringId,
-    required this.callerId,
-  });
-
-  final String channelId;
-  final String ringId;
-  final String callerId;
-}
-
-/// An outgoing ring this account started, waiting on the other side to
-/// answer, decline, or let it time out.
-class OutgoingDmCallRing {
-  const OutgoingDmCallRing({required this.channelId, required this.ringId});
-
-  final String channelId;
-  final String ringId;
-}
-
-/// What the system call screen is doing about an incoming call right now.
-///
-/// CallKit and the websocket announce the same ring separately, and only the
-/// websocket says which channel it is, so this is how the two are joined.
-enum CallKitPhase { none, ringing, answered }
-
-class DmCallRingState {
-  const DmCallRingState({
-    this.incoming,
-    this.outgoing,
-    this.callKit = CallKitPhase.none,
-  });
-
-  final IncomingDmCallRing? incoming;
-  final OutgoingDmCallRing? outgoing;
-  final CallKitPhase callKit;
-
-  /// The ring the in-app overlay should show: none while CallKit is already
-  /// ringing for it, since two prompts for one call is the bug this exists for.
-  IncomingDmCallRing? get visibleIncoming =>
-      callKit == CallKitPhase.none ? incoming : null;
-
-  DmCallRingState copyWith({
-    IncomingDmCallRing? incoming,
-    bool clearIncoming = false,
-    OutgoingDmCallRing? outgoing,
-    bool clearOutgoing = false,
-    CallKitPhase? callKit,
-  }) => DmCallRingState(
-    incoming: clearIncoming ? null : (incoming ?? this.incoming),
-    outgoing: clearOutgoing ? null : (outgoing ?? this.outgoing),
-    callKit: callKit ?? this.callKit,
-  );
-}
+export 'dm_call_ring_state.dart';
 
 class DmCallRingController extends StateNotifier<DmCallRingState> {
   DmCallRingController(this._ref) : super(const DmCallRingState()) {
@@ -109,6 +56,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
       if (previous != null && next == null && _answeredRingId != null) {
         _endCallKit();
       }
+      if (next != null) _joinedCall(next);
     });
   }
 
@@ -236,16 +184,36 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     }
   }
 
-  /// A DM's two participants are the whole audience for its own
-  /// `call.ringing`/`call.ring_ended` frames, so the caller's own client
-  /// receives both events too; [_onEvent] tells its own ring apart from an
-  /// incoming one by comparing `callerId` against this session's own id.
+  /// This device is in [channelId]'s call now: a ring for it is answered here,
+  /// on the system call screen too, and an earlier unanswered ring is old news.
+  void _joinedCall(String channelId) {
+    if (state.incoming?.channelId == channelId) {
+      final callKitRinging = state.callKit == CallKitPhase.ringing;
+      state = state.copyWith(
+        clearIncoming: true,
+        callKit: callKitRinging ? CallKitPhase.none : null,
+      );
+      if (callKitRinging) _endCallKit();
+    }
+    _forgetLastOutgoingEnd(channelId);
+  }
+
+  void _forgetLastOutgoingEnd(String channelId) {
+    if (state.lastOutgoingEnd?.channelId == channelId) {
+      state = state.copyWith(clearLastOutgoingEnd: true);
+    }
+  }
+
+  /// `call.ringing` reaches only the callees, but a server older than that
+  /// also sent it to the caller, so [_onEvent] still skips its own ring.
   void _onEvent(api.ServerEvent event) {
     switch (event) {
       case api.CallRinging(:final channelId, :final ringId, :final callerId):
-        // Own ring already known from starting it; see this method's own doc.
         final selfId = _ref.read(apiProvider).session.tokens?.userId;
         if (callerId == selfId || ringId == _answeredRingId) return;
+        final inThatCall =
+            _ref.read(voiceControllerProvider).channelId == channelId;
+        if (inThatCall && !_answerIsFresh) return;
         final ring = IncomingDmCallRing(
           channelId: channelId,
           ringId: ringId,
@@ -261,8 +229,8 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         } else {
           unawaited(ensureChannelLoaded(channelId));
         }
-      case api.CallRingEnded(:final ringId, :final outcome):
-        _onRingEnded(ringId, outcome);
+      case api.CallRingEnded(:final channelId, :final ringId, :final outcome):
+        _onRingEnded(channelId, ringId, outcome);
       default:
         break;
     }
@@ -276,8 +244,14 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// running alone: exactly the resource-waste problem this feature exists
   /// to close. [api.CallOutcome.answered] and
   /// [api.CallOutcome.canceled] need nothing further here.
-  void _onRingEnded(String ringId, api.CallOutcome outcome) {
+  void _onRingEnded(String channelId, String ringId, api.CallOutcome outcome) {
     _rememberEnded(ringId, outcome);
+    final lastEnd = state.lastOutgoingEnd;
+    if (outcome == api.CallOutcome.answered &&
+        lastEnd?.channelId == channelId &&
+        lastEnd?.ringId != ringId) {
+      state = state.copyWith(clearLastOutgoingEnd: true);
+    }
     if (state.incoming?.ringId == ringId) {
       state = state.copyWith(clearIncoming: true, callKit: CallKitPhase.none);
       _endCallKit();
@@ -288,15 +262,40 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     final outgoing = state.outgoing;
     if (outgoing != null && outgoing.ringId == ringId) {
       state = state.copyWith(clearOutgoing: true);
-      _hangUpIfNobodyJoined(outgoing.channelId, outcome);
+      _hangUpIfNobodyJoined(outgoing.channelId, ringId, outcome);
     }
   }
 
-  void _hangUpIfNobodyJoined(String channelId, api.CallOutcome outcome) {
-    final shouldHangUp =
-        outcome == api.CallOutcome.declined ||
-        outcome == api.CallOutcome.timedOut;
-    if (shouldHangUp) _hangUpIfStillOn(channelId);
+  void _hangUpIfNobodyJoined(
+    String channelId,
+    String ringId,
+    api.CallOutcome outcome, {
+    bool doNotDisturb = false,
+  }) {
+    final reason = switch (outcome) {
+      api.CallOutcome.declined => OutgoingRingEndReason.declined,
+      api.CallOutcome.timedOut when doNotDisturb =>
+        OutgoingRingEndReason.doNotDisturb,
+      api.CallOutcome.timedOut => OutgoingRingEndReason.noAnswer,
+      _ => null,
+    };
+    if (reason == null || _someoneElseIsIn(channelId)) return;
+    state = state.copyWith(
+      lastOutgoingEnd: OutgoingRingEnd(
+        channelId: channelId,
+        ringId: ringId,
+        reason: reason,
+      ),
+    );
+    _hangUpIfStillOn(channelId);
+  }
+
+  /// A ring can end unanswered on a call that is live anyway, say one joined
+  /// through a server older than the one that ends such a ring as answered.
+  bool _someoneElseIsIn(String channelId) {
+    final voice = _ref.read(voiceControllerProvider);
+    return voice.channelId == channelId &&
+        voice.participants.any((participant) => !participant.isLocal);
   }
 
   void _rememberEnded(String ringId, api.CallOutcome outcome) {
@@ -321,12 +320,26 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// before ringing existed. There is nothing durable to retry, and no
   /// persistent error state worth surfacing for a signal this transient.
   Future<void> startOutgoingRing(String channelId) async {
+    if (state.lastOutgoingEnd?.channelId == channelId) {
+      state = state.copyWith(clearLastOutgoingEnd: true);
+    }
     try {
       final started = await _ref.read(apiProvider).ringDmCall(channelId);
       if (!mounted) return;
+      final everyoneOnDnd =
+          started.timeoutMs == 0 && started.doNotDisturb.isNotEmpty;
+      if (everyoneOnDnd) {
+        _hangUpIfNobodyJoined(
+          channelId,
+          started.ringId,
+          api.CallOutcome.timedOut,
+          doNotDisturb: true,
+        );
+        return;
+      }
       final endedAs = _endedRings[started.ringId];
       if (endedAs != null) {
-        _hangUpIfNobodyJoined(channelId, endedAs);
+        _hangUpIfNobodyJoined(channelId, started.ringId, endedAs);
         return;
       }
       state = state.copyWith(
@@ -384,7 +397,11 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
   /// `call.ring_ended` that will never arrive). [SyncController.start] calls
   /// this on every (re)connect, `DmCallActivityController.clear`'s own shape.
   void clear() {
-    if (mounted) state = DmCallRingState(callKit: state.callKit);
+    if (!mounted) return;
+    state = DmCallRingState(
+      callKit: state.callKit,
+      lastOutgoingEnd: state.lastOutgoingEnd,
+    );
   }
 
   @override

@@ -8800,6 +8800,18 @@ paths:
         ringing is meaningless for any other channel shape, and a caller's own
         personal space has nobody on the other end to ring. A group DM rings
         every other participant, and the first to join answers for all.
+        When anyone is already in the call the caller is joining a live call:
+        nobody is rung, the ring ends as `answered` at once and `timeout_ms`
+        is 0. "In the call" means a recent heartbeat with no leave reported by
+        the SFU since.
+
+
+        Nobody on Do not disturb is rung, on any device, push included; those
+        currently connected are listed in `do_not_disturb` (presence shows the
+        rest offline). When nobody else is left the ring ends at once as
+        `timed_out` (`timeout_ms` 0) and leaves a missed call in the DM,
+        without a push. A ring still outstanding for the channel is ended
+        first, without a record of its own.
 
 
         Publishes a live `call.ringing` event to the other participants and, in
@@ -8807,6 +8819,12 @@ paths:
         notification preference allows it - see `call.ringing`'s own schema doc for exactly
         what that means. A second ring for the same channel replaces whatever
         was already outstanding rather than stacking a second one.
+
+
+        Nobody is rung into an empty room: until the caller is in the call
+        (their first `POST /channels/{channelId}/voice/heartbeat`) the ring is
+        held, and one whose caller never joins ends as `canceled` without a
+        call record.
 
 
         The response's `timeout_ms` is how long the server itself will wait
@@ -19330,7 +19348,16 @@ components:
           description: >-
             How long the server waits for an answer before giving up on this
             ring on its own; a client renders its own countdown from this
-            value rather than a hard-coded duration.
+            value rather than a hard-coded duration. 0 when the ring already
+            ended because nobody was left to ring.
+        do_not_disturb:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >-
+            Connected participants left unrung because they are on Do not
+            disturb. Absent from servers older than this field.
 
     IncomingDmCallRings:
       type: object
@@ -22900,9 +22927,10 @@ components:
       type: object
       required: [type, channel_id, ring_id, caller_id]
       description: >
-        A DM call ring started. Reaches only the two DM participants, the
-        ordinary VIEW_CHANNEL check every voice event already uses - a DM's
-        own permission model grants that to nobody else, ADMINISTRATOR
+        A DM call ring started. Reaches only the participants actually being
+        rung, never the caller, who already has the ring from its own
+        response. A DM's own permission model grants VIEW_CHANNEL to nobody
+        outside it, ADMINISTRATOR
         included, and a blocked party is refused before a ring can ever be
         started (CONNECT is one of the bits a block removes). `ring_id` names
         this specific attempt, distinguishing it from an immediate retry, so

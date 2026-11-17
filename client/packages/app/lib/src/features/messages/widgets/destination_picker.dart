@@ -120,7 +120,8 @@ class _DestinationPickerState extends ConsumerState<DestinationPicker> {
               icon: const Icon(AppIcons.search),
               semanticLabel: widget.searchSemanticLabel,
               onChanged: (_) => setState(() => _highlighted = 0),
-              onSubmitted: (_) => _pickHighlighted(),
+              // On touch no row shows as highlighted, so submitting picks nothing.
+              onSubmitted: touch ? null : (_) => _pickHighlighted(),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),

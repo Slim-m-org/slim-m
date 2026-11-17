@@ -203,6 +203,7 @@ async fn heartbeat(
             .hub
             .publish(Event::VoiceActivityChanged { channel_id });
     }
+    self::voice_ring::announce_if_pending(&state, channel_id, ctx.user_id);
     if let Some((ring_id, caller_id)) = answered {
         state.hub.publish(Event::CallRingEnded {
             channel_id,
@@ -244,12 +245,16 @@ async fn forget_heartbeat(
         super::watch_session::end_for_departed(&state, ctx.user_id, channel_id).await?;
     }
     // See this function's own doc for why this runs regardless of the above.
-    if let Some(ring_id) = state.voice.rings().cancel(channel_id, ctx.user_id) {
+    if let Some((ring_id, announced)) = state.voice.rings().cancel(channel_id, ctx.user_id) {
         state.hub.publish(Event::CallRingEnded {
             channel_id,
             ring_id,
             outcome: CallRingOutcome::Canceled,
         });
+        // A ring nobody heard is no missed call.
+        if !announced {
+            return Ok(StatusCode::NO_CONTENT);
+        }
         self::voice_ring::record_call(
             &state,
             channel_id,

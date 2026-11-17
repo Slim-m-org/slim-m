@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'create_channel_sheet.dart';
@@ -188,7 +189,11 @@ class AddChannelGlyph extends StatelessWidget {
     required this.categoryName,
     required this.revealed,
     required this.onFocusChange,
+    this.initialKind = 'text',
   });
+
+  /// The kind the sheet starts on: `voice` from a category for calls.
+  final String initialKind;
 
   /// Null for the implicit uncategorised section, which is what the create
   /// route already means by an absent category.
@@ -205,7 +210,7 @@ class AddChannelGlyph extends StatelessWidget {
       semanticLabel: 'Create a channel in $categoryName',
       onPressed: () => showCreateChannelSheet(
         context,
-        initialKind: 'text',
+        initialKind: initialKind,
         categoryId: categoryId,
       ),
     );
@@ -235,6 +240,16 @@ class CategoryMenuGlyph extends StatelessWidget {
     icon: AppIcons.moreVertical,
     onPressed: onPressed,
   );
+}
+
+/// `voice` for a category of calls: every channel in it is voice, or it has
+/// none yet and its name says voice. Anything else starts on `text`.
+String kindToAddIn(ChannelCategoryRow? category, List<Channel> channels) {
+  if (category == null) return 'text';
+  final forCalls = channels.isEmpty
+      ? category.name.toLowerCase().contains('voice')
+      : channels.every((c) => c.kind == 'voice');
+  return forCalls ? 'voice' : 'text';
 }
 
 /// The reveal and spacing every section header's `+` shares; what it does is

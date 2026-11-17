@@ -184,7 +184,30 @@ pub async fn sweep_stale_call_rings_at(
     push: &crate::push::PushSender,
     now: std::time::Instant,
 ) {
-    for (channel_id, ring_id, caller_id) in voice.rings().sweep_stale_at(now) {
+    for stale in voice.rings().sweep_stale_at(now) {
+        let (channel_id, ring_id, caller_id) = (stale.channel_id, stale.ring_id, stale.caller_id);
+        // The caller never joined, so nobody was rung and there is no room to release.
+        if !stale.announced {
+            hub.publish(hub::Event::CallRingEnded {
+                channel_id,
+                ring_id,
+                outcome: voice::CallRingOutcome::Canceled,
+            });
+            continue;
+        }
+        // Someone else is with the caller, so the call goes on and nobody missed it.
+        let live = voice
+            .in_call_at(channel_id, now)
+            .iter()
+            .any(|user| *user != caller_id);
+        if live {
+            hub.publish(hub::Event::CallRingEnded {
+                channel_id,
+                ring_id,
+                outcome: voice::CallRingOutcome::Answered,
+            });
+            continue;
+        }
         hub.publish(hub::Event::CallRingEnded {
             channel_id,
             ring_id,

@@ -44,7 +44,7 @@ There is no per-user "watching" state today, so the pick is the first remote pub
 - It renders `VoiceController.screenShareViewFor` and `cameraViewFor`, the same view the call screen and the fullscreen route render.
   Moving between inline, mini and fullscreen is a reparent, never a second subscription or a second LiveKit connection.
 - It is draggable and snaps to one of four corners, using the fling velocity so a flick throws it.
-  The corner lives in `miniPlayerCornerProvider` for the session and is not persisted.
+  The corner lives in `miniPlayerCornerProvider` and is remembered on the device (amended 2026-11-17: beta testers moved it out of the way of their messages every call).
 - Tapping the video returns to the call, the same navigation the voice strip's back button performs.
   The card also has mute, leave, and a hide button.
   Hide keeps the call running and hides the card until the channel changes.

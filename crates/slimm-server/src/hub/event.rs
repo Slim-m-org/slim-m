@@ -281,9 +281,8 @@ pub enum Event {
     /// retry, and so [`Event::CallRingEnded`] can name exactly which ring it
     /// concerns.
     ///
-    /// Reaches only the two DM participants, the ordinary `VIEW_CHANNEL`
-    /// check every voice event already uses - a DM's own permission model
-    /// (`store/dms.rs`) grants that to nobody else, `ADMINISTRATOR` included.
+    /// Reaches only `callees`, on top of the ordinary `VIEW_CHANNEL` check:
+    /// the caller already knows its own ring from the route's response.
     /// A blocked party is refused before this is ever published: `CONNECT`
     /// is one of the bits a block removes, and starting a ring is gated on
     /// it the same way minting a token already is.
@@ -291,6 +290,8 @@ pub enum Event {
         channel_id: ChannelId,
         ring_id: CallRingId,
         caller_id: UserId,
+        /// Who is actually rung; the frame reaches nobody else, the caller included.
+        callees: Arc<[UserId]>,
     },
     /// A ring (started by [`Event::CallRinging`]) reached a terminal state:
     /// answered, declined, canceled by the caller, or timed out unanswered.

@@ -214,6 +214,13 @@ pub(super) async fn capture_kind_entries() -> Vec<KindEntry> {
     let dm = dm["channel_id"].as_str().unwrap().to_owned();
     post(
         &app,
+        &format!("/channels/{dm}/voice/heartbeat"),
+        Some(&caller_token),
+        None,
+    )
+    .await;
+    post(
+        &app,
         &format!("/channels/{dm}/voice/ring"),
         Some(&caller_token),
         None,

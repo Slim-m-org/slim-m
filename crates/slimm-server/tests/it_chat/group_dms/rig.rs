@@ -153,7 +153,16 @@ pub(crate) fn member_ids(group: &Value) -> Vec<String> {
         .collect()
 }
 
+/// The caller joins the call first: a ring only goes out once they are in it.
 pub(crate) async fn ring(h: &Harness, channel: &str, who: &Person) -> StatusCode {
+    call(
+        h,
+        "POST",
+        &format!("/channels/{channel}/voice/heartbeat"),
+        who,
+        None,
+    )
+    .await;
     call(
         h,
         "POST",

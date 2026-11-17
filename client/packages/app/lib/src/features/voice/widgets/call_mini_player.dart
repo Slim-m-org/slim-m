@@ -32,6 +32,7 @@ import '../../../routing/routes.dart';
 import '../screens/dm_call_pane.dart';
 import 'focusable_video_press.dart';
 import '../../channels/widgets/channel_rail.dart';
+import '../../../widgets/floating_clearance.dart';
 
 /// Room kept clear at the bottom of the pane for a one-line composer and its
 /// typing line; a draft that grows it is measured, see [composerExtentProvider].
@@ -43,6 +44,8 @@ const miniPlayerHeaderReserve = 60.0;
 
 const _compactPlayerWidth = 192.0;
 const _widePlayerWidth = 272.0;
+
+typedef _Fit = ({Size player, MiniPlayerInsets insets, bool compact});
 
 /// Whether the mini-player is on screen and where; exposed for tests.
 const miniPlayerKey = Key('call_mini_player');
@@ -95,25 +98,37 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
         !dismissed &&
         !widget.keyboardUp;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        widget.child,
-        if (visible)
-          LayoutBuilder(
-            builder: (context, box) =>
-                _positioned(context, box.biggest, feed, callChannel),
-          ),
-      ],
+    return LayoutBuilder(
+      builder: (context, box) {
+        final region = box.biggest;
+        final fit = visible ? _fit(context, region) : null;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            FloatingClearance(
+              bottom: fit == null ? 0 : _bottomClearance(fit),
+              child: widget.child,
+            ),
+            if (fit != null) _positioned(region, fit, feed!, callChannel),
+          ],
+        );
+      },
     );
   }
 
-  Widget _positioned(
-    BuildContext context,
-    Size region,
-    MiniPlayerFeed feed,
-    String? callChannel,
-  ) {
+  /// How far a card resting in a bottom corner reaches above the composer.
+  double _bottomClearance(_Fit fit) {
+    final corner = ref.watch(miniPlayerCornerProvider);
+    final bottom =
+        corner == MiniPlayerCorner.bottomLeft ||
+        corner == MiniPlayerCorner.bottomRight;
+    if (!bottom) return 0;
+    final above = fit.insets.bottom + fit.player.height;
+    return math.max(0, above - ref.watch(composerExtentProvider));
+  }
+
+  /// The card's size and keep-out insets, or null where it does not fit.
+  _Fit? _fit(BuildContext context, Size region) {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
     // Compact has the call strip right below, so the card is only its video.
     final rowHeight = AppTouchTargets.of(context)
@@ -132,9 +147,18 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
     );
     if (region.width < player.width + 2 * insets.side ||
         region.height < player.height + insets.top + insets.bottom) {
-      return const SizedBox.shrink();
+      return null;
     }
+    return (player: player, insets: insets, compact: compact);
+  }
 
+  Widget _positioned(
+    Size region,
+    _Fit fit,
+    MiniPlayerFeed feed,
+    String? callChannel,
+  ) {
+    final (:player, :insets, :compact) = fit;
     final corner = ref.watch(miniPlayerCornerProvider);
     final origin = _dragOrigin ?? cornerOrigin(corner, region, player, insets);
     return Stack(
@@ -167,15 +191,21 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
                 player,
                 insets,
               );
-              ref.read(miniPlayerCornerProvider.notifier).state = landed;
+              moveMiniPlayer(ref, landed);
               setState(() => _dragOrigin = null);
             },
-            child: _MiniPlayerCard(
-              feed: feed,
-              compact: compact,
-              onReturn: () => _returnToCall(callChannel),
-              onHide: () =>
-                  ref.read(miniPlayerDismissedProvider.notifier).state = true,
+            // A grab cursor is the only sign on a pointer that the card moves.
+            child: MouseRegion(
+              cursor: _dragOrigin == null
+                  ? SystemMouseCursors.grab
+                  : SystemMouseCursors.grabbing,
+              child: _MiniPlayerCard(
+                feed: feed,
+                compact: compact,
+                onReturn: () => _returnToCall(callChannel),
+                onHide: () =>
+                    ref.read(miniPlayerDismissedProvider.notifier).state = true,
+              ),
             ),
           ),
         ),

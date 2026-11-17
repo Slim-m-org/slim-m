@@ -209,6 +209,20 @@ void main() {
     expect(rig.ring.visibleIncoming, isNull);
   });
 
+  test('joining the call in the app ends the CallKit ring', () async {
+    final rig = await _rig();
+    await rig.nativeSends('ringing');
+    rig.events.add(_ringFrame);
+    await rig.settle();
+
+    rig.voice.connect(channelId: 'dm-1');
+    await rig.settle();
+
+    expect(rig.ended, ['uuid-1']);
+    expect(rig.ring.callKit, CallKitPhase.none);
+    expect(rig.ring.incoming, isNull);
+  });
+
   test('without CallKit the in-app ring shows as before', () async {
     final rig = await _rig();
     rig.events.add(_ringFrame);
