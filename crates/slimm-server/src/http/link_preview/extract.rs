@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Pulls the preview fields out of a page's HTML head: OpenGraph first, then
-//! the plain `<title>`/`<meta name="description">`, then Twitter card tags.
+//! Pulls the preview fields out of a page's HTML head: OpenGraph and Twitter
+//! card tags first, then the plain `<title>`/`<meta name="description">`.
 //!
 //! A focused scanner over `<meta>` and `<title>`, not a full HTML parse:
 //! these tags are a flat shape, the input is already bounded to a head-sized
@@ -38,6 +38,8 @@ pub(super) struct Preview {
     /// name a reader cannot click is less useful. Always `None` straight out
     /// of [`extract`].
     pub author_url: Option<String>,
+    /// A track's or episode's length from `music:duration`, in seconds.
+    pub duration_s: Option<u32>,
 }
 
 impl Preview {
@@ -59,6 +61,7 @@ pub(super) const MAX_FIELD_CHARS: usize = 500;
 pub(super) fn extract(html: &str) -> Option<Preview> {
     let mut p = Preview::default();
     let mut plain_title: Option<String> = None;
+    let mut plain_description: Option<String> = None;
 
     for tag in MetaTags::new(html) {
         match tag {
@@ -74,14 +77,20 @@ pub(super) fn extract(html: &str) -> Option<Preview> {
                 "twitter:title" => set(&mut p.title, content),
                 "twitter:description" => set(&mut p.description, content),
                 "twitter:image" | "twitter:image:src" => set(&mut p.image, content),
-                "description" => set(&mut p.description, content),
+                "description" => set(&mut plain_description, content),
+                "music:duration" => {
+                    p.duration_s = p.duration_s.or_else(|| duration(&content));
+                }
                 _ => {}
             },
         }
     }
-    // Only fall back to <title> when OpenGraph/Twitter gave no title.
+    // Only fall back to <title> and the plain description when OpenGraph/Twitter gave none.
     if p.title.is_none() {
         p.title = plain_title;
+    }
+    if p.description.is_none() {
+        p.description = plain_description;
     }
     if p.is_empty() { None } else { Some(p) }
 }
@@ -93,6 +102,17 @@ fn set(field: &mut Option<String>, value: String) {
             field.replace(cap(trimmed));
         }
     }
+}
+
+/// The longest `music:duration` believed, a day; anything else is a typo or a lie.
+const MAX_DURATION_S: u32 = 86_400;
+
+fn duration(content: &str) -> Option<u32> {
+    content
+        .trim()
+        .parse::<u32>()
+        .ok()
+        .filter(|s| (1..=MAX_DURATION_S).contains(s))
 }
 
 pub(super) fn cap(s: &str) -> String {
@@ -303,6 +323,16 @@ mod tests {
     }
 
     #[test]
+    fn opengraph_description_wins_over_an_earlier_plain_one() {
+        let html = "<meta name=\"description\" content=\"Listen to this episode on Spotify. A long blurb\">\
+          <meta property=\"og:description\" content=\"The Show \u{b7} Episode\">";
+        assert_eq!(
+            extract(html).unwrap().description.as_deref(),
+            Some("The Show \u{b7} Episode")
+        );
+    }
+
+    #[test]
     fn first_value_wins_for_a_repeated_field() {
         let html = "<meta property=\"og:title\" content=\"First\">\
           <meta property=\"og:title\" content=\"Second\">";
@@ -350,6 +380,16 @@ mod tests {
         let p = extract(html).unwrap();
         assert_eq!(p.title.as_deref(), Some("Fine"));
         assert_eq!(p.description, None);
+    }
+
+    #[test]
+    fn reads_a_plausible_music_duration() {
+        let track = r#"<meta name="music:duration" content="336"/><title>t</title>"#;
+        assert_eq!(extract(track).unwrap().duration_s, Some(336));
+        for bad in ["0", "-5", "86401", "3.5", "soon", ""] {
+            let html = format!(r#"<meta name="music:duration" content="{bad}"/><title>t</title>"#);
+            assert_eq!(extract(&html).unwrap().duration_s, None, "{bad}");
+        }
     }
 
     #[test]

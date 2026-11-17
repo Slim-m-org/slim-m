@@ -15,6 +15,7 @@ use url::Url;
 
 use super::extract::{Preview, extract};
 use super::oembed;
+use super::spotify;
 use super::ssrf::{GuardResolver, UrlError, validate};
 use super::video;
 
@@ -165,11 +166,8 @@ fn content_type(response: &reqwest::Response) -> String {
         .to_ascii_lowercase()
 }
 
-/// Fetches [start]'s HTML and extracts a preview, with any relative
-/// `og:image`/`og:video` resolved to an absolute, re-validated URL (an
-/// embed URL is normally already absolute, but resolved the same way for
-/// consistency) so the caller can proxy the image and [`video::detect`] can
-/// check the video. `Ok(None)` when the page loaded but offered no preview.
+/// The preview for [start]: a recognized YouTube video or Spotify item gets
+/// its provider's card, anything else the page's own tags.
 pub(super) async fn fetch_preview(
     client: &Client,
     start: &str,
@@ -181,7 +179,25 @@ pub(super) async fn fetch_preview(
             oembed::youtube_preview(client, start, video, allow_private).await,
         ));
     }
+    if spotify::is_spotify_link(start) {
+        return spotify::spotify_preview(client, start, allow_private).await;
+    }
+    Ok(fetch_page(client, start, allow_private)
+        .await?
+        .map(|(_, preview)| preview))
+}
 
+/// Fetches [start]'s HTML and extracts a preview, with any relative
+/// `og:image`/`og:video` resolved to an absolute, re-validated URL (an
+/// embed URL is normally already absolute, but resolved the same way for
+/// consistency) so the caller can proxy the image and [`video::detect`] can
+/// check the video. Returns the page's final, redirect-resolved URL beside
+/// it; `Ok(None)` when the page loaded but offered no preview.
+pub(super) async fn fetch_page(
+    client: &Client,
+    start: &str,
+    allow_private: bool,
+) -> Result<Option<(Url, Preview)>, FetchError> {
     let (final_url, response) = follow(client, start, allow_private).await?;
     let ctype = content_type(&response);
     if !ctype.contains("text/html") && !ctype.contains("application/xhtml") {
@@ -204,7 +220,7 @@ pub(super) async fn fetch_preview(
         .and_then(|v| final_url.join(v).ok())
         .map(|abs| abs.to_string());
     preview.video = video::detect(final_url.as_str(), video_url.as_deref());
-    Ok(Some(preview))
+    Ok(Some((final_url, preview)))
 }
 
 /// Fetches [start] as an image for proxying, returning its bytes. The same SSRF guard applies: the image host is as
