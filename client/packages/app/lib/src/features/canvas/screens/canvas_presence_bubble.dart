@@ -93,9 +93,12 @@ class _BadgeCorner extends StatelessWidget {
   // Clipped to the tile's rounded edge, as the badge was when it sat inside the video's own clip.
   @override
   Widget build(BuildContext context) => IgnorePointer(
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.window),
-      child: Stack(children: [Positioned(left: 6, bottom: 6, child: child)]),
+    // The tile's own label already names whose it is.
+    child: ExcludeSemantics(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.window),
+        child: Stack(children: [Positioned(left: 6, bottom: 6, child: child)]),
+      ),
     ),
   );
 }

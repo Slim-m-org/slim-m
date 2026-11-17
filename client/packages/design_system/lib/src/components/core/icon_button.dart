@@ -87,7 +87,8 @@ class AppIconButton extends StatefulWidget {
   final String? tooltip;
 
   /// Keeps [tooltip] out of what a screen reader hears, for a label that
-  /// already says it. Null keeps it out only when it repeats [semanticLabel].
+  /// already says it. Null keeps it out when it repeats [semanticLabel], and
+  /// when it only adds to the label's end the addition becomes the hint.
   final bool? excludeTooltipFromSemantics;
 
   final FocusNode? focusNode;
@@ -147,9 +148,18 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
     final outerSize = visualSize > hitTarget ? visualSize : hitTarget;
 
     final button = _visual(tokens, visualSize, radius, joined, enabled);
+    final tooltip = widget.tooltip;
+    // A tooltip that adds to the label (a shortcut, a note) is heard as that addition alone, after the name.
+    final extended = widget.excludeTooltipFromSemantics == null &&
+        tooltip != null &&
+        tooltip.length > widget.semanticLabel.length &&
+        tooltip.startsWith(widget.semanticLabel);
 
     Widget control = Semantics(
       label: widget.semanticLabel,
+      hint: extended
+          ? tooltip.substring(widget.semanticLabel.length).trim()
+          : null,
       button: true,
       enabled: enabled,
       toggled: widget.active,
@@ -167,17 +177,17 @@ class _AppIconButtonState extends State<AppIconButton> with PressTracking {
       ),
     );
 
-    if (widget.tooltip != null) {
-      // An included Tooltip's message joins the label in the accessible name, so a tooltip that only repeats the label doubled up what assistive tech announced; excluded only in that case, a genuinely different tooltip still reaches it.
+    if (tooltip != null) {
+      // An included Tooltip's message joins the label in the accessible name, so one the label already says doubled what assistive tech announced; a genuinely different tooltip still reaches it.
       control = Tooltip(
         key: _tooltip,
-        message: widget.tooltip!,
+        message: tooltip,
         showDuration: const Duration(seconds: 3),
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode:
             joined ? TooltipTriggerMode.manual : TooltipTriggerMode.longPress,
         excludeFromSemantics: widget.excludeTooltipFromSemantics ??
-            widget.tooltip == widget.semanticLabel,
+            (extended || widget.semanticLabel.contains(tooltip)),
         child: control,
       );
     }

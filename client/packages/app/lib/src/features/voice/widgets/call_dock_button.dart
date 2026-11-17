@@ -91,7 +91,7 @@ class CallDockButton extends StatelessWidget {
         key: key,
         message: tooltip,
         showDuration: const Duration(seconds: 3),
-        excludeFromSemantics: semanticLabel == tooltip,
+        excludeFromSemantics: tooltip.startsWith(semanticLabel ?? tooltip),
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode: joined || holdOpensOptions
             ? TooltipTriggerMode.manual

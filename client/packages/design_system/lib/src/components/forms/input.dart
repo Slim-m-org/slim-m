@@ -289,6 +289,13 @@ class _AppInputState extends State<AppInput> {
             : null,
       );
 
+  /// A placeholder the label already says would be announced after it again.
+  bool get _hintRepeatsLabel {
+    final placeholder = widget.placeholder;
+    if (placeholder == null || placeholder.isEmpty) return false;
+    return widget.semanticLabel?.contains(placeholder) ?? false;
+  }
+
   Widget _textField(AppTokens tokens, TextStyle textStyle) {
     return TextField(
       controller: widget.controller,
@@ -320,7 +327,17 @@ class _AppInputState extends State<AppInput> {
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
         filled: false,
-        hintText: widget.placeholder,
+        hintText: _hintRepeatsLabel ? null : widget.placeholder,
+        hint: _hintRepeatsLabel
+            ? ExcludeSemantics(
+                child: Text(
+                  widget.placeholder!,
+                  style: textStyle.copyWith(color: tokens.textSecondary),
+                  maxLines: _multiline ? null : 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )
+            : null,
         hintStyle: textStyle.copyWith(color: tokens.textSecondary),
         contentPadding: EdgeInsets.zero,
       ),
